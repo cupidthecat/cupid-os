@@ -40205,3 +40205,140 @@ also passes.
 The candidate is ready for source integration. Its installed-seed promotion and
 production recipe handoff still require their own acceptance. This change does
 not claim Doom gameplay acceptance or completion of the remaining Python work.
+
+## 2026-09-27: Artifact verifier promotion profile correction
+
+The first 76-input promotion preview passed Linux verification but failed the
+Python Windows verifier with `promoted Windows import profile differs`. The
+profile selector admitted the historical 66-input ANSI and 73-input UTF-8 plans
+but omitted the accepted 76-input artifact-verifier plan. A focused regression
+reproduced the rejection for all six tool roles.
+
+The selector now admits that exact plan digest with count 76 and keeps both
+historical profiles. Tests reject wrong counts, noninteger counts, unknown
+roles, unknown plans and mixed historical-plan/new-count pairs. All 22 Windows
+profile methods pass, and the isolated promotion preview verifies both proposed
+manifests and independently reproduces the paired release record. No installed
+seed changed. Fresh staged proofs from accepted commit `ec896462` remain in
+progress; the preview used the preceding accepted candidate proof only to test
+promotion metadata. The correction changes Python verification and its tests,
+not the 76 producer inputs.
+
+The proposed-seed regression replay exposed fixtures that rebuilt historical
+plans from installed plans without removing newly added modules. The fixtures
+now reconstruct the older closure and retain exact digest checks. Parent tests
+name their historical tuples explicitly, and mixed-profile mutations assert
+that they change the value. A release-identity mutation now flips its first
+character instead of sometimes writing the original value. All 67 focused
+methods pass against both the proposed and installed seeds on both hosts.
+These fixture changes preserve earlier-generation coverage.
+
+The fresh paired proofs reproduce the proposed 76-input seeds. After applying
+that pair, the broader regression run found three historical policy-fixture
+failures and a publication verifier still pinned to the preceding seed plan.
+The fixtures now use explicit historical plans and parent tuples, with checks
+that negative mutations actually change a value. The publication verifier now
+expects the promoted Linux seed plan. Its reviewed manifest hash, exact source
+inventory and artifact checks remain required; producer inputs are unchanged.
+
+All fifteen promoted regression modules pass on Windows after these corrections.
+Linux passes the first fourteen; its checked runner reports repository-root
+drift while a concurrent policy suite creates its temporary directory there.
+That scheduling error requires an isolated replay, not a weaker reader check.
+Both promoted Cupid-built artifact policy contracts pass all 51 methods.
+Full publication and isolated runner replays are in progress. Promotion is not
+yet accepted, and the production artifact verification command remains Python.
+
+The isolated 26-method manifest runner suite now passes on both hosts, with
+all captured inputs unchanged. The root-drift failure does not recur without
+the concurrent policy suite. Full publication remains in progress.
+
+Independent promotion audits verify 345 unique regression methods per host
+against the captured source, including the isolated runner replay. Windows
+records seven platform skips and Linux two. The exported reader fixtures now
+contain 4,901 cases; both promoted Cupid-built callers match every expected
+result. A separate audit rehashes their sources, objects, programs and output
+bytes, along with the 51 checked policy methods per host.
+
+Fresh promoted-seed bootstrap proofs and kernel builds are in progress on both
+hosts. Private OS roots preserve and verify the preceding accepted image,
+artifacts and link inputs before applying the promoted source capture. The
+first Linux build stopped before compilation because copied seed files lacked
+execute permission. The private files now have that permission, preparation
+preserves it, and a separate replay retains the initial failure evidence.
+
+The installed promoted verifier passes 28 supplemental cases per host across
+ASCII, accented, Japanese and supplementary-character paths. These fixtures
+retain the actual reviewed release, both manifests and all twelve seed tools;
+the four ordinary artifacts use small metadata fixtures. Each run preserves
+its input tree. Size, release, manifest, same-size tool corruption and extra
+seed-member mutations fail, and restoring the inputs succeeds. This tests the
+installed verifier; full OS artifact and boot acceptance remain separate.
+
+The Linux promoted-seed bootstrap now passes independent verification. All
+34 stage-three/four artifacts match, the 76 producer inputs match their
+captured bytes, and all six converged tool images reproduce the installed
+promoted payloads. The audit also rehashes all 1,533 captured source files and
+checks the expected behavior inventory and executable format. Windows
+self-bootstrap, full publication and paired OS acceptance remain in progress.
+
+Windows self-bootstrap has also completed. The paired independent audit
+verifies all 41 Windows and 34 Linux fixed-point artifacts, identical producer
+snapshots, complete captured source bytes, executable formats and behavior
+inventories. All twelve converged tool images reproduce the installed promoted
+seed payloads. Windows converged Unicode-path checks and full publication/OS
+acceptance remain in progress.
+
+All 28 converged Windows Unicode-path commands now pass across four path
+categories and all six tool roles. The result is bound to the independently
+verified Windows proof and the captured fixture bytes. Full publication and
+paired kernel/image/runtime acceptance are still pending.
+
+Linux kernel acceptance now passes independent rehashing of all 1,533 captured
+sources, sixteen artifacts and 431 link inputs. Every ordinary artifact and
+link input reproduces the preceding accepted build, all policy sizes match,
+and the disk image remains unchanged. The installed native artifact verifier
+also accepts this real OS artifact cohort. Windows kernel, full publication,
+image and runtime acceptance remain pending.
+
+Both promoted-seed kernel builds now pass independent paired verification.
+The audit rehashes all 1,533 captured sources, sixteen artifacts and 431 link
+inputs per host; every artifact and link input matches across Windows and
+Linux, and both retained disk images remain unchanged. The evidence is
+`artifact-promotion-ec896462/promoted-paired-kernels-v2.json`. Windows image,
+user-program and private four-CPU boot acceptance is running. Full Linux
+publication and paired image/runtime acceptance remain pending.
+
+The promoted Linux publication now passes its staged build, checked manifest
+verification and Python publication/input checks. It records 88 publication
+inputs, 76 producer inputs and 22 artifacts; its manifest SHA-256 is
+`0c2829482ee07f95e48560bda90aa9e3c12c67c5a70144dbd209df871eeb1a10`.
+Hosted contract checks and Linux OS acceptance have started. Both hosts still
+need completed image/user/runtime acceptance before this promotion can be
+accepted.
+
+Hosted acceptance now passes all three commands: conditional-active,
+active-corpus and self-host-link-tools. The independent audit rehashes all
+1,533 captured sources, the publication manifest, command logs and seven
+resulting i386 executables. Evidence is retained in
+`artifact-promotion-ec896462/linux-promoted-hosted-verification-v1.json`.
+Both full OS image/user/runtime acceptance runs remain in progress.
+
+Linux image, user-program, native artifact and private four-CPU max/e1000
+boot acceptance now pass. Independent verification rehashes all 1,533 captured
+sources, sixteen artifacts, 431 link inputs, three user programs, images and
+logs. It also checks the preserved previous publication and transferred new
+publication. The smoke passes disassembly, shell completion and SMP checks
+without changing its source image. Evidence is retained in
+`artifact-promotion-ec896462/linux-independent-os-acceptance-v1.json`.
+Windows OS acceptance and the final paired image/user comparison remain pending.
+
+Windows OS acceptance now passes image, user-program, native artifact and
+private four-CPU max/e1000 boot checks. The final paired audit rehashes all
+1,533 captured sources, sixteen artifacts and 431 link inputs per host, checks
+both smoke logs and preserved source images, and verifies matching disk images
+and all three user executables. Linux publication transfer and preservation
+also pass. Evidence is retained in
+`artifact-promotion-ec896462/paired-os-acceptance-v1.json`. Final documentation,
+Git byte binding and the promotion commit remain to be completed; production
+artifact verification is still Python-owned.

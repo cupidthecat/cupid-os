@@ -48,6 +48,7 @@ class PairTests(unittest.TestCase):
             parent_plan_seed_manifest_sha256=linux_parent,
             native_build_plan_sha256=manifest_tests.seed._build_plan_sha256(
                 manifest_tests.seed._windows_build_plan(linux["build_plan"], utf8=True)))
+        record["linux_plan_sha256"] = linux["build_plan_sha256"]
         record["windows_plan_sha256"] = windows["provenance"]["native_build_plan_sha256"]
         left, right = bind(linux, windows)
         self.check(record, left, right)

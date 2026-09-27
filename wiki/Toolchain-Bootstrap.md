@@ -9,10 +9,26 @@ max/e1000 disassembly, shell and SMP smokes pass. Independent paired verificatio
 checks 1,533 source inputs, sixteen artifacts and 431 link inputs per host;
 images and all three user programs match. ADR 0408 records the boundary and limits.
 
-Installed seeds still use the accepted 73-input profile, and production
-verification remains Python-owned. Promoting the tested candidate and switching
-the production command are the next steps; the audit remains at 440 CupidBuild
-actions and twelve Python actions.
+The installed Linux and Windows seed pair comes from accepted source
+`ec896462586597893dd197697ee3b68ce2c8e69b` and its 76-input snapshot. Both
+promoted-seed self-bootstrap proofs reproduce all twelve installed tools,
+with 41 Windows and 34 Linux stage-three/four artifacts matching. All 28
+converged Windows Unicode-path commands pass. Promotion regressions cover
+345 unique methods per host, with platform skips recorded separately; checked
+callers pass 4,901 reader cases and 51 policy methods per host.
+
+Full publication verifies 22 artifacts, 88 publication inputs and 67 stage
+pairs. Hosted acceptance passes three commands and checks seven resulting
+i386 executables. Independent paired OS acceptance rehashes 1,533 sources,
+sixteen artifacts and 431 link inputs per host. Images and all three user
+programs match; both private four-CPU max/e1000 disassembly, shell and SMP
+smokes pass without changing their source images. The image SHA-256 is
+`60743ecd68d29b13b7e63090f272f73cfffd14fe01772d273b10288a58b633d0`.
+
+The promoted CupidBuild carries native `verify-artifact-sizes`. Production
+still invokes the Python verifier, so ownership remains 440 CupidBuild and
+twelve Python actions. Switching that Make edge and its dependency audit is
+the next implementation step. ADR 0408 describes the native operation.
 
 The installed UTF-8 seed pair from accepted commit `72170b06` passes promotion
 acceptance. Its 73 producer inputs match the reviewed snapshot. Both hosts pass

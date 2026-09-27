@@ -2,7 +2,7 @@
 
 Date: 2026-09-26
 
-Status: Accepted for source integration; seed promotion and production handoff pending
+Status: Accepted for source integration and seed promotion; production handoff pending
 
 CupidBuild now combines the shared release and manifest readers, artifact policy,
 and retained filesystem observer in one read-only `verify-artifact-sizes`
@@ -21,8 +21,9 @@ succeed. Failures clear the result and bound the caller's diagnostic.
 These are sequential drift checks, not an atomic filesystem snapshot. Ordinary
 artifacts retain metadata checks; seed and metadata payloads receive hash checks.
 The release record remains reviewed repository data rather than a signature.
-The installed 73-input seeds and Python production operation remain in place
-until candidate promotion and production acceptance establish the handoff.
+The installed 76-input seeds carry this operation. The Python production
+operation remains in place until the Make edge and dependency audit transfer
+ownership together.
 
 The new producer plans include the verifier, policy module and header: 76 source
 inputs, 88 publication inputs and a 115-file union. Exact plan/count profiles and
@@ -36,3 +37,11 @@ publication and hosted acceptance pass. Both hosts pass artifact, user-program
 and private four-CPU runtime checks. Independent paired acceptance verifies
 1,533 source inputs, sixteen artifacts and 431 link inputs per host, with
 matching images and user programs.
+
+Promotion acceptance, 2026-09-27: the pair from `ec896462` reproduces all twelve
+installed payloads in fresh self-bootstrap proofs. Historical test fixtures now
+name their own plans and parents explicitly, so promotion cannot turn a negative
+mutation into a no-op. The checked publication reader pins both the new Linux
+manifest and its build plan. Both hosts pass regression, checked-reader, policy,
+real-artifact and private boot acceptance; their images and user programs match.
+The retained evidence is under `build/bootstrap/artifact-promotion-ec896462/`.

@@ -38,7 +38,8 @@ class ReleaseIdentityTests(unittest.TestCase):
                 continue
             with self.subTest(field=name):
                 record = release()
-                record[name] = value + 1 if type(value) is int else "0" + value[1:]
+                record[name] = value + 1 if type(value) is int else ("1" if value[0] == "0" else "0") + value[1:]
+                self.assertNotEqual(record[name], value)
                 with self.assertRaises(identity.ReleaseIdentityError):
                     identity.verify_release_identity_bytes(json.dumps(record).encode())
         for index in range(12):

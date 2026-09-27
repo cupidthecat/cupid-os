@@ -6,6 +6,7 @@ import unittest
 from unittest import mock
 
 from tools import bootstrap_toolchain as bootstrap
+from tests.test_seed_manifest import pre_artifact_plan
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class WindowsUtf8PlanTests(unittest.TestCase):
     def setUp(self):
-        self.linux = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"]
+        self.linux = pre_artifact_plan()
 
     def test_default_retains_historical_ansi_plan_identity(self):
         plan = bootstrap._windows_build_plan(self.linux)
@@ -23,10 +24,11 @@ class WindowsUtf8PlanTests(unittest.TestCase):
 
     def test_installed_profile_matches_promoted_utf8_plan(self):
         manifest = json.loads((ROOT / "bootstrap/seeds/i386-windows/manifest.json").read_bytes())
-        digest = bootstrap._build_plan_sha256(bootstrap._windows_build_plan(self.linux, utf8=True))
+        installed_plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"]
+        digest = bootstrap._build_plan_sha256(bootstrap._windows_build_plan(installed_plan, utf8=True))
         self.assertEqual(digest, manifest["provenance"]["native_build_plan_sha256"])
         self.assertEqual(digest, bootstrap.PROMOTED_WINDOWS_PLAN_SHA256)
-        self.assertEqual(manifest["provenance"]["source_input_count"], 73)
+        self.assertEqual(manifest["provenance"]["source_input_count"], bootstrap.PROMOTED_SOURCE_INPUT_COUNT)
 
     def test_promoted_profiles_select_exact_imports_for_every_role(self):
         for utf8, count in ((False, 66), (True, 73)):
@@ -51,6 +53,28 @@ class WindowsUtf8PlanTests(unittest.TestCase):
                 bootstrap._promoted_windows_imports("unknown", digest, count)
             with self.assertRaisesRegex(bootstrap.BootstrapError, "import profile differs"):
                 bootstrap._promoted_windows_imports("cupidc", "0" * 64, count)
+
+    def test_artifact_verifier_promoted_profile_requires_exact_plan_and_count(self):
+        plan = bootstrap._windows_build_plan(
+            bootstrap._candidate_build_plan(json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"]), utf8=True)
+        digest = bootstrap._build_plan_sha256(plan)
+        self.assertEqual(digest, "6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748")
+        for tool in bootstrap.CANDIDATE_TOOL_NAMES:
+            with self.subTest(tool=tool):
+                self.assertEqual(bootstrap._promoted_windows_imports(tool, digest, 76),
+                                 bootstrap._windows_utf8_imports(tool))
+        for count in (66, 73, 75, 77, True, "76"):
+            with self.subTest(count=count), self.assertRaisesRegex(
+                    bootstrap.BootstrapError, "import profile differs"):
+                bootstrap._promoted_windows_imports("cupidbuild", digest, count)
+        for wrong_plan in ("0" * 64,
+                           "a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99",
+                           "70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9"):
+            with self.subTest(plan=wrong_plan), self.assertRaisesRegex(
+                    bootstrap.BootstrapError, "import profile differs"):
+                bootstrap._promoted_windows_imports("cupidbuild", wrong_plan, 76)
+        with self.assertRaisesRegex(bootstrap.BootstrapError, "unknown.*role"):
+            bootstrap._promoted_windows_imports("unknown", digest, 76)
 
     def test_installed_windows_seed_retains_strict_verification(self):
         seed = bootstrap.verify_seed_inputs(ROOT / "bootstrap/seeds/i386-windows/manifest.json")

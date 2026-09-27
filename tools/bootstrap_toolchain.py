@@ -106,24 +106,24 @@ WINDOWS_SEED_PARENT_SOURCE_REVISION = (
     "a17c9465911da41d59b7ada71733d36c39faa5ea"
 )
 PROMOTION_PARENT_LINUX_MANIFEST_SHA256 = (
-    "da26556401dd20d039ed1175f3bf857c4c8bebd50fb52b3bd75a06b95fdf41ed"
-)
-PROMOTION_PARENT_WINDOWS_MANIFEST_SHA256 = (
-    "c715ce354c28b97c6b9c4e5702c98d368d07dff9e52bc2f0deb71ab3194d2395"
-)
-PROMOTION_PARENT_SOURCE_REVISION = (
-    "e4f2ed652e756b1abb375ec061923f5259799e01"
-)
-PROMOTED_SOURCE_INPUT_COUNT = 73
-PROMOTED_SOURCE_REVISION = "72170b06d54ae59f222e5773a96ba3f33503b495"
-PROMOTED_SOURCE_SNAPSHOT_SHA256 = (
-    "c13c87e72a54724454a761e2766fe4e34913442cbefd18985d05b6a29df972f1"
-)
-PROMOTED_LINUX_MANIFEST_SHA256 = (
     "9db461d2bc423e6a235496dc43135fcb023b0bdd7da4881c3c306aba9b872905"
 )
-PROMOTED_WINDOWS_MANIFEST_SHA256 = (
+PROMOTION_PARENT_WINDOWS_MANIFEST_SHA256 = (
     "4ac54f8369c85f975411178852d9d05b107c312b6a470fde2a5eea8dc513ce27"
+)
+PROMOTION_PARENT_SOURCE_REVISION = (
+    "72170b06d54ae59f222e5773a96ba3f33503b495"
+)
+PROMOTED_SOURCE_INPUT_COUNT = 76
+PROMOTED_SOURCE_REVISION = "ec896462586597893dd197697ee3b68ce2c8e69b"
+PROMOTED_SOURCE_SNAPSHOT_SHA256 = (
+    "0bf11fcbef634c80716cbe178434a6060a04bf5bb7d07f9ccb03d5248a0c173c"
+)
+PROMOTED_LINUX_MANIFEST_SHA256 = (
+    "dabdc048ce54c7434fd9edd602f0531ead60f425db39bc2550332d7c69d30608"
+)
+PROMOTED_WINDOWS_MANIFEST_SHA256 = (
+    "25290a99f9de273890cd98130e8ad7df5e9ffcd89010be8e285a06a380e1eaf2"
 )
 PROMOTED_LINUX_ARTIFACT_IDENTITIES = {
     "cupidasm": (
@@ -147,8 +147,8 @@ PROMOTED_LINUX_ARTIFACT_IDENTITIES = {
         "6ed09ebdad145732b70a9ea59c22c20849ec139d4b00d9cc48d1be684adaff87",
     ),
     "cupidbuild": (
-        765788,
-        "92d1ac6b9890fe8194fcfb9715d5da7b9eb05c040da26491e4b84c2c69a0b9ae",
+        865984,
+        "76bd7128c1f3bc05b768ac017838e719015238d2fd286d52baf85866697af79a",
     ),
 }
 PROMOTED_WINDOWS_ARTIFACT_IDENTITIES = {
@@ -173,15 +173,15 @@ PROMOTED_WINDOWS_ARTIFACT_IDENTITIES = {
         "be28f9605b48d39e1a825ac44130b88257cb584061c10c5e99c5f919b33de7ae",
     ),
     "cupidbuild": (
-        757760,
-        "f659897f8e74a668e62c60e2fdb430bb338fc00822831180532a7d6ae106c8c4",
+        853504,
+        "9b88e0c9197a9e14ad9a35ad0d80835c59a0d12f0b20eeaea1b8c2055073189a",
     ),
 }
 PROMOTED_LINUX_PLAN_SHA256 = (
-    "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe"
+    "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5"
 )
 PROMOTED_WINDOWS_PLAN_SHA256 = (
-    "a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99"
+    "6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748"
 )
 WINDOWS_TOOL_SEED_IMPORTS = (
     (
@@ -444,6 +444,8 @@ PROMOTED_SOURCES = (
     ('seed_manifest', '/toolchain/seed_manifest.cc', False),
     ('seed_release', '/toolchain/seed_release.cc', False),
     ('contract_parse_internal', '/toolchain/contract_parse_internal.cc', False),
+    ('cupidbuild_artifacts', '/toolchain/cupidbuild_artifacts.cc', False),
+    ('artifact_size_policy', '/toolchain/artifact_size_policy.cc', False),
 )
 PROMOTED_CUPIDBUILD_LINK = (
     'start',
@@ -456,6 +458,8 @@ PROMOTED_CUPIDBUILD_LINK = (
     'seed_manifest',
     'seed_release',
     'contract_parse_internal',
+    'cupidbuild_artifacts',
+    'artifact_size_policy',
     'runtime',
 )
 CANDIDATE_SOURCES = (
@@ -2675,7 +2679,10 @@ def _promoted_windows_imports(
     profile = (plan_sha256, source_input_count)
     if profile == ("70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9", 66):
         return _windows_imports(tool_name)
-    if profile == ("a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99", 73):
+    if profile in (
+        ("a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99", 73),
+        ("6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748", 76),
+    ):
         return _windows_utf8_imports(tool_name)
     raise BootstrapError("promoted Windows import profile differs")
 

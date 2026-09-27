@@ -39,8 +39,8 @@
       "file": "cupidbuild.elf",
       "name": "cupidbuild",
       "producer": false,
-      "sha256": "92d1ac6b9890fe8194fcfb9715d5da7b9eb05c040da26491e4b84c2c69a0b9ae",
-      "size": 765788
+      "sha256": "76bd7128c1f3bc05b768ac017838e719015238d2fd286d52baf85866697af79a",
+      "size": 865984
     }
   ],
   "build_plan": {
@@ -72,6 +72,8 @@
         "seed_manifest",
         "seed_release",
         "contract_parse_internal",
+        "cupidbuild_artifacts",
+        "artifact_size_policy",
         "runtime"
       ],
       "cupidc": [
@@ -247,27 +249,37 @@
         "gnu_extensions": false,
         "name": "contract_parse_internal",
         "path": "/toolchain/contract_parse_internal.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidbuild_artifacts",
+        "path": "/toolchain/cupidbuild_artifacts.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "artifact_size_policy",
+        "path": "/toolchain/artifact_size_policy.cc"
       }
     ],
     "startup": "/toolchain/hosted/i386-linux/start.asm",
     "workers": 2
   },
-  "build_plan_sha256": "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe",
+  "build_plan_sha256": "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5",
   "provenance": {
     "artifact_generation": "paired-stage-four-six-tool",
     "fixed_point_command": "make bootstrap-from-seed",
     "fixed_point_result": "pass",
-    "parent_seed_manifest_sha256": "da26556401dd20d039ed1175f3bf857c4c8bebd50fb52b3bd75a06b95fdf41ed",
-    "parent_seed_source_revision": "e4f2ed652e756b1abb375ec061923f5259799e01",
+    "parent_seed_manifest_sha256": "9db461d2bc423e6a235496dc43135fcb023b0bdd7da4881c3c306aba9b872905",
+    "parent_seed_source_revision": "72170b06d54ae59f222e5773a96ba3f33503b495",
     "producer_lineage": {
       "assembly": "stage-three CupidASM from the checked-seed bootstrap",
       "c": "stage-three CupidC from the checked-seed bootstrap",
       "link": "stage-three CupidLD from the checked-seed bootstrap"
     },
     "seed_generation": "stage-four",
-    "source_input_count": 73,
-    "source_revision": "72170b06d54ae59f222e5773a96ba3f33503b495",
-    "source_snapshot_sha256": "c13c87e72a54724454a761e2766fe4e34913442cbefd18985d05b6a29df972f1"
+    "source_input_count": 76,
+    "source_revision": "ec896462586597893dd197697ee3b68ce2c8e69b",
+    "source_snapshot_sha256": "0bf11fcbef634c80716cbe178434a6060a04bf5bb7d07f9ccb03d5248a0c173c"
   },
   "schema": "cupid.bootstrap-seed.v2",
   "target": {

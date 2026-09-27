@@ -9,10 +9,26 @@ max/e1000 disassembly, shell and SMP smokes pass. Independent paired verificatio
 checks 1,533 source inputs, sixteen artifacts and 431 link inputs per host;
 images and all three user programs match. ADR 0408 records the boundary and limits.
 
-Installed seeds still use the accepted 73-input profile, and production
-verification remains Python-owned. Promoting the tested candidate and switching
-the production command are the next steps; the audit remains at 440 CupidBuild
-actions and twelve Python actions.
+The installed Linux and Windows seed pair comes from accepted source
+`ec896462586597893dd197697ee3b68ce2c8e69b` and its 76-input snapshot. Both
+promoted-seed self-bootstrap proofs reproduce all twelve installed tools,
+with 41 Windows and 34 Linux stage-three/four artifacts matching. All 28
+converged Windows Unicode-path commands pass. Promotion regressions cover
+345 unique methods per host, with platform skips recorded separately; checked
+callers pass 4,901 reader cases and 51 policy methods per host.
+
+Full publication verifies 22 artifacts, 88 publication inputs and 67 stage
+pairs. Hosted acceptance passes three commands and checks seven resulting
+i386 executables. Independent paired OS acceptance rehashes 1,533 sources,
+sixteen artifacts and 431 link inputs per host. Images and all three user
+programs match; both private four-CPU max/e1000 disassembly, shell and SMP
+smokes pass without changing their source images. The image SHA-256 is
+`60743ecd68d29b13b7e63090f272f73cfffd14fe01772d273b10288a58b633d0`.
+
+The promoted CupidBuild carries native `verify-artifact-sizes`. Production
+still invokes the Python verifier, so ownership remains 440 CupidBuild and
+twelve Python actions. Switching that Make edge and its dependency audit is
+the next implementation step. ADR 0408 describes the native operation.
 
 Boundary audit, 2026-09-20; isolated extraction work, 2026-09-21; private native
 integration rebased on the UTF-8 tools, 2026-09-26. Production verification
@@ -331,3 +347,30 @@ also passes.
 The candidate is ready for source integration. Its installed-seed promotion and
 production recipe handoff still require their own acceptance. This change does
 not claim Doom gameplay acceptance or completion of the remaining Python work.
+
+## Promoted verifier identities and evidence
+
+The 76-input producer snapshot is
+`0bf11fcbef634c80716cbe178434a6060a04bf5bb7d07f9ccb03d5248a0c173c`.
+The Linux manifest SHA-256 is
+`dabdc048ce54c7434fd9edd602f0531ead60f425db39bc2550332d7c69d30608`;
+the Windows manifest SHA-256 is
+`25290a99f9de273890cd98130e8ad7df5e9ffcd89010be8e285a06a380e1eaf2`.
+Both name the accepted `72170b06` pair as their parent. The Linux and Windows
+plan hashes are `9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5`
+and `6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748`.
+
+Evidence under `build/bootstrap/artifact-promotion-ec896462/` includes
+`native-paired-self-proof-verification-v1.json`,
+`paired-promoted-regressions-v1.json`, `paired-checked-cohorts-v1.json`,
+`converged-unicode-binding-v1.json`, `linux-promoted-publication-v1.json`,
+`linux-promoted-hosted-verification-v1.json` and `paired-os-acceptance-v1.json`.
+The installed verifier also passes 28 supplemental mutation/recovery cases per
+host across four pathname categories using the actual paired seed payloads.
+The bootstrap log retains the failed profile, stale fixture, stale publication
+pin, shared-root scheduling and copied Linux execute-permission attempts.
+
+The next production change must replace the private contract build closure
+with the native command's runtime inputs, update ownership classification and
+strict graph tests, and retain the ISO-before-verification ordering. A command
+spelling change alone does not establish native production ownership.

@@ -14,13 +14,25 @@ from tests.test_seed_release_match import manifest
 from tools import bootstrap_toolchain as seed
 
 
+
+def pre_artifact_plan():
+    plan = copy.deepcopy(manifest(1)["build_plan"])
+    removed = {"artifact_size_policy", "cupidbuild_artifacts"}
+    plan["sources"] = [row for row in plan["sources"] if row["name"] not in removed]
+    plan["links"]["cupidbuild"] = [name for name in plan["links"]["cupidbuild"]
+                                  if name not in removed]
+    assert seed._build_plan_sha256(plan) == "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe"
+    return plan
+
+
 def historical_manifest(fmt):
     """Construct the earlier structural contract without changing installed seeds."""
     value = manifest(fmt)
     value["provenance"]["source_input_count"] = 59
     if fmt == 1:
         removed = {"seed_manifest", "seed_release", "contract_parse_internal"}
-        plan = value["build_plan"]
+        plan = pre_artifact_plan()
+        value["build_plan"] = plan
         plan["sources"] = [row for row in plan["sources"] if row["name"] not in removed]
         plan["links"]["cupidbuild"] = [name for name in plan["links"]["cupidbuild"]
                                       if name not in removed]
@@ -35,7 +47,7 @@ def historical_manifest(fmt):
 def candidate_manifest(fmt):
     value = manifest(fmt)
     value["provenance"]["source_input_count"] = 66
-    plan = copy.deepcopy(manifest(1)["build_plan"])
+    plan = pre_artifact_plan()
     linux_digest = seed._build_plan_sha256(plan)
     windows_digest = seed._build_plan_sha256(seed._windows_build_plan(plan))
     assert linux_digest == "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe"
@@ -57,16 +69,16 @@ def artifact_manifest(fmt):
     if fmt == 1:
         value["build_plan"] = plan
         value["build_plan_sha256"] = seed._build_plan_sha256(plan)
-        provenance["parent_seed_source_revision"] = seed.PROMOTED_SOURCE_REVISION
-        provenance["parent_seed_manifest_sha256"] = seed.PROMOTED_LINUX_MANIFEST_SHA256
+        provenance["parent_seed_source_revision"] = "72170b06d54ae59f222e5773a96ba3f33503b495"
+        provenance["parent_seed_manifest_sha256"] = "9db461d2bc423e6a235496dc43135fcb023b0bdd7da4881c3c306aba9b872905"
     else:
         provenance["linux_candidate_build_plan_sha256"] = seed._build_plan_sha256(plan)
         provenance["native_build_plan_sha256"] = seed._build_plan_sha256(
             seed._windows_build_plan(plan, utf8=True))
-        provenance["parent_execution_seed_source_revision"] = seed.PROMOTED_SOURCE_REVISION
-        provenance["parent_plan_seed_source_revision"] = seed.PROMOTED_SOURCE_REVISION
-        provenance["parent_execution_seed_manifest_sha256"] = seed.PROMOTED_WINDOWS_MANIFEST_SHA256
-        provenance["parent_plan_seed_manifest_sha256"] = seed.PROMOTED_LINUX_MANIFEST_SHA256
+        provenance["parent_execution_seed_source_revision"] = "72170b06d54ae59f222e5773a96ba3f33503b495"
+        provenance["parent_plan_seed_source_revision"] = "72170b06d54ae59f222e5773a96ba3f33503b495"
+        provenance["parent_execution_seed_manifest_sha256"] = "4ac54f8369c85f975411178852d9d05b107c312b6a470fde2a5eea8dc513ce27"
+        provenance["parent_plan_seed_manifest_sha256"] = "9db461d2bc423e6a235496dc43135fcb023b0bdd7da4881c3c306aba9b872905"
     return value
 
 
@@ -132,9 +144,12 @@ class ManifestTests(unittest.TestCase):
 
     def test_artifact_generation_rejects_mixed_plan_profiles(self):
         value = artifact_manifest(2)
-        for source in (manifest(2), candidate_manifest(2), historical_manifest(2)):
+        utf8 = candidate_manifest(2)
+        utf8["provenance"]["native_build_plan_sha256"] = "a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99"
+        for source in (utf8, candidate_manifest(2), historical_manifest(2)):
             for field in ("linux_candidate_build_plan_sha256", "native_build_plan_sha256"):
                 altered = copy.deepcopy(value)
+                self.assertNotEqual(value["provenance"][field], source["provenance"][field])
                 altered["provenance"][field] = source["provenance"][field]
                 self.check(altered, 2, False)
         self.check(value, 2, expected=(6, 2))
@@ -143,6 +158,12 @@ class ManifestTests(unittest.TestCase):
         for fmt in (1, 2):
             value = artifact_manifest(fmt)
             installed = manifest(fmt)
+            for key in installed["provenance"]:
+                if key.startswith("parent_"):
+                    installed["provenance"][key] = (
+                        "e4f2ed652e756b1abb375ec061923f5259799e01" if key.endswith("source_revision") else
+                        "c715ce354c28b97c6b9c4e5702c98d368d07dff9e52bc2f0deb71ab3194d2395" if "execution" in key else
+                        "da26556401dd20d039ed1175f3bf857c4c8bebd50fb52b3bd75a06b95fdf41ed")
             parents = {key: item for key, item in value["provenance"].items()
                        if key.startswith("parent_")}
             for field, expected in parents.items():
