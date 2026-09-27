@@ -86,9 +86,9 @@ def _rewrite_with_live_closure(output: Path, manifest):
         "path": seed_path.relative_to(root).as_posix(),
         "sha256": seed.manifest_sha256,
     }
-    manifest["bootstrap"]["build_plan_sha256"] = seed.manifest[
-        "build_plan_sha256"
-    ]
+    manifest["bootstrap"]["build_plan_sha256"] = bootstrap_toolchain._build_plan_sha256(
+        bootstrap_toolchain._candidate_build_plan(seed.manifest["build_plan"])
+    )
     source_files = (
         toolchain_manifest_contract.cupidc_toolchain_contracts
         .capture_source_snapshot(
@@ -115,8 +115,8 @@ def _expected_report():
     return {
         "artifact_count": 22,
         "artifact_total_bytes": 682,
-        "bootstrap_source_input_count": 73,
-        "input_count": 87,
+        "bootstrap_source_input_count": 76,
+        "input_count": 88,
         "schema": "cupid.toolchain-manifest-verification.v1",
     }
 
@@ -454,7 +454,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                 decoded["artifact_observations"],
                 sorted(observations),
             )
-            self.assertEqual(len(decoded["input_observations"]), 87)
+            self.assertEqual(len(decoded["input_observations"]), 88)
             self.assertIn(
                 "toolchain/x86.cc",
                 {
@@ -464,7 +464,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                     ]
                 },
             )
-            self.assertEqual(len(decoded["bootstrap_observations"]), 73)
+            self.assertEqual(len(decoded["bootstrap_observations"]), 76)
             self.assertEqual(len(decoded["seed_observations"]), 6)
             self.assertEqual(
                 decoded["seed_path"],
@@ -1012,6 +1012,37 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
             message.startswith("Toolchain manifest verification failed:")
         )
         self.assertNotIn("Traceback", message)
+
+
+class ToolchainManifestLiveCandidateTests(unittest.TestCase):
+    def test_live_candidate_closure_includes_new_producer_modules(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output, manifest, _ = _write_publication(Path(directory))
+            _rewrite_with_live_closure(output, manifest)
+            expected = manifest["bootstrap"]["source_inputs"]["files"]
+            with toolchain_manifest_contract.artifact_size_policy._PinnedRepository(
+                REPO_ROOT
+            ) as reader:
+                inputs, bootstrap, _, seed_bytes, _, _ = REAL_CAPTURE_LIVE_CLOSURE(
+                    reader, REPO_ROOT, manifest
+                )
+                self.assertEqual({row[0] for row in bootstrap}, set(expected))
+                self.assertEqual(len(bootstrap), 76)
+                REAL_REQUIRE_LIVE_MEMBERSHIP(reader, inputs, bootstrap, seed_bytes)
+                for omitted in (
+                    "toolchain/cupidbuild_artifacts.cc",
+                    "toolchain/artifact_size_policy.cc",
+                ):
+                    with self.subTest(omitted=omitted):
+                        with self.assertRaisesRegex(
+                            toolchain_manifest_contract.ToolchainManifestContractError,
+                            "input membership changed",
+                        ):
+                            REAL_REQUIRE_LIVE_MEMBERSHIP(
+                                reader, inputs,
+                                tuple(row for row in bootstrap if row[0] != omitted),
+                                seed_bytes,
+                            )
 
 
 if __name__ == "__main__":

@@ -32,6 +32,7 @@ try:
         PROMOTED_WINDOWS_SEED_SCHEMA,
         WINDOWS_TOOL_IMPORTS,
         ToolRunner,
+        _candidate_build_plan,
         _validate_build_plan,
         _validate_i386_relocatable,
         _validate_static_i386_elf,
@@ -50,6 +51,7 @@ except ModuleNotFoundError:
         PROMOTED_WINDOWS_SEED_SCHEMA,
         WINDOWS_TOOL_IMPORTS,
         ToolRunner,
+        _candidate_build_plan,
         _validate_build_plan,
         _validate_i386_relocatable,
         _validate_static_i386_elf,
@@ -562,7 +564,9 @@ def _capture_live_manifest_closure(
         raise ToolchainManifestContractError(
             "Toolchain publication seed build plan differs"
         )
-    bootstrap_paths = _bootstrap_input_logical_paths(reader, build_plan)
+    bootstrap_paths = _bootstrap_input_logical_paths(
+        reader, _candidate_build_plan(build_plan)
+    )
     bootstrap_observations, bootstrap_snapshots = (
         _capture_regular_observations(
             reader,
@@ -663,7 +667,9 @@ def _require_live_closure_membership(
         raise ToolchainManifestContractError(
             "Toolchain publication seed build plan differs"
         )
-    current_bootstrap = _bootstrap_input_logical_paths(reader, build_plan)
+    current_bootstrap = _bootstrap_input_logical_paths(
+        reader, _candidate_build_plan(build_plan)
+    )
     expected_bootstrap = tuple(
         sorted(
             path

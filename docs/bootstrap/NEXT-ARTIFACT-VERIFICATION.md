@@ -1,5 +1,19 @@
 # Next native artifact-size verification boundary
 
+Native `verify-artifact-sizes` passes source integration acceptance. It checks
+the paired release and sixteen artifacts through retained read-only observations.
+The plans contain 76 producer inputs and 88 publication inputs. Staged proofs
+match 41 Windows and 34 Linux outputs; full publication matches 67 stage pairs
+and verifies 22 artifacts. Hosted acceptance and both private four-CPU
+max/e1000 disassembly, shell and SMP smokes pass. Independent paired verification
+checks 1,533 source inputs, sixteen artifacts and 431 link inputs per host;
+images and all three user programs match. ADR 0408 records the boundary and limits.
+
+Installed seeds still use the accepted 73-input profile, and production
+verification remains Python-owned. Promoting the tested candidate and switching
+the production command are the next steps; the audit remains at 440 CupidBuild
+actions and twelve Python actions.
+
 Boundary audit, 2026-09-20; isolated extraction work, 2026-09-21; private native
 integration rebased on the UTF-8 tools, 2026-09-26. Production verification
 remains Python-coordinated.
@@ -291,3 +305,29 @@ verification checked every retained fixture against its intended mutation,
 rehashed all 1,530 captured inputs on each host, and confirmed matching caller
 objects. These results apply to the canonical 76-input candidate; the earlier
 rebase's evidence remains separate.
+
+### Native artifact integration: paired acceptance complete
+
+Windows also passed image construction, user builds, the native artifact check
+and the private four-CPU smoke. Independent paired verification checks 1,533
+source inputs, sixteen artifacts and 431 link inputs per host. Images and all
+three user programs match; both smokes preserve their source image, and the
+preceding accepted images remain unchanged. The new 200 MiB image SHA-256 is
+`60743ecd68d29b13b7e63090f272f73cfffd14fe01772d273b10288a58b633d0`.
+
+The evidence directory is
+`build/bootstrap/utf8-promotion-72170b06/native-plan-v1/`.
+`utf8-paired-acceptance-v4.json` binds Windows v3 and the Linux v4 continuation,
+including the retained successful Linux image command and old publication.
+`final-regression-audit-v2.json` binds the current regression sources and reports.
+The 291 distinct methods per host combine three runs; the 26 runner methods,
+4,869 checked reader cases, 51 checked policy methods, twelve checked race
+mutations, 56 supplemental stage commands and twenty allocation failure/recovery
+pairs per host remain separately recorded. Allocation injection uses host
+compilers for the verifier translation unit. The graph suite covers 124 unique
+methods across the full run and its focused corrected replay; reproducibility
+also passes.
+
+The candidate is ready for source integration. Its installed-seed promotion and
+production recipe handoff still require their own acceptance. This change does
+not claim Doom gameplay acceptance or completion of the remaining Python work.

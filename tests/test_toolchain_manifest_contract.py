@@ -83,6 +83,8 @@ BOOTSTRAP_OBJECT_NAMES = (
     "seed_manifest",
     "seed_release",
     "contract_parse_internal",
+    "cupidbuild_artifacts",
+    "artifact_size_policy",
     "start",
 )
 BOOTSTRAP_TOOL_NAMES = (
@@ -94,7 +96,7 @@ BOOTSTRAP_TOOL_NAMES = (
     "cupidbuild",
 )
 BUILD_PLAN_SHA256 = (
-    "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe"
+    "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5"
 )
 SEED_MANIFEST_SHA256 = (
     "9db461d2bc423e6a235496dc43135fcb023b0bdd7da4881c3c306aba9b872905"
@@ -115,6 +117,7 @@ INPUT_PATHS = (
     "toolchain/ctool_host.h",
     "toolchain/cupidasm.h",
     "toolchain/cupidbuild.h",
+    "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
@@ -190,6 +193,7 @@ INPUT_PATHS = (
 )
 BOOTSTRAP_PATHS = (
     "link.ld",
+    "toolchain/artifact_size_policy.cc",
     "toolchain/artifact_size_policy.h",
     "toolchain/contract_parse_internal.cc",
     "toolchain/contract_parse_internal.h",
@@ -202,6 +206,8 @@ BOOTSTRAP_PATHS = (
     "toolchain/cupidasm_main.cc",
     "toolchain/cupidbuild.cc",
     "toolchain/cupidbuild.h",
+    "toolchain/cupidbuild_artifacts.cc",
+    "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.cc",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidbuild_main.cc",
@@ -392,7 +398,7 @@ def _fixture():
         },
         "tool_fixed_point": {
             "all_equal": True,
-            "c_objects": 25,
+            "c_objects": 27,
             "compared_generations": ["stage-three", "stage-four"],
             "startup_objects": 1,
             "tool_images": 6,
@@ -707,7 +713,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(
             result.stdout,
             '{"artifact_count":22,"artifact_total_bytes":682,'
-            '"bootstrap_source_input_count":73,"input_count":87,'
+            '"bootstrap_source_input_count":76,"input_count":88,'
             '"schema":"cupid.toolchain-manifest-verification.v1"}\n',
         )
         self.assertEqual(result.stderr, "")
@@ -900,7 +906,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     bootstrap_tool_pairs,
                 )
             ),
-            65,
+            67,
         )
 
     def test_author_rejects_mismatch_in_each_remaining_pair_lane(self):
@@ -1431,7 +1437,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
             json.loads(result.stdout)["tool_fixed_point"],
             {
                 "all_equal": True,
-                "c_objects": 25,
+                "c_objects": 27,
                 "compared_generations": ["stage-three", "stage-four"],
                 "startup_objects": 1,
                 "tool_images": 6,
@@ -1630,17 +1636,18 @@ class ToolchainManifestContractTests(unittest.TestCase):
 
     def test_current_publication_inventory_counts_are_exact(self):
         self.assertEqual(len(ARTIFACT_NAMES), 22)
-        self.assertEqual(len(INPUT_PATHS), 87)
-        self.assertEqual(len(BOOTSTRAP_PATHS), 73)
+        self.assertEqual(len(INPUT_PATHS), 88)
+        self.assertEqual(len(BOOTSTRAP_PATHS), 76)
         self.assertEqual(len(OBJECT_COMPARISON_NAMES), 17)
-        self.assertEqual(len(BOOTSTRAP_OBJECT_NAMES), 26)
+        self.assertEqual(len(BOOTSTRAP_OBJECT_NAMES), 28)
         self.assertEqual(len(BOOTSTRAP_TOOL_NAMES), 6)
-        for input_count in (75, 77, 80, 82, 86, 88):
+        for input_count in (75, 77, 80, 82, 86, 87, 89):
             with self.subTest(input_count=input_count):
+                self.assertNotEqual(input_count, len(INPUT_PATHS))
                 manifest, observations = _fixture()
                 manifest["inputs"] = {
                     path: _digest_size(f"input:{path}", index)
-                    for index, path in enumerate(INPUT_PATHS[:input_count])
+                    for index, path in enumerate(INPUT_PATHS[:input_count], 1)
                 }
                 if input_count > len(INPUT_PATHS):
                     manifest["inputs"]["toolchain/unexpected.h"] = (
@@ -1651,8 +1658,9 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     _request(manifest=manifest, observations=observations)
                 )
 
-        for source_count in (58, 60):
+        for source_count in (58, 60, 73, 75, 77):
             with self.subTest(source_count=source_count):
+                self.assertNotEqual(source_count, len(BOOTSTRAP_PATHS))
                 manifest, observations = _fixture()
                 bootstrap_files = {
                     path: {
@@ -1660,7 +1668,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
                         "size": index,
                     }
                     for index, path in enumerate(
-                        BOOTSTRAP_PATHS[:source_count]
+                        BOOTSTRAP_PATHS[:source_count], 1
                     )
                 }
                 if source_count > len(BOOTSTRAP_PATHS):

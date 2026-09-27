@@ -81,6 +81,12 @@ static const char conditional_linux_parent_manifest[] =
     "da26556401dd20d039ed1175f3bf857c4c8bebd50fb52b3bd75a06b95fdf41ed";
 static const char conditional_windows_parent_manifest[] =
     "c715ce354c28b97c6b9c4e5702c98d368d07dff9e52bc2f0deb71ab3194d2395";
+static const char utf8_parent_revision[] =
+    "72170b06d54ae59f222e5773a96ba3f33503b495";
+static const char utf8_linux_parent_manifest[] =
+    "9db461d2bc423e6a235496dc43135fcb023b0bdd7da4881c3c306aba9b872905";
+static const char utf8_windows_parent_manifest[] =
+    "4ac54f8369c85f975411178852d9d05b107c312b6a470fde2a5eea8dc513ce27";
 
 
 static const char *const windows_seed_files[SEED_ARTIFACT_COUNT] = {
@@ -131,13 +137,16 @@ static int parent_pair_matches(const text_t *manifest,
                                const text_t *revision,
                                const char *preceding_manifest,
                                const char *active_manifest,
-                               const char *conditional_manifest) {
+                               const char *conditional_manifest,
+                               const char *utf8_manifest) {
   return (cupid_contract_text_equals_literal(manifest, preceding_manifest) &&
           cupid_contract_text_equals_literal(revision, preceding_parent_revision)) ||
          (cupid_contract_text_equals_literal(manifest, active_manifest) &&
           cupid_contract_text_equals_literal(revision, active_parent_revision)) ||
          (cupid_contract_text_equals_literal(manifest, conditional_manifest) &&
-          cupid_contract_text_equals_literal(revision, conditional_parent_revision));
+          cupid_contract_text_equals_literal(revision, conditional_parent_revision)) ||
+         (cupid_contract_text_equals_literal(manifest, utf8_manifest) &&
+          cupid_contract_text_equals_literal(revision, utf8_parent_revision));
 }
 
 static int lower_hex_valid(const unsigned char *bytes, size_t size,
@@ -473,7 +482,7 @@ static int parse_seed_provenance(error_context_t *context, json_reader_t *reader
       uint64_t value = 0u;
       fields |= 128u;
       ok = cupid_contract_json_parse_positive_u64(context, reader, &value);
-      if (ok && value != 59u && value != 61u && value != 66u && value != 73u) {
+      if (ok && value != 59u && value != 61u && value != 66u && value != 73u && value != 76u) {
         ok = cupid_contract_set_error(context, "seed manifest source input count differs");
       }
       if (ok) {
@@ -519,7 +528,8 @@ static int parse_seed_provenance(error_context_t *context, json_reader_t *reader
                            &manifest->parent_source_revision,
                            preceding_linux_parent_manifest,
                            active_linux_parent_manifest,
-                           conditional_linux_parent_manifest)) {
+                           conditional_linux_parent_manifest,
+                           utf8_linux_parent_manifest)) {
     return cupid_contract_set_error(context, "seed manifest parent provenance differs");
   }
   return 1;
@@ -925,14 +935,20 @@ static int parse_windows_provenance(error_context_t *context, json_reader_t *rea
       fields |= 8u;
       ok = parse_expected_text(context,
           reader,
-          (seed_manifest->source_input_count == 66u || seed_manifest->source_input_count == 73u)
+          seed_manifest->source_input_count == 76u
+              ? "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5"
+              : (seed_manifest->source_input_count == 66u || seed_manifest->source_input_count == 73u)
               ? "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe"
               : "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd",
           "Windows seed Linux build plan differs");
     } else if (cupid_contract_text_equals_literal(&key, "native_build_plan_sha256") &&
                (fields & 16u) == 0u) {
       fields |= 16u;
-      if (seed_manifest->source_input_count == 73u) {
+      if (seed_manifest->source_input_count == 76u) {
+        ok = parse_expected_text(context, reader,
+            "6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748",
+            "Windows seed native build plan differs");
+      } else if (seed_manifest->source_input_count == 73u) {
         ok = parse_expected_text(context, reader,
             "a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99",
             "Windows seed native build plan differs");
@@ -1000,7 +1016,7 @@ static int parse_windows_provenance(error_context_t *context, json_reader_t *rea
       uint64_t value = 0u;
       fields |= 2048u;
       ok = cupid_contract_json_parse_positive_u64(context, reader, &value);
-      if (ok && value != 59u && value != 61u && value != 66u && value != 73u) {
+      if (ok && value != 59u && value != 61u && value != 66u && value != 73u && value != 76u) {
         ok = cupid_contract_set_error(context, "Windows seed manifest source input count differs");
       }
       if (ok && value != seed_manifest->source_input_count) {
@@ -1047,14 +1063,16 @@ static int parse_windows_provenance(error_context_t *context, json_reader_t *rea
                                  &execution_parent_revision,
                                  preceding_windows_parent_manifest,
                                  active_windows_parent_manifest,
-                                 conditional_windows_parent_manifest)) {
+                                 conditional_windows_parent_manifest,
+                                 utf8_windows_parent_manifest)) {
     ok = cupid_contract_set_error(context, "Windows seed execution parent provenance differs");
   }
   if (ok && !parent_pair_matches(&plan_parent_manifest,
                                  &plan_parent_revision,
                                  preceding_linux_parent_manifest,
                                  active_linux_parent_manifest,
-                                 conditional_linux_parent_manifest)) {
+                                 conditional_linux_parent_manifest,
+                                 utf8_linux_parent_manifest)) {
     ok = cupid_contract_set_error(context, "Windows seed plan parent provenance differs");
   }
   if (ok && !text_equals_text(&execution_parent_revision,
@@ -1462,17 +1480,57 @@ static int validate_policy(error_context_t *context, policy_t *policy, const see
 
 
 
+static void policy_diagnostic_bytes(error_context_t *context, size_t *used,
+                                    const unsigned char *bytes, size_t size) {
+  size_t index;
+  if (context->capacity == 0u) {
+    return;
+  }
+  for (index = 0u; index < size && *used < context->capacity - 1u; index++) {
+    context->bytes[*used] = (char)bytes[index];
+    *used += 1u;
+  }
+  context->bytes[*used] = '\0';
+}
+
+static void policy_diagnostic_literal(error_context_t *context, size_t *used,
+                                      const char *text) {
+  policy_diagnostic_bytes(context, used, (const unsigned char *)text, strlen(text));
+}
+
+static void policy_diagnostic_size(error_context_t *context, size_t *used,
+                                   uint64_t value) {
+  unsigned char digits[20];
+  size_t count = 0u;
+  do {
+    digits[count] = (unsigned char)('0' + (unsigned int)(value % 10u));
+    count += 1u;
+    value /= 10u;
+  } while (value != 0u);
+  while (count != 0u) {
+    count -= 1u;
+    policy_diagnostic_bytes(context, used, &digits[count], 1u);
+  }
+}
+
 static int validate_observations(error_context_t *context, const observation_t *observations,
                                  const policy_t *policy) {
   int matched[ARTIFACT_COUNT];
+  uint64_t observed[ARTIFACT_COUNT];
+  int unavailable[ARTIFACT_COUNT];
   size_t observation_index;
+  size_t used = 0u;
+  int failures = 0;
   (void)memset(matched, 0, sizeof(matched));
+  (void)memset(observed, 0, sizeof(observed));
+  (void)memset(unavailable, 0, sizeof(unavailable));
   for (observation_index = 0u; observation_index < ARTIFACT_COUNT;
        observation_index++) {
     const observation_t *observation = &observations[observation_index];
     size_t policy_index;
     int found = -1;
-    if (observation->kind != 1u) {
+    if (observation->kind != 1u &&
+        (observation->kind < 2u || observation->kind > 6u || observation->size != 0u)) {
       return cupid_contract_set_error(context, "artifact observation is not a regular file");
     }
     for (policy_index = 0u; policy_index < policy->count; policy_index++) {
@@ -1489,9 +1547,8 @@ static int validate_observations(error_context_t *context, const observation_t *
       return cupid_contract_set_error(context, "artifact observation path is duplicated");
     }
     matched[(size_t)found] = 1;
-    if (observation->size != policy->entries[(size_t)found].exact_bytes) {
-      return cupid_contract_set_error(context, "artifact observation size differs from policy");
-    }
+    observed[(size_t)found] = observation->size;
+    unavailable[(size_t)found] = observation->kind == 1u ? 0 : (int)observation->kind;
   }
   for (observation_index = 0u; observation_index < ARTIFACT_COUNT;
        observation_index++) {
@@ -1499,8 +1556,39 @@ static int validate_observations(error_context_t *context, const observation_t *
       return cupid_contract_set_error(context, "artifact observation is missing");
     }
   }
+  for (observation_index = 0u; observation_index < ARTIFACT_COUNT;
+       observation_index++) {
+    const policy_entry_t *entry = &policy->entries[observation_index];
+    uint64_t actual = observed[observation_index];
+    if (unavailable[observation_index]) {
+      failures = 1;
+      policy_diagnostic_literal(context, &used, "\n- ");
+      policy_diagnostic_bytes(context, &used, entry->path.bytes, entry->path.size);
+      policy_diagnostic_literal(context, &used,
+          unavailable[observation_index] == 3 ? " is missing" :
+          unavailable[observation_index] == 4 ? " is linked or reparse-backed" :
+          unavailable[observation_index] == 5 ? " has a non-directory parent" :
+          unavailable[observation_index] == 6 ? " is not a regular file" :
+          " is unavailable or not a regular file");
+    } else if (actual != entry->exact_bytes) {
+      failures = 1;
+      policy_diagnostic_literal(context, &used, "\n- ");
+      policy_diagnostic_bytes(context, &used, entry->path.bytes, entry->path.size);
+      policy_diagnostic_literal(context, &used, " has ");
+      policy_diagnostic_size(context, &used, actual);
+      policy_diagnostic_literal(context, &used, actual == 1u ? " byte; " : " bytes; ");
+      policy_diagnostic_literal(context, &used, "expected exactly ");
+      policy_diagnostic_size(context, &used, entry->exact_bytes);
+      policy_diagnostic_literal(context, &used, entry->exact_bytes == 1u ? " byte" : " bytes");
+    }
+  }
+  if (failures != 0) {
+    context->has_error = 1;
+    return 0;
+  }
   return 1;
 }
+
 
 static int validate_windows_observations(error_context_t *context,
     const windows_observation_t *observations,

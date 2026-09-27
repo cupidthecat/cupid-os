@@ -40084,3 +40084,124 @@ SHA-256 is `0faa80ca9d44fe8d32dda5c10fbfe8859e25ebb0543e547181b27af8187e7759`.
 Evidence is retained in `utf8-paired-acceptance-v3.json` under
 `build/bootstrap/utf8-promotion-72170b06/`. The final input audit also passes,
 binding 73 producer inputs and the 112-file tool input union to acceptance.
+
+
+## 2026-09-26: Native artifact verifier source integration
+
+The nineteen canonical candidate source/test files are integrated on top of
+UTF-8 promotion 4b656267. Installed seed bytes and the accepted size policy are
+preserved. The initial Windows focused suite passes 69 methods. Retaining the
+allocation caller adds one method; Linux passes all 70. The retained race caller
+then passes its baseline and twelve mutations on both hosts. These public tests
+use host compilers; the earlier canonical candidate separately passed checked
+Cupid builds and paired race verification. No new production ownership is
+claimed. ADR 0408 records the read-only boundary, plan counts and remaining gates.
+
+
+The first integration audits rejected stale source, link and publication
+inventories. Comparing the evaluated Make prerequisites exposed missing
+verifier-header and source dependencies; the Toolchain Makefile now lists them.
+The hosted object contract now compiles both new modules and links them into
+CupidBuild. Strict hosted preprocessing coverage includes both sources. These
+corrections expand publication evidence beyond the original private candidate;
+its still-running publication cannot establish acceptance of the later inputs.
+The 76 producer inputs remain unchanged. Failed audits and replays are retained.
+
+The original candidate publication build completed, but checked verification
+failed because the runner observed the installed seed plan rather than the
+candidate plan. Its 74 observed files omitted `cupidbuild_artifacts.cc` and
+`artifact_size_policy.cc`; the checked contract required all 76. A focused test
+reproduced the exact missing paths in 0.212 seconds. Capture and final membership
+checks now derive the candidate plan, matching the publisher. The regression
+also rejects omission of either module. Runner fixtures now record the candidate
+plan hash and the 76/88 counts. The failed publication and repeated failing
+verification are preserved; final publication acceptance still requires a fresh
+build with the corrected runner and integration inputs.
+
+### Native artifact integration: active preprocessor count correction
+
+The 76-source candidate publication passed its checked manifest verifier and
+independent verification. Hosted conditional acceptance passed, but the active
+corpus command rejected 413 generated tracked cases because its runtime guard
+still expected 412. The added artifact verifier accounts for the extra case.
+The guard now expects 413; no source or case was removed. A fast regression
+compares all six runtime count guards with their generated manifest rows. It
+failed with 412 versus 413 before the correction and passed afterward. The
+corrected caller still needs rebuilt publication and hosted runtime evidence;
+the earlier failed hosted run remains recorded.
+
+The rebuilt publication passed all 67 stage comparisons and verified 22
+artifacts. Hosted execution then exposed a second stale expectation: the
+Linux profile expected 43 tracked cases while the manifest contained 44.
+The profile guard now includes the artifact verifier. A new regression checks
+every profile's mode flags and counts for cases, include roots, macros, and
+forced includes. It failed specifically on 43 versus 44 before the fix;
+both the global-count and profile regressions now pass. A focused checked-Cupid
+caller replay is running before another publication rebuild. The failed
+hosted run remains preserved, and final OS acceptance is still pending.
+
+The focused caller processed all 413 active roots, then rejected its final
+execution total because a third guard still expected 412. That guard now
+expects 413. The fast regression also checks both final execution totals
+(tracked and generated), and reproduced 412 versus 413 before the correction.
+The replay harness separately mistook a successful command's normal output for
+failure; runtime commands now check exit status and retain their output logs.
+The corrected caller and full planning suites are being replayed again.
+
+### Native artifact integration: publication and Linux acceptance
+
+The corrected publication and hosted runs pass. The publication has 67 matching
+stage pairs, 22 artifacts, 88 publication inputs and 76 producer inputs. Hosted
+conditional, active-corpus and self-host-link acceptance pass; independent
+verification checks all seven static i386 executables and 1,533 source inputs.
+Evidence is in `native-plan-v1/` under
+`build/bootstrap/utf8-promotion-72170b06/`: the publication and hosted v3 reports
+and `linux-final-hosted-verification-v3.json`.
+
+Fresh paired regressions cover 291 distinct methods across twelve modules,
+combining three runs per host. The separate runner suite covers 26 methods.
+The final regression audit binds current sources to these reports and the
+retained checked-reader, policy, race, allocation and stage evidence. The graph
+check passes with 440 CupidBuild actions and twelve Python actions.
+
+Linux image construction passed, but its first acceptance harness could not
+replace the old publication: the current validator rejected its earlier
+fixed-point record. All 23 old files matched the accepted 73-producer cohort.
+The continuation preserved that directory, retained the failed report and the
+successful image-build log, and installed the new publication through the
+unchanged validator. User builds, the native sixteen-artifact check and the
+private four-CPU max/e1000 disassembly, shell and SMP smoke then passed.
+`utf8-linux-independent-acceptance-v4.json` independently verifies the 1,533
+inputs, sixteen artifacts, 431 link inputs and preserved images/publication.
+Windows acceptance remains in progress; paired final acceptance is pending.
+
+The measured policy changes only `kernel/kernel.bin`, from 9,568,796 to
+9,569,472 bytes. Installed seed bytes and the production Python artifact check
+remain unchanged. Candidate promotion and the production handoff are separate
+steps after source acceptance.
+
+### Native artifact integration: paired acceptance complete
+
+Windows also passed image construction, user builds, the native artifact check
+and the private four-CPU smoke. Independent paired verification checks 1,533
+source inputs, sixteen artifacts and 431 link inputs per host. Images and all
+three user programs match; both smokes preserve their source image, and the
+preceding accepted images remain unchanged. The new 200 MiB image SHA-256 is
+`60743ecd68d29b13b7e63090f272f73cfffd14fe01772d273b10288a58b633d0`.
+
+The evidence directory is
+`build/bootstrap/utf8-promotion-72170b06/native-plan-v1/`.
+`utf8-paired-acceptance-v4.json` binds Windows v3 and the Linux v4 continuation,
+including the retained successful Linux image command and old publication.
+`final-regression-audit-v2.json` binds the current regression sources and reports.
+The 291 distinct methods per host combine three runs; the 26 runner methods,
+4,869 checked reader cases, 51 checked policy methods, twelve checked race
+mutations, 56 supplemental stage commands and twenty allocation failure/recovery
+pairs per host remain separately recorded. Allocation injection uses host
+compilers for the verifier translation unit. The graph suite covers 124 unique
+methods across the full run and its focused corrected replay; reproducibility
+also passes.
+
+The candidate is ready for source integration. Its installed-seed promotion and
+production recipe handoff still require their own acceptance. This change does
+not claim Doom gameplay acceptance or completion of the remaining Python work.

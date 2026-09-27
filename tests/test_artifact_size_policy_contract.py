@@ -396,6 +396,62 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)["artifact_count"], 16)
 
+    def artifact_request(self, mutate=None):
+        from tests.test_seed_manifest import artifact_manifest
+        def select(manifest, windows):
+            manifest.clear()
+            manifest.update(artifact_manifest(1))
+            windows.clear()
+            windows.update(artifact_manifest(2))
+            if mutate is not None:
+                mutate(manifest, windows)
+        return self.promoted_request(select)
+
+    def test_artifact_candidate_requires_exact_plan_and_source_counts(self):
+        result = self.run_request(self.artifact_request())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["artifact_count"], 16)
+        for side in (0, 1):
+            for count in (59, 66, 73, 75, 77):
+                def mutate(manifest, windows):
+                    (manifest, windows)[side]["provenance"]["source_input_count"] = count
+                self.assert_contract_failure(self.artifact_request(mutate))
+        for key, digest in (
+            ("linux_candidate_build_plan_sha256", "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe"),
+            ("native_build_plan_sha256", "a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99"),
+        ):
+            def mutate(manifest, windows):
+                windows["provenance"][key] = digest
+            self.assert_contract_failure(self.artifact_request(mutate))
+
+    def test_artifact_candidate_rejects_unknown_and_mixed_utf8_parent_fields(self):
+        from tests.test_seed_manifest import artifact_manifest, manifest as installed_manifest
+        for side, fmt in enumerate((1, 2)):
+            value = artifact_manifest(fmt)
+            installed = installed_manifest(fmt)
+            for key, expected in value["provenance"].items():
+                if not key.startswith("parent_"):
+                    continue
+                for replacement in ("0" * len(expected), installed["provenance"][key]):
+                    self.assertNotEqual(replacement, expected)
+                    def mutate(manifest, windows):
+                        (manifest, windows)[side]["provenance"][key] = replacement
+                    self.assert_contract_failure(self.artifact_request(mutate))
+                    restored = self.run_request(self.artifact_request())
+                    self.assertEqual(restored.returncode, 0, restored.stderr)
+
+    def test_artifact_candidate_rejects_mixed_complete_windows_parent_generations(self):
+        from tests.test_seed_manifest import manifest as installed_manifest
+        installed = installed_manifest(2)["provenance"]
+        for role in ("execution", "plan"):
+            def mutate(manifest, windows):
+                for suffix in ("manifest_sha256", "source_revision"):
+                    key = "parent_" + role + "_seed_" + suffix
+                    windows["provenance"][key] = installed[key]
+            result = self.run_request(self.artifact_request(mutate))
+            self.assertEqual((result.returncode, result.stdout), (1, ""))
+            self.assertIn("Windows seed parent generations differ", result.stderr)
+
     def test_conditional_parent_rejects_each_unknown_or_mixed_identity(self):
         previous_revision = "142a9737f618ab8500308576a1c222501d639e5f"
         previous_linux = "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52"

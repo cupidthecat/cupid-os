@@ -131,6 +131,8 @@ BOOTSTRAP_OBJECT_NAMES = (
     "seed_manifest",
     "seed_release",
     "contract_parse_internal",
+    "cupidbuild_artifacts",
+    "artifact_size_policy",
     "start",
 )
 WINDOWS_RUNTIME_INPUTS = (

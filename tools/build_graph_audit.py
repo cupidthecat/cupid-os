@@ -179,6 +179,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/ctool_host.h",
     "toolchain/cupidasm.h",
     "toolchain/cupidbuild.h",
+    "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
@@ -254,6 +255,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
 )
 TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "link.ld",
+    "toolchain/artifact_size_policy.cc",
     "toolchain/artifact_size_policy.h",
     "toolchain/contract_parse_internal.cc",
     "toolchain/contract_parse_internal.h",
@@ -266,6 +268,8 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/cupidasm_main.cc",
     "toolchain/cupidbuild.cc",
     "toolchain/cupidbuild.h",
+    "toolchain/cupidbuild_artifacts.cc",
+    "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.cc",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidbuild_main.cc",
@@ -461,6 +465,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/ctool_host.h",
     "toolchain/cupidasm.h",
     "toolchain/cupidbuild.h",
+    "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
@@ -536,6 +541,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
 )
 USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "link.ld",
+    "toolchain/artifact_size_policy.cc",
     "toolchain/artifact_size_policy.h",
     "toolchain/contract_parse_internal.cc",
     "toolchain/contract_parse_internal.h",
@@ -548,6 +554,8 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/cupidasm_main.cc",
     "toolchain/cupidbuild.cc",
     "toolchain/cupidbuild.h",
+    "toolchain/cupidbuild_artifacts.cc",
+    "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.cc",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidbuild_main.cc",
@@ -988,7 +996,7 @@ _C_PP_ACTIVE_COUNTS = {
     "CUPID_RUNTIME": 108,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
-    "HOSTED_I386_LINUX": 43,
+    "HOSTED_I386_LINUX": 44,
     "HOSTED_I386_WINDOWS": 9,
     "HOSTED_I386_KERNEL_BRIDGE": 2,
     "HOSTED_I386_LINUX_GNU": 3,
@@ -998,6 +1006,8 @@ _C_PP_ACTIVE_COUNTS = {
     "HOSTED_I386_WINDOWS_UTF8_GNU": 1,
 }
 _C_PP_HOSTED_I386_STRICT_CASES = (
+    "/toolchain/artifact_size_policy.cc",
+    "/toolchain/cupidbuild_artifacts.cc",
     "/toolchain/contract_parse_internal.cc",
     "/toolchain/ctool.cc",
     "/toolchain/ctool_host.cc",
@@ -11552,6 +11562,8 @@ def _cupid_toolchain_fixed_point_contract(
         ("seed_manifest", "/toolchain/seed_manifest.cc", False),
         ("seed_release", "/toolchain/seed_release.cc", False),
         ("contract_parse_internal", "/toolchain/contract_parse_internal.cc", False),
+        ("cupidbuild_artifacts", "/toolchain/cupidbuild_artifacts.cc", False),
+        ("artifact_size_policy", "/toolchain/artifact_size_policy.cc", False),
     )
     candidate_toolchain_links = expected_toolchain_links + (
         (
@@ -11567,6 +11579,8 @@ def _cupid_toolchain_fixed_point_contract(
                 "seed_manifest",
                 "seed_release",
                 "contract_parse_internal",
+                "cupidbuild_artifacts",
+                "artifact_size_policy",
                 "runtime",
             ),
         ),
@@ -14892,7 +14906,7 @@ def _cupid_toolchain_fixed_point_contract(
             "publication must carry stages two through four"
         )
     if bootstrap_assignment("CANDIDATE_SOURCES") != tuple(
-        candidate_toolchain_sources[-6:]
+        candidate_toolchain_sources[-8:]
     ):
         missing_bootstrap_fragments.append(
             "candidate source constants must match the audited inventory"
@@ -18210,7 +18224,8 @@ def _c_preprocessor_active_cases_manifest(
                         and path
                         != "/toolchain/tests/hosted_i386_windows_contract.cc"
                         and not (
-                            path == "/toolchain/contract_parse_internal.cc"
+                            path in ("/toolchain/contract_parse_internal.cc",
+                                     "/toolchain/artifact_size_policy.cc")
                             and path in active_by_profile["HOSTED_I386_LINUX"]
                         )
                     )

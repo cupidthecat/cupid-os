@@ -75,14 +75,17 @@ nested creation through a link into an unrelated directory. This is not an
 atomic filesystem snapshot; the existing Linux/DrvFS publication recovery
 boundary still applies.
 
-The current Windows profile helper converts ASCII into a 128-wide-character
-component buffer. Other native paths use ANSI Win32 APIs. Full user support
-needs consistent Unicode conversion and length handling across preparation,
-command-line decoding, transaction opening, publication, and diagnostics.
-The hosted Windows startup currently reads arguments through `GetCommandLineA`.
-A wide directory opener
-alone is insufficient. Do not expose a restricted user command that rejects
-paths already supported by the wrapper.
+The installed Windows tools now use the shared UTF-8 codec, wide command-line
+startup, and wide file and process adapters. The converged tools pass the
+accented, Japanese, and supplementary-character path cases recorded in
+[NEXT-WINDOWS-UTF8.md](NEXT-WINDOWS-UTF8.md). Those checks do not establish the
+full configurable user-output path contract.
+
+The Windows profile parent helper still uses a 128-wide-character component
+buffer. The proposed user-output parent API must handle longer components and
+retain the complete chain across preparation, capture and publication. Compiler
+private paths need their own long-path checks too. Do not expose a restricted
+user command that rejects paths already supported by the wrapper.
 
 A September 21 bootstrap probe also reproduced a path-length limit in the
 checked Windows CupidC. The same small kernel source compiled through

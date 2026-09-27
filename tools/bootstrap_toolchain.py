@@ -465,6 +465,8 @@ CANDIDATE_SOURCES = (
     ("seed_manifest", "/toolchain/seed_manifest.cc", False),
     ("seed_release", "/toolchain/seed_release.cc", False),
     ("contract_parse_internal", "/toolchain/contract_parse_internal.cc", False),
+    ("cupidbuild_artifacts", "/toolchain/cupidbuild_artifacts.cc", False),
+    ("artifact_size_policy", "/toolchain/artifact_size_policy.cc", False),
 )
 CANDIDATE_CUPIDBUILD_LINK = (
     "start",
@@ -477,6 +479,8 @@ CANDIDATE_CUPIDBUILD_LINK = (
     "seed_manifest",
     "seed_release",
     "contract_parse_internal",
+    "cupidbuild_artifacts",
+    "artifact_size_policy",
     "runtime",
 )
 REPORT_SCHEMA = "cupid.bootstrap-report.v1"

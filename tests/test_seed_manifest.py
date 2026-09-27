@@ -35,7 +35,7 @@ def historical_manifest(fmt):
 def candidate_manifest(fmt):
     value = manifest(fmt)
     value["provenance"]["source_input_count"] = 66
-    plan = seed._candidate_build_plan(manifest(1)["build_plan"])
+    plan = copy.deepcopy(manifest(1)["build_plan"])
     linux_digest = seed._build_plan_sha256(plan)
     windows_digest = seed._build_plan_sha256(seed._windows_build_plan(plan))
     assert linux_digest == "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe"
@@ -46,6 +46,27 @@ def candidate_manifest(fmt):
     else:
         value["provenance"]["linux_candidate_build_plan_sha256"] = linux_digest
         value["provenance"]["native_build_plan_sha256"] = windows_digest
+    return value
+
+
+def artifact_manifest(fmt):
+    value = manifest(fmt)
+    provenance = value["provenance"]
+    provenance["source_input_count"] = 76
+    plan = seed._candidate_build_plan(manifest(1)["build_plan"])
+    if fmt == 1:
+        value["build_plan"] = plan
+        value["build_plan_sha256"] = seed._build_plan_sha256(plan)
+        provenance["parent_seed_source_revision"] = seed.PROMOTED_SOURCE_REVISION
+        provenance["parent_seed_manifest_sha256"] = seed.PROMOTED_LINUX_MANIFEST_SHA256
+    else:
+        provenance["linux_candidate_build_plan_sha256"] = seed._build_plan_sha256(plan)
+        provenance["native_build_plan_sha256"] = seed._build_plan_sha256(
+            seed._windows_build_plan(plan, utf8=True))
+        provenance["parent_execution_seed_source_revision"] = seed.PROMOTED_SOURCE_REVISION
+        provenance["parent_plan_seed_source_revision"] = seed.PROMOTED_SOURCE_REVISION
+        provenance["parent_execution_seed_manifest_sha256"] = seed.PROMOTED_WINDOWS_MANIFEST_SHA256
+        provenance["parent_plan_seed_manifest_sha256"] = seed.PROMOTED_LINUX_MANIFEST_SHA256
     return value
 
 
@@ -77,6 +98,60 @@ def changed(value):
 
 class ManifestTests(unittest.TestCase):
     records = []
+
+    def test_artifact_generation_accepts_complete_plan_and_utf8_import_profile(self):
+        for fmt in (1, 2):
+            value = artifact_manifest(fmt)
+            self.check(value, fmt, expected=(6, 2 if fmt == 2 else 0))
+            for count in (59, 61, 66, 73, 75, 77):
+                altered = copy.deepcopy(value)
+                altered["provenance"]["source_input_count"] = count
+                self.check(altered, fmt, False)
+                self.check(value, fmt, expected=(6, 2 if fmt == 2 else 0))
+
+    def test_artifact_generation_rejects_missing_changed_and_duplicate_modules(self):
+        value = artifact_manifest(1)
+        for name in ("cupidbuild_artifacts", "artifact_size_policy"):
+            for mutation in ("missing", "path", "extensions", "duplicate"):
+                altered = copy.deepcopy(value)
+                sources = altered["build_plan"]["sources"]
+                row = next(row for row in sources if row["name"] == name)
+                if mutation == "missing":
+                    sources.remove(row)
+                elif mutation == "path":
+                    row["path"] = "/toolchain/other.cc"
+                elif mutation == "extensions":
+                    row["gnu_extensions"] = True
+                else:
+                    sources.append(copy.deepcopy(row))
+                self.check(altered, 1, False)
+            altered = copy.deepcopy(value)
+            altered["build_plan"]["links"]["cupidbuild"].remove(name)
+            self.check(altered, 1, False)
+        self.check(value, 1)
+
+    def test_artifact_generation_rejects_mixed_plan_profiles(self):
+        value = artifact_manifest(2)
+        for source in (manifest(2), candidate_manifest(2), historical_manifest(2)):
+            for field in ("linux_candidate_build_plan_sha256", "native_build_plan_sha256"):
+                altered = copy.deepcopy(value)
+                altered["provenance"][field] = source["provenance"][field]
+                self.check(altered, 2, False)
+        self.check(value, 2, expected=(6, 2))
+
+    def test_artifact_generation_binds_complete_utf8_parent_tuple(self):
+        for fmt in (1, 2):
+            value = artifact_manifest(fmt)
+            installed = manifest(fmt)
+            parents = {key: item for key, item in value["provenance"].items()
+                       if key.startswith("parent_")}
+            for field, expected in parents.items():
+                for replacement in ("0" * len(expected), installed["provenance"][field]):
+                    self.assertNotEqual(expected, replacement)
+                    altered = copy.deepcopy(value)
+                    altered["provenance"][field] = replacement
+                    self.check(altered, fmt, False)
+                    self.check(value, fmt, expected=(6, 2 if fmt == 2 else 0))
 
     def test_utf8_promotion_accepts_exact_conditional_assembly_parent(self):
         revision = "e4f2ed652e756b1abb375ec061923f5259799e01"

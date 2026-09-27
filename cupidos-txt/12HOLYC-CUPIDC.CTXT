@@ -27,6 +27,16 @@ The Windows seeds select the UTF-8 profile. Historical ANSI manifests retain
 their separate plan, source-count and import checks.
 >endtree
 
+>h2 Native artifact verification
+Source head provides verify-artifact-sizes through a retained read-only observer.
+It checks the reviewed paired release, both manifests, twelve tool payloads and
+sixteen exact artifact sizes, then rechecks observations and closes handles before
+success. It creates no files and launches no tools. Metadata-only artifact checks
+cannot detect same-size edits with restored timestamps; seed payloads are hashed.
+Candidate plans capture 76 producer and 88 publication inputs. Installed seeds
+retain the accepted 73-input profile. Production verification still uses Python
+while the new command completes integration acceptance and seed promotion.
+
 >h2 Reusable build verification modules
 Checked CupidBuild now has a read-only filesystem observer. It retains
 original file and ancestor handles, checks exact directory membership, keeps

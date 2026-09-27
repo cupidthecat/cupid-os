@@ -1,5 +1,19 @@
 # Host dependency inventory
 
+Native `verify-artifact-sizes` passes source integration acceptance. It checks
+the paired release and sixteen artifacts through retained read-only observations.
+The plans contain 76 producer inputs and 88 publication inputs. Staged proofs
+match 41 Windows and 34 Linux outputs; full publication matches 67 stage pairs
+and verifies 22 artifacts. Hosted acceptance and both private four-CPU
+max/e1000 disassembly, shell and SMP smokes pass. Independent paired verification
+checks 1,533 source inputs, sixteen artifacts and 431 link inputs per host;
+images and all three user programs match. ADR 0408 records the boundary and limits.
+
+Installed seeds still use the accepted 73-input profile, and production
+verification remains Python-owned. Promoting the tested candidate and switching
+the production command are the next steps; the audit remains at 440 CupidBuild
+actions and twelve Python actions.
+
 The installed UTF-8 seed pair from accepted commit `72170b06` passes promotion
 acceptance. Its 73 producer inputs match the reviewed snapshot. Both hosts pass
 425 native regression and API methods, 4,801 checked reader cases and 48 checked

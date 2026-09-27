@@ -138,5 +138,36 @@ class ArtifactSizePolicyApiTests(unittest.TestCase):
             self.assertTrue(all(pool.map(exercise, range(384))))
 
 
+    def test_failure_categories_are_aggregated_in_policy_order(self):
+        from tests.test_artifact_size_policy_contract import _policy, _observations
+        original = _observations(_policy())
+        phrases = (" is unavailable or not a regular file", " is missing",
+                   " is linked or reparse-backed", " has a non-directory parent",
+                   " is not a regular file")
+        rows = [(path, 2 + index % 5, 0) for index, (path, _, _) in enumerate(original)]
+        expected = "".join("\n- " + path + phrases[kind - 2] for path, kind, _ in rows).encode()
+        for selected in (rows, list(reversed(rows))):
+            for capacity in (0, 1, 2, 9, 512, 4096):
+                status, result, error = self.call(_request(observations=selected), capacity)
+                self.assertEqual((status, result.artifact_count, result.total_exact_bytes), (0, 0, 0))
+                if capacity:
+                    self.assertEqual(error.value, expected[:capacity - 1])
+
+    def test_failure_markers_require_zero_size_and_known_kind(self):
+        from tests.test_artifact_size_policy_contract import _policy, _observations
+        original = _observations(_policy())
+        for kind, size in ((2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (0, 0), (7, 0)):
+            rows = list(original)
+            rows[0] = (rows[0][0], kind, size)
+            status, result, error = self.call(_request(observations=rows))
+            self.assertEqual((status, result.artifact_count, result.total_exact_bytes), (0, 0, 0))
+            self.assertIn(b"not a regular file", error.value)
+        rows[0] = (rows[1][0], 3, 0)
+        status, result, error = self.call(_request(observations=rows))
+        self.assertEqual(status, 0)
+        self.assertIn(b"duplicated", error.value)
+        self.assertNotIn(b"\n- ", error.value)
+
+
 if __name__ == "__main__":
     unittest.main()

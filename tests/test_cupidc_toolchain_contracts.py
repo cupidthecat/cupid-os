@@ -186,6 +186,62 @@ class _ContractStageRunner:
 
 
 class CupidCToolchainContractPlanTests(unittest.TestCase):
+    def test_active_manifest_matches_checked_runtime_profile_guards(self):
+        import re
+        from collections import Counter
+
+        root = Path(__file__).resolve().parents[1]
+        manifest = (root / "toolchain/tests/cupidc_pp_active_cases.inc").read_text()
+        caller = (root / "toolchain/tests/cupidc_pp_contract.cc").read_text()
+        table = caller.split("active_expected_profiles[] = {", 1)[1].split(";", 1)[0]
+        rows = re.findall(r'\{"([A-Z0-9_]+)",\s*([^{}]+)\}', table)
+        profiles = dict(re.findall(r"^CUPIDC_PP_PROFILE\((\w+), (.+)\)$", manifest, re.M))
+        self.assertEqual(len(rows), len(profiles))
+        self.assertEqual({name for name, _ in rows}, set(profiles))
+        counts = {
+            kind: Counter(re.findall(rf"^CUPIDC_PP_{kind}\((\w+),", manifest, re.M))
+            for kind in ("ACTIVE_CASE", "INCLUDE_ROOT", "MACRO", "FORCED_INCLUDE")
+        }
+        for name, fields in rows:
+            with self.subTest(profile=name):
+                values = [value.strip() for value in fields.split(",")]
+                self.assertEqual(len(values), 9)
+                self.assertEqual(values[:5], profiles[name].split(", "))
+                for index, (kind, actual) in enumerate(counts.items(), 5):
+                    with self.subTest(kind=kind):
+                        self.assertRegex(values[index], r"^\d+u$")
+                        self.assertEqual(int(values[index][:-1]), actual[name])
+
+    def test_active_manifest_matches_checked_runtime_count_guards(self):
+        import re
+
+        root = Path(__file__).resolve().parents[1]
+        manifest = (root / "toolchain/tests/cupidc_pp_active_cases.inc").read_text()
+        caller = (root / "toolchain/tests/cupidc_pp_contract.cc").read_text()
+        for kind in (
+            "PROFILE", "CASE", "GENERATED_CASE", "INCLUDE_ONLY", "NON_ROOT",
+            "DEFERRED_HOSTED",
+        ):
+            with self.subTest(kind=kind):
+                guard = re.findall(
+                    rf"kind_counts\[ACTIVE_ROW_{kind}\] != (\d+)u", caller
+                )
+                self.assertEqual(len(guard), 1)
+                macro = "ACTIVE_CASE" if kind == "CASE" else kind
+                actual = len(re.findall(rf"^CUPIDC_PP_{macro}\(", manifest, re.M))
+                self.assertEqual(int(guard[0]), actual)
+        execution_counts = re.findall(
+            r"expected_count = generated == CTOOL_TRUE \? (\d+)u : (\d+)u;",
+            caller,
+        )
+        self.assertEqual(len(execution_counts), 1)
+        for expected, macro in zip(
+            execution_counts[0], ("GENERATED_CASE", "ACTIVE_CASE")
+        ):
+            with self.subTest(executed=macro):
+                actual = len(re.findall(rf"^CUPIDC_PP_{macro}\(", manifest, re.M))
+                self.assertEqual(int(expected), actual)
+
     @staticmethod
     def _write_publication(
         output: Path, payload_prefix: str = "checked"
@@ -255,7 +311,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             },
             "tool_fixed_point": {
                 "all_equal": True,
-                "c_objects": 25,
+                "c_objects": 27,
                 "compared_generations": list(
                     cupidc_toolchain_contracts.CONVERGED_GENERATIONS
                 ),
@@ -337,6 +393,9 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             "toolchain/seed_manifest.cc": "int seed_manifest;\n",
             "toolchain/seed_release.cc": "int seed_release;\n",
             "toolchain/contract_parse_internal.cc": "int contract_parse_internal;\n",
+            "toolchain/cupidbuild_artifacts.cc": "int cupidbuild_artifacts;\n",
+            "toolchain/cupidbuild_artifacts.h": "int cupidbuild_artifacts_header;\n",
+            "toolchain/artifact_size_policy.cc": "int artifact_size_policy;\n",
             "toolchain/cupidc_emit.cc": "int emit;\n",
             "toolchain/hosted/i386-linux/include/stdio.h": "int stdio;\n",
             "toolchain/hosted/i386-linux/runtime.cc": "int runtime;\n",
@@ -688,7 +747,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            cupidc_toolchain_contracts.BOOTSTRAP_OBJECT_NAMES[-7:],
+            cupidc_toolchain_contracts.BOOTSTRAP_OBJECT_NAMES[-9:],
             (
                 "cupidbuild",
                 "cupidbuild_host",
@@ -696,6 +755,8 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 "seed_manifest",
                 "seed_release",
                 "contract_parse_internal",
+                "cupidbuild_artifacts",
+                "artifact_size_policy",
                 "start",
             ),
         )
@@ -706,7 +767,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._tool_fixed_point_record(),
             {
                 "all_equal": True,
-                "c_objects": 25,
+                "c_objects": 27,
                 "compared_generations": ["stage-three", "stage-four"],
                 "startup_objects": 1,
                 "tool_images": 6,
@@ -720,7 +781,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 87)
+        self.assertEqual(len(inputs), 88)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)

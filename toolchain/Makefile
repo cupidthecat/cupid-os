@@ -185,7 +185,7 @@ CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/publication_runtime.cc
                                       hosted/i386-windows/tool_start.asm \
                                       tests/hosted_i386_windows_contract.cc \
                                       tests/hosted_i386_windows_runtime_contract.cc
-CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.h contract_parse_internal.h \
+CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.cc artifact_size_policy.h contract_parse_internal.h \
                               path_encoding.h native_utf8.h \
                               contract_parse_internal.cc \
                               seed_manifest.cc seed_manifest.h \
@@ -193,6 +193,7 @@ CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.h contract_parse_internal.h \
                               ctool.cc ctool.h ctool_host.cc ctool_host.h \
                               elf32.cc elf32.h pe32.h pe32_impl.h x86.cc x86.h \
                               cupidbuild.cc cupidbuild.h \
+                              cupidbuild_artifacts.cc cupidbuild_artifacts.h \
                               cupidbuild_host.cc cupidbuild_host.h \
                               cupidbuild_main.cc \
                               cupidc_pp.cc cupidc_pp.h \
@@ -230,6 +231,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS := \
 	path_encoding.h native_utf8.h \
 	seed_manifest.h seed_release.h \
 	ctool.h ctool_host.h cupidasm.h cupidbuild.h cupidbuild_host.h \
+	cupidbuild_artifacts.h \
 	cupidc_emit.h \
 	cupidc_frontend.h cupidc_ir.h cupidc_pp.h cupidc_type.h \
 	cupiddis.h cupidld.h cupidobj.h elf32.h pe32.h pe32_impl.h x86.h \
@@ -362,7 +364,8 @@ CUPIDLD_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                    $(BUILD_DIR)/cupidld_main.o
 SEED_MANIFEST_OBJECTS := $(BUILD_DIR)/seed_manifest.o $(BUILD_DIR)/seed_release.o \
                          $(BUILD_DIR)/contract_parse_internal.o
-CUPIDBUILD_OBJECTS := $(SEED_MANIFEST_OBJECTS) $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
+CUPIDBUILD_OBJECTS := $(BUILD_DIR)/cupidbuild_artifacts.o $(BUILD_DIR)/artifact_size_policy.o \
+                      $(SEED_MANIFEST_OBJECTS) $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                       $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidbuild_host.o \
                       $(BUILD_DIR)/cupidbuild.o \
                       $(BUILD_DIR)/cupidbuild_main.o
@@ -545,7 +548,14 @@ $(BUILD_DIR)/cupidbuild.o: cupidbuild.cc cupidbuild.h cupidbuild_host.h seed_man
                           ctool.h ctool_host.h elf32.h pe32.h pe32_impl.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidbuild_main.o: cupidbuild_main.cc cupidbuild.h | $(BUILD_DIR)
+$(BUILD_DIR)/cupidbuild_artifacts.o: cupidbuild_artifacts.cc cupidbuild_artifacts.h \
+    artifact_size_policy.h cupidbuild.h cupidbuild_host.h seed_manifest.h seed_release.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/artifact_size_policy.o: artifact_size_policy.cc artifact_size_policy.h contract_parse_internal.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/cupidbuild_main.o: cupidbuild_main.cc cupidbuild.h cupidbuild_artifacts.h artifact_size_policy.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/as_elf.o: ../kernel/lang/as_elf.cc ../kernel/lang/as_elf.h cupidasm.h ctool.h elf32.h | $(BUILD_DIR)

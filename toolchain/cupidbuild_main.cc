@@ -1,6 +1,8 @@
 #include "cupidbuild.h"
+#include "cupidbuild_artifacts.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef CUPID_NATIVE_UTF8_ENABLE
@@ -33,6 +35,8 @@ static void cupidbuild_usage(FILE *stream) {
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
       "       cupidbuild generate-profile-manifest "
       "--seed-manifest MANIFEST --root ROOT --output OUTPUT\n"
+      "       cupidbuild verify-artifact-sizes --root ROOT --policy POLICY "
+      "--seed-manifest LINUX_MANIFEST\n"
       "usage: cupidbuild run --seed-manifest MANIFEST "
       "--root ROOT --tool {cupidc|cupidobj|cupidld} [--timeout SECONDS] -- "
       "TOOL_ARGS...\n");
@@ -56,6 +60,41 @@ static int cupidbuild_take_value(int argc, char **argv, int *index,
   *index = *index + 1;
   *value_out = argv[*index];
   return 1;
+}
+
+static int cupidbuild_artifact_command(int argc, char **argv) {
+  cupidbuild_artifact_request_t request = {NULL, NULL, NULL};
+  artifact_size_policy_result_t result;
+  char *error;
+  int index;
+  int ok;
+  for (index = 2; index < argc; index++) {
+    int found = cupidbuild_take_value(argc, argv, &index, "--root",
+                                      &request.repository_root);
+    if (found == 0) found = cupidbuild_take_value(argc, argv, &index, "--policy",
+                                                 &request.policy_path);
+    if (found == 0) found = cupidbuild_take_value(argc, argv, &index,
+        "--seed-manifest", &request.linux_manifest_path);
+    if (found != 1) { cupidbuild_usage(stderr); return 2; }
+  }
+  if (request.repository_root == NULL || request.policy_path == NULL ||
+      request.linux_manifest_path == NULL || request.repository_root[0] == 0 ||
+      request.policy_path[0] == 0 || request.linux_manifest_path[0] == 0) {
+    cupidbuild_usage(stderr); return 2;
+  }
+  error = (char *)malloc(CUPIDBUILD_ARTIFACT_ERROR_BYTES);
+  if (error == NULL) {
+    (void)fprintf(stderr, "artifact size verification failed: cannot allocate diagnostic\n");
+    return 1;
+  }
+  ok = cupidbuild_verify_artifact_sizes(&request, &result, error,
+                                       CUPIDBUILD_ARTIFACT_ERROR_BYTES);
+  if (!ok) (void)fprintf(stderr, "artifact size verification failed: %s\n", error);
+  free(error);
+  if (!ok) return 1;
+  (void)printf("Cupid artifact sizes: ok (%u exact artifacts)\n",
+               (unsigned int)result.artifact_count);
+  return 0;
 }
 
 static int cupidbuild_parse_timeout(const char *text,
@@ -96,6 +135,8 @@ int main(int argc, char **argv) {
     cupidbuild_usage(stdout);
     return 0;
   }
+  if (argc >= 2 && strcmp(argv[1], "verify-artifact-sizes") == 0)
+    return cupidbuild_artifact_command(argc, argv);
   (void)memset(&request, 0, sizeof(request));
   (void)memset(&kernel_request, 0, sizeof(kernel_request));
   (void)memset(&profile_request, 0, sizeof(profile_request));

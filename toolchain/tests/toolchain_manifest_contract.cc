@@ -58,11 +58,11 @@ static const char manifest_report_schema[] =
 
 #define MANIFEST_ARTIFACT_COUNT 22u
 #define MANIFEST_INPUT_LIMIT 256u
-#define MANIFEST_EXPECTED_INPUT_COUNT 87u
-#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 73u
+#define MANIFEST_EXPECTED_INPUT_COUNT 88u
+#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 76u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
-#define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 25u
+#define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 27u
 #define MANIFEST_BOOTSTRAP_STARTUP_OBJECT_COUNT 1u
 #define MANIFEST_BOOTSTRAP_OBJECT_COUNT                                      \
   (MANIFEST_BOOTSTRAP_C_OBJECT_COUNT +                                      \
@@ -72,7 +72,7 @@ static const char manifest_report_schema[] =
 static const char manifest_expected_seed_path[] =
     "bootstrap/seeds/i386-linux/manifest.json";
 static const char manifest_expected_build_plan_sha256[] =
-    "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe";
+    "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5";
 static const char manifest_expected_seed_build_plan_sha256[] =
     "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe";
 static const char manifest_expected_seed_manifest_sha256[] =
@@ -95,6 +95,7 @@ static const char *const
     "toolchain/ctool_host.h",
     "toolchain/cupidasm.h",
     "toolchain/cupidbuild.h",
+    "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
@@ -172,6 +173,7 @@ static const char *const
 static const char *const manifest_expected_bootstrap_paths
     [MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT] = {
     "link.ld",
+    "toolchain/artifact_size_policy.cc",
     "toolchain/artifact_size_policy.h",
     "toolchain/contract_parse_internal.cc",
     "toolchain/contract_parse_internal.h",
@@ -184,6 +186,8 @@ static const char *const manifest_expected_bootstrap_paths
     "toolchain/cupidasm_main.cc",
     "toolchain/cupidbuild.cc",
     "toolchain/cupidbuild.h",
+    "toolchain/cupidbuild_artifacts.cc",
+    "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.cc",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidbuild_main.cc",
@@ -367,7 +371,7 @@ static const char *const
         "cupidld_main",  "cupidc_pp",     "cupidc_type",    "cupidc_frontend",
         "cupidc_ir",     "cupidc_emit",   "cupidc_main",    "cupidbuild",
         "cupidbuild_host", "cupidbuild_main", "seed_manifest", "seed_release",
-        "contract_parse_internal", "start",
+        "contract_parse_internal", "cupidbuild_artifacts", "artifact_size_policy", "start",
 };
 
 static const char *const

@@ -12231,6 +12231,7 @@ struct cupidbuild_host_observer {
   cupidbuild_observer_entry_t *root;
   size_t count;
   size_t member_count;
+  cupidbuild_observation_issue_t last_issue;
   char error[CUPIDBUILD_HOST_ERROR_BYTES];
 };
 
@@ -12351,9 +12352,9 @@ static int cupidbuild_observer_same(const cupidbuild_observer_stat_t *a,
                         a->nanoseconds == b->nanoseconds));
 }
 
-static cupidbuild_observer_handle_t cupidbuild_observer_open_child(
+static cupidbuild_observer_handle_t cupidbuild_observer_open_child_status(
     cupidbuild_observer_handle_t parent, const char *name, int directory,
-    int payload) {
+    int payload, long *status_out) {
 #if defined(_WIN32)
   unsigned short wide[CUPIDBUILD_OBSERVER_NAME];
   size_t length = 0u;
@@ -12363,6 +12364,7 @@ static cupidbuild_observer_handle_t cupidbuild_observer_open_child(
   cupidbuild_windows_object_attributes_t attributes;
   cupidbuild_windows_io_status_t status;
   HANDLE handle = INVALID_HANDLE_VALUE;
+  long result;
   unsigned long access = FILE_READ_ATTRIBUTES | SYNCHRONIZE;
   unsigned long options = CUPIDBUILD_WINDOWS_FILE_SYNCHRONOUS_IO_NONALERT |
                           CUPIDBUILD_WINDOWS_FILE_OPEN_REPARSE_POINT;
@@ -12386,30 +12388,90 @@ static cupidbuild_observer_handle_t cupidbuild_observer_open_child(
   attributes.attributes = CUPIDBUILD_WINDOWS_OBJECT_CASE_INSENSITIVE |
                           CUPIDBUILD_WINDOWS_OBJECT_DONT_REPARSE;
   (void)memset(&status, 0, sizeof(status));
-  if (directory) {
+  if (directory > 0) {
     access |= FILE_LIST_DIRECTORY | FILE_TRAVERSE;
     options |= CUPIDBUILD_WINDOWS_FILE_DIRECTORY_FILE;
-  } else {
+  } else if (directory == 0) {
     if (payload) access |= GENERIC_READ;
     options |= CUPIDBUILD_WINDOWS_FILE_NON_DIRECTORY_FILE;
   }
-  if (cupid_windows_nt_create_file(&handle, access, &attributes, &status,
+  result = cupid_windows_nt_create_file(&handle, access, &attributes, &status,
         (void *)0, 0u, FILE_SHARE_READ | FILE_SHARE_WRITE,
-        CUPIDBUILD_WINDOWS_FILE_OPEN, options, (void *)0, 0u) < 0)
-    return INVALID_HANDLE_VALUE;
+        CUPIDBUILD_WINDOWS_FILE_OPEN, options, (void *)0, 0u);
+  if (status_out != (long *)0) *status_out = result;
+  if (result < 0) return INVALID_HANDLE_VALUE;
   return handle;
 #elif defined(CUPIDBUILD_CUSTOM_LINUX)
   unsigned int flags = CUPIDBUILD_LINUX_O_NOFOLLOW | CUPIDBUILD_LINUX_O_CLOEXEC |
                        CUPIDBUILD_LINUX_O_LARGEFILE;
   int handle;
   (void)payload;
+  (void)status_out;
   flags |= directory ? CUPIDBUILD_LINUX_O_DIRECTORY : CUPIDBUILD_LINUX_O_NONBLOCK;
   handle = cupid_linux_syscall4(CUPIDBUILD_LINUX_SYS_OPENAT, (unsigned int)parent,
                                 (unsigned int)name, flags, 0u);
   return handle < 0 ? CUPIDBUILD_OBSERVER_INVALID : handle;
 #else
   (void)payload;
+  (void)status_out;
   return cupidbuild_native_open_relative(parent, name, directory);
+#endif
+}
+
+static cupidbuild_observer_handle_t cupidbuild_observer_open_child(
+    cupidbuild_observer_handle_t parent, const char *name, int directory,
+    int payload) {
+  return cupidbuild_observer_open_child_status(parent, name, directory, payload,
+                                                (long *)0);
+}
+
+/* Diagnose a failed capture through its retained parent. This cannot turn a
+ * failure into an observation, and a concurrent replacement may change only
+ * the diagnostic. The caller retains poison regardless of the result. */
+static cupidbuild_observation_issue_t cupidbuild_observer_issue(
+    cupidbuild_observer_handle_t parent, const char *name, int directory) {
+#if defined(_WIN32)
+  long status = 0;
+  cupidbuild_observation_issue_t issue = CUPIDBUILD_OBSERVATION_UNAVAILABLE;
+  BY_HANDLE_FILE_INFORMATION info;
+  HANDLE handle = cupidbuild_observer_open_child_status(parent, name, -1, 0,
+                                                         &status);
+  if (handle == INVALID_HANDLE_VALUE) {
+    unsigned long code = (unsigned long)status;
+    if (code == 0xc000000fu || code == 0xc0000034u || code == 0xc000003au)
+      return CUPIDBUILD_OBSERVATION_MISSING;
+    if (code == 0xc000050bu) return CUPIDBUILD_OBSERVATION_LINKED;
+    return CUPIDBUILD_OBSERVATION_UNAVAILABLE;
+  }
+  if (GetFileInformationByHandle(handle, &info)) {
+    if ((info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0u) issue = CUPIDBUILD_OBSERVATION_LINKED;
+    else if (directory && (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0u)
+      issue = CUPIDBUILD_OBSERVATION_PARENT;
+    else if (!directory && (info.dwFileAttributes &
+              (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_DEVICE)) != 0u) issue = CUPIDBUILD_OBSERVATION_KIND;
+  }
+  if (!cupidbuild_observer_close_handle(handle)) return CUPIDBUILD_OBSERVATION_UNAVAILABLE;
+  return issue;
+#elif defined(CUPIDBUILD_CUSTOM_LINUX)
+  unsigned char info[96];
+  unsigned int mode;
+  int result = cupid_linux_syscall4(CUPIDBUILD_LINUX_SYS_FSTATAT64,
+      (unsigned int)parent, (unsigned int)name, (unsigned int)info,
+      CUPIDBUILD_LINUX_AT_SYMLINK_NOFOLLOW);
+  if (result < 0) return result == -CUPIDBUILD_LINUX_ENOENT ? CUPIDBUILD_OBSERVATION_MISSING : CUPIDBUILD_OBSERVATION_UNAVAILABLE;
+  mode = cupidbuild_linux_mode(info) & CUPIDBUILD_LINUX_S_IFMT;
+  if (mode == CUPIDBUILD_LINUX_S_IFLNK) return CUPIDBUILD_OBSERVATION_LINKED;
+  if (directory && mode != CUPIDBUILD_LINUX_S_IFDIR) return CUPIDBUILD_OBSERVATION_PARENT;
+  if (!directory && mode != CUPIDBUILD_LINUX_S_IFREG) return CUPIDBUILD_OBSERVATION_KIND;
+  return CUPIDBUILD_OBSERVATION_UNAVAILABLE;
+#else
+  struct stat info;
+  if (fstatat(parent, name, &info, AT_SYMLINK_NOFOLLOW) != 0)
+    return errno == ENOENT ? CUPIDBUILD_OBSERVATION_MISSING : CUPIDBUILD_OBSERVATION_UNAVAILABLE;
+  if (S_ISLNK(info.st_mode)) return CUPIDBUILD_OBSERVATION_LINKED;
+  if (directory && !S_ISDIR(info.st_mode)) return CUPIDBUILD_OBSERVATION_PARENT;
+  if (!directory && !S_ISREG(info.st_mode)) return CUPIDBUILD_OBSERVATION_KIND;
+  return CUPIDBUILD_OBSERVATION_UNAVAILABLE;
 #endif
 }
 
@@ -12465,7 +12527,10 @@ static cupidbuild_observer_entry_t *cupidbuild_observer_walk(
     kind = *cursor != 0 ? 1 : directory;
     entry = cupidbuild_observer_add(observer, parent, name,
         cupidbuild_observer_open_child(parent->handle, name, kind, payload), kind);
-    if (entry == (cupidbuild_observer_entry_t *)0) return entry;
+    if (entry == (cupidbuild_observer_entry_t *)0) {
+      observer->last_issue = cupidbuild_observer_issue(parent->handle, name, kind);
+      return entry;
+    }
     parent = entry;
     if (*cursor == '/') {
       cursor++;
@@ -12599,6 +12664,47 @@ int cupidbuild_host_observer_file(cupidbuild_host_observer_t *observer,
   }
   *size_out = entry->captured.size;
   return 1;
+}
+
+int cupidbuild_host_observer_files(cupidbuild_host_observer_t *observer,
+                                   const char *const *logical_paths,
+                                   size_t count,
+                                   cupidbuild_host_file_observation_t *results) {
+  size_t index;
+  int ok = 1;
+  if (count > CUPIDBUILD_OBSERVER_ENTRIES)
+    return cupidbuild_observer_fail(observer, "file observation batch exceeds limit");
+  if (results != (cupidbuild_host_file_observation_t *)0)
+    (void)memset(results, 0, count * sizeof(*results));
+  if (observer == (cupidbuild_host_observer_t *)0 || observer->error[0] != 0)
+    return 0;
+  if (count != 0u && (logical_paths == (const char *const *)0 ||
+                     results == (cupidbuild_host_file_observation_t *)0))
+    return cupidbuild_observer_fail(observer, "invalid file observation batch arguments");
+  for (index = 0u; index < count; index++) {
+    cupidbuild_observer_entry_t *entry;
+    const char *logical = logical_paths[index];
+    observer->last_issue = CUPIDBUILD_OBSERVATION_UNAVAILABLE;
+    results[index].issue = CUPIDBUILD_OBSERVATION_UNAVAILABLE;
+    if (logical == (const char *)0 || logical[0] == 0) {
+      (void)cupidbuild_observer_fail(observer, "invalid file observation batch path");
+      ok = 0;
+      continue;
+    }
+    /* A failed row never clears poison. Internal walks may still collect later
+     * diagnostic rows; no public operation can recover this observer. */
+    entry = cupidbuild_observer_walk(observer, observer->root, logical, 0, 0);
+    if (entry == (cupidbuild_observer_entry_t *)0) {
+      results[index].issue = observer->last_issue;
+      (void)cupidbuild_observer_fail(observer, "unsafe or unavailable batch observation");
+      ok = 0;
+      continue;
+    }
+    results[index].size = entry->captured.size;
+    results[index].observed = 1;
+    results[index].issue = CUPIDBUILD_OBSERVATION_OK;
+  }
+  return ok;
 }
 
 static int cupidbuild_observer_member(cupidbuild_observer_entry_t *entry,

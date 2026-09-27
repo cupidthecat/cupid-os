@@ -32,6 +32,38 @@ int cupidbuild_host_observer_open(const char *repository_root,
 int cupidbuild_host_observer_file(cupidbuild_host_observer_t *observer,
                                  const char *logical, size_t limit,
                                  unsigned char **bytes_out, uint64_t *size_out);
+typedef enum {
+  CUPIDBUILD_OBSERVATION_OK = 0,
+  CUPIDBUILD_OBSERVATION_UNAVAILABLE = 1,
+  CUPIDBUILD_OBSERVATION_MISSING = 2,
+  CUPIDBUILD_OBSERVATION_LINKED = 3,
+  CUPIDBUILD_OBSERVATION_PARENT = 4,
+  CUPIDBUILD_OBSERVATION_KIND = 5
+} cupidbuild_observation_issue_t;
+
+typedef struct {
+  uint64_t size;
+  int observed;
+  cupidbuild_observation_issue_t issue;
+} cupidbuild_host_file_observation_t;
+/* Observe a bounded batch of regular-file metadata under this retained root.
+ * At most 4096 paths. Zero count permits null arrays. For valid count and writable
+ * results, every row is cleared before argument or prior-failure checks.
+ * A successful row has observed == 1, no issue and its full 64-bit size. Failed
+ * rows have zero observed/size and a diagnostic issue. A failed capture may be
+ * classified again through its retained parent; concurrent replacement can change
+ * the diagnostic but cannot create a successful observation.
+ * Partial results are diagnostic only: any failed row poisons the observer,
+ * even though this call continues collecting later rows. Returns one only when
+ * all rows succeeded. Subsequent calls and require_unchanged still reject poison.
+ * An out-of-range count leaves outputs untouched. Input paths and writable result
+ * storage must remain valid, disjoint and unmodified throughout the call.
+ */
+int cupidbuild_host_observer_files(cupidbuild_host_observer_t *observer,
+                                   const char *const *logical_paths,
+                                   size_t count,
+                                   cupidbuild_host_file_observation_t *results);
+
 /* Retain directory identity and exact UTF-8 membership. Order is irrelevant;
  * duplicate or unsafe expected names are invalid. Empty logical names select
  * the repository root. File-kind checks belong to individual observations.
