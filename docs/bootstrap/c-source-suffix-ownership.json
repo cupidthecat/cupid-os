@@ -157,6 +157,7 @@
     "demos/paint.cc": "superseded",
     "toolchain/native_utf8.cc": "not_reached",
     "toolchain/native_utf8_entry.cc": "not_reached",
+    "toolchain/tests/artifact_size_policy_contract.cc": "not_reached",
     "toolchain/tests/cupidbuild_artifact_allocation_contract.cc": "not_reached",
     "toolchain/tests/cupidbuild_artifact_race_contract.cc": "not_reached",
     "toolchain/tests/cupidbuild_host_runner_contract.cc": "not_reached",

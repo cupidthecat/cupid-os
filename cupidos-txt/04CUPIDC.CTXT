@@ -39,19 +39,21 @@ directory membership stay observed through the final drift check. The original
 three-option interface remains available. Both native readers accept the exact
 preceding release as a parent and reject mixed identities.
 
-The production artifact check still uses Python. Across 452 audited build
-actions, CupidBuild owns 440 and Python owns twelve. Those twelve cover three
-user compilations, three user links, two image operations, three verification
-operations and hosted contract publication. Carrying a command in the seeds
-does not transfer production ownership until the build graph calls it.
+The production artifact check invokes CupidBuild directly with both manifest
+selection options. It retains the reviewed policy and seed cohorts after ISO
+publication finishes. Across 452 audited build actions, CupidBuild owns 441
+and Python owns eleven. Those eleven cover three user compilations, three user
+links, two image operations, two verification operations and hosted contract
+publication. The Python artifact runner remains available for independent tests.
 
-The preceding ec896462 pair passed acceptance on Linux and Windows.
-Its full publication checked
-22 artifacts and 67 final-stage pairs. Hosted contracts and private four-CPU
-disassembly, shell and SMP checks passed. That paired audit checked 1,533 source
-inputs, sixteen artifacts and 431 link inputs per host; images and all three
-user programs matched. Full Doom gameplay, audio, save/load and reboot
-acceptance remains outstanding.
+The 5ba6ea24 seed pair passed promotion acceptance on Linux and Windows.
+Publication checked 22 artifacts and 67 final-stage pairs. Hosted contracts
+and private four-CPU disassembly, shell and SMP checks passed. The paired audit
+checked 1,534 source inputs, sixteen artifacts and 431 link inputs per host;
+images and all three user programs matched. Production Make tests also check
+native verification without Python, selected execution seeds, and preservation
+of image bytes and timestamps after artifact rejection. Full Doom gameplay,
+audio, save/load, reboot and performance acceptance remains outstanding.
 
 WSL builds on /mnt/c remain supported. If concurrent parent replacement makes
 retained lookup unsafe, publication fails and keeps the verified old file as

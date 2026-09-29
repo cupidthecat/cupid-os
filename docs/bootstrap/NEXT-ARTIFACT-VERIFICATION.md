@@ -1,5 +1,43 @@
 # Next native artifact-size verification boundary
 
+## Native Make handoff under acceptance
+
+The installed seeds come from source
+`5ba6ea24fdef3b23c505551ab537688e681c9593`; commit
+`bf1033e7faf97e5a84c0b37ea05bf7836788ac39` records their accepted promotion.
+The current Make change invokes CupidBuild with the policy, paired seed
+manifest, checked Windows manifest and selected execution manifest. Its
+generated audit assigns 441 actions to CupidBuild and eleven to Python.
+The Python policy adapter remains available as a test oracle.
+
+All 125 graph tests pass. A fresh graph consistency check also passes after
+the measured kernel policy update. Each host passes 77 policy tests, including
+real Make cases for successful verification, failed-size image preservation,
+and execution-seed selection and mutation. Independent kernel verification
+rehashes 1,534 source inputs, sixteen artifacts and 431 link inputs per host.
+Both kernels are 9,571,268 bytes with SHA-256
+`a60774c8db88b6fc40f3e1536017586e804f25adb5f136bb03376adabce88ee5`.
+
+Fresh publication, hosted execution, image and boot acceptance are still
+pending for this handoff. The earlier promotion's runtime results below do
+not establish acceptance of this Make change. Evidence for the handoff is
+under `build/bootstrap/native-artifact-handoff-os-v2/`; the graph result is
+`graph-verification-v2.json`, the policy result is
+`paired-policy-regressions-v1.json`, and the kernel comparison is
+`promoted-paired-kernels-v1.json`.
+
+The remaining eleven Python actions cover three user compilations, three
+user links, two image builders, user syscall-ABI verification, toolchain
+manifest verification and toolchain publication. Full Doom gameplay, audio,
+save/load, reboot and performance acceptance also remain outstanding.
+
+## Earlier extraction and promotion record
+
+The following sections retain the earlier boundary analysis and acceptance
+results. Their seed identities, ownership counts and pending steps describe
+those stages. See [selected execution seeds](NATIVE-ARTIFACT-SELECTION.md)
+for the subsequent promotion.
+
 Native `verify-artifact-sizes` passes source integration acceptance. It checks
 the paired release and sixteen artifacts through retained read-only observations.
 The plans contain 76 producer inputs and 88 publication inputs. Staged proofs
@@ -374,3 +412,29 @@ The next production change must replace the private contract build closure
 with the native command's runtime inputs, update ownership classification and
 strict graph tests, and retain the ISO-before-verification ordering. A command
 spelling change alone does not establish native production ownership.
+
+## 2026-09-29: production artifact handoff accepted
+
+Production artifact verification now runs directly through the promoted
+CupidBuild command. Make passes both manifest selection options and waits for
+ISO publication before the verifier observes the repository. The audited graph
+has 441 CupidBuild actions and eleven Python actions across 452 transforms.
+Python still coordinates three user compilations, three user links, two image
+operations, two verification operations and hosted contract publication.
+
+The corrected hosted inventory contains 412 active preprocessor cases. Fresh
+publication verifies 22 artifacts and 67 stage pairs; all three hosted contracts
+pass, including seven linked i386 executables. Independent paired OS verification
+checks 1,534 captured sources, sixteen artifacts and 431 linker inputs per host.
+Windows and Linux images and all three user programs match. Both private
+four-CPU max/e1000 smokes pass disassembly, shell completion and SMP checks
+without changing their source images. The kernel is 9,571,268 bytes; the image
+SHA-256 is `ef8b033647fd7d68ca4dbb54c01f500ce3c9b4efaf12c488b24cbf8b78254a23`.
+
+The retained reports are under
+`build/bootstrap/native-artifact-handoff-os-v2/`: `paired-os-acceptance-v3.json`,
+`linux-promoted-hosted-verification-v3.json`,
+`independent-publication-files-v3.json`, `graph-verification-v3.json` and
+`paired-policy-regressions-v1.json`. The graph suite covers 125 tests and policy
+regressions cover 77 tests per host. Full Doom gameplay, audio, save/load, reboot
+and performance acceptance remains outstanding.

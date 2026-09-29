@@ -74,47 +74,26 @@ WINDOWS_PRODUCTION_SEED_INPUTS = (
     "bootstrap/seeds/i386-windows/cupidobj.exe",
     "bootstrap/seeds/i386-windows/cupidbuild.exe",
 )
-ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS = (
-    "Makefile",
-    "bootstrap/seeds/release.json",
-    "toolchain/artifact_size_policy.cc",
-    "toolchain/artifact_size_policy.h",
-    "toolchain/contract_parse_internal.cc",
-    "toolchain/contract_parse_internal.h",
-    "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
-    "toolchain/hosted/i386-linux/include/direct.h",
-    "toolchain/hosted/i386-linux/include/errno.h",
-    "toolchain/hosted/i386-linux/include/stddef.h",
-    "toolchain/hosted/i386-linux/include/stdint.h",
-    "toolchain/hosted/i386-linux/include/stdio.h",
-    "toolchain/hosted/i386-linux/include/stdlib.h",
-    "toolchain/hosted/i386-linux/include/string.h",
-    "toolchain/hosted/i386-linux/include/unistd.h",
-    "toolchain/hosted/i386-linux/include/windows.h",
-    "toolchain/hosted/i386-linux/runtime.cc",
-    "toolchain/hosted/i386-linux/start.asm",
-    "toolchain/hosted/i386-windows/runtime.cc",
-    "toolchain/hosted/i386-windows/tool_start.asm",
-    "toolchain/tests/artifact_size_policy_contract.cc",
-    "tools/artifact_size_contract.py",
-    "tools/__init__.py",
-    "tools/artifact_size_policy.py",
-    "tools/bootstrap_toolchain.py",
-    "tools/seed_release_identity.py",
-)
 ARTIFACT_SIZE_CONTRACT_TRANSFORM_INPUTS = frozenset(
     {
+        "Makefile",
+        "bootstrap/seeds/release.json",
         "boot/boot.bin",
         "kernel/kernel.bin",
         "kernel/kernel.elf",
         "kernel/kernel.elf.pass1",
         "bootstrap/artifact-size-policy.json",
-        *ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS,
         *LINUX_BOOTSTRAP_SEED_INPUTS,
         *WINDOWS_PRODUCTION_SEED_INPUTS,
     }
 )
-ARTIFACT_SIZE_CONTRACT_RECIPE = ["$(ARTIFACT_SIZE_CONTRACT)"]
+ARTIFACT_SIZE_CONTRACT_RECIPE = [
+    "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) verify-artifact-sizes \\",
+    "--root \"$(CURDIR)\" --policy $(ARTIFACT_SIZE_POLICY) \\",
+    "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) \\",
+    "--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST) \\",
+    "--execution-manifest $(PRODUCTION_SEED_MANIFEST)",
+]
 TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS = (
     "toolchain/Makefile",
     "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
@@ -390,11 +369,6 @@ TOOL_MARKERS = (
     ("$(LD)", "host_linker"),
     ("$(OBJCOPY)", "host_object_copy"),
     ("$(NM)", "host_symbol_reader"),
-    ("$(ARTIFACT_SIZE_CONTRACT)", "cupid_assembler"),
-    ("$(ARTIFACT_SIZE_CONTRACT)", "cupid_c_compiler"),
-    ("$(ARTIFACT_SIZE_CONTRACT)", "cupid_c_contract"),
-    ("$(ARTIFACT_SIZE_CONTRACT)", "cupid_linker"),
-    ("$(ARTIFACT_SIZE_CONTRACT)", "host_python"),
     ("$(TOOLCHAIN_MANIFEST_CONTRACT)", "cupid_assembler"),
     ("$(TOOLCHAIN_MANIFEST_CONTRACT)", "cupid_c_compiler"),
     ("$(TOOLCHAIN_MANIFEST_CONTRACT)", "cupid_c_contract"),
@@ -996,7 +970,7 @@ _C_PP_ACTIVE_COUNTS = {
     "CUPID_RUNTIME": 108,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
-    "HOSTED_I386_LINUX": 44,
+    "HOSTED_I386_LINUX": 43,
     "HOSTED_I386_WINDOWS": 9,
     "HOSTED_I386_KERNEL_BRIDGE": 2,
     "HOSTED_I386_LINUX_GNU": 3,
@@ -4156,7 +4130,7 @@ def _operation_for_recipe(
         and "cupid_c_contract" in tools
     ):
         return "verify_toolchain_manifest"
-    if "$(artifact_size_contract)" in joined and "cupid_c_contract" in tools:
+    if "verify-artifact-sizes" in tokens and tools == ["cupid_builder"]:
         return "verify_artifact_size_policy"
     if "cupidc_toolchain_contracts.py build" in joined and tools == [
         "cupid_assembler",
@@ -18281,13 +18255,7 @@ def _c_preprocessor_active_cases_manifest(
                     )
                 continue
             if operation == "verify_artifact_size_policy":
-                expected_tools = [
-                    "cupid_assembler",
-                    "cupid_c_compiler",
-                    "cupid_c_contract",
-                    "cupid_linker",
-                    "host_python",
-                ]
+                expected_tools = ["cupid_builder"]
                 inputs = transform.get("inputs")
                 if (
                     directory != "."
@@ -18305,19 +18273,6 @@ def _c_preprocessor_active_cases_manifest(
                     raise AuditError(
                         "Cupid artifact-size contract transform differs from "
                         "the checked build contract"
-                    )
-                for contract_source in (
-                    "toolchain/tests/artifact_size_policy_contract.cc",
-                    "toolchain/artifact_size_policy.cc",
-                    "toolchain/contract_parse_internal.cc",
-                ):
-                    entry = source_entries.get(contract_source)
-                    if entry is None or entry.get("origin") != "tracked":
-                        raise AuditError(
-                            "Cupid artifact-size contract source is not tracked"
-                        )
-                    active_by_profile["HOSTED_I386_LINUX"].append(
-                        "/" + contract_source
                     )
                 continue
             if operation == "verify_user_syscall_abi":

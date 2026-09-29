@@ -189,3 +189,29 @@ The image SHA-256 is
 `097ac6818d9fc85347c7e99d867fd4ef3d470ead67aea36de6790793fcb0fff5`.
 Evidence is `native-artifact-selection-os-v2/paired-os-acceptance-v1.json`.
 Source acceptance is complete; seed promotion and the production handoff remain.
+
+## 2026-09-29: production artifact handoff accepted
+
+Production artifact verification now runs directly through the promoted
+CupidBuild command. Make passes both manifest selection options and waits for
+ISO publication before the verifier observes the repository. The audited graph
+has 441 CupidBuild actions and eleven Python actions across 452 transforms.
+Python still coordinates three user compilations, three user links, two image
+operations, two verification operations and hosted contract publication.
+
+The corrected hosted inventory contains 412 active preprocessor cases. Fresh
+publication verifies 22 artifacts and 67 stage pairs; all three hosted contracts
+pass, including seven linked i386 executables. Independent paired OS verification
+checks 1,534 captured sources, sixteen artifacts and 431 linker inputs per host.
+Windows and Linux images and all three user programs match. Both private
+four-CPU max/e1000 smokes pass disassembly, shell completion and SMP checks
+without changing their source images. The kernel is 9,571,268 bytes; the image
+SHA-256 is `ef8b033647fd7d68ca4dbb54c01f500ce3c9b4efaf12c488b24cbf8b78254a23`.
+
+The retained reports are under
+`build/bootstrap/native-artifact-handoff-os-v2/`: `paired-os-acceptance-v3.json`,
+`linux-promoted-hosted-verification-v3.json`,
+`independent-publication-files-v3.json`, `graph-verification-v3.json` and
+`paired-policy-regressions-v1.json`. The graph suite covers 125 tests and policy
+regressions cover 77 tests per host. Full Doom gameplay, audio, save/load, reboot
+and performance acceptance remains outstanding.

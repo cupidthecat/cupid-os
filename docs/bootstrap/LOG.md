@@ -40488,3 +40488,77 @@ The final generated-audit check initially rejected stale provenance in
 `active-build.json`. Regeneration changes only four hashes: the active-source
 digest, bootstrap helper, Windows manifest and checked publication reader.
 Graph structure, ownership counts, summary and preprocessor cases are unchanged.
+
+## 2026-09-27: native artifact verification handoff in progress
+
+The production recipe now invokes the promoted CupidBuild artifact verifier
+directly, with the canonical checked Windows manifest and selected execution
+manifest. The runtime dependency closure replaces the private contract build
+closure; ISO publication still precedes retained artifact observations. The
+strict audit and recipe tests require both options and reject their removal or
+redirection. Generated inventories, full regression tests and paired OS/runtime
+acceptance are pending; this entry does not claim completed production adoption.
+
+The first inventory regeneration rejected the old policy-contract adapter because
+it was no longer reachable from a supported build root. Its ownership record now
+marks it `not_reached`; the source and its independent tests remain. Regeneration
+passes and records 441 CupidBuild and eleven Python transformations, with 452
+total transformations and 764 active source inputs.
+
+Three Make integration tests pass on each host using the actual root recipe and
+installed seeds. They skip prerequisite publications with Make's `-o` option,
+use bounded ordinary artifact fixtures and forbid Python, CC and LD. They cover
+native verification, image bytes and timestamp preservation after size failure,
+and selected execution behavior. Linux accepts an alternate reviewed cohort,
+rejects a same-size payload mutation with restored timestamp, and recovers after
+restoration. Windows rejects the alternate cohort. The first Windows assertion
+expected the checked-path diagnostic instead of the execution-path diagnostic;
+correcting the expectation makes all three tests pass. These recipe checks do
+not substitute for the pending full OS build and runtime acceptance.
+
+### Native handoff acceptance: hosted inventory correction
+
+The first fresh publication built and verified all 22 artifacts and 67 stage
+pairs. Its wrapper then rejected the OS source copy because the measured
+kernel policy had changed during publication. A separate verifier retained
+that failed report, checked all 1,534 publication inputs against the original
+capture and the OS source copy against the updated capture, and proved that
+only the kernel size changed from 9,571,000 to 9,571,268 bytes. Native manifest
+verification and independent publication-file verification passed.
+
+Hosted `conditional-active` passed, but `active-corpus` rejected its inventory:
+the generated list had 412 cases while the contract still expected 413. The
+old/new list comparison showed exactly one removed row, the Python artifact
+policy adapter whose production Make edge had moved to CupidBuild. The source
+and its oracle tests remain in the repository. Updated the contract's total
+and execution-count assertions to 412, and its hosted Linux count from 44 to
+43. All 39 Windows preprocessor tests pass, including the active corpus and
+negative preprocessing cases. The same 39 tests pass on Linux. Refreshed audit
+and a new checked publication are pending. The first publication does not establish
+hosted acceptance of this corrected contract.
+
+## 2026-09-29: production artifact handoff accepted
+
+Production artifact verification now runs directly through the promoted
+CupidBuild command. Make passes both manifest selection options and waits for
+ISO publication before the verifier observes the repository. The audited graph
+has 441 CupidBuild actions and eleven Python actions across 452 transforms.
+Python still coordinates three user compilations, three user links, two image
+operations, two verification operations and hosted contract publication.
+
+The corrected hosted inventory contains 412 active preprocessor cases. Fresh
+publication verifies 22 artifacts and 67 stage pairs; all three hosted contracts
+pass, including seven linked i386 executables. Independent paired OS verification
+checks 1,534 captured sources, sixteen artifacts and 431 linker inputs per host.
+Windows and Linux images and all three user programs match. Both private
+four-CPU max/e1000 smokes pass disassembly, shell completion and SMP checks
+without changing their source images. The kernel is 9,571,268 bytes; the image
+SHA-256 is `ef8b033647fd7d68ca4dbb54c01f500ce3c9b4efaf12c488b24cbf8b78254a23`.
+
+The retained reports are under
+`build/bootstrap/native-artifact-handoff-os-v2/`: `paired-os-acceptance-v3.json`,
+`linux-promoted-hosted-verification-v3.json`,
+`independent-publication-files-v3.json`, `graph-verification-v3.json` and
+`paired-policy-regressions-v1.json`. The graph suite covers 125 tests and policy
+regressions cover 77 tests per host. Full Doom gameplay, audio, save/load, reboot
+and performance acceptance remains outstanding.

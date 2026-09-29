@@ -2,6 +2,7 @@ import ast
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -591,27 +592,120 @@ class ArtifactSizePolicyTests(unittest.TestCase):
         target_start = makefile.index("verify-artifact-sizes:")
         target_end = makefile.index("\nbootstrap-from-seed:", target_start)
         artifact_target = makefile[target_start:target_end]
+        self.assertIn("--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)", artifact_target)
+        self.assertIn("--execution-manifest $(PRODUCTION_SEED_MANIFEST)", artifact_target)
         self.assertNotIn("bootstrap_toolchain.py verify", artifact_target)
+        self.assertNotIn("$(PYTHON)", artifact_target)
+        self.assertNotIn("tools/artifact_size_contract.py", makefile)
         self.assertIn(
-            "tools/artifact_size_contract.py verify --root . \\",
-            makefile,
+            "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) "
+            "verify-artifact-sizes \\",
+            artifact_target,
         )
         self.assertIn(
             "--policy $(ARTIFACT_SIZE_POLICY)",
-            makefile,
+            artifact_target,
         )
         self.assertIn(
             "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST)",
-            makefile,
+            artifact_target,
         )
         self.assertIn(
-            "--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)",
-            makefile,
+            "$(BOOTSTRAP_SEED_MANIFEST) $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)",
+            artifact_target,
         )
         self.assertIn(
-            "--execution-manifest $(PRODUCTION_SEED_MANIFEST)",
-            makefile,
+            "Makefile bootstrap/seeds/release.json $(ARTIFACT_SIZE_POLICY)",
+            artifact_target,
         )
+        self.assertIn("$(PRODUCTION_SEED_INPUTS) | test_iso/hello.iso", artifact_target)
+
+
+class NativeArtifactMakeTests(unittest.TestCase):
+    """Exercise the real Make recipe with installed seeds and bounded artifacts."""
+
+    def setUp(self):
+        self.make = shutil.which("make")
+        if self.make is None:
+            self.skipTest("GNU Make is unavailable")
+        temporary = tempfile.TemporaryDirectory(prefix="native-artifact-make-")
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        shutil.copytree(REPO_ROOT / "bootstrap/seeds", self.root / "bootstrap/seeds")
+        shutil.copyfile(REPO_ROOT / "Makefile", self.root / "Makefile")
+        payload = CHECKED_POLICY.read_bytes()
+        (self.root / "bootstrap/artifact-size-policy.json").write_bytes(payload)
+        self.artifacts = [row["path"] for row in json.loads(payload)["artifacts"]]
+        for row in json.loads(payload)["artifacts"]:
+            path = self.root / row["path"]
+            if not path.exists():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with path.open("wb") as stream:
+                    stream.truncate(row["exact_bytes"])
+        self.image = self.root / "cupidos.img"
+        self.image.write_bytes(b"previous accepted image")
+        self.previous_image = self.image.read_bytes()
+        self.previous_time = self.image.stat().st_mtime_ns
+
+    def run_make(self, target="verify-artifact-sizes", execution=None):
+        # Freeze prerequisite publications, but execute the unmodified verifier
+        # recipe. Full OS acceptance separately exercises their production builds.
+        old = [*self.artifacts, "Makefile", "bootstrap/seeds/release.json",
+               "bootstrap/artifact-size-policy.json", "test_iso/hello.iso",
+               "tools/hostbuild.py", "bootstrap/seeds/i386-linux/manifest.json",
+               "bootstrap/seeds/i386-windows/manifest.json"]
+        if execution:
+            old.extend(path.relative_to(self.root).as_posix()
+                       for path in (self.root / "alternate").iterdir())
+        command = [self.make, "--no-print-directory", "-j2", target,
+                   "PYTHON=forbidden-artifact-python", "CC=forbidden-cc", "LD=forbidden-ld"]
+        command.extend(arg for name in old for arg in ("-o", name))
+        if execution:
+            command.append("PRODUCTION_SEED_MANIFEST=" + execution)
+        return subprocess.run(command, cwd=self.root, capture_output=True, timeout=120)
+
+    def assert_image_preserved(self):
+        self.assertEqual(self.image.read_bytes(), self.previous_image)
+        self.assertEqual(self.image.stat().st_mtime_ns, self.previous_time)
+
+    def test_installed_native_recipe_succeeds_without_python(self):
+        result = self.run_make()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(b"Cupid artifact sizes: ok (16 exact artifacts)", result.stdout)
+        self.assertIn(b"--checked-manifest", result.stdout)
+        self.assertIn(b"--execution-manifest", result.stdout)
+        self.assert_image_preserved()
+
+    def test_size_failure_stops_image_publication(self):
+        (self.root / "kernel/kernel.bin").write_bytes(b"incorrect size")
+        result = self.run_make("cupidos.img")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(b"kernel/kernel.bin", result.stderr)
+        self.assertNotIn(b"tools/hostbuild.py image", result.stdout)
+        self.assertNotIn(b"Cupid artifact sizes: ok", result.stdout)
+        self.assert_image_preserved()
+
+    def test_selected_execution_cohort_is_retained(self):
+        host = "i386-windows" if os.name == "nt" else "i386-linux"
+        shutil.copytree(self.root / "bootstrap/seeds" / host, self.root / "alternate")
+        result = self.run_make(execution="alternate/manifest.json")
+        if os.name == "nt":
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(b"Windows execution seed is not the checked Windows seed", result.stderr)
+        else:
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = self.root / "alternate/cupiddis.elf"
+            original = payload.read_bytes()
+            stamp = payload.stat()
+            payload.write_bytes(original[:-1] + bytes([original[-1] ^ 1]))
+            os.utime(payload, ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
+            result = self.run_make("cupidos.img", "alternate/manifest.json")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(b"execution seed image differs", result.stderr)
+            self.assertNotIn(b"tools/hostbuild.py image", result.stdout)
+            payload.write_bytes(original)
+            self.assertEqual(self.run_make(execution="alternate/manifest.json").returncode, 0)
+        self.assert_image_preserved()
 
 
 if __name__ == "__main__":

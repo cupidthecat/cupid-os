@@ -161,7 +161,7 @@ static const active_expected_profile_t active_expected_profiles[] = {
     {"HOSTED_KERNEL_BRIDGE_64", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
      CTOOL_FALSE, CTOOL_FALSE, 0u, 2u, 1u, 0u},
     {"HOSTED_I386_LINUX", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
-     CTOOL_FALSE, CTOOL_FALSE, 44u, 2u, 1u, 0u},
+     CTOOL_FALSE, CTOOL_FALSE, 43u, 2u, 1u, 0u},
     {"HOSTED_I386_WINDOWS", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
      CTOOL_FALSE, CTOOL_FALSE, 9u, 2u, 2u, 0u},
     {"HOSTED_I386_KERNEL_BRIDGE", CTOOL_C_PP_MODE_C11, CTOOL_FALSE,
@@ -5601,7 +5601,7 @@ static int validate_active_manifest(const char *mode) {
           (ctool_u32)(sizeof(active_expected_profiles) /
                       sizeof(active_expected_profiles[0])) ||
       kind_counts[ACTIVE_ROW_PROFILE] != 16u ||
-      kind_counts[ACTIVE_ROW_CASE] != 413u ||
+      kind_counts[ACTIVE_ROW_CASE] != 412u ||
       kind_counts[ACTIVE_ROW_GENERATED_CASE] != 4u ||
       kind_counts[ACTIVE_ROW_INCLUDE_ONLY] != 22u ||
       kind_counts[ACTIVE_ROW_NON_ROOT] != 2u ||
@@ -5826,7 +5826,7 @@ static int run_one_active_case(const char *mode, const char *host_root,
 
 static int run_active_corpus(const char *mode, const char *host_root,
                              ctool_bool generated) {
-  ctool_u32 expected_count = generated == CTOOL_TRUE ? 4u : 413u;
+  ctool_u32 expected_count = generated == CTOOL_TRUE ? 4u : 412u;
   ctool_u32 executed_count = 0u;
   ctool_u32 row_index;
 

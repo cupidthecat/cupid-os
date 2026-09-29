@@ -218,38 +218,6 @@ ARTIFACT_SIZE_OUTPUTS = $(BOOTLOADER) \
 	$(BOOTSTRAP_WINDOWS_SEED_DIRECTORY)cupidobj.exe \
 	$(BOOTSTRAP_WINDOWS_SEED_DIRECTORY)cupidbuild.exe \
 	$(KERNEL) kernel/kernel.elf kernel/kernel.elf.pass1
-ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS := \
-	Makefile \
-	bootstrap/seeds/release.json \
-	toolchain/artifact_size_policy.cc \
-	toolchain/artifact_size_policy.h \
-	toolchain/contract_parse_internal.cc \
-	toolchain/contract_parse_internal.h \
-	toolchain/hosted/i386-linux/include/cupid_host_abi.h \
-	toolchain/hosted/i386-linux/include/direct.h \
-	toolchain/hosted/i386-linux/include/errno.h \
-	toolchain/hosted/i386-linux/include/stddef.h \
-	toolchain/hosted/i386-linux/include/stdint.h \
-	toolchain/hosted/i386-linux/include/stdio.h \
-	toolchain/hosted/i386-linux/include/stdlib.h \
-	toolchain/hosted/i386-linux/include/string.h \
-	toolchain/hosted/i386-linux/include/unistd.h \
-	toolchain/hosted/i386-linux/include/windows.h \
-	toolchain/hosted/i386-linux/runtime.cc \
-	toolchain/hosted/i386-linux/start.asm \
-	toolchain/hosted/i386-windows/runtime.cc \
-	toolchain/hosted/i386-windows/tool_start.asm \
-	toolchain/tests/artifact_size_policy_contract.cc \
-	tools/artifact_size_contract.py \
-	tools/__init__.py \
-	tools/artifact_size_policy.py \
-	tools/bootstrap_toolchain.py \
-	tools/seed_release_identity.py
-ARTIFACT_SIZE_CONTRACT := $(PYTHON) tools/artifact_size_contract.py verify --root . \
-	--policy $(ARTIFACT_SIZE_POLICY) \
-	--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) \
-	--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST) \
-	--execution-manifest $(PRODUCTION_SEED_MANIFEST)
 HDD_MB ?= 200
 FAT_START_LBA ?= 20480
 WAD_SRCS := $(sort $(wildcard /usr/share/games/doom/freedoom*.wad))
@@ -1610,10 +1578,14 @@ verify-windows-bootstrap-seed:
 # The ISO transaction creates temporary root entries. Finish it before the
 # artifact verifier captures the repository's directory identity and contents.
 verify-artifact-sizes: $(ARTIFACT_SIZE_OUTPUTS) \
-	$(ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS) $(ARTIFACT_SIZE_POLICY) \
+	Makefile bootstrap/seeds/release.json $(ARTIFACT_SIZE_POLICY) \
 	$(BOOTSTRAP_SEED_MANIFEST) $(BOOTSTRAP_WINDOWS_SEED_MANIFEST) \
-	$(CHECKED_SEED_INPUTS) | test_iso/hello.iso
-	$(ARTIFACT_SIZE_CONTRACT)
+	$(PRODUCTION_SEED_INPUTS) | test_iso/hello.iso
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) verify-artifact-sizes \
+		--root "$(CURDIR)" --policy $(ARTIFACT_SIZE_POLICY) \
+		--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) \
+		--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST) \
+		--execution-manifest $(PRODUCTION_SEED_MANIFEST)
 
 bootstrap-from-seed: verify-bootstrap-seed
 	$(PYTHON) tools/bootstrap_toolchain.py bootstrap \
