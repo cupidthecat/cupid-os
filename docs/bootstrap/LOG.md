@@ -40929,3 +40929,138 @@ logs remain alongside accepted evidence. A broader full bootstrap-module run
 started before these fixture corrections and entered its default staged rebuild;
 it is separate from the accepted v5 regressions and the pending long-profile
 paired proofs.
+
+## Paired long-profile proofs, 2026-09-30
+
+Native Windows and Linux proofs pass from the installed `5ba6ea24` seeds.
+Both capture the same 77 producer inputs at source revision
+`909d84ef66cd16210898057f842fe742e601bbd2`, with snapshot SHA-256
+`a4656b38c82cd4e0acc2ba69328f8e4a1347aaaaa22e312957689ee12a989dd6`.
+Windows builds 36 objects and six tools in each generation; Linux builds 28
+objects and six tools. Every stage-three artifact equals its stage-four result.
+The Windows behavior matrix passes 35 failure, seven help and 42 success cases;
+Linux passes 47 failure, seven help and 55 success cases.
+
+Independent verification rehashes 1,540 captured source inputs, compares the
+complete producer inventory with a Git archive of the named commit, validates
+all three stages, and checks both reported seed parents. Evidence is under
+`build/bootstrap/long-profile-proofs-909d84ef/`, including
+`native-both-proof-verification-v1.json`. The proposed paired release passes its
+pinned verifier and independent author. It remains a preview while seed
+self-consumption, contract publication and OS acceptance run.
+
+The repaired driver fixtures pass 143 methods on each host, with sixteen
+expected Linux skips. Named-commit checks translate Windows worktree links
+for WSL without editing Git metadata. Artifact assertions independently hash
+the reported files, while keeping exact import and behavior checks.
+
+Both proposed seeds compile `cat.cc`, `hello.cc` and `ls.cc` through the current
+wrapper at paths longer than 400 characters, including Unicode components and
+lexical source aliases. Each object equals its short-path result and the prior
+accepted object. Nine invalid output bindings per host fail. These are compiler
+path checks; the closed native user transaction and its separate links remain
+open. A direct Windows probe also rejects an inherited long working directory
+with error 87. A short explicit child directory succeeds even when the parent
+has a long working directory. Preserve the wrapper's short project-directory
+launch and pass the private compiler root as an argument.
+
+The broader bootstrap-module run loaded its fixtures before corrections. Both
+default staged CLI commands completed, but five assertions retained old plan,
+link-order or object-count expectations. The run reports five failures across
+143 methods in 5,570.474 seconds; it is not a passing full-suite result. After
+correction, the 143 selected regressions pass in 221.494 seconds on Windows and
+90.258 seconds on Linux. The expensive staged methods are covered separately
+by the fresh paired long-profile proofs. A byte-identity helper has positive
+coverage and rejects wrong digests, sizes, extra/missing fields and same-size
+edits, then accepts the unchanged valid file.
+
+The first preview contract publication failed because its output leaf was not
+`cupidc-contracts`. The retry uses the required dedicated directory. That failure
+preceded compilation and remains in `linux-promoted-publication-build-v1.log`.
+The v2 replay, fresh self-consumption proofs and clean OS builds retain durable
+state files; a running process is not accepted test evidence.
+
+The first proposed Windows self-bootstrap completed its stages but rejected a
+behavior fixture whose driver had replaced the exact profile's recorded parents.
+A direct typed assembly probe reproduces the provenance error. The driver now
+retains lineage only when the captured source count, source digest and both
+plans match exactly, after validating the execution/plan pair. Changed captures,
+plans, a floating source count, missing parents and mismatched pairs cannot reuse
+that lineage. The corrected checked assembly probe passes; a fresh Windows
+self-bootstrap runs from the corrected driver.
+
+The preview driver suite passes 144 methods on Windows and Linux, with sixteen
+expected Linux skips. Native negative cases remove the resolver import from
+ordinary tools. Historical profile fixtures use their own accepted parent tuple,
+so an import rejection reaches the intended check. Evidence is in the v2 preview
+logs and `self-consumption-lineage-probe-v2.json` under
+`build/bootstrap/long-profile-proofs-909d84ef/`.
+
+The proposed 77-input release still needs default-profile compatibility before
+promotion. A default 76-input Windows behavior fixture inherits the long
+release's parent tuple, which the shared reader currently rejects. The direct
+probe is `default-profile-parent-probe-v1.json`. Explicit long-profile proofs
+and normal OS recipes do not establish that separate default bootstrap path.
+The installed 76-input cohort remains unchanged while this boundary is resolved.
+
+## Lineage replay and OS acceptance, 2026-09-30
+
+Both proposed seeds rebuild themselves with the explicit long profile. All six
+initial tools equal their stage-two outputs; every stage-three artifact equals
+stage four, and the final files equal the earlier paired proof. Independent
+verification checks the named 77-input producer closure and 1,540 source inputs
+per host. The Windows replay uses the corrected behavior-fixture lineage helper.
+The selected driver regressions pass 144 methods on each host, with sixteen
+expected Linux skips, against both installed and proposed seed cohorts.
+
+The installed seeds also pass a separate incremental Windows OS replay of the
+updated manual. Rechecks retain 241 compiler closures and their outputs,
+including all 83 Doom objects, with unchanged source and producers. The manual,
+both kernel links, symbol generation, flattening and image publication run again.
+Only the manual object and two linked ELFs change in the recorded 431-input
+cohort. Sixteen artifact checks, three unchanged user executables and the
+private four-CPU max/e1000 disassembly, shell and SMP smoke pass. The manual's
+60,531 bytes are present in its object, ELF and raw kernel. The kernel is
+9,573,568 bytes; the 209,715,200-byte image has SHA-256
+`bda15e5128b6b740c104c6eb552c0da26a26f6ff663abc8ad27d8126245bb09e`.
+The source image remains unchanged after the smoke. Independent evidence is
+`build/bootstrap/long-profile-proofs-909d84ef/driver-independent-acceptance-v1.json`.
+
+The first replay incorrectly retained both linked kernels. Make returned success,
+but an independent byte check found that the raw kernel lacked the new manual.
+That run is rejected. Removing the linked kernels from the retained set rebuilt
+the links and exposed the expected size-policy mismatch. The policy now records
+the measured raw size, 1,036 bytes above the previous accepted image. The corrected
+build and independent checks pass. The installed seeds remain unchanged.
+
+Promotion still needs two native checks fixed. The default 76-input Windows
+bootstrap fixture rejects the proposed release's parent tuple. Both clean OS builds
+with the proposed 77-input pair reach native artifact verification, which rejects
+their source input count. Independent verification matches the complete 431-input
+kernel cohort and raw kernel across hosts. Both builds fail and have no accepted
+image. The separate contract publication remains recorded by its durable state file.
+These failures must be resolved before installing a new paired release. Full
+Doom gameplay, audio, save/load, reboot and performance acceptance remains open.
+
+The final audit check found a stale conditional-expression fixture. The long-file
+adapter adds two expressions and one existing `_WIN32` occurrence. The checked
+inventory now has 418 `#if` and nineteen `#elif` occurrences, 61 expressions and
+64 directive/expression pairs. The first ten-method audit run passed nine methods
+and failed this count check. Its corrected rerun passes, as do four Windows host
+cases and four cases in a freshly CupidC-built Linux contract, including precise
+errors and recovery. The paired producer closure remains the same 77 inputs.
+The separate publication uses its captured earlier contract fixtures; it cannot
+establish acceptance for this corrected fixture. Evidence includes
+`conditional-audit-v2.log`, `conditional-host-windows-v1.log` and
+`conditional-checked-v1.json` under the current proof evidence directory.
+
+The corrected conditional fixture belongs to the closed header set for 83 Doom
+objects and two generated installation tables. A Linux checked-tool replay
+recompiles all 85 through their existing native CupidBuild operations; every
+object equals its accepted bytes. The other 156 source-specific compiler
+closures remain unchanged. Final independent verification rechecks all 1,540
+captured source inputs, sixteen artifacts, the 431-input cohort and the unchanged
+boot-tested image. `fixture-os-refresh-v1.json` records the fresh outputs;
+`driver-final-source-transition-v2.json` binds the final documentation and
+verification fixtures to the active worktree. Ownership remains 441 CupidBuild
+and eleven Python actions.

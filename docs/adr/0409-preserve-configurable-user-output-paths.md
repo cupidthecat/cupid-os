@@ -75,3 +75,8 @@ Windows incremental OS acceptance also passes artifact, user-program and private
 four-CPU disassembly/shell/SMP checks. The updated manual produces a
 9,572,436-byte raw kernel. The bootstrap log records the retained-object input
 proof, fresh Doom transactions, exact-size calibration and independent reread.
+
+The follow-up checked-compiler probe rejects inherited long working directories
+with error 87. Short explicit child directories work from both parent directories
+and produce identical objects. Keep the project root as the wrapper launch
+directory and pass the long private source root through `--root`.

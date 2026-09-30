@@ -2250,3 +2250,13 @@ CupidBuild validates the structural source identity so its own binary does not
 create a self-reference. That non-producer lineage role is separate from
 CupidBuild's 437 normal-build participations.
 _Avoid_: self-referential seed, provisional promotion
+
+## Long-file bootstrap checkpoint, 2026-09-30
+
+Paired native long-profile proofs at revision `909d84ef` bind the same 77-input
+producer snapshot and byte-identical stage-three/four artifacts. Independent
+validation checks the committed inventory, all three stages and captured parents.
+The proposed release remains a preview while self-consumption and OS acceptance
+run. Long file handling does not establish long process working-directory support:
+both explicit and inherited long child directories fail on Windows. The user
+wrapper keeps the project launch directory and passes its private root by argument.

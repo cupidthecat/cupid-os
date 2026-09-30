@@ -3488,6 +3488,18 @@ def _retarget_native_windows_behavior_seed(
         if parent_plan_seed is None:
             raise BootstrapError("native Windows behavior parent plan seed is unavailable")
         _require_seed_pair_identity(seed_inputs, parent_plan_seed)
+        # Rebuilding the reviewed profile keeps its recorded lineage. Its own
+        # manifest is an execution input, not a new parent of unchanged bytes.
+        if (
+            type(provenance.get("source_input_count")) is int
+            and provenance["source_input_count"] == len(source_snapshot)
+            and provenance.get("source_snapshot_sha256")
+            == _source_snapshot_sha256(source_snapshot)
+            and provenance.get("native_build_plan_sha256") == digest
+            and provenance.get("linux_candidate_build_plan_sha256")
+            == _build_plan_sha256(linux_plan)
+        ):
+            return seed_inputs
         provenance["parent_execution_seed_manifest_sha256"] = seed_inputs.manifest_sha256
         provenance["parent_execution_seed_source_revision"] = provenance["source_revision"]
         provenance["parent_plan_seed_manifest_sha256"] = parent_plan_seed.manifest_sha256

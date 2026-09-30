@@ -2767,11 +2767,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 415)
+            self.assertEqual(contract["if_occurrences"], 418)
             self.assertEqual(contract["elif_occurrences"], 19)
-            self.assertEqual(contract["expression_occurrences"], 434)
-            self.assertEqual(contract["unique_expressions"], 59)
-            self.assertEqual(contract["directive_expression_pairs"], 62)
+            self.assertEqual(contract["expression_occurrences"], 437)
+            self.assertEqual(contract["unique_expressions"], 61)
+            self.assertEqual(contract["directive_expression_pairs"], 64)
             executable_contract = CUPIDC_PP_CONTRACT.read_text(encoding="utf-8")
             totals_guard = re.search(
                 r"sizeof\(cases\) / sizeof\(cases\[0\]\)\) != (\d+)u \|\|"
@@ -2886,6 +2886,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "defined ( CUPID_WINDOWS_BUILD )": 0,
                     "defined ( CUPID_WINDOWS_BUILD ) && defined ( CUPID_WINDOWS_PUBLICATION )": 0,
                     "defined ( CUPID_WINDOWS_BUILD ) || defined ( CUPID_WINDOWS_PUBLICATION )": 0,
+                    "defined ( CUPID_WINDOWS_BUILD ) || defined ( "
+                    "CUPID_WINDOWS_PUBLICATION ) || defined ( CUPID_WINDOWS_LONG_PATHS )": 0,
+                    "defined ( CUPID_WINDOWS_LONG_PATHS )": 0,
                     "defined ( CUPID_WINDOWS_UTF8 )": 0,
                     "defined ( __DJGPP__ )": 0,
                     "defined ( __MACOSX__ )": 0,

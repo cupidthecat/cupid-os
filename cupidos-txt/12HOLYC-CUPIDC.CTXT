@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-09-29
+Verified against source on: 2026-09-30
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -36,7 +36,7 @@ success. It creates no files and launches no tools. Metadata-only artifact check
 cannot detect same-size edits with restored timestamps; seed payloads are hashed.
 Producer profiles capture 76 or 77 inputs; publication captures 89. Installed seeds
 retain the accepted 76-input profile. Production verification uses checked
-CupidBuild; the separate long-file profile still needs paired proofs and promotion.
+CupidBuild; the separate long-file profile has paired native proofs and awaits promotion.
 
 >h2 Reusable build verification modules
 Checked CupidBuild now has a read-only filesystem observer. It retains
@@ -1103,3 +1103,19 @@ shared readers and publication carry the exact 77-input profile; publication
 captures 89 inputs. Paired proofs, promotion and user compilation remain open.
 The graph has 441 CupidBuild and eleven Python actions. ADRs 0409 and 0410 apply.
 >endtree
+
+>h2 Paired long-file bootstrap proofs
+Windows and Linux staged proofs at revision 909d84ef capture the same 77 inputs.
+Windows builds 36 objects and six tools per stage; Linux builds 28 objects and
+six tools. Every stage-three artifact equals its stage-four result. Independent
+checks validate committed source bytes and both parent seeds. The proposed
+release remains a preview pending self-consumption and OS acceptance.
+Both proposed seeds reproduce the cat, hello and ls objects with output paths
+longer than 400 characters. Short and long outputs match the previous accepted
+objects. The user compilation and link coordinators still use Python.
+Long file handling does not establish long child working-directory support.
+Explicit and inherited long child directories fail on Windows. The wrapper
+keeps the project working directory and passes the private root as an argument.
+
+The proposed long-file release also needs default-profile bootstrap compatibility
+before promotion. The installed 76-input cohort remains in use.

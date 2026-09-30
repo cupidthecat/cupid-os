@@ -9,6 +9,15 @@ working directory succeeds. Preserve the wrapper's existing launch contract;
 extended file handling alone does not prove a long working directory works.
 Evidence is `build/bootstrap/windows-long-current-directory-probe-v1.json`.
 
+
+A real checked-compiler probe also rejects an inherited long working directory
+with error 87. Both explicit and inherited long child directories fail; a short
+explicit child directory works from either parent and emits identical bytes.
+The wrapper launches from the project root and passes its private source root
+through `--root`, so a private directory under a long output parent need not
+become the child working directory. Evidence is
+`build/bootstrap/user-cwd-probe-v1/report-v1.json`.
+
 This plan covers the three user compiler transactions for `cat.cc`, `hello.cc`,
 and `ls.cc` under `user/examples`. Their three links remain separate work.
 The generated-install `compile-production` draft covers only the bin, demos,
@@ -512,3 +521,9 @@ a fresh `--output`. Contract publication uses
 `tools/cupidc_toolchain_contracts.py build --windows-long-paths` with its existing
 root, manifest, output and worker arguments. Verification derives the selected
 inventory from the checked publication facts.
+
+Both proposed seeds now pass independent self-consumption checks with the exact
+long profile. A clean Linux OS build rejects count 77 in the separate native
+artifact-size verifier. Fix that parser and default-profile parent compatibility
+before promotion. Installed tools pass the updated manual image and private
+four-CPU smoke; the checked seed identities and ownership counts remain unchanged.
