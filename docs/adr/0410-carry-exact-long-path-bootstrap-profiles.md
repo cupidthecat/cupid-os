@@ -119,3 +119,14 @@ branches, 36 owned assembly sources and nine hosted startup assemblies.
 Removing the resolver remains a tested ownership failure. Default producer
 capture still has 76 inputs and long capture has 77; the common Make dependency
 closure includes the optional shim so either publication can observe it.
+
+Fresh paired proofs at `8403b0a8` pass with the complete 77-input inventory.
+Independent validation binds the committed closure and every staged artifact;
+stage three and four match on both hosts. The release preview remains separate
+from installed seeds pending complete acceptance.
+
+The optional audit also resolves Windows linked-worktree metadata on WSL using
+read-only path conversion and explicit Git arguments. It verifies the resulting
+root before enumerating tracked files. Eight selected methods pass on each host
+without environment overrides, including the original full CLI regression.
+This repair changes no producer input or production ownership edge.

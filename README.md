@@ -17,6 +17,8 @@ bootstrap compatibility remain required before promotion.
 The updated manual also passes an isolated Windows image build and four-CPU
 boot smoke. Production ownership remains 441 CupidBuild actions and eleven Python actions.
 The assembly audit accounts for 36 owned inputs, including nine hosted startups.
+Fresh paired proofs from `8403b0a8` pass. The linked-worktree audit also passes
+on WSL without Git environment overrides. The paired release remains a preview.
 See [the bootstrap record](docs/bootstrap/README.md) and
 [the user compilation design](docs/bootstrap/NEXT-USER-COMPILATION.md).
 

@@ -2277,3 +2277,9 @@ staged proofs and complete default-profile compatibility before seed promotion.
 The long-profile audit records 36 CupidASM-owned assembly inputs, including
 nine hosted startup inputs. Both Make publication branches declare the resolver
 shim; the selected producer capture remains 76 default or 77 long inputs.
+
+Fresh native proofs from `8403b0a8` bind the same 77-input producer snapshot and
+identical stage-three/four artifacts. Their paired release remains a preview.
+The audit resolves Windows linked-worktree metadata on WSL without changing it,
+then checks the root and enumerates tracked sources. Untracked bootstrap
+fixtures do not enter that inventory.

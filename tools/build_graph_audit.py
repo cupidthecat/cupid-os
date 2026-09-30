@@ -4918,16 +4918,60 @@ def _is_excluded_source_path(path: str) -> bool:
     )
 
 
+def _wsl_worktree_git_prefix(root: Path) -> list[str] | None:
+    if os.name != "posix":
+        return None
+    link = root / ".git"
+    try:
+        if not link.is_file():
+            return None
+        document = link.read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeError):
+        return None
+    windows_link = re.fullmatch(r"gitdir: ([A-Za-z]:[/\\].+)", document)
+    if windows_link is None:
+        return None
+    try:
+        translated = subprocess.run(
+            ["wslpath", "-u", windows_link.group(1)],
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+        )
+    except OSError:
+        return None
+    directory = translated.stdout.strip()
+    if translated.returncode != 0 or not directory.startswith("/") or any(
+        character in directory for character in ("\r", "\n", "\0")
+    ):
+        return None
+    return ["git", "--git-dir", directory, "--work-tree", str(root)]
+
+
 def _tracked_paths(root: Path) -> list[str] | None:
+    prefix = ["git", "-C", str(root)]
     probe = subprocess.run(
-        ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+        [*prefix, "rev-parse", "--show-toplevel"],
         text=True,
         encoding="utf-8",
         errors="replace",
         capture_output=True,
     )
     if probe.returncode != 0:
-        return None
+        translated_prefix = _wsl_worktree_git_prefix(root)
+        if translated_prefix is None:
+            return None
+        prefix = translated_prefix
+        probe = subprocess.run(
+            [*prefix, "rev-parse", "--show-toplevel"],
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+        )
+        if probe.returncode != 0:
+            return None
     try:
         git_root = Path(probe.stdout.strip()).resolve()
     except OSError:
@@ -4935,7 +4979,7 @@ def _tracked_paths(root: Path) -> list[str] | None:
     if git_root != root.resolve():
         return None
     listing = subprocess.run(
-        ["git", "-C", str(root), "ls-files", "-z"],
+        [*prefix, "ls-files", "-z"],
         capture_output=True,
     )
     if listing.returncode != 0:

@@ -1138,3 +1138,8 @@ before promotion. The installed seeds and production ownership are unchanged.
 The active assembly audit has 36 CupidASM-owned inputs, including nine hosted
 startup inputs. Both Make publication branches declare the resolver shim;
 selected producer capture remains 76 default or 77 long inputs.
+
+Fresh Windows and Linux staged proofs from 8403b0a8 bind the same 77 inputs;
+stage-three and stage-four artifacts match. The audit can resolve Windows
+linked-worktree metadata on WSL and check tracked sources without changing Git
+metadata. Installed seeds remain pinned until complete promotion acceptance.

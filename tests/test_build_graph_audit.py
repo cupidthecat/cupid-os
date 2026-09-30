@@ -9,6 +9,7 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 from tools.cupidc_kernel_compile import (
@@ -123,6 +124,103 @@ def _load_audit_module():
 
 
 class BuildGraphAuditCliTests(unittest.TestCase):
+
+    def test_windows_worktree_inventory_translates_metadata_and_excludes_untracked_sources(self):
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            link = root / ".git"
+            link.write_bytes(b"gitdir: C:/repo with spaces/.git/worktrees/bootstrap\r\n")
+            original_link = link.read_bytes()
+            (root / "tracked.cc").write_text("int tracked;\n", encoding="utf-8")
+            (root / "untracked.c").write_text("int fixture;\n", encoding="utf-8")
+            translated = "/mnt/c/repo with spaces/.git/worktrees/bootstrap"
+            responses = [
+                subprocess.CompletedProcess([], 128, "", "invalid Windows Git link"),
+                subprocess.CompletedProcess([], 0, translated + "\n", ""),
+                subprocess.CompletedProcess([], 0, str(root) + "\n", ""),
+                subprocess.CompletedProcess([], 0, b"tracked.cc\0", b""),
+            ]
+            with mock.patch.object(module, "os", SimpleNamespace(name="posix")), mock.patch.object(
+                module.subprocess, "run", side_effect=responses
+            ) as run:
+                paths = module._source_universe(root)
+            self.assertEqual(paths, ["tracked.cc"])
+            self.assertEqual(link.read_bytes(), original_link)
+            self.assertEqual(run.call_args_list[1].args[0], [
+                "wslpath", "-u", "C:/repo with spaces/.git/worktrees/bootstrap"
+            ])
+            prefix = ["git", "--git-dir", translated, "--work-tree", str(root)]
+            self.assertEqual(run.call_args_list[2].args[0], [
+                *prefix, "rev-parse", "--show-toplevel"
+            ])
+            self.assertEqual(run.call_args_list[3].args[0], [*prefix, "ls-files", "-z"])
+
+    def test_worktree_translation_rejects_invalid_links_and_unusable_paths(self):
+        module = _load_audit_module()
+        failed = subprocess.CompletedProcess([], 128, "", "not a repository")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            link = root / ".git"
+            for text in ("gitdir: relative/path", "gitdir: /native/path", "gitdir: C:relative",
+                         "gitdir: C:/valid\nextra", "not a Git link"):
+                link.write_text(text, encoding="utf-8")
+                with self.subTest(link=text), mock.patch.object(
+                    module, "os", SimpleNamespace(name="posix")
+                ), mock.patch.object(module.subprocess, "run", return_value=failed) as run:
+                    self.assertIsNone(module._tracked_paths(root))
+                    self.assertEqual(run.call_count, 1)
+            link.write_text("gitdir: C:/repo/.git/worktrees/bootstrap", encoding="utf-8")
+            for response in (
+                subprocess.CompletedProcess([], 1, "", "conversion failed"),
+                subprocess.CompletedProcess([], 0, "relative/path\n", ""),
+                subprocess.CompletedProcess([], 0, "/absolute\nsecond/path\n", ""),
+                OSError("wslpath unavailable"),
+            ):
+                with self.subTest(translation=repr(response)), mock.patch.object(
+                    module, "os", SimpleNamespace(name="posix")
+                ), mock.patch.object(module.subprocess, "run", side_effect=[failed, response]):
+                    self.assertIsNone(module._tracked_paths(root))
+
+    def test_translated_worktree_keeps_root_binding_and_listing_errors(self):
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / ".git").write_text("gitdir: C:/repo/.git/worktrees/bootstrap", encoding="utf-8")
+            failed = subprocess.CompletedProcess([], 128, "", "not a repository")
+            translated = subprocess.CompletedProcess([], 0, "/mnt/c/repo/.git/worktrees/bootstrap\n", "")
+            for probe in (
+                subprocess.CompletedProcess([], 128, "", "invalid metadata"),
+                subprocess.CompletedProcess([], 0, str(root.parent) + "\n", ""),
+            ):
+                with self.subTest(root=probe.stdout), mock.patch.object(
+                    module, "os", SimpleNamespace(name="posix")
+                ), mock.patch.object(module.subprocess, "run", side_effect=[failed, translated, probe]) as run:
+                    self.assertIsNone(module._tracked_paths(root))
+                    self.assertEqual(run.call_count, 3)
+            responses = [failed, translated,
+                subprocess.CompletedProcess([], 0, str(root) + "\n", ""),
+                subprocess.CompletedProcess([], 128, b"", b"index unavailable")]
+            with mock.patch.object(module, "os", SimpleNamespace(name="posix")), mock.patch.object(
+                module.subprocess, "run", side_effect=responses
+            ), self.assertRaisesRegex(module.AuditError, "git could not enumerate tracked sources: index unavailable"):
+                module._tracked_paths(root)
+
+    def test_native_git_inventory_uses_its_original_probe_and_root_guard(self):
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            responses = [subprocess.CompletedProcess([], 0, str(root) + "\n", ""),
+                         subprocess.CompletedProcess([], 0, b"tracked.cc\0", b"")]
+            with mock.patch.object(module.subprocess, "run", side_effect=responses) as run:
+                self.assertEqual(module._tracked_paths(root), ["tracked.cc"])
+                self.assertEqual(run.call_count, 2)
+                self.assertEqual(run.call_args_list[1].args[0], ["git", "-C", str(root), "ls-files", "-z"])
+            with mock.patch.object(module.subprocess, "run", return_value=
+                subprocess.CompletedProcess([], 0, str(root.parent) + "\n", "")) as run:
+                self.assertIsNone(module._tracked_paths(root))
+                self.assertEqual(run.call_count, 1)
+
     def test_order_only_edges_keep_reachability_without_becoming_content_inputs(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

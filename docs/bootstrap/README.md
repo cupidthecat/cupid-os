@@ -1,5 +1,51 @@
 # Cupid Toolchain bootstrap
 
+## Fresh native proofs and linked-worktree audit, 2026-09-30
+
+Both native staged proofs pass from producer commit `8403b0a8`, with the same
+77-input snapshot `25b05a6cb0e824136db8df79b4e7f2e176aea88f0446be550f36ece04798bbf9`.
+Windows compares 36 objects and six tools per generation; Linux compares 28
+objects and six tools. Every stage-three artifact equals stage four. Independent
+verification checks all three stages, the named Git archive, captured parents
+and 1,540 repository inputs. The fresh paired release preview passes its pinned
+verifier and release author. It remains uninstalled while self-consumption,
+complete default-profile compatibility, publication and OS acceptance run.
+
+The audit now resolves a Windows linked worktree from WSL after native Git
+rejects its drive-letter metadata path. It reads the existing link, converts
+that path with `wslpath`, and supplies explicit Git metadata and worktree paths.
+The top-level root must still match before tracked files are enumerated. Native
+Git lookup, invalid-link fallback and listing errors retain their behavior.
+Git metadata is unchanged, and untracked bootstrap fixtures remain outside the
+tracked source inventory.
+
+The minimized real probe fails before the change and passes afterward in
+0.076 seconds. Four new methods cover tracked selection, unchanged link bytes,
+invalid links and translations, missing conversion support, wrong-root rejection,
+listing failure and native lookup. All eight selected methods, including the
+original full CLI case and resolver ownership cases, pass on each host. Linux
+runs without `GIT_DIR` or `GIT_WORK_TREE` overrides. The regenerated audit and
+its independent check pass. An inline WSL probe first corrupted a regex during
+argument transport; the file-based probe establishes the path diagnosis.
+
+The updated manual is embedded in a 9,575,044-byte kernel. The isolated Windows
+image build, all sixteen artifact checks, three unchanged user binaries and a
+private four-CPU `max`/e1000 boot smoke pass. The smoke disassembles `/bin/ls.cc`,
+runs `ls` and verifies SMP runtime behavior without changing the source image.
+All 241 retained compiler input closures, including 83 Doom sources, remain
+unchanged. Only the manual object and two linked kernel ELFs change among 431
+link inputs. This replay uses the installed seeds; proposed-seed OS acceptance
+remains a separate requirement.
+
+Evidence is under `build/bootstrap/native-profile-validation-258bb5f3/`, including
+`fresh-native-both-proof-verification-v1.json`, `fresh-promotion-preview-v2/`,
+`git-inventory-red-linux-v1.log`, `git-inventory-green-linux-v2.log` and both
+`worktree-audit-regressions-*-v1.log` files, plus
+`worktree-windows-os-acceptance-v2.json`. Producer source and installed seed
+identities remain unchanged by this audit repair. Ownership stays at 441
+CupidBuild actions and eleven Python actions. Full Doom runtime acceptance
+and native user compilation/link coordination remain open.
+
 ## Native validation for both bootstrap profiles, 2026-09-30
 
 The shared manifest reader accepts the complete installed `5ba6ea24` parent
