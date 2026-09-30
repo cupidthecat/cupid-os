@@ -41241,3 +41241,65 @@ Both complete audit suites now pass all 129 methods. Windows takes 1,083.918
 seconds; Linux takes 1,657.047 seconds without Git environment overrides.
 `fresh-audit-suite-*-v1.log` retains the full results. The source audit and
 production ownership counts remain unchanged by this evidence update.
+
+## 2026-09-30: promote the paired long-file seed release
+
+The corrected Linux acceptance replay completes its current-control publication,
+all three unchanged user programs, native verification of sixteen artifacts and
+the private four-CPU `max`/e1000 disassembly, shell and SMP smoke. Its image
+stays unchanged. Source and artifact rereads bind all 1,540 captured inputs and
+431 link inputs. The accepted Linux and Windows images match.
+
+All 23 current publication files are authenticated and copied to a new Windows
+directory. Native Windows verifies the current 89 inputs, 77 producer inputs
+and 22 artifacts, followed by another source/file reread. The first copy harness
+failed before copying because its build parent was absent; preparing that
+parent retains exclusive publication creation. An early dependent verifier also
+stopped before execution because the copy record did not yet exist.
+
+The installed pair names producer `8403b0a8` and snapshot
+`25b05a6cb0e824136db8df79b4e7f2e176aea88f0446be550f36ece04798bbf9`.
+Linux manifest SHA-256 is
+`84b8bef11969bac58d69e97baacd86d8f1b4aa030ecd25359bb1dcdb8f679cbc`;
+Windows manifest SHA-256 is
+`5d129b2575450dac756d75a4dc859501fdcd9bacf53190ed360ec66f68e21297`.
+Both native fixed points, both long-profile self-consumption proofs and the
+complete default Windows bootstrap retain their original passing records.
+The nineteen approved release paths are installed with their preceding bytes
+retained in `seed-install-backup-v1/`.
+
+The final 63,444-byte manual is rebuilt through the normal Make kernel target
+on both hosts with host compilers, assemblers and linkers forbidden. Both
+produce the same 9,576,480-byte raw kernel, 9,675,196-byte first-pass ELF and
+9,806,268-byte final ELF. Native verification rejects each obsolete raw/final
+ELF size before those two measured policy rows change. The other fourteen
+artifact policy rows remain exact. The image recipe then publishes the final
+manual without repeating unchanged compiler checks.
+
+Both final user, artifact and private four-CPU smokes pass. All sixteen artifacts
+and 431 link inputs match; only the manual object and the two linked ELFs differ
+from the preceding cohort. Source images remain unchanged through smoke. Final
+image SHA-256 is
+`af2a2c537facca3aa5ac4a38af47685f82873e6c58a960c24a979621893b3165`.
+Independent paired rereads bind 1,541 source/control inputs. The installed
+regression selection passes 253 methods. Twenty-five manifest methods also
+pass after historical fixtures stop inheriting the installed long profile and
+current fixtures expect its result tag.
+The final 79-method manifest and size-policy replay passes in 6.696 seconds
+after policy calibration; all six captured inputs remain unchanged.
+
+Evidence remains under `build/bootstrap/native-profile-validation-258bb5f3/`:
+`fresh-final-os-*-acceptance-v5.json`,
+`current-publication-windows-verification-v5.json`,
+`reviewed-long-seed-installation-v1.json`,
+`promoted-manual-*-preparation-v6.json`,
+`promoted-manual-size-calibration-v6.json`,
+`promoted-manual-*-acceptance-v6.json`,
+`paired-promoted-manual-acceptance-v6.json` and
+`installed-long-regressions-windows-v1.json`.
+`installed-long-final-fixtures-windows-v2.json` retains the final fixture replay.
+
+Ownership remains 441 CupidBuild actions and eleven Python actions. Native user
+compilation and links remain separate work. Full Doom gameplay, audio,
+save/load, reboot persistence and performance acceptance remain open.
+`TempleOS/` remains read-only reference material.

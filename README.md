@@ -1,13 +1,13 @@
 # cupid-os
 
-Fresh native Windows and Linux toolchain proofs from `8403b0a8` pass with the
-same 77-input long-file profile. Both proposed seeds rebuild themselves, and
-the complete default 76-input Windows bootstrap passes with its exact plan.
-Independent checks verify every staged artifact and the named committed source.
-Both complete fresh OS builds pass without host compilers and produce identical
-431-input cohorts and disk images. The settled manual passes installed-seed and proposed-seed Windows image
-acceptance. A fresh publication and Linux user/boot checks remain required
-before the reviewed pair is installed.
+The checked Linux and Windows seeds now come from `8403b0a8` and the same
+77-input long-file profile. Both seeds rebuild themselves, and the complete
+default 76-input Windows bootstrap passes with its exact plan. Independent
+checks verify the committed source and every staged artifact. Both complete
+fresh OS builds pass without host compilers and produce identical 431-input
+cohorts and disk images. Both hosts pass user-program, artifact and private
+four-CPU boot checks. The fresh 89-input contract publication also passes
+native Windows verification of all 22 artifacts.
 
 CupidBuild owns 441 normal-build actions; eleven still use Python. Native user
 compilation and link coordination remain open. The latest retained Doom replay advances
@@ -28,18 +28,17 @@ The shared x86 decoder initializes a candidate after its early opcode,
 prefix, and invalid-encoding checks, before writing decoded fields. This avoids
 clearing records for rows that cannot match. Catalogue order, alias selection,
 recovery classifications, and public-result initialization stay unchanged.
-The source change still needs paired bootstrap proofs and promotion before
-checked production tools carry it. ADR 0398 records the implementation and
-its validation boundary; production ownership counts are unchanged.
+The promoted seeds carry this change. ADR 0398 records the implementation;
+the bootstrap log records its paired proof and promotion. Production ownership
+counts are unchanged.
 
-Source-head `cupidbuild compile-production` captures and compiles the three
+Checked `cupidbuild compile-production` captures and compiles the three
 generated bin, docs, and demo installation tables with their existing kernel
 profile. Each bundle contains the source and five required headers. Checked
 publication preserves prior output on failure and retains timestamps for equal
-validated objects. The checked seeds and Make recipes still use the preceding
-proven Doom checkpoint; this command needs its own paired proofs and promotion
-before those three recipes move. Production ownership remains 437 CupidBuild
-and 15 Python participations. ADR 0397 records the source boundary.
+validated objects. The normal Make recipes invoke this operation directly.
+Production ownership remains 441 CupidBuild and eleven Python actions.
+ADR 0397 records the source boundary; the bootstrap log records the handoff.
 
 Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a graphical desktop, window manager, built-in C compiler, assembler, and scripting language. It runs on real hardware and in QEMU. The design draws from TempleOS, OsakaOS, and Unix.
 
@@ -70,27 +69,26 @@ The 157 kernel-profile recipes continue to use `compile-kernel`. All 240
 kernel/Doom compiler roots already use `.cc`; this handoff changes ownership
 without changing the source language, compiler arguments, or OS behavior.
 
-Both checked six-tool cohorts come from source `83d00ce70e5607dc5c011bb97c6478121f24a21c`
-and the same 59-input snapshot `f2b3a1349b3cf5476fc2f141b307afe3babe0e673d6154fb98afee3511507718`. Clean proofs match
-all 29 Linux and 32 native Windows stage-three/stage-four artifact pairs.
-Linux passes 41 failure, seven help, and 47 success groups; Windows passes
-29 failure, seven help, and 34 success groups. Each compared coordinator uses
+Both checked six-tool cohorts come from source `8403b0a82b5693409d2242fdbff32688c8f2cac5`
+and the same 77-input snapshot `25b05a6cb0e824136db8df79b4e7f2e176aea88f0446be550f36ece04798bbf9`.
+Clean proofs match all 34 Linux and 42 native Windows stage-three/stage-four
+artifact pairs. Linux passes 47 failure, seven help, and 55 success groups;
+Windows passes 35 failure, seven help, and 42 success groups. Each compared coordinator uses
 its own generation's complete tool cohort. Independent promotion checks bind
 the source inventory to the commit and verify exact stage files and bytes,
 executable formats, build plans, parent lineage, and the proposed seed pair.
 
-The Linux manifest has SHA-256 `a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622`; the Windows
-manifest has SHA-256 `f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590`.
+The Linux manifest has SHA-256 `84b8bef11969bac58d69e97baacd86d8f1b4aa030ecd25359bb1dcdb8f679cbc`; the Windows
+manifest has SHA-256 `5d129b2575450dac756d75a4dc859501fdcd9bacf53190ed360ec66f68e21297`.
 
-The audit records 437 CupidBuild and 15 Python participations across 452
-transforms. Python still coordinates six compilations (three generated
-installation tables and three user programs), three user links, two image
-publications, three verification operations (artifact sizes, user syscall ABI,
-and the Toolchain manifest), and one Toolchain build/manifest publication.
+The audit records 441 CupidBuild and eleven Python actions across 452
+transforms. Python still coordinates three user compilations, three user links,
+two image publications, two verification operations (user syscall ABI and the
+Toolchain manifest), and one Toolchain build/manifest publication.
 Make and host operating-system services remain required. GCC, NASM, and host
 linkers are not required by the normal code-producing path.
 
-The next compiler step is the six generated-install and user compilations.
+The next compiler step is the three user compilations.
 Their existing profiles and captured headers must remain intact. User builds
 must keep configurable `BUILD` directories, including safe creation of missing
 parents, rather than being restricted to `user/build`. The three user links

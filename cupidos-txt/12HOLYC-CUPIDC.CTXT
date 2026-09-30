@@ -24,7 +24,7 @@ The default profile captures 76 producer inputs; the long-file profile captures
 77. Publication captures 89. Windows builds 32 C objects and three assembly
 objects, or four in the long-file profile. Exact role-specific import tables
 and matching plan identities keep historical seed validation separate.
-The Windows seeds select the UTF-8 profile. Historical ANSI manifests retain
+The Windows seeds select the UTF-8 long-file profile. Historical ANSI manifests retain
 their separate plan, source-count and import checks.
 >endtree
 
@@ -35,8 +35,11 @@ sixteen exact artifact sizes, then rechecks observations and closes handles befo
 success. It creates no files and launches no tools. Metadata-only artifact checks
 cannot detect same-size edits with restored timestamps; seed payloads are hashed.
 Producer profiles capture 76 or 77 inputs; publication captures 89. Installed seeds
-retain the accepted 76-input profile. Production verification uses checked
-CupidBuild; the separate long-file profile has paired native proofs and awaits promotion.
+retain the accepted 77-input long-file profile. Production verification uses
+checked CupidBuild. Both native staged proofs, long-profile self-bootstrap and
+the complete default Windows bootstrap pass. Both hosts pass user-program,
+artifact and private four-CPU boot checks. Native Windows also verifies the
+fresh 22-artifact publication. The checked source is revision 8403b0a8.
 
 >h2 Reusable build verification modules
 Checked CupidBuild now has a read-only filesystem observer. It retains

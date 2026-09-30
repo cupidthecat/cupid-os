@@ -1,15 +1,19 @@
 # Toolchain ownership migration matrix
 
-## Long-profile proof checkpoint, 2026-09-30
+## Promoted long-file release, 2026-09-30
 
-The fresh `8403b0a8` pair passes native fixed points, long-profile
+The installed `8403b0a8` pair passes native fixed points, long-profile
 self-consumption on both hosts, and the complete default 76-input Windows
 bootstrap. Independent checks bind the named committed closure and every
 staged artifact. Both complete fresh OS builds produce identical 431-input
 cohorts, sixteen artifacts and disk images with host compilers forbidden.
-Their first image uses the older captured manual; final publication and manual
-acceptance remain separate. Ownership remains 441 CupidBuild actions and eleven
-Python actions. See [the current acceptance record](README.md#long-profile-release-acceptance-2026-09-30).
+Both hosts also pass the settled-manual user, artifact and private four-CPU
+disassembly/shell/SMP replay. The current 89-input publication passes native
+Windows verification of its 77 producer inputs and 22 artifacts. Ownership
+remains 441 CupidBuild actions and eleven Python actions. Native user
+compilation, linking and full Doom runtime acceptance remain open.
+See [the release record](LONG-FILE-RELEASE.md). Earlier sections retain their
+original checkpoint identities.
 
 ## Production artifact handoff, 2026-09-29
 

@@ -89,10 +89,10 @@ ELFs, and runs CupidObj `flat`. A separate native ELF renderer reconstructs
 the initialized physical-address image and must match CupidObj byte for byte.
 The real 431-input cohort reproduces the tracked kernel through a CupidC-built
 image. Both active checked seeds carry this transaction from revision
-`142a9737f618ab8500308576a1c222501d639e5f` and the same 59-input source
-snapshot, `2346284239faf9f5571223587f2e2b2dfdd5197cffd41b97a12e234386810695`.
+`8403b0a82b5693409d2242fdbff32688c8f2cac5` and the same 77-input source
+snapshot, `25b05a6cb0e824136db8df79b4e7f2e176aea88f0446be550f36ece04798bbf9`.
 ADR 0372 records the capability, ADR 0374 records its earlier seed carriage,
-and ADR 0396 records the current pair. The normal Make edge calls CupidBuild
+and ADR 0410 records the current pair. The normal Make edge calls CupidBuild
 directly under ADR 0375; Hostbuild remains an optional parity oracle.
 
 The earlier checked `16a86f5b` pair carried the Windows full-cohort launch repair
@@ -143,7 +143,7 @@ or directory-identity changes. ADR 0396 records that separate profile handoff.
 
 Checked `compile-production` owns the three generated installation tables
 with their fixed kernel profile and six-record closures. Production records
-440 CupidBuild and 12 Python participations. ADR 0397 records the source
+441 CupidBuild and eleven Python actions. ADR 0397 records the source
 capability and the bootstrap log records its paired promotion and handoff;
 user compilation and configurable output parents remain separate work.
 
@@ -155,8 +155,8 @@ raw images, the guarded JPEG object, kernel-symbol generation, kernel
 flattening, 157 kernel, 83 Doom, and three generated-install compilations,
 Doom profile publication, 186 ordinary
 CupidObj calls, and both
-normal kernel links. It participates in 440 of the 452 audited transforms;
-Python participates in 12. Disk and ISO image publication retain their
+normal kernel links and artifact verification. It participates in 441 of the
+452 audited transforms; Python participates in eleven. Disk and ISO image publication retain their
 Python safety and parity layers. The promoted checked runner admits CupidC,
 CupidObj, and CupidLD, while rejecting CupidASM, CupidDis, and CupidBuild.
 

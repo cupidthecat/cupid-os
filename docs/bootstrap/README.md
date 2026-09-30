@@ -1,5 +1,32 @@
 # Cupid Toolchain bootstrap
 
+## Promoted long-file release, 2026-09-30
+
+The reviewed nineteen-path release is installed. Linux and Windows manifests
+name source `8403b0a8` and the same committed 77-input snapshot. Both native
+fixed points, both long-profile self-bootstrap proofs and the complete default
+Windows bootstrap pass. Both hosts also pass the settled-manual user, artifact
+and private four-CPU disassembly/shell/SMP replay with identical images and
+431 link inputs. Native Windows verifies the fresh current-control publication:
+89 inputs, 77 producer inputs and 22 artifacts.
+
+The final 63,444-byte promotion manual also passes both kernel-target and image
+replays. Native checks reject the obsolete raw/final-ELF sizes before those
+two measured policy rows change. The resulting 9,576,480-byte raw kernel,
+9,806,268-byte final ELF and all 431 link inputs match across hosts. Both private
+four-CPU smokes pass and preserve their images. Final image SHA-256 is
+`af2a2c537facca3aa5ac4a38af47685f82873e6c58a960c24a979621893b3165`.
+The installed regression selection passes 253 methods; twenty-five manifest
+methods pass with explicit historical fixtures.
+
+[The release record](LONG-FILE-RELEASE.md) retains exact identities, commands,
+evidence and the remaining boundary. This promotion carries the retained
+user-output prerequisites. Native user compilation and links still need their
+own release and recipe handoff. Ownership remains 441 CupidBuild actions and
+eleven Python actions. Full Doom runtime acceptance remains open.
+
+The following sections retain earlier acceptance states and failed approaches.
+
 ## User ABI profile selection and image acceptance, 2026-09-30
 
 The Linux user recipe now passes `--windows-long-paths` to its syscall ABI

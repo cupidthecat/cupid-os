@@ -2,7 +2,7 @@
 
 Date: 2026-09-29
 
-Status: Paired native proofs verified; seed promotion pending
+Status: Paired long-file seeds promoted; production ownership unchanged
 
 The Windows long-file adapter needs one extra resolver shim and a distinct
 ordinary-tool import table. Keep explicit profile selection in the paired
@@ -174,3 +174,22 @@ Both complete audit suites now pass all 129 methods. Windows takes 1,083.918
 seconds; Linux takes 1,657.047 seconds without Git environment overrides.
 `fresh-audit-suite-*-v1.log` retains the full results. The source audit and
 production ownership counts remain unchanged by this evidence update.
+
+The final Linux replay completes the current-control publication, all three
+user programs, sixteen artifact checks and the private four-CPU disassembly,
+shell and SMP smoke. Native Windows independently verifies the copied
+publication against its current 89 inputs and 77 producer inputs. Both hosts'
+accepted images and all 431 link inputs match. The nineteen reviewed promotion
+paths are now installed, with their previous bytes retained in a private backup.
+Both manifests name source `8403b0a8` and the same committed 77-input snapshot.
+The bootstrap log records the installed identities and the final manual replay.
+Native user compilation and linking remain separate work.
+
+Both final promotion-manual kernel-target replays and image recipes pass.
+The 63,444-byte manual produces a 9,576,480-byte raw kernel and 9,806,268-byte
+final ELF. Native checks reject each obsolete policy value before the two
+measured rows change. All sixteen artifacts, 431 link inputs and images match;
+both private four-CPU smokes preserve their source images. Independent paired
+verification binds all 1,541 frozen source/control inputs. The installed driver,
+release and policy selection passes 253 methods, followed by twenty-five
+manifest methods with explicit historical parents and the selected result tag.

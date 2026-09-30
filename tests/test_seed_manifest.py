@@ -26,9 +26,20 @@ def pre_artifact_plan():
     return plan
 
 
+def historical_parents(value):
+    provenance = value["provenance"]
+    for field in provenance:
+        if field.startswith("parent_"):
+            provenance[field] = (
+                "83d00ce70e5607dc5c011bb97c6478121f24a21c" if field.endswith("source_revision") else
+                "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590" if "execution" in field else
+                "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622")
+    return value
+
+
 def historical_manifest(fmt):
     """Construct the earlier structural contract without changing installed seeds."""
-    value = manifest(fmt)
+    value = historical_parents(manifest(fmt))
     value["provenance"]["source_input_count"] = 59
     if fmt == 1:
         removed = {"seed_manifest", "seed_release", "contract_parse_internal"}
@@ -46,7 +57,7 @@ def historical_manifest(fmt):
 
 
 def candidate_manifest(fmt):
-    value = manifest(fmt)
+    value = historical_parents(manifest(fmt))
     value["provenance"]["source_input_count"] = 66
     plan = pre_artifact_plan()
     linux_digest = seed._build_plan_sha256(plan)
@@ -498,9 +509,10 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(bytes(incoming), before)
         self.assertEqual(bytes(error)[capacity:], b"!" * 8 + b"\0")
         if accepted:
-            expected = expected or (6, 2 if fmt == 2 else 0)
-            self.assertEqual((result.artifact_count, result.current_windows_plan), expected)
             decoded = json.loads(data)
+            expected = expected or (6, (3 if decoded["provenance"]["source_input_count"] == 77
+                                       else 2) if fmt == 2 else 0)
+            self.assertEqual((result.artifact_count, result.current_windows_plan), expected)
             roles = ("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj", "cupidbuild")
             summary = ["1", str(expected[0]), str(expected[1])]
             for index, role in enumerate(roles):
