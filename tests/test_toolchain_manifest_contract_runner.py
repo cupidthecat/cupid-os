@@ -378,6 +378,45 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                             "execution seed manifest",
                         )
 
+    def test_final_membership_rechecks_the_captured_long_path_profile(self):
+        seed_bytes = (
+            REPO_ROOT / "bootstrap/seeds/i386-linux/manifest.json"
+        ).read_bytes()
+        resolver = "toolchain/hosted/i386-windows/utf8_long_path_start.asm"
+        inputs = (("toolchain/ctool.h", 1, 1, "0" * 64),)
+        for long_paths in (False, True):
+            expected = ("toolchain/ctool.cc",) + ((resolver,) if long_paths else ())
+            observations = tuple((name, 1, 1, "0" * 64) for name in expected)
+            current = expected
+
+            def recapture(_reader, _plan, *, windows_long_paths=False):
+                self.assertEqual(windows_long_paths, long_paths)
+                return current
+
+            with self.subTest(long_paths=long_paths), mock.patch.object(
+                toolchain_manifest_contract, "_contract_input_logical_paths",
+                return_value=("toolchain/ctool.h",),
+            ), mock.patch.object(
+                toolchain_manifest_contract, "_bootstrap_input_logical_paths",
+                side_effect=recapture,
+            ):
+                REAL_REQUIRE_LIVE_MEMBERSHIP(
+                    mock.sentinel.reader, inputs, observations, seed_bytes
+                )
+                for changed in (expected + ("toolchain/new.h",), expected[1:]):
+                    current = changed
+                    with self.assertRaisesRegex(
+                        toolchain_manifest_contract.ToolchainManifestContractError,
+                        "input membership changed",
+                    ):
+                        REAL_REQUIRE_LIVE_MEMBERSHIP(
+                            mock.sentinel.reader, inputs, observations, seed_bytes
+                        )
+                current = expected
+                REAL_REQUIRE_LIVE_MEMBERSHIP(
+                    mock.sentinel.reader, inputs, observations, seed_bytes
+                )
+
     def test_final_membership_check_rejects_a_new_contract_input(self):
         seed_manifest = bootstrap_toolchain.verify_seed_inputs(
             REPO_ROOT / "bootstrap/seeds/i386-linux/manifest.json"

@@ -1119,3 +1119,6 @@ keeps the project working directory and passes the private root as an argument.
 
 The proposed long-file release also needs default-profile bootstrap compatibility
 before promotion. The installed 76-input cohort remains in use.
+
+The final Toolchain publication check repeats its captured 76- or 77-input
+profile. It rejects membership drift before returning success.

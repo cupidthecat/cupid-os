@@ -3245,3 +3245,36 @@ boot-tested image. `fixture-os-refresh-v1.json` records the fresh outputs;
 `driver-final-source-transition-v2.json` binds the final documentation and
 verification fixtures to the active worktree. Ownership remains 441 CupidBuild
 and eleven Python actions.
+
+## Final publication membership repair, 2026-09-30
+
+The first complete long-profile contract build publishes 22 artifacts, and its
+Cupid author and Python oracle agree on all 67 stage pairs. Its separate verifier
+then rejects an unchanged input set: the final membership check had recomputed
+the default 76-input profile after capturing the selected 77-input profile.
+The final check now retains that selection from its captured resolver observation.
+It still rejects extra or missing members and accepts a recovered unchanged set.
+
+The focused regression fails before the fix and passes afterward. All 27 runner
+methods pass on each host, with three expected Windows skips. The first concurrent
+run correctly rejects repository-root changes from the other host's temporary
+build directory; sequential runs pass. An isolated replay of the actual
+publication passes the checked verifier with 89 publication and 77 producer
+inputs. Its 22 artifacts and all captured source bytes remain unchanged, apart
+from the explicitly replaced verifier. Evidence is under
+`build/bootstrap/long-profile-proofs-909d84ef/`: the v4 runner logs,
+`linux-promoted-publication-replay-v3.json` and `verification-audit-v4.json`.
+This replay retains the earlier contract fixtures; the corrected conditional
+fixture has its separate checked-Cupid evidence. The two native promotion
+requirements remain default-profile parent compatibility and artifact-policy
+support for count 77. The installed seeds and ownership counts are unchanged.
+
+The manual replay passes with installed seeds: all sixteen artifact checks,
+three unchanged user executables and a private four-CPU max/e1000 disassembly,
+shell and SMP smoke. The 60,670-byte manual is present in its object,
+ELF and raw kernel. The measured raw kernel is 9,573,704 bytes, 136 bytes
+above the preceding accepted image. The first size-policy gate rejects that
+increase; the calibrated policy and rebuilt image pass. The unchanged source
+image has SHA-256 `f1f9896e9aae2c55a6bf834db84ae81a4290e5abec44db7950ef5d070bebe018`.
+Independent source and artifact evidence is
+`verification-final-acceptance-v4.json` under the current proof directory.

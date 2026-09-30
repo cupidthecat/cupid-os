@@ -83,3 +83,10 @@ The separate publication uses its captured earlier contract fixtures; it cannot
 establish acceptance for this corrected fixture. Evidence includes
 `conditional-audit-v2.log`, `conditional-host-windows-v1.log` and
 `conditional-checked-v1.json` under the current proof evidence directory.
+
+The final publication membership check must recapture the same selected profile
+as its initial observations. A complete 77-input publication exposed a default
+76-input recapture at the final boundary. The verifier now retains the selection
+from the captured resolver observation. Both runner suites and an isolated replay
+of the actual 22-artifact publication pass. Extra and missing members remain
+rejected. This driver fix leaves the two native promotion requirements unchanged.

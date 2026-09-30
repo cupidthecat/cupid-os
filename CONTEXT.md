@@ -2260,3 +2260,8 @@ The proposed release remains a preview while self-consumption and OS acceptance
 run. Long file handling does not establish long process working-directory support:
 both explicit and inherited long child directories fail on Windows. The user
 wrapper keeps the project launch directory and passes its private root by argument.
+
+Final Toolchain publication membership checks retain the captured bootstrap
+profile. The explicit long profile has 77 inputs; a final default-profile
+recapture would incorrectly reject its unchanged resolver input. The source
+repair passes both runner suites and a checked replay of the actual publication.

@@ -674,7 +674,11 @@ def _require_live_closure_membership(
             "Toolchain publication seed build plan differs"
         )
     current_bootstrap = _bootstrap_input_logical_paths(
-        reader, _candidate_build_plan(build_plan)
+        reader, _candidate_build_plan(build_plan),
+        windows_long_paths=any(
+            path == "toolchain/hosted/i386-windows/utf8_long_path_start.asm"
+            for path, _kind, _size, _digest in bootstrap_observations
+        ),
     )
     expected_bootstrap = tuple(
         sorted(
