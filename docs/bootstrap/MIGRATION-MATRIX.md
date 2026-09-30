@@ -1,5 +1,13 @@
 # Toolchain ownership migration matrix
 
+## Native user compilation source checkpoint, 2026-09-30
+
+The three user compiler transactions now have a tested source-head CupidBuild
+operation. Both hosts reproduce the current objects and pass the staged helper
+and next-parent checks. Installed seeds and Make recipes remain unchanged:
+441 CupidBuild actions and eleven Python actions. The three user links remain
+separate. [The source record](USER-COMPILE-SOURCE.md) retains acceptance still due.
+
 ## Promoted long-file release, 2026-09-30
 
 The installed `8403b0a8` pair passes native fixed points, long-profile

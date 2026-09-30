@@ -2089,8 +2089,19 @@ static const char *const cupidbuild_compile_profile[] = {
 typedef enum {
   CUPIDBUILD_COMPILE_KERNEL,
   CUPIDBUILD_COMPILE_DOOM,
-  CUPIDBUILD_COMPILE_PRODUCTION
+  CUPIDBUILD_COMPILE_PRODUCTION,
+  CUPIDBUILD_COMPILE_USER
 } cupidbuild_compile_kind_t;
+
+static const cupidbuild_compile_closure_t cupidbuild_compile_user_closures[] = {
+    {"user/examples/cat.cc", {"user/cupid.h", "user/examples/cat.cc"}, 2u},
+    {"user/examples/hello.cc", {"user/cupid.h", "user/examples/hello.cc"}, 2u},
+    {"user/examples/ls.cc", {"user/cupid.h", "user/examples/ls.cc"}, 2u}
+};
+
+static const char *const cupidbuild_compile_user_profile[] = {
+    "--freestanding", "-I", "/user"
+};
 
 static const cupidbuild_compile_closure_t cupidbuild_compile_production_closures[] = {
     {"kernel/util/bin_programs_gen.cc", {
@@ -6076,6 +6087,8 @@ static int cupidbuild_compile(
     const cupidbuild_compile_request_t *request, cupidbuild_compile_kind_t kind) {
   cupidbuild_host_transaction_t *transaction =
       (cupidbuild_host_transaction_t *)0;
+  cupidbuild_host_output_parent_t *output_parent =
+      (cupidbuild_host_output_parent_t *)0;
   cupidbuild_seed_capture_t seed;
   const cupidbuild_compile_closure_t *closure =
       (const cupidbuild_compile_closure_t *)0;
@@ -6094,13 +6107,17 @@ static int cupidbuild_compile(
   size_t source_size;
   int doom = kind == CUPIDBUILD_COMPILE_DOOM;
   int production = kind == CUPIDBUILD_COMPILE_PRODUCTION;
-  const char *cohort = doom ? "Doom" : (production ? "production" : "kernel");
-  const cupidbuild_compile_closure_t *closures = production
-      ? cupidbuild_compile_production_closures : cupidbuild_compile_closures;
-  size_t closure_count = production
+  int user = kind == CUPIDBUILD_COMPILE_USER;
+  const char *cohort = user ? "user" : (doom ? "Doom" : (production ? "production" : "kernel"));
+  const cupidbuild_compile_closure_t *closures = user
+      ? cupidbuild_compile_user_closures : (production
+      ? cupidbuild_compile_production_closures : cupidbuild_compile_closures);
+  size_t closure_count = user
+      ? sizeof(cupidbuild_compile_user_closures) / sizeof(cupidbuild_compile_user_closures[0])
+      : (production
       ? sizeof(cupidbuild_compile_production_closures) /
             sizeof(cupidbuild_compile_production_closures[0])
-      : sizeof(cupidbuild_compile_closures) / sizeof(cupidbuild_compile_closures[0]);
+      : sizeof(cupidbuild_compile_closures) / sizeof(cupidbuild_compile_closures[0]));
   int doom_tree = 0;
   const char *const *profile = cupidbuild_compile_profile;
   size_t profile_count = sizeof(cupidbuild_compile_profile) /
@@ -6109,10 +6126,14 @@ static int cupidbuild_compile(
   int changed = 0;
   int result = 1;
   (void)memset(&seed, 0, sizeof(seed));
+  if (user) {
+    profile = cupidbuild_compile_user_profile;
+    profile_count = sizeof(cupidbuild_compile_user_profile) / sizeof(cupidbuild_compile_user_profile[0]);
+  }
   if (request == (const cupidbuild_compile_request_t *)0 ||
-      !cupidbuild_path_safe(request->repository_root, 0) ||
+      (!user && !cupidbuild_path_safe(request->repository_root, 0)) ||
       !cupidbuild_path_safe(request->source, 1) ||
-      !cupidbuild_path_safe(request->output, 1) ||
+      (!user && !cupidbuild_path_safe(request->output, 1)) ||
       !cupidbuild_path_safe(request->seed_manifest, 0)) {
     (void)fprintf(stderr, "cupidbuild: invalid %s compile request\n",
                   cohort);
@@ -6150,16 +6171,23 @@ static int cupidbuild_compile(
   (void)memcpy(expected_output, request->source, source_size - 2u);
   expected_output[source_size - 2u] = 'o';
   expected_output[source_size - 1u] = '\0';
-  if (strcmp(request->output, expected_output) != 0) {
+  if (!user && strcmp(request->output, expected_output) != 0) {
     (void)fprintf(stderr, "cupidbuild: %s source and output binding differ\n",
                   cohort);
     return 1;
   }
   logical_source[0] = '/';
   (void)memcpy(logical_source + 1u, request->source, source_size + 1u);
-  if (!cupidbuild_host_transaction_open(request->repository_root,
+  if (user && !cupidbuild_host_output_parent_prepare(request->repository_root,
+                                                       request->output, &output_parent)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n", cupidbuild_host_output_parent_error(output_parent));
+    goto done;
+  }
+  if (!(user ? cupidbuild_host_output_transaction_open(request->repository_root,
+                   request->source, request->output, output_parent, &transaction)
+             : cupidbuild_host_transaction_open(request->repository_root,
                                         request->source, request->output,
-                                        &transaction)) {
+                                        &transaction))) {
     goto host_failure;
   }
   if (!(doom != 0
@@ -6247,10 +6275,16 @@ host_failure:
 done:
   free(candidate);
   cupidbuild_seed_capture_close(&seed);
-  return cupidbuild_finish_publication(transaction, result,
+  result = cupidbuild_finish_publication(transaction, result,
                                          doom ? "Doom compiler object"
+                                              : (user ? "user compiler object"
                                               : (production ? "production compiler object"
-                                                            : "kernel compiler object"));
+                                                            : "kernel compiler object")));
+  if (!cupidbuild_host_output_parent_close(output_parent)) {
+    (void)fprintf(stderr, "cupidbuild: output parent cleanup failed\n");
+    return 1;
+  }
+  return result;
 }
 
 int cupidbuild_compile_kernel(const cupidbuild_compile_request_t *request) {
@@ -6263,6 +6297,36 @@ int cupidbuild_compile_doom(const cupidbuild_compile_request_t *request) {
 
 int cupidbuild_compile_production(const cupidbuild_compile_request_t *request) {
   return cupidbuild_compile(request, CUPIDBUILD_COMPILE_PRODUCTION);
+}
+
+int cupidbuild_compile_user(const cupidbuild_compile_request_t *request) {
+  cupidbuild_user_compile_paths_t *paths =
+      (cupidbuild_user_compile_paths_t *)calloc(1u, sizeof(*paths));
+  char absolute_root[CUPIDBUILD_PATH_BYTES];
+  char error[256];
+  cupidbuild_compile_request_t normalized;
+  int result = 1;
+  if (paths == (cupidbuild_user_compile_paths_t *)0 ||
+      request == (const cupidbuild_compile_request_t *)0 ||
+      !cupidbuild_path_safe(request->seed_manifest, 0) ||
+      !cupidbuild_host_absolute_root(request->repository_root, absolute_root, sizeof(absolute_root))) {
+    (void)fprintf(stderr, "cupidbuild: invalid user compile request\n");
+    goto done;
+  }
+  if (!cupidbuild_resolve_user_compile_paths(absolute_root, request->source,
+          request->output, cupidbuild_host_execution_format() == 2u,
+          paths, error, sizeof(error))) {
+    (void)fprintf(stderr, "cupidbuild: %s\n", error);
+    goto done;
+  }
+  normalized.seed_manifest = request->seed_manifest;
+  normalized.repository_root = paths->repository_root;
+  normalized.source = paths->source;
+  normalized.output = paths->output;
+  result = cupidbuild_compile(&normalized, CUPIDBUILD_COMPILE_USER);
+done:
+  free(paths);
+  return result;
 }
 
 int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request) {

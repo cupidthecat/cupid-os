@@ -50,6 +50,7 @@ int cupidbuild_generate_ksyms(const cupidbuild_ksyms_request_t *request);
 int cupidbuild_compile_kernel(const cupidbuild_compile_request_t *request);
 int cupidbuild_compile_doom(const cupidbuild_compile_request_t *request);
 int cupidbuild_compile_production(const cupidbuild_compile_request_t *request);
+int cupidbuild_compile_user(const cupidbuild_compile_request_t *request);
 
 #define CUPIDBUILD_USER_PATH_BYTES 8192u
 typedef struct {

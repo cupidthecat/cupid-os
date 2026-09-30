@@ -33,6 +33,8 @@ static void cupidbuild_usage(FILE *stream) {
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
       "       cupidbuild compile-production "
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
+      "       cupidbuild compile-user "
+      "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
       "       cupidbuild generate-profile-manifest "
       "--seed-manifest MANIFEST --root ROOT --output OUTPUT\n"
       "       cupidbuild verify-artifact-sizes --root ROOT --policy POLICY "
@@ -176,6 +178,8 @@ int main(int argc, char **argv) {
       operation = 10;
     } else if (strcmp(argv[1], "compile-production") == 0) {
       operation = 11;
+    } else if (strcmp(argv[1], "compile-user") == 0) {
+      operation = 12;
     }
   }
   if (operation != 0) {
@@ -252,6 +256,9 @@ int main(int argc, char **argv) {
     }
     if (operation == 11) {
       return cupidbuild_compile_production(&request);
+    }
+    if (operation == 12) {
+      return cupidbuild_compile_user(&request);
     }
     return cupidbuild_generate_profile_manifest(&profile_request);
   }

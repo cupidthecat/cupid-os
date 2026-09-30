@@ -76,7 +76,28 @@ before contract execution, and rechecks its bytes afterward. Record parsing does
 not authenticate an untrusted release. The observer and native command checks
 now support production artifact verification through CupidBuild. Default producer
 capture contains 76 inputs; the long-file profile contains 77. Publication captures
-89. Installed seeds carry the default UTF-8 generation.
+89. Installed seeds carry the UTF-8 long-file generation.
+
+>h2 Native user compilation source
+Source-head cupidbuild compile-user coordinates the three user examples:
+cat.cc, hello.cc, and ls.cc. Each closed CUPSRC1 bundle contains the selected
+source and user/cupid.h. Missing includes cannot read live files. The fixed
+profile is --freestanding -I /user with a 180-second compiler deadline.
+
+Lexical path approval precedes directory creation. Configurable outputs keep
+their source basename below an approved child of user, outside user/examples.
+The retained parent chain attaches before lock acquisition or source capture.
+Missing directories remain after failure. Equal validated objects retain their
+timestamps after full input and publication checks. Linux ancestor replacement
+may retain verified candidates and a lock as recovery evidence.
+
+Native and CupidC-built coordinators reproduce all three real objects on both
+hosts. The staged helper checks the fixed profile, logical filenames, lexical
+aliases, eight failures, preservation, cleanup and recovery. Source readers
+admit the exact promoted parent tuple for the 76- and 77-input profiles.
+Installed seeds and Make recipes still use the preceding user compiler path;
+paired bootstrap and ordinary/custom-directory handoff remain required.
+The three user links remain separate work.
 
 >h2 Native user executable validation
 Checked CupidBuild validates external i386 ELF32 executables in memory.
@@ -105,9 +126,9 @@ coordinators. These 243 compiler roots already use .cc. The handoff changes
 coordination without changing their language, arguments, or installed content.
 
 Both checked six-tool cohorts come from source
-e4f2ed652e756b1abb375ec061923f5259799e01 and the same 66-input snapshot
-7a1a58ce65141b59ec779f0ef6ccb5b7e97e8a54df4732cc27bf7a5bee28e6ed.
-Clean proofs match all 32 Linux and 35 native Windows stage-three/stage-four
+8403b0a82b5693409d2242fdbff32688c8f2cac5 and the same 77-input snapshot
+25b05a6cb0e824136db8df79b4e7f2e176aea88f0446be550f36ece04798bbf9.
+Clean proofs match all 34 Linux and 42 native Windows stage-three/stage-four
 artifact pairs. Linux passes 47 failure, seven help, and 55 success groups;
 Windows passes 35 failure, seven help, and 42 success groups. Each coordinator
 uses its own generation's complete tool cohort. Independent promotion checks
@@ -118,7 +139,7 @@ artifact cases on each host and reject uncommitted source before installation.
 
 The promoted assembler supports definition conditionals described in the
 CupidASM manual. CupidBuild carries the shared seed reader, artifact-policy API
-and retained observer; native artifact command ownership remains pending.
+and retained observer; the normal artifact command uses checked CupidBuild.
 The tools also retain the shared decoder initialization change from
 ADR 0398. Candidate records are initialized after early rejection checks and
 before decoded fields are written. Catalogue order, aliases, classifications,
@@ -127,13 +148,13 @@ in-memory user ELF validator, but the three user links still use their Python
 transaction. Native path handling, input capture, inspection, and publication
 remain required before that handoff.
 
-The Linux manifest has SHA-256 da26556401dd20d039ed1175f3bf857c4c8bebd50fb52b3bd75a06b95fdf41ed;
-the Windows manifest has SHA-256 c715ce354c28b97c6b9c4e5702c98d368d07dff9e52bc2f0deb71ab3194d2395.
+The Linux manifest has SHA-256 84b8bef11969bac58d69e97baacd86d8f1b4aa030ecd25359bb1dcdb8f679cbc;
+the Windows manifest has SHA-256 5d129b2575450dac756d75a4dc859501fdcd9bacf53190ed360ec66f68e21297.
 
-The build-graph audit records 440 CupidBuild and 12 Python participations across
+The build-graph audit records 441 CupidBuild and eleven Python actions across
 452 transforms. Python still coordinates three user compilations, three user
-links, two image publications, three verification operations (artifact sizes,
-user syscall ABI, and the Toolchain manifest), and one Toolchain build/manifest
+links, two image publications, two verification operations (user syscall ABI
+and the Toolchain manifest), and one Toolchain build/manifest
 publication. Make and host operating-system services remain required. GCC,
 NASM, and host linkers are absent from the normal code-producing path.
 

@@ -1,5 +1,22 @@
 # Cupid Toolchain bootstrap
 
+## Native user compilation source checkpoint, 2026-09-30
+
+Source-head `compile-user` connects configurable retained output parents to the
+closed two-record compiler transaction for `cat.cc`, `hello.cc` and `ls.cc`.
+Both native and CupidC-built callers reproduce the real objects on both hosts.
+The shared staged gate checks three sources, timestamp preservation, eight
+failures and recovery. Seventeen helper and related methods pass on each host.
+The shared manifest reader and independent artifact-policy parser also pass
+checked tests for the exact promoted `8403b0a8` parent tuple.
+
+[The source record](USER-COMPILE-SOURCE.md) retains all test boundaries, failed
+approaches and Linux recovery evidence. This operation is integrated in source;
+paired bootstrap, checked seed carriage and ordinary/custom-directory Make
+handoff remain required. The installed seeds stay at the preceding release.
+Ownership remains 441 CupidBuild actions and eleven Python actions. The three
+user links and full Doom runtime acceptance remain separate work.
+
 ## Promoted long-file release, 2026-09-30
 
 The reviewed nineteen-path release is installed. Linux and Windows manifests

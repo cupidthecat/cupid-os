@@ -6652,15 +6652,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 7)
-        self.assertEqual(contract["success_behavior_cases"], 55)
-        self.assertEqual(contract["failure_behavior_cases"], 47)
+        self.assertEqual(contract["success_behavior_cases"], 62)
+        self.assertEqual(contract["failure_behavior_cases"], 55)
         self.assertEqual(contract["tool_c_sources"], 27)
         self.assertEqual(contract["tool_images"], 6)
         self.assertEqual(contract["compared_c_objects"], 27)
         self.assertEqual(contract["compared_tool_images"], 6)
         self.assertEqual(contract["windows_help_cases"], 7)
-        self.assertEqual(contract["windows_success_behavior_cases"], 42)
-        self.assertEqual(contract["windows_failure_behavior_cases"], 35)
+        self.assertEqual(contract["windows_success_behavior_cases"], 49)
+        self.assertEqual(contract["windows_failure_behavior_cases"], 43)
         self.assertEqual(contract["contract_manifest_inputs"], 89)
         self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 89)
         self.assertIn(
@@ -7148,7 +7148,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
-                '        "success_cases": 55,\n',
+                '        "success_cases": 62,\n',
                 '        "success_cases": 36,\n',
                 r"fixed-point behavior matrix differs",
             ),
@@ -7274,7 +7274,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "local-target failure count becomes stale": (
                 "bootstrap",
-                '        "failure_cases": 47,\n',
+                '        "failure_cases": 55,\n',
                 '        "failure_cases": 30,\n',
                 r"fixed-point behavior matrix differs",
             ),
@@ -7314,7 +7314,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "native Windows linked-target count becomes stale": (
                 "bootstrap",
-                '        "failure_cases": len(tool_names) + 29,\n',
+                '        "failure_cases": len(tool_names) + 37,\n',
                 '        "failure_cases": len(tool_names) + 12,\n',
                 r"native Windows fixed-point behavior differs",
             ),
@@ -10025,7 +10025,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 self.assertEqual(unreachable[fixture], "not_reached")
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6976, 183),
+                "c.expression.sizeof": (6983, 183),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }

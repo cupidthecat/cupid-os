@@ -10,7 +10,15 @@ four-CPU boot checks. The fresh 89-input contract publication also passes
 native Windows verification of all 22 artifacts.
 
 CupidBuild owns 441 normal-build actions; eleven still use Python. Native user
-compilation and link coordination remain open. The latest retained Doom replay advances
+compilation and link coordination remain open. Source-head `compile-user` now
+captures each of the three examples with `user/cupid.h`, retains configurable
+output parents, and publishes a validated object under the fixed freestanding
+profile. Native and CupidC-built callers reproduce the existing objects on both
+hosts. Its staged helper and next-parent compatibility checks pass; full paired
+bootstrap and Make adoption remain required. See
+[the source record](docs/bootstrap/USER-COMPILE-SOURCE.md).
+
+The latest retained Doom replay advances
 demo tics but misses its 1,200-second deadline. Full gameplay, audio quality,
 save/load, reboot persistence and performance acceptance remain open.
 See [the bootstrap record](docs/bootstrap/README.md) and

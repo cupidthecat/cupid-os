@@ -1,5 +1,13 @@
 # Cupid Toolchain capability matrix
 
+## Native user compilation source checkpoint, 2026-09-30
+
+Source-head `compile-user` captures the three approved examples in two-record
+bundles and retains configurable output parents through publication. Both host
+callers reproduce the real objects; the shared staged gate and exact next-parent
+reader checks pass. Checked seed carriage and Make adoption remain open.
+[The source record](USER-COMPILE-SOURCE.md) retains evidence and recovery limits.
+
 ## Promoted long-file release, 2026-09-30
 
 The installed `8403b0a8` pair passes native fixed points, long-profile

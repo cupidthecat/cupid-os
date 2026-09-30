@@ -2,7 +2,7 @@
 
 Date: 2026-09-29
 
-Status: Source prerequisites implemented; user transaction and seed carriage pending
+Status: Source user transaction implemented; staged carriage and Make handoff pending
 
 ## Decision
 
@@ -80,3 +80,9 @@ The follow-up checked-compiler probe rejects inherited long working directories
 with error 87. Short explicit child directories work from both parent directories
 and produce identical objects. Keep the project root as the wrapper launch
 directory and pass the long private source root through `--root`.
+
+Source-head `compile-user` now connects the retained-parent API to the existing
+closed compiler transaction. Its two-record bundle contains the selected
+example and `user/cupid.h`. Both host caller suites and the shared staged helper
+pass; the bootstrap source record retains exact evidence and recovery limits.
+The normal recipes remain unchanged pending paired bootstrap and handoff.

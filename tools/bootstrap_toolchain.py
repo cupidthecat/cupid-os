@@ -4244,6 +4244,123 @@ def _check_cupidbuild_compile_production_behavior(
         success(source, expected[source])
 
 
+def _check_cupidbuild_compile_user_behavior(
+    runner: ToolRunner,
+    behavior_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+    seed_inputs: SeedInputs,
+    label_prefix: str,
+) -> None:
+    compile_root = behavior_root / "cupidbuild-compile-user"
+    compile_root.mkdir()
+    roots = tuple(compile_root / name for name in ("stage-three-root", "stage-four-root"))
+    manifests = []
+    for root, user_stage in zip(roots, (stage_two, stage_three)):
+        root.mkdir()
+        manifests.append(_materialize_behavior_seed(seed_inputs, root, "seed", user_stage))
+    sources = tuple("user/examples/" + name + ".cc" for name in ("cat", "hello", "ls"))
+    fixture = (
+        '#include "cupid.h"\n'
+        '#if defined(DEBUG) || defined(__GNUC__) || defined(DOOM_PORT_CUPIDOS)\n'
+        '#error user compilation requires the freestanding profile\n#endif\n'
+        'const char *user_file = __FILE__;\n'
+        'unsigned int user_value = USER_VALUE;\n'
+    )
+    header = '#define USER_VALUE 42u\n'
+    for root in roots:
+        (root / "user/examples").mkdir(parents=True)
+        (root / "user/cupid.h").write_text(header, encoding="ascii")
+        for source in sources:
+            (root / source).write_text(fixture, encoding="ascii")
+
+    def outputs(source: str) -> tuple[Path, ...]:
+        return tuple(root / "user/.staged objects/nested" / Path(source).with_suffix(".o").name
+                     for root in roots)
+
+    def compile_pair(source: str, output_source: str | None = None,
+                     output_name: str | None = None,
+                     extra: tuple[str, ...] = ()) -> subprocess.CompletedProcess[str]:
+        output = output_name or ("./user/.staged objects/unused/../nested/" +
+                                 Path(output_source or source).with_suffix(".o").name)
+        arguments = [["compile-user", "--seed-manifest", manifests[index],
+                      "--root", root, "--source", "./" + source, "--output", output, *extra]
+                     for index, root in enumerate(roots)]
+        result = _run_stage_pair(runner, stage_two, stage_three, "cupidbuild",
+                                 arguments[0], arguments[1], 190)
+        if any(path.name.startswith(".cupidbuild-") or path.name.endswith(".cupidbuild.lock")
+               for root in roots for path in root.rglob("*")):
+            raise BootstrapError(f"{label_prefix}CupidBuild user compile left transaction files")
+        if any((root / "user/.staged objects/unused").exists() for root in roots):
+            raise BootstrapError(f"{label_prefix}CupidBuild user compile created a lexical alias directory")
+        return result
+
+    def success(source: str, expected: bytes | None = None) -> bytes:
+        result = compile_pair(source)
+        _expect_status(result, 0, f"{label_prefix}CupidBuild user compile")
+        paths = outputs(source)
+        payload = paths[0].read_bytes()
+        if (result.stdout or result.stderr or payload != paths[1].read_bytes()
+                or (expected is not None and payload != expected)):
+            raise BootstrapError(f"{label_prefix}CupidBuild user compile output differs")
+        for path in paths:
+            _validate_i386_relocatable(path)
+        if b"/user/examples/" + Path(source).name.encode("ascii") + b"\0" not in payload:
+            raise BootstrapError(f"{label_prefix}CupidBuild user compile logical filename differs")
+        return payload
+
+    expected = {source: success(source) for source in sources}
+    replay_outputs = outputs(sources[0])
+    for path in replay_outputs:
+        os.utime(path, ns=(1_600_000_000_000_000_000,) * 2)
+    replay_times = tuple(path.stat().st_mtime_ns for path in replay_outputs)
+    success(sources[0], expected[sources[0]])
+    if tuple(path.stat().st_mtime_ns for path in replay_outputs) != replay_times:
+        raise BootstrapError(f"{label_prefix}CupidBuild user compile rewrote an unchanged object")
+
+    def failure(source: str, diagnostic: str, output_source: str | None = None,
+                output_name: str | None = None, extra: tuple[str, ...] = (),
+                status: int = 1) -> None:
+        user_paths = outputs(output_source or source)
+        sentinel = b"preserved user object\n"
+        for path in user_paths:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(sentinel)
+        user_old_times = tuple(path.stat().st_mtime_ns for path in user_paths)
+        result = compile_pair(source, output_source, output_name, extra)
+        _expect_status(result, status, f"{label_prefix}CupidBuild user compile failure")
+        if (result.stdout or not result.stderr or diagnostic not in result.stderr
+                or any(path.read_bytes() != sentinel for path in user_paths)
+                or tuple(path.stat().st_mtime_ns for path in user_paths) != user_old_times):
+            raise BootstrapError(f"{label_prefix}CupidBuild user compile failure preservation differs")
+
+    for root in roots:
+        (root / sources[0]).write_text("int broken( {\n", encoding="ascii")
+    failure(sources[0], "checked CupidC failed")
+    for root in roots:
+        (root / sources[0]).write_text('#include "user-live-only.h"\n', encoding="ascii")
+        (root / "user/examples/user-live-only.h").write_text("int forbidden;\n", encoding="ascii")
+    failure(sources[0], "checked CupidC failed")
+    for root in roots:
+        (root / sources[0]).write_text(fixture, encoding="ascii")
+        (root / "user/cupid.h").unlink()
+    failure(sources[0], "closure cannot be captured")
+    for root in roots:
+        (root / "user/cupid.h").write_text(header, encoding="ascii")
+        (root / "user/examples/unapproved.cc").write_text(fixture, encoding="ascii")
+    failure("user/examples/unapproved.cc", "")
+    failure(sources[0], "", sources[1])
+    failure(sources[0], "", output_name="user/examples/cat.o")
+    failure(sources[0], "", output_name="user/staged-rejected/../../cat.o")
+    failure(sources[0], "usage:", extra=("--gnu",), status=2)
+    if any((root / "user/staged-rejected").exists() or
+           (root / "user/examples/cat.o").exists() or
+           (root / "cat.o").exists() for root in roots):
+        raise BootstrapError(f"{label_prefix}CupidBuild user compile prepared a rejected output")
+    for user_source in sources:
+        success(user_source, expected[user_source])
+
+
 def _check_cupidbuild_embed_jpeg_behavior(
     runner: ToolRunner,
     source_root: Path,
@@ -5365,6 +5482,9 @@ def _run_native_windows_behavior_checks(
     _check_cupidbuild_compile_production_behavior(
         runner, behavior_root, stage_two, stage_three, behavior_seed_inputs, "native Windows ",
     )
+    _check_cupidbuild_compile_user_behavior(
+        runner, behavior_root, stage_two, stage_three, behavior_seed_inputs, "native Windows ",
+    )
 
     _check_cupidbuild_generate_profile_behavior(
         runner,
@@ -5610,9 +5730,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 29,
+        "failure_cases": len(tool_names) + 37,
         "help_cases": len(tool_names) + 1,
-        "success_cases": len(tool_names) + 36,
+        "success_cases": len(tool_names) + 43,
     }
 
 
@@ -6404,6 +6524,9 @@ def _run_behavior_checks(
         seed_inputs, "",
     )
     _check_cupidbuild_compile_production_behavior(
+        runner, behavior_root, stage_two, stage_three, seed_inputs, "",
+    )
+    _check_cupidbuild_compile_user_behavior(
         runner, behavior_root, stage_two, stage_three, seed_inputs, "",
     )
 
@@ -9160,9 +9283,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 47,
+        "failure_cases": 55,
         "help_cases": len(tool_names) + 1,
-        "success_cases": 55,
+        "success_cases": 62,
     }
 
 

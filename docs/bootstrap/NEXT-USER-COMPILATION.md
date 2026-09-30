@@ -1,5 +1,14 @@
 # Next native user compilation boundary
 
+Source implementation checkpoint, 2026-09-30: `compile-user` connects the
+lexical resolver, retained output-parent chain and closed two-record compiler
+transaction. Both hosts reproduce the three real objects, pass the shared
+staged helper and validate the next exact parent tuple. Normal and configurable
+Make builds, paired bootstrap, seed carriage and the three user links remain
+open. [The source record](USER-COMPILE-SOURCE.md) retains executed evidence,
+failed approaches and recovery limits. Earlier entries retain their original
+checkpoint state.
+
 The file-path fixtures also distinguish launch paths from process working
 directories. Both accepted compiler fixtures run from a long executable name
 with an explicit application and a shorter working directory. A separate direct

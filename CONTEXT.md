@@ -145,7 +145,7 @@ Checked `compile-production` owns the three generated installation tables
 with their fixed kernel profile and six-record closures. Production records
 441 CupidBuild and eleven Python actions. ADR 0397 records the source
 capability and the bootstrap log records its paired promotion and handoff;
-user compilation and configurable output parents remain separate work.
+adoption of the source-head user compiler transaction remains separate work.
 
 **Hosted bootstrap runtime**:
 The static i386 C runtime linked into Cupid tool and contract images. It supplies the represented heap, file, memory, string, error, and working-directory interfaces without a host libc. Its string boundary includes binary `memchr`, which CupidBuild uses while validating frozen JSON. The active six-tool seeds contain CupidBuild beside CupidC, CupidASM, CupidDis, CupidLD, and CupidObj.

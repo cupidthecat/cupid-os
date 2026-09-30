@@ -37,6 +37,10 @@ int cupidbuild_host_output_parent_close(
 typedef struct cupidbuild_host_observer cupidbuild_host_observer_t;
 /* Execution image format for this adapter: ELF32 is 1, PE32 is 2. */
 unsigned int cupidbuild_host_execution_format(void);
+/* Resolve a bounded root spelling against this process's working directory.
+ * This only produces an absolute spelling. Callers must normalize it and
+ * retain its filesystem identity before using it for a transaction. */
+int cupidbuild_host_absolute_root(const char *root, char *output, size_t capacity);
 
 /* Read-only observations retain live handles until close. Repository roots are
  * absolute (drive-rooted on Windows). Logical paths are

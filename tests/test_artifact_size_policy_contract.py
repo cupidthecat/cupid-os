@@ -396,6 +396,43 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)["artifact_count"], 16)
 
+    def next_parent_request(self, *, long_paths, mutate=None):
+        from tests.test_seed_manifest import next_parent_manifest
+        def select(manifest, windows):
+            manifest.clear()
+            manifest.update(next_parent_manifest(1, long_paths=long_paths))
+            windows.clear()
+            windows.update(next_parent_manifest(2, long_paths=long_paths))
+            if mutate is not None:
+                mutate(manifest, windows)
+        return self.promoted_request(select)
+
+    def test_next_parent_profiles_accept_and_reject_mixed_release_tuples(self):
+        from tests.test_seed_manifest import next_parent_manifest, default_parent_manifest, long_path_manifest
+        for long_paths in (False, True):
+            valid = self.next_parent_request(long_paths=long_paths)
+            result = self.run_request(valid)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)["artifact_count"], 16)
+            previous = long_path_manifest if long_paths else default_parent_manifest
+            for side, fmt in enumerate((1, 2)):
+                for field, original in next_parent_manifest(fmt, long_paths=long_paths)["provenance"].items():
+                    if not field.startswith("parent_"):
+                        continue
+                    for changed in ("0" * len(original), previous(fmt)["provenance"][field]):
+                        def change(manifest, windows):
+                            (manifest, windows)[side]["provenance"][field] = changed
+                        self.assert_contract_failure(self.next_parent_request(
+                            long_paths=long_paths, mutate=change))
+            for role in ("execution", "plan"):
+                def previous_role(manifest, windows):
+                    for field, original in previous(2)["provenance"].items():
+                        if field.startswith("parent_" + role + "_"):
+                            windows["provenance"][field] = original
+                self.assert_contract_failure(self.next_parent_request(
+                    long_paths=long_paths, mutate=previous_role))
+            self.assertEqual(self.run_request(valid).returncode, 0)
+
     def current_parent_request(self, *, long_paths, mutate=None):
         from tests.test_seed_manifest import default_parent_manifest, long_path_manifest
         profile = long_path_manifest if long_paths else default_parent_manifest

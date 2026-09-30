@@ -11717,9 +11717,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 47,
+        "failure_cases": 55,
         "help_cases": 7,
-        "success_cases": 55,
+        "success_cases": 62,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -11873,6 +11873,51 @@ def _cupid_toolchain_fixed_point_contract(
             matrix, "_check_cupidbuild_compile_production_behavior"
         ) != 1:
             raise AuditError("Cupid Toolchain fixed-point production compile behavior differs: "
+                             f"{matrix_name} must call the shared gate once in live code")
+    user_helpers = [node for node in bootstrap_tree.body
+                    if isinstance(node, ast.FunctionDef)
+                    and node.name == "_check_cupidbuild_compile_user_behavior"]
+    user_source = (ast.get_source_segment(bootstrap_source, user_helpers[0]) or ""
+                   if len(user_helpers) == 1 else "")
+    user_fragments = (
+        'zip(roots, (stage_two, stage_three))',
+        '_materialize_behavior_seed(seed_inputs, root, "seed", user_stage)',
+        '("cat", "hello", "ls")', 'user/cupid.h',
+        '"compile-user", "--seed-manifest", manifests[index]',
+        'arguments[0], arguments[1], 190',
+        'defined(DEBUG) || defined(__GNUC__) || defined(DOOM_PORT_CUPIDOS)',
+        '__FILE__', 'b"/user/examples/" + Path(source).name.encode("ascii") + b"\\0"',
+        'expected = {source: success(source) for source in sources}',
+        'success(sources[0], expected[sources[0]])',
+        'success(user_source, expected[user_source])',
+        'payload != paths[1].read_bytes()', 'payload != expected',
+        '_validate_i386_relocatable(path)',
+        'tuple(path.stat().st_mtime_ns for path in replay_outputs) != replay_times',
+        'tuple(path.stat().st_mtime_ns for path in user_paths) != user_old_times',
+        'any(path.read_bytes() != sentinel for path in user_paths)',
+        'not result.stderr', 'diagnostic not in result.stderr',
+        'path.name.startswith(".cupidbuild-")', 'path.name.endswith(".cupidbuild.lock")',
+        './user/.staged objects/unused/../nested/',
+        '(root / "user/.staged objects/unused").exists()',
+        'user-live-only.h', '(root / "user/cupid.h").unlink()',
+        'failure(sources[0], "closure cannot be captured")',
+        'failure("user/examples/unapproved.cc", "")',
+        'failure(sources[0], "", sources[1])',
+        'failure(sources[0], "", output_name="user/examples/cat.o")',
+        'failure(sources[0], "", output_name="user/staged-rejected/../../cat.o")',
+        'failure(sources[0], "usage:", extra=("--gnu",), status=2)',
+        '(root / "user/staged-rejected").exists()',
+        '(root / "user/examples/cat.o").exists()', '(root / "cat.o").exists()',
+    )
+    if any(fragment not in user_source for fragment in user_fragments):
+        raise AuditError("Cupid Toolchain fixed-point user compile behavior differs")
+    for matrix_name in ("_run_behavior_checks", "_run_native_windows_behavior_checks"):
+        matrix = next(node for node in bootstrap_tree.body
+                      if isinstance(node, ast.FunctionDef) and node.name == matrix_name)
+        if live_linked_code_policy_call_count(
+            matrix, "_check_cupidbuild_compile_user_behavior"
+        ) != 1:
+            raise AuditError("Cupid Toolchain fixed-point user compile behavior differs: "
                              f"{matrix_name} must call the shared gate once in live code")
     candidate_image_helper_names = (
         "_file_backed_entry_offset",
@@ -15805,10 +15850,10 @@ def _cupid_toolchain_fixed_point_contract(
         native_windows_sources["_run_native_windows_behavior_checks"].count(
             "behavior_seed_inputs,"
         )
-        != 10
+        != 11
     ):
         missing_native_windows_fragments.append(
-            "_run_native_windows_behavior_checks: ten checked CupidBuild "
+            "_run_native_windows_behavior_checks: eleven checked CupidBuild "
             "operations use the plan-matched behavior seed"
         )
 
@@ -15829,9 +15874,9 @@ def _cupid_toolchain_fixed_point_contract(
             )
         expected_native_windows_behavior = ast.parse(
             "{"
-            "'failure_cases': len(tool_names) + 29, "
+            "'failure_cases': len(tool_names) + 37, "
             "'help_cases': len(tool_names) + 1, "
-            "'success_cases': len(tool_names) + 36"
+            "'success_cases': len(tool_names) + 43"
             "}",
             mode="eval",
         ).body
@@ -15847,8 +15892,8 @@ def _cupid_toolchain_fixed_point_contract(
             expected_native_windows_behavior, include_attributes=False
         ):
             missing_native_windows_fragments.append(
-                "_run_native_windows_behavior_checks: return thirty-five failure, "
-                "seven help, and forty-two success cases"
+                "_run_native_windows_behavior_checks: return forty-three failure, "
+                "seven help, and forty-nine success cases"
             )
         if (
             live_linked_code_policy_call_count(
@@ -16538,8 +16583,8 @@ return tuple(
         "success_behavior_cases": expected_behavior_matrix["success_cases"],
         "failure_behavior_cases": expected_behavior_matrix["failure_cases"],
         "windows_help_cases": 7,
-        "windows_success_behavior_cases": 42,
-        "windows_failure_behavior_cases": 35,
+        "windows_success_behavior_cases": 49,
+        "windows_failure_behavior_cases": 43,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
             "cupid.cupidbuild_checked_cupidc_runner",

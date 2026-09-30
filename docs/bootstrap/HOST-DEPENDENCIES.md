@@ -1,5 +1,13 @@
 # Host dependency inventory
 
+## Native user compilation source checkpoint, 2026-09-30
+
+Source-head `compile-user` reproduces the three user objects through checked
+CupidC under the existing freestanding profile. It keeps configurable output
+parents and launches long Windows file arguments from a short working directory.
+Production still has eleven Python actions pending paired proof and Make
+adoption. [The source record](USER-COMPILE-SOURCE.md) records the host boundary.
+
 ## Promoted long-file release, 2026-09-30
 
 The installed `8403b0a8` pair passes native fixed points, long-profile

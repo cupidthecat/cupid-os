@@ -13132,3 +13132,14 @@ int cupidbuild_host_output_parent_close(cupidbuild_host_output_parent_t *parent)
   }
   return result;
 }
+
+int cupidbuild_host_absolute_root(const char *root, char *output, size_t capacity) {
+  if (output == (char *)0 || capacity == 0u) return 0;
+  output[0] = 0;
+  if (root == (const char *)0 || root[0] == 0 ||
+      !cupidbuild_host_absolute_directory(output, capacity, root)) {
+    output[0] = 0;
+    return 0;
+  }
+  return 1;
+}

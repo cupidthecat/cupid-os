@@ -41303,3 +41303,81 @@ Ownership remains 441 CupidBuild actions and eleven Python actions. Native user
 compilation and links remain separate work. Full Doom gameplay, audio,
 save/load, reboot persistence and performance acceptance remain open.
 `TempleOS/` remains read-only reference material.
+
+## 2026-09-30: integrate native user compilation and its staged gate
+
+Source-head `compile-user` connects the lexical resolver and retained output
+parent to the existing guarded compiler transaction. It captures exactly the
+approved example and `user/cupid.h`, retains the freestanding profile and
+180-second deadline, and checks the emitted relocatable before publication.
+Configurable nested, hidden, spaced, Unicode and long paths retain their source
+binding. Approval precedes directory creation; preparation precedes locking
+and source capture. Prepared directories remain after failure.
+
+Both native and CupidC-built callers reproduce every real user object against
+direct checked CupidC and the Python wrapper. The fifteen-method suite passes
+in 437.961 seconds on Windows and 312.640 seconds on Linux. Related observer/ELF
+tests pass 56 methods per host, with five Windows and two Linux skips. The final
+four selectors after both parent readers change pass in 468.623 and 316.797
+seconds respectively and bind thirteen unchanged source/test files.
+
+The shared staged gate covers all three approved sources, the fixed profile,
+logical filenames, lexical aliases, unchanged output, eight failures, cleanup,
+preservation and three recovery compilations. Seventeen helper and related
+methods pass in 396.056 seconds on Windows and 275.203 seconds on Linux.
+Thirteen injected helper defects and audit mutations are rejected. Each full
+staged matrix now requires Linux 55 failure/seven help/62 success groups and
+Windows 43/seven/49. These requirements do not relabel the preceding seed proofs.
+
+The shared manifest reader and independent artifact-policy parser admit the
+exact promoted `8403b0a8` parent tuple for the existing 76- and 77-input profiles.
+The previous tuple remains valid. Both checked readers match native oracles for
+1,367 manifest cases and fifteen pair cases; both checked policy callers pass
+55 methods and 320 requests. Mixed Windows execution/plan generations fail.
+
+Initial harness failures remain recorded: host-only `getenv` race hooks cannot
+enter the freestanding caller, and an unused native compiler oracle encountered
+an existing GCC floating-update warning. One initial Windows negative preserved
+the object but left an empty private directory; direct repetitions and expanded
+runs clean up, without a claimed repair. Linux ancestor replacement retains two
+equal validated candidates, a reservation and its lock as recovery evidence,
+while preserving the original bytes and timestamp.
+
+One negative policy fixture assumed authority outside its parser boundary; it
+now checks mixed Windows parent roles. Historical fixtures receive explicit
+historical parents and the selected result tag. Full 129-method audit runs pass
+128 methods per host and fail only the old `sizeof` inventory expectation.
+The corrected 6,983-expression selector passes separately. Failed full-run
+records remain intact. The generated audit retains 765 active inputs, 452
+transforms and production ownership of 441 CupidBuild/eleven Python actions.
+
+Evidence is retained in the isolated worktree's `build/` directory:
+`user-compile-*-v3.log`, `user-compile-related-*-v1.log`,
+`user-compile-staged-*-v1.json`, `user-staged-audit-*-v1.json`,
+`user-audit-inventory-*-v2.json`, `user-final-coordinator-*-v2.json` and
+`user-parent-proofs-v1/`. Active-checkout integration retains its prior bytes
+and nineteen exact source/test/document paths in
+`build/bootstrap/native-profile-validation-258bb5f3/user-source-integration-v1.json`.
+The integrated manifest/policy/helper selection passes all 97 methods in
+28.618 seconds; its logging harness takes 29.462 seconds and preserves the
+eighteen captured source/test files.
+The complete sixteen-method integrated caller suite also passes on both hosts:
+961.527 seconds on Windows and 655.915 seconds on Linux. Its separate
+`integrated-user-suite-*-v1.json` records bind thirteen unchanged inputs.
+
+Both normal kernel targets pass with host code-producing tools forbidden.
+The 64,715-byte manual produces the same 9,577,752-byte raw kernel and unchanged
+9,675,196-byte first-pass/9,806,268-byte final ELF sizes. Native verification
+rejects the old raw size before that one policy row changes; the other fifteen
+rows stay exact. Independent rereads match sixteen artifacts, 431 link inputs
+and disk images while retaining 1,544 source/control inputs. Image SHA-256 is
+`8631d37aa4cdb4aa417f9cd0b1a65c9e7924446b1ab87464d379b39ba6ddbd42`.
+Windows user checks and private four-CPU disassembly/shell/SMP smoke pass and
+preserve the image. Linux artifact verification and image publication pass;
+its changed-source publication and final user/boot replay are still running.
+A premature proof-capture harness rejects the incomplete publication bootstrap
+report before copying anything. It supplies no new fixed-point evidence.
+
+Paired bootstrap, checked seed carriage, ordinary and custom-directory Make
+handoff and final Linux user/boot acceptance remain required. The three user links and full
+Doom gameplay/audio/save/load/reboot/performance gate remain separate work.
