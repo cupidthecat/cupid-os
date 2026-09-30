@@ -580,23 +580,31 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
                     restored = self.run_request(self.promoted_request())
                     self.assertEqual(restored.returncode, 0, restored.stderr)
 
-    def test_conditional_windows_parents_reject_mixed_complete_generations(self):
-        for role, digest in (
-            ("execution", "2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd"),
-            ("plan", "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52"),
-        ):
-            with self.subTest(role=role):
-                def mutate(manifest, windows):
-                    provenance = windows["provenance"]
-                    key = f"parent_{role}_seed_manifest_sha256"
-                    self.assertNotEqual(provenance[key], digest)
-                    provenance[key] = digest
-                    provenance[f"parent_{role}_seed_source_revision"] = (
-                        "142a9737f618ab8500308576a1c222501d639e5f")
-                result = self.run_request(self.promoted_request(mutate))
-                self.assertEqual(result.returncode, 1, result.stdout)
-                self.assertEqual(result.stdout, "")
-                self.assertIn("Windows seed parent generations differ", result.stderr)
+    def test_profile_windows_parents_reject_mixed_complete_generations(self):
+        for long_paths in (False, True):
+            valid = self.current_parent_request(long_paths=long_paths)
+            self.assertEqual(self.run_request(valid).returncode, 0)
+            for role, digest in (
+                ("execution", "2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd"),
+                ("plan", "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52"),
+            ):
+                with self.subTest(long_paths=long_paths, role=role):
+                    def mutate(manifest, windows):
+                        provenance = windows["provenance"]
+                        key = f"parent_{role}_seed_manifest_sha256"
+                        self.assertNotEqual(provenance[key], digest)
+                        provenance[key] = digest
+                        provenance[f"parent_{role}_seed_source_revision"] = (
+                            "142a9737f618ab8500308576a1c222501d639e5f")
+                    result = self.run_request(self.current_parent_request(
+                        long_paths=long_paths, mutate=mutate))
+                    self.assertEqual(result.returncode, 1, result.stdout)
+                    self.assertEqual(result.stdout, "")
+                    diagnostic = (
+                        f"Windows seed {role} parent provenance differs" if long_paths
+                        else "Windows seed parent generations differ")
+                    self.assertIn(diagnostic, result.stderr)
+                    self.assertEqual(self.run_request(valid).returncode, 0)
 
     def test_promoted_seed_rejects_mixed_plan_generations(self):
         for key, value in (

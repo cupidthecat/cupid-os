@@ -130,3 +130,9 @@ read-only path conversion and explicit Git arguments. It verifies the resulting
 root before enumerating tracked files. Eight selected methods pass on each host
 without environment overrides, including the original full CLI regression.
 This repair changes no producer input or production ownership edge.
+
+Policy regression fixtures also select each profile explicitly. A historical
+parent can pass an individual identity check in the default profile before
+failing the paired generation comparison. The 77-input profile admits only its
+current parent tuple and rejects that historical parent earlier. The fixture
+asserts both rejection paths without inheriting the installed seed's count.

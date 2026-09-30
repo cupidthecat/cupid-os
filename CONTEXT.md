@@ -2283,3 +2283,7 @@ identical stage-three/four artifacts. Their paired release remains a preview.
 The audit resolves Windows linked-worktree metadata on WSL without changing it,
 then checks the root and enumerates tracked sources. Untracked bootstrap
 fixtures do not enter that inventory.
+
+Artifact-policy fixtures select their 76-input or 77-input profile explicitly.
+Historical parents reach the generation comparison in the default profile;
+the long profile rejects them at the individual parent check.

@@ -19,6 +19,7 @@ boot smoke. Production ownership remains 441 CupidBuild actions and eleven Pytho
 The assembly audit accounts for 36 owned inputs, including nine hosted startups.
 Fresh paired proofs from `8403b0a8` pass. The linked-worktree audit also passes
 on WSL without Git environment overrides. The paired release remains a preview.
+Policy fixtures now select each bootstrap profile and check its own rejection path.
 See [the bootstrap record](docs/bootstrap/README.md) and
 [the user compilation design](docs/bootstrap/NEXT-USER-COMPILATION.md).
 

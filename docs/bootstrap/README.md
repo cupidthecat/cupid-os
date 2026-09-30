@@ -1,5 +1,33 @@
 # Cupid Toolchain bootstrap
 
+## Policy fixtures select their bootstrap profile, 2026-09-30
+
+A proposed-seed regression run reaches 208 methods on each host. Both initial
+runs report two failures in one policy method: its fixture inherits the
+installed seed's source count and expects a generation-comparison diagnostic.
+With a 77-input seed, the reader correctly rejects the historical parent
+earlier, at the individual parent check. The narrow Linux reproduction takes
+1.1 seconds of test time. Host-built and CupidC-built readers agree on all nine
+diagnostic probes, ruling out a compiler difference or malformed fixture digest.
+
+The fixture now selects the default 76-input and long 77-input profiles
+explicitly. It checks the default generation comparison and the long profile's
+individual historical-parent rejection, with accepted baselines and recovery
+after each negative request. Reader code and seed identities are unchanged.
+Both CupidC-built readers pass all 54 policy methods and 288 requests against
+the proposed pair. The corrected 208-method selection passes on both hosts;
+Linux has sixteen expected skips. Evidence includes `policy-parent-fixture-probes-v1.json`,
+`fresh-native-policy-*-v2.json` and `fresh-regressions-*-v2.log` under
+`build/bootstrap/native-profile-validation-258bb5f3/`.
+
+The 62,214-byte manual is embedded in a 9,575,248-byte kernel. An isolated
+Windows image build, all sixteen artifact checks, three unchanged user binaries
+and the private four-CPU `max`/e1000 disassembly, `ls` and SMP smoke pass. The
+source image is unchanged by the smoke. All 241 compiler input closures remain
+unchanged, including 83 Doom sources; only the manual object and two kernel ELFs
+change among 431 link inputs. `policy-fixture-windows-os-acceptance-v2.json`
+records this installed-seed replay. Proposed-seed OS acceptance remains separate.
+
 ## Fresh native proofs and linked-worktree audit, 2026-09-30
 
 Both native staged proofs pass from producer commit `8403b0a8`, with the same

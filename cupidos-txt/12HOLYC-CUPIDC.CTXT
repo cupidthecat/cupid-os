@@ -1143,3 +1143,7 @@ Fresh Windows and Linux staged proofs from 8403b0a8 bind the same 77 inputs;
 stage-three and stage-four artifacts match. The audit can resolve Windows
 linked-worktree metadata on WSL and check tracked sources without changing Git
 metadata. Installed seeds remain pinned until complete promotion acceptance.
+
+Artifact-policy fixtures select default 76-input and long 77-input profiles
+explicitly. Historical parent rejection is checked at each profile's own
+boundary, with accepted baseline and recovery requests.
