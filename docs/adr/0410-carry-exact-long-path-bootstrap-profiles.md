@@ -113,3 +113,9 @@ fields and an ordinary long-profile compiler image are rejected; recovery emits
 the reference bytes. The installed-seed manual image passes sixteen artifact
 checks, unchanged user executables and the private four-CPU smoke. This keeps
 source integration green while complete new staged proofs remain open.
+
+The audit's exact fixture inventory includes the resolver in both Make host
+branches, 36 owned assembly sources and nine hosted startup assemblies.
+Removing the resolver remains a tested ownership failure. Default producer
+capture still has 76 inputs and long capture has 77; the common Make dependency
+closure includes the optional shim so either publication can observe it.

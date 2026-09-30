@@ -226,6 +226,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "toolchain/hosted/i386-windows/publication_start.asm",
             "toolchain/hosted/i386-windows/start.asm",
             "toolchain/hosted/i386-windows/tool_start.asm",
+            "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+            "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
+            "toolchain/hosted/i386-windows/utf8_publication_start.asm",
+            "toolchain/hosted/i386-windows/utf8_tool_start.asm",
         ):
             with self.subTest(path=path):
                 self.assertEqual(sources[path]["runtime_owner"], "CupidASM")
@@ -234,18 +238,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             audit["contracts"]["assembly_source_ownership"],
             {
                 "status": "pass",
-                "active_sources": 35,
-                "cupidasm_owned_sources": 35,
+                "active_sources": 36,
+                "cupidasm_owned_sources": 36,
                 "other_owned_sources": 0,
                 "ownerless_sources": 0,
                 "explicit_classifications": [],
-                "toolchain_startup_sources": 8,
+                "toolchain_startup_sources": 9,
             },
         )
         markdown = _load_audit_module()._render_markdown(audit)
         self.assertIn(
-            "35 active assembly sources; 35 CupidASM-owned; "
-            "8 Toolchain startup; 0 other-owned; 0 ownerless; "
+            "36 active assembly sources; 36 CupidASM-owned; "
+            "9 Toolchain startup; 0 other-owned; 0 ownerless; "
             "0 explicit host-only classifications",
             markdown,
         )
@@ -292,6 +296,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         wide = {
             "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+            "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
             "toolchain/hosted/i386-windows/utf8_publication_start.asm",
             "toolchain/hosted/i386-windows/utf8_tool_start.asm",
             "toolchain/hosted/i386-windows/windows_utf8.cc",
@@ -313,7 +318,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             direct_sources=set(inputs), generated_sources=set(), forced_sources=set(),
             includes_by_source={}, include_search_paths=[], transforms=[transform])
         expected = {path for path in inputs if path.endswith(".asm")}
-        self.assertEqual(len(expected), 8)
+        self.assertEqual(len(expected), 9)
         self.assertEqual(module._toolchain_contract_cupidasm_ownership_inputs([model]), expected)
         self.assertTrue({path for path in wide if path.endswith(".cc")} <=
                         module._toolchain_contract_cupidc_ownership_inputs([model]))
@@ -9900,10 +9905,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 764,
+                    "active_sources": 765,
                     "features": 255,
                     "transforms": 452,
-                    "unreachable_sources": 40,
+                    "unreachable_sources": 41,
                 },
             )
             features = {
@@ -9922,7 +9927,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 self.assertEqual(unreachable[fixture], "not_reached")
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6965, 183),
+                "c.expression.sizeof": (6976, 183),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -10521,7 +10526,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 113)
+            self.assertEqual(toolchain_cohort["source_count"], 114)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -11768,7 +11773,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     root_paths(values["TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS"]),
-                    set(module.TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS),
+                    {
+                        *module.TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS,
+                        "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
+                    },
                 )
 
     def test_output_source_discovery_has_locale_neutral_order(self):

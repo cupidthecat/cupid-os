@@ -5258,3 +5258,48 @@ image, then passes recovery. This checks the default executable boundary without
 claiming a complete named-commit default bootstrap. Its evidence is
 `default-profile-transaction-v1.json`. Fresh staged proofs and seed promotion
 remain open; the installed cohort and ownership counts are unchanged.
+
+## Long-profile audit fixtures, 2026-09-30
+
+The complete 125-method audit run reports five failures in four stale inventory
+methods. The exact long-profile inventory has 765 active and 41 unreachable
+source files, 36 CupidASM-owned assemblies, nine hosted startup assemblies,
+6,976 `sizeof` expressions across 183 files, and 114 Toolchain source files.
+Both Make host branches include the resolver shim in their declared bootstrap
+closure. The producer's default capture remains 76 inputs; its long capture
+remains 77.
+
+The fixtures now assert that inventory and check the resolver's positive
+ownership and missing-input failure. Their complete closure comparisons still
+reject extra or missing members. The first four-method rerun passes three and
+reaches a further stale expression count; the next reaches the old Toolchain
+cohort count. These assertions are corrected against the generated audit without
+changing the inventory or build recipes. Original and focused logs are under
+`build/bootstrap/native-profile-validation-258bb5f3/`.
+
+The fresh native staged proofs use the unchanged producer closure from commit
+`8403b0a8`. This fixture repair changes tests and documentation only. Installed
+seed identities and production ownership remain unchanged.
+
+The corrected four-method Windows rerun passes. The initial suite's other
+121 methods passed before this test-only repair. The first Linux invocation
+cannot resolve the Windows worktree's Git metadata and falls back to a filesystem
+scan that includes leftover bootstrap fixtures. An obsolete repeat is stopped;
+the corrected invocation supplies POSIX `GIT_DIR` and `GIT_WORK_TREE` paths.
+Repository metadata and inventory rules remain unchanged. Its log is
+`audit-focused-linux-v5.log`.
+
+The updated assembly-inventory manual also passes installed-seed image acceptance:
+sixteen artifacts, three unchanged user programs and the private four-CPU smoke.
+The 61,700-byte manual is embedded in the object, ELF and raw kernel. Only its
+object and two linked ELFs change in the 431-input cohort. The raw kernel is
+9,574,736 bytes; its 216-byte increase is measured before changing the policy.
+The unchanged source image has SHA-256
+`6476cbe7174f7c0e3fdefc96a4db8f38a5b94ddd6bb2b97a645c70d46047d093`.
+Evidence includes `fixture-os-build-v3.json`, `fixture-os-build-v4.json` and
+`fixture-windows-os-acceptance-v5.json` in the same directory.
+
+The corrected four-method Linux rerun also passes with the explicit Git paths.
+Both hosts now pass every affected method, including missing-resolver rejection
+and the final manifest-drift failure. The full initial 125-method run and the
+separate corrected reruns remain recorded as distinct evidence.

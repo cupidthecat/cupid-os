@@ -1134,3 +1134,7 @@ policy contracts pass 54 methods and 280 requests per host. Updated CupidBuild
 verifies sixteen artifacts in each proposed OS root without changing them.
 Fresh staged proofs and complete default bootstrap compatibility remain required
 before promotion. The installed seeds and production ownership are unchanged.
+
+The active assembly audit has 36 CupidASM-owned inputs, including nine hosted
+startup inputs. Both Make publication branches declare the resolver shim;
+selected producer capture remains 76 default or 77 long inputs.

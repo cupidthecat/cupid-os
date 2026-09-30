@@ -2273,3 +2273,7 @@ the long profile and current parent tuple together; its retained coordinator
 still validates reviewed release identity and actual seed images independently.
 Both hosted and Cupid-built checks pass. This source change requires fresh
 staged proofs and complete default-profile compatibility before seed promotion.
+
+The long-profile audit records 36 CupidASM-owned assembly inputs, including
+nine hosted startup inputs. Both Make publication branches declare the resolver
+shim; the selected producer capture remains 76 default or 77 long inputs.

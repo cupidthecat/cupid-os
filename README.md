@@ -16,12 +16,13 @@ and verify the proposed 77-input artifacts. Both hosts pass 164 regressions and
 bootstrap compatibility remain required before promotion.
 The updated manual also passes an isolated Windows image build and four-CPU
 boot smoke. Production ownership remains 441 CupidBuild actions and eleven Python actions.
+The assembly audit accounts for 36 owned inputs, including nine hosted startups.
 See [the bootstrap record](docs/bootstrap/README.md) and
 [the user compilation design](docs/bootstrap/NEXT-USER-COMPILATION.md).
 
 Windows incremental image acceptance passes with the updated manual: artifact
 verification, all three user executables, and a private four-CPU disassembly,
-shell and SMP smoke. The kernel is 9,574,520 bytes. Full Doom runtime and
+shell and SMP smoke. The kernel is 9,574,736 bytes. Full Doom runtime and
 performance acceptance remains open.
 
 Source-head CupidBuild now has an in-memory validator for external user
