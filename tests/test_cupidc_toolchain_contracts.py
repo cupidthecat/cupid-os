@@ -2860,18 +2860,97 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
         oracle.assert_called_once_with(snapshot)
         verify_inputs.assert_called_once_with(root, publication_report)
 
-    def _write_current_user_abi_publication(self, root):
+    def test_user_abi_operation_carries_explicit_long_profile(self):
+        root = Path("contract-root").resolve()
+        output = root / "toolchain/build/cupidc-contracts"
+        expected = {"schema": "cupid.user-syscall-abi.v1",
+                    "field_count": 103, "table_size": 412}
+        publication = {"status": "pass"}
+        completed = subprocess.CompletedProcess(
+            ["user-syscall-abi-contract.elf"], 0,
+            json.dumps(expected) + "\n", "",
+        )
+        with mock.patch.object(
+            cupidc_toolchain_contracts, "ensure_contracts",
+            return_value=publication,
+        ) as ensure, mock.patch.object(
+            cupidc_toolchain_contracts, "_freeze_user_syscall_abi_inputs",
+        ), mock.patch.object(
+            cupidc_toolchain_contracts, "run_published_contract",
+            return_value=completed,
+        ), mock.patch.object(
+            cupidc_toolchain_contracts, "check_syscall_abi", return_value=expected,
+        ), mock.patch.object(
+            cupidc_toolchain_contracts, "verify_publication",
+            return_value=publication,
+        ), mock.patch.object(
+            cupidc_toolchain_contracts, "verify_publication_inputs",
+        ):
+            actual = cupidc_toolchain_contracts.run_user_syscall_abi(
+                root, root / "bootstrap/seeds/i386-linux/manifest.json",
+                output, workers=3, windows_long_paths=True,
+            )
+        self.assertEqual(actual, expected)
+        ensure.assert_called_once_with(
+            root, root / "bootstrap/seeds/i386-linux/manifest.json",
+            output, 3, windows_long_paths=True,
+        )
+
+    def test_user_abi_operation_rejects_non_boolean_profile_before_execution(self):
+        root = Path("contract-root").resolve()
+        with mock.patch.object(
+            cupidc_toolchain_contracts, "ensure_contracts",
+        ) as ensure, mock.patch.object(
+            cupidc_toolchain_contracts, "_run_native_windows_user_syscall_abi",
+        ) as native:
+            for value in (None, 0, 1, "true"):
+                with self.subTest(value=value), self.assertRaisesRegex(
+                    cupidc_toolchain_contracts.ContractError,
+                    "Windows long-path selection must be Boolean",
+                ):
+                    cupidc_toolchain_contracts.run_user_syscall_abi(
+                        root, root / "manifest.json", root / "output",
+                        windows_manifest=root / "windows.json",
+                        windows_long_paths=value,
+                    )
+        ensure.assert_not_called()
+        native.assert_not_called()
+
+    def test_user_abi_cli_carries_explicit_long_profile(self):
+        with mock.patch.object(
+            cupidc_toolchain_contracts, "run_user_syscall_abi",
+            return_value={"status": "pass"},
+        ) as operation:
+            result = cupidc_toolchain_contracts.main([
+                "user-abi", "--root", "root", "--manifest", "manifest",
+                "--output", "output", "--windows-long-paths",
+            ])
+        self.assertEqual(result, 0)
+        self.assertTrue(operation.call_args.kwargs["windows_long_paths"])
+
+    def test_linux_user_recipe_selects_explicit_long_profile(self):
+        repository = Path(__file__).resolve().parents[1]
+        text = (repository / "user/Makefile").read_text(encoding="utf-8")
+        linux = text.split("\nelse\n", 1)[1].split("\nendif\n", 1)[0]
+        self.assertIn(
+            "USER_SYSCALL_ABI_PLATFORM_ARGUMENTS := --windows-long-paths", linux,
+        )
+
+    def _write_current_user_abi_publication(self, root, *, windows_long_paths=False):
         repository = Path(__file__).resolve().parents[1]
         logical_manifest = "bootstrap/seeds/i386-linux/manifest.json"
         seed = cupidc_toolchain_contracts.verify_seed_inputs(
             repository / logical_manifest
         )
         sources = cupidc_toolchain_contracts.capture_source_snapshot(
-            repository, _candidate_build_plan(seed.manifest["build_plan"]), windows_utf8=True
+            repository, _candidate_build_plan(seed.manifest["build_plan"]),
+            windows_utf8=True, windows_long_paths=windows_long_paths,
         )
         inputs = cupidc_toolchain_contracts._snapshot_contract_inputs(
             repository,
-            cupidc_toolchain_contracts._contract_input_paths(repository),
+            (*cupidc_toolchain_contracts._contract_input_paths(repository),
+             *((repository / "toolchain/hosted/i386-windows/utf8_long_path_start.asm",)
+               if windows_long_paths else ())),
         )
         paths = set(inputs) | set(sources) | {logical_manifest}
         paths.update(
@@ -2930,6 +3009,63 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             self.assertEqual(actual, expected)
             self.assertEqual(actual["field_count"], 103)
             self.assertEqual(actual["table_size"], 412)
+
+    def test_linux_user_abi_reuses_long_publication_without_rebuilding(self):
+        with tempfile.TemporaryDirectory(prefix="cupid-user-abi-long-") as td:
+            root = Path(td).resolve()
+            manifest, output = self._write_current_user_abi_publication(
+                root, windows_long_paths=True,
+            )
+            expected = cupidc_toolchain_contracts.check_syscall_abi(root)
+            before = (output / "manifest.json").read_bytes()
+            publication = cupidc_toolchain_contracts.verify_publication(output)
+            self.assertEqual(publication["input_count"], 89)
+            self.assertEqual(publication["bootstrap"]["source_inputs"]["count"], 77)
+            completed = subprocess.CompletedProcess(
+                ["user-syscall-abi-contract.elf"], 0,
+                json.dumps(expected) + "\n", "",
+            )
+            with mock.patch.object(
+                cupidc_toolchain_contracts, "build_contracts",
+                side_effect=AssertionError("current long publication must be reused"),
+            ) as build, mock.patch.object(
+                cupidc_toolchain_contracts.ToolRunner, "run", return_value=completed,
+            ):
+                actual = cupidc_toolchain_contracts.run_user_syscall_abi(
+                    root, manifest, output, windows_long_paths=True,
+                )
+            self.assertEqual(actual, expected)
+            build.assert_not_called()
+            self.assertEqual((output / "manifest.json").read_bytes(), before)
+
+    def test_linux_user_abi_long_publication_rejects_live_input_drift(self):
+        with tempfile.TemporaryDirectory(prefix="cupid-user-abi-long-drift-") as td:
+            root = Path(td).resolve()
+            manifest, output = self._write_current_user_abi_publication(
+                root, windows_long_paths=True,
+            )
+            expected = cupidc_toolchain_contracts.check_syscall_abi(root)
+            before = (output / "manifest.json").read_bytes()
+            def change_input(executable, arguments, timeout):
+                source = root / "kernel/core/syscall.h"
+                source.write_bytes(source.read_bytes() + b"\n/* live drift */\n")
+                return subprocess.CompletedProcess(
+                    [str(executable)], 0, json.dumps(expected) + "\n", "",
+                )
+            with mock.patch.object(
+                cupidc_toolchain_contracts, "build_contracts",
+                side_effect=AssertionError("current long publication must be reused"),
+            ) as build, mock.patch.object(
+                cupidc_toolchain_contracts.ToolRunner, "run", side_effect=change_input,
+            ), self.assertRaisesRegex(
+                cupidc_toolchain_contracts.ContractError,
+                "published contract cohort changed while contract ran",
+            ):
+                cupidc_toolchain_contracts.run_user_syscall_abi(
+                    root, manifest, output, windows_long_paths=True,
+                )
+            build.assert_not_called()
+            self.assertEqual((output / "manifest.json").read_bytes(), before)
 
     def test_linux_user_abi_rejects_input_drift_during_snapshot_capture(self):
         for change in ("same-size", "size", "after-copy", "private-copy"):

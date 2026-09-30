@@ -1,5 +1,16 @@
 # Toolchain ownership migration matrix
 
+## Long-profile proof checkpoint, 2026-09-30
+
+The fresh `8403b0a8` pair passes native fixed points, long-profile
+self-consumption on both hosts, and the complete default 76-input Windows
+bootstrap. Independent checks bind the named committed closure and every
+staged artifact. Both complete fresh OS builds produce identical 431-input
+cohorts, sixteen artifacts and disk images with host compilers forbidden.
+Their first image uses the older captured manual; final publication and manual
+acceptance remain separate. Ownership remains 441 CupidBuild actions and eleven
+Python actions. See [the current acceptance record](README.md#long-profile-release-acceptance-2026-09-30).
+
 ## Production artifact handoff, 2026-09-29
 
 Production artifact verification now runs directly through the promoted
@@ -2192,3 +2203,15 @@ negative case forwards the compiler diagnostic and status while leaving a
 sentinel object unchanged. The fixed-point drivers carry help, success, and
 failure checks for Linux and native Windows. ADR 0376 records this source
 boundary. No Make recipe or graph owner changes in this step.
+
+
+User ABI profile selection now passes six new regressions and twenty ABI/profile
+methods on each host. Both hosts pass 148 driver and 54 policy methods; the
+Windows full audit passes 129. The Linux full audit continues separately.
+The installed-seed Windows replay embeds the settled manual and passes native
+artifact, user and private four-CPU smoke checks. Its image and 431 link inputs
+match both proposed-seed builds. The raw kernel is 9,576,256 bytes and the
+first-pass ELF is 9,675,196 bytes; only their measured policy rows change.
+The updated ABI driver is a publication control input, so it correctly requires
+a new complete publication. The proposed seeds remain uninstalled during that
+rebuild. No compilation or link ownership changes in this repair.

@@ -136,3 +136,35 @@ parent can pass an individual identity check in the default profile before
 failing the paired generation comparison. The 77-input profile admits only its
 current parent tuple and rejects that historical parent earlier. The fixture
 asserts both rejection paths without inheriting the installed seed's count.
+
+
+Fresh acceptance at `8403b0a8` passes long-profile self-consumption on both hosts
+and the complete default Windows bootstrap. The default path captures 76 inputs
+and validates its exact plan and imports; it is not relabeled as the long cohort.
+Both fresh OS builds pass and produce identical artifacts with host compilers
+forbidden. Independent checks bind all staged bytes and frozen source inputs.
+The initial image contains the older manual. Final publication and the settled
+embedded-manual replay remain separate requirements before seed installation.
+
+
+The user syscall ABI operation now carries an explicit long-profile selection
+to `ensure_contracts`. Its API and CLI keep the default profile unless selected;
+the Linux user recipe selects the long profile, while Windows retains its
+native contract path. A valid 89-input publication can therefore be consumed
+without rebuilding it as the default profile. Non-Boolean API selections fail
+before execution. Four new regressions fail before the change and pass on both
+hosts afterward. The initial Linux user replay requested the default profile
+and was stopped during that redundant rebuild; it retains an unsuccessful
+acceptance record. The corrected replay has its own record.
+
+
+User ABI profile selection now passes six new regressions and twenty ABI/profile
+methods on each host. Both hosts pass 148 driver and 54 policy methods; the
+Windows full audit passes 129. The Linux full audit continues separately.
+The installed-seed Windows replay embeds the settled manual and passes native
+artifact, user and private four-CPU smoke checks. Its image and 431 link inputs
+match both proposed-seed builds. The raw kernel is 9,576,256 bytes and the
+first-pass ELF is 9,675,196 bytes; only their measured policy rows change.
+The updated ABI driver is a publication control input, so it correctly requires
+a new complete publication. The proposed seeds remain uninstalled during that
+rebuild. No compilation or link ownership changes in this repair.

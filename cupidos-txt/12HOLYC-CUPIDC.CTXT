@@ -1147,3 +1147,20 @@ metadata. Installed seeds remain pinned until complete promotion acceptance.
 Artifact-policy fixtures select default 76-input and long 77-input profiles
 explicitly. Historical parent rejection is checked at each profile's own
 boundary, with accepted baseline and recovery requests.
+
+
+>h2 Fresh long-file generation acceptance
+The 8403b0a8 pair passes long-profile self-bootstrap on Windows and Linux.
+The complete default Windows bootstrap also passes with its own 76-input plan.
+Independent checks bind committed inputs, parent manifests and every staged
+artifact. Both complete fresh OS builds produce identical 431-input cohorts;
+the final embedded manual has a separate measured image replay.
+Ownership remains 441 CupidBuild actions and eleven Python actions.
+The current pinned-IWAD timedemo advances but misses its 1200-second deadline.
+An isolated sustained-note check produces identical PCM with CupidC and GCC
+oracle objects. Native elapsed times support code-generation investigation;
+they do not prove QEMU throughput or full Doom runtime acceptance.
+
+The Linux user syscall ABI recipe selects the same long profile as publication.
+The API and CLI retain default-profile behavior unless explicitly selected.
+Non-Boolean API profile requests fail before a native tool can run.

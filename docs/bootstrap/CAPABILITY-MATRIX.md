@@ -1,5 +1,16 @@
 # Cupid Toolchain capability matrix
 
+## Long-profile proof checkpoint, 2026-09-30
+
+The fresh `8403b0a8` pair passes native fixed points, long-profile
+self-consumption on both hosts, and the complete default 76-input Windows
+bootstrap. Independent checks bind the named committed closure and every
+staged artifact. Both complete fresh OS builds produce identical 431-input
+cohorts, sixteen artifacts and disk images with host compilers forbidden.
+Their first image uses the older captured manual; final publication and manual
+acceptance remain separate. Ownership remains 441 CupidBuild actions and eleven
+Python actions. See [the current acceptance record](README.md#long-profile-release-acceptance-2026-09-30).
+
 ## Production artifact handoff, 2026-09-29
 
 Production artifact verification now runs directly through the promoted
@@ -1885,3 +1896,15 @@ The following seed evidence belongs to the preceding `9d2529a7` checkpoint.
 | Pre-stack-probe stage-two/stage-three byte identity | Historical evidence | The checked-seed harness compared all 19 C objects, startup, and all five Linux tools across stage two and stage three from one private captured source root. It also compared the five native Windows images and ran the 5/18/16 behavior matrix. The frozen 50-input closure has SHA-256 `5bfbca2cbe30f2fa4b638cbf462b306cc05dc50a4604fd887f89426dbe091e63`. The proof passed in 801.9 seconds. Its 38,164-byte report has SHA-256 `3c63664f08e7bcdc639a88ca6ada6cf5143100eac966d748660b65d537b01e10`. The matching native PE generation formed the preceding checked Windows execution seed. This proof predates stack-probe codegen and remains historical seed provenance. |
 | Post-change stage-three/stage-four convergence | Observed/Partial | Both drivers treat stages two and three as transition generations, build stage four with stage three, and compare and behavior-test the final pair. Linux matches 22 C objects plus startup and six images with 36/7/42 failure, help, and success cases. Native Windows matches 23 C objects, three assembly objects, and six images with 24/7/29 cases. The cases include checked CupidC calls, typed kernel-symbol generation, kernel flattening, profile publication, closed compilation, and rollback. The preceding generation's CupidDis certifies every generated C object and startup object before linking. Each final-stage CupidDis strictly certifies all six corresponding images and rejects an entry-corrupted CupidBuild copy. Candidate proof and promoted-seed self-consumption are recorded separately in the bootstrap log. ADR 0336 records the parent pair, ADR 0345 records the six-tool plan, ADR 0346 records image certification, ADR 0353 records the v2 contract, ADR 0369 records the source capability, and ADR 0393 records the active carriage. Python-free coordination remains open. |
 | Clean-checkout host independence | Partial | A clean checkout can verify and rebuild the six static i386 Linux tools and the normal Toolchain contract cohort without an external code generator. The root OS image, user build, and normal Toolchain build do not invoke a host C compiler or native linker. Host Python still orchestrates all three roots. Windows executes output-bearing tools from the checked native PE32 seed. Native fixed-point reconstruction runs that seed with the paired Linux plan; Linux-contract work uses the promoted stage-four Linux seed through WSL. Linux and native Windows have clean six-tool convergence and promoted v2 seeds. Python-free coordination remains open. Native contract binaries, NASM, GNU/LLVM `nm`, standalone host ELF-linker recipes, and `objcopy` remain optional oracles or maintenance tools only. |
+
+
+User ABI profile selection now passes six new regressions and twenty ABI/profile
+methods on each host. Both hosts pass 148 driver and 54 policy methods; the
+Windows full audit passes 129. The Linux full audit continues separately.
+The installed-seed Windows replay embeds the settled manual and passes native
+artifact, user and private four-CPU smoke checks. Its image and 431 link inputs
+match both proposed-seed builds. The raw kernel is 9,576,256 bytes and the
+first-pass ELF is 9,675,196 bytes; only their measured policy rows change.
+The updated ABI driver is a publication control input, so it correctly requires
+a new complete publication. The proposed seeds remain uninstalled during that
+rebuild. No compilation or link ownership changes in this repair.

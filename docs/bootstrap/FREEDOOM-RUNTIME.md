@@ -1,5 +1,35 @@
 # Freedoom runtime handoff
 
+## Current exact-image runtime replay, 2026-09-30
+
+The accepted `ea2f135a` image repeats the pinned Freedoom diagnostic with four
+CPUs, `max`, e1000 and the unchanged 1,200-second command deadline. The command
+still fails: exit 1 after 1,281.107 seconds including startup. No completion
+message or panic is recorded. The original image and private staged source
+image remain unchanged. Four active samples record game tics 34, 88, 142 and
+197 after the initial startup sample. Some sampled stacks reach OPL generation
+through `cup_music_pump`; another reaches frame conversion. These sequential
+reads are neither a statistical profile nor proof of a performance cause.
+
+An ignored sustained-note harness links the actual fresh Linux OPL production
+object against the verified Cupid-built hosted startup and runtime. Swapping
+only that object for GCC i386 `-O0` and `-O2` oracle objects produces identical
+176,400-byte PCM output for 44,100 frames. Three alternating measurements have
+median native elapsed times of 0.398, 0.068 and 0.026 seconds respectively.
+Zero, malformed and excessive frame requests are rejected by each program.
+This supports a compiler code-generation investigation. It does not measure
+QEMU throughput, Doom's MIDI workload, audible quality or whole-game runtime.
+Other bootstrap work runs concurrently, so these figures are diagnostic values.
+
+Evidence is under `build/bootstrap/native-profile-validation-258bb5f3/`:
+`doom-runtime-ea2f135a-v1/fixed-summary-v1.json`, its exact-image symbols and
+five sample records, and `opl-cost-v2/result.json` with compiler commands,
+source/object identities, PCM digests and individual times. The first harness
+attempt used an unsupported compiler CLI switch; the corrected invocation uses
+`-c`. No production source or vendored OPL implementation is changed by this
+measurement. Timedemo completion, interactive gameplay, audio quality,
+save/load, reboot persistence and the earlier EHCI ownership failure remain open.
+
 Cupid OS pins the official Freedoom v0.13.0 Phase 1 IWAD and its complete
 upstream release archive under `third_party/freedoom/0.13.0/`. The fixture is
 opt-in. The normal asset-free image and its recorded hashes do not change.

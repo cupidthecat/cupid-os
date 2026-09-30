@@ -1,32 +1,20 @@
 # cupid-os
 
-Source-head CupidBuild now resolves lexical user source/output paths and retains
-the complete output-parent chain through a transaction. Native Windows file
-adapters support long paths; a separate checked profile adds the same support.
-Both native and checked CupidC pass the real long-path compiler cases. Explicit
-source capture freezes and rechecks the long profile's 77 inputs. Bootstrap
-drivers, shared seed readers and contract publication now carry that exact
-profile. Both hosts pass 259 profile/publication tests; checked readers agree on
-1,328 manifest and pair cases. Paired native staged proofs now pass with the same 77-input snapshot. Closed
-user compilation and reviewed promotion remain before the user recipes move.
-Both proposed seeds also rebuild themselves. Final publication verification now
-retains the captured long profile. The native readers now admit the complete current parent tuple for both profiles
-and verify the proposed 77-input artifacts. Both hosts pass 164 regressions and
-54 Cupid-built policy methods. Fresh staged proofs and complete default-profile
-bootstrap compatibility remain required before promotion.
-The updated manual also passes an isolated Windows image build and four-CPU
-boot smoke. Production ownership remains 441 CupidBuild actions and eleven Python actions.
-The assembly audit accounts for 36 owned inputs, including nine hosted startups.
-Fresh paired proofs from `8403b0a8` pass. The linked-worktree audit also passes
-on WSL without Git environment overrides. The paired release remains a preview.
-Policy fixtures now select each bootstrap profile and check its own rejection path.
+Fresh native Windows and Linux toolchain proofs from `8403b0a8` pass with the
+same 77-input long-file profile. Both proposed seeds rebuild themselves, and
+the complete default 76-input Windows bootstrap passes with its exact plan.
+Independent checks verify every staged artifact and the named committed source.
+Both complete fresh OS builds pass without host compilers and produce identical
+431-input cohorts and disk images. The settled manual passes installed-seed and proposed-seed Windows image
+acceptance. A fresh publication and Linux user/boot checks remain required
+before the reviewed pair is installed.
+
+CupidBuild owns 441 normal-build actions; eleven still use Python. Native user
+compilation and link coordination remain open. The latest retained Doom replay advances
+demo tics but misses its 1,200-second deadline. Full gameplay, audio quality,
+save/load, reboot persistence and performance acceptance remain open.
 See [the bootstrap record](docs/bootstrap/README.md) and
 [the user compilation design](docs/bootstrap/NEXT-USER-COMPILATION.md).
-
-Windows incremental image acceptance passes with the updated manual: artifact
-verification, all three user executables, and a private four-CPU disassembly,
-shell and SMP smoke. The kernel is 9,574,736 bytes. Full Doom runtime and
-performance acceptance remains open.
 
 Source-head CupidBuild now has an in-memory validator for external user
 executables. It checks the i386 ELF32 header, up to sixteen program headers,

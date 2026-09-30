@@ -2665,13 +2665,18 @@ def run_user_syscall_abi(
     workers: int = 2,
     timeout: int = 60,
     windows_manifest: Path | None = None,
+    *,
+    windows_long_paths: bool = False,
 ) -> dict[str, object]:
+    if type(windows_long_paths) is not bool:
+        raise ContractError("Windows long-path selection must be Boolean")
     root = root.resolve()
     if windows_manifest is not None:
         return _run_native_windows_user_syscall_abi(
             root, windows_manifest, timeout
         )
-    report = ensure_contracts(root, manifest, output, workers)
+    report = ensure_contracts(root, manifest, output, workers,
+        **({"windows_long_paths": True} if windows_long_paths else {}))
     executable = output / "user-syscall-abi-contract.elf"
     with tempfile.TemporaryDirectory(
         prefix="cupid-user-syscall-abi-snapshot-"
@@ -2735,6 +2740,7 @@ def _build_parser() -> argparse.ArgumentParser:
     user_abi.add_argument("--output", required=True, type=Path)
     user_abi.add_argument("--workers", type=int, default=2)
     user_abi.add_argument("--timeout", type=int, default=60)
+    user_abi.add_argument("--windows-long-paths", action="store_true")
     run = subparsers.add_parser(
         "run", help="run one published static i386 contract"
     )
@@ -2793,6 +2799,7 @@ def main(argv: list[str] | None = None) -> int:
                 arguments.workers,
                 arguments.timeout,
                 arguments.windows_manifest,
+                windows_long_paths=arguments.windows_long_paths,
             )
             print(json.dumps(report, sort_keys=True))
             return 0

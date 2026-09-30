@@ -1,5 +1,100 @@
 # Cupid Toolchain bootstrap
 
+## User ABI profile selection and image acceptance, 2026-09-30
+
+The Linux user recipe now passes `--windows-long-paths` to its syscall ABI
+operation. The API and CLI keep their default profile when this option is absent.
+Windows retains the native contract path. Six new methods check dispatch,
+non-Boolean rejection before execution, the recipe, reuse of an authenticated
+89-input/77-producer publication, and live-input replacement. The initial four
+fail before the change. All twenty ABI/profile methods pass on each host.
+The first live-drift fixture expected the later ABI check's diagnostic; the
+existing runner correctly rejects that replacement during contract execution.
+The corrected fixture asserts that earlier rejection and preserves the report.
+
+Both hosts also pass the 148-method driver selection and all 54 policy methods;
+Linux has sixteen expected driver skips. All 129 Windows audit methods pass.
+The Linux full audit is still running; its already completed driver, ABI and
+policy selections retain their separate passing records. The generated audit
+and current-source check pass. Ownership remains 441 CupidBuild actions and
+eleven Python actions. This selection repair does not move user compilation
+or linking into CupidBuild.
+
+The 63,220-byte manual is embedded in a 9,576,256-byte raw kernel. Its first-pass
+ELF is 9,675,196 bytes after a page-boundary increase; the final ELF remains
+9,802,172 bytes. Size checks reject the obsolete raw and first-pass values before
+those two policy rows are calibrated. The installed-seed Windows image build,
+sixteen native artifact checks, three unchanged user programs and the private
+four-CPU `max`/e1000 disassembly, shell and SMP smoke pass. Its source image is
+unchanged through the smoke. All 241 compiler closures remain unchanged.
+Its 431 link inputs and image match both final proposed-seed image builds;
+proposed-seed Windows smoke also passes. Image SHA-256 is
+`ce64fd631010ff723af7840d77ace5eea3788cfe66be2be99a0ab7181ea21e83`.
+
+The ABI driver itself is a captured publication control input. Updating it
+correctly invalidates the earlier publication, even though the compiled C
+inputs are unchanged. A copied cohort is rejected rather than relabeled as
+current. A fresh complete Linux publication is rebuilding through the corrected
+user recipe. Its acceptance and final native Windows verification remain open.
+The earlier default-profile Linux user rebuild was stopped, and its unsuccessful
+record is retained. An acceptance harness also used an obsolete artifact-log
+suffix after its native check passed; the corrected Windows replay completes
+the smoke. These harness failures are separate from OS and contract failures.
+
+Evidence is under `build/bootstrap/native-profile-validation-258bb5f3/`:
+`user-profile-red-windows-v1.log`, `user-abi-regressions-*-v3.log`,
+`user-profile-regressions-*-v1.log`, `user-profile-policy-suite-*-v1.log`,
+`fresh-audit-suite-windows-v1.log`, `user-profile-installed-os-acceptance-v1.json`
+and `fresh-final-os-windows-acceptance-v5.json`. The installed `5ba6ea24` seed
+pair remains unchanged; reviewed preview v4 carries the settled size policy.
+Its paired fixed points, self-consumption and default-profile bootstrap have
+passed, but the preview stays separate until the remaining publication and
+Linux user/boot checks pass. Full Doom runtime acceptance remains open.
+
+## Long-profile release acceptance, 2026-09-30
+
+The reviewed pair names producer `8403b0a82b5693409d2242fdbff32688c8f2cac5`
+and the 77-input snapshot
+`25b05a6cb0e824136db8df79b4e7f2e176aea88f0446be550f36ece04798bbf9`.
+Linux manifest SHA-256 is
+`84b8bef11969bac58d69e97baacd86d8f1b4aa030ecd25359bb1dcdb8f679cbc`;
+Windows manifest SHA-256 is
+`5d129b2575450dac756d75a4dc859501fdcd9bacf53190ed360ec66f68e21297`.
+The complete `5ba6ea24` pair remains their captured parent generation.
+
+Fresh native proofs compare 42 Windows artifacts and 34 Linux artifacts per
+stage. Long-profile self-consumption passes on each host and reproduces all
+twelve proposed tools. The complete default Windows bootstrap also passes
+with its own 76-input closure and exact default plan. Independent checks bind
+the committed source, captured parents, actual executable formats and hashes,
+all three stages, behavior results, and all 1,540 frozen repository inputs.
+Default-profile output is checked against its own stage pairs; it is not claimed
+to equal the long-profile executable cohort.
+
+Both complete fresh OS builds pass with host code-producing tools forbidden.
+All 431 link inputs, sixteen artifacts and the 209,715,200-byte image match
+across hosts. The first build contains the older captured manual and a
+9,575,044-byte kernel. Its 428 other link inputs match the current installed-seed
+image; only the embedded manual object and two linked ELFs differ. Windows
+user-program, native artifact, disassembly, shell and SMP checks also pass.
+The final manual replay and publication acceptance are recorded separately.
+
+The proposed-pair regression selection passes 208 methods per host, with sixteen
+expected Linux skips. CupidC-built policy readers pass 54 methods and 288
+requests on each host. Profile fixtures now select default and long counts
+explicitly, including their different historical-parent rejection boundaries.
+
+Evidence is under `build/bootstrap/native-profile-validation-258bb5f3/`:
+`fresh-native-both-proof-verification-v1.json`, all three
+`fresh-consumer-verification-*-v1.json` reports, paired
+`fresh-os-*-verification-v1.json`, `fresh-os-windows-acceptance-v1.json`,
+and `fresh-regressions-*-v2.log`. Production ownership remains 441 CupidBuild
+actions and eleven Python actions. Native user compilation/link coordination
+and complete Doom runtime acceptance remain open.
+
+Publication and final-manual acceptance are still pending. The checked seeds
+remain unchanged until those records pass.
+
 ## Policy fixtures select their bootstrap profile, 2026-09-30
 
 A proposed-seed regression run reaches 208 methods on each host. Both initial
@@ -5377,3 +5472,14 @@ The corrected four-method Linux rerun also passes with the explicit Git paths.
 Both hosts now pass every affected method, including missing-resolver rejection
 and the final manifest-drift failure. The full initial 125-method run and the
 separate corrected reruns remain recorded as distinct evidence.
+
+
+The user syscall ABI operation now carries an explicit long-profile selection
+to `ensure_contracts`. Its API and CLI keep the default profile unless selected;
+the Linux user recipe selects the long profile, while Windows retains its
+native contract path. A valid 89-input publication can therefore be consumed
+without rebuilding it as the default profile. Non-Boolean API selections fail
+before execution. Four new regressions fail before the change and pass on both
+hosts afterward. The initial Linux user replay requested the default profile
+and was stopped during that redundant rebuild; it retains an unsuccessful
+acceptance record. The corrected replay has its own record.
