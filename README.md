@@ -7,11 +7,13 @@ Both native and checked CupidC pass the real long-path compiler cases. Explicit
 source capture freezes and rechecks the long profile's 77 inputs. Bootstrap
 drivers, shared seed readers and contract publication now carry that exact
 profile. Both hosts pass 259 profile/publication tests; checked readers agree on
-1,281 manifest and pair cases. Paired native staged proofs now pass with the same 77-input snapshot. Closed
+1,328 manifest and pair cases. Paired native staged proofs now pass with the same 77-input snapshot. Closed
 user compilation and reviewed promotion remain before the user recipes move.
 Both proposed seeds also rebuild themselves. Final publication verification now
-retains the captured long profile. Promotion still needs default-profile
-parent compatibility and native artifact validation for 77-input manifests.
+retains the captured long profile. The native readers now admit the complete current parent tuple for both profiles
+and verify the proposed 77-input artifacts. Both hosts pass 164 regressions and
+54 Cupid-built policy methods. Fresh staged proofs and complete default-profile
+bootstrap compatibility remain required before promotion.
 The updated manual also passes an isolated Windows image build and four-CPU
 boot smoke. Production ownership remains 441 CupidBuild actions and eleven Python actions.
 See [the bootstrap record](docs/bootstrap/README.md) and
@@ -19,7 +21,7 @@ See [the bootstrap record](docs/bootstrap/README.md) and
 
 Windows incremental image acceptance passes with the updated manual: artifact
 verification, all three user executables, and a private four-CPU disassembly,
-shell and SMP smoke. The kernel is 9,573,704 bytes. Full Doom runtime and
+shell and SMP smoke. The kernel is 9,574,520 bytes. Full Doom runtime and
 performance acceptance remains open.
 
 Source-head CupidBuild now has an in-memory validator for external user

@@ -49366,7 +49366,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5602
+      "occurrences": 5603
     },
     {
       "category": "control",
@@ -50123,7 +50123,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 44336
+      "occurrences": 44338
     },
     {
       "category": "control",
@@ -50506,7 +50506,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 27485
+      "occurrences": 27486
     },
     {
       "category": "control",
@@ -51192,7 +51192,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 3033
+      "occurrences": 3036
     },
     {
       "category": "declarator",
@@ -54714,7 +54714,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 18170
+      "occurrences": 18174
     },
     {
       "category": "qualifier",
@@ -55267,7 +55267,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10621
+      "occurrences": 10624
     },
     {
       "category": "type",
@@ -55729,7 +55729,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 11649
+      "occurrences": 11653
     },
     {
       "category": "type",
@@ -56521,7 +56521,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 25664
+      "occurrences": 25665
     },
     {
       "category": "type",
@@ -59063,7 +59063,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "85adb4a36c9a3fdc67530f250bf14e5089e899b90a93f62fc0282e146bc8588b",
+    "active_source_digest": "f3a6c384c9fa50c61f3ae3d97c05eec19c2fc5c8f003ec188c59beaebd4cb7c2",
     "control_files": [
       {
         "path": "Makefile",
@@ -83570,12 +83570,12 @@
         "toolchain/contract_parse_internal.h"
       ],
       "language": "cupid_c",
-      "lines": 1787,
+      "lines": 1813,
       "origin": "tracked",
       "path": "toolchain/artifact_size_policy.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e3b7c3fa8af157ff2f1d19a018f5f6e158199b9afd798492718e73d57b7ff151"
+      "sha256": "22f5af440814443628fcf46cc5d49966e4ca163f8fb5949b85f0140b58701e26"
     },
     {
       "build_owners": [
@@ -86281,7 +86281,7 @@
       "path": "toolchain/seed_manifest.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c520e503171571193b4b33cfabd36729663ce4a677e5db9bc613072e5aabe469"
+      "sha256": "a5e238193b7df4d7438a5bb1ee7a61cdb1295bd007a3e413d6b4c39b3e501f22"
     },
     {
       "build_owners": [

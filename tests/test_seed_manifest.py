@@ -115,6 +115,16 @@ def long_path_manifest(fmt):
     return value
 
 
+def default_parent_manifest(fmt):
+    value = long_path_manifest(fmt)
+    value["provenance"]["source_input_count"] = 76
+    if fmt == 2:
+        value["provenance"]["native_build_plan_sha256"] = (
+            "6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748"
+        )
+    return value
+
+
 class Artifact(ctypes.Structure):
     _fields_ = [("file", ctypes.c_char * 32), ("sha256", ctypes.c_char * 65), ("size", ctypes.c_uint32)]
 
@@ -144,6 +154,32 @@ def changed(value):
 class ManifestTests(unittest.TestCase):
     records = []
     pair_records = []
+
+    def test_default_profile_accepts_complete_current_parent_tuple(self):
+        for fmt in (1, 2):
+            value = default_parent_manifest(fmt)
+            expected = (6, 2 if fmt == 2 else 0)
+            self.check(value, fmt, expected=expected)
+            previous = selection_manifest(fmt)["provenance"]
+            for field, original in value["provenance"].items():
+                if not field.startswith("parent_"):
+                    continue
+                for changed in ("0" * len(original), previous[field]):
+                    altered = copy.deepcopy(value)
+                    altered["provenance"][field] = changed
+                    self.check(altered, fmt, False)
+                    self.check(value, fmt, expected=expected)
+            for count in (59, 61, 66, 73, 75, 78, True, 76.0):
+                altered = copy.deepcopy(value)
+                altered["provenance"]["source_input_count"] = count
+                self.check(altered, fmt, False)
+            if fmt == 2:
+                altered = copy.deepcopy(value)
+                altered["provenance"]["native_build_plan_sha256"] = (
+                    long_path_manifest(2)["provenance"]["native_build_plan_sha256"]
+                )
+                self.check(altered, fmt, False)
+            self.check(value, fmt, expected=expected)
 
     def test_long_path_pair_binds_release_and_actual_linux_manifest_bytes(self):
         linux, windows = long_path_manifest(1), long_path_manifest(2)
@@ -183,6 +219,14 @@ class ManifestTests(unittest.TestCase):
             bad = copy.deepcopy(windows)
             bad["provenance"][field] = 76 if field == "source_input_count" else "0" * 64
             check(reviewed, linux, bad, False)
+        default_linux = copy.deepcopy(linux)
+        default_linux["provenance"]["source_input_count"] = 76
+        self.check(default_linux, 1, expected=(6, 0))
+        rebound_windows = copy.deepcopy(windows)
+        rebound_windows["provenance"]["plan_seed_manifest_sha256"] = (
+            hashlib.sha256(encode(default_linux)).hexdigest()
+        )
+        check(reviewed, default_linux, rebound_windows, False)
         # Harmless JSON whitespace still changes the bytes referenced by Windows.
         changed = dict(reversed(list(linux.items())))
         check(reviewed, changed, windows, False)
@@ -204,9 +248,10 @@ class ManifestTests(unittest.TestCase):
             for count in (76, 78, True, 77.0):
                 altered = copy.deepcopy(value)
                 altered["provenance"]["source_input_count"] = count
-                # A Linux plan is shared by the 76/77 profiles, but its new
-                # parent is accepted only by the explicit 77-file profile.
-                self.check(altered, fmt, False)
+                # The Linux plan and parent are shared. The reviewed release
+                # and captured inventory bind its selected count and digest.
+                self.check(altered, fmt, fmt == 1 and count == 76,
+                           expected=(6, 0) if fmt == 1 and count == 76 else None)
             if fmt == 2:
                 for field in ("native_build_plan_sha256", "linux_candidate_build_plan_sha256"):
                     altered = copy.deepcopy(value)

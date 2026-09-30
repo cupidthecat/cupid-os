@@ -396,6 +396,68 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)["artifact_count"], 16)
 
+    def current_parent_request(self, *, long_paths, mutate=None):
+        from tests.test_seed_manifest import default_parent_manifest, long_path_manifest
+        profile = long_path_manifest if long_paths else default_parent_manifest
+
+        def select(manifest, windows):
+            manifest.clear()
+            manifest.update(profile(1))
+            windows.clear()
+            windows.update(profile(2))
+            if mutate is not None:
+                mutate(manifest, windows)
+        return self.promoted_request(select)
+
+    def test_current_parent_profiles_accept_exact_count_plan_and_lineage(self):
+        for long_paths in (False, True):
+            valid = self.current_parent_request(long_paths=long_paths)
+            result = self.run_request(valid)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)["artifact_count"], 16)
+            for side in (0, 1):
+                for count in (75, 78, True, 76.0, 77.0,
+                              76 if long_paths else 77):
+                    def change(manifest, windows):
+                        (manifest, windows)[side]["provenance"]["source_input_count"] = count
+                    self.assert_contract_failure(self.current_parent_request(
+                        long_paths=long_paths, mutate=change))
+            for field in ("native_build_plan_sha256", "linux_candidate_build_plan_sha256"):
+                for digest in ("0" * 64,
+                    "6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748"
+                    if long_paths else
+                    "5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc"):
+                    def change(manifest, windows):
+                        windows["provenance"][field] = digest
+                    self.assert_contract_failure(self.current_parent_request(
+                        long_paths=long_paths, mutate=change))
+            self.assertEqual(self.run_request(valid).returncode, 0)
+
+    def test_current_parent_profiles_reject_each_mixed_or_unknown_parent(self):
+        from tests.test_seed_manifest import default_parent_manifest, long_path_manifest, selection_manifest
+        for long_paths in (False, True):
+            profile = long_path_manifest if long_paths else default_parent_manifest
+            for side, fmt in enumerate((1, 2)):
+                previous = selection_manifest(fmt)["provenance"]
+                for field, original in profile(fmt)["provenance"].items():
+                    if not field.startswith("parent_"):
+                        continue
+                    for changed in ("0" * len(original), previous[field]):
+                        def change(manifest, windows):
+                            (manifest, windows)[side]["provenance"][field] = changed
+                        self.assert_contract_failure(self.current_parent_request(
+                            long_paths=long_paths, mutate=change))
+            if long_paths:
+                def previous_generation(manifest, windows):
+                    for selected, fmt in ((manifest, 1), (windows, 2)):
+                        for field, value in selection_manifest(fmt)["provenance"].items():
+                            if field.startswith("parent_"):
+                                selected["provenance"][field] = value
+                self.assert_contract_failure(self.current_parent_request(
+                    long_paths=True, mutate=previous_generation))
+            valid = self.run_request(self.current_parent_request(long_paths=long_paths))
+            self.assertEqual(valid.returncode, 0, valid.stderr)
+
     def artifact_request(self, mutate=None):
         from tests.test_seed_manifest import artifact_manifest
         def select(manifest, windows):

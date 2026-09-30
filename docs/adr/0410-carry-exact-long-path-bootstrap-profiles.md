@@ -90,3 +90,26 @@ as its initial observations. A complete 77-input publication exposed a default
 from the captured resolver observation. Both runner suites and an isolated replay
 of the actual 22-artifact publication pass. Extra and missing members remain
 rejected. This driver fix leaves the two native promotion requirements unchanged.
+
+Source validation extension, 2026-09-30: the complete installed parent tuple
+is valid for default 76-input and long 77-input records. Windows keeps their
+exact plans and executable import profiles separate. Linux uses the same plan;
+the reviewed release and captured inventory distinguish the selected count.
+The artifact-policy reader admits the current tuple for both counts and requires
+it exclusively for count 77. The coordinator retains its independent release,
+image and filesystem checks. Historical combinations remain constrained.
+
+Both hosts pass 164 regressions, checked shared readers covering 1,328 cases,
+and checked policy contracts covering 54 methods and 280 requests. Incrementally
+linked CupidBuild verifies sixteen actual artifacts in each proposed OS root;
+the preceding binary rejects count 77. Those roots retain their failed build
+status. Fresh proofs and default-profile executable compatibility remain required
+before a new seed release can be installed. Evidence is in
+`build/bootstrap/native-profile-validation-258bb5f3/`.
+
+The checked default-profile assembly transaction also passes with the real
+76-input UTF-8 tool images and a synthetic current-parent fixture. Mixed parent
+fields and an ordinary long-profile compiler image are rejected; recovery emits
+the reference bytes. The installed-seed manual image passes sixteen artifact
+checks, unchanged user executables and the private four-CPU smoke. This keeps
+source integration green while complete new staged proofs remain open.

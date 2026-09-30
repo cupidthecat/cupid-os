@@ -1,5 +1,39 @@
 # Cupid Toolchain bootstrap
 
+## Native validation for both bootstrap profiles, 2026-09-30
+
+The shared manifest reader accepts the complete installed `5ba6ea24` parent
+pair for the default 76-input profile as well as the explicit 77-input long
+profile. Windows still requires the selected profile's exact plan and import
+table. Linux shares one plan across these profiles; the reviewed release and
+captured inventory bind the selected count and source digest.
+
+The artifact-policy reader accepts the 77-input profile only with that complete
+current parent tuple. Its Windows record requires the exact long-profile plan
+and matching Linux candidate plan. The default 76-input record can also use the
+current parent tuple. Existing historical combinations retain their checks.
+The retained native coordinator separately validates release identity, actual
+manifest bytes, all twelve seed images and the sixteen artifact observations.
+The standalone policy API does not authenticate executable payloads.
+
+Both hosts pass 164 regressions; Windows has four expected skips. CupidC-built
+shared readers match the host reference for 1,313 manifest and fifteen paired
+cases on each host. Cupid-built policy contracts pass 54 methods and 280 requests
+per host, including count, plan, mixed parent and recovery cases. An incrementally
+linked CupidBuild passes all sixteen actual artifact checks in both proposed
+77-input OS roots. The previous binary rejects those same roots at the source
+count. Source captures and artifacts remain unchanged. This is verifier evidence;
+neither earlier failed OS build is relabeled as an accepted image.
+
+Evidence is under `build/bootstrap/native-profile-validation-258bb5f3/`.
+The three focused methods first failed, then passed after both native readers
+were extended. The first Linux policy launch passed a Windows path spelling
+through WSL and failed before executing the caller; the corrected POSIX spelling
+passes. A default-profile metadata probe cannot establish that ordinary Windows
+images have the correct default import table. Fresh staged proofs, the complete
+default bootstrap path, self-consumption and OS acceptance from the new producer
+revision remain required before promotion. The installed seed pins stay unchanged.
+
 ## Lineage replay and OS acceptance, 2026-09-30
 
 Both proposed seeds rebuild themselves with the explicit long profile. All six
@@ -5199,3 +5233,28 @@ increase; the calibrated policy and rebuilt image pass. The unchanged source
 image has SHA-256 `f1f9896e9aae2c55a6bf834db84ae81a4290e5abec44db7950ef5d070bebe018`.
 Independent source and artifact evidence is
 `verification-final-acceptance-v4.json` under the current proof directory.
+
+## Profile validation OS replay, 2026-09-30
+
+Installed seeds pass the updated manual image, all sixteen native artifact
+checks, three unchanged user executables and the private four-CPU max/e1000
+disassembly, shell and SMP smoke. The source image remains unchanged. All 241
+compiler closures remain identical, including the 83 Doom objects. Only the
+manual object and two kernel ELFs change in the 431-input cohort. The 61,483-byte
+manual is present in its object, ELF and raw kernel. The measured raw kernel is
+9,574,520 bytes, and the 209,715,200-byte image has SHA-256
+`adc4222825b715b8762836058a5fb953a9918702cf7da6838264cd5a4bca71c8`.
+
+The first size gate rejects the manual's 816-byte kernel increase. Updating only
+the raw-kernel policy row to the measured value makes the image build pass.
+The calibrated policy suite passes 79 methods. Evidence includes
+`os-build-v1.json`, `os-build-v2.json` and `windows-os-acceptance-v2.json` under
+`build/bootstrap/native-profile-validation-258bb5f3/`.
+
+A separate native assembly transaction uses the real default 76-input UTF-8
+images with a synthetic current-parent provenance fixture. It passes and emits
+the reference CupidASM bytes, rejects a mixed parent and a long-profile CupidC
+image, then passes recovery. This checks the default executable boundary without
+claiming a complete named-commit default bootstrap. Its evidence is
+`default-profile-transaction-v1.json`. Fresh staged proofs and seed promotion
+remain open; the installed cohort and ownership counts are unchanged.

@@ -740,7 +740,7 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
             cupidbuild_json_lower_hex_field(
                 bytes, tokens, count, object, "plan_seed_manifest_sha256",
                 64u) &&
-            ((candidate == 4 &&
+            ((candidate >= 3 &&
               cupidbuild_json_string_field(bytes, tokens, count, object,
                   "parent_execution_seed_manifest_sha256", long_path_parent_windows_manifest) &&
               cupidbuild_json_string_field(bytes, tokens, count, object,
@@ -842,7 +842,7 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
          (cupidbuild_json_string_field(
               bytes, tokens, count, object, "artifact_generation",
               "paired-stage-four-six-tool") &&
-          ((candidate == 4 &&
+          ((candidate >= 3 &&
             cupidbuild_json_string_field(bytes, tokens, count, object,
                 "parent_seed_manifest_sha256", long_path_parent_linux_manifest) &&
             cupidbuild_json_string_field(bytes, tokens, count, object,

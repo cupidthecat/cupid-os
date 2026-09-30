@@ -2265,3 +2265,11 @@ Final Toolchain publication membership checks retain the captured bootstrap
 profile. The explicit long profile has 77 inputs; a final default-profile
 recapture would incorrectly reject its unchanged resolver input. The source
 repair passes both runner suites and a checked replay of the actual publication.
+
+The native shared manifest reader admits the complete installed parent pair
+for both the default 76-input and long 77-input profiles. Windows requires each
+profile's exact plan and import table. The native artifact-policy reader checks
+the long profile and current parent tuple together; its retained coordinator
+still validates reviewed release identity and actual seed images independently.
+Both hosted and Cupid-built checks pass. This source change requires fresh
+staged proofs and complete default-profile compatibility before seed promotion.
