@@ -16,6 +16,9 @@ CALLER = r'''
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(NATIVE_OBSERVER_WINDOWS_WRITER)
+#include <windows.h>
+#endif
 static int decode(char *text) {
   size_t size = strlen(text);
   size_t index;
@@ -34,6 +37,63 @@ static int decode(char *text) {
   text[size / 2] = 0;
   return 1;
 }
+static int parent_case(const char *root, const char *mode, const char *output) {
+  cupidbuild_host_output_parent_t *parent = NULL;
+  cupidbuild_host_transaction_t *transaction = NULL;
+  cupidbuild_host_snapshot_t candidate_snapshot;
+  unsigned char *candidate_bytes = NULL;
+  char resume;
+  int publish = strcmp(mode, "parent-publish") == 0;
+  int changed = 0;
+  int ok = cupidbuild_host_output_parent_prepare(root, output, &parent);
+  if (ok && strcmp(mode, "parent") != 0) {
+    if (strcmp(mode, "parent-open") == 0 || publish) {
+      ok = cupidbuild_host_output_transaction_open(root, "source.cc", output,
+                                                    parent, &transaction);
+    } else ok = cupidbuild_host_transaction_open(root, "source.cc",
+        strcmp(mode, "parent-bind-other") == 0 ? "other/file.o" : output,
+        &transaction) && cupidbuild_host_output_parent_bind(parent, transaction);
+  }
+  if (ok && publish) {
+    char writer[8192];
+    const char *frozen = NULL;
+    const char *arguments[3];
+    cupidbuild_host_snapshot_t writer_snapshot;
+    int run_status = -99;
+    snprintf(writer, sizeof(writer), "%s/writer", root);
+    arguments[0] = "emit";
+    arguments[1] = cupidbuild_host_candidate(transaction);
+    arguments[2] = NULL;
+    ok = cupidbuild_host_freeze_input(transaction, writer, "writer.exe",
+                                     &frozen, &writer_snapshot) &&
+         cupidbuild_host_make_input_executable(transaction, frozen);
+    if (ok) {
+      run_status = cupidbuild_host_run(transaction, frozen, arguments, 10000);
+      ok = run_status == 0;
+      if (!ok) fprintf(stderr, "writer exit %d\n", run_status);
+    }
+    if (ok) ok = cupidbuild_host_capture_candidate(transaction,
+                                                   &candidate_snapshot, &candidate_bytes);
+    free(candidate_bytes);
+  }
+  if (!ok) {
+    fprintf(stderr, "%s; %s\n", cupidbuild_host_output_parent_error(parent),
+            transaction ? cupidbuild_host_error(transaction) : "no transaction");
+    cupidbuild_host_transaction_close(transaction);
+    cupidbuild_host_output_parent_close(parent);
+    return 2;
+  }
+  printf("ready\n"); fflush(stdout);
+  if (fread(&resume, 1, 1, stdin) != 1) return 92;
+  ok = cupidbuild_host_output_parent_require_current(parent);
+  if (transaction && !cupidbuild_host_require_publication_boundary(transaction)) ok = 0;
+  if (ok && publish) ok = cupidbuild_host_publish_if_changed(transaction, &changed);
+  if (!ok) fprintf(stderr, "%s; %s\n", cupidbuild_host_output_parent_error(parent),
+            transaction ? cupidbuild_host_error(transaction) : "no transaction");
+  if (!cupidbuild_host_transaction_close(transaction)) ok = 0;
+  if (!cupidbuild_host_output_parent_close(parent)) return 93;
+  return ok ? 0 : 3;
+}
 int main(int argc, char **argv) {
   cupidbuild_host_observer_t *observer = NULL;
   unsigned char *bytes = NULL;
@@ -42,7 +102,31 @@ int main(int argc, char **argv) {
   int result;
   int valid;
   char resume;
+  if (argc == 3 && strcmp(argv[1], "emit") == 0) {
+#if defined(NATIVE_OBSERVER_WINDOWS_WRITER)
+    wchar_t path[8192];
+    HANDLE file;
+    DWORD count = 0;
+    int written;
+    if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, argv[2], -1,
+                             path, 8192)) return 105;
+    file = CreateFileW(path, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE |
+                       FILE_SHARE_DELETE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (file == INVALID_HANDLE_VALUE) return 105;
+    written = WriteFile(file, "new", 3, &count, NULL) && count == 3;
+    if (!CloseHandle(file)) written = 0;
+    return written ? 0 : 106;
+#else
+    FILE *file = fopen(argv[2], "wb");
+    int written;
+    if (!file) return 105;
+    written = fwrite("new", 1, 3, file) == 3;
+    if (fclose(file) != 0) written = 0;
+    return written ? 0 : 106;
+#endif
+  }
   if (argc != 4 || !decode(argv[1]) || !decode(argv[3])) return 90;
+  if (strncmp(argv[2], "parent", 6) == 0) return parent_case(argv[1], argv[2], argv[3]);
   if (strcmp(argv[2], "strcpy") == 0) {
     char destination[8];
     memset(destination, 'x', sizeof(destination));
@@ -145,7 +229,7 @@ class CupidBuildObserverTests(unittest.TestCase):
                    "-D_CRT_SECURE_NO_WARNINGS", "-I", str(ROOT / "toolchain"),
                    "-x", "c", str(caller), str(ROOT / "toolchain/cupidbuild_host.cc"),
                    str(ROOT / "toolchain/path_encoding.cc"),
-                   *(["-lntdll"] if os.name == "nt" else []), "-o", str(cls.program)]
+                   *(["-DNATIVE_OBSERVER_WINDOWS_WRITER", "-lntdll"] if os.name == "nt" else []), "-o", str(cls.program)]
         result = subprocess.run(command, capture_output=True, text=True, timeout=180)
         if result.returncode:
             raise AssertionError(result.stdout + result.stderr)
@@ -253,6 +337,155 @@ class CupidBuildObserverTests(unittest.TestCase):
 
     def test_metadata_observation_creates_no_files(self):
         self.observe()
+
+    def prepare_parent(self, logical, mode="parent", mutate=None, expected=0):
+        if mode == "parent-publish":
+            shutil.copyfile(self.program, self.root / "writer")
+        process = subprocess.Popen([str(self.program), str(self.root).encode('utf-8').hex(),
+                                    mode, logical.encode('utf-8').hex()], stdin=subprocess.PIPE,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   text=True, encoding='utf-8')
+        try:
+            if mutate is not None:
+                ready = queue.Queue()
+                reader = threading.Thread(target=lambda: ready.put(process.stdout.readline()), daemon=True)
+                reader.start()
+                self.assertEqual(ready.get(timeout=10), 'ready\n')
+                reader.join(timeout=1)
+                mutate()
+            stdout, stderr = process.communicate('x', timeout=20)
+            self.assertEqual(process.returncode, expected, (stdout, stderr))
+            if expected:
+                self.assertTrue(stderr.strip())
+            else:
+                self.assertEqual(stderr, '')
+                if mutate is None:
+                    self.assertEqual(stdout, 'ready\n')
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.communicate(timeout=10)
+            for stream in (process.stdin, process.stdout, process.stderr):
+                stream.close()
+
+    def test_output_parent_creates_nested_directories_without_files(self):
+        self.prepare_parent('user/.hidden/deep/output/file.o')
+        self.assertTrue((self.root / 'user/.hidden/deep/output').is_dir())
+        self.assertFalse((self.root / 'user/.hidden/deep/output/file.o').exists())
+        self.prepare_parent('user/.hidden/deep/output/file.o')
+
+    def test_output_parent_unicode_and_long_components(self):
+        for name in ('space name', 'caf\u00e9', '\u65e5\u672c', '\U0001f600', 'a' * 200):
+            with self.subTest(name=name):
+                self.prepare_parent('user/' + name + '/file.o')
+                self.assertTrue((self.root / 'user' / name).is_dir())
+
+    def test_output_parent_prepares_path_beyond_260_characters(self):
+        logical = 'user/' + 'a' * 100 + '/' + 'b' * 100 + '/' + 'c' * 100 + '/file.o'
+        self.assertGreater(len(str(self.root / logical)), 260)
+        self.prepare_parent(logical)
+        self.assertTrue((self.root / logical).parent.is_dir())
+        self.assertFalse((self.root / logical).exists())
+
+    def test_output_parent_validates_entire_path_before_creation(self):
+        for name in ('new/../bad/file.o', 'new//file.o', 'new/./file.o',
+                     'new/file.o/', '/new/file.o', 'new/' + 'a' * 1024 + '/file.o'):
+            with self.subTest(name=name[:80]):
+                self.prepare_parent(name, expected=2)
+                self.assertFalse((self.root / 'new').exists())
+
+    def test_output_parent_rejects_file_collision_and_preserves_directories(self):
+        (self.root / 'nested/collision').write_bytes(b'foreign')
+        self.prepare_parent('nested/collision/deeper/file.o', expected=2)
+        self.assertEqual((self.root / 'nested/collision').read_bytes(), b'foreign')
+        self.prepare_parent('new/created/' + 'x' * 300 + '/file.o', expected=2)
+        self.assertTrue((self.root / 'new/created').is_dir())
+
+    def test_output_parent_ignores_sibling_writes(self):
+        def mutate():
+            (self.root / 'sibling').write_bytes(b'new')
+            (self.root / 'nested/other').write_bytes(b'new')
+        self.prepare_parent('nested/file.o', mutate=mutate)
+
+    def test_output_parent_retains_chain_and_rejects_replacement(self):
+        (self.root / 'nested/deep').mkdir()
+        def mutate():
+            if os.name == 'nt':
+                with self.assertRaises(OSError):
+                    self.parent.rename(self.root / 'displaced')
+            else:
+                self.parent.rename(self.root / 'displaced')
+                self.parent.mkdir()
+                (self.parent / 'deep').mkdir()
+        self.prepare_parent('nested/deep/file.o', mutate=mutate,
+                            expected=0 if os.name == 'nt' else 3)
+        # Successful removal after close also checks that retained handles closed.
+        (self.root / ('nested' if os.name == 'nt' else 'displaced') / 'deep').rmdir()
+
+    def test_output_parent_binds_transaction_and_allows_siblings(self):
+        (self.root / 'source.cc').write_bytes(b'int value;')
+        def mutate():
+            (self.root / 'nested/new/sibling').write_bytes(b'new')
+        self.prepare_parent('nested/new/file.o', 'parent-bind', mutate=mutate)
+        self.assertFalse((self.root / 'nested/new/file.o').exists())
+        self.assertFalse(list(self.root.rglob('.cupidbuild*')))
+        self.prepare_parent('nested/new/file.o', 'parent-open', mutate=mutate)
+        self.assertFalse(list(self.root.rglob('.cupidbuild*')))
+
+    def test_output_parent_rejects_different_transaction_parent(self):
+        (self.root / 'source.cc').write_bytes(b'int value;')
+        (self.root / 'other').mkdir()
+        self.prepare_parent('nested/file.o', 'parent-bind-other', expected=2)
+        self.assertFalse(list(self.root.rglob('.cupidbuild*')))
+
+    def test_output_parent_publication_preserves_equal_output_timestamp(self):
+        (self.root / 'source.cc').write_bytes(b'int value;')
+        output = self.parent / 'file.o'
+        output.write_bytes(b'old')
+        self.prepare_parent('nested/file.o', 'parent-publish')
+        self.assertEqual(output.read_bytes(), b'new')
+        os.utime(output, ns=(1_600_000_000_000_000_000,) * 2)
+        stamp = output.stat().st_mtime_ns
+        self.prepare_parent('nested/file.o', 'parent-publish')
+        self.assertEqual(output.read_bytes(), b'new')
+        self.assertEqual(output.stat().st_mtime_ns, stamp)
+        self.assertFalse(list(self.root.rglob('.cupidbuild*')))
+
+    @unittest.skipIf(os.name == 'nt', 'Windows prevents retained directory replacement')
+    def test_output_parent_publication_rejects_transplanted_ancestor(self):
+        (self.root / 'source.cc').write_bytes(b'int value;')
+        (self.parent / 'deep').mkdir()
+        output = self.parent / 'deep/file.o'
+        output.write_bytes(b'old')
+        stamp = output.stat().st_mtime_ns
+        def mutate():
+            self.parent.rename(self.root / 'displaced')
+            self.parent.mkdir()
+            (self.root / 'displaced/deep').rename(self.parent / 'deep')
+        self.prepare_parent('nested/deep/file.o', 'parent-publish', mutate=mutate, expected=3)
+        self.assertEqual(output.read_bytes(), b'old')
+        self.assertEqual(output.stat().st_mtime_ns, stamp)
+
+    def test_output_parent_bound_chain_rejects_transplanted_leaf(self):
+        (self.root / 'source.cc').write_bytes(b'int value;')
+        (self.parent / 'deep').mkdir()
+        def mutate():
+            if os.name == 'nt':
+                with self.assertRaises(OSError):
+                    self.parent.rename(self.root / 'displaced')
+            else:
+                self.parent.rename(self.root / 'displaced')
+                self.parent.mkdir()
+                (self.root / 'displaced/deep').rename(self.parent / 'deep')
+        self.prepare_parent('nested/deep/file.o', 'parent-bind', mutate=mutate,
+                            expected=0 if os.name == 'nt' else 3)
+        self.assertFalse((self.parent / 'deep/file.o').exists())
+
+    def test_output_parent_concurrent_sibling_preparation(self):
+        self.prepare_parent('nested/a/file.o', mutate=lambda:
+                            self.prepare_parent('nested/b/file.o'))
+        self.assertTrue((self.parent / 'a').is_dir())
+        self.assertTrue((self.parent / 'b').is_dir())
 
     def test_standard_input_pipe_and_eof(self):
         result = subprocess.run([str(self.program), "2f", "stdin", ""],
@@ -480,6 +713,8 @@ class CupidBuildObserverTests(unittest.TestCase):
         try:
             self.observe(logical="alias/artifact.dat", rejected=True)
             self.observe("empty-directory", "alias", rejected=True)
+            self.prepare_parent("alias/new/file.o", expected=2)
+            self.assertFalse((self.parent / 'new').exists())
             previous = self.root
             self.root = alias
             try:
@@ -500,6 +735,8 @@ class CupidBuildObserverTests(unittest.TestCase):
         self.observe(logical="nested/alias", rejected=True)
         (self.root / "alias").symlink_to(self.parent, target_is_directory=True)
         self.observe(logical="alias/artifact.dat", rejected=True)
+        self.prepare_parent("alias/new/file.o", expected=2)
+        self.assertFalse((self.parent / 'new').exists())
 
 
 if __name__ == "__main__":

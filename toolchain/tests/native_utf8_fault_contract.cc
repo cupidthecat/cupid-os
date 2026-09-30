@@ -35,7 +35,7 @@ int cupid_tool_utf8_main(int argc, char **argv) {
   (void)argc; (void)argv;
   memset(&startup, 0, sizeof(startup)); memset(&process, 0, sizeof(process));
   startup.cb = sizeof(startup);
-  for (i=1; i<=3; i++) {
+  for (i=1; i<=5; i++) {
     allocation_attempt=0;fail_at=i;
     if (cupid_native_utf8_process("never.exe", "never.exe", NULL, NULL, FALSE, 0, NULL, ".", &startup, &process) || GetLastError()!=ERROR_NOT_ENOUGH_MEMORY || live_allocations!=baseline) return 10+(int)i;
   }
@@ -54,9 +54,40 @@ int cupid_tool_utf8_main(int argc, char **argv) {
     if (cupid_native_utf8_getcwd(tiny,0)!=NULL || errno!=EINVAL || live_allocations!=baseline) return 85;
     if (cupid_native_utf8_getcwd(NULL,-1)!=NULL || errno!=EINVAL || live_allocations!=baseline) return 86;
   }
-  for (i=1; i<=2; i++) {
+  for (i=1; i<=3; i++) {
     allocation_attempt=0;fail_at=i;stream=NULL;
     if (cupid_native_utf8_fopen_s(&stream,"unused","rb")!=ENOMEM || stream!=NULL || live_allocations!=baseline) return 30+(int)i;
+  }
+  {
+    char long_path[320];
+    memset(long_path, 'x', sizeof(long_path));
+    long_path[0] = 'C'; long_path[1] = ':'; long_path[2] = '\\';
+    long_path[sizeof(long_path) - 1u] = 0;
+    for (i = 1; i <= 3; i++) {
+      allocation_attempt = 0; fail_at = i;
+      if (cupid_native_utf8_attributes(long_path) != INVALID_FILE_ATTRIBUTES ||
+          GetLastError() != ERROR_NOT_ENOUGH_MEMORY || live_allocations != baseline) return 90 + (int)i;
+      allocation_attempt = 0; fail_at = i;
+      if (cupid_native_utf8_open(long_path, GENERIC_READ, FILE_SHARE_READ, NULL,
+             OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL) != INVALID_HANDLE_VALUE ||
+          GetLastError() != ERROR_NOT_ENOUGH_MEMORY || live_allocations != baseline) return 94 + (int)i;
+    }
+    for (i = 1; i <= 4; i++) {
+      allocation_attempt = 0; fail_at = i; stream = NULL;
+      if (cupid_native_utf8_fopen_s(&stream, long_path, "rb") != ENOMEM || stream != NULL ||
+          live_allocations != baseline) return 98 + (int)i;
+    }
+  }
+  {
+    char device[330];
+    HANDLE handle;
+    allocation_attempt = 0; fail_at = 0;
+    memset(device, 'x', sizeof(device)); device[0] = 'C'; device[1] = ':'; device[2] = '\\';
+    memcpy(device + sizeof(device) - 5u, "\\NUL", 5u);
+    handle = cupid_native_utf8_open(device, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                   NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (handle == INVALID_HANDLE_VALUE || live_allocations != baseline) return 103;
+    if (!CloseHandle(handle)) return 104;
   }
   if (_wputenv_s(L"PRIVATE_FAULT_ENV",L"\x6771\x4eac")) return 40;
   for (i=1; i<=5; i++) {

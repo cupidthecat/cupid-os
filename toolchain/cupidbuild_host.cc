@@ -133,6 +133,7 @@ typedef struct {
 } cupidbuild_host_discovery_query_t;
 
 struct cupidbuild_host_transaction {
+  cupidbuild_host_output_parent_t *prepared_output_parent;
   char repository_root[CUPIDBUILD_HOST_PATH_BYTES];
   char source_path[CUPIDBUILD_HOST_PATH_BYTES];
   char frozen_source[CUPIDBUILD_HOST_PATH_BYTES];
@@ -240,6 +241,9 @@ static int cupidbuild_host_require_public_binding(
     cupidbuild_host_transaction_t *transaction,
     const cupidbuild_host_snapshot_t *expected_output,
     int require_discovery);
+static int cupidbuild_output_parent_attach(
+    cupidbuild_host_output_parent_t *parent,
+    cupidbuild_host_transaction_t *transaction);
 static int cupidbuild_host_read_output(
     cupidbuild_host_transaction_t *transaction, int optional,
     cupidbuild_host_snapshot_t *snapshot, unsigned char **bytes_out);
@@ -9254,6 +9258,7 @@ static int cupidbuild_host_transaction_open_internal(
     const char *repository_root, const char *source_logical,
     const char *output_logical,
     cupidbuild_host_profile_parent_t *profile_parent,
+    cupidbuild_host_output_parent_t *output_parent,
     cupidbuild_host_transaction_t **transaction_out) {
   cupidbuild_host_transaction_t *transaction;
   cupidbuild_host_snapshot_t created_private_snapshot;
@@ -9486,6 +9491,12 @@ static int cupidbuild_host_transaction_open_internal(
     *transaction_out = transaction;
     return 0;
   }
+  if (output_parent != (cupidbuild_host_output_parent_t *)0 &&
+      !cupidbuild_output_parent_attach(output_parent, transaction)) {
+    cupidbuild_host_set_error(transaction, cupidbuild_host_output_parent_error(output_parent));
+    *transaction_out = transaction;
+    return 0;
+  }
   if (!cupidbuild_host_acquire_lock(transaction)) {
     *transaction_out = transaction;
     return 0;
@@ -9680,6 +9691,12 @@ static int cupidbuild_host_transaction_open_internal(
     return 0;
   }
 #endif
+  if (output_parent != (cupidbuild_host_output_parent_t *)0 &&
+      !cupidbuild_host_output_parent_require_current(output_parent)) {
+    cupidbuild_host_set_error(transaction, cupidbuild_host_output_parent_error(output_parent));
+    *transaction_out = transaction;
+    return 0;
+  }
   if (!cupidbuild_host_freeze_input(transaction, transaction->source_path,
                                     "source.asm", &frozen,
                                     (cupidbuild_host_snapshot_t *)0) ||
@@ -9727,7 +9744,8 @@ int cupidbuild_host_transaction_open(
     cupidbuild_host_transaction_t **transaction_out) {
   return cupidbuild_host_transaction_open_internal(
       repository_root, source_logical, output_logical,
-      (cupidbuild_host_profile_parent_t *)0, transaction_out);
+      (cupidbuild_host_profile_parent_t *)0,
+      (cupidbuild_host_output_parent_t *)0, transaction_out);
 }
 
 int cupidbuild_host_profile_transaction_open(
@@ -9737,7 +9755,21 @@ int cupidbuild_host_profile_transaction_open(
     cupidbuild_host_transaction_t **transaction_out) {
   return cupidbuild_host_transaction_open_internal(
       repository_root, source_logical, output_logical, profile_parent,
-      transaction_out);
+      (cupidbuild_host_output_parent_t *)0, transaction_out);
+}
+
+int cupidbuild_host_output_transaction_open(
+    const char *root, const char *source, const char *output,
+    cupidbuild_host_output_parent_t *preparation,
+    cupidbuild_host_transaction_t **transaction_out) {
+  if (preparation == (cupidbuild_host_output_parent_t *)0) {
+    if (transaction_out != (cupidbuild_host_transaction_t **)0)
+      *transaction_out = (cupidbuild_host_transaction_t *)0;
+    return 0;
+  }
+  if (!cupidbuild_host_transaction_open_internal(root, source, output,
+        (cupidbuild_host_profile_parent_t *)0, preparation, transaction_out)) return 0;
+  return cupidbuild_host_require_publication_boundary(*transaction_out);
 }
 
 int cupidbuild_host_runner_open(
@@ -12067,6 +12099,12 @@ static int cupidbuild_host_require_public_binding(
       expected_output == (const cupidbuild_host_snapshot_t *)0) {
     return 0;
   }
+  if (transaction->prepared_output_parent != (cupidbuild_host_output_parent_t *)0 &&
+      !cupidbuild_host_output_parent_require_current(transaction->prepared_output_parent)) {
+    cupidbuild_host_set_error(transaction,
+        cupidbuild_host_output_parent_error(transaction->prepared_output_parent));
+    return 0;
+  }
   if (!cupidbuild_host_directory_snapshot(transaction->repository_root,
                                            &root) ||
 #if defined(_WIN32)
@@ -12360,9 +12398,9 @@ static int cupidbuild_observer_same(const cupidbuild_observer_stat_t *a,
                         a->nanoseconds == b->nanoseconds));
 }
 
-static cupidbuild_observer_handle_t cupidbuild_observer_open_child_status(
+static cupidbuild_observer_handle_t cupidbuild_observer_open_child_mode(
     cupidbuild_observer_handle_t parent, const char *name, int directory,
-    int payload, long *status_out) {
+    int payload, long *status_out, int create_directory) {
 #if defined(_WIN32)
   unsigned short wide[CUPIDBUILD_OBSERVER_NAME];
   size_t length = 0u;
@@ -12405,7 +12443,8 @@ static cupidbuild_observer_handle_t cupidbuild_observer_open_child_status(
   }
   result = cupid_windows_nt_create_file(&handle, access, &attributes, &status,
         (void *)0, 0u, FILE_SHARE_READ | FILE_SHARE_WRITE,
-        CUPIDBUILD_WINDOWS_FILE_OPEN, options, (void *)0, 0u);
+        create_directory ? 3u /* FILE_OPEN_IF */ : CUPIDBUILD_WINDOWS_FILE_OPEN,
+        options, (void *)0, 0u);
   if (status_out != (long *)0) *status_out = result;
   if (result < 0) return INVALID_HANDLE_VALUE;
   return handle;
@@ -12415,6 +12454,11 @@ static cupidbuild_observer_handle_t cupidbuild_observer_open_child_status(
   int handle;
   (void)payload;
   (void)status_out;
+  if (create_directory) {
+    int created = cupid_linux_syscall3(CUPIDBUILD_LINUX_SYS_MKDIRAT,
+        (unsigned int)parent, (unsigned int)name, 0777u);
+    if (created < 0 && created != -17 /* EEXIST */) return CUPIDBUILD_OBSERVER_INVALID;
+  }
   flags |= directory ? CUPIDBUILD_LINUX_O_DIRECTORY : CUPIDBUILD_LINUX_O_NONBLOCK;
   handle = cupid_linux_syscall4(CUPIDBUILD_LINUX_SYS_OPENAT, (unsigned int)parent,
                                 (unsigned int)name, flags, 0u);
@@ -12422,8 +12466,17 @@ static cupidbuild_observer_handle_t cupidbuild_observer_open_child_status(
 #else
   (void)payload;
   (void)status_out;
+  if (create_directory && mkdirat(parent, name, 0777) != 0 && errno != EEXIST)
+    return CUPIDBUILD_OBSERVER_INVALID;
   return cupidbuild_native_open_relative(parent, name, directory);
 #endif
+}
+
+static cupidbuild_observer_handle_t cupidbuild_observer_open_child_status(
+    cupidbuild_observer_handle_t parent, const char *name, int directory,
+    int payload, long *status_out) {
+  return cupidbuild_observer_open_child_mode(parent, name, directory,
+                                              payload, status_out, 0);
 }
 
 static cupidbuild_observer_handle_t cupidbuild_observer_open_child(
@@ -12881,13 +12934,14 @@ int cupidbuild_host_observer_directory(cupidbuild_host_observer_t *observer,
   return 1;
 }
 
-int cupidbuild_host_observer_require_unchanged(cupidbuild_host_observer_t *observer) {
+static int cupidbuild_observer_require_current(cupidbuild_host_observer_t *observer,
+                                                int root_identity_only) {
   cupidbuild_observer_entry_t *entry;
   if (observer == (cupidbuild_host_observer_t *)0 || observer->error[0] != 0) return 0;
   for (entry = observer->entries; entry != (cupidbuild_observer_entry_t *)0;
        entry = entry->next) {
     cupidbuild_observer_stat_t current;
-    int identity_only = entry->directory && entry != observer->root;
+    int identity_only = entry->directory && (entry != observer->root || root_identity_only);
     if (!cupidbuild_observer_stat(entry->handle, entry->directory, &current) ||
         !cupidbuild_observer_same(&entry->captured, &current, identity_only))
       return cupidbuild_observer_fail(observer, "retained observation changed");
@@ -12918,6 +12972,10 @@ int cupidbuild_host_observer_require_unchanged(cupidbuild_host_observer_t *obser
   return 1;
 }
 
+int cupidbuild_host_observer_require_unchanged(cupidbuild_host_observer_t *observer) {
+  return cupidbuild_observer_require_current(observer, 0);
+}
+
 const char *cupidbuild_host_observer_error(const cupidbuild_host_observer_t *observer) {
   return observer != (const cupidbuild_host_observer_t *)0 && observer->error[0] != 0
       ? observer->error : "read-only observation failed";
@@ -12940,4 +12998,137 @@ int cupidbuild_host_observer_close(cupidbuild_host_observer_t *observer) {
     free(observer);
   }
   return valid;
+}
+
+struct cupidbuild_host_output_parent {
+  cupidbuild_host_observer_t *observer;
+  cupidbuild_observer_entry_t *leaf;
+  char output[CUPIDBUILD_HOST_PATH_BYTES];
+  char error[CUPIDBUILD_HOST_ERROR_BYTES];
+};
+
+static int cupidbuild_output_parent_fail(cupidbuild_host_output_parent_t *parent,
+                                          const char *message) {
+  if (parent != (cupidbuild_host_output_parent_t *)0 && parent->error[0] == 0)
+    (void)cupidbuild_host_copy_text(parent->error, sizeof(parent->error), message);
+  return 0;
+}
+
+const char *cupidbuild_host_output_parent_error(
+    const cupidbuild_host_output_parent_t *parent) {
+  return parent != (const cupidbuild_host_output_parent_t *)0 && parent->error[0]
+      ? parent->error : "output parent preparation failed";
+}
+
+int cupidbuild_host_output_parent_require_current(cupidbuild_host_output_parent_t *parent) {
+  if (parent == (cupidbuild_host_output_parent_t *)0 || parent->error[0] ||
+      parent->leaf == (cupidbuild_observer_entry_t *)0) return 0;
+  if (!cupidbuild_observer_require_current(parent->observer, 1))
+    return cupidbuild_output_parent_fail(parent,
+        cupidbuild_host_observer_error(parent->observer));
+  return 1;
+}
+
+int cupidbuild_host_output_parent_prepare(
+    const char *root, const char *output,
+    cupidbuild_host_output_parent_t **parent_out) {
+  cupidbuild_host_output_parent_t *parent;
+  cupidbuild_observer_entry_t *entry;
+  const char *cursor;
+  char component[CUPIDBUILD_OBSERVER_NAME];
+  if (parent_out == (cupidbuild_host_output_parent_t **)0) return 0;
+  *parent_out = (cupidbuild_host_output_parent_t *)0;
+  parent = (cupidbuild_host_output_parent_t *)calloc(1u, sizeof(*parent));
+  if (parent == (cupidbuild_host_output_parent_t *)0) return 0;
+  *parent_out = parent;
+  if (output == (const char *)0 || !output[0] ||
+      strlen(output) >= sizeof(parent->output))
+    return cupidbuild_output_parent_fail(parent, "invalid normalized output path");
+  /* Check the whole request before creating even its first directory. */
+  cursor = output;
+  for (;;) {
+    size_t length = 0u;
+    while (*cursor && *cursor != '/') {
+      if (length + 1u >= sizeof(component))
+        return cupidbuild_output_parent_fail(parent, "output component exceeds its byte limit");
+      component[length++] = *cursor++;
+    }
+    component[length] = 0;
+    if (!cupidbuild_observer_name_valid(component))
+      return cupidbuild_output_parent_fail(parent, "output path is not normalized");
+    if (!*cursor) break;
+    cursor++;
+  }
+  (void)memcpy(parent->output, output, strlen(output) + 1u);
+  if (!cupidbuild_host_observer_open(root, &parent->observer))
+    return cupidbuild_output_parent_fail(parent, "cannot retain output repository root");
+  entry = parent->observer->root;
+  cursor = output;
+  for (;;) {
+    size_t length = 0u;
+    cupidbuild_observer_entry_t *child;
+    cupidbuild_observer_entry_t *ancestor;
+    cupidbuild_observer_handle_t handle;
+    while (*cursor && *cursor != '/') component[length++] = *cursor++;
+    component[length] = 0;
+    if (!*cursor) break;
+    cursor++;
+    if (!cupidbuild_observer_require_current(parent->observer, 1))
+      return cupidbuild_output_parent_fail(parent,
+          cupidbuild_host_observer_error(parent->observer));
+    handle = cupidbuild_observer_open_child_mode(entry->handle, component, 1,
+                                                   0, (long *)0, 1);
+    child = cupidbuild_observer_add(parent->observer, entry, component, handle, 1);
+    if (child == (cupidbuild_observer_entry_t *)0)
+      return cupidbuild_output_parent_fail(parent,
+          cupidbuild_host_observer_error(parent->observer));
+    for (ancestor = entry; ancestor != (cupidbuild_observer_entry_t *)0;
+         ancestor = ancestor->parent) {
+      if (cupidbuild_observer_same(&ancestor->captured, &child->captured, 1))
+        return cupidbuild_output_parent_fail(parent, "output directory aliases an ancestor");
+    }
+    entry = child;
+  }
+  parent->leaf = entry;
+  return cupidbuild_host_output_parent_require_current(parent);
+}
+
+static int cupidbuild_output_parent_attach(cupidbuild_host_output_parent_t *parent,
+                                        cupidbuild_host_transaction_t *transaction) {
+  cupidbuild_observer_stat_t root, leaf;
+  const char *name;
+  if (!cupidbuild_host_output_parent_require_current(parent) ||
+      transaction == (cupidbuild_host_transaction_t *)0) return 0;
+  name = strrchr(parent->output, '/');
+  name = name ? name + 1u : parent->output;
+  if (transaction->prepared_output_parent != (cupidbuild_host_output_parent_t *)0 ||
+      strcmp(name, transaction->output_name) != 0 ||
+#if defined(_WIN32)
+      !cupidbuild_observer_stat(transaction->repository_root_handle, 1, &root) ||
+      !cupidbuild_observer_stat(transaction->output_parent_handle, 1, &leaf) ||
+#else
+      !cupidbuild_observer_stat(transaction->repository_root_descriptor, 1, &root) ||
+      !cupidbuild_observer_stat(transaction->output_parent_descriptor, 1, &leaf) ||
+#endif
+      !cupidbuild_observer_same(&parent->observer->root->captured, &root, 1) ||
+      !cupidbuild_observer_same(&parent->leaf->captured, &leaf, 1)) {
+    return cupidbuild_output_parent_fail(parent, "prepared parent and transaction binding differ");
+  }
+  transaction->prepared_output_parent = parent;
+  return 1;
+}
+
+int cupidbuild_host_output_parent_bind(cupidbuild_host_output_parent_t *parent,
+                                        cupidbuild_host_transaction_t *transaction) {
+  return cupidbuild_output_parent_attach(parent, transaction) &&
+         cupidbuild_host_require_publication_boundary(transaction);
+}
+
+int cupidbuild_host_output_parent_close(cupidbuild_host_output_parent_t *parent) {
+  int result = 1;
+  if (parent != (cupidbuild_host_output_parent_t *)0) {
+    result = cupidbuild_host_observer_close(parent->observer);
+    free(parent);
+  }
+  return result;
 }

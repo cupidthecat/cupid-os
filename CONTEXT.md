@@ -51,6 +51,12 @@ _Avoid_: tool backend, giant platform vtable
 The verified previous output and retained transaction state left after a failed publication when the output namespace is ambiguous. Preserving this evidence keeps the old bytes recoverable; it does not mean the old public name was restored or the new candidate was committed.
 _Avoid_: successful rollback, committed output
 
+**CupidBuild output-parent preparation**:
+A retained directory chain for a configurable output, held from preparation
+through transaction cleanup. Its validity includes every ancestor binding;
+directories created during preparation persist after failure and close.
+_Avoid_: leaf-only validation, temporary output directory
+
 **Guarded build transaction**:
 A hosted CupidBuild operation that freezes its source and checked tool cohort,
 uses a private candidate, validates and inspects that candidate, rechecks live

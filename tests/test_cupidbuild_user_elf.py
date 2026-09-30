@@ -1,5 +1,7 @@
 import json
+import ntpath
 import os
+import posixpath
 import random
 import struct
 import subprocess
@@ -9,11 +11,11 @@ from pathlib import Path
 
 from tools.bootstrap_toolchain import (
     _candidate_build_plan,
-    WINDOWS_CUPIDBUILD_IMPORTS,
     _validate_i386_relocatable,
     _validate_static_i386_elf,
     _validate_static_i386_pe32,
     _windows_build_plan,
+    _windows_utf8_imports,
     _windows_link_arguments,
     freeze_seed_inputs,
     require_live_seed_inputs,
@@ -78,7 +80,7 @@ class CupidBuildUserElfTests(unittest.TestCase):
         plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
         plan = _candidate_build_plan(plan)
         if os.name == "nt":
-            plan = _windows_build_plan(plan)
+            plan = _windows_build_plan(plan, utf8=True)
         order = plan["links"]["cupidbuild"]
         objects = {name: cls.directory / (name + ".target.o") for name in order}
         for source in plan["sources"]:
@@ -96,9 +98,8 @@ class CupidBuildUserElfTests(unittest.TestCase):
             run([cls.seed.tools["cupidc"], *arguments])
             _validate_i386_relocatable(objects[name])
             require_live_seed_inputs(cls.seed)
-        assembly = list(plan.get("assembly_sources", [])) + [{
-            "name": "start", "path": "toolchain/hosted/i386-windows/tool_start.asm"
-            if os.name == "nt" else "toolchain/hosted/i386-linux/start.asm"}]
+        assembly = list(plan.get("assembly_sources", [])) or [{
+            "name": "start", "path": "toolchain/hosted/i386-linux/start.asm"}]
         for source in assembly:
             if source["name"] in objects:
                 run([cls.seed.tools["cupidasm"], "-f", "elf32",
@@ -106,7 +107,7 @@ class CupidBuildUserElfTests(unittest.TestCase):
                 _validate_i386_relocatable(objects[source["name"]])
                 require_live_seed_inputs(cls.seed)
         cls.checked = cls.directory / ("checked-contract.exe" if os.name == "nt" else "checked-contract.elf")
-        arguments = (_windows_link_arguments("cupidbuild", cls.checked, objects, order)
+        arguments = (_windows_link_arguments("cupidbuild", cls.checked, objects, order, utf8=True)
                      if os.name == "nt" else ["-m", "elf_i386", "--text-address", "0x08048000",
                                              "--entry", "_start", "-o", cls.checked,
                                              *[objects[name] for name in order]])
@@ -114,7 +115,7 @@ class CupidBuildUserElfTests(unittest.TestCase):
         require_live_seed_inputs(cls.seed)
         if os.name == "nt":
             _validate_static_i386_pe32(cls.checked, 0x00401000,
-                                      WINDOWS_CUPIDBUILD_IMPORTS)
+                                      _windows_utf8_imports("cupidbuild"))
         else:
             _validate_static_i386_elf(cls.checked, 0x08048000)
             cls.checked.chmod(0o755)
@@ -133,6 +134,80 @@ class CupidBuildUserElfTests(unittest.TestCase):
                 self.assertEqual(len(actual), len(cases))
                 for (name, _, _), received, wanted in zip(cases, actual, expected):
                     self.assertEqual(received, wanted, name)
+
+    def check_paths(self, windows, root, source, output, expected=None):
+        request = self.directory / 'paths.bin'
+        request.write_bytes(bytes([windows]) + b''.join(
+            value.encode('utf-8') + b'\0' for value in (root, source, output)))
+        for executable in (self.host, self.checked):
+            result = subprocess.run([str(executable), 'paths', str(request)],
+                                    capture_output=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stderr, b'')
+            actual = result.stdout.decode('utf-8').splitlines()
+            if expected is None:
+                self.assertEqual(len(actual), 1)
+                self.assertTrue(actual[0].startswith('error: '), actual)
+            else:
+                self.assertEqual(actual, expected)
+
+    def test_user_path_aliases_match_platform_oracles(self):
+        for windows, root in ((0, '/repo'), (1, 'C:/repo'),
+                              (1, '//server/share/repo')):
+            module = ntpath if windows else posixpath
+            for name in ('cat', 'hello', 'ls'):
+                for directory in ('build', 'nested/missing/output', 'café/日本/😀',
+                                  'build with spaces', 'a/../out', './build//nested'):
+                    source = './user/examples/../examples/' + name + '.cc'
+                    output = 'user/' + directory + '/' + name + '.o'
+                    normalized = module.normpath(module.join(root, output))
+                    expected = [root, 'user/examples/' + name + '.cc',
+                                module.relpath(normalized, root).replace('\\', '/')]
+                    with self.subTest(windows=windows, output=output):
+                        self.check_paths(windows, root, source, output, expected)
+                        self.check_paths(windows, root, module.join(root, source),
+                                         module.join(root, output), expected)
+
+    def test_user_path_binding_rejects_escapes_and_wrong_cohorts(self):
+        for windows, root in ((0, '/repo'), (1, 'C:/repo')):
+            for source, output in (
+                ('user/examples/cat.cc', 'user/build/hello.o'),
+                ('user/examples/cat.cc', 'user/cat.o'),
+                ('user/examples/cat.cc', 'user/examples/nested/cat.o'),
+                ('user/examples/cat.cc', 'user/build/../../cat.o'),
+                ('user/examples/cat.cc', '../repo-other/user/build/cat.o'),
+                ('user/examples/cat.cc', '../outside/cat.o'),
+                ('user/examples/new.cc', 'user/build/new.o'),
+                ('kernel/core/kernel.cc', 'user/build/kernel.o'),
+                ('', 'user/build/cat.o'),
+                ('user/examples/cat.cc', ''),
+                ('user/examples/cat.cc', 'user/' + 'x' * 8192 + '/cat.o'),
+            ):
+                with self.subTest(windows=windows, source=source, output=output[:80]):
+                    self.check_paths(windows, root, source, output)
+        self.check_paths(1, 'C:/repo', 'user/examples/cat.cc', 'D:/repo/user/build/cat.o')
+        self.check_paths(1, 'C:/repo', 'user/examples/cat.cc', 'D:user/build/cat.o')
+        self.check_paths(1, 'C:/repo', 'user/examples/cat.cc', '//repo//user/build/cat.o')
+        self.check_paths(1, 'C:/repo', 'user/examples/cat.cc', '//?/C:/repo/user/build/cat.o')
+        self.check_paths(0, 'relative', 'user/examples/cat.cc', 'user/build/cat.o')
+        self.check_paths(2, '/repo', 'user/examples/cat.cc', 'user/build/cat.o')
+
+    def test_user_path_root_and_drive_aliases(self):
+        cases = (
+            (0, '/a/../repo/', '/repo/user/examples/cat.cc',
+             '../repo/user/build/cat.o', ['/repo', 'user/examples/cat.cc', 'user/build/cat.o']),
+            (0, '/', 'user/examples/cat.cc', 'user/build/cat.o',
+             ['/', 'user/examples/cat.cc', 'user/build/cat.o']),
+            (1, 'C:/repo', 'c:\\REPO\\user\\examples\\cat.cc',
+             'C:user\\build\\cat.o', ['C:/repo', 'user/examples/cat.cc', 'user/build/cat.o']),
+            (1, 'C:/repo', '\\repo\\user\\examples\\cat.cc',
+             '\\repo\\user\\build\\cat.o', ['C:/repo', 'user/examples/cat.cc', 'user/build/cat.o']),
+            (1, '//server/share', 'user/examples/cat.cc', 'user/build/cat.o',
+             ['//server/share/', 'user/examples/cat.cc', 'user/build/cat.o']),
+        )
+        for case in cases:
+            with self.subTest(case=case):
+                self.check_paths(*case)
 
     def test_valid_loader_boundaries(self):
         code = (1, 1024, BASE, 0, 16, 32, 5, 1)

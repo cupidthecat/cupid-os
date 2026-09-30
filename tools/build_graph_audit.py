@@ -15643,7 +15643,7 @@ def _cupid_toolchain_fixed_point_contract(
             '"i386pe"',
             '"0x00401000"',
             '"_start"',
-            "for selector in _windows_import_selectors(tool_name, utf8=utf8):",
+            "for selector in _windows_import_selectors(tool_name, utf8=utf8, long_paths=long_paths):",
             "objects[name] for name in link_order",
         ),
         "_build_windows_stage": (

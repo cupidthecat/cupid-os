@@ -1,5 +1,44 @@
 # Toolchain bootstrap
 
+## Source prerequisites for configurable user builds, 2026-09-29
+
+Source head now resolves lexical user source/output aliases and prepares a
+retained output directory chain. The transaction checks the full chain before
+lock acquisition and source capture, then at publication boundaries. Four
+focused caller configurations pass 49 methods each, including nested creation,
+UTF-8 names, long components, links, sibling jobs, parent replacement and
+unchanged-output publication. The seven-method lexical/ELF caller suites also
+pass on both hosts.
+
+Native Windows file adapters now resolve long names once and pass extended
+absolute paths to wide file APIs. A separate checked long-path profile adds
+`GetFullPathNameW` to ordinary tool imports. Both native and checked CupidC pass
+five real compiler cases: long source/output paths, lexical aliases, long and
+relative roots, missing-source preservation and resolved device output. Long-path objects match the
+short-path references. Checked adapter contracts pass on Windows and Linux;
+they cover allocation failures, API errors and unchanged command text.
+
+These capabilities have not transferred user recipes to CupidBuild. The installed
+seed profile remains pinned. Its original 310-character Windows compiler probe
+still fails; the new checked fixture fixes that case through a separate profile.
+The selected long profile now freezes and rechecks all 77 source inputs,
+including its resolver shim. Full bootstrap CLI selection, manifest-reader
+carriage, paired staged proofs and promotion remain open. Closed user compilation and the separate
+user-link transaction remain open. Production ownership remains 441 CupidBuild
+and eleven Python actions. See [the user compilation design](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NEXT-USER-COMPILATION.md)
+and ADR 0409 for the contracts and remaining work.
+
+
+Windows incremental OS acceptance passes after the manual update. The kernel is
+9,572,436 bytes. Independent verification checks 1,538 source inputs, sixteen
+artifacts and the 431-input code cohort. All three user executables match the
+previous accepted bytes. The image contains the measured kernel, and the private
+four-CPU max/e1000 smoke passes disassembly, shell completion and SMP checks
+without changing the source image. Its SHA-256 is
+`3abecb9d57efded4b91e9b89a06603cd851731605bfaf5b0fa1dc91dce38fefd`.
+Evidence is under `build/bootstrap/user-path-os-v1/`. This is incremental Windows
+acceptance; full Doom gameplay, audio, save/load, reboot and performance remain open.
+
 ## Production artifact handoff, 2026-09-29
 
 Production artifact verification now runs directly through the promoted

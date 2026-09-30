@@ -103,7 +103,57 @@ static int run_batch(const char *path) {
   return ok ? 0 : 1;
 }
 
+static int run_paths(const char *path) {
+  unsigned char bytes[32768];
+  char reason[160], tiny[3] = {'a', 'b', 'c'};
+  const char *fields[3];
+  FILE *file = fopen(path, "rb");
+  size_t size, offset = 1u, index;
+  int valid;
+  cupidbuild_user_compile_paths_t *result =
+      (cupidbuild_user_compile_paths_t *)malloc(sizeof(*result));
+  cupidbuild_user_compile_paths_t *again =
+      (cupidbuild_user_compile_paths_t *)malloc(sizeof(*again));
+  if (!file || !result || !again) return 1;
+  size = fread(bytes, 1u, sizeof(bytes), file);
+  if (ferror(file) || fclose(file) != 0 || size == sizeof(bytes) || size < 4u)
+    return 1;
+  for (index = 0u; index < 3u; index++) {
+    fields[index] = (const char *)bytes + offset;
+    while (offset < size && bytes[offset]) offset++;
+    if (offset == size) return 1;
+    offset++;
+  }
+  if (offset != size) return 1;
+  (void)memset(result, 0xa5, sizeof(*result));
+  valid = cupidbuild_resolve_user_compile_paths(fields[0], fields[1], fields[2],
+      (int)bytes[0], result, reason, sizeof(reason));
+  if (!memchr(reason, 0, sizeof(reason)) || (valid && reason[0]) ||
+      (!valid && !reason[0])) return 1;
+  if (!valid) {
+    for (index = 0u; index < sizeof(*result); index++)
+      if (((unsigned char *)result)[index]) return 1;
+  }
+  if (cupidbuild_resolve_user_compile_paths(NULL, fields[1], fields[2],
+      (int)bytes[0], again, NULL, 0u)) return 1;
+  if (cupidbuild_resolve_user_compile_paths(fields[0], fields[1], fields[2],
+      (int)bytes[0], again, tiny + 1u, 1u) != valid ||
+      tiny[0] != 'a' || tiny[1] != 0 || tiny[2] != 'c' ||
+      memcmp(result, again, sizeof(*result))) return 1;
+  if (cupidbuild_resolve_user_compile_paths(fields[0], fields[1], fields[2],
+      (int)bytes[0], again, NULL, 0u) != valid ||
+      memcmp(result, again, sizeof(*result))) return 1;
+  if (valid) (void)printf("%s\n%s\n%s\n", result->repository_root,
+                         result->source, result->output);
+  else (void)printf("error: %s\n", reason);
+  free(result); free(again);
+  return 0;
+}
+
 int main(int argc, char **argv) {
+  if (argc == 3 && strcmp(argv[1], "paths") == 0) {
+    return run_paths(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "batch") == 0) {
     return run_batch(argv[2]);
   }

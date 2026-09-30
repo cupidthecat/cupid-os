@@ -16,6 +16,102 @@ class WindowsUtf8PlanTests(unittest.TestCase):
     def setUp(self):
         self.linux = pre_artifact_plan()
 
+    def test_long_path_plan_has_exact_imports_and_one_resolver_per_tool(self):
+        plan = bootstrap._windows_build_plan(self.linux, utf8=True, long_paths=True)
+        ordinary = {"cupidc", "cupiddis", "cupidobj"}
+        for row in plan["sources"]:
+            if row["name"].startswith("windows_utf8"):
+                self.assertIn("CUPID_WINDOWS_LONG_PATHS=1", row["definitions"])
+        for tool, rows in plan["imports"].items():
+            actual = [(row["library"], row["procedure"]) for row in rows]
+            expected = [(lib, name) for lib, names in
+                        bootstrap._windows_utf8_imports(tool, long_paths=True) for name in names]
+            self.assertEqual(actual, expected)
+            self.assertEqual(sum(name == "GetFullPathNameW" for _, name in actual), 1)
+            self.assertEqual(plan["links"][tool].count("long_path_start"), int(tool in ordinary))
+        self.assertNotEqual(bootstrap._build_plan_sha256(plan), bootstrap._build_plan_sha256(
+            bootstrap._windows_build_plan(self.linux, utf8=True)))
+
+    def test_long_path_selection_rejects_invalid_types_and_ansi_plan(self):
+        for value in (1, "yes", None):
+            with self.subTest(value=value), self.assertRaises(bootstrap.BootstrapError):
+                bootstrap._windows_build_plan(self.linux, utf8=True, long_paths=value)
+            with self.assertRaises(bootstrap.BootstrapError):
+                bootstrap._windows_utf8_imports("cupidc", long_paths=value)
+        with self.assertRaises(bootstrap.BootstrapError):
+            bootstrap._windows_build_plan(self.linux, long_paths=True)
+
+    def test_long_source_capture_includes_the_complete_selected_plan(self):
+        canonical = bootstrap._candidate_build_plan(json.loads(
+            (ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"])
+        for linux, count in ((self.linux, 75), (canonical, 77)):
+            wide = bootstrap.capture_source_snapshot(ROOT, linux, windows_utf8=True)
+            long = bootstrap.capture_source_snapshot(ROOT, linux,
+                windows_utf8=True, windows_long_paths=True)
+            self.assertEqual(set(long) - set(wide), {
+                "toolchain/hosted/i386-windows/utf8_long_path_start.asm"})
+            self.assertEqual(len(long), count)
+            plan = bootstrap._windows_build_plan(linux, utf8=True, long_paths=True)
+            for row in plan["sources"] + plan["assembly_sources"]:
+                self.assertIn(row["path"].lstrip("/"), long)
+            bootstrap.require_source_snapshot(ROOT, linux, long,
+                windows_utf8=True, windows_long_paths=True)
+            with self.assertRaisesRegex(bootstrap.BootstrapError, "source inputs changed"):
+                bootstrap.require_source_snapshot(ROOT, linux, long, windows_utf8=True)
+
+    def test_long_source_selection_rejects_invalid_modes_before_creation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "frozen"
+            for value in (None, 0, 1, "yes", [], {}):
+                with self.subTest(value=value), self.assertRaisesRegex(bootstrap.BootstrapError, "Boolean"):
+                    bootstrap.capture_source_snapshot(ROOT, self.linux,
+                        windows_utf8=True, windows_long_paths=value)
+                with self.assertRaisesRegex(bootstrap.BootstrapError, "Boolean"):
+                    bootstrap.freeze_source_inputs(ROOT, self.linux, destination,
+                        windows_utf8=True, windows_long_paths=value)
+                self.assertFalse(destination.exists())
+            with self.assertRaisesRegex(bootstrap.BootstrapError, "requires UTF-8"):
+                bootstrap.freeze_source_inputs(ROOT, self.linux, destination, windows_long_paths=True)
+            self.assertFalse(destination.exists())
+
+    def test_long_frozen_and_live_modes_survive_revalidation_and_recovery(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            live = bootstrap.freeze_source_inputs(ROOT, self.linux, root / "live",
+                windows_utf8=True, windows_long_paths=True)
+            frozen = bootstrap.freeze_source_inputs(live.root, self.linux, root / "frozen",
+                windows_utf8=True, windows_long_paths=True)
+            self.assertTrue(frozen.windows_utf8)
+            self.assertTrue(frozen.windows_long_paths)
+            bootstrap.require_source_closures(frozen, live.root, self.linux)
+            name = "toolchain/hosted/i386-windows/utf8_long_path_start.asm"
+            for directory, label in ((frozen.root, "frozen source inputs"), (live.root, "source inputs")):
+                path = directory / name
+                raw = path.read_bytes()
+                path.write_bytes(raw + b"\n; changed resolver shim\n")
+                with self.subTest(label=label), self.assertRaisesRegex(bootstrap.BootstrapError, label + " changed"):
+                    bootstrap.require_source_closures(frozen, live.root, self.linux)
+                path.write_bytes(raw)
+                bootstrap.require_source_closures(frozen, live.root, self.linux)
+
+    def test_missing_long_startup_rejects_capture_and_freeze_before_creation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            live = bootstrap.freeze_source_inputs(ROOT, self.linux, root / "live",
+                windows_utf8=True, windows_long_paths=True)
+            (live.root / "toolchain/hosted/i386-windows/utf8_long_path_start.asm").unlink()
+            bootstrap.capture_source_snapshot(live.root, self.linux, windows_utf8=True)
+            for operation in ("capture", "freeze"):
+                with self.subTest(operation=operation), self.assertRaisesRegex(
+                        bootstrap.BootstrapError, "cannot resolve source input"):
+                    if operation == "capture":
+                        bootstrap.capture_source_snapshot(live.root, self.linux,
+                            windows_utf8=True, windows_long_paths=True)
+                    else:
+                        bootstrap.freeze_source_inputs(live.root, self.linux, root / "missing",
+                            windows_utf8=True, windows_long_paths=True)
+                self.assertFalse((root / "missing").exists())
+
     def test_default_retains_historical_ansi_plan_identity(self):
         plan = bootstrap._windows_build_plan(self.linux)
         self.assertEqual(bootstrap._build_plan_sha256(plan),
@@ -119,14 +215,16 @@ class WindowsUtf8PlanTests(unittest.TestCase):
                 bootstrap._windows_build_plan(self.linux, utf8=value)
 
     def test_reserved_candidate_source_names_are_rejected(self):
-        for name in ("publication_runtime", "path_encoding", "windows_utf8",
+        for name in ("publication_runtime", "long_path_start", "path_encoding", "windows_utf8",
                      "windows_utf8_publication", "windows_utf8_build"):
             plan = copy.deepcopy(self.linux)
             row = copy.deepcopy(plan["sources"][0])
             row["name"] = name
             plan["sources"].append(row)
-            with self.subTest(name=name), self.assertRaisesRegex(bootstrap.BootstrapError, "reserved Windows source name"):
-                bootstrap._windows_build_plan(plan, utf8=True)
+            for utf8, long_paths in ((False, False), (True, False), (True, True)):
+                with self.subTest(name=name, utf8=utf8, long_paths=long_paths), self.assertRaisesRegex(
+                        bootstrap.BootstrapError, "reserved Windows source name: " + name):
+                    bootstrap._windows_build_plan(plan, utf8=utf8, long_paths=long_paths)
 
     def test_installed_seed_pair_remains_verifiable(self):
         for platform in ("i386-linux", "i386-windows"):
@@ -134,9 +232,18 @@ class WindowsUtf8PlanTests(unittest.TestCase):
                 bootstrap.verify_seed_inputs(ROOT / "bootstrap/seeds" / platform / "manifest.json")
 
     def test_complete_import_cohorts_select_matching_mode(self):
-        for utf8 in (False, True):
-            plan = bootstrap._windows_build_plan(self.linux, utf8=utf8)
+        for utf8, long_paths in ((False, False), (True, False), (True, True)):
+            plan = bootstrap._windows_build_plan(self.linux, utf8=utf8, long_paths=long_paths)
+            self.assertEqual(bootstrap._windows_plan_profile(plan), (utf8, long_paths))
             self.assertIs(bootstrap._windows_plan_uses_utf8(plan), utf8)
+
+    def test_long_import_cohort_rejects_an_ordinary_tool_without_resolver(self):
+        for tool in ("cupidc", "cupiddis", "cupidobj"):
+            plan = bootstrap._windows_build_plan(self.linux, utf8=True, long_paths=True)
+            plan["imports"][tool] = [row for row in plan["imports"][tool]
+                                     if row["procedure"] != "GetFullPathNameW"]
+            with self.subTest(tool=tool), self.assertRaisesRegex(bootstrap.BootstrapError, "complete"):
+                bootstrap._windows_plan_profile(plan)
 
     def test_mixed_missing_duplicate_and_changed_imports_reject(self):
         baseline = bootstrap._windows_build_plan(self.linux, utf8=True)
@@ -160,10 +267,10 @@ class WindowsUtf8PlanTests(unittest.TestCase):
                 bootstrap._windows_plan_uses_utf8(plan)
 
     def test_stage_link_and_image_validation_use_selected_profile(self):
-        for utf8 in (False, True):
-            with self.subTest(utf8=utf8), tempfile.TemporaryDirectory() as temporary:
+        for utf8, long_paths in ((False, False), (True, False), (True, True)):
+            with self.subTest(utf8=utf8, long_paths=long_paths), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
-                plan = bootstrap._windows_build_plan(self.linux, utf8=utf8)
+                plan = bootstrap._windows_build_plan(self.linux, utf8=utf8, long_paths=long_paths)
                 plan["workers"] = 1
                 producers = {name: root / name for name in bootstrap.CANDIDATE_TOOL_NAMES}
                 with mock.patch.object(bootstrap, "_run_clean") as run, \
@@ -176,7 +283,7 @@ class WindowsUtf8PlanTests(unittest.TestCase):
                           if call.args[1] == producers["cupidld"]]
                 self.assertEqual(len(linked), len(plan["links"]))
                 for tool, arguments, validation in zip(plan["links"], linked, validate.call_args_list):
-                    expected = bootstrap._windows_utf8_imports(tool) if utf8 else bootstrap._windows_imports(tool)
+                    expected = bootstrap._windows_utf8_imports(tool, long_paths=long_paths) if utf8 else bootstrap._windows_imports(tool)
                     selectors = [arguments[index + 1] for index, argument in enumerate(arguments)
                                  if argument == "--import"]
                     self.assertEqual(selectors, ["__imp_" + name + "=" + library + ":" + name

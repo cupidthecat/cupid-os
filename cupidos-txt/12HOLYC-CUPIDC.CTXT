@@ -1082,3 +1082,23 @@ together; Linux binds its parent manifest and revision. Mixed or unknown
 parents fail. The artifact-size reader admits the same exact parent generation
 and retains the two preceding complete parent tuples. Windows execution and
 plan parents must name the same generation.
+
+>h2 Configurable user build paths
+>tree
+CupidBuild source APIs resolve approved user source/output aliases and retain
+nested output directory chains. Preparation validates the whole path before
+creation. Publication checks retain each ancestor; sibling jobs may write
+without invalidating directory identity. Created directories remain after
+failure. Windows blocks retained directory replacement, and Linux rejects
+changed ancestors even when the original leaf directory is moved back.
+
+Source Windows file adapters support extended absolute paths. A separate
+checked profile adds the full-path resolver to ordinary tool imports. Native
+and checked CupidC pass long source/output and repository-root cases, with
+objects matching short-path references. Its selected source closure captures
+and rechecks all 77 inputs, including the resolver shim. Long file support does
+not establish support for a long process working directory. Installed seed carriage and production
+user compilation still need integration. The normal graph remains at 441
+CupidBuild and eleven Python actions across 452 transforms. ADR 0409 records
+the source contracts and remaining work.
+>endtree

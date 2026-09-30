@@ -21,6 +21,39 @@ static wchar_t *to_wide(const char *text) {
   }
   return out;
 }
+/* Resolve once before using an extended file path. Short names keep their
+ * original Win32 spelling; command-line and environment text use to_wide. */
+static wchar_t *file_wide(const char *path) {
+  wchar_t *input = to_wide(path), *absolute, *extended;
+  DWORD length, error;
+  size_t units;
+  if (input == NULL) return NULL;
+  if (wcslen(input) >= 4u && input[0] == L'\\' && input[1] == L'\\' &&
+      (input[2] == L'?' || input[2] == L'.') && input[3] == L'\\') return input;
+  absolute = calloc(32768u, sizeof(*absolute));
+  if (absolute == NULL) { free(input); SetLastError(ERROR_NOT_ENOUGH_MEMORY); return NULL; }
+  length = GetFullPathNameW(input, 32768u, absolute, NULL);
+  error = GetLastError();
+  if (length == 0 || length >= 32768u) {
+    free(input); free(absolute);
+    SetLastError(length >= 32768u ? ERROR_FILENAME_EXCED_RANGE : error); return NULL;
+  }
+  if (length < 248u && wcslen(input) < 248u) { free(absolute); return input; }
+  free(input);
+  if (length >= 4u && absolute[0] == L'\\' && absolute[1] == L'\\' &&
+      (absolute[2] == L'?' || absolute[2] == L'.') && absolute[3] == L'\\') return absolute;
+  if (!cupidbuild_path_windows_extended((const unsigned short *)absolute, length,
+                                        NULL, 0u, &units)) {
+    free(absolute); SetLastError(ERROR_FILENAME_EXCED_RANGE); return NULL;
+  }
+  extended = calloc(units + 1u, sizeof(*extended));
+  if (extended == NULL) { free(absolute); SetLastError(ERROR_NOT_ENOUGH_MEMORY); return NULL; }
+  if (!cupidbuild_path_windows_extended((const unsigned short *)absolute, length,
+                    (unsigned short *)extended, units + 1u, &units)) {
+    free(absolute); free(extended); SetLastError(ERROR_INVALID_NAME); return NULL;
+  }
+  free(absolute); return extended;
+}
 char *cupid_native_utf8_from_wide(const wchar_t *text, size_t units) {
   size_t bytes;
   char *out;
@@ -31,25 +64,25 @@ char *cupid_native_utf8_from_wide(const wchar_t *text, size_t units) {
   return out;
 }
 DWORD cupid_native_utf8_attributes(const char *path) {
-  wchar_t *wide = to_wide(path); DWORD result, error;
+  wchar_t *wide = file_wide(path); DWORD result, error;
   if (wide == NULL) return INVALID_FILE_ATTRIBUTES;
   result = GetFileAttributesW(wide); error = GetLastError(); free(wide); SetLastError(error); return result;
 }
 HANDLE cupid_native_utf8_open(const char *path, DWORD access, DWORD sharing, LPSECURITY_ATTRIBUTES security, DWORD creation, DWORD flags, HANDLE template_file) {
-  wchar_t *wide = to_wide(path); HANDLE result; DWORD error;
+  wchar_t *wide = file_wide(path); HANDLE result; DWORD error;
   if (wide == NULL) return INVALID_HANDLE_VALUE;
   result = CreateFileW(wide, access, sharing, security, creation, flags, template_file);
   error = GetLastError(); free(wide); SetLastError(error); return result;
 }
 BOOL cupid_native_utf8_delete(const char *path) {
-  wchar_t *wide = to_wide(path); BOOL result; DWORD error;
+  wchar_t *wide = file_wide(path); BOOL result; DWORD error;
   if (wide == NULL) return FALSE;
   result = DeleteFileW(wide); error = GetLastError(); free(wide); SetLastError(error); return result;
 }
 BOOL cupid_native_utf8_move(const char *source, const char *target, DWORD flags) {
-  wchar_t *left = to_wide(source), *right; BOOL result; DWORD error;
+  wchar_t *left = file_wide(source), *right; BOOL result; DWORD error;
   if (left == NULL) return FALSE;
-  right = target == NULL ? NULL : to_wide(target);
+  right = target == NULL ? NULL : file_wide(target);
   if (target != NULL && right == NULL) { error = GetLastError(); free(left); SetLastError(error); return FALSE; }
   result = MoveFileExW(left, right, flags); error = GetLastError(); free(left); free(right); SetLastError(error); return result;
 }
@@ -57,9 +90,9 @@ BOOL cupid_native_utf8_process(const char *application, char *command, LPSECURIT
   wchar_t *app = NULL, *cmd = NULL, *cwd = NULL; STARTUPINFOW wide_startup; BOOL result = FALSE; DWORD error;
   if (startup == NULL || environment != NULL || startup->lpReserved != NULL || startup->lpDesktop != NULL || startup->lpTitle != NULL) { SetLastError(ERROR_INVALID_PARAMETER); return FALSE; }
   if (startup->cb != ((flags & EXTENDED_STARTUPINFO_PRESENT) ? sizeof(STARTUPINFOEXW) : sizeof(STARTUPINFOW))) { SetLastError(ERROR_INVALID_PARAMETER); return FALSE; }
-  if (application != NULL && (app = to_wide(application)) == NULL) goto done;
+  if (application != NULL && (app = file_wide(application)) == NULL) goto done;
   if (command != NULL && (cmd = to_wide(command)) == NULL) goto done;
-  if (directory != NULL && (cwd = to_wide(directory)) == NULL) goto done;
+  if (directory != NULL && (cwd = file_wide(directory)) == NULL) goto done;
   /* STARTUPINFOEX follows the base layout; preserve its attribute list. */
   if (flags & EXTENDED_STARTUPINFO_PRESENT) {
     STARTUPINFOEXW extended;
@@ -99,7 +132,7 @@ errno_t cupid_native_utf8_fopen_s(FILE **stream, const char *path, const char *m
   wchar_t *wide_path, *wide_mode; errno_t result;
   if (stream == NULL) return EINVAL;
   *stream = NULL;
-  wide_path = to_wide(path); if (wide_path == NULL) return GetLastError() == ERROR_NOT_ENOUGH_MEMORY ? ENOMEM : EINVAL;
+  wide_path = file_wide(path); if (wide_path == NULL) return GetLastError() == ERROR_NOT_ENOUGH_MEMORY ? ENOMEM : EINVAL;
   wide_mode = to_wide(mode); if (wide_mode == NULL) { result = GetLastError() == ERROR_NOT_ENOUGH_MEMORY ? ENOMEM : EINVAL; free(wide_path); return result; }
   result = _wfopen_s(stream, wide_path, wide_mode); free(wide_path); free(wide_mode); return result;
 }

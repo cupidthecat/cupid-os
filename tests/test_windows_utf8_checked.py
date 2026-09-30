@@ -23,6 +23,8 @@ class CheckedWindowsUtf8Tests(unittest.TestCase):
         names = [
             "toolchain/path_encoding.cc", "toolchain/path_encoding.h",
             "toolchain/tests/windows_utf8_contract.cc",
+            "toolchain/tests/windows_long_path_contract.cc",
+            "toolchain/tests/path_encoding_contract.cc",
             "toolchain/tests/windows_utf8_entry_contract.cc",
             "toolchain/hosted/i386-windows/windows_utf8.cc",
             "toolchain/hosted/i386-windows/runtime.cc",
@@ -79,6 +81,31 @@ class CheckedWindowsUtf8Tests(unittest.TestCase):
         result = subprocess.run([str(self.program)], capture_output=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(result.stdout + result.stderr, b"")
+
+    def test_checked_long_path_errors_allocations_and_codec_boundaries(self):
+        host = "i386-windows" if os.name == "nt" else "i386-linux"
+        start = self.source / "start.o"
+        runtime = self.source / "runtime.o"
+        codec = self.source / "codec.o"
+        for name, definitions in (("windows_long_path_contract", ["_WIN32=1"]),
+                                  ("path_encoding_contract", [])):
+            with self.subTest(contract=name):
+                obj = self.source / (name + ".o")
+                contract._compile_source(self.seed, self.runner, self.source,
+                    "toolchain/tests/" + name + ".cc", obj, definitions, True, 600)
+                program = self.source / (name + (".exe" if os.name == "nt" else ""))
+                if os.name == "nt":
+                    arguments = bootstrap._windows_link_arguments("cupidc", program,
+                        {"start": start, "runtime": runtime, "codec": codec, "caller": obj},
+                        ["start", "runtime", "codec", "caller"])
+                    contract._run_checked_tool(self.seed, self.runner, "cupidld", arguments,
+                                               name + " link", 180)
+                else:
+                    contract._link_contract(self.seed, self.runner, [start, runtime, codec, obj],
+                                            program, False, 180)
+                result = subprocess.run([str(program)], capture_output=True, timeout=30)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(result.stdout + result.stderr, b"")
 
     def test_conflicting_roles_reject_and_preserve_output(self):
         output = self.source / "preserved.o"

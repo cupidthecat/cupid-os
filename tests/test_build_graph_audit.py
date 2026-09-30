@@ -7174,7 +7174,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "native Windows link loses UTF-8 import selection": (
                 "bootstrap",
-                "for selector in _windows_import_selectors(tool_name, utf8=utf8):",
+                "for selector in _windows_import_selectors(tool_name, utf8=utf8, long_paths=long_paths):",
                 "for selector in _windows_import_selectors(tool_name):",
                 r"native Windows fixed-point behavior differs",
             ),

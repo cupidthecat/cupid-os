@@ -10,10 +10,13 @@
 void cupid_windows_set_last_error(unsigned int);
 unsigned int cupid_windows_create_file_wide(const unsigned short *, unsigned int, unsigned int, void *, unsigned int, unsigned int, unsigned int);
 unsigned int cupid_windows_get_current_directory_wide(unsigned int, unsigned short *);
+#if defined(CUPID_WINDOWS_BUILD) || defined(CUPID_WINDOWS_PUBLICATION) || defined(CUPID_WINDOWS_LONG_PATHS)
+unsigned int cupid_windows_get_full_path_name_wide(const unsigned short *, unsigned int, unsigned short *, unsigned short **);
+#endif
 #if defined(CUPID_WINDOWS_BUILD) || defined(CUPID_WINDOWS_PUBLICATION)
 unsigned int cupid_windows_delete_file_wide(const unsigned short *);
 unsigned int cupid_windows_move_file_ex_wide(const unsigned short *, const unsigned short *, unsigned int);
-unsigned int cupid_windows_get_full_path_name_wide(const unsigned short *, unsigned int, unsigned short *, unsigned short **);
+
 #endif
 #if defined(CUPID_WINDOWS_BUILD)
 unsigned int cupid_windows_get_file_attributes_wide(const unsigned short *);
@@ -39,10 +42,53 @@ static unsigned short *path_utf16(const char *text) {
   return out;
 }
 
+static unsigned short *file_utf16(const char *path) {
+#if defined(CUPID_WINDOWS_LONG_PATHS)
+  unsigned short *input = path_utf16(path), *absolute, *extended;
+  unsigned int length, error;
+  size_t units, input_units = 0u;
+  if (input == (unsigned short *)0) return input;
+  while (input[input_units]) input_units++;
+  if (input_units >= 4u && input[0] == '\\' && input[1] == '\\' &&
+      (input[2] == '?' || input[2] == '.') && input[3] == '\\') return input;
+  absolute = (unsigned short *)calloc(32768u, sizeof(unsigned short));
+  if (absolute == (unsigned short *)0) {
+    free(input); cupid_windows_set_last_error(8u); return absolute;
+  }
+  length = cupid_windows_get_full_path_name_wide(input, 32768u, absolute,
+                                                (unsigned short **)0);
+  error = cupid_windows_get_last_error();
+  if (length == 0u || length >= 32768u) {
+    free(input); free(absolute);
+    cupid_windows_set_last_error(length >= 32768u ? 206u : error);
+    return (unsigned short *)0;
+  }
+  if (length < 248u && input_units < 248u) { free(absolute); return input; }
+  free(input);
+  if (length >= 4u && absolute[0] == '\\' && absolute[1] == '\\' &&
+      (absolute[2] == '?' || absolute[2] == '.') && absolute[3] == '\\') return absolute;
+  if (!cupidbuild_path_windows_extended(absolute, length, (unsigned short *)0,
+                                       0u, &units)) {
+    free(absolute); cupid_windows_set_last_error(206u); return (unsigned short *)0;
+  }
+  extended = (unsigned short *)calloc(units + 1u, sizeof(unsigned short));
+  if (extended == (unsigned short *)0) {
+    free(absolute); cupid_windows_set_last_error(8u); return extended;
+  }
+  if (!cupidbuild_path_windows_extended(absolute, length, extended, units + 1u, &units)) {
+    free(absolute); free(extended); cupid_windows_set_last_error(123u);
+    return (unsigned short *)0;
+  }
+  free(absolute); return extended;
+#else
+  return path_utf16(path);
+#endif
+}
+
 unsigned int cupid_windows_create_file(const char *path,
     unsigned int access, unsigned int sharing, void *security,
     unsigned int creation, unsigned int attributes, unsigned int template_file) {
-  unsigned short *wide = path_utf16(path);
+  unsigned short *wide = file_utf16(path);
   unsigned int result;
   unsigned int error;
   if (wide == (unsigned short *)0) return 0xffffffffu;
@@ -110,7 +156,7 @@ unsigned int cupid_windows_get_current_directory(unsigned int capacity, char *ou
 
 #if defined(CUPID_WINDOWS_BUILD) || defined(CUPID_WINDOWS_PUBLICATION)
 unsigned int cupid_windows_delete_file(const char *path) {
-  unsigned short *wide = path_utf16(path);
+  unsigned short *wide = file_utf16(path);
   unsigned int result;
   unsigned int error;
   if (wide == (unsigned short *)0) return 0u;
@@ -153,13 +199,13 @@ unsigned int cupid_windows_get_full_path_name(const char *path,
 }
 
 unsigned int cupid_windows_move_file_ex(const char *from, const char *to, unsigned int flags) {
-  unsigned short *wide_from = path_utf16(from);
+  unsigned short *wide_from = file_utf16(from);
   unsigned short *wide_to = (unsigned short *)0;
   unsigned int result;
   unsigned int error;
   if (wide_from == (unsigned short *)0) return 0u;
   if (to != (const char *)0) {
-    wide_to = path_utf16(to);
+    wide_to = file_utf16(to);
     if (wide_to == (unsigned short *)0) {
       error = cupid_windows_get_last_error();
       free(wide_from);
@@ -179,7 +225,7 @@ unsigned int cupid_windows_move_file_ex(const char *from, const char *to, unsign
 #endif
 #if defined(CUPID_WINDOWS_BUILD)
 unsigned int cupid_windows_get_file_attributes(const char *path) {
-  unsigned short *wide = path_utf16(path);
+  unsigned short *wide = file_utf16(path);
   unsigned int result;
   unsigned int error;
   if (wide == (unsigned short *)0) return 0xffffffffu;
@@ -191,7 +237,7 @@ unsigned int cupid_windows_get_file_attributes(const char *path) {
 }
 
 unsigned int cupid_windows_create_directory(const char *path, void *security) {
-  unsigned short *wide = path_utf16(path);
+  unsigned short *wide = file_utf16(path);
   unsigned int result;
   unsigned int error;
   if (wide == (unsigned short *)0) return 0u;
@@ -203,7 +249,7 @@ unsigned int cupid_windows_create_directory(const char *path, void *security) {
 }
 
 unsigned int cupid_windows_remove_directory(const char *path) {
-  unsigned short *wide = path_utf16(path);
+  unsigned short *wide = file_utf16(path);
   unsigned int result;
   unsigned int error;
   if (wide == (unsigned short *)0) return 0u;
@@ -232,11 +278,11 @@ unsigned int cupid_windows_create_process(
     cupid_windows_set_last_error(87u); return 0u;
   }
   if (application != (const char *)0 &&
-      (wide_application = path_utf16(application)) == (unsigned short *)0) goto done;
+      (wide_application = file_utf16(application)) == (unsigned short *)0) goto done;
   if (command != (char *)0 &&
       (wide_command = path_utf16(command)) == (unsigned short *)0) goto done;
   if (directory != (const char *)0 &&
-      (wide_directory = path_utf16(directory)) == (unsigned short *)0) goto done;
+      (wide_directory = file_utf16(directory)) == (unsigned short *)0) goto done;
   result = cupid_windows_create_process_wide(wide_application, wide_command,
       process_security, thread_security, inherit, flags, environment,
       wide_directory, startup, process);

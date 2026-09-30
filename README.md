@@ -1,5 +1,21 @@
 # cupid-os
 
+Source-head CupidBuild now resolves lexical user source/output paths and retains
+the complete output-parent chain through a transaction. Native Windows file
+adapters support long paths; a separate checked profile adds the same support.
+Both native and checked CupidC pass the real long-path compiler cases. Explicit
+source capture freezes and rechecks the long profile's 77 inputs. These
+capabilities still need a closed user compilation transaction, complete
+long-profile seed carriage and paired promotion before the user recipes move.
+Production ownership remains 441 CupidBuild actions and eleven Python actions.
+See [the bootstrap record](docs/bootstrap/README.md) and
+[the user compilation design](docs/bootstrap/NEXT-USER-COMPILATION.md).
+
+Windows incremental image acceptance passes with the updated manual: artifact
+verification, all three user executables, and a private four-CPU disassembly,
+shell and SMP smoke. The kernel is 9,572,436 bytes. Full Doom runtime and
+performance acceptance remains open.
+
 Source-head CupidBuild now has an in-memory validator for external user
 executables. It checks the i386 ELF32 header, up to sixteen program headers,
 load ranges inside `[0x01C00000, 0x01E00000)`, alignment, permissions, overlap,

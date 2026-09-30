@@ -112,3 +112,57 @@ int cupidbuild_path_to_utf8(const unsigned short *input, size_t units,
   *bytes = used;
   return 1;
 }
+
+int cupidbuild_path_windows_extended(const unsigned short *input, size_t units,
+    unsigned short *output, size_t capacity, size_t *written) {
+  size_t offset = 0u, anchor, extra, index, start, result;
+  unsigned int scalar;
+  int unc;
+  if (written != (size_t *)0) *written = 0u;
+  if (output != (unsigned short *)0 && capacity != 0u) output[0] = 0u;
+  if (written == (size_t *)0 || input == (const unsigned short *)0 ||
+      units < 3u || units > 32766u ||
+      (output == (unsigned short *)0 && capacity != 0u)) return 0;
+  while (offset < units) if (!next_utf16(input, units, &offset, &scalar)) return 0;
+  unc = input[0] == '\\' && input[1] == '\\';
+  if (unc) {
+    size_t server = 2u, share;
+    if ((units >= 4u && (input[2] == '?' || input[2] == '.') && input[3] == '\\') ||
+        input[2] == '\\') return 0;
+    while (server < units && input[server] != '\\') server++;
+    share = server + 1u;
+    if (share >= units || input[share] == '\\') return 0;
+    while (share < units && input[share] != '\\') share++;
+    anchor = 2u;
+    extra = 6u;
+  } else {
+    if (!((input[0] >= 'A' && input[0] <= 'Z') ||
+          (input[0] >= 'a' && input[0] <= 'z')) ||
+        input[1] != ':' || input[2] != '\\') return 0;
+    anchor = 3u;
+    extra = 4u;
+  }
+  if (units > 32766u - extra) return 0;
+  for (index = 0u; index < units; index++) if (input[index] == '/') return 0;
+  start = anchor;
+  for (index = anchor; index <= units; index++) {
+    if (index == units || input[index] == '\\') {
+      size_t length = index - start;
+      if ((length == 1u && input[start] == '.') ||
+          (length == 2u && input[start] == '.' && input[start + 1u] == '.') ||
+          (length == 0u && index != units)) return 0;
+      start = index + 1u;
+    }
+  }
+  result = units + extra;
+  if (output == (unsigned short *)0) { *written = result; return 1; }
+  if (capacity <= result) return 0;
+  output[0] = '\\'; output[1] = '\\'; output[2] = '?'; output[3] = '\\';
+  if (unc) {
+    output[4] = 'U'; output[5] = 'N'; output[6] = 'C'; output[7] = '\\';
+    for (index = 2u; index < units; index++) output[index + 6u] = input[index];
+  } else for (index = 0u; index < units; index++) output[index + 4u] = input[index];
+  output[result] = 0u;
+  *written = result;
+  return 1;
+}

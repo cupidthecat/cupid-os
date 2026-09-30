@@ -544,6 +544,7 @@ class SourceInputs:
     root: Path
     inventory: dict[str, dict[str, object]]
     windows_utf8: bool = False
+    windows_long_paths: bool = False
 
 
 class ToolRunner:
@@ -849,9 +850,14 @@ def _source_input_paths(
     plan: dict[str, object],
     *,
     windows_utf8: bool = False,
+    windows_long_paths: bool = False,
 ) -> dict[str, Path]:
     if type(windows_utf8) is not bool:
         raise BootstrapError("Windows UTF-8 source selection must be Boolean")
+    if type(windows_long_paths) is not bool:
+        raise BootstrapError("Windows long-path source selection must be Boolean")
+    if windows_long_paths and not windows_utf8:
+        raise BootstrapError("Windows long-path source selection requires UTF-8")
     source_root = source_root.resolve()
     paths: list[Path] = []
     raw_sources = _require_list(plan.get("sources"), "build_plan.sources")
@@ -900,6 +906,8 @@ def _source_input_paths(
             "toolchain/hosted/i386-windows/utf8_publication_start.asm",
             "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
         ))
+    if windows_long_paths:
+        paths.append(source_root / "toolchain/hosted/i386-windows/utf8_long_path_start.asm")
     paths.extend(path for path in sorted((source_root / "toolchain").glob("*.h"))
                  if not (windows_utf8 and path.name == "path_encoding.h"))
     paths.extend(
@@ -940,10 +948,12 @@ def capture_source_snapshot(
     plan: dict[str, object],
     *,
     windows_utf8: bool = False,
+    windows_long_paths: bool = False,
 ) -> dict[str, dict[str, object]]:
     """Hash every active toolchain source input in a build plan."""
     inventory: dict[str, dict[str, object]] = {}
-    for name, path in sorted(_source_input_paths(source_root, plan, windows_utf8=windows_utf8).items()):
+    for name, path in sorted(_source_input_paths(source_root, plan,
+            windows_utf8=windows_utf8, windows_long_paths=windows_long_paths).items()):
         try:
             data = path.read_bytes()
         except OSError as error:
@@ -963,10 +973,11 @@ def freeze_source_inputs(
     snapshot_directory: Path,
     *,
     windows_utf8: bool = False,
+    windows_long_paths: bool = False,
 ) -> SourceInputs:
     """Copy one exact source closure into a private compiler root."""
     source_paths = _source_input_paths(
-        source_root, plan, windows_utf8=windows_utf8
+        source_root, plan, windows_utf8=windows_utf8, windows_long_paths=windows_long_paths
     )
     if snapshot_directory.is_symlink():
         raise BootstrapError("frozen source directory may not be a symlink")
@@ -1006,7 +1017,8 @@ def freeze_source_inputs(
             "sha256": hashlib.sha256(data).hexdigest(),
             "size": len(data),
         }
-    frozen = SourceInputs(root=snapshot_root, inventory=inventory, windows_utf8=windows_utf8)
+    frozen = SourceInputs(root=snapshot_root, inventory=inventory,
+        windows_utf8=windows_utf8, windows_long_paths=windows_long_paths)
     require_frozen_source_snapshot(frozen, plan)
     return frozen
 
@@ -1027,8 +1039,10 @@ def _require_source_snapshot(
     label: str,
     *,
     windows_utf8: bool = False,
+    windows_long_paths: bool = False,
 ) -> None:
-    current = capture_source_snapshot(source_root, plan, windows_utf8=windows_utf8)
+    current = capture_source_snapshot(source_root, plan,
+        windows_utf8=windows_utf8, windows_long_paths=windows_long_paths)
     if current == expected:
         return
     changed = sorted(
@@ -1050,9 +1064,11 @@ def require_source_snapshot(
     expected: dict[str, dict[str, object]],
     *,
     windows_utf8: bool = False,
+    windows_long_paths: bool = False,
 ) -> None:
     """Reject a build whose live source inputs changed after capture."""
-    _require_source_snapshot(source_root, plan, expected, "source inputs", windows_utf8=windows_utf8)
+    _require_source_snapshot(source_root, plan, expected, "source inputs",
+        windows_utf8=windows_utf8, windows_long_paths=windows_long_paths)
 
 
 def require_frozen_source_snapshot(
@@ -1066,6 +1082,7 @@ def require_frozen_source_snapshot(
         source_inputs.inventory,
         "frozen source inputs",
         windows_utf8=source_inputs.windows_utf8,
+        windows_long_paths=source_inputs.windows_long_paths,
     )
 
 
@@ -1077,7 +1094,9 @@ def require_source_closures(
     """Rehash the private compiler root and the live source closure."""
     require_frozen_source_snapshot(source_inputs, plan)
     require_source_snapshot(
-        live_source_root, plan, source_inputs.inventory, windows_utf8=source_inputs.windows_utf8
+        live_source_root, plan, source_inputs.inventory,
+        windows_utf8=source_inputs.windows_utf8,
+        windows_long_paths=source_inputs.windows_long_paths,
     )
 
 
@@ -2646,9 +2665,11 @@ def _windows_imports(
 
 
 def _windows_utf8_imports(
-    tool_name: str,
+    tool_name: str, *, long_paths: bool = False,
 ) -> tuple[tuple[str, tuple[str, ...]], ...]:
-    """Return the exact wide-API profile without changing installed seed profiles."""
+    """Return a selected exact wide-API profile; installed profiles stay explicit."""
+    if type(long_paths) is not bool:
+        raise BootstrapError("Windows long-path import selection must be Boolean")
     if tool_name not in ("cupidc", "cupidasm", "cupiddis", "cupidobj", "cupidld", "cupidbuild"):
         raise BootstrapError(f"unknown Windows UTF-8 tool role: {tool_name}")
     replacements = {
@@ -2663,6 +2684,8 @@ def _windows_utf8_imports(
         (library, tuple(sorted(
             [replacements.get(name, name) for name in names]
             + (["SetLastError"] if library == "KERNEL32.dll" else [])
+            + (["GetFullPathNameW"] if long_paths and library == "KERNEL32.dll"
+               and "GetFullPathNameA" not in names else [])
         )))
         for library, names in _windows_imports(tool_name)
     )
@@ -2687,8 +2710,10 @@ def _promoted_windows_imports(
     raise BootstrapError("promoted Windows import profile differs")
 
 
-def _windows_import_selectors(tool_name: str, *, utf8: bool = False) -> tuple[str, ...]:
-    imports = _windows_utf8_imports(tool_name) if utf8 else _windows_imports(tool_name)
+def _windows_import_selectors(tool_name: str, *, utf8: bool = False, long_paths: bool = False) -> tuple[str, ...]:
+    if long_paths and not utf8:
+        raise BootstrapError("Windows long-path imports require UTF-8")
+    imports = _windows_utf8_imports(tool_name, long_paths=long_paths) if utf8 else _windows_imports(tool_name)
     return tuple(
         f"__imp_{procedure}={library}:{procedure}"
         for library, procedures in imports
@@ -2700,7 +2725,10 @@ def _windows_build_plan(
     linux_plan: dict[str, object],
     *,
     utf8: bool = False,
+    long_paths: bool = False,
 ) -> dict[str, object]:
+    if type(long_paths) is not bool or (long_paths and not utf8):
+        raise BootstrapError("Windows long-path plan requires Boolean UTF-8 selection")
     if type(utf8) is not bool:
         raise BootstrapError("Windows UTF-8 plan selection must be Boolean")
     raw_sources = _require_list(
@@ -2715,11 +2743,11 @@ def _windows_build_plan(
             raise BootstrapError(
                 f"Linux build plan repeats a source name: {name}"
             )
-        if name in ("publication_runtime", "path_encoding", "windows_utf8",
+        if name in ("publication_runtime", "long_path_start", "path_encoding", "windows_utf8",
                     "windows_utf8_publication", "windows_utf8_build"):
             raise BootstrapError(
                 "Linux build plan uses the reserved Windows source name: "
-                "publication_runtime"
+                f"{name}"
             )
         source_names.add(name)
         path = str(source["path"])
@@ -2764,7 +2792,9 @@ def _windows_build_plan(
             ("windows_utf8_build", ["CUPID_WINDOWS_BUILD=1"]),
         ):
             sources.append({
-                "definitions": ["_WIN32=1", *definitions], "gnu_extensions": True,
+                "definitions": ["_WIN32=1", *definitions,
+                                *(["CUPID_WINDOWS_LONG_PATHS=1"] if long_paths else [])],
+                "gnu_extensions": True,
                 "name": name, "path": "/toolchain/hosted/i386-windows/windows_utf8.cc",
             })
 
@@ -2822,6 +2852,8 @@ def _windows_build_plan(
                        "windows_utf8_publication" if tool_name in ("cupidasm", "cupidld")
                        else "windows_utf8")
             native_order.extend(["path_encoding", adapter])
+            if long_paths and tool_name not in ("cupidbuild", "cupidasm", "cupidld"):
+                native_order.insert(1, "long_path_start")
         links[tool_name] = native_order
 
     include_arguments = [
@@ -2861,7 +2893,10 @@ def _windows_build_plan(
             path = str(assembly_source["path"])
             parent, filename = path.rsplit("/", 1)
             assembly_source["path"] = parent + "/utf8_" + filename
-    imports_for = _windows_utf8_imports if utf8 else _windows_imports
+    if long_paths:
+        assembly_sources.append({"name": "long_path_start",
+            "path": "/toolchain/hosted/i386-windows/utf8_long_path_start.asm"})
+    imports_for = (lambda name: _windows_utf8_imports(name, long_paths=long_paths)) if utf8 else _windows_imports
     return {
         "assembly_sources": assembly_sources,
         "include_arguments": include_arguments,
@@ -2891,6 +2926,7 @@ def _windows_link_arguments(
     link_order: Sequence[str],
     *,
     utf8: bool = False,
+    long_paths: bool = False,
 ) -> list[str | Path]:
     arguments: list[str | Path] = [
         "-m",
@@ -2900,27 +2936,31 @@ def _windows_link_arguments(
         "--entry",
         "_start",
     ]
-    for selector in _windows_import_selectors(tool_name, utf8=utf8):
+    for selector in _windows_import_selectors(tool_name, utf8=utf8, long_paths=long_paths):
         arguments.extend(("--import", selector))
     arguments.extend(("-o", output))
     arguments.extend(objects[name] for name in link_order)
     return arguments
 
 
-def _windows_plan_uses_utf8(native_plan: dict[str, object]) -> bool:
+def _windows_plan_profile(native_plan: dict[str, object]) -> tuple[bool, bool]:
     links = _require_object(native_plan.get("links"), "Windows build plan links")
     names = _plan_tool_names(links, "Windows build plan")
     imports = _require_object(native_plan.get("imports"), "Windows build plan imports")
-    for utf8 in (False, True):
-        profile = _windows_utf8_imports if utf8 else _windows_imports
+    for utf8, long_paths in ((False, False), (True, False), (True, True)):
         expected = {
             name: [{"library": library, "procedure": procedure, "slot": "__imp_" + procedure}
-                   for library, procedures in profile(name) for procedure in procedures]
+                   for library, procedures in (_windows_utf8_imports(name, long_paths=long_paths)
+                       if utf8 else _windows_imports(name)) for procedure in procedures]
             for name in names
         }
         if imports == expected:
-            return utf8
+            return utf8, long_paths
     raise BootstrapError("Windows build plan imports differ from a complete ANSI or UTF-8 cohort")
+
+
+def _windows_plan_uses_utf8(native_plan: dict[str, object]) -> bool:
+    return _windows_plan_profile(native_plan)[0]
 
 
 def _build_windows_stage(
@@ -2931,7 +2971,7 @@ def _build_windows_stage(
     native_plan: dict[str, object],
     stage_name: str,
 ) -> Stage:
-    utf8 = _windows_plan_uses_utf8(native_plan)
+    utf8, long_paths = _windows_plan_profile(native_plan)
     stage_directory.mkdir()
     raw_sources = _require_list(
         native_plan.get("sources"), "Windows build plan sources"
@@ -3033,7 +3073,7 @@ def _build_windows_stage(
             runner,
             producers["cupidld"],
             _windows_link_arguments(
-                tool_name, executable, objects, link_order, utf8=utf8
+                tool_name, executable, objects, link_order, utf8=utf8, long_paths=long_paths
             ),
             f"{stage_name} native CupidLD for {tool_name}",
             180,
@@ -3041,7 +3081,7 @@ def _build_windows_stage(
         _validate_static_i386_pe32(
             executable,
             int(EXPECTED_WINDOWS_TARGET["entry"]),
-            _windows_utf8_imports(tool_name) if utf8 else _windows_imports(tool_name),
+            _windows_utf8_imports(tool_name, long_paths=long_paths) if utf8 else _windows_imports(tool_name),
         )
         tools[tool_name] = executable
     return Stage(objects=objects, tools=tools)

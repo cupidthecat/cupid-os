@@ -1,5 +1,49 @@
 #include "path_encoding.h"
 #include <string.h>
+#include <stdlib.h>
+
+static int extended_cases(void) {
+  static const char *valid[] = {"C:\\", "c:\\space name\\caf\xc3\xa9\\\xf0\x9f\x98\xba", "\\\\server\\share", "\\\\server\\share\\deep\\file"};
+  static const char *expected[] = {"\\\\?\\C:\\", "\\\\?\\c:\\space name\\caf\xc3\xa9\\\xf0\x9f\x98\xba", "\\\\?\\UNC\\server\\share", "\\\\?\\UNC\\server\\share\\deep\\file"};
+  static const char *invalid[] = {"relative", "C:relative", "\\rooted", "C:/forward", "C:\\dot\\.\\file", "C:\\dot\\..\\file", "C:\\empty\\\\file", "\\\\server", "\\\\server\\", "\\\\server\\\\share", "\\\\?\\C:\\file", "\\\\.\\NUL", "\\\\.\\share", "\\\\server\\.."};
+  unsigned short input[128], output[140];
+  char text[256];
+  size_t index, units, count, needed;
+  for (index = 0u; index < sizeof(valid) / sizeof(valid[0]); index++) {
+    if (!cupidbuild_path_to_utf16(valid[index], strlen(valid[index]), input, 128u, &units) ||
+        !cupidbuild_path_windows_extended(input, units, (unsigned short *)0, 0u, &needed) ||
+        !cupidbuild_path_windows_extended(input, units, output, needed + 1u, &count) ||
+        count != needed || !cupidbuild_path_to_utf8(output, count, text, sizeof(text), &count) ||
+        strcmp(text, expected[index])) return 30;
+    output[0] = 7u; output[1] = 7u;
+    if (cupidbuild_path_windows_extended(input, units, output, needed, &count) ||
+        count || output[0] || output[1] != 7u) return 31;
+  }
+  for (index = 0u; index < sizeof(invalid) / sizeof(invalid[0]); index++) {
+    if (!cupidbuild_path_to_utf16(invalid[index], strlen(invalid[index]), input, 128u, &units) ||
+        cupidbuild_path_windows_extended(input, units, output, 140u, &count) || count || output[0]) return 32;
+  }
+  input[0] = 'C'; input[1] = ':'; input[2] = '\\'; input[3] = 0xd800u;
+  if (cupidbuild_path_windows_extended(input, 4u, output, 140u, &count) || count) return 33;
+  input[3] = 0u;
+  if (cupidbuild_path_windows_extended(input, 4u, output, 140u, &count) || count) return 34;
+  if (cupidbuild_path_windows_extended(input, 3u, (unsigned short *)0, 1u, &count) || count ||
+      cupidbuild_path_windows_extended((unsigned short *)0, 3u, output, 140u, &count) || count ||
+      cupidbuild_path_windows_extended(input, 3u, output, 140u, (size_t *)0)) return 35;
+  {
+    unsigned short *large = (unsigned short *)malloc(32768u * sizeof(unsigned short));
+    if (large == (unsigned short *)0) return 36;
+    large[0] = 'C'; large[1] = ':'; large[2] = '\\';
+    for (index = 3u; index < 32768u; index++) large[index] = 'x';
+    if (!cupidbuild_path_windows_extended(large, 32762u, (unsigned short *)0, 0u, &count) ||
+        count != 32766u || cupidbuild_path_windows_extended(large, 32763u, output, 140u, &count) ||
+        count || output[0] || cupidbuild_path_windows_extended(large, 32767u, output, 140u, &count)) {
+      free(large); return 37;
+    }
+    free(large);
+  }
+  return 0;
+}
 
 int main(int argc, char **argv) {
   const char *valid[] = {"\x01", "\x7f", "\xc2\x80", "\xdf\xbf", "\xe0\xa0\x80",
@@ -43,5 +87,5 @@ int main(int argc, char **argv) {
   if (!cupidbuild_path_to_utf8((const unsigned short *)0, 0u, text, 1u, &bytes) || bytes || text[0]) return 17;
   if (cupidbuild_path_to_utf16("a", 1u, (unsigned short *)0, 1u, &units) || units) return 18;
   if (cupidbuild_path_to_utf8(pair, 2u, (char *)0, 1u, &bytes) || bytes) return 19;
-  return 0;
+  return extended_cases();
 }

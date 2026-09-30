@@ -1,5 +1,14 @@
 # Next native user compilation boundary
 
+The file-path fixtures also distinguish launch paths from process working
+directories. Both accepted compiler fixtures run from a long executable name
+with an explicit application and a shorter working directory. A separate direct
+Windows probe rejects a 361-character process working directory with error 267,
+including extended spellings. Passing a long `--root` to CupidC from a shorter
+working directory succeeds. Preserve the wrapper's existing launch contract;
+extended file handling alone does not prove a long working directory works.
+Evidence is `build/bootstrap/windows-long-current-directory-probe-v1.json`.
+
 This plan covers the three user compiler transactions for `cat.cc`, `hello.cc`,
 and `ls.cc` under `user/examples`. Their three links remain separate work.
 The generated-install `compile-production` draft covers only the bin, demos,
@@ -208,3 +217,238 @@ Run the native and checked-CupidC comparison suite with
 `python -m unittest -v tests.test_cupidbuild_user_elf` from the repository root.
 The bootstrap log records executed host and OS checks separately from the
 remaining user-link transaction and future seed promotion.
+
+## 2026-09-29: lexical user-path resolution in progress
+
+`cupidbuild_resolve_user_compile_paths` resolves lexical source and output aliases
+against an absolute repository root, then checks the existing approved pair.
+The output must keep the source basename with an `.o` suffix, lie below a
+non-`examples` child of `user`, and stay within the repository. The API accepts
+nested output directories and preserves spaces and UTF-8 bytes. It models POSIX
+and Windows path separators, drive roots, same-drive relative paths, rooted
+Windows paths and UNC shares without consulting the current working directory.
+A different drive-relative path cannot be resolved without a drive working
+directory and is rejected. Windows root-prefix comparison folds ASCII case;
+Unicode case aliases still need filesystem-level handling before full migration.
+
+This is lexical validation only. It neither proves filesystem containment nor
+creates directories. A source may still name a link, and a parent may still be
+replaced after normalization. Production must not use this API as its sole path
+check. Failure clears the result, diagnostics respect their supplied capacity,
+and a subsequent call can succeed without resetting global state.
+
+The first Windows strict build rejected two `strcpy` calls. They were replaced
+with copies whose lengths are checked before writing. The new tests exercise
+both path syntaxes in host-built and checked-Cupid-built callers. Both final host and checked-Cupid caller suites pass all seven methods,
+including malformed-UNC rejection. The paired record is
+`build/bootstrap/user-paths-paired-v1.json`. The first Linux run found that joining a path to `/`
+introduced a second leading slash; the join now preserves the original anchor.
+The Windows caller also used the retired ANSI link plan, which omitted the
+current host adapter's path codec. Its fixture now uses the complete UTF-8 plan.
+
+## 2026-09-29: retained output-parent API in progress
+
+`cupidbuild_host_output_parent_prepare` validates the complete normalized output
+path before creating directories, then retains each directory from the repository
+root to the output parent. Creation and descent use the retained parent handle:
+`mkdirat` followed by a no-follow open on Linux, and relative `NtCreateFile` with
+`FILE_OPEN_IF` on Windows. Links, file collisions and ancestor identity aliases
+fail. The API creates no lock or output file. Created directories remain after
+failure and close; another build may already be using them. Linux creation and
+the first open are separate operations, so this does not establish exclusive
+ownership of a newly created directory.
+
+The preparation checks identities and each parent/name binding. Directory
+metadata may change as sibling jobs run. The existing read-only observer keeps
+its stricter root metadata check. Failed preparations retain a diagnostic and
+must be closed, including partial preparations. The transaction borrows the
+preparation, which must outlive it.
+
+`cupidbuild_host_output_transaction_open` attaches the chain before acquiring an
+output lock or capturing source bytes. Publication-boundary checks recheck the
+complete chain, including equal-output publication. The separate bind API can
+attach to an already opened transaction after checking the root, parent and leaf
+name. It cannot retroactively guard that transaction's opening. Windows retained
+handles prevent directory replacement; Linux rechecks reject an ancestor
+replacement even when the original leaf directory was moved back below it.
+
+This remains a source API prerequisite. Windows repository roots still require
+a drive-rooted path in the underlying observer; lexical UNC support does not
+establish filesystem support. User compilation, user links, source closure and
+production adoption remain separate work. No restricted user CLI has been added.
+
+The installed Windows CupidC still cannot write the reproduced 310-character
+output path. `build/bootstrap/user-longpath-probe-v1/result.json` records exit 1
+and the missing output. Its UTF-8 runtime converts paths to UTF-16 but does not
+provide extended absolute paths to the file API. Fixing that boundary must also
+preserve relative paths, drive/UNC handling and text used for process arguments.
+Long directory preparation alone does not prove compiler or transaction support.
+
+Final focused runs pass all 49 methods in each configuration. Linux host-built:
+2.245 seconds, two skips; Linux checked-Cupid: 41.181 seconds, one skip. Windows
+host-built: 11.135 seconds, five skips; Windows checked-Cupid: 55.076 seconds,
+four skips. The cases cover nested and hidden directories, UTF-8 names,
+200-character components, total paths beyond 260 characters, complete lexical
+validation before creation, collisions, sibling writes and concurrent sibling
+preparation, links/junctions, replaced parents and transplanted ancestors,
+transaction binding, publication and equal-output timestamp preservation.
+The existing observer regressions pass in the same runs. Logs are
+`build/bootstrap/output-parent-{native,checked}-{linux,windows}-v7.log`;
+`build/bootstrap/output-parent-paired-v1.json` records source and log hashes.
+This is focused caller evidence; full integration, source-audit refresh and
+production acceptance are still pending. The source changes remain uncommitted.
+
+## 2026-09-29: source Windows long-path support
+
+Added a shared, allocation-free UTF-16 helper for extended drive and UNC paths.
+It requires an absolute normalized path, valid scalar sequences and backslashes;
+it rejects dot/parent components, malformed shares, device namespaces and results
+that exceed 32,767 units including the terminator. Failed outputs are cleared and
+capacity checks preserve adjacent sentinels. Adapters retain explicit device
+paths without reinterpreting them.
+
+The native Windows adapter resolves ordinary file paths once with
+`GetFullPathNameW`. Names whose input or resolved length reaches 248 units use an
+extended absolute path. Short spellings retain their original Win32 form. File
+reads, writes, attributes, deletion, moves, application paths and working
+directories use this conversion; command text, file modes and environment names
+keep text conversion. Cleanup preserves the file API error.
+
+The checked adapter enables the same behavior under `CUPID_WINDOWS_LONG_PATHS`.
+The internal Windows plan selects that definition for every adapter role and an
+exact import profile. Ordinary tools gain `GetFullPathNameW` through a separate
+startup shim. Publication and CupidBuild roles already import it. Each tool gets
+one resolver. Stage linking and PE validation select the same profile. Existing
+ANSI and UTF-8 plan identities and installed import validation are preserved.
+The long-path plan is not yet selected by the full bootstrap CLI: source capture,
+manifest readers, paired proofs and promotion still need to carry it.
+
+The first real compiler fixture passed long reads/writes and lexical aliases,
+but its missing-input assertion expected `cannot read`; CupidC reports
+`cannot load`. The corrected fixture includes long and relative repository roots.
+Both native and checked CupidC pass all four methods in 205.346 seconds, with
+byte-for-byte agreement against short-path reference objects. The log is
+`build/bootstrap/windows-long-path-real-v2.log`; its sibling directory retains
+both tools, their hashes, the selected plan and captured fixture input hashes.
+This is focused compiler evidence, not a staged self-bootstrap proof.
+
+The first checked failure fixture called `abort`, which its small runtime does
+not expose. The fixture now records invariant failures and returns a nonzero
+status. It does not require a new runtime API to test path conversion. Final
+checked Windows adapter runs pass seven methods in 30.610 seconds. Linux passes
+32 adapter, codec and plan methods in 21.099 seconds, with two Windows-only
+skips. Native Windows allocation, codec and plan cases pass 31 methods in
+5.781 seconds. Evidence is `checked-long-path-adapter-windows-v3.log`,
+`checked-long-path-adapter-linux-v3.log` and `long-path-adapter-native-v3.log`
+under `build/bootstrap/`. Older failed logs are retained.
+
+Microsoft documents that extended paths require an absolute spelling and do not
+normalize slashes or dot components. The adapters therefore resolve before
+prefixing: https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation
+and https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfullpathnamew.
+
+## 2026-09-29: final path-support regressions and OS replay
+
+A direct Windows probe found that `GetFullPathNameW` can resolve a long ordinary
+spelling ending in `NUL` or `CON` to a device namespace. Both adapters now retain
+that resolved name instead of passing it to the ordinary-path prefix helper.
+The native allocation fixture, checked API fixture and real compiler fixture
+cover this case. Final real compiler replay passes five methods in 238.783
+seconds, including the discarded device output. Native and checked objects still
+match their short-path references. Evidence and both fixture executables are in
+`build/bootstrap/windows-long-path-real-v3/`, with its sibling `.log` file.
+
+The final Windows adapter/codec/plan suite passes 38 methods in 53.024 seconds.
+The Linux suite passes 32 methods in 33.337 seconds, with two Windows-only skips.
+Logs are `long-path-adapters-windows-final-v1.log` and
+`long-path-adapters-linux-final-v1.log`. The six-tool native help, entry selection,
+Unicode publication and rejection suite passes three methods in 437.265 seconds
+(`long-path-native-tool-regressions-v1.log`). The fixed-point audit rejection
+corpus passes its mutation method in 345.252 seconds. Its exact link-selector
+check and corresponding mutation were updated for the explicit long-path flag.
+
+The direct worktree OS build failed before compiling the TLS CA bundle object.
+Windows denies reading the existing `kernel/tls/tls_ca_bundle_data.o` and its ACL;
+the source is readable. A single-target replay fails the same way and preserves
+its size and timestamp. The object has not been moved or had its permissions
+changed. `tls-ca-transaction-replay-v2.json` records the replay. A separate OS
+copy contains the captured current sources and previously independently verified
+outputs. The same installed coordinator compiles the TLS target there, preserves
+its verified SHA-256 and timestamp, and exits zero; evidence is
+`tls-ca-isolated-replay-v1.json`. This distinguishes the existing inaccessible
+output from a compiler or source regression.
+
+The separate OS build was resumed after its original tool handles disappeared
+and process inspection found no live build. All 1,538 captured source files in
+that copy still matched the preparation record. Evidence is under
+`build/bootstrap/user-path-os-v1/`. Image completion and boot smoke remain pending
+at this checkpoint. The goal remains active; user transactions and long-profile
+seed carriage are still required.
+
+Reproduce the file-boundary suites from the repository with
+`python -m unittest -v tests.test_windows_long_paths` on Windows and
+`python -m unittest -v tests.test_windows_utf8_checked tests.test_path_encoding tests.test_windows_utf8_plan`
+on either host.
+
+## 2026-09-29: complete long-profile source capture
+
+The explicit `windows_long_paths` source selection requires a Boolean UTF-8
+selection and includes `utf8_long_path_start.asm`. Frozen source records retain
+both selections; live and private revalidation use them again. The current
+canonical long profile captures 77 inputs. Historical plans keep their defaults
+and exact installed import validation. Missing shims and invalid selections are
+rejected before creating a frozen directory; live and frozen shim changes fail,
+and restoring the bytes permits a fresh recheck.
+
+Both hosts pass 29 plan/capture methods: 5.568 seconds on Windows and 12.648
+seconds on Linux. Six default source-freeze and plan regression methods also
+pass: 6.645 seconds on Windows and 1.145 seconds on Linux. Evidence is
+`long-path-source-capture-{windows,linux}-v2.log` and
+`long-path-source-default-regressions-{windows,linux}-v1.log` under
+`build/bootstrap/`. The first new count assertion used the historical manifest's
+old closure count; the current source tree also contains the later policy header.
+The current historical fixture captures 75 long-profile inputs, while the
+canonical plan captures 77. The failed v1 log is retained.
+
+The full bootstrap CLI, manifest/publication readers, paired staged proofs and
+promotion still need to carry the selected profile. Production user compilation
+and user linking remain open; installed seed payloads and ownership are unchanged.
+
+## 2026-09-29: accepted incremental Windows image and boot
+
+All 83 fresh Doom transactions passed and reproduced the earlier object bytes.
+The incremental Make replay retained those outputs and the 156 kernel objects
+whose exact closed inputs and producer identities were unchanged. It regenerated
+the manual asset, installation tables, symbols, both kernel links and typed flat
+kernel. The artifact verifier then rejected only the three expected old kernel
+sizes. The policy now records 9,572,436 bytes for `kernel.bin`, 9,802,172 for the
+final ELF and 9,671,100 for the pass-one ELF. The raw kernel grew by 1,168 bytes;
+the embedded manual is the only changed object in the checked code cohort.
+The first failed size check and `policy-transition-v2.json` retain that calibration.
+
+The final Make image replay passes all sixteen exact artifact checks and image
+publication. Both hosts pass seventeen policy methods: 9.656 seconds on Windows
+and 23.616 seconds on Linux. Logs are
+`user-path-policy-regressions-{windows,linux}-v1.log`. The final graph audit passes
+with 764 active sources, 452 transforms and unchanged 441/11 ownership. Its first
+new invocation used a backslash Python path that the audit's shell parser treated
+as `C:Python314python.exe`; the slash-form replay passes. The failed v5 and passing
+v6 logs are retained under `build/bootstrap/`.
+
+Windows acceptance checks all 1,538 captured inputs, sixteen artifacts and the
+431-input code cohort. It independently compares the disk's boot code and raw
+kernel region with the current artifacts. The three user executables match the
+previous acceptance record. The private four-CPU max/e1000 smoke passes raw
+disassembly, shell completion and SMP runtime checks; the serial log reports all
+four discovered CPUs online. No panic or corruption marker appears. The image
+hash remains `3abecb9d57efded4b91e9b89a06603cd851731605bfaf5b0fa1dc91dce38fefd`
+before and after the private smoke.
+
+An independent reread verifies the source capture, all artifact/code-input and
+user hashes, the image identity and runtime logs. Acceptance records are
+`windows-os-acceptance-v1.json` and `independent-acceptance-v1.json` under
+`build/bootstrap/user-path-os-v1/`. This is incremental Windows OS acceptance,
+not a clean paired self-bootstrap or seed promotion. Installed seeds, user recipe
+ownership and TempleOS scope are unchanged. Full user transactions, long-profile
+manifest/CLI carriage, paired proofs, promotion and full Doom runtime/performance
+acceptance remain open.

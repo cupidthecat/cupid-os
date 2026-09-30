@@ -8,6 +8,32 @@
 
 typedef struct cupidbuild_host_transaction cupidbuild_host_transaction_t;
 typedef struct cupidbuild_host_profile_parent cupidbuild_host_profile_parent_t;
+typedef struct cupidbuild_host_output_parent cupidbuild_host_output_parent_t;
+
+/* Prepare a normalized relative output's directory chain under an absolute
+ * root. All components are validated before creating directories. No files or
+ * locks are created. Created directories persist after failure and close.
+ * Retained handles reject links and track directory identity, not timestamps.
+ * Failure can return a partial preparation: always close it. Binding borrows
+ * preparation until the transaction is closed and enforces the complete chain
+ * at every subsequent publication-boundary check. Close accepts NULL. */
+int cupidbuild_host_output_parent_prepare(
+    const char *root, const char *output,
+    cupidbuild_host_output_parent_t **preparation_out);
+int cupidbuild_host_output_parent_require_current(
+    cupidbuild_host_output_parent_t *preparation);
+int cupidbuild_host_output_parent_bind(
+    cupidbuild_host_output_parent_t *preparation,
+    cupidbuild_host_transaction_t *transaction);
+/* Bind the chain before acquiring the output lock or capturing source bytes. */
+int cupidbuild_host_output_transaction_open(
+    const char *root, const char *source, const char *output,
+    cupidbuild_host_output_parent_t *preparation,
+    cupidbuild_host_transaction_t **transaction_out);
+const char *cupidbuild_host_output_parent_error(
+    const cupidbuild_host_output_parent_t *preparation);
+int cupidbuild_host_output_parent_close(
+    cupidbuild_host_output_parent_t *preparation);
 typedef struct cupidbuild_host_observer cupidbuild_host_observer_t;
 /* Execution image format for this adapter: ELF32 is 1, PE32 is 2. */
 unsigned int cupidbuild_host_execution_format(void);

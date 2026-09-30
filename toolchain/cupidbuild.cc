@@ -2307,6 +2307,170 @@ typedef enum {
   CUPIDBUILD_KSYMS_ADDRESS_OUTSIDE_I386
 } cupidbuild_ksyms_row_kind_t;
 
+static int cupidbuild_user_separator(char c, int windows) {
+  return c == '/' || (windows && c == '\\');
+}
+
+static unsigned char cupidbuild_user_fold(unsigned char c, int windows) {
+  return windows && c >= 'A' && c <= 'Z' ? (unsigned char)(c + 32u) : c;
+}
+
+/* Canonical anchors end in '/'. Relative paths on another drive need an
+ * external drive working directory and cannot be resolved against this root. */
+static size_t cupidbuild_user_anchor(const char *path, int windows,
+                                     char *out) {
+  size_t i, size;
+  if (windows && ((path[0] >= 'A' && path[0] <= 'Z') ||
+                  (path[0] >= 'a' && path[0] <= 'z')) && path[1] == ':' &&
+      cupidbuild_user_separator(path[2], windows)) {
+    out[0] = path[0]; out[1] = ':'; out[2] = '/'; out[3] = 0;
+    return 3u;
+  }
+  if (windows && cupidbuild_user_separator(path[0], windows) &&
+      cupidbuild_user_separator(path[1], windows)) {
+    i = 2u; size = 2u; out[0] = '/'; out[1] = '/';
+    for (unsigned int part = 0u; part < 2u; part++) {
+      size_t start = i;
+      while (path[i] && !cupidbuild_user_separator(path[i], windows)) {
+        if (path[i] == ':' || path[i] == '?' || size + 2u >= CUPIDBUILD_USER_PATH_BYTES)
+          return 0u;
+        out[size++] = path[i++];
+      }
+      if (i == start || (i - start == 1u && path[start] == '.') ||
+          (i - start == 2u && path[start] == '.' && path[start + 1u] == '.'))
+        return 0u;
+      out[size++] = '/';
+      if (part == 0u) {
+        if (!path[i]) return 0u;
+        i++;
+      }
+    }
+    out[size] = 0;
+    return size;
+  }
+  if (!windows && path[0] == '/') {
+    out[0] = '/'; out[1] = 0;
+    /* POSIX preserves exactly two leading slashes, like normpath. */
+    if (path[1] == '/' && path[2] != '/') {
+      out[1] = '/'; out[2] = 0; return 2u;
+    }
+    return 1u;
+  }
+  return 0u;
+}
+
+static int cupidbuild_user_normalize(const char *path, int windows,
+                                     char *out) {
+  size_t anchor = cupidbuild_user_anchor(path, windows, out);
+  size_t size = anchor, i = anchor;
+  if (!anchor) return 0;
+  /* A UNC share can end without the canonical anchor's final slash. */
+  if (i > strlen(path)) i = strlen(path);
+  while (path[i]) {
+    size_t start, length;
+    while (cupidbuild_user_separator(path[i], windows)) i++;
+    start = i;
+    while (path[i] && !cupidbuild_user_separator(path[i], windows)) i++;
+    length = i - start;
+    if (!length || (length == 1u && path[start] == '.')) continue;
+    if (length == 2u && path[start] == '.' && path[start + 1u] == '.') {
+      if (size > anchor) {
+        while (size > anchor && out[size - 1u] != '/') size--;
+        if (size > anchor) size--;
+      }
+      continue;
+    }
+    if (size + length + 2u > CUPIDBUILD_USER_PATH_BYTES) return 0;
+    if (size > anchor) out[size++] = '/';
+    (void)memcpy(out + size, path + start, length); size += length;
+  }
+  out[size] = 0;
+  return 1;
+}
+
+static int cupidbuild_user_relative(const char *root, const char *path,
+                                    int windows, char *out, char *scratch) {
+  char anchor[CUPIDBUILD_USER_PATH_BYTES];
+  size_t root_size = strlen(root), i, start;
+  if (strlen(path) >= CUPIDBUILD_USER_PATH_BYTES) return 0;
+  if (cupidbuild_user_anchor(path, windows, anchor)) {
+    if (!cupidbuild_user_normalize(path, windows, scratch)) return 0;
+  } else {
+    const char *relative = path;
+    size_t prefix = root_size;
+    if (windows && cupidbuild_user_separator(path[0], 1) &&
+        cupidbuild_user_separator(path[1], 1)) return 0;
+    if (windows && path[0] && path[1] == ':') {
+      if (root[1] != ':' || cupidbuild_user_fold((unsigned char)root[0], 1) !=
+          cupidbuild_user_fold((unsigned char)path[0], 1)) return 0;
+      relative += 2;
+    } else if (windows && cupidbuild_user_separator(path[0], 1)) {
+      prefix = cupidbuild_user_anchor(root, 1, anchor);
+      relative++;
+    }
+    if (prefix + strlen(relative) + 2u > sizeof(anchor)) return 0;
+    (void)memcpy(anchor, root, prefix);
+    if (prefix == 0u || anchor[prefix - 1u] != '/') anchor[prefix++] = '/';
+    (void)memcpy(anchor + prefix, relative, strlen(relative) + 1u);
+    if (!cupidbuild_user_normalize(anchor, windows, scratch)) return 0;
+  }
+  if (strlen(scratch) <= root_size) return 0;
+  for (i = 0u; i < root_size; i++) {
+    if (cupidbuild_user_fold((unsigned char)root[i], windows) !=
+        cupidbuild_user_fold((unsigned char)scratch[i], windows)) return 0;
+  }
+  start = root_size;
+  if (root[root_size - 1u] != '/') {
+    if (scratch[start] != '/') return 0;
+    start++;
+  }
+  (void)memcpy(out, scratch + start, strlen(scratch + start) + 1u);
+  return 1;
+}
+
+int cupidbuild_resolve_user_compile_paths(
+    const char *root, const char *source, const char *output, int windows,
+    cupidbuild_user_compile_paths_t *result, char *error, size_t error_capacity) {
+  cupidbuild_user_compile_paths_t *paths = NULL;
+  char *scratch = NULL;
+  const char *reason = "invalid user path request";
+  const char *name;
+  const char *leaf;
+  int ok = 0;
+  if (result) (void)memset(result, 0, sizeof(*result));
+  if (error_capacity && !error) return 0;
+  if (error_capacity) error[0] = 0;
+  if (!result || !root || !source || !output || !*root || !*source || !*output ||
+      (windows != 0 && windows != 1) || strlen(root) >= CUPIDBUILD_USER_PATH_BYTES)
+    goto done;
+  paths = (cupidbuild_user_compile_paths_t *)calloc(1u, sizeof(*paths));
+  scratch = (char *)malloc(CUPIDBUILD_USER_PATH_BYTES);
+  if (!paths || !scratch) { reason = "cannot allocate user paths"; goto done; }
+  reason = "repository root must be an absolute bounded path";
+  if (!cupidbuild_user_normalize(root, windows, paths->repository_root)) goto done;
+  reason = "user source or output leaves the repository or exceeds the path limit";
+  if (!cupidbuild_user_relative(paths->repository_root, source, windows, paths->source, scratch) ||
+      !cupidbuild_user_relative(paths->repository_root, output, windows, paths->output, scratch)) goto done;
+  reason = "source is outside the approved user cohort";
+  if (strcmp(paths->source, "user/examples/cat.cc") != 0 &&
+      strcmp(paths->source, "user/examples/hello.cc") != 0 &&
+      strcmp(paths->source, "user/examples/ls.cc") != 0) goto done;
+  reason = "user source and output binding differ";
+  name = paths->source + strlen("user/examples/");
+  leaf = strrchr(paths->output, '/');
+  if (strncmp(paths->output, "user/", 5u) != 0 || !leaf ||
+      leaf == paths->output + 4u || strncmp(paths->output, "user/examples/", 14u) == 0 ||
+      strlen(leaf + 1u) != strlen(name) - 1u ||
+      strncmp(leaf + 1u, name, strlen(name) - 2u) != 0 ||
+      strcmp(leaf + strlen(name) - 1u, "o") != 0) goto done;
+  *result = *paths;
+  ok = 1;
+done:
+  free(scratch); free(paths);
+  if (!ok && error_capacity) (void)snprintf(error, error_capacity, "%s", reason);
+  return ok;
+}
+
 static int cupidbuild_path_safe(const char *path, int relative) {
   const char *cursor;
   if (path == (const char *)0 || path[0] == '\0' || strchr(path, '"') != 0) {

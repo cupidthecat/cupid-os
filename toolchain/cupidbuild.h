@@ -50,6 +50,25 @@ int cupidbuild_generate_ksyms(const cupidbuild_ksyms_request_t *request);
 int cupidbuild_compile_kernel(const cupidbuild_compile_request_t *request);
 int cupidbuild_compile_doom(const cupidbuild_compile_request_t *request);
 int cupidbuild_compile_production(const cupidbuild_compile_request_t *request);
+
+#define CUPIDBUILD_USER_PATH_BYTES 8192u
+typedef struct {
+  char repository_root[CUPIDBUILD_USER_PATH_BYTES];
+  char source[CUPIDBUILD_USER_PATH_BYTES];
+  char output[CUPIDBUILD_USER_PATH_BYTES];
+} cupidbuild_user_compile_paths_t;
+/* Resolve lexical aliases and enforce the existing user source/output binding.
+ * windows selects Windows (1) or POSIX (0) path syntax, independent of this host.
+ * Root must be absolute; source/output may be absolute or relative to it.
+ * No filesystem access occurs: callers must separately pin every component,
+ * reject links/aliases, and retain those observations through publication.
+ * Inputs and writable output storage must be disjoint. Failure clears result.
+ * Zero error capacity permits NULL; otherwise error must be writable.
+ */
+int cupidbuild_resolve_user_compile_paths(
+    const char *root, const char *source, const char *output, int windows,
+    cupidbuild_user_compile_paths_t *result, char *error, size_t error_capacity);
+
 typedef enum {
   CUPIDBUILD_SEED_ELF32 = 1,
   CUPIDBUILD_SEED_PE32 = 2
