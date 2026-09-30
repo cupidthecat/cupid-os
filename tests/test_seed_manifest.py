@@ -2,6 +2,7 @@ import concurrent.futures
 import copy
 import ctypes
 import json
+import hashlib
 import os
 from pathlib import Path
 import struct
@@ -9,7 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from tests.test_seed_release import DRAFT, ROOT, encode, _host_compiler
+from tests.test_seed_release import DRAFT, ROOT, encode, _host_compiler, release
 from tests.test_seed_release_match import manifest
 from tools import bootstrap_toolchain as seed
 
@@ -94,6 +95,26 @@ def selection_manifest(fmt):
     return value
 
 
+def long_path_manifest(fmt):
+    value = selection_manifest(fmt)
+    provenance = value["provenance"]
+    provenance["source_input_count"] = 77
+    if fmt == 1:
+        provenance["parent_seed_source_revision"] = "5ba6ea24fdef3b23c505551ab537688e681c9593"
+        provenance["parent_seed_manifest_sha256"] = "1a8a91581562751cca6c51c5cd3de1259a73e92a0c161d1425155724d80ba7a8"
+    else:
+        plan = value["provenance"]["linux_candidate_build_plan_sha256"]
+        linux = seed._candidate_build_plan(manifest(1)["build_plan"])
+        assert plan == seed._build_plan_sha256(linux)
+        provenance["native_build_plan_sha256"] = seed._build_plan_sha256(
+            seed._windows_build_plan(linux, utf8=True, long_paths=True))
+        provenance["parent_execution_seed_source_revision"] = "5ba6ea24fdef3b23c505551ab537688e681c9593"
+        provenance["parent_plan_seed_source_revision"] = "5ba6ea24fdef3b23c505551ab537688e681c9593"
+        provenance["parent_execution_seed_manifest_sha256"] = "c8c2780000575ff255b6f72287f85d4b47f85b420b3fa0f29eeacfe74207175b"
+        provenance["parent_plan_seed_manifest_sha256"] = "1a8a91581562751cca6c51c5cd3de1259a73e92a0c161d1425155724d80ba7a8"
+    return value
+
+
 class Artifact(ctypes.Structure):
     _fields_ = [("file", ctypes.c_char * 32), ("sha256", ctypes.c_char * 65), ("size", ctypes.c_uint32)]
 
@@ -122,6 +143,78 @@ def changed(value):
 
 class ManifestTests(unittest.TestCase):
     records = []
+    pair_records = []
+
+    def test_long_path_pair_binds_release_and_actual_linux_manifest_bytes(self):
+        linux, windows = long_path_manifest(1), long_path_manifest(2)
+        windows["provenance"]["plan_seed_manifest_sha256"] = hashlib.sha256(encode(linux)).hexdigest()
+        reviewed = release()
+        reviewed.update(source_input_count=77,
+            parent_source_revision="5ba6ea24fdef3b23c505551ab537688e681c9593",
+            parent_linux_manifest_sha256="1a8a91581562751cca6c51c5cd3de1259a73e92a0c161d1425155724d80ba7a8",
+            parent_windows_manifest_sha256="c8c2780000575ff255b6f72287f85d4b47f85b420b3fa0f29eeacfe74207175b",
+            windows_plan_sha256=windows["provenance"]["native_build_plan_sha256"])
+        api = self.library.test_pair
+        api.argtypes = [ctypes.c_void_p, ctypes.c_size_t] * 3 + [ctypes.c_void_p, ctypes.c_size_t]
+        api.restype = ctypes.c_int
+
+        def check(record, first, second, accepted, capacity=128):
+            raw = tuple(encode(value) for value in (record, first, second))
+            incoming = tuple(ctypes.create_string_buffer(value) for value in raw)
+            before = tuple(bytes(value) for value in incoming)
+            error = ctypes.create_string_buffer(b"!" * (capacity + 8))
+            self.assertEqual(api(incoming[0], len(raw[0]), incoming[1], len(raw[1]),
+                incoming[2], len(raw[2]), error, capacity), int(accepted), error.value)
+            self.assertEqual(tuple(bytes(value) for value in incoming), before)
+            self.assertEqual(bytes(error)[capacity:], b"!" * 8 + b"\0")
+            if capacity:
+                self.assertEqual(error.value == b"", accepted or capacity == 1)
+            if os.environ.get("CUPID_MANIFEST_PAIR_EXPORT"):
+                self.pair_records.append((*raw, accepted))
+
+        for capacity in (0, 1, 128):
+            check(reviewed, linux, windows, True, capacity)
+        for field in ("source_input_count", "windows_plan_sha256", "parent_source_revision",
+                      "parent_linux_manifest_sha256", "parent_windows_manifest_sha256"):
+            bad = copy.deepcopy(reviewed)
+            bad[field] = 76 if field == "source_input_count" else "0" * len(bad[field])
+            check(bad, linux, windows, False)
+        for field in ("source_input_count", "native_build_plan_sha256", "plan_seed_manifest_sha256"):
+            bad = copy.deepcopy(windows)
+            bad["provenance"][field] = 76 if field == "source_input_count" else "0" * 64
+            check(reviewed, linux, bad, False)
+        # Harmless JSON whitespace still changes the bytes referenced by Windows.
+        changed = dict(reversed(list(linux.items())))
+        check(reviewed, changed, windows, False)
+        recovered = copy.deepcopy(windows)
+        recovered["provenance"]["plan_seed_manifest_sha256"] = hashlib.sha256(encode(changed)).hexdigest()
+        check(reviewed, changed, recovered, True)
+        check(reviewed, linux, windows, True)
+
+    def test_long_path_generation_accepts_exact_plan_count_and_parent_tuple(self):
+        for fmt in (1, 2):
+            value = long_path_manifest(fmt)
+            self.check(value, fmt, expected=(6, 3 if fmt == 2 else 0))
+            for field in value["provenance"]:
+                if field.startswith("parent_"):
+                    altered = copy.deepcopy(value)
+                    altered["provenance"][field] = selection_manifest(fmt)["provenance"][field]
+                    self.check(altered, fmt, False)
+                    self.check(value, fmt, expected=(6, 3 if fmt == 2 else 0))
+            for count in (76, 78, True, 77.0):
+                altered = copy.deepcopy(value)
+                altered["provenance"]["source_input_count"] = count
+                # A Linux plan is shared by the 76/77 profiles, but its new
+                # parent is accepted only by the explicit 77-file profile.
+                self.check(altered, fmt, False)
+            if fmt == 2:
+                for field in ("native_build_plan_sha256", "linux_candidate_build_plan_sha256"):
+                    altered = copy.deepcopy(value)
+                    altered["provenance"][field] = "0" * 64
+                    self.check(altered, fmt, False)
+                altered = copy.deepcopy(value)
+                altered["provenance"]["native_build_plan_sha256"] = selection_manifest(2)["provenance"]["native_build_plan_sha256"]
+                self.check(altered, fmt, False)
 
     def test_artifact_generation_accepts_complete_plan_and_utf8_import_profile(self):
         for fmt in (1, 2):
@@ -578,4 +671,13 @@ if __name__ == "__main__":
         with destination.with_suffix(".txt").open("x") as stream:
             stream.write("".join(summary for _, _, summary in ManifestTests.records))
         print(f"Exported {len(ManifestTests.records)} structural manifest cases")
+    if outcome.wasSuccessful() and os.environ.get("CUPID_MANIFEST_PAIR_EXPORT"):
+        destination = Path(os.environ["CUPID_MANIFEST_PAIR_EXPORT"])
+        with destination.with_suffix(".bin").open("xb") as stream:
+            for record, linux, windows, _ in ManifestTests.pair_records:
+                stream.write(struct.pack("<III", len(record), len(linux), len(windows)))
+                stream.write(record + linux + windows)
+        destination.with_suffix(".txt").write_text(
+            "".join("1\n" if row[3] else "0\n" for row in ManifestTests.pair_records), encoding="ascii")
+        print(f"Exported {len(ManifestTests.pair_records)} long-profile pair cases")
     sys.exit(not outcome.wasSuccessful())

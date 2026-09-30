@@ -4,10 +4,13 @@ Source-head CupidBuild now resolves lexical user source/output paths and retains
 the complete output-parent chain through a transaction. Native Windows file
 adapters support long paths; a separate checked profile adds the same support.
 Both native and checked CupidC pass the real long-path compiler cases. Explicit
-source capture freezes and rechecks the long profile's 77 inputs. These
-capabilities still need a closed user compilation transaction, complete
-long-profile seed carriage and paired promotion before the user recipes move.
-Production ownership remains 441 CupidBuild actions and eleven Python actions.
+source capture freezes and rechecks the long profile's 77 inputs. Bootstrap
+drivers, shared seed readers and contract publication now carry that exact
+profile. Both hosts pass 259 profile/publication tests; checked readers agree on
+1,281 manifest and pair cases. Closed user compilation, paired staged proofs
+and promotion remain before the user recipes move.
+The updated manual also passes an isolated Windows image build and four-CPU
+boot smoke. Production ownership remains 441 CupidBuild actions and eleven Python actions.
 See [the bootstrap record](docs/bootstrap/README.md) and
 [the user compilation design](docs/bootstrap/NEXT-USER-COMPILATION.md).
 

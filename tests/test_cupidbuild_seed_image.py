@@ -107,7 +107,7 @@ class SeedImageProfileTests(unittest.TestCase):
             raise AssertionError(result.stdout + result.stderr)
 
     def check(self, payload, fmt, role=1, promoted=1, current=None, accept=False):
-        current = int(fmt == 2) if current is None else current
+        current = (2 if fmt == 2 else 0) if current is None else current
         if isinstance(payload, bytes):
             path = self.directory / 'candidate.bin'
             path.write_bytes(payload)
@@ -147,8 +147,9 @@ class SeedImageProfileTests(unittest.TestCase):
     def test_invalid_profile_arguments_reject(self):
         for fmt, role, promoted, current in ((0, 1, 1, 0), (9, 1, 1, 0),
                 (2, 6, 1, 1), (2, 5, 0, 0), (2, 1, 2, 1),
-                (2, 1, 1, 3), (2, 1, 0, 1), (1, 1, 1, 1),
-                (2, 1, 0, 2), (1, 1, 1, 2)):
+                (2, 1, 1, 4), (2, 1, 0, 1), (1, 1, 1, 1),
+                (2, 1, 0, 2), (1, 1, 1, 2),
+                (2, 1, 0, 3), (1, 1, 1, 3)):
             with self.subTest(profile=(fmt, role, promoted, current)):
                 # Keep the image valid for the requested format so an argument
                 # regression cannot be hidden by an unrelated format failure.
@@ -195,7 +196,30 @@ class SeedImageProfileTests(unittest.TestCase):
                 self.check(wide, 2, role, current=2, accept=True)
                 self.check(wide, 2, role, current=0)
                 self.check(wide, 2, role, current=1)
-                self.check(self.image(2, role), 2, role, current=2)
+                from tests.test_toolchain_bootstrap_seed import ToolchainBootstrapSeedCliTests
+                from tools import bootstrap_toolchain as bootstrap
+                ansi = bytes(ToolchainBootstrapSeedCliTests._minimal_cupidbuild_profile_pe32(
+                    bootstrap._windows_imports(name)))
+                self.check(ansi, 2, role, current=2)
+
+    def test_exact_long_path_profiles_require_one_resolver_and_preserve_older_profiles(self):
+        from tests.test_toolchain_bootstrap_seed import ToolchainBootstrapSeedCliTests
+        from tools import bootstrap_toolchain as bootstrap
+        ordinary = {1, 2, 4}
+        for role, name in enumerate(ROLES):
+            imports = bootstrap._windows_utf8_imports(name, long_paths=True)
+            wide = bytes(ToolchainBootstrapSeedCliTests._minimal_cupidbuild_profile_pe32(imports))
+            with self.subTest(role=name):
+                self.check(wide, 2, role, current=3, accept=True)
+                self.check(wide, 2, role, current=2, accept=role not in ordinary)
+                self.check(self.wide_image(role), 2, role, current=3, accept=role not in ordinary)
+                self.assertEqual(wide.count(b'GetFullPathNameW\0'), 1)
+                self.check(wide.replace(b'GetFullPathNameW\0', b'GetFullPathNameA\0'), 2, role, current=3)
+                extra = list(imports)
+                extra[0] = (extra[0][0], tuple(sorted((*extra[0][1], 'UnexpectedProcedure'))))
+                bad = bytes(ToolchainBootstrapSeedCliTests._minimal_cupidbuild_profile_pe32(tuple(extra)))
+                self.check(bad, 2, role, current=3)
+                self.check(wide, 2, role, current=3, accept=True)
 
     def test_utf8_profiles_reject_wrong_roles_and_mixed_apis(self):
         for role, name in enumerate(ROLES):

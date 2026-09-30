@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-09-26
+Verified against source on: 2026-09-29
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -20,9 +20,10 @@ boundaries. Native entry points and checked startup files select wide argv,
 file, directory and process operations. All six tools use the shared strict
 codec; malformed input is rejected without character replacement.
 
-The build captures 73 bootstrap inputs and 87 publication inputs. Windows
-builds 30 C objects and three startup objects. Exact role-specific import
-profiles and matching plan identities keep historical seed validation separate.
+The default profile captures 76 producer inputs; the long-file profile captures
+77. Publication captures 89. Windows builds 32 C objects and three assembly
+objects, or four in the long-file profile. Exact role-specific import tables
+and matching plan identities keep historical seed validation separate.
 The Windows seeds select the UTF-8 profile. Historical ANSI manifests retain
 their separate plan, source-count and import checks.
 >endtree
@@ -33,9 +34,9 @@ It checks the reviewed paired release, both manifests, twelve tool payloads and
 sixteen exact artifact sizes, then rechecks observations and closes handles before
 success. It creates no files and launches no tools. Metadata-only artifact checks
 cannot detect same-size edits with restored timestamps; seed payloads are hashed.
-Candidate plans capture 76 producer and 88 publication inputs. Installed seeds
-retain the accepted 73-input profile. Production verification still uses Python
-while the new command completes integration acceptance and seed promotion.
+Producer profiles capture 76 or 77 inputs; publication captures 89. Installed seeds
+retain the accepted 76-input profile. Production verification uses checked
+CupidBuild; the separate long-file profile still needs paired proofs and promotion.
 
 >h2 Reusable build verification modules
 Checked CupidBuild now has a read-only filesystem observer. It retains
@@ -46,7 +47,7 @@ tests on both hosts. Windows denies deletion while handles remain open; Linux
 detects replacement during revalidation. Metadata-only checks do not detect
 same-size edits with restored timestamps. Root identity, link count, size and
 modification time are checked across the lifetime. Production artifact
-verification still uses Python.
+verification uses the promoted CupidBuild observer.
 
 Checked artifact_size_policy_validate checks immutable CUPSIZE2 bytes and
 returns an explicit result with bounded diagnostics. The artifact adapter and
@@ -69,10 +70,10 @@ contains both six-tool cohorts and sits outside their exact seed directories.
 Its author validates the installed pair and writes only a new review candidate;
 it does not promote tools. The runner captures 26 build inputs, checks the record
 before contract execution, and rechecks its bytes afterward. Record parsing does
-not authenticate an untrusted release. Observer integration and native command-level checks
-remain required before artifact verification can leave Python. Current inventories
-contain 73 bootstrap inputs and 87 publication inputs. The checked seeds carry
-the UTF-8 generation. Production artifact verification remains Python-coordinated.
+not authenticate an untrusted release. The observer and native command checks
+now support production artifact verification through CupidBuild. Default producer
+capture contains 76 inputs; the long-file profile contains 77. Publication captures
+89. Installed seeds carry the default UTF-8 generation.
 
 >h2 Native user executable validation
 Checked CupidBuild validates external i386 ELF32 executables in memory.
@@ -1097,8 +1098,8 @@ checked profile adds the full-path resolver to ordinary tool imports. Native
 and checked CupidC pass long source/output and repository-root cases, with
 objects matching short-path references. Its selected source closure captures
 and rechecks all 77 inputs, including the resolver shim. Long file support does
-not establish support for a long process working directory. Installed seed carriage and production
-user compilation still need integration. The normal graph remains at 441
-CupidBuild and eleven Python actions across 452 transforms. ADR 0409 records
-the source contracts and remaining work.
+not establish support for a long process working directory. Bootstrap drivers,
+shared readers and publication carry the exact 77-input profile; publication
+captures 89 inputs. Paired proofs, promotion and user compilation remain open.
+The graph has 441 CupidBuild and eleven Python actions. ADRs 0409 and 0410 apply.
 >endtree

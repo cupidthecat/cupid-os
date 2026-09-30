@@ -58,8 +58,9 @@ static const char manifest_report_schema[] =
 
 #define MANIFEST_ARTIFACT_COUNT 22u
 #define MANIFEST_INPUT_LIMIT 256u
-#define MANIFEST_EXPECTED_INPUT_COUNT 88u
+#define MANIFEST_EXPECTED_INPUT_COUNT 89u
 #define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 76u
+#define MANIFEST_LONG_PATH_BOOTSTRAP_FILE_COUNT 77u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
 #define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 27u
@@ -123,6 +124,7 @@ static const char *const
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+    "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
     "toolchain/hosted/i386-windows/utf8_publication_start.asm",
     "toolchain/hosted/i386-windows/utf8_tool_start.asm",
     "toolchain/hosted/i386-windows/windows_utf8.cc",
@@ -171,7 +173,7 @@ static const char *const
 };
 
 static const char *const manifest_expected_bootstrap_paths
-    [MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT] = {
+    [MANIFEST_LONG_PATH_BOOTSTRAP_FILE_COUNT] = {
     "link.ld",
     "toolchain/artifact_size_policy.cc",
     "toolchain/artifact_size_policy.h",
@@ -248,6 +250,7 @@ static const char *const manifest_expected_bootstrap_paths
     "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
     "toolchain/x86.cc",
     "toolchain/x86.h",
+    "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
 };
 
 static int manifest_parse_string_literal(error_context_t *context, json_reader_t *reader,
@@ -450,7 +453,7 @@ static int manifest_expected_inventories_match(error_context_t *context,
     }
   }
   for (expected_index = 0u;
-       expected_index < MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT;
+       expected_index < state->bootstrap_file_count;
        expected_index++) {
     int found = 0;
     for (actual_index = 0u; actual_index < state->bootstrap_file_count;
@@ -1410,8 +1413,8 @@ static int manifest_parse_source_inputs(error_context_t *context, json_reader_t 
     }
   }
   if (fields != 7u ||
-      state->bootstrap_file_count !=
-          MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT ||
+      (state->bootstrap_file_count != MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT &&
+       state->bootstrap_file_count != MANIFEST_LONG_PATH_BOOTSTRAP_FILE_COUNT) ||
       state->declared_bootstrap_file_count !=
           (uint64_t)state->bootstrap_file_count ||
       !manifest_bootstrap_snapshot_digest(context, state, actual_digest) ||
@@ -2034,8 +2037,8 @@ static int manifest_parse(error_context_t *context, byte_slice_t source, manifes
       state->input_count != MANIFEST_EXPECTED_INPUT_COUNT) {
     return cupid_contract_set_error(context, "manifest input count differs from its inventory");
   }
-  if (state->bootstrap_file_count !=
-          MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT ||
+  if ((state->bootstrap_file_count != MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT &&
+       state->bootstrap_file_count != MANIFEST_LONG_PATH_BOOTSTRAP_FILE_COUNT) ||
       !manifest_expected_inventories_match(context, state)) {
     return 0;
   }
@@ -2145,10 +2148,10 @@ static int manifest_validate_request(error_context_t *context, const file_image_
     }
   }
   if (!cupid_contract_binary_read_u32(context, &reader, &observation_count) ||
-      observation_count != MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT) {
+      observation_count != state->bootstrap_file_count) {
     return cupid_contract_set_error(context, "request bootstrap observation count differs");
   }
-  for (index = 0u; index < MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT; index++) {
+  for (index = 0u; index < state->bootstrap_file_count; index++) {
     byte_slice_t path;
     byte_slice_t digest;
     uint32_t kind;
@@ -2368,21 +2371,22 @@ static int manifest_author_read_inputs(error_context_t *context, binary_reader_t
 
 static int manifest_author_read_bootstrap_inputs(error_context_t *context,
     binary_reader_t *reader, manifest_state_t *state) {
-  int seen[MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT];
+  int seen[MANIFEST_LONG_PATH_BOOTSTRAP_FILE_COUNT];
   byte_slice_t expected_snapshot;
   char actual_snapshot[65];
   uint32_t count;
   size_t index;
   (void)memset(seen, 0, sizeof(seen));
   if (!cupid_contract_binary_read_u32(context, reader, &count) ||
-      count != MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT) {
+      (count != MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT &&
+       count != MANIFEST_LONG_PATH_BOOTSTRAP_FILE_COUNT)) {
     return cupid_contract_set_error(context, "manifest author bootstrap input count differs");
   }
   state->bootstrap_file_count =
-      MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT;
+      (size_t)count;
   state->declared_bootstrap_file_count =
-      MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT;
-  for (index = 0u; index < MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT;
+      (size_t)count;
+  for (index = 0u; index < state->bootstrap_file_count;
        index++) {
     byte_slice_t path;
     byte_slice_t digest;
@@ -2394,7 +2398,7 @@ static int manifest_author_read_bootstrap_inputs(error_context_t *context,
     }
     input_index = manifest_slice_literal_index(
         &path, manifest_expected_bootstrap_paths,
-        MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT);
+        state->bootstrap_file_count);
     if (input_index < 0 || seen[(size_t)input_index] != 0) {
       return cupid_contract_set_error(context, "manifest author bootstrap inventory differs");
     }

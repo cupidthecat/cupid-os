@@ -22,22 +22,74 @@ These capabilities have not transferred user recipes to CupidBuild. The installe
 seed profile remains pinned. Its original 310-character Windows compiler probe
 still fails; the new checked fixture fixes that case through a separate profile.
 The selected long profile now freezes and rechecks all 77 source inputs,
-including its resolver shim. Full bootstrap CLI selection, manifest-reader
-carriage, paired staged proofs and promotion remain open. Closed user compilation and the separate
-user-link transaction remain open. Production ownership remains 441 CupidBuild
+including its resolver shim. Bootstrap CLI selection, shared manifest validation
+and contract publication now carry the exact profile. Paired staged proofs,
+promotion, closed user compilation and the separate user-link transaction remain
+open. Production ownership remains 441 CupidBuild
 and eleven Python actions. See [the user compilation design](NEXT-USER-COMPILATION.md)
 and ADR 0409 for the contracts and remaining work.
 
 
 Windows incremental OS acceptance passes after the manual update. The kernel is
-9,572,436 bytes. Independent verification checks 1,538 source inputs, sixteen
+9,572,532 bytes. Independent verification checks 1,540 source inputs, sixteen
 artifacts and the 431-input code cohort. All three user executables match the
 previous accepted bytes. The image contains the measured kernel, and the private
 four-CPU max/e1000 smoke passes disassembly, shell completion and SMP checks
 without changing the source image. Its SHA-256 is
-`3abecb9d57efded4b91e9b89a06603cd851731605bfaf5b0fa1dc91dce38fefd`.
-Evidence is under `build/bootstrap/user-path-os-v1/`. This is incremental Windows
+`5b155c56e4a0461b446d9a71385789a6afd96262b6ef031aa8b8ba46d87199a0`.
+Evidence is under `build/bootstrap/long-path-profile-os-v1/`. This is incremental Windows
 acceptance; full Doom gameplay, audio, save/load, reboot and performance remain open.
+
+## Long-path bootstrap profile carriage, 2026-09-29
+
+The bootstrap and contract-publication drivers accept `--windows-long-paths`.
+Both proof drivers capture the same selected 77-file producer inventory. The
+Windows plan builds 32 C objects, four assembly objects and six tools; Linux
+builds 27 C objects, startup and six tools. Default producer capture remains at
+76 files. Publication captures 89 inputs, with a 116-file producer/publication
+union for either mode.
+
+The shared reader accepts count 77 only with the exact Windows plan digest and
+the complete installed `5ba6ea24` parent tuple. Linux shares the existing plan
+digest, so its count and parent distinguish the new profile. Windows image
+validation has a distinct exact import table: ordinary tools gain one
+`GetFullPathNameW`; publication and build tools retain their existing wide tables.
+Historical profiles keep their count, plan, parent and import rules. Behavior
+fixtures bind the actual captured execution and plan parents.
+
+Publication authoring and verification admit either complete 76- or 77-file
+producer inventory. Only the latter contains the ordinary resolver shim. Live
+verification recaptures that inventory, and reuse requires the requested profile.
+Invalid selection fails before input or output preparation. Installed seed
+identities and production ownership remain unchanged.
+
+Both hosts pass 259 profile/publication methods. Checked Cupid readers agree on
+1,267 structural manifest cases and fourteen release/manifest pair cases; five
+shared object pairs also match. The native Windows six-tool suite passes three
+methods in 396.262 seconds and builds the complete checked long profile. Evidence
+is under `build/bootstrap/long-path-profile-v1/`, including
+`paired-checked-reader-v1.json` and the v3 profile/publication logs.
+
+The selected driver rerun passes seventeen regressions on each host, with four
+expected Linux skips. The audit mutation corpus passes in 309.522 seconds. The
+generated graph has 765 active source inputs, 41 unreachable files and 452
+transforms; ownership remains 441 CupidBuild actions and eleven Python actions.
+
+Windows OS acceptance uses an isolated incremental build. All 83 fresh Doom
+objects match the previous accepted objects; 156 retained kernel objects have
+byte-identical source-specific closed inputs and the same installed producers.
+The final manual is present in its object, ELF kernel and raw kernel. Sixteen
+artifact checks and all three user programs pass. The private four-CPU max/e1000
+smoke completes disassembly, `ls` and SMP runtime checks without changing the
+source image. Independent rechecks cover 1,540 source inputs and 431 recorded
+link inputs. The raw kernel is 9,572,532 bytes. The 209,715,200-byte image has
+SHA-256 `5b155c56e4a0461b446d9a71385789a6afd96262b6ef031aa8b8ba46d87199a0`.
+Evidence is under `build/bootstrap/long-path-profile-os-v1/`. This acceptance
+uses the installed seeds and does not promote the new long-file profile.
+
+Fresh paired stage-three/four proofs, reviewed promotion and closed user
+compilation remain open. Long file names do not establish long process
+working-directory support. ADR 0410 records the profile boundary.
 
 ## Production artifact handoff, 2026-09-29
 

@@ -175,6 +175,7 @@ CUPIDC_HOSTED_I386_RUNTIME := hosted/i386-linux/runtime.cc \
 CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/publication_runtime.cc \
                                       hosted/i386-windows/windows_utf8.cc \
                                       hosted/i386-windows/utf8_tool_start.asm \
+                                      hosted/i386-windows/utf8_long_path_start.asm \
                                       hosted/i386-windows/utf8_publication_start.asm \
                                       hosted/i386-windows/utf8_cupidbuild_start.asm \
                                       path_encoding.cc \

@@ -781,7 +781,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 88)
+        self.assertEqual(len(inputs), 89)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)
@@ -3382,7 +3382,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
         root = Path("contract-root").resolve()
         manifest = root / "bootstrap/seeds/i386-linux/manifest.json"
         output = root / "toolchain/build/cupidc-contracts"
-        report = {"status": "pass"}
+        report = {"status": "pass", "bootstrap": {"source_inputs": {"files": {}}}}
 
         with mock.patch.object(
             Path, "exists", return_value=True

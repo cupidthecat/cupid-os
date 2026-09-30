@@ -77,7 +77,7 @@ typedef enum {
 /* Validate immutable captured bytes without selecting or launching a tool.
  * Artifact order is CupidASM, CupidC, CupidDis, CupidLD, CupidObj, CupidBuild.
  * The legacy cohort contains the first five roles. promoted must be zero or
- * one. current_windows_plan selects legacy (0), current ANSI (1), or UTF-8 (2)
+ * one. current_windows_plan selects legacy (0), current ANSI (1), UTF-8 (2), or UTF-8 long paths (3)
  * imports. Nonzero selections require promoted PE32 input.
  * The caller retains ownership and proves capture identity and release trust.
  * Returns one only for the exact format, entry point, and role import profile.

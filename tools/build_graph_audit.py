@@ -186,6 +186,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+    "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
     "toolchain/hosted/i386-windows/utf8_publication_start.asm",
     "toolchain/hosted/i386-windows/utf8_tool_start.asm",
     "toolchain/hosted/i386-windows/windows_utf8.cc",
@@ -467,6 +468,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+    "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
     "toolchain/hosted/i386-windows/utf8_publication_start.asm",
     "toolchain/hosted/i386-windows/utf8_tool_start.asm",
     "toolchain/hosted/i386-windows/windows_utf8.cc",
@@ -15109,7 +15111,7 @@ def _cupid_toolchain_fixed_point_contract(
     ) or not has_exact_live_expression_assignment(
         windows_bootstrap_function,
         "native_plan",
-        "_windows_build_plan(linux_plan, utf8=True)",
+        "_windows_build_plan(linux_plan, utf8=True, long_paths=windows_long_paths)",
     ):
         missing_bootstrap_fragments.append(
             "Windows driver: one live candidate and native plan chain"
@@ -15229,6 +15231,8 @@ def _cupid_toolchain_fixed_point_contract(
     required_linux_bootstrap_fragments = (
         "plan = _candidate_build_plan(checked_plan)",
         "windows_utf8=True,",
+        "windows_long_paths=windows_long_paths,",
+        'if type(windows_long_paths) is not bool:',
         "source_inputs = freeze_source_inputs(",
         "private_source_root = source_inputs.root",
         "runner = ToolRunner(private_source_root)",
@@ -15296,8 +15300,10 @@ def _cupid_toolchain_fixed_point_contract(
     )
     required_windows_bootstrap_fragments = (
         "linux_plan = _candidate_build_plan(checked_linux_plan)",
-        "native_plan = _windows_build_plan(linux_plan, utf8=True)",
+        "native_plan = _windows_build_plan(linux_plan, utf8=True, long_paths=windows_long_paths)",
         "windows_utf8=True,",
+        "windows_long_paths=windows_long_paths,",
+        'if type(windows_long_paths) is not bool:',
         "source_inputs = freeze_source_inputs(",
         "private_source_root = source_inputs.root",
         "runner = ToolRunner(private_source_root)",
@@ -15688,7 +15694,7 @@ def _cupid_toolchain_fixed_point_contract(
             'provenance["linux_candidate_build_plan_sha256"] = _build_plan_sha256(linux_plan)',
             'provenance["source_input_count"] = len(source_snapshot)',
             'provenance["source_snapshot_sha256"] = _source_snapshot_sha256(source_snapshot)',
-            'digest != _build_plan_sha256(_windows_build_plan(linux_plan, utf8=utf8))',
+            'digest != _build_plan_sha256(_windows_build_plan(linux_plan, utf8=utf8, long_paths=long_paths))',
             'if not source_snapshot:',
 
             "manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest()",
@@ -15719,15 +15725,17 @@ def _cupid_toolchain_fixed_point_contract(
             'stage_two.tools["cupidasm"].read_bytes()',
             'stage_three.tools["cupidasm"].read_bytes()',
             "_validate_static_i386_pe32(",
-            '_windows_utf8_imports("cupidasm") if behavior_utf8 else _windows_imports("cupidasm")',
+            '_windows_utf8_imports("cupidasm", long_paths=behavior_long_paths) if behavior_utf8 else _windows_imports("cupidasm")',
             "behavior_seed_inputs = _retarget_native_windows_behavior_seed(\n"
             "        seed_inputs, _build_plan_sha256(native_plan),\n"
             "        behavior_linux_plan, behavior_source_snapshot,\n"
-            "        utf8=behavior_utf8,\n"
+            "        utf8=behavior_utf8, long_paths=behavior_long_paths,\n"
+            "        parent_plan_seed=linux_seed_inputs,\n"
             "    )",
-            "behavior_utf8 = _windows_plan_uses_utf8(native_plan)",
+            "behavior_utf8, behavior_long_paths = _windows_plan_profile(native_plan)",
             "behavior_source_snapshot = capture_source_snapshot(\n"
-            "        output_root, behavior_linux_plan, windows_utf8=behavior_utf8\n"
+            "        output_root, behavior_linux_plan, windows_utf8=behavior_utf8,\n"
+            "        windows_long_paths=behavior_long_paths,\n"
             "    )",
             'behavior_linux_plan = _candidate_build_plan(\n'
             '        _require_object(linux_seed_inputs.manifest.get("build_plan"), "build_plan")\n'
@@ -15951,6 +15959,7 @@ def _cupid_toolchain_fixed_point_contract(
         "toolchain/hosted/i386-windows/tool_start.asm",
         "toolchain/hosted/i386-windows/utf8_tool_start.asm",
         "toolchain/hosted/i386-windows/utf8_publication_start.asm",
+        "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
         "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
         "toolchain/path_encoding.cc",
@@ -16154,7 +16163,7 @@ return tuple(
             verify_inputs_function, "live_bootstrap_inputs"
         )
         expected_recapture = ast.parse(
-            "capture_source_snapshot(root, _candidate_build_plan(build_plan), windows_utf8=True)",
+            'capture_source_snapshot(root, _candidate_build_plan(build_plan), windows_utf8=True, windows_long_paths=("toolchain/hosted/i386-windows/utf8_long_path_start.asm" in bootstrap["source_inputs"]["files"]))',
             mode="eval",
         ).body
         if (

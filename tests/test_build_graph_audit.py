@@ -6555,13 +6555,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["windows_help_cases"], 7)
         self.assertEqual(contract["windows_success_behavior_cases"], 42)
         self.assertEqual(contract["windows_failure_behavior_cases"], 35)
-        self.assertEqual(contract["contract_manifest_inputs"], 88)
-        self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 88)
+        self.assertEqual(contract["contract_manifest_inputs"], 89)
+        self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 89)
         self.assertIn(
             "toolchain/x86.cc",
             module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
         )
-        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 122)
+        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 123)
         self.assertTrue(
             set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS).issubset(
                 module.TOOLCHAIN_CONTRACT_LINUX_INPUTS
@@ -7178,9 +7178,31 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "for selector in _windows_import_selectors(tool_name):",
                 r"native Windows fixed-point behavior differs",
             ),
+            "native Windows driver drops long-profile capture selection": (
+                "bootstrap",
+                "            linux_plan,\n"
+                "            private_workspace / \"source\",\n"
+                "            windows_utf8=True,\n"
+                "            windows_long_paths=windows_long_paths,\n",
+                "            linux_plan,\n"
+                "            private_workspace / \"source\",\n"
+                "            windows_utf8=True,\n",
+                r"fixed-point source freeze differs",
+            ),
+            "Linux driver drops long-profile capture selection": (
+                "bootstrap",
+                "            plan,\n"
+                "            private_workspace / \"source\",\n"
+                "            windows_utf8=True,\n"
+                "            windows_long_paths=windows_long_paths,\n",
+                "            plan,\n"
+                "            private_workspace / \"source\",\n"
+                "            windows_utf8=True,\n",
+                r"fixed-point source freeze differs",
+            ),
             "native Windows driver loses UTF-8 plan selection": (
                 "bootstrap",
-                "native_plan = _windows_build_plan(linux_plan, utf8=True)",
+                "native_plan = _windows_build_plan(linux_plan, utf8=True, long_paths=windows_long_paths)",
                 "native_plan = _windows_build_plan(linux_plan)",
                 r"fixed-point source freeze differs",
             ),
@@ -7768,18 +7790,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "publication recaptures the checked plan": (
                 "contract_publisher",
-                "            root, _candidate_build_plan(build_plan), windows_utf8=True\n",
-                "            root, build_plan\n",
+                "            root, _candidate_build_plan(build_plan), windows_utf8=True,\n",
+                "            root, build_plan, windows_utf8=True,\n",
                 r"manifest author decision order differs",
             ),
             "publication candidate call is hidden in a false conditional": (
                 "contract_publisher",
-                "            root, _candidate_build_plan(build_plan), windows_utf8=True\n",
+                "            root, _candidate_build_plan(build_plan), windows_utf8=True,\n",
                 "            root, (\n"
                 "                _candidate_build_plan(build_plan)\n"
                 "                if False\n"
                 "                else build_plan\n"
-                "            ), windows_utf8=True\n",
+                "            ), windows_utf8=True,\n",
                 r"manifest author decision order differs",
             ),
             "PE32 Windows startup leaves the contract manifest": (
@@ -8783,7 +8805,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "_retarget_native_windows_behavior_seed(\n"
                 "        seed_inputs, _build_plan_sha256(native_plan),\n"
                 "        behavior_linux_plan, behavior_source_snapshot,\n"
-                "        utf8=behavior_utf8,\n"
+                "        utf8=behavior_utf8, long_paths=behavior_long_paths,\n"
+                "        parent_plan_seed=linux_seed_inputs,\n"
                 "    )\n",
                 "    behavior_seed_inputs = seed_inputs\n",
                 r"native Windows fixed-point behavior differs",

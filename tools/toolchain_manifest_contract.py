@@ -456,6 +456,8 @@ def _contract_input_logical_paths(
 def _bootstrap_input_logical_paths(
     reader: artifact_size_policy._PinnedRepository,
     plan: dict[str, object],
+    *,
+    windows_long_paths: bool = False,
 ) -> tuple[str, ...]:
     raw_sources = plan.get("sources")
     startup = plan.get("startup")
@@ -500,6 +502,8 @@ def _bootstrap_input_logical_paths(
             "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         )
     )
+    if windows_long_paths:
+        paths.append("toolchain/hosted/i386-windows/utf8_long_path_start.asm")
     paths.extend(_directory_members_with_suffix(reader, "toolchain", ".h"))
     paths.extend(
         _directory_members_with_suffix(
@@ -565,7 +569,9 @@ def _capture_live_manifest_closure(
             "Toolchain publication seed build plan differs"
         )
     bootstrap_paths = _bootstrap_input_logical_paths(
-        reader, _candidate_build_plan(build_plan)
+        reader, _candidate_build_plan(build_plan),
+        windows_long_paths=("toolchain/hosted/i386-windows/utf8_long_path_start.asm"
+                            in bootstrap["source_inputs"]["files"]),
     )
     bootstrap_observations, bootstrap_snapshots = (
         _capture_regular_observations(

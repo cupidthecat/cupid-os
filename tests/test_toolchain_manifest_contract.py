@@ -1,3 +1,4 @@
+import copy
 import hashlib
 import json
 import os
@@ -145,6 +146,7 @@ INPUT_PATHS = (
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+    "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
     "toolchain/hosted/i386-windows/utf8_publication_start.asm",
     "toolchain/hosted/i386-windows/utf8_tool_start.asm",
     "toolchain/hosted/i386-windows/windows_utf8.cc",
@@ -713,7 +715,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(
             result.stdout,
             '{"artifact_count":22,"artifact_total_bytes":682,'
-            '"bootstrap_source_input_count":76,"input_count":88,'
+            '"bootstrap_source_input_count":76,"input_count":89,'
             '"schema":"cupid.toolchain-manifest-verification.v1"}\n',
         )
         self.assertEqual(result.stderr, "")
@@ -1634,14 +1636,41 @@ class ToolchainManifestContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_long_path_inventory_is_authored_and_verified_with_the_resolver_shim(self):
+        manifest, observations = _fixture()
+        inputs = manifest["bootstrap"]["source_inputs"]
+        shim = "toolchain/hosted/i386-windows/utf8_long_path_start.asm"
+        inputs["files"][shim] = _digest_size("long path resolver", 31)
+        inputs["count"] = 77
+        inputs["sha256"] = _digest(_json_bytes(inputs["files"]))
+        request = _author_request(manifest=manifest, observations=observations)
+        result = self.run_author_request(request)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), manifest)
+        self.assertEqual(result.stdout, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+        verified = self.run_request(_request(manifest=manifest, observations=observations))
+        self.assertEqual(verified.returncode, 0, verified.stderr)
+        self.assertEqual(json.loads(verified.stdout)["bootstrap_source_input_count"], 77)
+        bad = copy.deepcopy(manifest)
+        bad_inputs = bad["bootstrap"]["source_inputs"]
+        bad_inputs["files"]["toolchain/unexpected.asm"] = bad_inputs["files"].pop(shim)
+        bad_inputs["sha256"] = _digest(_json_bytes(bad_inputs["files"]))
+        self.assert_contract_failure(_request(manifest=bad, observations=observations))
+        rejected = self.run_author_request(_author_request(manifest=bad, observations=observations))
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertEqual(rejected.stdout, "")
+        recovered = self.run_author_request(request)
+        self.assertEqual(recovered.returncode, 0, recovered.stderr)
+        self.assertEqual(recovered.stdout, result.stdout)
+
     def test_current_publication_inventory_counts_are_exact(self):
         self.assertEqual(len(ARTIFACT_NAMES), 22)
-        self.assertEqual(len(INPUT_PATHS), 88)
+        self.assertEqual(len(INPUT_PATHS), 89)
         self.assertEqual(len(BOOTSTRAP_PATHS), 76)
         self.assertEqual(len(OBJECT_COMPARISON_NAMES), 17)
         self.assertEqual(len(BOOTSTRAP_OBJECT_NAMES), 28)
         self.assertEqual(len(BOOTSTRAP_TOOL_NAMES), 6)
-        for input_count in (75, 77, 80, 82, 86, 87, 89):
+        for input_count in (75, 77, 80, 82, 86, 87, 88, 90):
             with self.subTest(input_count=input_count):
                 self.assertNotEqual(input_count, len(INPUT_PATHS))
                 manifest, observations = _fixture()

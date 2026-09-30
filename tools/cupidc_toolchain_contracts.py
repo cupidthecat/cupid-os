@@ -145,6 +145,7 @@ WINDOWS_RUNTIME_INPUTS = (
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/hosted/i386-windows/utf8_tool_start.asm",
     "toolchain/hosted/i386-windows/utf8_publication_start.asm",
+    "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
     "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/windows_utf8.cc",
     "toolchain/path_encoding.cc",
@@ -1825,7 +1826,9 @@ def verify_publication_inputs(
                 "published bootstrap build plan differs from the live seed"
             )
         live_bootstrap_inputs = capture_source_snapshot(
-            root, _candidate_build_plan(build_plan), windows_utf8=True
+            root, _candidate_build_plan(build_plan), windows_utf8=True,
+            windows_long_paths=("toolchain/hosted/i386-windows/utf8_long_path_start.asm"
+                                in bootstrap["source_inputs"]["files"]),
         )
     except (
         BootstrapError,
@@ -2033,7 +2036,11 @@ def build_contracts(
     manifest: Path,
     output: Path,
     workers: int = 2,
+    *,
+    windows_long_paths: bool = False,
 ) -> dict[str, object]:
+    if type(windows_long_paths) is not bool:
+        raise ContractError("Windows long-path selection must be Boolean")
     validate_plans(CONTRACT_PLANS)
     root = root.resolve()
     manifest, manifest_relative = _resolve_manifest(root, manifest)
@@ -2057,6 +2064,7 @@ def build_contracts(
                 manifest,
                 root,
                 bootstrap_output,
+                **({"windows_long_paths": True} if windows_long_paths else {}),
             )
         except BootstrapError as error:
             raise ContractError(
@@ -2261,7 +2269,11 @@ def ensure_contracts(
     manifest: Path,
     output: Path,
     workers: int = 2,
+    *,
+    windows_long_paths: bool = False,
 ) -> dict[str, object]:
+    if type(windows_long_paths) is not bool:
+        raise ContractError("Windows long-path selection must be Boolean")
     root = root.resolve()
     if workers < 1 or workers > 8:
         raise ContractError("contract worker count must be from 1 through 8")
@@ -2274,12 +2286,16 @@ def ensure_contracts(
             report = verify_publication(output)
             verify_publication_inputs(root, report)
             _require_report_manifest(report, manifest, manifest_relative)
+            if ("toolchain/hosted/i386-windows/utf8_long_path_start.asm"
+                    in report["bootstrap"]["source_inputs"]["files"]) != windows_long_paths:
+                raise ContractError("published Windows long-path profile differs")
         except ContractError:
             _announce("the published cohort is stale and will be rebuilt")
         else:
             _announce("the published cohort is current")
             return report
-    return build_contracts(root, manifest, output, workers)
+    return build_contracts(root, manifest, output, workers,
+        **({"windows_long_paths": True} if windows_long_paths else {}))
 
 
 def run_published_contract(
@@ -2701,6 +2717,7 @@ def _build_parser() -> argparse.ArgumentParser:
     build.add_argument("--manifest", required=True, type=Path)
     build.add_argument("--output", required=True, type=Path)
     build.add_argument("--workers", type=int, default=2)
+    build.add_argument("--windows-long-paths", action="store_true")
     ensure = subparsers.add_parser(
         "ensure", help="build the checked cohort when it is not current"
     )
@@ -2708,6 +2725,7 @@ def _build_parser() -> argparse.ArgumentParser:
     ensure.add_argument("--manifest", required=True, type=Path)
     ensure.add_argument("--output", required=True, type=Path)
     ensure.add_argument("--workers", type=int, default=2)
+    ensure.add_argument("--windows-long-paths", action="store_true")
     user_abi = subparsers.add_parser(
         "user-abi", help="check the user syscall ABI with the Cupid contract"
     )
@@ -2747,6 +2765,7 @@ def main(argv: list[str] | None = None) -> int:
                 arguments.manifest,
                 arguments.output,
                 arguments.workers,
+                windows_long_paths=arguments.windows_long_paths,
             )
             print(
                 "CupidC toolchain contracts: ok "
@@ -2759,6 +2778,7 @@ def main(argv: list[str] | None = None) -> int:
                 arguments.manifest,
                 arguments.output,
                 arguments.workers,
+                windows_long_paths=arguments.windows_long_paths,
             )
             print(
                 "CupidC toolchain contracts: ready "

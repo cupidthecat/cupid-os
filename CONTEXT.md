@@ -177,7 +177,9 @@ inheritable handle therefore stays in the parent. This is a single-threaded
 launch contract, not a child-process sandbox. The current Windows source
 profile has 33 exact `KERNEL32.dll` imports and three exact `NTDLL.dll`
 imports. The checked seed carries that profile; retained parent cohorts keep
-their exact historical import contracts.
+their exact historical import contracts. Extended file-name profiles are
+distinct from process working-directory support; selecting one does not broaden
+the other or change the checked release identity.
 
 The promoted fixed-point matrices run typed JPEG and kernel-symbol
 publication through

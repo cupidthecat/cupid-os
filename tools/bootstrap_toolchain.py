@@ -2707,6 +2707,8 @@ def _promoted_windows_imports(
         ("6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748", 76),
     ):
         return _windows_utf8_imports(tool_name)
+    if profile == ("5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc", 77):
+        return _windows_utf8_imports(tool_name, long_paths=True)
     raise BootstrapError("promoted Windows import profile differs")
 
 
@@ -3462,6 +3464,8 @@ def _retarget_native_windows_behavior_seed(
     source_snapshot: dict[str, dict[str, object]],
     *,
     utf8: bool = False,
+    long_paths: bool = False,
+    parent_plan_seed: SeedInputs | None = None,
 ) -> SeedInputs:
     if seed_inputs.manifest.get("schema") != PROMOTED_WINDOWS_SEED_SCHEMA:
         return seed_inputs
@@ -3470,7 +3474,7 @@ def _retarget_native_windows_behavior_seed(
         64,
         "native Windows behavior build plan SHA-256",
     )
-    if digest != _build_plan_sha256(_windows_build_plan(linux_plan, utf8=utf8)):
+    if digest != _build_plan_sha256(_windows_build_plan(linux_plan, utf8=utf8, long_paths=long_paths)):
         raise BootstrapError("native Windows behavior build plan differs")
     if not source_snapshot:
         raise BootstrapError("native Windows behavior source snapshot is empty")
@@ -3480,6 +3484,14 @@ def _retarget_native_windows_behavior_seed(
         raise BootstrapError(
             "native Windows behavior seed build plan is unavailable"
         )
+    if long_paths:
+        if parent_plan_seed is None:
+            raise BootstrapError("native Windows behavior parent plan seed is unavailable")
+        _require_seed_pair_identity(seed_inputs, parent_plan_seed)
+        provenance["parent_execution_seed_manifest_sha256"] = seed_inputs.manifest_sha256
+        provenance["parent_execution_seed_source_revision"] = provenance["source_revision"]
+        provenance["parent_plan_seed_manifest_sha256"] = parent_plan_seed.manifest_sha256
+        provenance["parent_plan_seed_source_revision"] = parent_plan_seed.manifest["provenance"]["source_revision"]
     provenance["native_build_plan_sha256"] = digest
     provenance["linux_candidate_build_plan_sha256"] = _build_plan_sha256(linux_plan)
     provenance["source_input_count"] = len(source_snapshot)
@@ -5260,14 +5272,16 @@ def _run_native_windows_behavior_checks(
     behavior_linux_plan = _candidate_build_plan(
         _require_object(linux_seed_inputs.manifest.get("build_plan"), "build_plan")
     )
-    behavior_utf8 = _windows_plan_uses_utf8(native_plan)
+    behavior_utf8, behavior_long_paths = _windows_plan_profile(native_plan)
     behavior_source_snapshot = capture_source_snapshot(
-        output_root, behavior_linux_plan, windows_utf8=behavior_utf8
+        output_root, behavior_linux_plan, windows_utf8=behavior_utf8,
+        windows_long_paths=behavior_long_paths,
     )
     behavior_seed_inputs = _retarget_native_windows_behavior_seed(
         seed_inputs, _build_plan_sha256(native_plan),
         behavior_linux_plan, behavior_source_snapshot,
-        utf8=behavior_utf8,
+        utf8=behavior_utf8, long_paths=behavior_long_paths,
+        parent_plan_seed=linux_seed_inputs,
     )
 
     _check_cupidbuild_cupidobj_runner_behavior(
@@ -5580,7 +5594,7 @@ def _run_native_windows_behavior_checks(
     _validate_static_i386_pe32(
         stage_two_linked,
         int(EXPECTED_WINDOWS_TARGET["entry"]),
-        _windows_utf8_imports("cupidasm") if behavior_utf8 else _windows_imports("cupidasm"),
+        _windows_utf8_imports("cupidasm", long_paths=behavior_long_paths) if behavior_utf8 else _windows_imports("cupidasm"),
     )
 
     return {
@@ -9238,7 +9252,10 @@ def _bootstrap_from_frozen_seed(
     output_root: Path,
     *,
     compare_fixed_point: bool,
+    windows_long_paths: bool = False,
 ) -> dict[str, object]:
+    if type(windows_long_paths) is not bool:
+        raise BootstrapError("Windows long-path selection must be Boolean")
     seed_tools = seed_inputs.tools
     manifest = seed_inputs.manifest
     seed_provenance = _require_object(
@@ -9272,6 +9289,7 @@ def _bootstrap_from_frozen_seed(
             plan,
             private_workspace / "source",
             windows_utf8=True,
+            windows_long_paths=windows_long_paths,
         )
         private_source_root = source_inputs.root
         require_source_closures(source_inputs, source_root, plan)
@@ -9474,7 +9492,11 @@ def _bootstrap_windows_from_frozen_seed(
     plan_inputs: SeedInputs,
     source_root: Path,
     output_root: Path,
+    *,
+    windows_long_paths: bool = False,
 ) -> dict[str, object]:
+    if type(windows_long_paths) is not bool:
+        raise BootstrapError("Windows long-path selection must be Boolean")
     _require_seed_pair_identity(seed_inputs, plan_inputs)
     seed_tools = seed_inputs.tools
     seed_provenance = _require_object(
@@ -9487,7 +9509,7 @@ def _bootstrap_windows_from_frozen_seed(
         plan_inputs.manifest.get("build_plan"), "build_plan"
     )
     linux_plan = _candidate_build_plan(checked_linux_plan)
-    native_plan = _windows_build_plan(linux_plan, utf8=True)
+    native_plan = _windows_build_plan(linux_plan, utf8=True, long_paths=windows_long_paths)
     source_root = source_root.resolve()
     if output_root.is_symlink():
         raise BootstrapError("bootstrap output may not be a symlink")
@@ -9512,6 +9534,7 @@ def _bootstrap_windows_from_frozen_seed(
             linux_plan,
             private_workspace / "source",
             windows_utf8=True,
+            windows_long_paths=windows_long_paths,
         )
         private_source_root = source_inputs.root
         require_source_closures(
@@ -9688,8 +9711,12 @@ def bootstrap_windows_from_seed(
     plan_manifest_path: Path,
     source_root: Path,
     output_root: Path,
+    *,
+    windows_long_paths: bool = False,
 ) -> dict[str, object]:
     """Build three native PE generations from the checked Windows seed."""
+    if type(windows_long_paths) is not bool:
+        raise BootstrapError("Windows long-path selection must be Boolean")
     with tempfile.TemporaryDirectory(
         prefix="cupid-windows-bootstrap-inputs-"
     ) as temporary:
@@ -9724,6 +9751,7 @@ def bootstrap_windows_from_seed(
             plan_inputs,
             source_root,
             output_root,
+            **({"windows_long_paths": True} if windows_long_paths else {}),
         )
 
 
@@ -9733,7 +9761,10 @@ def _bootstrap_from_seed_with_policy(
     output_root: Path,
     *,
     compare_fixed_point: bool,
+    windows_long_paths: bool = False,
 ) -> dict[str, object]:
+    if type(windows_long_paths) is not bool:
+        raise BootstrapError("Windows long-path selection must be Boolean")
     with tempfile.TemporaryDirectory(
         prefix="cupid-bootstrap-seed-inputs-"
     ) as temporary:
@@ -9753,6 +9784,7 @@ def _bootstrap_from_seed_with_policy(
             source_root,
             output_root,
             compare_fixed_point=compare_fixed_point,
+            windows_long_paths=windows_long_paths,
         )
 
 
@@ -9760,11 +9792,16 @@ def bootstrap_from_seed(
     manifest_path: Path,
     source_root: Path,
     output_root: Path,
+    *,
+    windows_long_paths: bool = False,
 ) -> dict[str, object]:
+    if type(windows_long_paths) is not bool:
+        raise BootstrapError("Windows long-path selection must be Boolean")
     return _bootstrap_from_seed_with_policy(
         manifest_path,
         source_root,
         output_root,
+        windows_long_paths=windows_long_paths,
         compare_fixed_point=True,
     )
 
@@ -9773,11 +9810,16 @@ def _bootstrap_for_manifest_author(
     manifest_path: Path,
     source_root: Path,
     output_root: Path,
+    *,
+    windows_long_paths: bool = False,
 ) -> dict[str, object]:
+    if type(windows_long_paths) is not bool:
+        raise BootstrapError("Windows long-path selection must be Boolean")
     return _bootstrap_from_seed_with_policy(
         manifest_path,
         source_root,
         output_root,
+        windows_long_paths=windows_long_paths,
         compare_fixed_point=False,
     )
 
@@ -9798,6 +9840,10 @@ def _build_parser() -> argparse.ArgumentParser:
     bootstrap.add_argument("--manifest", required=True, type=Path)
     bootstrap.add_argument("--root", required=True, type=Path)
     bootstrap.add_argument("--output", required=True, type=Path)
+    bootstrap.add_argument(
+        "--windows-long-paths", action="store_true",
+        help="capture the 77-file Windows long-path profile for paired proofs",
+    )
     windows_bootstrap = subparsers.add_parser(
         "bootstrap-windows",
         help=(
@@ -9813,6 +9859,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     windows_bootstrap.add_argument("--root", required=True, type=Path)
     windows_bootstrap.add_argument("--output", required=True, type=Path)
+    windows_bootstrap.add_argument(
+        "--windows-long-paths", action="store_true",
+        help="capture the 77-file Windows long-path profile for paired proofs",
+    )
     run = subparsers.add_parser(
         "run",
         help="verify, freeze, and run one checked-seed tool",
@@ -9841,7 +9891,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if arguments.command == "bootstrap":
             bootstrap_from_seed(
-                arguments.manifest, arguments.root, arguments.output
+                arguments.manifest, arguments.root, arguments.output,
+                windows_long_paths=arguments.windows_long_paths,
             )
             print(
                 "checked i386 Linux bootstrap: ok "
@@ -9854,6 +9905,7 @@ def main(argv: list[str] | None = None) -> int:
                 arguments.plan_manifest,
                 arguments.root,
                 arguments.output,
+                windows_long_paths=arguments.windows_long_paths,
             )
             print(
                 "checked i386 Windows bootstrap: ok "

@@ -116,7 +116,7 @@ def _expected_report():
         "artifact_count": 22,
         "artifact_total_bytes": 682,
         "bootstrap_source_input_count": 76,
-        "input_count": 88,
+        "input_count": 89,
         "schema": "cupid.toolchain-manifest-verification.v1",
     }
 
@@ -454,7 +454,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                 decoded["artifact_observations"],
                 sorted(observations),
             )
-            self.assertEqual(len(decoded["input_observations"]), 88)
+            self.assertEqual(len(decoded["input_observations"]), 89)
             self.assertIn(
                 "toolchain/x86.cc",
                 {

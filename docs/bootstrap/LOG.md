@@ -40844,3 +40844,88 @@ harness is outside the supported Make roots. Five suffix-policy regressions pass
 in 5.270 seconds; `user-path-source-ownership-regressions-v1.log` records them.
 The rejected `user-path-prerequisite-audit-final-v1.log` is retained. The audit
 continues to require an ownership record for every unreachable tracked `.cc`.
+
+## Long-path bootstrap profile carriage, 2026-09-29
+
+The bootstrap and contract-publication drivers accept `--windows-long-paths`.
+Both proof drivers capture the same selected 77-file producer inventory. The
+Windows plan builds 32 C objects, four assembly objects and six tools; Linux
+builds 27 C objects, startup and six tools. Default producer capture remains at
+76 files. Publication captures 89 inputs, with a 116-file producer/publication
+union for either mode.
+
+The shared reader accepts count 77 only with the exact Windows plan digest and
+the complete installed `5ba6ea24` parent tuple. Linux shares the existing plan
+digest, so its count and parent distinguish the new profile. Windows image
+validation has a distinct exact import table: ordinary tools gain one
+`GetFullPathNameW`; publication and build tools retain their existing wide tables.
+Historical profiles keep their count, plan, parent and import rules. Behavior
+fixtures bind the actual captured execution and plan parents.
+
+Publication authoring and verification admit either complete 76- or 77-file
+producer inventory. Only the latter contains the ordinary resolver shim. Live
+verification recaptures that inventory, and reuse requires the requested profile.
+Invalid selection fails before input or output preparation. Installed seed
+identities and production ownership remain unchanged.
+
+Both hosts pass 259 profile/publication methods. Checked Cupid readers agree on
+1,267 structural manifest cases and fourteen release/manifest pair cases; five
+shared object pairs also match. The native Windows six-tool suite passes three
+methods in 396.262 seconds and builds the complete checked long profile. Evidence
+is under `build/bootstrap/long-path-profile-v1/`, including
+`paired-checked-reader-v1.json` and the v3 profile/publication logs.
+
+Fresh paired stage-three/four proofs, reviewed promotion and closed user
+compilation remain open. Long file names do not establish long process
+working-directory support. ADR 0410 records the profile boundary.
+
+Failed runs and corrections: canonical author output exposed an out-of-order
+publication input. The seed-image fixture still expected ANSI imports from the
+installed UTF-8 generation; it now builds its historical ANSI negative explicitly.
+Concurrent host suites created temporary checkout members while a reader held
+the root, so both rejected that drift. Sequential v3 runs pass. The checked-reader
+harness omitted the Windows runtime's included Linux source, then compared
+Windows text newlines with caller output bytes. The accepted v3 replay captures
+the missing source and normalizes the text oracle; all logical rows had already
+matched on Linux. Resume also needed a private manifest alongside frozen payloads.
+Failed logs and reports remain in the evidence directory. Documentation edits
+were reapplied with explicit UTF-8 reads after Windows' default decoder rejected
+the log; the four previously clean owned files were restored before reapplication.
+
+The selected driver rerun passes seventeen regressions on each host, with four
+expected Linux skips. The audit mutation corpus passes in 309.522 seconds. The
+generated graph has 765 active source inputs, 41 unreachable files and 452
+transforms; ownership remains 441 CupidBuild actions and eleven Python actions.
+
+Windows OS acceptance uses an isolated incremental build. All 83 fresh Doom
+objects match the previous accepted objects; 156 retained kernel objects have
+byte-identical source-specific closed inputs and the same installed producers.
+The final manual is present in its object, ELF kernel and raw kernel. Sixteen
+artifact checks and all three user programs pass. The private four-CPU max/e1000
+smoke completes disassembly, `ls` and SMP runtime checks without changing the
+source image. Independent rechecks cover 1,540 source inputs and 431 recorded
+link inputs. The raw kernel is 9,572,532 bytes. The 209,715,200-byte image has
+SHA-256 `5b155c56e4a0461b446d9a71385789a6afd96262b6ef031aa8b8ba46d87199a0`.
+Evidence is under `build/bootstrap/long-path-profile-os-v1/`. This acceptance
+uses the installed seeds and does not promote the new long-file profile.
+
+The first manual replay stopped at the expected raw-kernel size check. A second
+replay included the corrected current seed counts and native artifact-verification
+status in CTXT. The raw kernel grew by 96 bytes from the previous accepted
+image; both ELF sizes remain unchanged. The exact policy records the measured
+raw size, and the image replay and independent sixteen-artifact check pass.
+The 42,117-byte serial log has SHA-256
+`158c46bcae4640b6fc8cf0db61cf530c45b588b140799f7d388b9c218f4ab4d6`.
+The independent report checks the embedded manual bytes and the raw kernel at
+disk offset 2,560, alongside bootloader code.
+
+Driver fixtures had retained the earlier plan digests, source counts and default
+capture call shape. The v5 rerun checks the current exact values. The legacy-plan
+fixture now removes the eight candidate modules by name and requires their exact
+upgrade order and link entries; an initial correction named the observer rather
+than the artifact command module and failed before the accepted rerun. The audit
+mutation fixture also needed its current multiline call fragments. Failed v1-v4
+logs remain alongside accepted evidence. A broader full bootstrap-module run
+started before these fixture corrections and entered its default staged rebuild;
+it is separate from the accepted v5 regressions and the pending long-profile
+paired proofs.
