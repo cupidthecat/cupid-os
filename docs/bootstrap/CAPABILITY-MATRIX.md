@@ -1900,7 +1900,7 @@ The following seed evidence belongs to the preceding `9d2529a7` checkpoint.
 
 User ABI profile selection now passes six new regressions and twenty ABI/profile
 methods on each host. Both hosts pass 148 driver and 54 policy methods; the
-Windows full audit passes 129. The Linux full audit continues separately.
+full audit passes all 129 methods on each host.
 The installed-seed Windows replay embeds the settled manual and passes native
 artifact, user and private four-CPU smoke checks. Its image and 431 link inputs
 match both proposed-seed builds. The raw kernel is 9,576,256 bytes and the

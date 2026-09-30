@@ -2312,7 +2312,7 @@ acceptance record. The corrected replay has its own record.
 
 User ABI profile selection now passes six new regressions and twenty ABI/profile
 methods on each host. Both hosts pass 148 driver and 54 policy methods; the
-Windows full audit passes 129. The Linux full audit continues separately.
+full audit passes all 129 methods on each host.
 The installed-seed Windows replay embeds the settled manual and passes native
 artifact, user and private four-CPU smoke checks. Its image and 431 link inputs
 match both proposed-seed builds. The raw kernel is 9,576,256 bytes and the
@@ -2320,3 +2320,9 @@ first-pass ELF is 9,675,196 bytes; only their measured policy rows change.
 The updated ABI driver is a publication control input, so it correctly requires
 a new complete publication. The proposed seeds remain uninstalled during that
 rebuild. No compilation or link ownership changes in this repair.
+
+
+Both complete audit suites now pass all 129 methods. Windows takes 1,083.918
+seconds; Linux takes 1,657.047 seconds without Git environment overrides.
+`fresh-audit-suite-*-v1.log` retains the full results. The source audit and
+production ownership counts remain unchanged by this evidence update.

@@ -13,9 +13,8 @@ existing runner correctly rejects that replacement during contract execution.
 The corrected fixture asserts that earlier rejection and preserves the report.
 
 Both hosts also pass the 148-method driver selection and all 54 policy methods;
-Linux has sixteen expected driver skips. All 129 Windows audit methods pass.
-The Linux full audit is still running; its already completed driver, ABI and
-policy selections retain their separate passing records. The generated audit
+Linux has sixteen expected driver skips. All 129 audit methods pass on both hosts. Linux runs without Git environment
+overrides. Driver, ABI and policy selections retain their separate passing records. The generated audit
 and current-source check pass. Ownership remains 441 CupidBuild actions and
 eleven Python actions. This selection repair does not move user compilation
 or linking into CupidBuild.
@@ -5483,3 +5482,9 @@ before execution. Four new regressions fail before the change and pass on both
 hosts afterward. The initial Linux user replay requested the default profile
 and was stopped during that redundant rebuild; it retains an unsuccessful
 acceptance record. The corrected replay has its own record.
+
+
+Both complete audit suites now pass all 129 methods. Windows takes 1,083.918
+seconds; Linux takes 1,657.047 seconds without Git environment overrides.
+`fresh-audit-suite-*-v1.log` retains the full results. The source audit and
+production ownership counts remain unchanged by this evidence update.
