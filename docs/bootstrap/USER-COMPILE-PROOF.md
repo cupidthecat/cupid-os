@@ -23,14 +23,15 @@ pairs and publishes 22 artifacts. The independent paired reread verifies all
 inputs; all 22 artifact records match. Its record is
 `user-publication-independent-verification-v1.json`.
 
-The fresh Linux candidate build closes at the unchanged size-policy gate.
-Its preliminary manual produces a 9,578,332-byte raw kernel against the
-9,577,752-byte row. No image is published. Windows's candidate build remains
-running with host code-producing tools forbidden. Review also found an older
-manual section presenting the preceding release as current. Its settled
-revision will receive a separate capture and kernel replay after both builds
-close. Size rows remain unchanged until matching paired measurements exist.
-Final image and boot checks remain required before adoption.
+Both preliminary candidate builds close at the unchanged size-policy gate.
+Their manual produces a 9,578,332-byte raw kernel against the 9,577,752-byte
+row. Neither publishes an image. Review found an older manual section
+presenting the preceding release as current; the settled 65,057-byte revision
+receives separate captures and paired normal Make replays. Both settled builds
+reject the old row with the same 9,578,092-byte raw kernel before publication.
+Independent paired measurements calibrate that row alone by 340 bytes.
+The calibrated normal builds are running with host code-producing tools
+forbidden. Final image and boot checks remain required before adoption.
 
 ## Earlier source and preview acceptance
 
@@ -198,3 +199,28 @@ Production ownership remains 441 CupidBuild actions and eleven Python actions.
 The three user links and full Doom gameplay, audio, save/load, reboot and
 performance acceptance remain open. `TempleOS/` stays outside these builds and
 counts.
+
+## 2026-10-01: calibrate the settled user-handoff manual
+
+Both fresh settled-manual `make -j4 all` runs close at the exact-size gate with
+status two. Neither publishes an image. Each produces a 9,578,092-byte raw
+kernel against the preceding 9,577,752-byte policy. The settled manual is
+65,057 bytes, SHA-256
+`b52d5f740f96dfd85047f87342fc1076556aa4488f95baccb50478b2c3528537`.
+The earlier 9,578,332-byte preliminary-manual rejection remains separate.
+
+`user-adoption-policy-calibration-v1.json` independently rereads all 1,547
+captured inputs per host, sixteen artifacts and 431 link inputs. Both hosts
+agree byte for byte. Only `cupidos-txt/12HOLYC-CUPIDC.o` and the pass-one/final
+kernel ELFs differ from the preceding accepted link cohort; the other 428
+inputs retain their bytes. The measured policy changes only the raw-kernel row
+by 340 bytes. Pass-one and final ELFs remain 9,675,196 and 9,806,268 bytes.
+The calibrated candidate is `user-adoption-candidate-v4.json`; prior captures,
+rejections and patch directories remain intact.
+
+Both completed publications are attached to the final roots as 23 verified
+files per host. Each attachment rechecks the 89 publication inputs, 77 producer
+inputs and 22 artifacts against the live candidate. These checks do not accept
+the final image or runtime. The calibrated normal Make replays are running;
+paired image, ABI, private kernel/user boots and final independent verification
+remain required. Installed seeds and recipes remain unchanged.

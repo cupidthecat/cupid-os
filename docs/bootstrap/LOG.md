@@ -41574,3 +41574,28 @@ This is pre-calibration evidence, not an accepted image build. Windows's fresh
 candidate build remains running. Settled-manual replay, paired measurements,
 normal image publication and boot acceptance remain required before installing
 the proposed seeds or changing active recipes.
+
+## 2026-10-01: calibrate the settled user-handoff manual
+
+Both fresh settled-manual `make -j4 all` runs close at the exact-size gate with
+status two. Neither publishes an image. Each produces a 9,578,092-byte raw
+kernel against the preceding 9,577,752-byte policy. The settled manual is
+65,057 bytes, SHA-256
+`b52d5f740f96dfd85047f87342fc1076556aa4488f95baccb50478b2c3528537`.
+The earlier 9,578,332-byte preliminary-manual rejection remains separate.
+
+`user-adoption-policy-calibration-v1.json` independently rereads all 1,547
+captured inputs per host, sixteen artifacts and 431 link inputs. Both hosts
+agree byte for byte. Only `cupidos-txt/12HOLYC-CUPIDC.o` and the pass-one/final
+kernel ELFs differ from the preceding accepted link cohort; the other 428
+inputs retain their bytes. The measured policy changes only the raw-kernel row
+by 340 bytes. Pass-one and final ELFs remain 9,675,196 and 9,806,268 bytes.
+The calibrated candidate is `user-adoption-candidate-v4.json`; prior captures,
+rejections and patch directories remain intact.
+
+Both completed publications are attached to the final roots as 23 verified
+files per host. Each attachment rechecks the 89 publication inputs, 77 producer
+inputs and 22 artifacts against the live candidate. These checks do not accept
+the final image or runtime. The calibrated normal Make replays are running;
+paired image, ABI, private kernel/user boots and final independent verification
+remain required. Installed seeds and recipes remain unchanged.
