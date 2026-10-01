@@ -418,6 +418,50 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
                 mutate(manifest, windows)
         return self.promoted_request(select)
 
+    def user_link_alias_request(self, *, long_paths, mutate=None):
+        from tests.test_seed_manifest import user_link_alias_manifest
+        def select(manifest, windows):
+            manifest.clear()
+            manifest.update(user_link_alias_manifest(1, long_paths=long_paths))
+            windows.clear()
+            windows.update(user_link_alias_manifest(2, long_paths=long_paths))
+            if mutate is not None:
+                mutate(manifest, windows)
+        return self.promoted_request(select)
+
+    def test_user_link_alias_profiles_bind_count_plan_and_current_parent(self):
+        from tests.test_seed_manifest import next_parent_manifest, user_link_alias_manifest
+        for long_paths in (False, True):
+            valid = self.user_link_alias_request(long_paths=long_paths)
+            result = self.run_request(valid)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)["artifact_count"], 16)
+            for side in (0, 1):
+                for count in (75, 79, True, 77.0, 78.0, 77 if long_paths else 78):
+                    def change(manifest, windows):
+                        (manifest, windows)[side]["provenance"]["source_input_count"] = count
+                    self.assert_contract_failure(self.user_link_alias_request(long_paths=long_paths, mutate=change))
+                def previous_parent(manifest, windows):
+                    for field, original in next_parent_manifest(side + 1, long_paths=long_paths)["provenance"].items():
+                        if field.startswith("parent_"):
+                            (manifest, windows)[side]["provenance"][field] = original
+                self.assert_contract_failure(self.user_link_alias_request(long_paths=long_paths, mutate=previous_parent))
+            for digest in ("0" * 64,
+                           user_link_alias_manifest(2, long_paths=not long_paths)["provenance"]["native_build_plan_sha256"]):
+                def change(manifest, windows):
+                    windows["provenance"]["native_build_plan_sha256"] = digest
+                self.assert_contract_failure(self.user_link_alias_request(long_paths=long_paths, mutate=change))
+            def historical_long_plan(manifest, windows):
+                windows["provenance"]["native_build_plan_sha256"] = (
+                    "5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc")
+            historical = self.user_link_alias_request(long_paths=long_paths, mutate=historical_long_plan)
+            if long_paths:
+                self.assert_contract_failure(historical)
+            else:
+                # This is the complete historical 77-input long profile.
+                self.assertEqual(self.run_request(historical).returncode, 0)
+            self.assertEqual(self.run_request(valid).returncode, 0)
+
     def test_user_compile_parent_profiles_reject_mixed_release_tuples(self):
         from tests.test_seed_manifest import user_compile_parent_manifest, next_parent_manifest
         for long_paths in (False, True):

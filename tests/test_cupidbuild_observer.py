@@ -258,7 +258,7 @@ class CupidBuildObserverTests(unittest.TestCase):
         cls.addClassCleanup(seed.require_live_seed_inputs, checked)
         plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
         if os.name == "nt":
-            plan = seed._windows_build_plan(plan, utf8=True)
+            plan = seed._windows_build_plan(plan, utf8=True, user_link_aliases=True)
         rows = [row for row in plan["sources"]
                 if row["name"] in {"runtime", "publication_runtime", "cupidbuild_host",
                                    "path_encoding", "windows_utf8_build"}]
@@ -281,7 +281,7 @@ class CupidBuildObserverTests(unittest.TestCase):
         order = ["start", *[row["name"] for row in rows],
                  *[row["name"] for row in assembly if row["name"] != "start"]]
         if os.name == "nt":
-            arguments = seed._windows_link_arguments("cupidbuild", cls.program, objects, order, utf8=True)
+            arguments = seed._windows_link_arguments("cupidbuild", cls.program, objects, order, utf8=True, user_link_aliases=True)
             contract._run_checked_tool(checked, runner, "cupidld", arguments, "observer", 180)
         else:
             contract._link_contract(checked, runner, [objects[name] for name in order],

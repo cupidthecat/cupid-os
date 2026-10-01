@@ -9,7 +9,8 @@ typedef struct {
 } cupid_seed_manifest_artifact_t;
 typedef struct {
   uint32_t artifact_count;
-  /* PE32 import generation: legacy 0, current ANSI 1, UTF-8 2. ELF32 uses 0. */
+  /* PE32 profiles: legacy 0, ANSI 1, UTF-8 2, long paths 3,
+   * directory aliases 4, directory aliases with long paths 5. ELF32 uses 0. */
   uint32_t current_windows_plan;
   /* Role order: ASM, C, Dis, LD, Obj, Build. Unused legacy rows are zero. */
   cupid_seed_manifest_artifact_t artifacts[6];

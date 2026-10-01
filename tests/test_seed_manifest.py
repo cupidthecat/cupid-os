@@ -158,6 +158,16 @@ def user_compile_parent_manifest(fmt, *, long_paths):
     return value
 
 
+def user_link_alias_manifest(fmt, *, long_paths):
+    value = user_compile_parent_manifest(fmt, long_paths=long_paths)
+    value["provenance"]["source_input_count"] = 78 if long_paths else 77
+    if fmt == 2:
+        value["provenance"]["native_build_plan_sha256"] = (
+            "2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff" if long_paths else
+            "79241fcdd8784952cf9e1e74907ac817dc83e24429c5625d3424a889c2753d70")
+    return value
+
+
 class Artifact(ctypes.Structure):
     _fields_ = [("file", ctypes.c_char * 32), ("sha256", ctypes.c_char * 65), ("size", ctypes.c_uint32)]
 
@@ -188,6 +198,32 @@ class ManifestTests(unittest.TestCase):
     records = []
     pair_records = []
 
+    def test_user_link_alias_profiles_require_exact_plan_count_and_parent(self):
+        for long_paths in (False, True):
+            for fmt in (1, 2):
+                value = user_link_alias_manifest(fmt, long_paths=long_paths)
+                expected = (6, (5 if long_paths else 4) if fmt == 2 else 0)
+                self.check(value, fmt, expected=expected)
+                for count in (75, 79, True, 77.0, 78.0):
+                    altered = copy.deepcopy(value)
+                    altered["provenance"]["source_input_count"] = count
+                    self.check(altered, fmt, False)
+                if fmt == 2:
+                    for other in (user_link_alias_manifest(2, long_paths=not long_paths),
+                                  user_compile_parent_manifest(2, long_paths=long_paths)):
+                        altered = copy.deepcopy(value)
+                        altered["provenance"]["native_build_plan_sha256"] = other["provenance"]["native_build_plan_sha256"]
+                        self.check(altered, fmt, False)
+                # Linux count 77 also describes the historical long profile.
+                if fmt == 2 or long_paths:
+                    previous = next_parent_manifest(fmt, long_paths=long_paths)
+                    altered = copy.deepcopy(value)
+                    for field, original in previous["provenance"].items():
+                        if field.startswith("parent_"):
+                            altered["provenance"][field] = original
+                    self.check(altered, fmt, False)
+                self.check(value, fmt, expected=expected)
+
     def test_user_compile_parent_profiles_require_complete_release_tuple(self):
         for long_paths in (False, True):
             for fmt in (1, 2):
@@ -202,7 +238,7 @@ class ManifestTests(unittest.TestCase):
                         altered = copy.deepcopy(value)
                         altered["provenance"][field] = replacement
                         self.check(altered, fmt, False)
-                for count in (75, 78, True, 76.0, 77.0):
+                for count in (75, 79, True, 76.0, 77.0):
                     altered = copy.deepcopy(value)
                     altered["provenance"]["source_input_count"] = count
                     self.check(altered, fmt, False)

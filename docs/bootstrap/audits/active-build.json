@@ -40046,13 +40046,13 @@
   },
   "contracts": {
     "assembly_source_ownership": {
-      "active_sources": 36,
-      "cupidasm_owned_sources": 36,
+      "active_sources": 37,
+      "cupidasm_owned_sources": 37,
       "explicit_classifications": [],
       "other_owned_sources": 0,
       "ownerless_sources": 0,
       "status": "pass",
-      "toolchain_startup_sources": 9
+      "toolchain_startup_sources": 10
     },
     "bootstrap_artifact_coverage": {
       "declared_artifacts": 436,
@@ -40063,7 +40063,7 @@
     "c_preprocessor_conditionals": {
       "directive_expression_pairs": 64,
       "elif_occurrences": 19,
-      "expression_occurrences": 438,
+      "expression_occurrences": 444,
       "expressions": [
         {
           "elif_occurrences": 0,
@@ -41355,14 +41355,26 @@
               "line": 12839,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
+            },
+            {
+              "directive": "if",
+              "line": 13153,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
+            },
+            {
+              "directive": "if",
+              "line": 13165,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             }
           ],
           "expression": "defined ( CUPIDBUILD_CUSTOM_LINUX )",
           "files": [
             "toolchain/cupidbuild_host.cc"
           ],
-          "if_occurrences": 32,
-          "occurrences": 39
+          "if_occurrences": 34,
+          "occurrences": 41
         },
         {
           "elif_occurrences": 0,
@@ -41392,7 +41404,7 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 256,
+              "line": 269,
               "path": "toolchain/cupidbuild_host.h",
               "text": "#if defined(CUPIDBUILD_HOST_CLOSE_FAILURE_TEST) && !defined(_WIN32)"
             }
@@ -42157,31 +42169,31 @@
             },
             {
               "directive": "if",
-              "line": 3597,
+              "line": 3637,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 3640,
+              "line": 3680,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 3700,
+              "line": 3740,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 3745,
+              "line": 3785,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 5084,
+              "line": 5124,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -43009,7 +43021,31 @@
             },
             {
               "directive": "if",
-              "line": 13118,
+              "line": 13125,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 13206,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 13216,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 13239,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 13355,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -43224,8 +43260,8 @@
             "toolchain/cupidobj_main.cc",
             "toolchain/tests/cupidc_object_contract.cc"
           ],
-          "if_occurrences": 189,
-          "occurrences": 189
+          "if_occurrences": 193,
+          "occurrences": 193
         },
         {
           "elif_occurrences": 0,
@@ -43401,7 +43437,7 @@
           "occurrences": 1
         }
       ],
-      "if_occurrences": 419,
+      "if_occurrences": 425,
       "status": "pass",
       "unique_expressions": 61
     },
@@ -44488,7 +44524,7 @@
       "compared_startup_objects": 1,
       "compared_tool_images": 6,
       "compiler_c_sources": 11,
-      "contract_manifest_inputs": 89,
+      "contract_manifest_inputs": 90,
       "executed_tools": [
         "cupidasm",
         "cupiddis",
@@ -44640,6 +44676,7 @@
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/final_path_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
@@ -44649,7 +44686,7 @@
         "toolchain/hosted/i386-windows/utf8_tool_start.asm"
       ],
       "id": "asm.addressing.memory",
-      "occurrences": 436
+      "occurrences": 441
     },
     {
       "category": "addressing",
@@ -44721,6 +44758,7 @@
         "demos/parity_priv.asm",
         "kernel/core/context_switch.asm",
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/final_path_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
@@ -44730,7 +44768,7 @@
         "toolchain/hosted/i386-windows/utf8_tool_start.asm"
       ],
       "id": "asm.addressing.size.dword",
-      "occurrences": 321
+      "occurrences": 326
     },
     {
       "category": "addressing",
@@ -44845,6 +44883,7 @@
         "test_iso/big_pattern.asm",
         "toolchain/hosted/i386-linux/start.asm",
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/final_path_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
@@ -44854,7 +44893,7 @@
         "toolchain/hosted/i386-windows/utf8_tool_start.asm"
       ],
       "id": "asm.directive.bits",
-      "occurrences": 17
+      "occurrences": 18
     },
     {
       "category": "directive",
@@ -45038,6 +45077,7 @@
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/final_path_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
@@ -45047,7 +45087,7 @@
         "toolchain/hosted/i386-windows/utf8_tool_start.asm"
       ],
       "id": "asm.directive.extern",
-      "occurrences": 90
+      "occurrences": 91
     },
     {
       "category": "directive",
@@ -45073,6 +45113,7 @@
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/final_path_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
@@ -45082,7 +45123,7 @@
         "toolchain/hosted/i386-windows/utf8_tool_start.asm"
       ],
       "id": "asm.directive.global",
-      "occurrences": 114
+      "occurrences": 115
     },
     {
       "category": "directive",
@@ -45260,6 +45301,7 @@
         "kernel/core/context_switch.asm",
         "toolchain/hosted/i386-linux/start.asm",
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/final_path_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
@@ -45269,7 +45311,7 @@
         "toolchain/hosted/i386-windows/utf8_tool_start.asm"
       ],
       "id": "asm.directive.section",
-      "occurrences": 53
+      "occurrences": 54
     },
     {
       "category": "directive",
@@ -45548,6 +45590,7 @@
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/final_path_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
@@ -45557,7 +45600,7 @@
         "toolchain/hosted/i386-windows/utf8_tool_start.asm"
       ],
       "id": "asm.instruction.call",
-      "occurrences": 277
+      "occurrences": 278
     },
     {
       "category": "instruction",
@@ -46574,6 +46617,7 @@
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/final_path_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
@@ -46583,7 +46627,7 @@
         "toolchain/hosted/i386-windows/utf8_tool_start.asm"
       ],
       "id": "asm.instruction.mov",
-      "occurrences": 338
+      "occurrences": 340
     },
     {
       "category": "instruction",
@@ -46773,6 +46817,7 @@
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/final_path_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
@@ -46782,7 +46827,7 @@
         "toolchain/hosted/i386-windows/utf8_tool_start.asm"
       ],
       "id": "asm.instruction.pop",
-      "occurrences": 104
+      "occurrences": 105
     },
     {
       "category": "instruction",
@@ -46870,6 +46915,7 @@
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/final_path_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
@@ -46879,7 +46925,7 @@
         "toolchain/hosted/i386-windows/utf8_tool_start.asm"
       ],
       "id": "asm.instruction.push",
-      "occurrences": 596
+      "occurrences": 601
     },
     {
       "category": "instruction",
@@ -46981,6 +47027,7 @@
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/final_path_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
@@ -46990,7 +47037,7 @@
         "toolchain/hosted/i386-windows/utf8_tool_start.asm"
       ],
       "id": "asm.instruction.ret",
-      "occurrences": 118
+      "occurrences": 119
     },
     {
       "category": "instruction",
@@ -47421,6 +47468,7 @@
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/final_path_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
@@ -47430,7 +47478,7 @@
         "toolchain/hosted/i386-windows/utf8_tool_start.asm"
       ],
       "id": "asm.label.global",
-      "occurrences": 194
+      "occurrences": 195
     },
     {
       "category": "label",
@@ -47913,6 +47961,7 @@
         "demos/stack.asm",
         "kernel/core/context_switch.asm",
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/final_path_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
@@ -47922,7 +47971,7 @@
         "toolchain/hosted/i386-windows/utf8_tool_start.asm"
       ],
       "id": "asm.register.ebp",
-      "occurrences": 527
+      "occurrences": 535
     },
     {
       "category": "register",
@@ -48159,6 +48208,7 @@
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/final_path_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
@@ -48168,7 +48218,7 @@
         "toolchain/hosted/i386-windows/utf8_tool_start.asm"
       ],
       "id": "asm.register.esp",
-      "occurrences": 351
+      "occurrences": 353
     },
     {
       "category": "register",
@@ -48401,6 +48451,7 @@
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/final_path_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
@@ -48410,7 +48461,7 @@
         "toolchain/hosted/i386-windows/utf8_tool_start.asm"
       ],
       "id": "asm.relocation.pc_relative_external",
-      "occurrences": 93
+      "occurrences": 94
     },
     {
       "category": "control",
@@ -48624,7 +48675,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 2208
+      "occurrences": 2209
     },
     {
       "category": "control",
@@ -49372,7 +49423,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5605
+      "occurrences": 5613
     },
     {
       "category": "control",
@@ -49659,7 +49710,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4915
+      "occurrences": 4923
     },
     {
       "category": "control",
@@ -49716,7 +49767,7 @@
         "toolchain/tests/elf32_contract.cc"
       ],
       "id": "c.control.goto",
-      "occurrences": 3395
+      "occurrences": 3406
     },
     {
       "category": "control",
@@ -50129,7 +50180,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 44370
+      "occurrences": 44425
     },
     {
       "category": "control",
@@ -50512,7 +50563,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 27505
+      "occurrences": 27539
     },
     {
       "category": "control",
@@ -50911,7 +50962,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3049
+      "occurrences": 3050
     },
     {
       "category": "declaration",
@@ -51198,7 +51249,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 3050
+      "occurrences": 3051
     },
     {
       "category": "declarator",
@@ -51482,7 +51533,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 6985
+      "occurrences": 7000
     },
     {
       "category": "extension",
@@ -52544,7 +52595,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3398
+      "occurrences": 3400
     },
     {
       "category": "preprocessor",
@@ -52627,7 +52678,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.else",
-      "occurrences": 247
+      "occurrences": 252
     },
     {
       "category": "preprocessor",
@@ -52995,7 +53046,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 850
+      "occurrences": 856
     },
     {
       "category": "preprocessor",
@@ -53191,7 +53242,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.if",
-      "occurrences": 419
+      "occurrences": 425
     },
     {
       "category": "preprocessor",
@@ -54720,7 +54771,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 18216
+      "occurrences": 18262
     },
     {
       "category": "qualifier",
@@ -55273,7 +55324,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10641
+      "occurrences": 10649
     },
     {
       "category": "type",
@@ -55735,7 +55786,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 11699
+      "occurrences": 11751
     },
     {
       "category": "type",
@@ -56527,7 +56578,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 25682
+      "occurrences": 25710
     },
     {
       "category": "type",
@@ -56690,7 +56741,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.short",
-      "occurrences": 309
+      "occurrences": 313
     },
     {
       "category": "type",
@@ -57016,7 +57067,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 1091
+      "occurrences": 1092
     },
     {
       "category": "type",
@@ -57313,7 +57364,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 1155
+      "occurrences": 1156
     },
     {
       "category": "type",
@@ -57534,7 +57585,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 4304
+      "occurrences": 4315
     },
     {
       "category": "type",
@@ -58155,7 +58206,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 16058
+      "occurrences": 16062
     },
     {
       "category": "declaration",
@@ -59069,7 +59120,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "bcd8e9a71ccc075fdaacaa5101efcdcd81521f209816df835a3105daffda3a35",
+    "active_source_digest": "46e137b5a0fcc159a7fd246202b06c7e9613ff89d54af30aced0a34f3e219ece",
     "control_files": [
       {
         "path": "Makefile",
@@ -59077,11 +59128,11 @@
       },
       {
         "path": "user/Makefile",
-        "sha256": "6803cba98bc0cf612800bab7cfcde26d0d8320a443eb1b70ba4421127f512dd6"
+        "sha256": "7c2e0d4913ea9ff7aa230523f31dd147f871d9703df60a46644beca2ef7932ff"
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "cf2c7659333e5ffe2da73bb226d5c72e32f6c9e6467c51c5bd5f46f33835020e"
+        "sha256": "5de9b4254116de5fdc487d5b6f6f58972fb3c5580e8dc53e546231aa7ee480c2"
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
@@ -59097,7 +59148,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "09fe64d7cc120e389371c54d6c3211029f495314c5ebe9ccad97a02c56513019"
+        "sha256": "faaec6b0bab379de9a0b84cb8ec7fd5c866dc849685f3ec3176dc081018581fe"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
@@ -59122,7 +59173,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "e1d3028d25200673a589e063992740c0d6df8bf73fea450a57f48b2afd6c3e27"
+      "sha256": "ce97227ffa0980730b83a63b14f5d9f118958bd2f1930cf7eb0822fbd5131e19"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -59156,7 +59207,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 114,
+        "source_count": 115,
         "title": "Establish a host-runnable shared Cupid Toolchain core"
       },
       {
@@ -59330,7 +59381,7 @@
           "demos/fs_syscalls.asm",
           "demos/hello.asm"
         ],
-        "source_count": 76,
+        "source_count": 77,
         "title": "Share one i386 ABI and instruction model"
       },
       {
@@ -59359,7 +59410,7 @@
           "toolchain/hosted/i386-linux/start.asm",
           "toolchain/hosted/i386-windows/cupidbuild_start.asm"
         ],
-        "source_count": 19,
+        "source_count": 20,
         "title": "Make CupidDis inspect raw and ELF32 relocatable output"
       },
       {
@@ -59410,7 +59461,7 @@
           "demos/include_helper.asm",
           "demos/jcc_aliases.asm"
         ],
-        "source_count": 36,
+        "source_count": 37,
         "title": "Implement the active Cupid ASM directives and expression language"
       },
       {
@@ -59446,7 +59497,7 @@
           "demos/syscall_vfs_extended_demo.asm",
           "kernel/core/context_switch.asm"
         ],
-        "source_count": 24,
+        "source_count": 25,
         "title": "Reach byte parity for boot and trampoline binaries"
       },
       {
@@ -59467,15 +59518,15 @@
           "kernel/smp/smp_trampoline.S",
           "toolchain/hosted/i386-linux/start.asm",
           "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+          "toolchain/hosted/i386-windows/final_path_start.asm",
           "toolchain/hosted/i386-windows/publication_start.asm",
           "toolchain/hosted/i386-windows/start.asm",
           "toolchain/hosted/i386-windows/tool_start.asm",
           "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
           "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
-          "toolchain/hosted/i386-windows/utf8_publication_start.asm",
-          "toolchain/hosted/i386-windows/utf8_tool_start.asm"
+          "toolchain/hosted/i386-windows/utf8_publication_start.asm"
         ],
-        "source_count": 12,
+        "source_count": 13,
         "title": "Emit ELF32 sections, symbols, and i386 relocations"
       },
       {
@@ -59707,7 +59758,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 114
+        "source_count": 115
       },
       {
         "cohorts": [
@@ -83576,12 +83627,12 @@
         "toolchain/contract_parse_internal.h"
       ],
       "language": "cupid_c",
-      "lines": 1840,
+      "lines": 1867,
       "origin": "tracked",
       "path": "toolchain/artifact_size_policy.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9be54e115a1b96808b5e5d9f28d93254e31751b58e40627b6e286e4ed5407da9"
+      "sha256": "c98721e85d0d1fe010f431d615d0647878eeed3f2d9c36467efca36c433937ad"
     },
     {
       "build_owners": [
@@ -84058,12 +84109,12 @@
         "toolchain/seed_manifest.h"
       ],
       "language": "cupid_c",
-      "lines": 6552,
+      "lines": 6621,
       "origin": "tracked",
       "path": "toolchain/cupidbuild.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "30780110dede3a71ef7741b32b087f67f5049184f8607864b1bcd60f4862ff24"
+      "sha256": "ceaf720259a2c4358754cf6e4a9157069e1a202933d76417c01434fc44d9ebca"
     },
     {
       "build_owners": [
@@ -84095,12 +84146,12 @@
         "kernel/doom/src/include_stubs/stddef.h"
       ],
       "language": "c_header",
-      "lines": 124,
+      "lines": 128,
       "origin": "tracked",
       "path": "toolchain/cupidbuild.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "096599056b93e9468a903eda2c23432540548a1e3982bcb25b2d7045da656c23"
+      "sha256": "41380592e9e71064fd5aeaf86063e3e10fd17917a228bb8d08af3b06a850c860"
     },
     {
       "build_owners": [
@@ -84226,12 +84277,12 @@
         "toolchain/path_encoding.h"
       ],
       "language": "cupid_c",
-      "lines": 13157,
+      "lines": 13394,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_host.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "eb8f2af5ef1a1bbdd306e0758e4d8e6899a8f1b92d24105f17d2924372152e1b"
+      "sha256": "cfbd3dd0af7f5b59617d5f9753a1d77f1670069cc1f1b680d446e958fb42a470"
     },
     {
       "build_owners": [
@@ -84265,12 +84316,12 @@
         "kernel/doom/src/include_stubs/stdint.h"
       ],
       "language": "c_header",
-      "lines": 260,
+      "lines": 273,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_host.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "fcbfdfce6987e9f7e7f7b20d5e85a506be7c533b89b32faddf7dfc545e6c3ec3"
+      "sha256": "e70c72ebfee43f0460e3005063daf32cca747240518b05454862e88dd97485f4"
     },
     {
       "build_owners": [
@@ -84304,12 +84355,12 @@
         "toolchain/native_utf8.h"
       ],
       "language": "cupid_c",
-      "lines": 320,
+      "lines": 333,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_main.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "dd12cef6b89547adc2913a2a30c8e26a714e0e6cc53b398d5d88dc5ed26ed840"
+      "sha256": "c4490b1b9b2dfb16720d29219388ff0f45f7f07c8beeb256252983a3bd51e762"
     },
     {
       "build_owners": [
@@ -85569,12 +85620,12 @@
       ],
       "includes": [],
       "language": "c_header",
-      "lines": 250,
+      "lines": 253,
       "origin": "tracked",
       "path": "toolchain/hosted/i386-linux/include/windows.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "10d9a17275f466b3fa4df3756a5b83d726a08a941e46181ab98eada8264a5bee"
+      "sha256": "96d3246778618c74306bc32c09d260034352dbf90539fa9d95d996fe16c0ca9b"
     },
     {
       "build_owners": [
@@ -85712,6 +85763,40 @@
       "reachability": "direct_build_input",
       "runtime_owner": "CupidASM",
       "sha256": "928d44d23c428e51342808d2c7ad3353ebbf95bd8edcb9651630eddf394b609f"
+    },
+    {
+      "build_owners": [
+        "cupid_assembler"
+      ],
+      "builds": [
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "asm.addressing.memory",
+        "asm.addressing.size.dword",
+        "asm.directive.bits",
+        "asm.directive.extern",
+        "asm.directive.global",
+        "asm.directive.section",
+        "asm.instruction.call",
+        "asm.instruction.mov",
+        "asm.instruction.pop",
+        "asm.instruction.push",
+        "asm.instruction.ret",
+        "asm.label.global",
+        "asm.register.ebp",
+        "asm.register.esp",
+        "asm.relocation.pc_relative_external"
+      ],
+      "includes": [],
+      "language": "assembly",
+      "lines": 18,
+      "origin": "tracked",
+      "path": "toolchain/hosted/i386-windows/final_path_start.asm",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidASM",
+      "sha256": "db17cb01049309964396e1ca454fd21d8b34c03dff0fc5d2548d9ca1d3724ed6"
     },
     {
       "build_owners": [
@@ -86282,12 +86367,12 @@
         "toolchain/seed_release.h"
       ],
       "language": "cupid_c",
-      "lines": 1427,
+      "lines": 1440,
       "origin": "tracked",
       "path": "toolchain/seed_manifest.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "4a7779e00a8b0f07020f7fe0f2da992347f649ad513bb9fdf8a5a165481502e5"
+      "sha256": "347bf2287515b620a476457ee612833d74304b3bb84479cab40fec97ba97fb09"
     },
     {
       "build_owners": [
@@ -86317,12 +86402,12 @@
         "kernel/doom/src/include_stubs/stdint.h"
       ],
       "language": "c_header",
-      "lines": 36,
+      "lines": 37,
       "origin": "tracked",
       "path": "toolchain/seed_manifest.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "8c444429c2aba8c980041861a71276a239fe843bbe799cde1edbde6687566ab5"
+      "sha256": "79a0ad16fdd8109337eaab72cd58f9501ffc58a56b8b6dcd87a50dcd659cc78f"
     },
     {
       "build_owners": [
@@ -86850,7 +86935,7 @@
       "path": "toolchain/tests/cupidc_pp_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "a98cf86519d1d419b9304f0aad33532b21b75df4d931ed3b4f68bc202024f56c"
+      "sha256": "c139a6719acbc84ea5f40c0ade221820fabd43ded521fecb87758c08f40a41f6"
     },
     {
       "build_owners": [
@@ -87304,12 +87389,12 @@
         "toolchain/contract_parse_internal.h"
       ],
       "language": "cupid_c",
-      "lines": 2867,
+      "lines": 2890,
       "origin": "tracked",
       "path": "toolchain/tests/toolchain_manifest_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "5bb052fc3f1fba0b15ea0e4f451991bbb2f55bf3fc1a178324da9f990a61dd02"
+      "sha256": "026b95dd2628c1bbef4f570c12e57fcec1998b43e2489141bceb8a23cea09f69"
     },
     {
       "build_owners": [
@@ -87623,7 +87708,7 @@
     }
   ],
   "summary": {
-    "active_sources": 765,
+    "active_sources": 766,
     "features": 255,
     "transforms": 452,
     "unreachable_sources": 41
@@ -87953,6 +88038,7 @@
             "toolchain/hosted/i386-windows/windows_utf8.cc",
             "toolchain/hosted/i386-windows/utf8_tool_start.asm",
             "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
+            "toolchain/hosted/i386-windows/final_path_start.asm",
             "toolchain/hosted/i386-windows/utf8_publication_start.asm",
             "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
             "toolchain/path_encoding.cc",
@@ -88082,6 +88168,7 @@
             "toolchain/hosted/i386-windows/windows_utf8.cc",
             "toolchain/hosted/i386-windows/utf8_tool_start.asm",
             "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
+            "toolchain/hosted/i386-windows/final_path_start.asm",
             "toolchain/hosted/i386-windows/utf8_publication_start.asm",
             "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
             "toolchain/path_encoding.cc",

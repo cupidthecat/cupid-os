@@ -13004,6 +13004,9 @@ struct cupidbuild_host_output_parent {
   cupidbuild_host_observer_t *observer;
   cupidbuild_observer_entry_t *leaf;
   char output[CUPIDBUILD_HOST_PATH_BYTES];
+  char resolved_root[CUPIDBUILD_HOST_PATH_BYTES];
+  char resolved_source[CUPIDBUILD_HOST_PATH_BYTES];
+  int resolved;
   char error[CUPIDBUILD_HOST_ERROR_BYTES];
 };
 
@@ -13029,18 +13032,12 @@ int cupidbuild_host_output_parent_require_current(cupidbuild_host_output_parent_
   return 1;
 }
 
-static int cupidbuild_output_parent_open(
-    const char *root, const char *output,
-    cupidbuild_host_output_parent_t **parent_out, int create_directories) {
-  cupidbuild_host_output_parent_t *parent;
+static int cupidbuild_output_parent_fill(
+    cupidbuild_host_output_parent_t *parent, const char *root,
+    const char *output, int create_directories) {
   cupidbuild_observer_entry_t *entry;
   const char *cursor;
   char component[CUPIDBUILD_OBSERVER_NAME];
-  if (parent_out == (cupidbuild_host_output_parent_t **)0) return 0;
-  *parent_out = (cupidbuild_host_output_parent_t *)0;
-  parent = (cupidbuild_host_output_parent_t *)calloc(1u, sizeof(*parent));
-  if (parent == (cupidbuild_host_output_parent_t *)0) return 0;
-  *parent_out = parent;
   if (output == (const char *)0 || !output[0] ||
       strlen(output) >= sizeof(parent->output))
     return cupidbuild_output_parent_fail(parent, "invalid normalized output path");
@@ -13093,6 +13090,18 @@ static int cupidbuild_output_parent_open(
   return cupidbuild_host_output_parent_require_current(parent);
 }
 
+static int cupidbuild_output_parent_open(
+    const char *root, const char *output,
+    cupidbuild_host_output_parent_t **parent_out, int create_directories) {
+  cupidbuild_host_output_parent_t *parent;
+  if (parent_out == (cupidbuild_host_output_parent_t **)0) return 0;
+  *parent_out = (cupidbuild_host_output_parent_t *)0;
+  parent = (cupidbuild_host_output_parent_t *)calloc(1u, sizeof(*parent));
+  if (parent == (cupidbuild_host_output_parent_t *)0) return 0;
+  *parent_out = parent;
+  return cupidbuild_output_parent_fill(parent, root, output, create_directories);
+}
+
 int cupidbuild_host_output_parent_prepare(
     const char *root, const char *output,
     cupidbuild_host_output_parent_t **parent_out) {
@@ -13103,6 +13112,234 @@ int cupidbuild_host_output_parent_open_existing(
     const char *root, const char *output,
     cupidbuild_host_output_parent_t **parent_out) {
   return cupidbuild_output_parent_open(root, output, parent_out, 0);
+}
+
+/* Follow aliases only while resolving existing directories. The resulting
+ * physical chain is reopened without following links and its identities are
+ * compared before any resolution handle is released. */
+static cupidbuild_observer_handle_t cupidbuild_output_resolve_directory(
+    const char *path, char *physical, size_t capacity) {
+  cupidbuild_observer_handle_t handle = CUPIDBUILD_OBSERVER_INVALID;
+  cupidbuild_observer_stat_t information;
+  int valid = 0;
+#if defined(_WIN32)
+  unsigned short *wide;
+  DWORD units;
+  size_t bytes = 0u;
+  size_t index;
+  handle = CreateFileA(path, FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES |
+      FILE_TRAVERSE | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+      (LPSECURITY_ATTRIBUTES)0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS,
+      (HANDLE)0);
+  if (handle == CUPIDBUILD_OBSERVER_INVALID) return handle;
+  wide = (unsigned short *)malloc(CUPIDBUILD_HOST_PATH_BYTES * sizeof(*wide));
+  if (wide != (unsigned short *)0) {
+    units = GetFinalPathNameByHandleW(handle, wide, CUPIDBUILD_HOST_PATH_BYTES, 0u);
+    if (units > 4u && units < CUPIDBUILD_HOST_PATH_BYTES &&
+        wide[0] == '\\' && wide[1] == '\\' && wide[2] == '?' &&
+        wide[3] == '\\' && wide[5] == ':') {
+      valid = cupidbuild_path_to_utf8(wide + 4u, (size_t)units - 4u,
+                                      physical, capacity, &bytes);
+      if (valid) {
+        for (index = 0u; index < bytes; index++)
+          if (physical[index] == '\\') physical[index] = '/';
+      }
+    }
+    free(wide);
+  }
+#else
+  char descriptor_path[64];
+  int count;
+#if defined(CUPIDBUILD_CUSTOM_LINUX)
+  handle = cupid_linux_syscall3(CUPIDBUILD_LINUX_SYS_OPEN, (unsigned int)path,
+      CUPIDBUILD_LINUX_O_DIRECTORY | CUPIDBUILD_LINUX_O_CLOEXEC |
+      CUPIDBUILD_LINUX_O_LARGEFILE, 0u);
+  if (handle < 0) return CUPIDBUILD_OBSERVER_INVALID;
+#else
+  handle = open(path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  if (handle < 0) return CUPIDBUILD_OBSERVER_INVALID;
+#endif
+  count = snprintf(descriptor_path, sizeof(descriptor_path),
+                    "/proc/self/fd/%d", handle);
+  if (count > 0 && (size_t)count < sizeof(descriptor_path) && capacity > 1u) {
+#if defined(CUPIDBUILD_CUSTOM_LINUX)
+    count = cupid_linux_syscall3(85u /* readlink */,
+        (unsigned int)descriptor_path, (unsigned int)physical,
+        (unsigned int)(capacity - 1u));
+#else
+    count = (int)readlink(descriptor_path, physical, capacity - 1u);
+#endif
+    if (count > 0 && (size_t)count < capacity - 1u) {
+      physical[count] = 0;
+      valid = physical[0] == '/';
+    }
+  }
+#endif
+  if (!valid || !cupidbuild_observer_stat(handle, 1, &information)) {
+    (void)cupidbuild_observer_close_handle(handle);
+    return CUPIDBUILD_OBSERVER_INVALID;
+  }
+  return handle;
+}
+
+typedef struct {
+  char directory[CUPIDBUILD_HOST_PATH_BYTES];
+  char input_parent[CUPIDBUILD_HOST_PATH_BYTES];
+  char output_parent[CUPIDBUILD_HOST_PATH_BYTES];
+  char input[CUPIDBUILD_HOST_PATH_BYTES];
+  char output[CUPIDBUILD_HOST_PATH_BYTES];
+  char input_name[CUPIDBUILD_OBSERVER_NAME];
+  char output_name[CUPIDBUILD_OBSERVER_NAME];
+} cupidbuild_output_resolution_t;
+
+static int cupidbuild_output_resolve_request(const char *root,
+    const char *request, char *directory, size_t capacity, char *name) {
+  char *separator;
+  size_t index;
+  int absolute;
+  const char *cursor = request;
+  unsigned int scalar;
+  if (request == (const char *)0 || !request[0] ||
+      strlen(request) >= CUPIDBUILD_HOST_PATH_BYTES) return 0;
+  while (*cursor)
+    if (!cupidbuild_observer_scalar(&cursor, &scalar)) return 0;
+#if defined(_WIN32)
+  absolute = request[0] == '/' || request[0] == '\\' ||
+             (request[1] == ':' && (request[2] == '/' || request[2] == '\\'));
+  if (!absolute && strchr(request, ':') != (const char *)0) return 0;
+#else
+  absolute = request[0] == '/';
+#endif
+  if (!(absolute ? cupidbuild_host_copy_text(directory, capacity, request) :
+        cupidbuild_host_join(directory, capacity, root, request))) return 0;
+  for (index = 0u; directory[index]; index++) {
+#if defined(_WIN32)
+    if (directory[index] == '\\') directory[index] = '/';
+#else
+    if (directory[index] == '\\') return 0;
+#endif
+  }
+  separator = strrchr(directory, '/');
+  if (separator == (char *)0 ||
+      !cupidbuild_observer_name_valid(separator + 1u) ||
+      !cupidbuild_host_copy_text(name, CUPIDBUILD_OBSERVER_NAME, separator + 1u))
+    return 0;
+  if (separator == directory || (separator == directory + 2u && directory[1] == ':'))
+    separator[1] = 0;
+  else *separator = 0;
+  return 1;
+}
+
+static const char *cupidbuild_output_below_root(const char *root,
+                                                const char *path) {
+  size_t index;
+  size_t length = strlen(root);
+  for (index = 0u; index < length; index++) {
+    char left = root[index], right = path[index];
+#if defined(_WIN32)
+    left = cupidbuild_host_ascii_fold(left);
+    right = cupidbuild_host_ascii_fold(right);
+#endif
+    if (!right || left != right) return (const char *)0;
+  }
+  if (length && root[length - 1u] == '/') return path + length;
+  return path[length] == '/' ? path + length + 1u : (const char *)0;
+}
+
+static int cupidbuild_output_resolve_leaf(cupidbuild_observer_handle_t directory,
+                                          const char *name, int optional) {
+  cupidbuild_observer_handle_t handle = cupidbuild_observer_open_child(directory,
+                                                                       name, 0, 0);
+  cupidbuild_observer_stat_t information;
+  int valid;
+  if (handle == CUPIDBUILD_OBSERVER_INVALID)
+    return optional && cupidbuild_observer_issue(directory, name, 0) ==
+                       CUPIDBUILD_OBSERVATION_MISSING;
+  valid = cupidbuild_observer_stat(handle, 0, &information);
+  return cupidbuild_observer_close_handle(handle) && valid;
+}
+
+int cupidbuild_host_output_parent_resolve_existing(const char *root,
+    const char *source, const char *output,
+    cupidbuild_host_output_parent_t **parent_out) {
+  cupidbuild_host_output_parent_t *parent;
+  cupidbuild_output_resolution_t *paths;
+  cupidbuild_observer_handle_t handles[3];
+  cupidbuild_observer_stat_t identities[3];
+  const char *input_relative, *output_relative;
+  const char *failure = "cannot resolve existing user-link directories";
+  unsigned int index;
+  int valid = 0;
+  if (parent_out == (cupidbuild_host_output_parent_t **)0) return 0;
+  *parent_out = (cupidbuild_host_output_parent_t *)0;
+  parent = (cupidbuild_host_output_parent_t *)calloc(1u, sizeof(*parent));
+  if (parent == (cupidbuild_host_output_parent_t *)0) return 0;
+  *parent_out = parent;
+  paths = (cupidbuild_output_resolution_t *)calloc(1u, sizeof(*paths));
+  for (index = 0u; index < 3u; index++) handles[index] = CUPIDBUILD_OBSERVER_INVALID;
+  if (paths == (cupidbuild_output_resolution_t *)0 || root == (const char *)0 ||
+      !root[0] || strlen(root) >= CUPIDBUILD_HOST_PATH_BYTES) goto resolved;
+  handles[0] = cupidbuild_output_resolve_directory(root, parent->resolved_root,
+                                                   sizeof(parent->resolved_root));
+  if (handles[0] == CUPIDBUILD_OBSERVER_INVALID) goto resolved;
+  if (!cupidbuild_output_resolve_request(parent->resolved_root, source,
+          paths->directory, sizeof(paths->directory), paths->input_name)) goto resolved;
+  handles[1] = cupidbuild_output_resolve_directory(paths->directory,
+                      paths->input_parent, sizeof(paths->input_parent));
+  if (handles[1] == CUPIDBUILD_OBSERVER_INVALID) goto resolved;
+  if (!cupidbuild_output_resolve_request(parent->resolved_root, output,
+          paths->directory, sizeof(paths->directory), paths->output_name)) goto resolved;
+  handles[2] = cupidbuild_output_resolve_directory(paths->directory,
+                      paths->output_parent, sizeof(paths->output_parent));
+  if (handles[2] == CUPIDBUILD_OBSERVER_INVALID) goto resolved;
+  for (index = 0u; index < 3u; index++)
+    if (!cupidbuild_observer_stat(handles[index], 1, &identities[index])) goto resolved;
+  failure = "user-link paths escape the repository or have different physical parents";
+  if (!cupidbuild_observer_same(&identities[1], &identities[2], 1) ||
+      !cupidbuild_host_join(paths->input, sizeof(paths->input),
+                            paths->input_parent, paths->input_name) ||
+      !cupidbuild_host_join(paths->output, sizeof(paths->output),
+                            paths->output_parent, paths->output_name)) goto resolved;
+  input_relative = cupidbuild_output_below_root(parent->resolved_root, paths->input);
+  output_relative = cupidbuild_output_below_root(parent->resolved_root, paths->output);
+  if (input_relative == (const char *)0 || output_relative == (const char *)0 ||
+      !cupidbuild_host_copy_text(parent->resolved_source,
+                                sizeof(parent->resolved_source), input_relative)) goto resolved;
+  failure = "user-link leaves must be regular files without links";
+  if (!cupidbuild_output_resolve_leaf(handles[1], paths->input_name, 0) ||
+      !cupidbuild_output_resolve_leaf(handles[2], paths->output_name, 1)) goto resolved;
+  failure = "resolved user-link directories changed before retention";
+  if (!cupidbuild_output_parent_fill(parent, parent->resolved_root, output_relative, 0) ||
+      !cupidbuild_observer_same(&identities[0], &parent->observer->root->captured, 1) ||
+      !cupidbuild_observer_same(&identities[2], &parent->leaf->captured, 1)) goto resolved;
+  valid = 1;
+resolved:
+  for (index = 0u; index < 3u; index++) {
+    if (handles[index] != CUPIDBUILD_OBSERVER_INVALID &&
+        !cupidbuild_observer_close_handle(handles[index])) {
+      valid = 0;
+      failure = "cannot close user-link resolution handle";
+    }
+  }
+  free(paths);
+  if (!valid) return cupidbuild_output_parent_fail(parent, failure);
+  parent->resolved = 1;
+  return cupidbuild_host_output_parent_require_current(parent);
+}
+
+const char *cupidbuild_host_output_parent_resolved_root(
+    const cupidbuild_host_output_parent_t *parent) {
+  return parent && parent->resolved && !parent->error[0] ? parent->resolved_root : (const char *)0;
+}
+
+const char *cupidbuild_host_output_parent_resolved_source(
+    const cupidbuild_host_output_parent_t *parent) {
+  return parent && parent->resolved && !parent->error[0] ? parent->resolved_source : (const char *)0;
+}
+
+const char *cupidbuild_host_output_parent_resolved_output(
+    const cupidbuild_host_output_parent_t *parent) {
+  return parent && parent->resolved && !parent->error[0] ? parent->output : (const char *)0;
 }
 
 static int cupidbuild_output_parent_attach(cupidbuild_host_output_parent_t *parent,

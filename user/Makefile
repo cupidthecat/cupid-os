@@ -121,6 +121,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS := \
 	../toolchain/hosted/i386-windows/runtime.cc \
 	../toolchain/hosted/i386-windows/start.asm \
 	../toolchain/hosted/i386-windows/tool_start.asm \
+	../toolchain/hosted/i386-windows/final_path_start.asm \
 	../toolchain/tests/core_contract.cc \
 	../toolchain/tests/cupidasm_contract.cc \
 	../toolchain/tests/cupidasm_demos_contract.cc \
@@ -200,6 +201,7 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS := \
 	../toolchain/hosted/i386-windows/runtime.cc \
 	../toolchain/hosted/i386-windows/start.asm \
 	../toolchain/hosted/i386-windows/tool_start.asm \
+	../toolchain/hosted/i386-windows/final_path_start.asm \
 	../toolchain/tests/hosted_i386_windows_contract.cc \
 	../toolchain/tests/hosted_i386_windows_runtime_contract.cc \
 	../toolchain/x86.cc \

@@ -138,6 +138,7 @@ BOOTSTRAP_OBJECT_NAMES = (
 WINDOWS_RUNTIME_INPUTS = (
     "toolchain/hosted/i386-linux/include/windows.h",
     "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+    "toolchain/hosted/i386-windows/final_path_start.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
@@ -1829,6 +1830,8 @@ def verify_publication_inputs(
             root, _candidate_build_plan(build_plan), windows_utf8=True,
             windows_long_paths=("toolchain/hosted/i386-windows/utf8_long_path_start.asm"
                                 in bootstrap["source_inputs"]["files"]),
+            windows_user_link_aliases=("toolchain/hosted/i386-windows/final_path_start.asm"
+                                      in bootstrap["source_inputs"]["files"]),
         )
     except (
         BootstrapError,
@@ -2038,7 +2041,10 @@ def build_contracts(
     workers: int = 2,
     *,
     windows_long_paths: bool = False,
+    windows_user_link_aliases: bool = True,
 ) -> dict[str, object]:
+    if type(windows_user_link_aliases) is not bool:
+        raise ContractError("Windows user-link alias selection must be Boolean")
     if type(windows_long_paths) is not bool:
         raise ContractError("Windows long-path selection must be Boolean")
     validate_plans(CONTRACT_PLANS)
@@ -2065,6 +2071,7 @@ def build_contracts(
                 root,
                 bootstrap_output,
                 **({"windows_long_paths": True} if windows_long_paths else {}),
+                windows_user_link_aliases=windows_user_link_aliases,
             )
         except BootstrapError as error:
             raise ContractError(
@@ -2271,7 +2278,10 @@ def ensure_contracts(
     workers: int = 2,
     *,
     windows_long_paths: bool = False,
+    windows_user_link_aliases: bool = True,
 ) -> dict[str, object]:
+    if type(windows_user_link_aliases) is not bool:
+        raise ContractError("Windows user-link alias selection must be Boolean")
     if type(windows_long_paths) is not bool:
         raise ContractError("Windows long-path selection must be Boolean")
     root = root.resolve()
@@ -2289,13 +2299,17 @@ def ensure_contracts(
             if ("toolchain/hosted/i386-windows/utf8_long_path_start.asm"
                     in report["bootstrap"]["source_inputs"]["files"]) != windows_long_paths:
                 raise ContractError("published Windows long-path profile differs")
+            if ("toolchain/hosted/i386-windows/final_path_start.asm"
+                    in report["bootstrap"]["source_inputs"]["files"]) != windows_user_link_aliases:
+                raise ContractError("published Windows user-link alias profile differs")
         except ContractError:
             _announce("the published cohort is stale and will be rebuilt")
         else:
             _announce("the published cohort is current")
             return report
     return build_contracts(root, manifest, output, workers,
-        **({"windows_long_paths": True} if windows_long_paths else {}))
+        **({"windows_long_paths": True} if windows_long_paths else {}),
+        windows_user_link_aliases=windows_user_link_aliases)
 
 
 def run_published_contract(
@@ -2667,7 +2681,10 @@ def run_user_syscall_abi(
     windows_manifest: Path | None = None,
     *,
     windows_long_paths: bool = False,
+    windows_user_link_aliases: bool = True,
 ) -> dict[str, object]:
+    if type(windows_user_link_aliases) is not bool:
+        raise ContractError("Windows user-link alias selection must be Boolean")
     if type(windows_long_paths) is not bool:
         raise ContractError("Windows long-path selection must be Boolean")
     root = root.resolve()
@@ -2676,7 +2693,8 @@ def run_user_syscall_abi(
             root, windows_manifest, timeout
         )
     report = ensure_contracts(root, manifest, output, workers,
-        **({"windows_long_paths": True} if windows_long_paths else {}))
+        **({"windows_long_paths": True} if windows_long_paths else {}),
+        windows_user_link_aliases=windows_user_link_aliases)
     executable = output / "user-syscall-abi-contract.elf"
     with tempfile.TemporaryDirectory(
         prefix="cupid-user-syscall-abi-snapshot-"
@@ -2723,6 +2741,7 @@ def _build_parser() -> argparse.ArgumentParser:
     build.add_argument("--output", required=True, type=Path)
     build.add_argument("--workers", type=int, default=2)
     build.add_argument("--windows-long-paths", action="store_true")
+    build.add_argument("--windows-user-link-aliases", action=argparse.BooleanOptionalAction, default=True)
     ensure = subparsers.add_parser(
         "ensure", help="build the checked cohort when it is not current"
     )
@@ -2731,6 +2750,7 @@ def _build_parser() -> argparse.ArgumentParser:
     ensure.add_argument("--output", required=True, type=Path)
     ensure.add_argument("--workers", type=int, default=2)
     ensure.add_argument("--windows-long-paths", action="store_true")
+    ensure.add_argument("--windows-user-link-aliases", action=argparse.BooleanOptionalAction, default=True)
     user_abi = subparsers.add_parser(
         "user-abi", help="check the user syscall ABI with the Cupid contract"
     )
@@ -2741,6 +2761,7 @@ def _build_parser() -> argparse.ArgumentParser:
     user_abi.add_argument("--workers", type=int, default=2)
     user_abi.add_argument("--timeout", type=int, default=60)
     user_abi.add_argument("--windows-long-paths", action="store_true")
+    user_abi.add_argument("--windows-user-link-aliases", action=argparse.BooleanOptionalAction, default=True)
     run = subparsers.add_parser(
         "run", help="run one published static i386 contract"
     )
@@ -2772,6 +2793,7 @@ def main(argv: list[str] | None = None) -> int:
                 arguments.output,
                 arguments.workers,
                 windows_long_paths=arguments.windows_long_paths,
+                windows_user_link_aliases=arguments.windows_user_link_aliases,
             )
             print(
                 "CupidC toolchain contracts: ok "
@@ -2785,6 +2807,7 @@ def main(argv: list[str] | None = None) -> int:
                 arguments.output,
                 arguments.workers,
                 windows_long_paths=arguments.windows_long_paths,
+                windows_user_link_aliases=arguments.windows_user_link_aliases,
             )
             print(
                 "CupidC toolchain contracts: ready "
@@ -2800,6 +2823,7 @@ def main(argv: list[str] | None = None) -> int:
                 arguments.timeout,
                 arguments.windows_manifest,
                 windows_long_paths=arguments.windows_long_paths,
+                windows_user_link_aliases=arguments.windows_user_link_aliases,
             )
             print(json.dumps(report, sort_keys=True))
             return 0

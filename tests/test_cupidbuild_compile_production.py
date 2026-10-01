@@ -258,25 +258,37 @@ int main(int argc, char **argv) {
 ''')
         plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
         if os.name == "nt":
-            plan = _windows_build_plan(plan)
-        runtime = next(source for source in plan["sources"] if source["name"] == "runtime")
-        order = ["start", "runtime", "invalid"]
-        objects = {name: directory / ("invalid-" + name + ".o") for name in order}
-        for name, source, gnu in (("invalid", "/" + stub.relative_to(ROOT).as_posix(), False),
-                                  ("runtime", runtime["path"], True)):
-            args = [self.compiler, "--root", ROOT, "-c", source, "-o",
-                    "/" + objects[name].relative_to(ROOT).as_posix(), *plan["include_arguments"]]
+            from tests.test_cupidbuild_compile_kernel import build_target_compiler
+            plan = _windows_build_plan(plan, utf8=True, long_paths=True)
+            build_target_compiler(directory, self.compiler)
+            order = plan['links']['cupidc']
+            objects = {name: directory / ('target-' + name + '.o') for name in order}
+            objects['cupidc_main'] = directory / 'invalid-main.o'
+            rows = [('cupidc_main', '/' + stub.relative_to(ROOT).as_posix(), False)]
+        else:
+            runtime = next(source for source in plan['sources'] if source['name'] == 'runtime')
+            order = ['start', 'runtime', 'invalid']
+            objects = {name: directory / ('invalid-' + name + '.o') for name in order}
+            rows = [('invalid', '/' + stub.relative_to(ROOT).as_posix(), False),
+                    ('runtime', runtime['path'], True)]
+        for name, source, gnu in rows:
+            args = [self.compiler, '--root', ROOT, '-c', source, '-o',
+                    '/' + objects[name].relative_to(ROOT).as_posix(), *plan['include_arguments']]
             if gnu:
-                args.append("--gnu")
+                args.append('--gnu')
             checked_run(args)
-        start = ROOT / ("toolchain/hosted/i386-windows/tool_start.asm" if os.name == "nt"
-                        else "toolchain/hosted/i386-linux/start.asm")
-        checked_run([SEED / ("cupidasm" + SUFFIX), "-f", "elf32", start, "-o", objects["start"]])
-        executable = directory / ("invalid-compiler" + SUFFIX)
-        arguments = (_windows_link_arguments("cupidc", executable, objects, order) if os.name == "nt"
-                     else ["-m", "elf_i386", "--text-address", "0x08048000", "--entry", "_start",
-                           "-o", executable, *[objects[name] for name in order]])
-        checked_run([SEED / ("cupidld" + SUFFIX), *arguments])
+        assembly = plan.get('assembly_sources') or [
+            {'name':'start','path':'/toolchain/hosted/i386-linux/start.asm'}]
+        for source in assembly:
+            if source['name'] in objects:
+                checked_run([SEED / ('cupidasm' + SUFFIX), '-f', 'elf32',
+                    ROOT / source['path'].lstrip('/'), '-o', objects[source['name']]])
+        executable = directory / ('invalid-compiler' + SUFFIX)
+        arguments = (_windows_link_arguments('cupidc', executable, objects, order,
+                                             utf8=True, long_paths=True) if os.name == 'nt'
+                     else ['-m', 'elf_i386', '--text-address', '0x08048000', '--entry', '_start',
+                           '-o', executable, *[objects[name] for name in order]])
+        checked_run([SEED / ('cupidld' + SUFFIX), *arguments])
         contents = executable.read_bytes()
         seed_compiler = self.root / "seed" / ("cupidc" + SUFFIX)
         seed_compiler.write_bytes(contents)
@@ -308,7 +320,7 @@ int main(int argc, char **argv) {
         plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
         plan = _candidate_build_plan(plan)
         if os.name == "nt":
-            plan = _windows_build_plan(plan)
+            plan = _windows_build_plan(plan, utf8=True, user_link_aliases=True)
         order = plan["links"]["cupidbuild"]
         objects = {name: self.directory / ("target-" + name + ".o") for name in order}
         for source in plan["sources"]:
@@ -325,15 +337,14 @@ int main(int argc, char **argv) {
             expected = output.read_bytes()
             checked_run([SEED / ("cupidc" + SUFFIX), *args])
             self.assertEqual(output.read_bytes(), expected, source["path"])
-        assembly = list(plan.get("assembly_sources", []))
-        assembly.append({"name": "start", "path": "toolchain/hosted/i386-windows/tool_start.asm"
-                         if os.name == "nt" else "toolchain/hosted/i386-linux/start.asm"})
+        assembly = plan.get('assembly_sources') or [
+            {'name':'start','path':'/toolchain/hosted/i386-linux/start.asm'}]
         for source in assembly:
             if source["name"] in objects:
                 checked_run([SEED / ("cupidasm" + SUFFIX), "-f", "elf32",
                              ROOT / source["path"].lstrip("/"), "-o", objects[source["name"]]])
         coordinator = self.directory / ("target-cupidbuild" + SUFFIX)
-        args = (_windows_link_arguments("cupidbuild", coordinator, objects, order)
+        args = (_windows_link_arguments("cupidbuild", coordinator, objects, order, utf8=True, user_link_aliases=True)
                 if os.name == "nt" else ["-m", "elf_i386", "--text-address", "0x08048000",
                                         "--entry", "_start", "-o", coordinator,
                                         *[objects[name] for name in order]])
@@ -356,6 +367,10 @@ int main(int argc, char **argv) {
                                       capture_output=True, text=True, timeout=timeout)
         inputs = freeze_seed_inputs(self.root / "seed/manifest.json", self.root / "stage-seed")
         stage = Stage({}, {**inputs.tools, "cupidbuild": coordinator})
+        if os.name == 'nt':
+            from tests.windows_checked_cohort import build_behavior_cohort
+            stage, inputs = build_behavior_cohort(self, ROOT,
+                self.root / 'staged-cohort', coordinator)
         behavior = self.root / "paired-behavior"
         behavior.mkdir()
         _check_cupidbuild_compile_production_behavior(

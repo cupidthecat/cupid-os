@@ -3251,7 +3251,7 @@ int cupidbuild_validate_seed_image_bytes(
       (format != CUPIDBUILD_SEED_ELF32 && format != CUPIDBUILD_SEED_PE32) ||
       artifact_index >= (promoted ? CUPIDBUILD_SEED_ARTIFACTS : 5u) ||
       (promoted != 0 && promoted != 1) ||
-      (current_windows_plan < 0 || current_windows_plan > 3) ||
+      (current_windows_plan < 0 || current_windows_plan > 5) ||
       (current_windows_plan && (!promoted || format != CUPIDBUILD_SEED_PE32)) ||
       ctool_host_adapter_init(&adapter, ".") != CTOOL_OK) {
     return 0;
@@ -3438,6 +3438,42 @@ int cupidbuild_validate_seed_image_bytes(
         "VirtualFree",
         "WaitForSingleObject",
         "WriteFile"};
+    static const char *const cupidbuild_user_link_imports[] = {
+        "CloseHandle",
+        "CreateDirectoryW",
+        "CreateFileW",
+        "CreateProcessW",
+        "DeleteFileW",
+        "DeleteProcThreadAttributeList",
+        "ExitProcess",
+        "FindClose",
+        "FindFirstFileW",
+        "FindNextFileW",
+        "FlushFileBuffers",
+        "GetCommandLineW",
+        "GetCurrentDirectoryW",
+        "GetCurrentProcessId",
+        "GetExitCodeProcess",
+        "GetFileAttributesW",
+        "GetFileInformationByHandle",
+        "GetFinalPathNameByHandleW",
+        "GetFullPathNameW",
+        "GetLastError",
+        "GetStdHandle",
+        "InitializeProcThreadAttributeList",
+        "MoveFileExW",
+        "OpenProcess",
+        "ReadFile",
+        "RemoveDirectoryW",
+        "SetFilePointer",
+        "SetHandleInformation",
+        "SetLastError",
+        "TerminateProcess",
+        "UpdateProcThreadAttribute",
+        "VirtualAlloc",
+        "VirtualFree",
+        "WaitForSingleObject",
+        "WriteFile"};
     static const char *const cupidbuild_legacy_ntdll_imports[] = {
         "NtSetInformationFile"};
     static const char *const cupidbuild_current_ntdll_imports[] = {
@@ -3470,8 +3506,8 @@ int cupidbuild_validate_seed_image_bytes(
         expected_imports = linker_utf8_imports;
         expected_count = sizeof(linker_utf8_imports) / sizeof(linker_utf8_imports[0]);
       } else {
-        expected_imports = current_windows_plan == 3 ? ordinary_long_path_imports : ordinary_utf8_imports;
-        expected_count = current_windows_plan == 3
+        expected_imports = (current_windows_plan == 3 || current_windows_plan == 5) ? ordinary_long_path_imports : ordinary_utf8_imports;
+        expected_count = (current_windows_plan == 3 || current_windows_plan == 5)
             ? sizeof(ordinary_long_path_imports) / sizeof(ordinary_long_path_imports[0])
             : sizeof(ordinary_utf8_imports) / sizeof(ordinary_utf8_imports[0]);
       }
@@ -3496,10 +3532,14 @@ int cupidbuild_validate_seed_image_bytes(
             sizeof(cupidbuild_current_ntdll_imports) /
             sizeof(cupidbuild_current_ntdll_imports[0]);
         if (current_windows_plan) {
-          expected_imports = current_windows_plan >= 2
+          expected_imports = current_windows_plan >= 4
+                                 ? cupidbuild_user_link_imports
+                                 : current_windows_plan >= 2
                                  ? cupidbuild_utf8_imports
                                  : cupidbuild_current_imports;
-          expected_count = current_windows_plan >= 2
+          expected_count = current_windows_plan >= 4
+                               ? sizeof(cupidbuild_user_link_imports) / sizeof(cupidbuild_user_link_imports[0])
+                               : current_windows_plan >= 2
                                ? sizeof(cupidbuild_utf8_imports) / sizeof(cupidbuild_utf8_imports[0])
                                : current_count;
           expected_ntdll_imports = cupidbuild_current_ntdll_imports;
@@ -6339,11 +6379,11 @@ static int cupidbuild_user_link_root_is_absolute(const char *root) {
   return root[0] == '/';
 }
 
-int cupidbuild_link_user_object(const cupidbuild_user_link_request_t *request) {
+static int cupidbuild_link_user_prepared(const cupidbuild_user_link_request_t *request,
+                                        cupidbuild_host_output_parent_t *parent) {
   cupidbuild_host_transaction_t *transaction =
       (cupidbuild_host_transaction_t *)0;
-  cupidbuild_host_output_parent_t *parent =
-      (cupidbuild_host_output_parent_t *)0;
+  int own_parent = parent == (cupidbuild_host_output_parent_t *)0;
   cupidbuild_seed_capture_t seed;
   cupidbuild_host_snapshot_t candidate_snapshot;
   unsigned char *object = (unsigned char *)0;
@@ -6382,7 +6422,7 @@ int cupidbuild_link_user_object(const cupidbuild_user_link_request_t *request) {
     (void)fprintf(stderr, "cupidbuild: user link object and executable binding differ\n");
     return 1;
   }
-  if (!cupidbuild_host_output_parent_open_existing(
+  if (own_parent && !cupidbuild_host_output_parent_open_existing(
           request->repository_root, request->output, &parent)) {
     (void)fprintf(stderr, "cupidbuild: %s\n",
                   cupidbuild_host_output_parent_error(parent));
@@ -6462,6 +6502,35 @@ done:
   cupidbuild_seed_capture_close(&seed);
   result = cupidbuild_finish_publication(transaction, result,
                                          "user executable");
+  if (own_parent && !cupidbuild_host_output_parent_close(parent)) {
+    (void)fprintf(stderr, "cupidbuild: user link parent cleanup failed\n");
+    return 1;
+  }
+  return result;
+}
+
+int cupidbuild_link_user_object(const cupidbuild_user_link_request_t *request) {
+  return cupidbuild_link_user_prepared(request, (cupidbuild_host_output_parent_t *)0);
+}
+
+int cupidbuild_link_user(const cupidbuild_user_link_request_t *request) {
+  cupidbuild_host_output_parent_t *parent = (cupidbuild_host_output_parent_t *)0;
+  cupidbuild_user_link_request_t physical;
+  int result = 1;
+  if (request == (const cupidbuild_user_link_request_t *)0) {
+    (void)fprintf(stderr, "cupidbuild: invalid user link request\n");
+    return 1;
+  }
+  if (!cupidbuild_host_output_parent_resolve_existing(request->repository_root,
+                                            request->source, request->output, &parent)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n", cupidbuild_host_output_parent_error(parent));
+  } else {
+    physical = *request;
+    physical.repository_root = cupidbuild_host_output_parent_resolved_root(parent);
+    physical.source = cupidbuild_host_output_parent_resolved_source(parent);
+    physical.output = cupidbuild_host_output_parent_resolved_output(parent);
+    result = cupidbuild_link_user_prepared(&physical, parent);
+  }
   if (!cupidbuild_host_output_parent_close(parent)) {
     (void)fprintf(stderr, "cupidbuild: user link parent cleanup failed\n");
     return 1;

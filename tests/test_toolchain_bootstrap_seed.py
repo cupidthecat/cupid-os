@@ -4625,7 +4625,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     seed_inputs,
                 )
 
-            windows_capture.assert_called_once_with(windows_output, candidate_plan, windows_utf8=True, windows_long_paths=False)
+            windows_capture.assert_called_once_with(windows_output, candidate_plan, windows_utf8=True, windows_long_paths=False, windows_user_link_aliases=False)
             windows_compile.assert_called_once_with(
                 windows_behavior_runner, windows_output / "behavior",
                 stage, stage,
@@ -5185,6 +5185,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     source_root,
                     source_root / "published",
                     compare_fixed_point=False,
+                    windows_user_link_aliases=False,
                 )
 
             self.assertEqual(
@@ -5354,6 +5355,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     source_root,
                     source_root / "published",
                     compare_fixed_point=True,
+                    windows_user_link_aliases=False,
                 )
 
             self.assertEqual(
@@ -5512,6 +5514,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     plan_inputs,
                     source_root,
                     source_root / "published",
+                    windows_user_link_aliases=False,
                 )
 
             self.assertEqual(
@@ -5719,6 +5722,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     plan_inputs,
                     source_root,
                     source_root / "published",
+                    windows_user_link_aliases=False,
                 )
 
             self.assertEqual(
@@ -6719,7 +6723,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         for link in links:
             self.assertEqual(
                 [(item.arg, item.value.id) for item in link.keywords],
-                [("utf8", "behavior_utf8")],
+                [("utf8", "behavior_utf8"),
+                 ("long_paths", "behavior_long_paths"),
+                 ("user_link_aliases", "behavior_user_link_aliases")],
             )
 
     def test_linux_behavior_windows_cupidasm_uses_publication_closure(self):
@@ -6864,8 +6870,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         observed: dict[str, object] = {}
 
         def accept_verified_inputs(
-            execution_seed, plan_seed, source_root, output_root
+            execution_seed, plan_seed, source_root, output_root,
+            *, windows_user_link_aliases,
         ):
+            self.assertTrue(windows_user_link_aliases)
             observed["execution_schema"] = execution_seed.manifest["schema"]
             observed["plan_schema"] = plan_seed.manifest["schema"]
             observed["source_root"] = source_root
@@ -7113,7 +7121,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 report["comparisons"],
                 {
                     "all_equal": True,
-                    "assembly_objects": 3,
+                    "assembly_objects": 4,
                     "c_objects": 32,
                     "compared_generations": [
                         "stage-three",
@@ -7152,7 +7160,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ]
             )
             candidate_inventory = capture_source_snapshot(
-                REPO_ROOT, candidate_linux_plan, windows_utf8=True
+                REPO_ROOT, candidate_linux_plan, windows_utf8=True, windows_user_link_aliases=True
             )
             candidate_snapshot = hashlib.sha256(
                 json.dumps(
@@ -7168,7 +7176,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["source_inputs"]["count"],
-                76,
+                77,
             )
             self.assertEqual(
                 report["source_inputs"]["sha256"],
@@ -7188,7 +7196,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "stage-four",
             ):
                 stage = report["stages"][stage_name]
-                self.assertEqual(len(stage["objects"]), 35)
+                self.assertEqual(len(stage["objects"]), 36)
                 self.assertEqual(
                     set(stage["tools"]), set(CANDIDATE_TOOL_NAMES)
                 )
@@ -9506,9 +9514,14 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 frozen.tools["cupidld"], ["--help"], 60
             )
             self.assertEqual(cupidld_help.returncode, 0)
+            self.assertEqual(cupidld_help_oracle.returncode, 0)
             self.assertEqual(
                 cupidld_help.stdout,
-                cupidld_help_oracle.stdout.encode("utf-8"),
+                cupidld_help_oracle.stdout.replace(
+                    "usage: cupidld -m", "usage: cupidld [--caller-owned-output] -m"
+                ).replace(
+                    "       cupidld -m", "       cupidld [--caller-owned-output] -m"
+                ).encode("utf-8"),
             )
             self.assertEqual(cupidld_help.stderr, b"")
 
@@ -11904,7 +11917,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ]
             )
             candidate_inventory = capture_source_snapshot(
-                REPO_ROOT, candidate_plan, windows_utf8=True
+                REPO_ROOT, candidate_plan, windows_utf8=True, windows_user_link_aliases=True
             )
             source_head_snapshot = hashlib.sha256(
                 json.dumps(
@@ -11927,7 +11940,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["source_inputs"]["count"],
-                76,
+                77,
             )
             self.assertEqual(
                 len(report["source_inputs"]["sha256"]),
@@ -11939,7 +11952,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 len(report["source_inputs"]["files"]),
-                76,
+                77,
             )
             for tool_name in CANDIDATE_TOOL_NAMES:
                 stage_three = output / "stage-three" / f"{tool_name}.elf"

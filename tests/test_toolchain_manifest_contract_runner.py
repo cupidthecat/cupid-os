@@ -69,7 +69,9 @@ def _write_publication(root: Path):
     return _write_publication_at(root / "toolchain/build/cupidc-contracts")
 
 
-def _rewrite_with_live_closure(output: Path, manifest):
+def _rewrite_with_live_closure(
+    output: Path, manifest, *, windows_user_link_aliases=False, windows_long_paths=False
+):
     root = REPO_ROOT.resolve()
     contract_inputs = (
         toolchain_manifest_contract.cupidc_toolchain_contracts
@@ -94,7 +96,8 @@ def _rewrite_with_live_closure(output: Path, manifest):
         .capture_source_snapshot(
             root, bootstrap_toolchain._candidate_build_plan(
                 seed.manifest["build_plan"]
-            ), windows_utf8=True
+            ), windows_utf8=True, windows_long_paths=windows_long_paths,
+            windows_user_link_aliases=windows_user_link_aliases
         )
     )
     manifest["bootstrap"]["source_inputs"] = {
@@ -116,7 +119,7 @@ def _expected_report():
         "artifact_count": 22,
         "artifact_total_bytes": 682,
         "bootstrap_source_input_count": 76,
-        "input_count": 89,
+        "input_count": 90,
         "schema": "cupid.toolchain-manifest-verification.v1",
     }
 
@@ -378,22 +381,25 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                             "execution seed manifest",
                         )
 
-    def test_final_membership_rechecks_the_captured_long_path_profile(self):
+    def test_final_membership_rechecks_both_captured_windows_profiles(self):
         seed_bytes = (
             REPO_ROOT / "bootstrap/seeds/i386-linux/manifest.json"
         ).read_bytes()
         resolver = "toolchain/hosted/i386-windows/utf8_long_path_start.asm"
         inputs = (("toolchain/ctool.h", 1, 1, "0" * 64),)
-        for long_paths in (False, True):
-            expected = ("toolchain/ctool.cc",) + ((resolver,) if long_paths else ())
+        for long_paths, aliases in ((False, False), (False, True), (True, False), (True, True)):
+            expected = ("toolchain/ctool.cc",) + ((resolver,) if long_paths else ()) + (
+                ("toolchain/hosted/i386-windows/final_path_start.asm",) if aliases else ())
+            expected = tuple(sorted(expected))
             observations = tuple((name, 1, 1, "0" * 64) for name in expected)
             current = expected
 
-            def recapture(_reader, _plan, *, windows_long_paths=False):
+            def recapture(_reader, _plan, *, windows_long_paths=False, windows_user_link_aliases=False):
                 self.assertEqual(windows_long_paths, long_paths)
+                self.assertEqual(windows_user_link_aliases, aliases)
                 return current
 
-            with self.subTest(long_paths=long_paths), mock.patch.object(
+            with self.subTest(long_paths=long_paths, aliases=aliases), mock.patch.object(
                 toolchain_manifest_contract, "_contract_input_logical_paths",
                 return_value=("toolchain/ctool.h",),
             ), mock.patch.object(
@@ -493,7 +499,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                 decoded["artifact_observations"],
                 sorted(observations),
             )
-            self.assertEqual(len(decoded["input_observations"]), 89)
+            self.assertEqual(len(decoded["input_observations"]), 90)
             self.assertIn(
                 "toolchain/x86.cc",
                 {
@@ -627,7 +633,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                             execution_manifest,
                         )
 
-    def test_checked_seed_build_runs_the_manifest_contract(self):
+    def _check_seed_publication_profile(self, *, aliases=False, long_paths=False):
         execution_manifest = REPO_ROOT / (
             "bootstrap/seeds/i386-windows/manifest.json"
             if os.name == "nt"
@@ -641,7 +647,10 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
             output, _manifest, _observations = _write_publication_at(
                 Path(directory) / "publication"
             )
-            _rewrite_with_live_closure(output, _manifest)
+            _rewrite_with_live_closure(
+                output, _manifest, windows_user_link_aliases=aliases,
+                windows_long_paths=long_paths
+            )
             with mock.patch.object(
                 toolchain_manifest_contract,
                 "_capture_live_manifest_closure",
@@ -665,10 +674,18 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                                 timeout=120,
                             )
                         )
-        self.assertEqual(
-            report,
-            _expected_report(),
-        )
+        expected = _expected_report()
+        expected["bootstrap_source_input_count"] = 76 + int(aliases) + int(long_paths)
+        self.assertEqual(report, expected)
+
+    def test_checked_seed_build_runs_the_manifest_contract(self):
+        self._check_seed_publication_profile()
+
+    def test_checked_seed_verifies_the_current_alias_publication_profile(self):
+        self._check_seed_publication_profile(aliases=True)
+
+    def test_checked_seed_verifies_the_current_alias_long_publication_profile(self):
+        self._check_seed_publication_profile(aliases=True, long_paths=True)
 
     def test_verify_rejects_a_report_that_differs_from_the_oracle(self):
         with tempfile.TemporaryDirectory() as directory:

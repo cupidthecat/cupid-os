@@ -458,7 +458,10 @@ def _bootstrap_input_logical_paths(
     plan: dict[str, object],
     *,
     windows_long_paths: bool = False,
+    windows_user_link_aliases: bool = False,
 ) -> tuple[str, ...]:
+    if type(windows_user_link_aliases) is not bool:
+        raise ToolchainManifestContractError("Windows user-link alias selection must be Boolean")
     raw_sources = plan.get("sources")
     startup = plan.get("startup")
     if not isinstance(raw_sources, list) or not isinstance(startup, str):
@@ -504,6 +507,8 @@ def _bootstrap_input_logical_paths(
     )
     if windows_long_paths:
         paths.append("toolchain/hosted/i386-windows/utf8_long_path_start.asm")
+    if windows_user_link_aliases:
+        paths.append("toolchain/hosted/i386-windows/final_path_start.asm")
     paths.extend(_directory_members_with_suffix(reader, "toolchain", ".h"))
     paths.extend(
         _directory_members_with_suffix(
@@ -572,6 +577,8 @@ def _capture_live_manifest_closure(
         reader, _candidate_build_plan(build_plan),
         windows_long_paths=("toolchain/hosted/i386-windows/utf8_long_path_start.asm"
                             in bootstrap["source_inputs"]["files"]),
+        windows_user_link_aliases=("toolchain/hosted/i386-windows/final_path_start.asm"
+                                  in bootstrap["source_inputs"]["files"]),
     )
     bootstrap_observations, bootstrap_snapshots = (
         _capture_regular_observations(
@@ -677,6 +684,10 @@ def _require_live_closure_membership(
         reader, _candidate_build_plan(build_plan),
         windows_long_paths=any(
             path == "toolchain/hosted/i386-windows/utf8_long_path_start.asm"
+            for path, _kind, _size, _digest in bootstrap_observations
+        ),
+        windows_user_link_aliases=any(
+            path == "toolchain/hosted/i386-windows/final_path_start.asm"
             for path, _kind, _size, _digest in bootstrap_observations
         ),
     )

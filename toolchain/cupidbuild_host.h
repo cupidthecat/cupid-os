@@ -26,6 +26,19 @@ int cupidbuild_host_output_parent_prepare(
 int cupidbuild_host_output_parent_open_existing(
     const char *root, const char *output,
     cupidbuild_host_output_parent_t **preparation_out);
+/* Resolve existing root and parent aliases, reject linked leaves and paths
+ * outside the physical root, then retain the physical output chain. Resolution
+ * directory identities must match the retained root and parent. This creates
+ * no namespace entries. The resolved strings belong to preparation. */
+int cupidbuild_host_output_parent_resolve_existing(
+    const char *root, const char *source, const char *output,
+    cupidbuild_host_output_parent_t **preparation_out);
+const char *cupidbuild_host_output_parent_resolved_root(
+    const cupidbuild_host_output_parent_t *preparation);
+const char *cupidbuild_host_output_parent_resolved_source(
+    const cupidbuild_host_output_parent_t *preparation);
+const char *cupidbuild_host_output_parent_resolved_output(
+    const cupidbuild_host_output_parent_t *preparation);
 int cupidbuild_host_output_parent_require_current(
     cupidbuild_host_output_parent_t *preparation);
 int cupidbuild_host_output_parent_bind(

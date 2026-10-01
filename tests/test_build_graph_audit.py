@@ -321,6 +321,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         for path in (
             "toolchain/hosted/i386-linux/start.asm",
             "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+            "toolchain/hosted/i386-windows/final_path_start.asm",
             "toolchain/hosted/i386-windows/publication_start.asm",
             "toolchain/hosted/i386-windows/start.asm",
             "toolchain/hosted/i386-windows/tool_start.asm",
@@ -336,18 +337,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             audit["contracts"]["assembly_source_ownership"],
             {
                 "status": "pass",
-                "active_sources": 36,
-                "cupidasm_owned_sources": 36,
+                "active_sources": 37,
+                "cupidasm_owned_sources": 37,
                 "other_owned_sources": 0,
                 "ownerless_sources": 0,
                 "explicit_classifications": [],
-                "toolchain_startup_sources": 9,
+                "toolchain_startup_sources": 10,
             },
         )
         markdown = _load_audit_module()._render_markdown(audit)
         self.assertIn(
-            "36 active assembly sources; 36 CupidASM-owned; "
-            "9 Toolchain startup; 0 other-owned; 0 ownerless; "
+            "37 active assembly sources; 37 CupidASM-owned; "
+            "10 Toolchain startup; 0 other-owned; 0 ownerless; "
             "0 explicit host-only classifications",
             markdown,
         )
@@ -393,6 +394,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
     def test_utf8_toolchain_inputs_have_complete_ownership(self):
         module = _load_audit_module()
         wide = {
+            "toolchain/hosted/i386-windows/final_path_start.asm",
             "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
             "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
             "toolchain/hosted/i386-windows/utf8_publication_start.asm",
@@ -416,7 +418,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             direct_sources=set(inputs), generated_sources=set(), forced_sources=set(),
             includes_by_source={}, include_search_paths=[], transforms=[transform])
         expected = {path for path in inputs if path.endswith(".asm")}
-        self.assertEqual(len(expected), 9)
+        self.assertEqual(len(expected), 10)
         self.assertEqual(module._toolchain_contract_cupidasm_ownership_inputs([model]), expected)
         self.assertTrue({path for path in wide if path.endswith(".cc")} <=
                         module._toolchain_contract_cupidc_ownership_inputs([model]))
@@ -2870,9 +2872,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 419)
+            self.assertEqual(contract["if_occurrences"], 425)
             self.assertEqual(contract["elif_occurrences"], 19)
-            self.assertEqual(contract["expression_occurrences"], 438)
+            self.assertEqual(contract["expression_occurrences"], 444)
             self.assertEqual(contract["unique_expressions"], 61)
             self.assertEqual(contract["directive_expression_pairs"], 64)
             executable_contract = CUPIDC_PP_CONTRACT.read_text(encoding="utf-8")
@@ -6838,6 +6840,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             native_build_loop_start:native_build_loop_end
         ]
         mutations = {
+            "Windows final-path declaration changes calling arguments": (
+                "windows_publication_header",
+                "DWORD cupid_windows_get_final_path_name_by_handle_wide(\n    HANDLE handle, unsigned short *destination, DWORD capacity, DWORD flags);",
+                "DWORD cupid_windows_get_final_path_name_by_handle_wide(\n    HANDLE handle, unsigned short *destination, DWORD capacity);",
+                r"fixed-point Windows publication contract differs",
+            ),
+
             "angle root widened": (
                 "driver",
                 "cli->include_forms[cli->include_count] = CTOOL_C_PP_INCLUDE_ANGLE;",
@@ -7280,7 +7289,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "native Windows link loses UTF-8 import selection": (
                 "bootstrap",
-                "for selector in _windows_import_selectors(tool_name, utf8=utf8, long_paths=long_paths):",
+                'for selector in _windows_import_selectors(tool_name, utf8=utf8,\n        long_paths=long_paths, user_link_aliases=user_link_aliases):',
                 "for selector in _windows_import_selectors(tool_name):",
                 r"native Windows fixed-point behavior differs",
             ),
@@ -8936,6 +8945,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "        seed_inputs, _build_plan_sha256(native_plan),\n"
                 "        behavior_linux_plan, behavior_source_snapshot,\n"
                 "        utf8=behavior_utf8, long_paths=behavior_long_paths,\n"
+            "        user_link_aliases=behavior_user_link_aliases,\n"
                 "        parent_plan_seed=linux_seed_inputs,\n"
                 "    )\n",
                 "    behavior_seed_inputs = seed_inputs\n",
@@ -10049,7 +10059,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 self.assertEqual(unreachable[fixture], "not_reached")
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6985, 183),
+                "c.expression.sizeof": (7000, 183),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }

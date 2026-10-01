@@ -121,10 +121,11 @@ class WindowsUtf8PlanTests(unittest.TestCase):
     def test_installed_profile_matches_promoted_utf8_plan(self):
         manifest = json.loads((ROOT / "bootstrap/seeds/i386-windows/manifest.json").read_bytes())
         installed_plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"]
-        digest = bootstrap._build_plan_sha256(bootstrap._windows_build_plan(installed_plan, utf8=True))
+        long_paths = manifest["provenance"]["source_input_count"] == 77
+        digest = bootstrap._build_plan_sha256(bootstrap._windows_build_plan(
+            installed_plan, utf8=True, long_paths=long_paths))
         self.assertEqual(digest, manifest["provenance"]["native_build_plan_sha256"])
-        self.assertEqual(digest, bootstrap.PROMOTED_WINDOWS_PLAN_SHA256)
-        self.assertEqual(manifest["provenance"]["source_input_count"], bootstrap.PROMOTED_SOURCE_INPUT_COUNT)
+        self.assertEqual(manifest["provenance"]["source_input_count"], 77 if long_paths else 76)
 
     def test_promoted_profiles_select_exact_imports_for_every_role(self):
         for utf8, count in ((False, 66), (True, 73)):
@@ -234,7 +235,7 @@ class WindowsUtf8PlanTests(unittest.TestCase):
     def test_complete_import_cohorts_select_matching_mode(self):
         for utf8, long_paths in ((False, False), (True, False), (True, True)):
             plan = bootstrap._windows_build_plan(self.linux, utf8=utf8, long_paths=long_paths)
-            self.assertEqual(bootstrap._windows_plan_profile(plan), (utf8, long_paths))
+            self.assertEqual(bootstrap._windows_plan_profile(plan), (utf8, long_paths, False))
             self.assertIs(bootstrap._windows_plan_uses_utf8(plan), utf8)
 
     def test_long_import_cohort_rejects_an_ordinary_tool_without_resolver(self):

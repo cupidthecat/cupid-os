@@ -781,7 +781,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 89)
+        self.assertEqual(len(inputs), 90)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)
@@ -1548,7 +1548,9 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 seed_manifest: Path,
                 source_root: Path,
                 bootstrap_output: Path,
+                *, windows_user_link_aliases: bool,
             ) -> dict[str, object]:
+                self.assertTrue(windows_user_link_aliases)
                 del seed_manifest, source_root
                 for generation in (
                     "stage-two",
@@ -2893,7 +2895,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
         self.assertEqual(actual, expected)
         ensure.assert_called_once_with(
             root, root / "bootstrap/seeds/i386-linux/manifest.json",
-            output, 3, windows_long_paths=True,
+            output, 3, windows_long_paths=True, windows_user_link_aliases=True,
         )
 
     def test_user_abi_operation_rejects_non_boolean_profile_before_execution(self):
@@ -2945,6 +2947,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
         sources = cupidc_toolchain_contracts.capture_source_snapshot(
             repository, _candidate_build_plan(seed.manifest["build_plan"]),
             windows_utf8=True, windows_long_paths=windows_long_paths,
+            windows_user_link_aliases=True,
         )
         inputs = cupidc_toolchain_contracts._snapshot_contract_inputs(
             repository,
@@ -3019,8 +3022,8 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             expected = cupidc_toolchain_contracts.check_syscall_abi(root)
             before = (output / "manifest.json").read_bytes()
             publication = cupidc_toolchain_contracts.verify_publication(output)
-            self.assertEqual(publication["input_count"], 89)
-            self.assertEqual(publication["bootstrap"]["source_inputs"]["count"], 77)
+            self.assertEqual(publication["input_count"], 90)
+            self.assertEqual(publication["bootstrap"]["source_inputs"]["count"], 78)
             completed = subprocess.CompletedProcess(
                 ["user-syscall-abi-contract.elf"], 0,
                 json.dumps(expected) + "\n", "",
@@ -3518,7 +3521,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
         root = Path("contract-root").resolve()
         manifest = root / "bootstrap/seeds/i386-linux/manifest.json"
         output = root / "toolchain/build/cupidc-contracts"
-        report = {"status": "pass", "bootstrap": {"source_inputs": {"files": {}}}}
+        report = {"status": "pass", "bootstrap": {"source_inputs": {"files": {"toolchain/hosted/i386-windows/final_path_start.asm": {}}}}}
 
         with mock.patch.object(
             Path, "exists", return_value=True
@@ -3593,7 +3596,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             )
 
         self.assertIs(checked, rebuilt)
-        build.assert_called_once_with(root, manifest, output, 3)
+        build.assert_called_once_with(root, manifest, output, 3, windows_user_link_aliases=True)
 
     def test_user_abi_operation_rejects_oracle_disagreement(self):
         root = Path("contract-root").resolve()

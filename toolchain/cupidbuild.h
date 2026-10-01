@@ -63,6 +63,9 @@ typedef cupidbuild_object_request_t cupidbuild_user_link_request_t;
  * remain retained through instruction validation and atomic publication.
  */
 int cupidbuild_link_user_object(const cupidbuild_user_link_request_t *request);
+/* Resolve existing repository and parent aliases, then approve the physical
+ * cat/hello/ls object pair and keep its retained chain through publication. */
+int cupidbuild_link_user(const cupidbuild_user_link_request_t *request);
 
 #define CUPIDBUILD_USER_PATH_BYTES 8192u
 typedef struct {
@@ -90,8 +93,9 @@ typedef enum {
 /* Validate immutable captured bytes without selecting or launching a tool.
  * Artifact order is CupidASM, CupidC, CupidDis, CupidLD, CupidObj, CupidBuild.
  * The legacy cohort contains the first five roles. promoted must be zero or
- * one. current_windows_plan selects legacy (0), current ANSI (1), UTF-8 (2), or UTF-8 long paths (3)
- * imports. Nonzero selections require promoted PE32 input.
+ * one. current_windows_plan selects legacy (0), current ANSI (1), UTF-8 (2),
+ * UTF-8 long paths (3), or directory-alias profiles (4 default, 5 long paths).
+ * Each selection requires exact role imports. Nonzero selections require promoted PE32 input.
  * The caller retains ownership and proves capture identity and release trust.
  * Returns one only for the exact format, entry point, and role import profile.
  * This does not validate a manifest, digest, filesystem, or release identity. */

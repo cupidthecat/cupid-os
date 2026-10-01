@@ -140,6 +140,7 @@ INPUT_PATHS = (
     "toolchain/hosted/i386-linux/include/unistd.h",
     "toolchain/hosted/i386-linux/include/windows.h",
     "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+    "toolchain/hosted/i386-windows/final_path_start.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
@@ -432,6 +433,20 @@ def _append_bytes(payload, value):
     payload.extend(value)
 
 
+def _profile_fixture(*, user_link_aliases=False, long_paths=False):
+    manifest, observations = _fixture()
+    inputs = manifest["bootstrap"]["source_inputs"]
+    for enabled, path in (
+        (user_link_aliases, "toolchain/hosted/i386-windows/final_path_start.asm"),
+        (long_paths, "toolchain/hosted/i386-windows/utf8_long_path_start.asm"),
+    ):
+        if enabled:
+            inputs["files"][path] = _digest_size("profile:" + path, 31)
+    inputs["count"] = len(inputs["files"])
+    inputs["sha256"] = _digest(_json_bytes(inputs["files"]))
+    return manifest, observations
+
+
 def _seed_fixture(manifest):
     seed_path = REPO_ROOT / "bootstrap/seeds/i386-linux/manifest.json"
     seed_bytes = seed_path.read_bytes()
@@ -715,7 +730,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(
             result.stdout,
             '{"artifact_count":22,"artifact_total_bytes":682,'
-            '"bootstrap_source_input_count":76,"input_count":89,'
+            '"bootstrap_source_input_count":76,"input_count":90,'
             '"schema":"cupid.toolchain-manifest-verification.v1"}\n',
         )
         self.assertEqual(result.stderr, "")
@@ -1117,6 +1132,73 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     "ascii"
                 ),
             )
+
+            for aliases, long_paths in ((False, True), (True, False), (True, True)):
+                with self.subTest(aliases=aliases, long_paths=long_paths):
+                    manifest, observations = _profile_fixture(
+                        user_link_aliases=aliases, long_paths=long_paths
+                    )
+
+                    def execute(mode, payload):
+                        request.write_bytes(payload)
+                        with mock.patch.object(
+                            cupidc_toolchain_contracts.subprocess,
+                            "run",
+                            side_effect=run_without_wsl,
+                        ):
+                            return runner.run(executable, (mode, request), 120)
+
+                    author_payload = _author_request(
+                        manifest=manifest, observations=observations
+                    )
+                    canonical = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+                    authored = execute("author", author_payload)
+                    self.assertEqual(authored.returncode, 0, authored.stderr)
+                    self.assertEqual(authored.stdout, canonical)
+                    checked = execute(
+                        "check", _request(manifest=manifest, observations=observations)
+                    )
+                    self.assertEqual(checked.returncode, 0, checked.stderr)
+                    self.assertEqual(
+                        json.loads(checked.stdout)["bootstrap_source_input_count"],
+                        manifest["bootstrap"]["source_inputs"]["count"],
+                    )
+                    if aliases:
+                        for removed in (
+                            "toolchain/hosted/i386-windows/final_path_start.asm",
+                            BOOTSTRAP_PATHS[0],
+                        ):
+                            bad = copy.deepcopy(manifest)
+                            inputs = bad["bootstrap"]["source_inputs"]
+                            inputs["files"]["toolchain/unexpected.asm"] = inputs["files"].pop(removed)
+                            inputs["sha256"] = _digest(_json_bytes(inputs["files"]))
+                            for mode, framing in (("author", _author_request), ("check", _request)):
+                                rejected = execute(mode, framing(manifest=bad, observations=observations))
+                                self.assertEqual(rejected.returncode, 1, rejected.stderr)
+                                self.assertEqual(rejected.stdout, "")
+                        sources = manifest["bootstrap"]["source_inputs"]["files"]
+                        duplicate = [
+                            (path, 1, row["size"], row["sha256"])
+                            for path, row in sorted(sources.items())
+                        ]
+                        duplicate[0] = duplicate[-1]
+                        for mode, framing in (("author", _author_request), ("check", _request)):
+                            rejected = execute(
+                                mode, framing(manifest=manifest, observations=observations,
+                                              bootstrap_observations=duplicate)
+                            )
+                            self.assertEqual(rejected.returncode, 1, rejected.stderr)
+                            self.assertEqual(rejected.stdout, "")
+                        recovered = execute(
+                            "author", _author_request(manifest=manifest, observations=observations)
+                        )
+                        self.assertEqual(recovered.returncode, 0, recovered.stderr)
+                        self.assertEqual(recovered.stdout, canonical)
+            cupidc_toolchain_contracts.require_live_seed_inputs(seed)
+            self.assertTrue(all(
+                Path(command[0]).suffix == (".exe" if os.name == "nt" else ".elf")
+                for command in native_commands
+            ))
 
     def test_author_output_is_independent_of_fact_order(self):
         manifest, observations = _fixture()
@@ -1663,14 +1745,82 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(recovered.returncode, 0, recovered.stderr)
         self.assertEqual(recovered.stdout, result.stdout)
 
+    def _assert_profile_authored_and_verified(self, *, long_paths):
+        manifest, observations = _profile_fixture(
+            user_link_aliases=True, long_paths=long_paths
+        )
+        authored = self.run_author_request(
+            _author_request(manifest=manifest, observations=observations)
+        )
+        self.assertEqual(authored.returncode, 0, authored.stderr)
+        self.assertEqual(
+            authored.stdout, json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+        )
+        verified = self.run_request(
+            _request(manifest=manifest, observations=observations)
+        )
+        self.assertEqual(verified.returncode, 0, verified.stderr)
+        self.assertEqual(
+            json.loads(verified.stdout)["bootstrap_source_input_count"],
+            78 if long_paths else 77,
+        )
+
+    def test_alias_inventory_is_authored_and_verified(self):
+        self._assert_profile_authored_and_verified(long_paths=False)
+
+    def test_alias_long_path_inventory_is_authored_and_verified(self):
+        self._assert_profile_authored_and_verified(long_paths=True)
+
+    def test_alias_profiles_reject_same_count_source_substitution(self):
+        for long_paths in (False, True):
+            for removed in (
+                "toolchain/hosted/i386-windows/final_path_start.asm",
+                BOOTSTRAP_PATHS[0],
+            ):
+                with self.subTest(long_paths=long_paths, removed=removed):
+                    manifest, observations = _profile_fixture(
+                        user_link_aliases=True, long_paths=long_paths
+                    )
+                    inputs = manifest["bootstrap"]["source_inputs"]
+                    inputs["files"]["toolchain/unexpected.asm"] = (
+                        inputs["files"].pop(removed)
+                    )
+                    inputs["sha256"] = _digest(_json_bytes(inputs["files"]))
+                    self.assert_contract_failure(
+                        _request(manifest=manifest, observations=observations)
+                    )
+                    self.assert_author_failure(
+                        _author_request(manifest=manifest, observations=observations)
+                    )
+
+    def test_publication_inventory_matches_real_contract_inputs(self):
+        actual = {
+            path.relative_to(REPO_ROOT).as_posix()
+            for path in cupidc_toolchain_contracts._contract_input_paths(REPO_ROOT)
+        }
+        self.assertEqual(set(INPUT_PATHS), actual)
+
+    def test_user_link_bridge_cannot_be_substituted(self):
+        manifest, observations = _fixture()
+        bridge = "toolchain/hosted/i386-windows/final_path_start.asm"
+        manifest["inputs"]["toolchain/hosted/i386-windows/substituted.asm"] = (
+            manifest["inputs"].pop(bridge)
+        )
+        result = self.run_request(
+            _request(manifest=manifest, observations=observations)
+        )
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("manifest input path inventory differs", result.stderr)
+
     def test_current_publication_inventory_counts_are_exact(self):
         self.assertEqual(len(ARTIFACT_NAMES), 22)
-        self.assertEqual(len(INPUT_PATHS), 89)
+        self.assertEqual(len(INPUT_PATHS), 90)
         self.assertEqual(len(BOOTSTRAP_PATHS), 76)
         self.assertEqual(len(OBJECT_COMPARISON_NAMES), 17)
         self.assertEqual(len(BOOTSTRAP_OBJECT_NAMES), 28)
         self.assertEqual(len(BOOTSTRAP_TOOL_NAMES), 6)
-        for input_count in (75, 77, 80, 82, 86, 87, 88, 90):
+        for input_count in (75, 77, 80, 82, 86, 87, 88, 89, 91):
             with self.subTest(input_count=input_count):
                 self.assertNotEqual(input_count, len(INPUT_PATHS))
                 manifest, observations = _fixture()

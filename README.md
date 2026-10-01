@@ -1,5 +1,60 @@
 # cupid-os
 
+## Alias-aware user-link command source, 2026-10-01
+
+Source head exposes `cupidbuild link-user` for the approved `cat`, `hello` and
+`ls` objects. It resolves existing repository and parent aliases, retains the
+physical directory chain, freezes the object and six-tool cohort, runs checked
+CupidLD and CupidDis, validates the user ELF and publishes only after all checks.
+Equal executables preserve their timestamps. Missing output directories,
+escaping parents and linked or nonregular leaves are rejected.
+
+Twelve resolver methods, 32 combined operation methods and twenty command
+methods pass in native and CupidC-built callers on both hosts. Development
+fixed-point proofs independently match 34 Linux, 42 default Windows and 43
+long-profile Windows stage-three/four artifacts. The repaired Windows
+six-tool behavior fixtures pass user, kernel, compiler self-compilation, Doom,
+production, observer, ELF and Unicode checks. Both canonical audits pass;
+negative compiler-output fixtures preserve prior outputs on both hosts.
+
+The new Windows default profile captures 77 producer inputs and its long-file
+profile captures 78. Each binds the resolver bridge and exact CupidBuild import
+profile. Current publications now observe the bridge as their 90th input, and
+Make declares it for contract publication and Linux user ABI consumption.
+Two new regressions first fail on that missing observation; after the fix they
+check both Make host branches and detect changed bridge bytes with restored
+size and modification time. The source audit attributes 37 active assembly
+inputs to CupidASM, including ten hosted startup inputs.
+
+
+The integrated candidate passes 477 regression methods on each host, the
+canonical audit and four conditional-contract methods. Checked author and
+verifier coverage binds all four exact producer inventories: historical 76,
+historical long 77, current alias 77 and alias-plus-long 78. The native
+publication validator requires every base input and rejects unlisted or
+duplicated facts. These complete results pass independent verification.
+
+Fresh normal Windows and Linux Make builds pass with host C/ASM tools forbidden.
+Independent verification rereads all 1,558 source inputs per host, sixteen exact
+artifacts and 431 matching link inputs. The 66,594-byte manual is embedded in
+both 9,579,628-byte raw kernels. Only its object and the two kernel ELFs change
+among the link inputs from the physical checkpoint; the other 428 stay equal.
+Both 200 MiB images have SHA-256
+`a9c44748cff1c04339c4d2c6f62b117e404fb98874d4bfddd61a374e1f346ed4`.
+
+Linux passes both complete 90-control publications: 77 default or 78 long-profile
+producer inputs, 22 artifacts and 67 matching pairs. Both hosts preserve the
+three user executables and pass their platform ABI check, kernel/disassembler
+smoke and separate hello, ls and cat boots. All eight private four-CPU max/e1000
+boots check SMP runtime and preserve their base or staged images.
+
+`paired-user-link-cli-calibrated-independent-verification-v2.json` binds these
+source, publication, image and runtime results. Committed paired producer proof,
+seed carriage and recipe adoption remain separate steps. Installed seeds remain
+`78e71bd6`; ownership remains 444 CupidBuild/eight Python actions, including the
+three Python user links. UNC alias roots and full Doom runtime acceptance remain
+open.
+
 The checked Linux and Windows seeds carry `compile-user` from producer
 `78e71bd6` and the same 77-input long-file profile. Both long-profile consumers
 reproduce the proved tools; the complete default Windows bootstrap passes its
@@ -15,8 +70,8 @@ the user directory. Both hosts pass default, nested, lexical and accented
 build directories, Python-oracle byte comparisons and equal-object timestamps.
 All three external programs pass separate private four-CPU runtime boots.
 
-Both complete Toolchain publications verify 89 inputs, 77 producer inputs
-and 22 matching artifacts. The latest physical user-link source checkpoint passes normal OS builds
+The earlier physical checkpoint verifies both Toolchain publications with
+89 controls, 76/77 producer inputs and 22 matching artifacts. That checkpoint passes normal OS builds
 with all sixteen exact artifact checks. Both hosts produce the same
 9,578,888-byte raw kernel and 200 MiB image, preserve all three user executables,
 and pass the platform ABI and four private four-CPU boots each. The image
@@ -39,8 +94,9 @@ The native user-link C API now retains existing physical output
 parents, captures the approved object and six-tool cohort, runs checked CupidLD
 and CupidDis, validates the resulting user ELF and publishes through the guarded
 transaction. Its fourteen operation methods pass in native and Cupid-built
-callers on both hosts. The three user links still use Python. Alias handling,
-CLI exposure, checked seed carriage and recipe adoption remain required.
+callers on both hosts. The three user links still use Python. The subsequent alias and CLI source
+extends this foundation; checked seed carriage and recipe adoption remain
+required.
 See [the source checkpoint](docs/bootstrap/USER-LINK-SOURCE.md).
 
 The shared x86 decoder initializes a candidate after its early opcode,

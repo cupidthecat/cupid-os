@@ -21,7 +21,7 @@ class WindowsLongPathProfileTests(unittest.TestCase):
         linux = bootstrap._candidate_build_plan(json.loads(LINUX.read_bytes())["build_plan"])
         plan = bootstrap._windows_build_plan(linux, utf8=True, long_paths=True)
         self.assertEqual(bootstrap._build_plan_sha256(plan), LONG_PLAN)
-        self.assertEqual(bootstrap._windows_plan_profile(plan), (True, True))
+        self.assertEqual(bootstrap._windows_plan_profile(plan), (True, True, False))
         for name in bootstrap.CANDIDATE_TOOL_NAMES:
             self.assertEqual(bootstrap._promoted_windows_imports(name, LONG_PLAN, 77),
                              bootstrap._windows_utf8_imports(name, long_paths=True))
@@ -39,13 +39,13 @@ class WindowsLongPathProfileTests(unittest.TestCase):
                 bootstrap, "_bootstrap_from_frozen_seed", return_value={"status": "pass"}) as driver:
             bootstrap.bootstrap_from_seed(LINUX, ROOT, ROOT / "unused-output", windows_long_paths=True)
         self.assertEqual(driver.call_args.kwargs,
-                         {"compare_fixed_point": True, "windows_long_paths": True})
+                         {"compare_fixed_point": True, "windows_long_paths": True, "windows_user_link_aliases": True})
         with mock.patch.object(bootstrap, "freeze_seed_inputs", side_effect=(native, seed)), mock.patch.object(
                 bootstrap, "_bootstrap_windows_from_frozen_seed", return_value={"status": "pass"}) as driver, mock.patch.object(
                 bootstrap, "os") as platform:
             platform.name = "nt"
             bootstrap.bootstrap_windows_from_seed(WINDOWS, LINUX, ROOT, ROOT / "unused-output", windows_long_paths=True)
-        self.assertEqual(driver.call_args.kwargs, {"windows_long_paths": True})
+        self.assertEqual(driver.call_args.kwargs, {"windows_long_paths": True, "windows_user_link_aliases": True})
 
     def test_private_drivers_select_matching_frozen_source_inventory(self):
         seed = bootstrap.verify_seed_inputs(LINUX)
@@ -63,7 +63,7 @@ class WindowsLongPathProfileTests(unittest.TestCase):
                             bootstrap._bootstrap_from_frozen_seed(seed, ROOT, output,
                                 compare_fixed_point=True, windows_long_paths=selected)
                     self.assertEqual(capture.call_args.kwargs,
-                                     {"windows_utf8": True, "windows_long_paths": selected})
+                                     {"windows_utf8": True, "windows_long_paths": selected, "windows_user_link_aliases": True})
                     self.assertFalse(output.exists())
 
     def test_invalid_selection_is_rejected_before_input_or_output_mutation(self):
@@ -104,21 +104,21 @@ class WindowsLongPathProfileTests(unittest.TestCase):
             output = Path(temporary) / "cupidc-contracts"
             with self.assertRaisesRegex(contracts.ContractError, "capture checkpoint"):
                 contracts.build_contracts(ROOT, LINUX, output, windows_long_paths=True)
-            self.assertEqual(driver.call_args.kwargs, {"windows_long_paths": True})
+            self.assertEqual(driver.call_args.kwargs, {"windows_long_paths": True, "windows_user_link_aliases": True})
             self.assertFalse(output.exists())
 
     def test_publication_reuse_requires_the_selected_profile(self):
         with tempfile.TemporaryDirectory(dir=ROOT) as temporary:
             output = Path(temporary) / "cupidc-contracts"
             output.mkdir()
-            report = {"bootstrap": {"source_inputs": {"files": {SHIM: {}}}}}
+            report = {"bootstrap": {"source_inputs": {"files": {SHIM: {}, "toolchain/hosted/i386-windows/final_path_start.asm": {}}}}}
             with mock.patch.object(contracts, "verify_publication", return_value=report), mock.patch.object(
                     contracts, "verify_publication_inputs"), mock.patch.object(contracts, "_require_report_manifest"), mock.patch.object(
                     contracts, "build_contracts", return_value={"rebuilt": True}) as build:
                 self.assertIs(contracts.ensure_contracts(ROOT, LINUX, output, windows_long_paths=True), report)
                 build.assert_not_called()
                 self.assertEqual(contracts.ensure_contracts(ROOT, LINUX, output), {"rebuilt": True})
-                self.assertEqual(build.call_args.kwargs, {})
+                self.assertEqual(build.call_args.kwargs, {"windows_user_link_aliases": True})
 
     def test_observer_captures_only_the_selected_producer_inventory(self):
         linux = bootstrap._candidate_build_plan(json.loads(LINUX.read_bytes())["build_plan"])

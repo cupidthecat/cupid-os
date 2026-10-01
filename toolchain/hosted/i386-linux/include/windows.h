@@ -233,6 +233,9 @@ unsigned int cupid_windows_write_file(
 #define GetExitCodeProcess cupid_windows_get_exit_code_process
 #define GetFileAttributesA cupid_windows_get_file_attributes
 #define GetFileInformationByHandle cupid_windows_get_file_information
+DWORD cupid_windows_get_final_path_name_by_handle_wide(
+    HANDLE handle, unsigned short *destination, DWORD capacity, DWORD flags);
+#define GetFinalPathNameByHandleW cupid_windows_get_final_path_name_by_handle_wide
 #define GetFullPathNameA cupid_windows_get_full_path_name
 #define GetLastError cupid_windows_get_last_error
 #define InitializeProcThreadAttributeList cupid_windows_initialize_proc_thread_attribute_list

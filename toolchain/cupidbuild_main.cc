@@ -35,6 +35,8 @@ static void cupidbuild_usage(FILE *stream) {
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
       "       cupidbuild compile-user "
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
+      "       cupidbuild link-user "
+      "--seed-manifest MANIFEST --root ROOT --source OBJECT --output OUTPUT\n"
       "       cupidbuild generate-profile-manifest "
       "--seed-manifest MANIFEST --root ROOT --output OUTPUT\n"
       "       cupidbuild verify-artifact-sizes --root ROOT --policy POLICY "
@@ -180,6 +182,8 @@ int main(int argc, char **argv) {
       operation = 11;
     } else if (strcmp(argv[1], "compile-user") == 0) {
       operation = 12;
+    } else if (strcmp(argv[1], "link-user") == 0) {
+      operation = 13;
     }
   }
   if (operation != 0) {
@@ -226,6 +230,15 @@ int main(int argc, char **argv) {
         *output == (const char *)0) {
       cupidbuild_usage(stderr);
       return 2;
+    }
+    if (operation == 13) {
+      if (request.seed_manifest[0] == '\0' ||
+          request.repository_root[0] == '\0' ||
+          request.source[0] == '\0' || request.output[0] == '\0') {
+        cupidbuild_usage(stderr);
+        return 2;
+      }
+      return cupidbuild_link_user(&request);
     }
     if (operation == 1) {
       return cupidbuild_assemble_object(&request);

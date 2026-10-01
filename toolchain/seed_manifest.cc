@@ -670,6 +670,8 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
   source_count_matches =
       promoted
           ? (cupidbuild_json_number_field(bytes, tokens, count, object,
+                                           "source_input_count", 78u) ||
+             cupidbuild_json_number_field(bytes, tokens, count, object,
                                            "source_input_count", 77u) ||
              cupidbuild_json_number_field(bytes, tokens, count, object,
                                            "source_input_count", 76u) ||
@@ -734,7 +736,11 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
                            : "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe") &&
                    cupidbuild_json_string_field(
                        bytes, tokens, count, object, "native_build_plan_sha256",
-                       candidate == 4
+                        candidate == 6
+                            ? "2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff"
+                            : candidate == 5
+                            ? "79241fcdd8784952cf9e1e74907ac817dc83e24429c5625d3424a889c2753d70"
+                            : candidate == 4
                            ? "5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc"
                            : candidate == 3
                            ? "6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748"
@@ -752,7 +758,7 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
             cupidbuild_json_lower_hex_field(
                 bytes, tokens, count, object, "plan_seed_manifest_sha256",
                 64u) &&
-            ((candidate >= 3 &&
+             ((candidate >= 3 && candidate <= 4 &&
               cupidbuild_json_string_field(bytes, tokens, count, object,
                   "parent_execution_seed_manifest_sha256", long_path_parent_windows_manifest) &&
               cupidbuild_json_string_field(bytes, tokens, count, object,
@@ -761,7 +767,7 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
                   "parent_plan_seed_manifest_sha256", long_path_parent_linux_manifest) &&
               cupidbuild_json_string_field(bytes, tokens, count, object,
                   "parent_plan_seed_source_revision", long_path_parent_revision)) ||
-             (candidate >= 3 &&
+              (candidate >= 3 && candidate <= 4 &&
               cupidbuild_json_string_field(bytes, tokens, count, object,
                   "parent_execution_seed_manifest_sha256", promoted_long_parent_windows_manifest) &&
               cupidbuild_json_string_field(bytes, tokens, count, object,
@@ -779,7 +785,7 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
                   "parent_plan_seed_manifest_sha256", user_compile_parent_linux_manifest) &&
               cupidbuild_json_string_field(bytes, tokens, count, object,
                   "parent_plan_seed_source_revision", user_compile_parent_revision)) ||
-             (candidate != 4 &&
+              (candidate < 4 &&
               ((cupidbuild_json_string_field(
                    bytes, tokens, count, object,
                    "parent_execution_seed_manifest_sha256",
@@ -872,12 +878,12 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
          (cupidbuild_json_string_field(
               bytes, tokens, count, object, "artifact_generation",
               "paired-stage-four-six-tool") &&
-          ((candidate >= 3 &&
+           ((candidate >= 3 && candidate <= 4 &&
             cupidbuild_json_string_field(bytes, tokens, count, object,
                 "parent_seed_manifest_sha256", long_path_parent_linux_manifest) &&
             cupidbuild_json_string_field(bytes, tokens, count, object,
                 "parent_seed_source_revision", long_path_parent_revision)) ||
-           (candidate >= 3 &&
+            (candidate >= 3 && candidate <= 4 &&
             cupidbuild_json_string_field(bytes, tokens, count, object,
                 "parent_seed_manifest_sha256", promoted_long_parent_linux_manifest) &&
             cupidbuild_json_string_field(bytes, tokens, count, object,
@@ -887,7 +893,7 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
                 "parent_seed_manifest_sha256", user_compile_parent_linux_manifest) &&
             cupidbuild_json_string_field(bytes, tokens, count, object,
                 "parent_seed_source_revision", user_compile_parent_revision)) ||
-           (candidate != 4 &&
+            (candidate < 4 &&
             ((cupidbuild_json_string_field(
                 bytes, tokens, count, object, "parent_seed_manifest_sha256",
                 preceding_parent_linux_manifest) &&
@@ -1305,7 +1311,14 @@ static int cupidbuild_json_manifest(const unsigned char *manifest,
   if (promoted && provenance < count &&
       cupidbuild_json_number_field(manifest, tokens, count, provenance,
                                    "source_input_count", 77u)) {
-    candidate = 4;
+    candidate = windows && cupidbuild_json_string_field(
+        manifest, tokens, count, provenance, "native_build_plan_sha256",
+        "79241fcdd8784952cf9e1e74907ac817dc83e24429c5625d3424a889c2753d70") ? 5 : 4;
+  }
+  if (promoted && provenance < count &&
+      cupidbuild_json_number_field(manifest, tokens, count, provenance,
+                                   "source_input_count", 78u)) {
+    candidate = 6;
   }
   if (!cupidbuild_json_provenance(manifest, tokens, count, provenance,
                                   windows, promoted, candidate)) {
@@ -1314,7 +1327,7 @@ static int cupidbuild_json_manifest(const unsigned char *manifest,
     return 0;
   }
   if (windows && promoted) {
-    current_windows_plan = candidate == 4 ? 3 : candidate >= 2 ? 2 : candidate != 0 ? candidate : cupidbuild_json_string_field(
+    current_windows_plan = candidate >= 5 ? candidate - 1 : candidate == 4 ? 3 : candidate >= 2 ? 2 : candidate != 0 ? candidate : cupidbuild_json_string_field(
         manifest, tokens, count, provenance, "native_build_plan_sha256",
         "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669");
   }

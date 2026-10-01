@@ -58,6 +58,9 @@ directories created during preparation persist after failure and close.
 The existing-directory opener retains the same chain while creating no
 directories, files or locks. The physical user-link operation borrows that
 chain through transaction cleanup.
+The alias resolver first holds the existing root and both parent directories,
+derives physical names and reopens the no-follow chain with matching identities.
+Later alias retargeting cannot change that retained publication authority.
 _Avoid_: leaf-only validation, temporary output directory
 
 **Guarded build transaction**:

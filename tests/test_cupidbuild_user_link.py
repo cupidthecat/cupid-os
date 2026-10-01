@@ -63,13 +63,13 @@ class CupidBuildUserLinkTests(unittest.TestCase):
         cls.addClassCleanup(cls.build.cleanup)
         directory = Path(cls.build.name)
         caller = directory / 'caller.cc'
-        caller.write_text(CALLER, encoding='ascii')
+        caller.write_text(getattr(cls, 'caller_source', CALLER), encoding='ascii')
         cls.program = directory / ('caller.exe' if os.name == 'nt' else 'caller')
         if os.environ.get('CUPIDBUILD_USER_LINK_CHECKED') == '1':
             cls.build_checked_tool(directory, 'cupidbuild', cls.program, 'target', caller)
         else:
             names = ('seed_manifest', 'seed_release', 'contract_parse_internal',
-                     'ctool', 'ctool_host', 'elf32', 'cupidbuild_host', 'cupidbuild', 'path_encoding')
+                     'ctool', 'ctool_host', 'elf32', 'cupidbuild_host', 'cupidbuild', 'path_encoding') + getattr(cls, 'native_modules_extra', ())
             command = [shutil.which('clang') or 'clang', '-std=c11', '-O2',
                        '-Wall', '-Wextra', '-Werror', '-D_CRT_SECURE_NO_WARNINGS',
                        '-DCUPIDBUILD_PUBLICATION_RACE_TEST', '-I', ROOT / 'toolchain',
@@ -90,12 +90,17 @@ class CupidBuildUserLinkTests(unittest.TestCase):
             cls.objects[name] = path.read_bytes()
 
     @classmethod
-    def build_checked_tool(cls, directory, role, program, object_tag, caller=None):
+    def build_checked_tool(cls, directory, role, program, object_tag, caller=None,
+                           extra_assembly=(), extra_imports=()):
         plan = bootstrap._candidate_build_plan(json.loads(
             (ROOT / 'bootstrap/seeds/i386-linux/manifest.json').read_bytes())['build_plan'])
         if os.name == 'nt':
-            plan = bootstrap._windows_build_plan(plan, utf8=True, long_paths=True)
-        order = plan['links'][role]
+            plan = bootstrap._windows_build_plan(plan, utf8=True, long_paths=True, user_link_aliases=True)
+        order = list(plan['links'][role])
+        for name, _ in extra_assembly:
+            if name in order:
+                raise AssertionError('extra assembly duplicates a planned object: ' + name)
+            order.append(name)
         objects = {name: directory / (name + '.' + object_tag + '.o') for name in order}
         for row in plan['sources']:
             if row['name'] not in objects:
@@ -109,17 +114,18 @@ class CupidBuildUserLinkTests(unittest.TestCase):
             if row['gnu_extensions']:
                 arguments.append('--gnu')
             checked_run([SEED / ('cupidc' + SUFFIX), *arguments])
-        for row in plan.get('assembly_sources', []) or [
-                {'name': 'start', 'path': '/toolchain/hosted/i386-linux/start.asm'}]:
+        assembly = plan.get('assembly_sources', []) or [
+                {'name': 'start', 'path': '/toolchain/hosted/i386-linux/start.asm'}]
+        for row in [*assembly, *[{'name': name, 'path': path} for name, path in extra_assembly]]:
             if row['name'] in objects:
                 checked_run([SEED / ('cupidasm' + SUFFIX), '-f', 'elf32',
                              ROOT / row['path'].lstrip('/'), '-o', objects[row['name']]])
         arguments = (bootstrap._windows_link_arguments(role, program, objects, order,
-                                                       utf8=True, long_paths=True)
+                                                       utf8=True, long_paths=True, user_link_aliases=True)
                      if os.name == 'nt' else ['-m', 'elf_i386', '--text-address', '0x08048000',
                                              '--entry', '_start', '-o', program,
                                              *[objects[name] for name in order]])
-        checked_run([SEED / ('cupidld' + SUFFIX), *arguments])
+        checked_run([SEED / ('cupidld' + SUFFIX), *arguments, *extra_imports])
         if os.name != 'nt':
             program.chmod(0o700)
 

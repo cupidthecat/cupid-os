@@ -43,17 +43,19 @@ class NativeUtf8ToolTests(unittest.TestCase):
             cls.addClassCleanup(bootstrap.require_live_seed_inputs, execution)
             parent_plan = bootstrap.verify_seed_inputs(ROOT / "bootstrap/seeds/i386-linux/manifest.json")
             linux = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"]
-            plan = bootstrap._windows_build_plan(linux, utf8=True, long_paths=windows_long_paths)
+            plan = bootstrap._windows_build_plan(linux, utf8=True,
+                long_paths=windows_long_paths, user_link_aliases=True)
             sources = bootstrap.freeze_source_inputs(
                 ROOT, linux, cls.root / "checked-source", windows_utf8=True,
-                windows_long_paths=windows_long_paths)
+                windows_long_paths=windows_long_paths, windows_user_link_aliases=True)
             cls.addClassCleanup(bootstrap.require_source_closures, sources, ROOT, linux)
             stage = bootstrap._build_windows_stage(
                 bootstrap.ToolRunner(sources.root), sources.root, sources.root / "stage",
                 execution.tools, plan, "UTF-8 test cohort")
             behavior = bootstrap._retarget_native_windows_behavior_seed(
                 execution, bootstrap._build_plan_sha256(plan), linux, sources.inventory, utf8=True,
-                long_paths=windows_long_paths, parent_plan_seed=parent_plan)
+                long_paths=windows_long_paths, user_link_aliases=True,
+                parent_plan_seed=parent_plan)
             cls.seed = bootstrap._materialize_behavior_seed(
                 behavior, cls.root, "candidate-seed", stage).parent
 
@@ -89,9 +91,9 @@ class NativeUtf8ToolTests(unittest.TestCase):
         if os.name == "nt":
             import json
             profile = json.loads((self.seed / "manifest.json").read_bytes())["provenance"]
-            self.assertEqual(profile["source_input_count"], 77)
+            self.assertEqual(profile["source_input_count"], 78)
             self.assertEqual(profile["native_build_plan_sha256"],
-                             "5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc")
+                             "2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff")
             for role in ROLES:
                 self.invoke(self.seed, role, ["--help"], self.root)
         expected_artifacts = None

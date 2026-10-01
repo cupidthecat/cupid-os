@@ -437,7 +437,7 @@ class CupidBuildCompileDoomTests(unittest.TestCase):
         plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
         plan = _candidate_build_plan(plan)
         if os.name == "nt":
-            plan = _windows_build_plan(plan)
+            plan = _windows_build_plan(plan, utf8=True, user_link_aliases=True)
         order = plan["links"]["cupidbuild"]
         objects = {name: self.directory / ("target-" + name + ".o") for name in order}
         for source in plan["sources"]:
@@ -454,15 +454,14 @@ class CupidBuildCompileDoomTests(unittest.TestCase):
             expected = output.read_bytes()
             checked_run([SEED / ("cupidc" + SUFFIX), *args])
             self.assertEqual(output.read_bytes(), expected, source["path"])
-        assembly = list(plan.get("assembly_sources", []))
-        assembly.append({"name": "start", "path": "toolchain/hosted/i386-windows/tool_start.asm"
-                         if os.name == "nt" else "toolchain/hosted/i386-linux/start.asm"})
+        assembly = plan.get('assembly_sources') or [
+            {'name':'start','path':'/toolchain/hosted/i386-linux/start.asm'}]
         for source in assembly:
             if source["name"] in objects:
                 checked_run([SEED / ("cupidasm" + SUFFIX), "-f", "elf32",
                              ROOT / source["path"].lstrip("/"), "-o", objects[source["name"]]])
         coordinator = self.directory / ("target-cupidbuild" + SUFFIX)
-        args = (_windows_link_arguments("cupidbuild", coordinator, objects, order)
+        args = (_windows_link_arguments("cupidbuild", coordinator, objects, order, utf8=True, user_link_aliases=True)
                 if os.name == "nt" else ["-m", "elf_i386", "--text-address", "0x08048000",
                                         "--entry", "_start", "-o", coordinator,
                                         *[objects[name] for name in order]])

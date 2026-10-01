@@ -6,7 +6,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 
 - Root Make target: `all`
 - Supplemental builds: `user:all`, `toolchain:all`
-- Active source inputs: 765
+- Active source inputs: 766
 - Unreachable source-like files: 41
 - Reachable output transforms: 452
 - Distinct feature requirements: 255
@@ -20,7 +20,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 
 | Language | Files |
 | --- | ---: |
-| `assembly` | 36 |
+| `assembly` | 37 |
 | `c_header` | 309 |
 | `cupid_c` | 420 |
 
@@ -56,8 +56,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_usb` | 8 | 3527 |
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
-| `toolchain_contract` | 24 | 169383 |
-| `toolchain_core` | 66 | 117850 |
+| `toolchain_contract` | 24 | 169406 |
+| `toolchain_core` | 67 | 118248 |
 | `toolchain_host_adapter` | 2 | 270 |
 | `toolchain_kernel_adapter` | 2 | 577 |
 | `user_program` | 3 | 139 |
@@ -89,27 +89,27 @@ Generated C translation units are recorded as reachable build inputs but have no
 
 | Feature family | Distinct requirements | Lexical/build occurrences |
 | --- | ---: | ---: |
-| `asm.addressing` | 6 | 767 |
+| `asm.addressing` | 6 | 777 |
 | `asm.delivery` | 1 | 22 |
-| `asm.directive` | 19 | 487 |
+| `asm.directive` | 19 | 491 |
 | `asm.expression` | 2 | 13 |
-| `asm.instruction` | 91 | 1967 |
-| `asm.label` | 2 | 238 |
+| `asm.instruction` | 91 | 1977 |
+| `asm.label` | 2 | 239 |
 | `asm.output` | 2 | 5 |
 | `asm.prefix` | 2 | 6 |
 | `asm.preprocessor` | 2 | 5 |
-| `asm.register` | 27 | 1474 |
-| `asm.relocation` | 1 | 93 |
-| `c.control` | 12 | 94677 |
+| `asm.register` | 27 | 1484 |
+| `asm.relocation` | 1 | 94 |
+| `c.control` | 12 | 94795 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 4137 |
-| `c.expression` | 2 | 7027 |
+| `c.declarator` | 4 | 4138 |
+| `c.expression` | 2 | 7042 |
 | `c.extension` | 19 | 429 |
 | `c.initializer` | 1 | 690 |
-| `c.preprocessor` | 18 | 8308 |
-| `c.qualifier` | 2 | 18478 |
-| `c.storage` | 4 | 11491 |
-| `c.type` | 15 | 62445 |
+| `c.preprocessor` | 18 | 8327 |
+| `c.qualifier` | 2 | 18524 |
+| `c.storage` | 4 | 11499 |
+| `c.type` | 15 | 62546 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
@@ -140,13 +140,13 @@ It is also a declared Make prerequisite.
 
 | Rank | Capability | Source evidence |
 | ---: | --- | ---: |
-| 1 | `host_runnable_toolchain_core` - Establish a host-runnable shared Cupid Toolchain core | 114 |
+| 1 | `host_runnable_toolchain_core` - Establish a host-runnable shared Cupid Toolchain core | 115 |
 | 2 | `elf32_relocatable_interchange` - Emit and consume deterministic ELF32 relocatable objects | 248 |
-| 3 | `shared_i386_abi_and_instruction_model` - Share one i386 ABI and instruction model | 76 |
-| 4 | `cupiddis_object_inspection` - Make CupidDis inspect raw and ELF32 relocatable output | 19 |
-| 5 | `cupidasm_source_controls_and_expressions` - Implement the active Cupid ASM directives and expression language | 36 |
-| 6 | `cupidasm_encoding_and_raw_parity` - Reach byte parity for boot and trampoline binaries | 24 |
-| 7 | `cupidasm_symbols_and_relocations` - Emit ELF32 sections, symbols, and i386 relocations | 12 |
+| 3 | `shared_i386_abi_and_instruction_model` - Share one i386 ABI and instruction model | 77 |
+| 4 | `cupiddis_object_inspection` - Make CupidDis inspect raw and ELF32 relocatable output | 20 |
+| 5 | `cupidasm_source_controls_and_expressions` - Implement the active Cupid ASM directives and expression language | 37 |
+| 6 | `cupidasm_encoding_and_raw_parity` - Reach byte parity for boot and trampoline binaries | 25 |
+| 7 | `cupidasm_symbols_and_relocations` - Emit ELF32 sections, symbols, and i386 relocations | 13 |
 | 8 | `cupidc_preprocessor` - Implement the active C and Cupid C preprocessing contract | 583 |
 | 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 689 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 60 |
@@ -157,7 +157,7 @@ It is also a declared Make prerequisite.
 
 | Rank | Cohort step | Files | Rationale |
 | ---: | --- | ---: | --- |
-| 1 | `toolchain_sources` | 114 | Bootstrap the tools that transfer ownership to every later cohort. |
+| 1 | `toolchain_sources` | 115 | Bootstrap the tools that transfer ownership to every later cohort. |
 | 2 | `boot_and_kernel_assembly` | 4 | Keep the four boot and kernel transforms plus the ISO lane fixture CupidASM-owned while retaining NASM only as an optional parity oracle. |
 | 3 | `kernel_and_drivers` | 280 | Move foundational strict C before vendored compatibility cohorts. |
 | 4 | `doom_and_vendored_c` | 204 | Preserve upstream behavior under a deliberate compatibility mode. |
@@ -226,9 +226,9 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 
 | Contract | Status | Detail |
 | --- | --- | --- |
-| `assembly_source_ownership` | `pass` | 36 active assembly sources; 36 CupidASM-owned; 9 Toolchain startup; 0 other-owned; 0 ownerless; 0 explicit host-only classifications |
+| `assembly_source_ownership` | `pass` | 37 active assembly sources; 37 CupidASM-owned; 10 Toolchain startup; 0 other-owned; 0 ownerless; 0 explicit host-only classifications |
 | `bootstrap_artifact_coverage` | `pass` | 429 linked objects; 436 declared artifacts; 0 missing |
-| `c_preprocessor_conditionals` | `pass` | 438 conditional expressions (419 #if, 19 #elif); 61 normalized expressions; 64 directive/expression pairs |
+| `c_preprocessor_conditionals` | `pass` | 444 conditional expressions (425 #if, 19 #elif); 61 normalized expressions; 64 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |
 | `c_preprocessor_include_operands` | `pass` | 2563 C include operands (2249 quoted, 314 angle, 0 pp-token); 725 source files; max conditional depth 2 |
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 725 source files; max conditional depth 0 |

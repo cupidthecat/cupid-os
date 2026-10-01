@@ -1,4 +1,5 @@
 """Validate captured seed images in either executable format on either host."""
+import json
 import os
 from pathlib import Path
 import shutil
@@ -107,7 +108,19 @@ class SeedImageProfileTests(unittest.TestCase):
             raise AssertionError(result.stdout + result.stderr)
 
     def check(self, payload, fmt, role=1, promoted=1, current=None, accept=False):
-        current = (2 if fmt == 2 else 0) if current is None else current
+        if current is None:
+            current = 0
+            if fmt == 2:
+                manifest = json.loads((ROOT / 'bootstrap/seeds/i386-windows/manifest.json').read_bytes())
+                digest = manifest['provenance']['native_build_plan_sha256']
+                current = {
+                    '70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9': 1,
+                    'a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99': 2,
+                    '6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748': 2,
+                    '5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc': 3,
+                    '79241fcdd8784952cf9e1e74907ac817dc83e24429c5625d3424a889c2753d70': 4,
+                    '2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff': 5,
+                }[digest]
         if isinstance(payload, bytes):
             path = self.directory / 'candidate.bin'
             path.write_bytes(payload)
@@ -147,7 +160,7 @@ class SeedImageProfileTests(unittest.TestCase):
     def test_invalid_profile_arguments_reject(self):
         for fmt, role, promoted, current in ((0, 1, 1, 0), (9, 1, 1, 0),
                 (2, 6, 1, 1), (2, 5, 0, 0), (2, 1, 2, 1),
-                (2, 1, 1, 4), (2, 1, 0, 1), (1, 1, 1, 1),
+                (2, 1, 1, 6), (2, 1, 0, 1), (1, 1, 1, 1),
                 (2, 1, 0, 2), (1, 1, 1, 2),
                 (2, 1, 0, 3), (1, 1, 1, 3)):
             with self.subTest(profile=(fmt, role, promoted, current)):
@@ -220,6 +233,41 @@ class SeedImageProfileTests(unittest.TestCase):
                 bad = bytes(ToolchainBootstrapSeedCliTests._minimal_cupidbuild_profile_pe32(tuple(extra)))
                 self.check(bad, 2, role, current=3)
                 self.check(wide, 2, role, current=3, accept=True)
+
+    def test_user_link_alias_profiles_accept_exact_role_imports(self):
+        from tests.test_toolchain_bootstrap_seed import ToolchainBootstrapSeedCliTests
+        from tools import bootstrap_toolchain as bootstrap
+        for long_paths, current in ((False, 4), (True, 5)):
+            for role, name in enumerate(ROLES):
+                with self.subTest(long_paths=long_paths, role=name):
+                    imports = bootstrap._windows_utf8_imports(name, long_paths=long_paths, user_link_aliases=True)
+                    data = bytes(ToolchainBootstrapSeedCliTests._minimal_cupidbuild_profile_pe32(imports))
+                    self.check(data, 2, role, current=current, accept=True)
+                    self.assertEqual(data.count(b'GetFinalPathNameByHandleW\0'), int(role == 5))
+                    if role == 5:
+                        self.check(data, 2, role, current=3 if long_paths else 2)
+                        self.check(data.replace(b'GetFinalPathNameByHandleW\0', b'GetFinalPathNameByHandleX\0'),
+                                   2, role, current=current)
+                    for fmt, promoted in ((1, 1), (2, 0)):
+                        self.check(self.image(fmt, role), fmt, role, promoted=promoted, current=current)
+                    self.check(data, 2, role, current=current, accept=True)
+
+    def test_user_link_alias_profiles_reject_missing_extra_and_wrong_role_api(self):
+        from tests.test_toolchain_bootstrap_seed import ToolchainBootstrapSeedCliTests
+        from tools import bootstrap_toolchain as bootstrap
+        for long_paths, current in ((False, 4), (True, 5)):
+            for role, name in enumerate(ROLES):
+                imports = bootstrap._windows_utf8_imports(name, long_paths=long_paths, user_link_aliases=True)
+                changed = list(imports)
+                procedures = changed[0][1]
+                changed[0] = (changed[0][0], tuple(sorted(
+                    tuple(p for p in procedures if p != 'GetFinalPathNameByHandleW') if role == 5 else
+                    (*procedures, 'GetFinalPathNameByHandleW'))))
+                data = bytes(ToolchainBootstrapSeedCliTests._minimal_cupidbuild_profile_pe32(tuple(changed)))
+                self.check(data, 2, role, current=current)
+                changed[0] = (changed[0][0], tuple(sorted((*procedures, 'UnexpectedProcedure'))))
+                data = bytes(ToolchainBootstrapSeedCliTests._minimal_cupidbuild_profile_pe32(tuple(changed)))
+                self.check(data, 2, role, current=current)
 
     def test_utf8_profiles_reject_wrong_roles_and_mixed_apis(self):
         for role, name in enumerate(ROLES):

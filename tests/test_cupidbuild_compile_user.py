@@ -39,7 +39,7 @@ class CupidBuildCompileUserTests(unittest.TestCase):
         plan = _candidate_build_plan(json.loads(
             (ROOT / 'bootstrap/seeds/i386-linux/manifest.json').read_bytes())['build_plan'])
         if os.name == 'nt':
-            plan = _windows_build_plan(plan, utf8=True, long_paths=True)
+            plan = _windows_build_plan(plan, utf8=True, long_paths=True, user_link_aliases=True)
         order = plan['links']['cupidbuild']
         objects = {name: directory / (name + '.target.o') for name in order}
         for source in plan['sources']:
@@ -63,7 +63,7 @@ class CupidBuildCompileUserTests(unittest.TestCase):
                              ROOT / source['path'].lstrip('/'), '-o', objects[source['name']]])
         cls.checked = directory / ('checked-cupidbuild' + SUFFIX)
         arguments = (_windows_link_arguments('cupidbuild', cls.checked, objects, order,
-                                             utf8=True, long_paths=True)
+                                             utf8=True, long_paths=True, user_link_aliases=True)
                      if os.name == 'nt' else ['-m', 'elf_i386', '--text-address', '0x08048000',
                                              '--entry', '_start', '-o', cls.checked,
                                              *[objects[name] for name in order]])
@@ -158,6 +158,10 @@ class CupidBuildCompileUserTests(unittest.TestCase):
         tools = {name: SEED / (name + SUFFIX) for name in CANDIDATE_TOOL_NAMES}
         tools['cupidbuild'] = self.checked
         stage = Stage({}, tools)
+        if os.name == 'nt':
+            from tests.windows_checked_cohort import build_behavior_cohort
+            stage, seed_inputs = build_behavior_cohort(self, ROOT,
+                self.root / 'staged-cohort', self.checked, long_paths=True)
         behavior = self.root / 'staged-behavior'
         behavior.mkdir()
         _check_cupidbuild_compile_user_behavior(ToolRunner(ROOT), behavior, stage, stage,

@@ -41,7 +41,7 @@ def checked_run(arguments, **kwargs):
 def build_target_compiler(directory, native_compiler):
     plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
     if os.name == "nt":
-        plan = _windows_build_plan(plan)
+        plan = _windows_build_plan(plan, utf8=True, long_paths=True)
     order = plan["links"]["cupidc"]
     objects = {name: directory / ("target-" + name + ".o") for name in order}
     for source in plan["sources"]:
@@ -56,11 +56,15 @@ def build_target_compiler(directory, native_compiler):
         if source["gnu_extensions"]:
             arguments += ["--gnu"]
         checked_run(arguments)
-    start = (ROOT / "toolchain/hosted/i386-windows/tool_start.asm" if os.name == "nt"
-             else ROOT / "toolchain/hosted/i386-linux/start.asm")
-    checked_run([SEED / ("cupidasm" + SUFFIX), "-f", "elf32", start, "-o", objects["start"]])
+    assembly = plan.get('assembly_sources') or [
+        {'name':'start','path':'/toolchain/hosted/i386-linux/start.asm'}]
+    for source in assembly:
+        if source['name'] in objects:
+            checked_run([SEED / ("cupidasm" + SUFFIX), "-f", "elf32",
+                         ROOT / source['path'].lstrip('/'), '-o', objects[source['name']]])
     compiler = directory / ("target-cupidc" + SUFFIX)
-    arguments = (_windows_link_arguments("cupidc", compiler, objects, order) if os.name == "nt"
+    arguments = (_windows_link_arguments("cupidc", compiler, objects, order,
+                                        utf8=True, long_paths=True) if os.name == "nt"
                  else ["-m", "elf_i386", "--text-address", "0x08048000", "--entry", "_start", "-o", compiler,
                        *[objects[name] for name in order]])
     checked_run([SEED / ("cupidld" + SUFFIX), *arguments])
@@ -107,11 +111,13 @@ int main(int argc, char **argv) {
 }
 ''')
         cls.validator = directory / ("validate" + suffix)
+        adapters = (("ctool_host_utf8", "cupidbuild_host_utf8", "path_encoding", "native_utf8")
+                    if os.name == "nt" else ("ctool_host", "cupidbuild_host"))
         checked_run(["clang" if os.name == "nt" else "cc", "-I", ROOT / "toolchain",
                      "-x", "c", harness, "-x", "none",
                      *[directory / (name + ".o") for name in
-                       ("ctool", "ctool_host", "elf32", "cupidbuild_host", "cupidbuild",
-                        "seed_manifest", "seed_release", "contract_parse_internal")],
+                       ("ctool", "elf32", "cupidbuild", "seed_manifest", "seed_release",
+                        "contract_parse_internal", *adapters)],
                      *(["-lntdll"] if os.name == "nt" else []), "-o", cls.validator])
 
     def setUp(self):
@@ -209,14 +215,12 @@ int main(int argc, char **argv) {
         plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
         plan = _candidate_build_plan(plan)
         if os.name == "nt":
-            plan = _windows_build_plan(plan)
+            plan = _windows_build_plan(plan, utf8=True, user_link_aliases=True)
         for source in plan["sources"]:
-            if source["name"] not in ("cupidbuild", "cupidbuild_main", "cupidbuild_host",
-                                      "publication_runtime", "seed_manifest", "seed_release",
-                                      "contract_parse_internal"):
+            if source["name"] not in plan["links"]["cupidbuild"]:
                 continue
             with self.subTest(source=source["path"]):
-                output = self.target_directory / ("target-" + source["name"] + ".o")
+                output = self.target_directory / ("coordinator-" + source["name"] + ".o")
                 args = ["--root", ROOT, "-c", source["path"], "-o",
                         "/" + output.relative_to(ROOT).as_posix(), *plan["include_arguments"]]
                 for definition in source.get("definitions", []):
@@ -229,14 +233,16 @@ int main(int argc, char **argv) {
                 self.assertEqual(output.read_bytes(), expected)
 
         order = plan["links"]["cupidbuild"]
-        objects = {name: self.target_directory / ("target-" + name + ".o") for name in order}
-        for source in plan.get("assembly_sources", []):
+        objects = {name: self.target_directory / ("coordinator-" + name + ".o") for name in order}
+        assembly = plan.get('assembly_sources') or [
+            {'name':'start','path':'/toolchain/hosted/i386-linux/start.asm'}]
+        for source in assembly:
             name = source["name"]
-            if name in objects and not objects[name].exists():
+            if name in objects:
                 checked_run([SEED / ("cupidasm" + SUFFIX), "-f", "elf32",
                              ROOT / source["path"].lstrip("/"), "-o", objects[name]])
         coordinator = self.target_directory / ("target-cupidbuild" + SUFFIX)
-        arguments = (_windows_link_arguments("cupidbuild", coordinator, objects, order)
+        arguments = (_windows_link_arguments("cupidbuild", coordinator, objects, order, utf8=True, user_link_aliases=True)
                      if os.name == "nt" else
                      ["-m", "elf_i386", "--text-address", "0x08048000", "--entry", "_start",
                       "-o", coordinator, *[objects[name] for name in order]])
@@ -272,6 +278,10 @@ int main(int argc, char **argv) {
             tuple((name, path.read_bytes()) for name, path in tools.items()), tools,
         )
         stage = Stage({}, {**tools, "cupidbuild": coordinator})
+        if os.name == 'nt':
+            from tests.windows_checked_cohort import build_behavior_cohort
+            stage, inputs = build_behavior_cohort(self, ROOT,
+                self.root / 'staged-cohort', coordinator)
         behavior = self.root / "paired-behavior"
         behavior.mkdir()
         _check_cupidbuild_compile_kernel_behavior(
@@ -372,12 +382,13 @@ int main(int argc, char **argv) {
                      "--include-angle", "/toolchain/hosted/i386-linux/include"])
         plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
         if os.name == "nt":
-            plan = _windows_build_plan(plan)
+            plan = _windows_build_plan(plan, utf8=True, long_paths=True)
         order = plan["links"]["cupidc"]
         objects = {name: directory / ("target-" + name + ".o") for name in order}
         objects["cupidc_main"] = stub_object
         executable = directory / ("invalid-compiler" + SUFFIX)
-        arguments = (_windows_link_arguments("cupidc", executable, objects, order) if os.name == "nt"
+        arguments = (_windows_link_arguments("cupidc", executable, objects, order,
+                                             utf8=True, long_paths=True) if os.name == "nt"
                      else ["-m", "elf_i386", "--text-address", "0x08048000", "--entry", "_start",
                            "-o", executable, *[objects[name] for name in order]])
         checked_run([SEED / ("cupidld" + SUFFIX), *arguments])

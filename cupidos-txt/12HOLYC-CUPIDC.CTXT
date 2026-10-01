@@ -13,19 +13,30 @@ Verified against source on: 2026-10-01
 >style linkhover #0B3AA8
 >rule
 
->h2 Physical user-link source checkpoint
->tree open Physical user-link source checkpoint
-The isolated CupidBuild C API links approved cat, hello and ls objects through
-an existing physical output directory. It captures the object and tool cohort,
-runs checked CupidLD and CupidDis, validates the user ELF and rechecks the
-retained directory chain before publication. Equal executable bytes preserve
-the output timestamp. Native and Cupid-built callers pass fourteen operation
-methods on Linux and Windows, including useful failures and recovery.
+>h2 Alias-aware user-link command source
+>tree open Alias-aware user-link command source
+Source head exposes cupidbuild link-user for approved cat, hello and ls objects.
+It resolves existing repository and parent aliases, retains the physical output
+chain, freezes the object and tool cohort, runs checked CupidLD and CupidDis,
+validates the user ELF and rechecks inputs before guarded publication.
+Equal executable bytes preserve timestamps. Missing output directories,
+escaping parents and linked or nonregular leaves fail.
 
-Normal user linking still uses Python. Alias handling, CLI exposure, checked
-seed carriage and recipe adoption remain required. The installed release owns
-444 CupidBuild and eight Python actions. Full Doom runtime acceptance remains
-open.
+Twelve resolver, 32 combined operation and twenty command methods pass in
+native and Cupid-built callers on Linux and Windows. Development staged proofs
+match 34 Linux, 42 default Windows and 43 long-profile Windows artifacts.
+Repaired six-tool behavior fixtures and negative compiler-output checks pass.
+Windows directory resolution currently requires a drive-rooted canonical path.
+
+The default alias profile captures 77 producer inputs; adding long-file support
+captures 78. Exact plans bind the resolver bridge and CupidBuild import table.
+Current publication observes 90 inputs and Make declares the bridge dependency.
+The assembly audit attributes 37 inputs to CupidASM, including ten hosted starts.
+
+Installed seeds remain the 78e71bd6 release. Normal user links still use Python;
+committed proof, seed carriage and recipe adoption remain required. Ownership
+remains 444 CupidBuild and eight Python actions. Full Doom gameplay, audio,
+save/load, reboot and performance acceptance remain open.
 >endtree
 
 >h2 Windows UTF-8 tools

@@ -41718,3 +41718,153 @@ records. Independent recovery checks
 the completed publication, and a separate long-profile run passes.
 `paired-user-link-source-independent-verification-v2.json` binds the final
 builds, users, publications, manual and all eight boot records.
+
+## 2026-10-01: alias-aware user-link command integration
+
+Source head exposes `cupidbuild link-user` for the approved `cat`, `hello` and
+`ls` objects. It resolves existing repository and parent aliases, retains the
+physical directory chain, freezes the object and six-tool cohort, runs checked
+CupidLD and CupidDis, validates the user ELF and publishes only after all checks.
+Equal executables preserve their timestamps. Missing output directories,
+escaping parents and linked or nonregular leaves are rejected.
+
+Twelve resolver methods, 32 combined operation methods and twenty command
+methods pass in native and CupidC-built callers on both hosts. Development
+fixed-point proofs independently match 34 Linux, 42 default Windows and 43
+long-profile Windows stage-three/four artifacts. The repaired Windows
+six-tool behavior fixtures pass user, kernel, compiler self-compilation, Doom,
+production, observer, ELF and Unicode checks. Both canonical audits pass;
+negative compiler-output fixtures preserve prior outputs on both hosts.
+
+The new Windows default profile captures 77 producer inputs and its long-file
+profile captures 78. Each binds the resolver bridge and exact CupidBuild import
+profile. Current publications now observe the bridge as their 90th input, and
+Make declares it for contract publication and Linux user ABI consumption.
+Two new regressions first fail on that missing observation; after the fix they
+check both Make host branches and detect changed bridge bytes with restored
+size and modification time. The source audit attributes 37 active assembly
+inputs to CupidASM, including ten hosted startup inputs.
+
+These are development-source checks. Committed paired proof, fresh 90-input
+publication and final manual/OS/runtime qualification remain required before
+new seeds or recipes can be adopted. Installed seeds remain `78e71bd6` and
+ownership remains 444 CupidBuild/eight Python actions. The three user links
+still use Python. UNC alias roots and full Doom runtime acceptance remain open.
+
+The integrated candidate starts from accepted physical source `77a114a0`.
+Its current manual and raw-kernel policy still require fresh paired measurement
+and runtime acceptance. Earlier 89-input publications and pre-CLI staged proofs
+retain their original source boundaries.
+
+
+## 2026-10-01: bind alias profiles in the native publication contract
+
+The integrated alias/CLI source passed review and the initial focused Make and
+publication dependency checks. Wider 470-method runs then failed on both hosts:
+Python published 90 controls, while the native manifest contract still required
+89. The standalone manifest fixture also retained 89 controls, so its runner
+oracle disagreed before several mutation tests reached their intended checks.
+The failed full runs remain recorded; they are not acceptance evidence.
+
+The native control inventory and standalone fixture now require the alias bridge
+among the exact 90 paths. A live-inventory test compares the fixture with the
+actual publication closure. Replacing the bridge with an unlisted source keeps
+the count unchanged and must fail membership validation. Before the native fix,
+the valid report and that diagnostic test both failed in a retained red run.
+
+Review found a second boundary: the native author and verifier recognized only
+the historical 76-path base and its 77-path long variant. They now require all
+76 base paths and admit only the long-path and alias shims as optional additions.
+That preserves the historical 76/77 profiles and admits the current alias 77
+and alias-plus-long 78 inventories. Both 77-path profiles are identified by their
+actual members. Arbitrary extra paths, missing base paths and duplicate facts
+still fail. The author stores the selected records without gaps before sorting
+and hashing them. Both new positive profile tests failed before this extension;
+the two profiles and historical long profile now pass the focused native checks.
+
+Checked author/verifier tests now exercise all four profiles, same-count source
+substitution, duplicate observations and recovery after rejected requests. Live
+runner tests select the current alias profiles explicitly. Complete paired gates,
+full publication and OS/runtime acceptance are still pending for this repair.
+The producer closure remains the previously proved 77/78 source cohort; the
+manifest contract itself is outside that producer closure.
+
+Two driver mistakes are also retained. The first cold OS driver checked output
+sizes before Make had produced the boot and kernel files; the corrected driver
+runs the audit first and leaves artifact verification in the normal Make graph.
+The first publication driver selected a directory whose leaf was not the
+required `cupidc-contracts` name, and failed before bootstrap. A narrow paired
+test run shared one repository root: each host's temporary directory changed
+its membership during the other's pinned-reader check. Further paired runs use
+separate frozen roots. These driver failures do not justify weakening validation.
+
+
+The next complete paired runs each executed 477 methods and failed only the three
+new checked-author profile subcases. Their expected JSON had been serialized
+before request framing updated the fixture's independent object-pair digests.
+The correction frames those facts first, then serializes the expected report
+before executing the tool. Exact byte comparison, profile verification, malformed
+source and duplicate-fact rejection, and recovery checks remain unchanged. Both
+reviews found no issues in this ordering correction. The failed full runs remain
+failed records; isolated focused, full regression and audit reruns are required.
+
+
+## 2026-10-01: qualify the repaired alias publication boundary
+
+The corrected checked-author case passes on both hosts. Fresh complete runs
+then pass all 477 selected methods: Windows skips three POSIX-only cases and
+Linux skips sixteen Windows-only cases. Each host also passes the canonical
+audit and four conditional-contract methods. Independent verification rereads
+the full 1,558-input cohort, every completed record and log, and the exact test
+selection. The two prior full runs remain failed records.
+
+Fresh normal Make runs use the installed seeds with host C/ASM tools forbidden.
+Both reach the artifact gate and reject only the raw-kernel size. All sixteen
+artifacts and 431 link inputs agree between hosts. Against the accepted physical
+checkpoint, only the manual object and the two kernel ELFs change among those
+inputs; 428 stay identical. The revised manual is 66,594 bytes and is present
+in the raw kernel. Both hosts measure the raw kernel at 9,579,628 bytes.
+
+A fresh calibrated integration copy changes only the measured policy row from
+9,578,888 to 9,579,628 bytes before documentation is reconciled. Earlier failed
+OS roots and proof roots remain intact. The embedded manual is unchanged from
+the paired measurement. Complete 90-control publication, fresh images and
+runtime acceptance remain pending; this calibration does not establish them.
+
+
+## 2026-10-01: accept the calibrated alias and CLI source
+
+The fresh calibrated Windows and Linux normal Make builds pass with host C/ASM
+tools forbidden. They produce identical sixteen-artifact and 431-input maps.
+Both raw kernels are 9,579,628 bytes and contain the unchanged 66,594-byte manual.
+The matched 200 MiB image SHA-256 is `a9c44748cff1c04339c4d2c6f62b117e404fb98874d4bfddd61a374e1f346ed4`. The earlier size-policy
+rejections remain failed records; only their measured raw-kernel row changed.
+
+The complete default77 and long78 Linux publications pass with 90 controls,
+22 artifacts and 67 pairs each. Their producer closure and every control match
+the tested implementation. The long publication is copied to the fresh Linux
+OS root only after both jobs complete, then all files and live source inputs are
+verified before the ABI/user build runs. Windows uses its native closed ABI.
+Both hosts retain the preceding cat, hello and ls executable bytes.
+
+Both hosts pass the private four-CPU max/e1000 kernel/disassembler smoke and
+three separate external-program boots. The cat fixture retains its false PID999
+exit text; the runtime pattern binds the loaded program's actual PID and hashes
+the 62-byte print. All eight boots verify SMP and preserve base/staged images.
+`paired-user-link-cli-calibrated-independent-verification-v2.json` rereads all
+source inputs, completed records, output maps, retained publications and logs.
+
+The source checkpoint still uses installed `78e71bd6` seeds. Ownership remains
+444 CupidBuild/eight Python actions, including three Python user links. Committed
+producer proof, new seed carriage and recipe adoption remain separate work. UNC
+alias roots, serial record atomicity and full Doom runtime acceptance remain open.
+
+
+The first Windows kernel smoke fails its setup wait after `dis: file not found`,
+although the boot log installs `/bin/ls.cc` and records command completion. Its
+ABI/user and artifact checks pass and its base image stays unchanged. Fresh
+diagnostic probes at both 0.35 and 0.60 seconds between keys pass; the exact
+delivery failure remains unconfirmed. Full Windows v2 acceptance uses the
+existing 0.60-second spacing with the original 180-second deadline and every
+command, SMP, output and image assertion. The original failed acceptance and
+its stopped qualification wrapper remain separate from the passing recovery.
