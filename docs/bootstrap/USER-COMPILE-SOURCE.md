@@ -126,10 +126,11 @@ match the complete current source matrix. No old proof is relabeled.
 The preceding long-file pair passes current-control publication verification,
 both final manual and user/boot replays, and is committed and pushed as
 `c8f46ba8`. The isolated implementation and tests are integrated into source.
-The source capability
-needs its own paired staged proof and ordinary/custom-directory Make handoff.
-Both normal OS kernel builds and images match; Windows user and boot checks pass.
-Linux's updated publication, user ABI and final boot replay are still running.
+The source capability passes its own paired staged proof at `78e71bd6`;
+fresh proposed-seed consumers
+and ordinary/custom-directory Make handoff remain required.
+Both normal OS kernel builds, user programs, images and private four-CPU boot
+checks pass. Linux's updated publication and user ABI gate also pass.
 The three user links and syscall ABI
 gate remain separate operations. Production ownership stays at 441 CupidBuild
 actions and eleven Python actions. No existing OS source is simplified or renamed
@@ -194,8 +195,9 @@ Independent rereads bind 1,544 source/control inputs, sixteen artifacts and all
 programs and private four-CPU disassembly/shell/SMP smoke; its image remains
 unchanged. Image SHA-256 is
 `8631d37aa4cdb4aa417f9cd0b1a65c9e7924446b1ab87464d379b39ba6ddbd42`.
-Linux's native artifact check and image publication pass. Its current-source
-contract publication and final user/boot replay remain separate running work.
+Linux's native artifact check, image publication, current-source contract
+publication, user ABI gate and final user/boot replay pass. The independent
+paired acceptance rereads all retained inputs and both unchanged images.
 
 The active evidence directory retains `user-source-manual-*-preparation-v7.json`,
 `user-source-manual-size-calibration-v7.json`,
@@ -203,3 +205,7 @@ The active evidence directory retains `user-source-manual-*-preparation-v7.json`
 `user-source-manual-windows-acceptance-v7.json` and
 `integrated-user-test-verification-v1.json`. A premature publication-proof
 capture rejects the incomplete report and retains no proposed seed proof.
+
+[The staged proof record](USER-COMPILE-PROOF.md) binds the committed producer,
+both complete native proofs, the nineteen-path release preview and separate
+fresh consumer runs. The proposed pair remains uninstalled.

@@ -41378,6 +41378,27 @@ its changed-source publication and final user/boot replay are still running.
 A premature proof-capture harness rejects the incomplete publication bootstrap
 report before copying anything. It supplies no new fixed-point evidence.
 
-Paired bootstrap, checked seed carriage, ordinary and custom-directory Make
-handoff and final Linux user/boot acceptance remain required. The three user links and full
+Checked seed carriage and ordinary/custom-directory Make handoff remain required.
+The committed paired bootstrap and final Linux user/boot acceptance now pass,
+as recorded below. The three user links and full
 Doom gameplay/audio/save/load/reboot/performance gate remain separate work.
+
+## Committed user compilation proof and paired OS acceptance, 2026-09-30
+
+Fresh native proofs from `78e71bd6` pass on both hosts with the same committed
+77-input snapshot. Independent verification checks all 1,544 frozen root inputs,
+both parent cohorts and every stage. Linux matches 34 object/startup/tool pairs
+and passes 55/7/62 failure/help/success groups; Windows matches 42 pairs and
+passes 43/7/49. The reviewed nineteen-path preview passes both proposed
+manifest checks and the independent release author. Its pair remains
+uninstalled while two fresh long-profile consumers and the complete default
+Windows bootstrap run.
+
+Linux's updated contract publication, user ABI build and final private four-CPU
+max/e1000 disassembly/shell/SMP replay pass. Both hosts retain identical sixteen
+artifacts, 431 link inputs and unchanged 200 MiB images. The embedded manual is
+64,715 bytes and the raw kernel is 9,577,752 bytes. All three user executable
+bytes match the preceding acceptance. Independent paired verification passes.
+[The proof record](USER-COMPILE-PROOF.md) retains exact identities, logs and the
+two failed premature setup attempts. No failed or historical record supplies
+new acceptance. Production ownership remains 441 CupidBuild/eleven Python.

@@ -14,8 +14,9 @@ compilation and link coordination remain open. Source-head `compile-user` now
 captures each of the three examples with `user/cupid.h`, retains configurable
 output parents, and publishes a validated object under the fixed freestanding
 profile. Native and CupidC-built callers reproduce the existing objects on both
-hosts. Its staged helper and next-parent compatibility checks pass; full paired
-bootstrap and Make adoption remain required. See
+hosts. Its committed paired native proofs and final user/boot replays pass.
+The proposed seeds await fresh self-consumption and default-profile checks;
+installation and Make adoption remain required. See
 [the source record](docs/bootstrap/USER-COMPILE-SOURCE.md).
 
 The latest retained Doom replay advances

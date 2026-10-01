@@ -5,7 +5,10 @@
 Source-head `compile-user` captures the three approved examples in two-record
 bundles and retains configurable output parents through publication. Both host
 callers reproduce the real objects; the shared staged gate and exact next-parent
-reader checks pass. Checked seed carriage and Make adoption remain open.
+reader checks pass. Committed native fixed points and final OS/user/boot replays
+also pass on both hosts. Proposed-seed consumption, checked seed carriage and
+Make adoption remain open. [The proof record](USER-COMPILE-PROOF.md) retains
+the release-preview boundary.
 [The source record](USER-COMPILE-SOURCE.md) retains evidence and recovery limits.
 
 ## Promoted long-file release, 2026-09-30

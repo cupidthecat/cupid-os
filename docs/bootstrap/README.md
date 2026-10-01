@@ -12,8 +12,11 @@ checked tests for the exact promoted `8403b0a8` parent tuple.
 
 [The source record](USER-COMPILE-SOURCE.md) retains all test boundaries, failed
 approaches and Linux recovery evidence. This operation is integrated in source;
-paired bootstrap, checked seed carriage and ordinary/custom-directory Make
-handoff remain required. The installed seeds stay at the preceding release.
+the committed paired native proof and final OS/user/boot replay pass on both
+hosts. Proposed-seed self-consumption, default-profile compatibility, checked
+seed carriage and ordinary/custom-directory Make handoff remain required.
+[The proof record](USER-COMPILE-PROOF.md) binds the fresh evidence.
+The installed seeds stay at the preceding release.
 Ownership remains 441 CupidBuild actions and eleven Python actions. The three
 user links and full Doom runtime acceptance remain separate work.
 

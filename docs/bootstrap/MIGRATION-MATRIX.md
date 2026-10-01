@@ -4,7 +4,10 @@
 
 The three user compiler transactions now have a tested source-head CupidBuild
 operation. Both hosts reproduce the current objects and pass the staged helper
-and next-parent checks. Installed seeds and Make recipes remain unchanged:
+and next-parent checks. Its committed native fixed points and final OS/user/boot
+replays also pass on both hosts. [The proof record](USER-COMPILE-PROOF.md)
+retains the proposed-seed consumption boundary. Installed seeds and Make
+recipes remain unchanged:
 441 CupidBuild actions and eleven Python actions. The three user links remain
 separate. [The source record](USER-COMPILE-SOURCE.md) retains acceptance still due.
 

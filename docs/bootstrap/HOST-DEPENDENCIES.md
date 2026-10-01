@@ -5,8 +5,10 @@
 Source-head `compile-user` reproduces the three user objects through checked
 CupidC under the existing freestanding profile. It keeps configurable output
 parents and launches long Windows file arguments from a short working directory.
-Production still has eleven Python actions pending paired proof and Make
-adoption. [The source record](USER-COMPILE-SOURCE.md) records the host boundary.
+Committed paired native proofs and the final OS/user/boot replay pass on both
+hosts. Production still has eleven Python actions pending seed consumption,
+installation and Make adoption. [The proof record](USER-COMPILE-PROOF.md)
+records the remaining host boundary.
 
 ## Promoted long-file release, 2026-09-30
 
