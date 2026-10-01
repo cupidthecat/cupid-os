@@ -147,6 +147,17 @@ def next_parent_manifest(fmt, *, long_paths):
     return value
 
 
+def user_compile_parent_manifest(fmt, *, long_paths):
+    value = next_parent_manifest(fmt, long_paths=long_paths)
+    for field in value["provenance"]:
+        if field.startswith("parent_"):
+            value["provenance"][field] = (
+                "78e71bd6137042720c378d2c596aa40b153dad11" if field.endswith("source_revision") else
+                "1d40ec6e03bdd736e5993f8a204588f0e376541f4019b83bd00650469b9531bd" if "execution" in field else
+                "b6f247af2034d7432333eed74230452fede2198ba744c30a5c410ce19c4b79b4")
+    return value
+
+
 class Artifact(ctypes.Structure):
     _fields_ = [("file", ctypes.c_char * 32), ("sha256", ctypes.c_char * 65), ("size", ctypes.c_uint32)]
 
@@ -176,6 +187,30 @@ def changed(value):
 class ManifestTests(unittest.TestCase):
     records = []
     pair_records = []
+
+    def test_user_compile_parent_profiles_require_complete_release_tuple(self):
+        for long_paths in (False, True):
+            for fmt in (1, 2):
+                expected = (6, (3 if long_paths else 2) if fmt == 2 else 0)
+                value = user_compile_parent_manifest(fmt, long_paths=long_paths)
+                self.check(value, fmt, expected=expected)
+                previous = next_parent_manifest(fmt, long_paths=long_paths)
+                for field, original in value["provenance"].items():
+                    if not field.startswith("parent_"):
+                        continue
+                    for replacement in ("0" * len(original), previous["provenance"][field]):
+                        altered = copy.deepcopy(value)
+                        altered["provenance"][field] = replacement
+                        self.check(altered, fmt, False)
+                for count in (75, 78, True, 76.0, 77.0):
+                    altered = copy.deepcopy(value)
+                    altered["provenance"]["source_input_count"] = count
+                    self.check(altered, fmt, False)
+                if fmt == 2:
+                    altered = copy.deepcopy(value)
+                    altered["provenance"]["source_input_count"] = 76 if long_paths else 77
+                    self.check(altered, fmt, False)
+                self.check(value, fmt, expected=expected)
 
     def test_next_parent_profiles_accept_complete_release_tuple(self):
         for long_paths in (False, True):

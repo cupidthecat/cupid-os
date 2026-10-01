@@ -621,6 +621,12 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
       "84b8bef11969bac58d69e97baacd86d8f1b4aa030ecd25359bb1dcdb8f679cbc";
   static const char promoted_long_parent_windows_manifest[] =
       "5d129b2575450dac756d75a4dc859501fdcd9bacf53190ed360ec66f68e21297";
+  static const char user_compile_parent_revision[] =
+      "78e71bd6137042720c378d2c596aa40b153dad11";
+  static const char user_compile_parent_linux_manifest[] =
+      "b6f247af2034d7432333eed74230452fede2198ba744c30a5c410ce19c4b79b4";
+  static const char user_compile_parent_windows_manifest[] =
+      "1d40ec6e03bdd736e5993f8a204588f0e376541f4019b83bd00650469b9531bd";
   static const char *const linux_v1_names[] = {
       "fixed_point_command",   "fixed_point_result", "producer_lineage",
       "seed_generation",       "source_input_count", "source_revision",
@@ -764,6 +770,15 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
                   "parent_plan_seed_manifest_sha256", promoted_long_parent_linux_manifest) &&
               cupidbuild_json_string_field(bytes, tokens, count, object,
                   "parent_plan_seed_source_revision", promoted_long_parent_revision)) ||
+             (candidate >= 3 &&
+              cupidbuild_json_string_field(bytes, tokens, count, object,
+                  "parent_execution_seed_manifest_sha256", user_compile_parent_windows_manifest) &&
+              cupidbuild_json_string_field(bytes, tokens, count, object,
+                  "parent_execution_seed_source_revision", user_compile_parent_revision) &&
+              cupidbuild_json_string_field(bytes, tokens, count, object,
+                  "parent_plan_seed_manifest_sha256", user_compile_parent_linux_manifest) &&
+              cupidbuild_json_string_field(bytes, tokens, count, object,
+                  "parent_plan_seed_source_revision", user_compile_parent_revision)) ||
              (candidate != 4 &&
               ((cupidbuild_json_string_field(
                    bytes, tokens, count, object,
@@ -867,6 +882,11 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
                 "parent_seed_manifest_sha256", promoted_long_parent_linux_manifest) &&
             cupidbuild_json_string_field(bytes, tokens, count, object,
                 "parent_seed_source_revision", promoted_long_parent_revision)) ||
+           (candidate >= 3 &&
+            cupidbuild_json_string_field(bytes, tokens, count, object,
+                "parent_seed_manifest_sha256", user_compile_parent_linux_manifest) &&
+            cupidbuild_json_string_field(bytes, tokens, count, object,
+                "parent_seed_source_revision", user_compile_parent_revision)) ||
            (candidate != 4 &&
             ((cupidbuild_json_string_field(
                 bytes, tokens, count, object, "parent_seed_manifest_sha256",

@@ -1406,6 +1406,61 @@ class CupidLdHostedCliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "atomic-publication: ok\n")
 
+    def test_caller_owned_output_matches_atomic_elf_and_pe_bytes(self):
+        for machine, address in (("elf_i386", "0x01C00000"), ("i386pe", "0x00401000")):
+            with self.subTest(machine=machine):
+                ordinary = self.fixture_root / ("caller-reference-" + machine)
+                retained = self.fixture_root / ("caller-retained-" + machine)
+                arguments = ["-m", machine, "--text-address", address, "--entry", "_start"]
+                inputs = [str(self.object), str(self.helper_object)]
+                result = subprocess.run([str(self.cli), *arguments, "-o", str(ordinary), *inputs],
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                retained.write_bytes(b"previous retained output")
+                with retained.open("rb") as handle:
+                    identity = os.fstat(handle.fileno())
+                    result = subprocess.run([str(self.cli), *arguments, "--caller-owned-output",
+                                             "-o", str(retained), *inputs], capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    current = retained.stat()
+                    self.assertEqual((current.st_dev, current.st_ino), (identity.st_dev, identity.st_ino))
+                    self.assertEqual(handle.read(), ordinary.read_bytes())
+                self.assertEqual(list(self.fixture_root.glob(retained.name + ".cupid-tmp-*")), [])
+
+    def test_duplicate_caller_owned_option_and_link_failure_preserve_output(self):
+        output = self.fixture_root / "caller-negative.elf"
+        for extra, source, expected in ((["--caller-owned-output"] * 2, self.object, 2),
+                                         (["--caller-owned-output"], self.helper_object, 1)):
+            with self.subTest(extra=extra, source=source):
+                output.write_bytes(b"previous output")
+                before = output.stat().st_mtime_ns
+                result = subprocess.run([str(self.cli), "-m", "elf_i386", "--text-address",
+                    "0x01C00000", "--entry", "_start", *extra, "-o", str(output),
+                    str(source), str(self.helper_object)], capture_output=True, text=True)
+                self.assertEqual(result.returncode, expected, result.stderr)
+                self.assertEqual(output.read_bytes(), b"previous output")
+                self.assertEqual(output.stat().st_mtime_ns, before)
+
+    @unittest.skipIf(os.name == "nt", "inherited descriptor paths require Linux procfs")
+    def test_caller_owned_inherited_output_descriptor_retains_identity(self):
+        output = self.fixture_root / "caller-descriptor.elf"
+        reference = self.fixture_root / "caller-descriptor-reference.elf"
+        arguments = ["-m", "elf_i386", "--text-address", "0x01C00000", "--entry", "_start"]
+        inputs = [str(self.object), str(self.helper_object)]
+        result = subprocess.run([str(self.cli), *arguments, "-o", str(reference), *inputs],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        with output.open("w+b") as handle:
+            identity = os.fstat(handle.fileno())
+            result = subprocess.run([str(self.cli), *arguments, "--caller-owned-output", "-o",
+                "/proc/self/fd/" + str(handle.fileno()), *inputs],
+                pass_fds=(handle.fileno(),), capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            current = os.fstat(handle.fileno())
+            self.assertEqual((current.st_dev, current.st_ino), (identity.st_dev, identity.st_ino))
+            handle.seek(0)
+            self.assertEqual(handle.read(), reference.read_bytes())
+
     def test_i386pe_link_failures_keep_the_previous_executable(self):
         malformed = self.fixture_root / "malformed-pe-input.o"
         malformed.write_bytes(b"\x7fELF")

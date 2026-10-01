@@ -16,10 +16,11 @@ build directories, Python-oracle byte comparisons and equal-object timestamps.
 All three external programs pass separate private four-CPU runtime boots.
 
 Both complete Toolchain publications verify 89 inputs, 77 producer inputs
-and 22 matching artifacts. Final normal OS builds pass all sixteen exact
-artifact checks and produce the same 9,578,092-byte raw kernel and 200 MiB
-image. The platform ABI and private four-CPU kernel/user checks pass on both
-hosts. The image SHA-256 is `e1ea00d86c9aa3ab083931fc72ef2e6362c2f5445aaf6d379ac6280a93b0e56a`.
+and 22 matching artifacts. The latest physical user-link source checkpoint passes normal OS builds
+with all sixteen exact artifact checks. Both hosts produce the same
+9,578,888-byte raw kernel and 200 MiB image, preserve all three user executables,
+and pass the platform ABI and four private four-CPU boots each. The image
+SHA-256 is `784d906d6a122e7a600a0a8a1fe0022e7cfa7a291f959605c0898f37d25a80db`.
 
 CupidBuild owns 444 normal-build actions; eight still use Python. User linking,
 image publication, the two remaining verification operations and Toolchain
@@ -34,13 +35,13 @@ save/load, reboot persistence and performance acceptance remain open.
 See [the bootstrap record](docs/bootstrap/README.md) and
 [the user compilation design](docs/bootstrap/NEXT-USER-COMPILATION.md).
 
-Source-head CupidBuild now has an in-memory validator for external user
-executables. It checks the i386 ELF32 header, up to sixteen program headers,
-load ranges inside `[0x01C00000, 0x01E00000)`, alignment, permissions, overlap,
-and an entry in executable file-backed bytes. It preserves the existing Python
-validator's acceptance rules and diagnostics. The three user links still use
-the Python transaction; native path handling, input capture, inspection, and
-publication remain required before that handoff.
+The native user-link C API now retains existing physical output
+parents, captures the approved object and six-tool cohort, runs checked CupidLD
+and CupidDis, validates the resulting user ELF and publishes through the guarded
+transaction. Its fourteen operation methods pass in native and Cupid-built
+callers on both hosts. The three user links still use Python. Alias handling,
+CLI exposure, checked seed carriage and recipe adoption remain required.
+See [the source checkpoint](docs/bootstrap/USER-LINK-SOURCE.md).
 
 The shared x86 decoder initializes a candidate after its early opcode,
 prefix, and invalid-encoding checks, before writing decoded fields. This avoids

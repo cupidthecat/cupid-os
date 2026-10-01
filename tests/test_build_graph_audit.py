@@ -2870,9 +2870,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 418)
+            self.assertEqual(contract["if_occurrences"], 419)
             self.assertEqual(contract["elif_occurrences"], 19)
-            self.assertEqual(contract["expression_occurrences"], 437)
+            self.assertEqual(contract["expression_occurrences"], 438)
             self.assertEqual(contract["unique_expressions"], 61)
             self.assertEqual(contract["directive_expression_pairs"], 64)
             executable_contract = CUPIDC_PP_CONTRACT.read_text(encoding="utf-8")
@@ -8122,6 +8122,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "#define MoveFileExA cupid_windows_delete_file\n",
                 r"Windows publication contract differs",
             ),
+            "Windows publication header changes direct-output creation": (
+                "windows_publication_header",
+                "#define CREATE_ALWAYS 2u\n",
+                "#define CREATE_ALWAYS 3u\n",
+                r"Windows publication contract differs",
+            ),
             "Windows publication runtime skips the size query": (
                 "windows_publication_runtime",
                 "GetFullPathNameA(path, 0u, (char *)0, (char **)0);",
@@ -8449,11 +8455,29 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 CLI bypasses atomic publication": (
                 "linker_cli",
-                "    status = cupidld_publish_output("
+                "        : cupidld_publish_output("
                 "native_paths[output_native_index],\n"
-                "                                    ctool_buffer_view(output));\n",
-                "    status = ctool_job_write(job, &output_path,\n"
-                "                             ctool_buffer_view(output));\n",
+                "                                   ctool_buffer_view(output));\n",
+                "        : ctool_job_write(job, &output_path,\n"
+                "                          ctool_buffer_view(output));\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 CLI defaults to caller-owned output": (
+                "linker_cli",
+                "status = cli.caller_owned_output == CTOOL_TRUE\n",
+                "status = cli.caller_owned_output == CTOOL_FALSE\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 CLI accepts duplicate caller-owned selectors": (
+                "linker_cli",
+                "      if (cli->caller_owned_output == CTOOL_TRUE) {\n",
+                "      if (0) {\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 caller-owned output loses candidate sharing": (
+                "linker_cli",
+                "      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,\n",
+                "      FILE_SHARE_READ,\n",
                 r"fixed-point PE32 source contract differs",
             ),
             "PE32 publication replaces without verification": (
@@ -10025,7 +10049,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 self.assertEqual(unreachable[fixture], "not_reached")
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6983, 183),
+                "c.expression.sizeof": (6985, 183),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }

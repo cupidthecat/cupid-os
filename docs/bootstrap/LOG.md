@@ -41667,3 +41667,54 @@ before calibrated normal Make publishes either image. The release preview,
 254-method paired regressions, self-consumers and default Windows bootstrap
 remain bound by their earlier independent records. Source and recipe changes
 are adopted only after these final gates pass.
+
+## 2026-10-01: physical user-link current-control integration
+
+The physical user-link C API, existing-parent opener, caller-owned CupidLD
+output and exact user-compiler parent compatibility are combined over adopted
+branch state `1440d33f`. Both hosts pass 172 native methods, fourteen checked
+link methods, 57 checked observer methods and sixteen user compiler methods.
+Native checks retain the mutation-hook coverage that the checked caller skips.
+Ordinary CupidLD publication and duplicate-option rejection remain covered.
+
+The complete audit suite first passes 128 of 129 methods on each host. The
+single failure is a stale active-conditional fixture after adding the direct
+Windows writer branch. Three fixture files now record 419 `#if` occurrences,
+438 expressions and 189 existing `_WIN32` occurrences. Unique expressions,
+`#elif` occurrences and directive/token pairs retain their previous counts.
+Four affected audit methods, all 39 native and 39 checked preprocessor methods,
+and both generated audit checks pass after that correction. The independent
+record rereads all 1,549 source inputs, six completed integration records,
+logs and checked artifacts. The failed v2 suite and a verifier command-role
+mistake retain separate records.
+
+[The source record](USER-LINK-SOURCE.md) gives the evidence names, implementation
+boundary and failed approaches. Installed seeds and the three Python link
+recipes are unchanged. Alias resolution, exact Windows profile carriage,
+staged behavior, a new paired proof and production handoff remain open.
+Documentation and the embedded manual describe this source boundary.
+
+The final source checkpoint passes both normal OS builds with host
+code-producing tools forbidden. Independent verification rereads 1,549 source
+inputs per host, sixteen exact artifacts and 431 link inputs. Both hosts retain
+the preceding user executable bytes and pass the platform ABI, private
+four-CPU max/e1000 kernel smoke and three separate external-program boots.
+All eight boots preserve their base or staged images and check SMP runtime.
+The settled 65,853-byte manual is embedded in both matching kernels. Their raw
+size is 9,578,888 bytes; pass-one and final ELFs remain 9,675,196 and 9,806,268
+bytes. Both 200 MiB images have SHA-256
+`784d906d6a122e7a600a0a8a1fe0022e7cfa7a291f959605c0898f37d25a80db`.
+Only the measured raw-kernel policy row changes, after both initial builds
+reject the preceding value.
+
+Linux also passes complete default and long-profile publications: 89 control
+inputs, 76 or 77 producer inputs, 22 artifacts and 67 matching contract pairs.
+The first default command succeeds before its evidence wrapper reads the wrong
+report key. The first Linux acceptance driver still names an obsolete
+publication record and fails before any user, ABI or boot child starts. Its
+corrected driver reads the completed long-profile record and reruns acceptance.
+Both failed wrappers remain separate from passing acceptance and publication
+records. Independent recovery checks
+the completed publication, and a separate long-profile run passes.
+`paired-user-link-source-independent-verification-v2.json` binds the final
+builds, users, publications, manual and all eight boot records.

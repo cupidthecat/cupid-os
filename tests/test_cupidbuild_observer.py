@@ -43,11 +43,16 @@ static int parent_case(const char *root, const char *mode, const char *output) {
   cupidbuild_host_snapshot_t candidate_snapshot;
   unsigned char *candidate_bytes = NULL;
   char resume;
-  int publish = strcmp(mode, "parent-publish") == 0;
+  int existing = strncmp(mode, "parent-existing", 15) == 0;
+  int publish = strcmp(mode, "parent-publish") == 0 ||
+                strcmp(mode, "parent-existing-publish") == 0;
   int changed = 0;
-  int ok = cupidbuild_host_output_parent_prepare(root, output, &parent);
-  if (ok && strcmp(mode, "parent") != 0) {
-    if (strcmp(mode, "parent-open") == 0 || publish) {
+  int ok = existing
+      ? cupidbuild_host_output_parent_open_existing(root, output, &parent)
+      : cupidbuild_host_output_parent_prepare(root, output, &parent);
+  if (ok && strcmp(mode, "parent") != 0 && strcmp(mode, "parent-existing") != 0) {
+    if (strcmp(mode, "parent-open") == 0 ||
+        strcmp(mode, "parent-existing-open") == 0 || publish) {
       ok = cupidbuild_host_output_transaction_open(root, "source.cc", output,
                                                     parent, &transaction);
     } else ok = cupidbuild_host_transaction_open(root, "source.cc",
@@ -339,7 +344,7 @@ class CupidBuildObserverTests(unittest.TestCase):
         self.observe()
 
     def prepare_parent(self, logical, mode="parent", mutate=None, expected=0):
-        if mode == "parent-publish":
+        if mode in ("parent-publish", "parent-existing-publish"):
             shutil.copyfile(self.program, self.root / "writer")
         process = subprocess.Popen([str(self.program), str(self.root).encode('utf-8').hex(),
                                     mode, logical.encode('utf-8').hex()], stdin=subprocess.PIPE,
@@ -486,6 +491,87 @@ class CupidBuildObserverTests(unittest.TestCase):
                             self.prepare_parent('nested/b/file.o'))
         self.assertTrue((self.parent / 'a').is_dir())
         self.assertTrue((self.parent / 'b').is_dir())
+
+    def test_existing_output_parent_opens_without_namespace_changes(self):
+        before = sorted(path.relative_to(self.root).as_posix()
+                        for path in self.root.rglob('*'))
+        self.prepare_parent('nested/file.o', 'parent-existing')
+        self.assertEqual(before, sorted(path.relative_to(self.root).as_posix()
+                                       for path in self.root.rglob('*')))
+        self.assertFalse((self.parent / 'file.o').exists())
+
+    def test_existing_output_parent_rejects_missing_chain_without_creation(self):
+        for logical in ('missing/deep/file.o', 'nested/missing/deep/file.o'):
+            with self.subTest(logical=logical):
+                self.prepare_parent(logical, 'parent-existing', expected=2)
+                self.assertFalse((self.root / 'missing').exists())
+                self.assertFalse((self.parent / 'missing').exists())
+        self.prepare_parent('nested/file.o', 'parent-existing')
+
+    def test_existing_output_parent_rejects_unsafe_paths_and_file_collisions(self):
+        (self.parent / 'collision').write_bytes(b'foreign')
+        for logical in ('missing/../file.o', 'missing//file.o',
+                        'missing/./file.o', '/missing/file.o',
+                        'missing/file.o/', 'nested/collision/deep/file.o'):
+            with self.subTest(logical=logical):
+                self.prepare_parent(logical, 'parent-existing', expected=2)
+                self.assertFalse((self.root / 'missing').exists())
+        self.assertEqual((self.parent / 'collision').read_bytes(), b'foreign')
+
+    def test_existing_output_parent_unicode_and_long_path(self):
+        logical = 'nested/space caf\u00e9 \U0001f600/' + 'a' * 100 + '/' + 'b' * 100 + '/file.o'
+        directory = (self.root / logical).parent
+        directory.mkdir(parents=True)
+        self.assertGreater(len(str(self.root / logical)), 260)
+        self.prepare_parent(logical, 'parent-existing')
+        self.assertFalse((self.root / logical).exists())
+
+    def test_existing_output_parent_binds_before_transaction_open(self):
+        (self.root / 'source.cc').write_bytes(b'int value;')
+        self.prepare_parent('nested/file.o', 'parent-existing-open',
+                            mutate=lambda: (self.parent / 'sibling').write_bytes(b'new'))
+        self.assertFalse((self.parent / 'file.o').exists())
+        self.assertFalse(list(self.root.rglob('.cupidbuild*')))
+
+    def test_existing_output_parent_retains_transplanted_ancestor(self):
+        (self.parent / 'deep').mkdir()
+        def mutate():
+            if os.name == 'nt':
+                with self.assertRaises(OSError):
+                    self.parent.rename(self.root / 'displaced')
+            else:
+                self.parent.rename(self.root / 'displaced')
+                self.parent.mkdir()
+                (self.root / 'displaced/deep').rename(self.parent / 'deep')
+        self.prepare_parent('nested/deep/file.o', 'parent-existing', mutate=mutate,
+                            expected=0 if os.name == 'nt' else 3)
+        (self.parent / 'deep').rmdir()
+
+    def test_existing_output_parent_rejects_linked_chain(self):
+        alias = self.root / 'alias'
+        if os.name == 'nt':
+            result = subprocess.run(['cmd', '/c', 'mklink', '/J', str(alias),
+                                     str(self.parent)], capture_output=True,
+                                    text=True, timeout=10)
+            if result.returncode:
+                self.skipTest('cannot create a directory junction: ' + result.stderr)
+        else:
+            alias.symlink_to(self.parent, target_is_directory=True)
+        self.prepare_parent('alias/file.o', 'parent-existing', expected=2)
+        self.assertFalse((self.parent / 'file.o').exists())
+        self.prepare_parent('nested/file.o', 'parent-existing')
+
+    def test_existing_output_parent_publishes_and_preserves_equal_timestamp(self):
+        (self.root / 'source.cc').write_bytes(b'int value;')
+        output = self.parent / 'file.o'
+        output.write_bytes(b'old')
+        self.prepare_parent('nested/file.o', 'parent-existing-publish')
+        self.assertEqual(output.read_bytes(), b'new')
+        os.utime(output, ns=(1_600_000_000_000_000_000,) * 2)
+        stamp = output.stat().st_mtime_ns
+        self.prepare_parent('nested/file.o', 'parent-existing-publish')
+        self.assertEqual(output.stat().st_mtime_ns, stamp)
+        self.assertFalse(list(self.root.rglob('.cupidbuild*')))
 
     def test_standard_input_pipe_and_eof(self):
         result = subprocess.run([str(self.program), "2f", "stdin", ""],

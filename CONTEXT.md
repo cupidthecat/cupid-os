@@ -55,6 +55,9 @@ _Avoid_: successful rollback, committed output
 A retained directory chain for a configurable output, held from preparation
 through transaction cleanup. Its validity includes every ancestor binding;
 directories created during preparation persist after failure and close.
+The existing-directory opener retains the same chain while creating no
+directories, files or locks. The physical user-link operation borrows that
+chain through transaction cleanup.
 _Avoid_: leaf-only validation, temporary output directory
 
 **Guarded build transaction**:

@@ -105,6 +105,12 @@ static const char promoted_long_linux_parent_manifest[] =
     "84b8bef11969bac58d69e97baacd86d8f1b4aa030ecd25359bb1dcdb8f679cbc";
 static const char promoted_long_windows_parent_manifest[] =
     "5d129b2575450dac756d75a4dc859501fdcd9bacf53190ed360ec66f68e21297";
+static const char user_compile_parent_revision[] =
+    "78e71bd6137042720c378d2c596aa40b153dad11";
+static const char user_compile_linux_parent_manifest[] =
+    "b6f247af2034d7432333eed74230452fede2198ba744c30a5c410ce19c4b79b4";
+static const char user_compile_windows_parent_manifest[] =
+    "1d40ec6e03bdd736e5993f8a204588f0e376541f4019b83bd00650469b9531bd";
 
 
 static const char *const windows_seed_files[SEED_ARTIFACT_COUNT] = {
@@ -160,6 +166,7 @@ static int parent_pair_matches(const text_t *manifest,
                                const char *artifact_manifest,
                                const char *current_manifest,
                                const char *promoted_long_manifest,
+                               const char *user_compile_manifest,
                                uint64_t source_input_count) {
   int current_parent =
       cupid_contract_text_equals_literal(manifest, current_manifest) &&
@@ -167,8 +174,11 @@ static int parent_pair_matches(const text_t *manifest,
   int promoted_long_parent =
       cupid_contract_text_equals_literal(manifest, promoted_long_manifest) &&
       cupid_contract_text_equals_literal(revision, promoted_long_parent_revision);
+  int user_compile_parent =
+      cupid_contract_text_equals_literal(manifest, user_compile_manifest) &&
+      cupid_contract_text_equals_literal(revision, user_compile_parent_revision);
   if (source_input_count == 77u) {
-    return current_parent || promoted_long_parent;
+    return current_parent || promoted_long_parent || user_compile_parent;
   }
   return (cupid_contract_text_equals_literal(manifest, preceding_manifest) &&
           cupid_contract_text_equals_literal(revision, preceding_parent_revision)) ||
@@ -180,7 +190,8 @@ static int parent_pair_matches(const text_t *manifest,
           cupid_contract_text_equals_literal(revision, utf8_parent_revision)) ||
          (cupid_contract_text_equals_literal(manifest, artifact_manifest) &&
           cupid_contract_text_equals_literal(revision, artifact_parent_revision)) ||
-         (source_input_count == 76u && (current_parent || promoted_long_parent));
+         (source_input_count == 76u &&
+          (current_parent || promoted_long_parent || user_compile_parent));
 }
 
 static int lower_hex_valid(const unsigned char *bytes, size_t size,
@@ -567,6 +578,7 @@ static int parse_seed_provenance(error_context_t *context, json_reader_t *reader
                            artifact_linux_parent_manifest,
                            current_linux_parent_manifest,
                            promoted_long_linux_parent_manifest,
+                           user_compile_linux_parent_manifest,
                            manifest->source_input_count)) {
     return cupid_contract_set_error(context, "seed manifest parent provenance differs");
   }
@@ -1111,6 +1123,7 @@ static int parse_windows_provenance(error_context_t *context, json_reader_t *rea
                                  artifact_windows_parent_manifest,
                                  current_windows_parent_manifest,
                                  promoted_long_windows_parent_manifest,
+                                 user_compile_windows_parent_manifest,
                                  seed_manifest->source_input_count)) {
     ok = cupid_contract_set_error(context, "Windows seed execution parent provenance differs");
   }
@@ -1123,6 +1136,7 @@ static int parse_windows_provenance(error_context_t *context, json_reader_t *rea
                                  artifact_linux_parent_manifest,
                                  current_linux_parent_manifest,
                                  promoted_long_linux_parent_manifest,
+                                 user_compile_linux_parent_manifest,
                                  seed_manifest->source_input_count)) {
     ok = cupid_contract_set_error(context, "Windows seed plan parent provenance differs");
   }

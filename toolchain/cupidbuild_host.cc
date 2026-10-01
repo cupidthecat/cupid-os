@@ -13029,9 +13029,9 @@ int cupidbuild_host_output_parent_require_current(cupidbuild_host_output_parent_
   return 1;
 }
 
-int cupidbuild_host_output_parent_prepare(
+static int cupidbuild_output_parent_open(
     const char *root, const char *output,
-    cupidbuild_host_output_parent_t **parent_out) {
+    cupidbuild_host_output_parent_t **parent_out, int create_directories) {
   cupidbuild_host_output_parent_t *parent;
   cupidbuild_observer_entry_t *entry;
   const char *cursor;
@@ -13077,7 +13077,7 @@ int cupidbuild_host_output_parent_prepare(
       return cupidbuild_output_parent_fail(parent,
           cupidbuild_host_observer_error(parent->observer));
     handle = cupidbuild_observer_open_child_mode(entry->handle, component, 1,
-                                                   0, (long *)0, 1);
+                               0, (long *)0, create_directories);
     child = cupidbuild_observer_add(parent->observer, entry, component, handle, 1);
     if (child == (cupidbuild_observer_entry_t *)0)
       return cupidbuild_output_parent_fail(parent,
@@ -13091,6 +13091,18 @@ int cupidbuild_host_output_parent_prepare(
   }
   parent->leaf = entry;
   return cupidbuild_host_output_parent_require_current(parent);
+}
+
+int cupidbuild_host_output_parent_prepare(
+    const char *root, const char *output,
+    cupidbuild_host_output_parent_t **parent_out) {
+  return cupidbuild_output_parent_open(root, output, parent_out, 1);
+}
+
+int cupidbuild_host_output_parent_open_existing(
+    const char *root, const char *output,
+    cupidbuild_host_output_parent_t **parent_out) {
+  return cupidbuild_output_parent_open(root, output, parent_out, 0);
 }
 
 static int cupidbuild_output_parent_attach(cupidbuild_host_output_parent_t *parent,

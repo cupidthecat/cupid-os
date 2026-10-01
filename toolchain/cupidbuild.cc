@@ -6329,6 +6329,146 @@ done:
   return result;
 }
 
+static int cupidbuild_user_link_root_is_absolute(const char *root) {
+  if (root == (const char *)0 || root[0] == '\0') return 0;
+  if (cupidbuild_host_execution_format() == 2u) {
+    return ((root[0] >= 'A' && root[0] <= 'Z') ||
+            (root[0] >= 'a' && root[0] <= 'z')) &&
+           root[1] == ':' && (root[2] == '/' || root[2] == '\\');
+  }
+  return root[0] == '/';
+}
+
+int cupidbuild_link_user_object(const cupidbuild_user_link_request_t *request) {
+  cupidbuild_host_transaction_t *transaction =
+      (cupidbuild_host_transaction_t *)0;
+  cupidbuild_host_output_parent_t *parent =
+      (cupidbuild_host_output_parent_t *)0;
+  cupidbuild_seed_capture_t seed;
+  cupidbuild_host_snapshot_t candidate_snapshot;
+  unsigned char *object = (unsigned char *)0;
+  unsigned char *candidate = (unsigned char *)0;
+  const char *separator;
+  const char *name;
+  const char *arguments[12];
+  char reason[256];
+  size_t object_size = 0u;
+  size_t output_size;
+  int changed = 0;
+  int result = 1;
+  (void)memset(&seed, 0, sizeof(seed));
+  if (request == (const cupidbuild_user_link_request_t *)0 ||
+      !cupidbuild_user_link_root_is_absolute(request->repository_root) ||
+      !cupidbuild_path_safe(request->repository_root, 0) ||
+      !cupidbuild_path_safe(request->seed_manifest, 0) ||
+      !cupidbuild_path_safe(request->source, 1) ||
+      !cupidbuild_path_safe(request->output, 1) ||
+      strchr(request->source, '\\') != (const char *)0 ||
+      strchr(request->output, '\\') != (const char *)0 ||
+      strncmp(request->output, "user/", 5u) != 0 ||
+      strlen(request->output) >= CUPIDBUILD_PATH_BYTES - 2u) {
+    (void)fprintf(stderr, "cupidbuild: invalid normalized user link request\n");
+    return 1;
+  }
+  separator = strrchr(request->output, '/');
+  name = separator + 1u;
+  output_size = strlen(request->output);
+  if (separator <= request->output + 5u ||
+      (strcmp(name, "cat") != 0 && strcmp(name, "hello") != 0 &&
+       strcmp(name, "ls") != 0) ||
+      strlen(request->source) != output_size + 2u ||
+      memcmp(request->source, request->output, output_size) != 0 ||
+      strcmp(request->source + output_size, ".o") != 0) {
+    (void)fprintf(stderr, "cupidbuild: user link object and executable binding differ\n");
+    return 1;
+  }
+  if (!cupidbuild_host_output_parent_open_existing(
+          request->repository_root, request->output, &parent)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_output_parent_error(parent));
+    goto done;
+  }
+  if (!cupidbuild_host_output_transaction_open(
+          request->repository_root, request->source, request->output,
+          parent, &transaction)) {
+    goto host_failure;
+  }
+  object = cupidbuild_host_read_frozen_input(
+      transaction, cupidbuild_host_frozen_source(transaction),
+      CUPIDBUILD_TOOL_BYTES, &object_size);
+  if (!cupidbuild_validate_compiler_object_bytes(object, object_size)) {
+    (void)fprintf(stderr, "cupidbuild: user input object validation failed\n");
+    goto done;
+  }
+  free(object);
+  object = (unsigned char *)0;
+  if (!cupidbuild_seed_freeze(transaction, request->repository_root,
+                              request->seed_manifest, 1, 1, &seed) ||
+      !cupidbuild_host_require_publication_boundary(transaction)) {
+    goto host_failure;
+  }
+  arguments[0] = "--caller-owned-output";
+  arguments[1] = "-m";
+  arguments[2] = "elf_i386";
+  arguments[3] = "--text-address";
+  arguments[4] = "0x01C00000";
+  arguments[5] = "--entry";
+  arguments[6] = "_start";
+  arguments[7] = "-o";
+  arguments[8] = cupidbuild_host_candidate(transaction);
+  arguments[9] = cupidbuild_host_frozen_source(transaction);
+  arguments[10] = (const char *)0;
+  if (cupidbuild_host_run(transaction, seed.frozen_tools[3], arguments,
+                          60000u) != 0 ||
+      !cupidbuild_seed_require_live(transaction, &seed)) {
+    (void)fprintf(stderr, "cupidbuild: checked user CupidLD failed\n");
+    goto host_failure;
+  }
+  if (!cupidbuild_host_capture_candidate(transaction, &candidate_snapshot,
+                                         &candidate)) {
+    goto host_failure;
+  }
+  if (!cupidbuild_validate_user_executable_bytes(candidate,
+          candidate_snapshot.size, reason, sizeof(reason))) {
+    (void)fprintf(stderr, "cupidbuild: user executable validation failed: %s\n",
+                  reason);
+    goto done;
+  }
+  free(candidate);
+  candidate = (unsigned char *)0;
+  arguments[0] = "--require-known";
+  arguments[1] = "--require-local-targets";
+  arguments[2] = "--require-code-anchors";
+  arguments[3] = cupidbuild_host_candidate(transaction);
+  arguments[4] = (const char *)0;
+  if (cupidbuild_host_run(transaction, seed.frozen_tools[2], arguments,
+                          60000u) != 0 ||
+      !cupidbuild_seed_require_live(transaction, &seed)) {
+    (void)fprintf(stderr, "cupidbuild: checked user CupidDis failed\n");
+    goto host_failure;
+  }
+  if (!cupidbuild_host_require_candidate(transaction, &candidate_snapshot) ||
+      !cupidbuild_host_require_publication_boundary(transaction) ||
+      !cupidbuild_host_publish_if_changed(transaction, &changed)) {
+    goto host_failure;
+  }
+  result = 0;
+  goto done;
+host_failure:
+  (void)fprintf(stderr, "cupidbuild: %s\n", cupidbuild_host_error(transaction));
+done:
+  free(object);
+  free(candidate);
+  cupidbuild_seed_capture_close(&seed);
+  result = cupidbuild_finish_publication(transaction, result,
+                                         "user executable");
+  if (!cupidbuild_host_output_parent_close(parent)) {
+    (void)fprintf(stderr, "cupidbuild: user link parent cleanup failed\n");
+    return 1;
+  }
+  return result;
+}
+
 int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request) {
   cupidbuild_host_transaction_t *transaction =
       (cupidbuild_host_transaction_t *)0;

@@ -9925,7 +9925,7 @@ def _cupid_toolchain_fixed_point_contract(
     windows_publication_sources_match = all(
         (
             windows_publication_header_digest
-            == "336658310364bf06ab46c9151730b1ff7339903eabe875bfb27856a4c64bce65",
+            == "4fad2ddb93610b52018ae72b9855c74e4525d8a5d6711db9ff0cfd0fe036841a",
             windows_publication_runtime_digest
             == "536fa0a609ddaf6fe90c3fb0696c8e66823284634b75811f03d275427187ad0c",
             windows_publication_start_digest
@@ -10270,6 +10270,23 @@ def _cupid_toolchain_fixed_point_contract(
         r"\bstatic\s+ctool_status_t\s+cupidld_publish_output\s*"
         r"\([^;{}]*\)\s*\{",
     )
+    caller_output_tokens = c_function_tokens(
+        linker_cli_active,
+        linker_cli_path,
+        r"\bstatic\s+ctool_status_t\s+cupidld_write_caller_owned_output\s*"
+        r"\([^;{}]*\)\s*\{",
+    )
+    caller_output_selector = c_tokens(
+        'if (strcmp(argument, "--caller-owned-output") == 0) { '
+        'if (cli->caller_owned_output == CTOOL_TRUE) { return 0; } '
+        'cli->caller_owned_output = CTOOL_TRUE; continue; }',
+        linker_cli_path,
+    )
+    caller_output_selector_positions = (
+        sequence_positions(parse_tokens, caller_output_selector)
+        if parse_tokens is not None
+        else []
+    )
     accepted_machine = (
         "strcmp",
         "(",
@@ -10357,45 +10374,15 @@ def _cupid_toolchain_fixed_point_contract(
         "result",
         ")",
     )
-    publication_dispatch = (
-        "status",
-        "=",
-        "ctool_ld_link",
-        "(",
-        "job",
-        ",",
-        "&",
-        "request",
-        ",",
-        "output",
-        ",",
-        "&",
-        "result",
-        ")",
-        ";",
-        "if",
-        "(",
-        "status",
-        "==",
-        "CTOOL_OK",
-        ")",
-        "{",
-        "status",
-        "=",
-        "cupidld_publish_output",
-        "(",
-        "native_paths",
-        "[",
-        "output_native_index",
-        "]",
-        ",",
-        "ctool_buffer_view",
-        "(",
-        "output",
-        ")",
-        ")",
-        ";",
-        "}",
+    publication_dispatch = c_tokens(
+        "status = ctool_ld_link(job, &request, output, &result); "
+        "if (status == CTOOL_OK) { "
+        "status = cli.caller_owned_output == CTOOL_TRUE "
+        "? cupidld_write_caller_owned_output(native_paths[output_native_index], "
+        "ctool_buffer_view(output)) "
+        ": cupidld_publish_output(native_paths[output_native_index], "
+        "ctool_buffer_view(output)); }",
+        linker_cli_path,
     )
     accepted_machine_positions = (
         sequence_positions(parse_tokens, accepted_machine)
@@ -10476,6 +10463,10 @@ def _cupid_toolchain_fixed_point_contract(
         or len(import_assignment_positions) != 1
         or len(link_positions) != 1
         or len(publication_positions) != 1
+        or len(caller_output_selector_positions) != 1
+        or brace_depth(parse_tokens, caller_output_selector_positions[0]) != 1
+        or token_digest(caller_output_tokens)
+        != "680090bcd26c871c8833fcc632e86960a4e73b633ed9479e52b81ceaab9d9c6e"
         or assignment_positions[0] >= link_positions[0]
         or import_assignment_positions[0] >= link_positions[0]
         or brace_depth(main_tokens, assignment_positions[0]) != 0

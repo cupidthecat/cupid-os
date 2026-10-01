@@ -113,6 +113,7 @@ unsigned int cupid_windows_find_next_file_wide(
 #define SYNCHRONIZE 0x00100000u
 #define FILE_SHARE_READ 0x00000001u
 #define FILE_SHARE_WRITE 0x00000002u
+#define CREATE_ALWAYS 2u
 #define FILE_SHARE_DELETE 0x00000004u
 #define CREATE_NEW 1u
 #define OPEN_EXISTING 3u

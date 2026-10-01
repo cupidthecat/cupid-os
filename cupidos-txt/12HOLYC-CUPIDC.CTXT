@@ -13,6 +13,21 @@ Verified against source on: 2026-10-01
 >style linkhover #0B3AA8
 >rule
 
+>h2 Physical user-link source checkpoint
+>tree open Physical user-link source checkpoint
+The isolated CupidBuild C API links approved cat, hello and ls objects through
+an existing physical output directory. It captures the object and tool cohort,
+runs checked CupidLD and CupidDis, validates the user ELF and rechecks the
+retained directory chain before publication. Equal executable bytes preserve
+the output timestamp. Native and Cupid-built callers pass fourteen operation
+methods on Linux and Windows, including useful failures and recovery.
+
+Normal user linking still uses Python. Alias handling, CLI exposure, checked
+seed carriage and recipe adoption remain required. The installed release owns
+444 CupidBuild and eight Python actions. Full Doom runtime acceptance remains
+open.
+>endtree
+
 >h2 Windows UTF-8 tools
 >tree open Windows UTF-8 tools
 The checked Windows tool cohort uses UTF-8 internally and UTF-16 at Windows API

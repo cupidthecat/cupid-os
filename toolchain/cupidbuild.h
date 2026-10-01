@@ -52,6 +52,18 @@ int cupidbuild_compile_doom(const cupidbuild_compile_request_t *request);
 int cupidbuild_compile_production(const cupidbuild_compile_request_t *request);
 int cupidbuild_compile_user(const cupidbuild_compile_request_t *request);
 
+typedef cupidbuild_object_request_t cupidbuild_user_link_request_t;
+/* Link an already normalized, physical user object/output pair. Root is
+ * absolute; source and output are relative with forward-slash separators.
+ * Both leaves share an existing directory below user/, source is output + .o,
+ * and output is cat, hello or ls. No directories are created. Filesystem
+ * aliases must be resolved and pinned by a higher-level path adapter before
+ * calling this boundary; this operation rejects links in the physical chain.
+ * The promoted six-tool seed, object, candidate and entire output-parent chain
+ * remain retained through instruction validation and atomic publication.
+ */
+int cupidbuild_link_user_object(const cupidbuild_user_link_request_t *request);
+
 #define CUPIDBUILD_USER_PATH_BYTES 8192u
 typedef struct {
   char repository_root[CUPIDBUILD_USER_PATH_BYTES];

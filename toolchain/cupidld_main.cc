@@ -53,6 +53,7 @@ typedef struct {
   const char *entry;
   ctool_u32 text_address;
   ctool_bool have_text_address;
+  ctool_bool caller_owned_output;
   const char **objects;
   ctool_u32 object_count;
   const char **imports;
@@ -345,13 +346,50 @@ static ctool_status_t cupidld_publish_output(const char *destination,
   return cupidld_publish_output_with_ops(destination, contents, &ops);
 }
 
+static ctool_status_t cupidld_write_caller_owned_output(
+    const char *destination, ctool_bytes_t contents) {
+  ctool_status_t status = CTOOL_OK;
+#if defined(_WIN32)
+  cupidld_publication_file_t file;
+  file.handle = CreateFileA(destination, GENERIC_WRITE,
+      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+      (LPSECURITY_ATTRIBUTES)0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, (HANDLE)0);
+  if (file.handle == INVALID_HANDLE_VALUE) {
+    return CTOOL_ERR_IO;
+  }
+  status = cupidld_publication_write_all(&file, contents);
+  {
+    ctool_status_t close_status = cupidld_publication_close(&file);
+    if (status == CTOOL_OK) {
+      status = close_status;
+    }
+  }
+#else
+  FILE *file = fopen(destination, "wb");
+  if (file == (FILE *)0) {
+    return CTOOL_ERR_IO;
+  }
+  if (contents.size != 0u &&
+      fwrite(contents.data, 1u, contents.size, file) != contents.size) {
+    status = CTOOL_ERR_IO;
+  }
+  if (fflush(file) != 0 || ferror(file) != 0) {
+    status = CTOOL_ERR_IO;
+  }
+  if (fclose(file) != 0) {
+    status = CTOOL_ERR_IO;
+  }
+#endif
+  return status;
+}
+
 static void cupidld_usage(FILE *stream) {
   (void)fprintf(
       stream,
-      "usage: cupidld -m elf_i386 -T SCRIPT -o OUTPUT OBJECT...\n"
-      "       cupidld -m elf_i386 --text-address ADDRESS --entry SYMBOL "
+      "usage: cupidld [--caller-owned-output] -m elf_i386 -T SCRIPT -o OUTPUT OBJECT...\n"
+      "       cupidld [--caller-owned-output] -m elf_i386 --text-address ADDRESS --entry SYMBOL "
       "-o OUTPUT OBJECT...\n"
-      "       cupidld -m i386pe --text-address 0x00401000 --entry SYMBOL "
+      "       cupidld [--caller-owned-output] -m i386pe --text-address 0x00401000 --entry SYMBOL "
       "[--import IAT_SYMBOL=LIBRARY:PROCEDURE]... -o OUTPUT OBJECT...\n");
 }
 
@@ -429,6 +467,13 @@ static int cupidld_parse_cli(int argc, char **argv, cupidld_cli_t *cli) {
     int taken;
     if (strcmp(argument, "--help") == 0 || strcmp(argument, "-h") == 0) {
       return -1;
+    }
+    if (strcmp(argument, "--caller-owned-output") == 0) {
+      if (cli->caller_owned_output == CTOOL_TRUE) {
+        return 0;
+      }
+      cli->caller_owned_output = CTOOL_TRUE;
+      continue;
     }
     taken = cupidld_take_value(argc, argv, &index, argument, "-m", &value);
     if (taken != 0) {
@@ -919,8 +964,11 @@ int main(int argc, char **argv) {
   (void)memset(&result, 0, sizeof(result));
   status = ctool_ld_link(job, &request, output, &result);
   if (status == CTOOL_OK) {
-    status = cupidld_publish_output(native_paths[output_native_index],
-                                    ctool_buffer_view(output));
+    status = cli.caller_owned_output == CTOOL_TRUE
+        ? cupidld_write_caller_owned_output(native_paths[output_native_index],
+                                            ctool_buffer_view(output))
+        : cupidld_publish_output(native_paths[output_native_index],
+                                   ctool_buffer_view(output));
   }
   if (status != CTOOL_OK) {
     if (ctool_job_diagnostic_count(job) != 0u) {

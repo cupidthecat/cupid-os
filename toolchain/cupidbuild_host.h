@@ -20,6 +20,12 @@ typedef struct cupidbuild_host_output_parent cupidbuild_host_output_parent_t;
 int cupidbuild_host_output_parent_prepare(
     const char *root, const char *output,
     cupidbuild_host_output_parent_t **preparation_out);
+/* Retain an existing normalized output-parent chain without creating any
+ * directories, files or locks. Missing parents fail. The same binding,
+ * revalidation, partial-result and close rules apply as for preparation. */
+int cupidbuild_host_output_parent_open_existing(
+    const char *root, const char *output,
+    cupidbuild_host_output_parent_t **preparation_out);
 int cupidbuild_host_output_parent_require_current(
     cupidbuild_host_output_parent_t *preparation);
 int cupidbuild_host_output_parent_bind(
