@@ -1,5 +1,45 @@
 # Cupid Toolchain bootstrap
 
+## Checked user compilation handoff, 2026-10-01
+
+The paired `78e71bd6` seeds and direct user object recipes pass final adoption
+acceptance. Both hosts bind the same 77-input producer snapshot and reproduce
+the proved tools. The complete default Windows bootstrap retains its own
+76-input plan. Normal user compilation captures each approved source with
+`user/cupid.h`, preserves the fixed profile and publishes through the retained
+parent chain. The three user links remain separate Python transactions.
+
+Both hosts pass the complete 131-method recipe/audit selection, four actual
+Make output directories, Python-oracle byte comparisons and equal-object
+timestamps. The combined final candidate also passes five focused ownership
+methods and its complete generated audit check. Both complete publications
+verify 89 inputs, 77 producer inputs and 22 matching artifacts.
+
+Final paired OS acceptance rereads 1,547 captured inputs per host, sixteen
+artifacts and 431 link inputs. Both normal builds forbid host code-producing
+tools. Both hosts pass the platform user ABI, unchanged user executables,
+native exact-size gate and private four-CPU max/e1000 disassembly/shell/SMP
+smoke. Each external program also passes its own private four-CPU boot with
+PID-bound output and process-exit checks. Serial record atomicity remains open.
+
+The settled manual is 65,057 bytes. Raw kernels are 9,578,092 bytes,
+pass-one ELFs are 9,675,196 bytes and final ELFs are 9,806,268 bytes.
+Matching measurements precede policy calibration. Only the manual object and
+the two kernel ELFs differ from the preceding accepted link cohort; all other
+428 link inputs retain their bytes. Both 200 MiB images have SHA-256
+`e1ea00d86c9aa3ab083931fc72ef2e6362c2f5445aaf6d379ac6280a93b0e56a` and remain unchanged through runtime checks.
+
+Production ownership is 444 CupidBuild and eight Python actions across 452
+transforms. Python coordinates three user links, two image publications,
+user syscall ABI and Toolchain manifest verification, and one Toolchain
+build/manifest publication. Make and host OS services remain required.
+Full Doom gameplay, audio quality, save/load, reboot and performance acceptance
+remain open. `TempleOS/` stays outside builds and metrics.
+
+The [handoff record](USER-COMPILE-HANDOFF.md) retains commands and failures.
+The [proof record](USER-COMPILE-PROOF.md) binds the paired source, seed and OS
+evidence. Earlier sections retain their checkpoint states.
+
 ## Native user compilation source checkpoint, 2026-09-30
 
 Source-head `compile-user` connects configurable retained output parents to the

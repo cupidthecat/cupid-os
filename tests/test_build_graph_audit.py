@@ -10595,13 +10595,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 249,
                     "cupid_assembler": 8,
-                    "cupid_builder": 441,
+                    "cupid_builder": 444,
                     "cupid_object": 192,
                     "cupid_linker": 8,
                     "cupid_disassembler": 10,
                     "cupid_c_contract": 3,
                     "host_c_compiler": 0,
-                    "host_python": 11,
+                    "host_python": 8,
                 },
             )
             self.assertFalse(

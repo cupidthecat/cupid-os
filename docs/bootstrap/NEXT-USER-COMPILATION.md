@@ -1,4 +1,12 @@
-# Next native user compilation boundary
+# User compilation boundary and remaining links
+
+The checked `compile-user` seed and normal recipe handoff are accepted.
+The [handoff record](USER-COMPILE-HANDOFF.md) retains paired actual Make and
+runtime evidence; the [proof record](USER-COMPILE-PROOF.md) binds the promoted
+cohort and final OS checks. The three user links remain the next coordination
+boundary. Earlier compilation plans below retain their original status.
+
+## Earlier compilation plan
 
 Source implementation checkpoint, 2026-09-30: `compile-user` connects the
 lexical resolver, retained output-parent chain and closed two-record compiler

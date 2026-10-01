@@ -2,7 +2,7 @@
 
 Date: 2026-09-29
 
-Status: Source user transaction implemented; staged carriage and Make handoff pending
+Status: Accepted; paired seed carriage and normal user compilation handoff verified
 
 ## Decision
 
@@ -58,7 +58,7 @@ Long repository arguments and executable names work from a shorter process
 directory. The user coordinator must retain the wrapper's launch behavior and
 check that boundary during integration.
 
-## Evidence and remaining work
+## Earlier prerequisite evidence
 
 Four retained-parent caller configurations pass 49 methods each. Lexical path
 and user ELF caller suites pass seven methods per host. Native and checked
@@ -66,8 +66,9 @@ CupidC pass five real long-path cases and reproduce their short-path object
 bytes. Checked adapter failure cases pass on both hosts. The bootstrap log
 records skips, failures, input hashes and reproduction logs.
 
-These APIs do not implement the closed two-record user compilation bundle or the
-separate user-link transaction. No user recipe handoff is accepted yet. Preserve
+At this earlier prerequisite checkpoint, the retained-parent APIs did not
+implement the closed compiler bundle or separate user-link transaction, and
+the recipe handoff had not been accepted. Preserve
 the existing user profile, syscall ABI check, checked cohort, candidate validation,
 input rechecks, recovery behavior and all three real programs during integration.
 
@@ -85,4 +86,16 @@ Source-head `compile-user` now connects the retained-parent API to the existing
 closed compiler transaction. Its two-record bundle contains the selected
 example and `user/cupid.h`. Both host caller suites and the shared staged helper
 pass; the bootstrap source record retains exact evidence and recovery limits.
-The normal recipes remain unchanged pending paired bootstrap and handoff.
+At that source checkpoint, the normal recipes still awaited paired bootstrap and handoff.
+
+## Accepted user compiler handoff, 2026-10-01
+
+The paired `78e71bd6` seeds carry the closed two-record compiler transaction,
+and normal Make invokes it for all three user examples. The CLI manifest is
+repository-relative; the seven seed prerequisites retain their paths from
+the user Make directory. The syscall ABI check remains order-only. Both hosts
+pass default, nested, lexical and accented output directories, wrapper-oracle
+byte comparisons, equal-object timestamps and separate private four-CPU boots.
+Complete paired seed, publication and final OS evidence is linked from the
+bootstrap handoff and proof records. Earlier sections retain the original
+prerequisite implementation state. User linking remains separate.

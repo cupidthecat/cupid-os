@@ -3,7 +3,10 @@
 Source head adds `cupidbuild compile-user` for the three checked user examples:
 `cat.cc`, `hello.cc`, and `ls.cc`. It coordinates checked CupidC through the
 same compiler transaction used by the kernel and generated installation tables.
-The normal user Make recipes and installed seeds still use the preceding path.
+The installed paired seeds carry this operation, and normal user object
+recipes invoke it directly. The [handoff](USER-COMPILE-HANDOFF.md) records the
+paired Make, oracle, timestamp and runtime acceptance. User linking remains
+a separate transaction.
 
 The command accepts the seed manifest, repository root, source, and output.
 It resolves a relative repository root against the caller's working directory,

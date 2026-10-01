@@ -1,5 +1,21 @@
 # Host dependency inventory
 
+## Checked user compiler handoff, 2026-10-01
+
+Python still coordinates eight of 452 audited transforms: three user links,
+two image publications, user syscall ABI and Toolchain manifest verification,
+and one Toolchain build/manifest publication. CupidBuild owns the other 444,
+including all three normal user compilations. Make and host OS services remain
+required. GCC, NASM and host linkers remain optional development oracles.
+
+The installed `78e71bd6` pair passes both complete publications and final paired
+OS builds with host code-producing tools forbidden. Platform ABI and private
+four-CPU kernel/user checks pass. Windows long file arguments retain a short
+child working directory. Full Doom runtime acceptance remains open.
+
+See [the handoff](USER-COMPILE-HANDOFF.md) and [the paired proof](USER-COMPILE-PROOF.md).
+Earlier sections retain their original checkpoint identities.
+
 ## Native user compilation source checkpoint, 2026-09-30
 
 Source-head `compile-user` reproduces the three user objects through checked

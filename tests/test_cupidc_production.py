@@ -2015,7 +2015,7 @@ class ProductionBuildContractTests(unittest.TestCase):
             link_transform = transforms[f"user/build/{name}"]
             self.assertEqual(
                 compile_transform["tools"],
-                ["cupid_c_compiler", "host_python"],
+                ["cupid_builder", "cupid_c_compiler"],
             )
             self.assertEqual(
                 link_transform["tools"],
@@ -2075,10 +2075,11 @@ class ProductionBuildContractTests(unittest.TestCase):
         self.assertNotIn("../toolchain/build/cupidld.exe -m", logical)
         self.assertIn("examples/%.cc", logical)
         self.assertIn(
-            "$(CUPIDC_PRODUCTION_COMPILE) --source user/$< "
-            "--output user/$@",
+            "cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-user",
             logical,
         )
+        self.assertIn("--seed-manifest $(CUPIDBUILD_USER_SEED_MANIFEST) --root ..", logical)
+        self.assertIn("--source user/$< --output user/$@", logical)
         self.assertIn(
             "$(CUPIDLD_USER_LINK) --input user/$< --output user/$@",
             logical,

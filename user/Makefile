@@ -21,18 +21,19 @@
 ifeq ($(OS),Windows_NT)
 PYTHON ?= python
 PRODUCTION_SEED_MANIFEST ?= ../bootstrap/seeds/i386-windows/manifest.json
-PRODUCTION_SEED_SUFFIX := exe
+override PRODUCTION_SEED_SUFFIX := exe
 USER_SYSCALL_ABI_PLATFORM_ARGUMENTS := \
 	--windows-manifest $(PRODUCTION_SEED_MANIFEST)
 else
 PYTHON ?= python3
 PRODUCTION_SEED_MANIFEST ?= ../bootstrap/seeds/i386-linux/manifest.json
-PRODUCTION_SEED_SUFFIX := elf
+override PRODUCTION_SEED_SUFFIX := elf
 USER_SYSCALL_ABI_PLATFORM_ARGUMENTS := --windows-long-paths
 endif
 
-PRODUCTION_SEED_DIRECTORY := $(dir $(PRODUCTION_SEED_MANIFEST))
-CHECKED_SEED_INPUTS := $(PRODUCTION_SEED_MANIFEST) \
+override PRODUCTION_SEED_DIRECTORY := $(dir $(PRODUCTION_SEED_MANIFEST))
+override CUPIDBUILD_USER_SEED_MANIFEST := $(patsubst $(abspath ..)/%,%,$(abspath $(PRODUCTION_SEED_MANIFEST)))
+override CHECKED_SEED_INPUTS := $(PRODUCTION_SEED_MANIFEST) \
 	$(PRODUCTION_SEED_DIRECTORY)cupidasm.$(PRODUCTION_SEED_SUFFIX) \
 	$(PRODUCTION_SEED_DIRECTORY)cupidc.$(PRODUCTION_SEED_SUFFIX) \
 	$(PRODUCTION_SEED_DIRECTORY)cupiddis.$(PRODUCTION_SEED_SUFFIX) \
@@ -209,6 +210,7 @@ CUPIDC_PRODUCTION_COMPILE_INPUTS := \
 	../tools/native_user_toolchain.py \
 	../tools/bootstrap_toolchain.py \
 	$(CHECKED_SEED_INPUTS)
+override CUPIDBUILD_USER_COMPILE_INPUTS := $(CHECKED_SEED_INPUTS)
 CUPIDLD_USER_LINK_INPUTS := ../tools/cupidld_user_link.py \
 	../tools/cupidc_kernel_compile.py \
 	../tools/native_user_toolchain.py \
@@ -254,8 +256,10 @@ $(BUILD)/%: $(BUILD)/%.o $(CUPIDLD_USER_LINK_INPUTS) Makefile
 	$(CUPIDLD_USER_LINK) --input user/$< --output user/$@ \
 		--text-address $(USER_TEXT_ADDRESS) --entry _start
 
-$(BUILD)/%.o: examples/%.cc cupid.h $(CUPIDC_PRODUCTION_COMPILE_INPUTS) Makefile | test-syscall-abi
-	$(CUPIDC_PRODUCTION_COMPILE) --source user/$< --output user/$@
+$(BUILD)/%.o: examples/%.cc cupid.h $(CUPIDBUILD_USER_COMPILE_INPUTS) Makefile | test-syscall-abi
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-user \
+		--seed-manifest $(CUPIDBUILD_USER_SEED_MANIFEST) --root .. \
+		--source user/$< --output user/$@
 
 test-syscall-abi: $(USER_SYSCALL_ABI_INPUTS) Makefile
 	$(USER_SYSCALL_ABI)

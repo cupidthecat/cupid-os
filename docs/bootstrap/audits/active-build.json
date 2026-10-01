@@ -59063,7 +59063,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "30189d75d68594490100177375ccdb7a26bd65413206e087e80988f8c28df24b",
+    "active_source_digest": "c91abf06d3a6a725ad00bab55fa1d7452281d0aebb40858be58541e095b8dc31",
     "control_files": [
       {
         "path": "Makefile",
@@ -59071,7 +59071,7 @@
       },
       {
         "path": "user/Makefile",
-        "sha256": "6de08fe993a644a2da076b5ffffb8365fd083286c72fb7db183f93b34cedc1aa"
+        "sha256": "6803cba98bc0cf612800bab7cfcde26d0d8320a443eb1b70ba4421127f512dd6"
       },
       {
         "path": "toolchain/Makefile",
@@ -59091,11 +59091,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "28e434f94a3881031f4c0bcff6de23ac2d8a2dfa9030db74bebc1a04f0f06918"
+        "sha256": "09fe64d7cc120e389371c54d6c3211029f495314c5ebe9ccad97a02c56513019"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
-        "sha256": "5d129b2575450dac756d75a4dc859501fdcd9bacf53190ed360ec66f68e21297"
+        "sha256": "1d40ec6e03bdd736e5993f8a204588f0e376541f4019b83bd00650469b9531bd"
       },
       {
         "path": "tools/cupidc_production_compile.py",
@@ -59116,7 +59116,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "ea3cc205dd8157cc40dd26f7045e0f58471c28070125ade924ccfe4372d2dbaf"
+      "sha256": "08c39736d72bb7be61f0f8066ba31d18c14409f97f76ac50f7841ed749540eb4"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -87303,7 +87303,7 @@
       "path": "toolchain/tests/toolchain_manifest_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "5eb3f628075bedd51316c3e7593516eb0ffffc87b2f70d5305f8b4120b720658"
+      "sha256": "5bb052fc3f1fba0b15ea0e4f451991bbb2f55bf3fc1a178324da9f990a61dd02"
     },
     {
       "build_owners": [
@@ -87488,6 +87488,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -87528,8 +87529,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "user"
@@ -87559,8 +87560,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "user"
@@ -87584,8 +87585,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "user"
@@ -87660,10 +87661,6 @@
           "inputs": [
             "user/examples/cat.cc",
             "user/cupid.h",
-            "tools/cupidc_production_compile.py",
-            "tools/cupidc_kernel_compile.py",
-            "tools/native_user_toolchain.py",
-            "tools/bootstrap_toolchain.py",
             "bootstrap/seeds/i386-windows/manifest.json",
             "bootstrap/seeds/i386-windows/cupidasm.exe",
             "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -87679,11 +87676,13 @@
           ],
           "output": "user/build/cat.o",
           "recipe": [
-            "$(CUPIDC_PRODUCTION_COMPILE) --source user/$< --output user/$@"
+            "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-user \\",
+            "--seed-manifest $(CUPIDBUILD_USER_SEED_MANIFEST) --root .. \\",
+            "--source user/$< --output user/$@"
           ],
           "tools": [
-            "cupid_c_compiler",
-            "host_python"
+            "cupid_builder",
+            "cupid_c_compiler"
           ]
         },
         {
@@ -87718,10 +87717,6 @@
           "inputs": [
             "user/examples/hello.cc",
             "user/cupid.h",
-            "tools/cupidc_production_compile.py",
-            "tools/cupidc_kernel_compile.py",
-            "tools/native_user_toolchain.py",
-            "tools/bootstrap_toolchain.py",
             "bootstrap/seeds/i386-windows/manifest.json",
             "bootstrap/seeds/i386-windows/cupidasm.exe",
             "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -87737,11 +87732,13 @@
           ],
           "output": "user/build/hello.o",
           "recipe": [
-            "$(CUPIDC_PRODUCTION_COMPILE) --source user/$< --output user/$@"
+            "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-user \\",
+            "--seed-manifest $(CUPIDBUILD_USER_SEED_MANIFEST) --root .. \\",
+            "--source user/$< --output user/$@"
           ],
           "tools": [
-            "cupid_c_compiler",
-            "host_python"
+            "cupid_builder",
+            "cupid_c_compiler"
           ]
         },
         {
@@ -87776,10 +87773,6 @@
           "inputs": [
             "user/examples/ls.cc",
             "user/cupid.h",
-            "tools/cupidc_production_compile.py",
-            "tools/cupidc_kernel_compile.py",
-            "tools/native_user_toolchain.py",
-            "tools/bootstrap_toolchain.py",
             "bootstrap/seeds/i386-windows/manifest.json",
             "bootstrap/seeds/i386-windows/cupidasm.exe",
             "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -87795,11 +87788,13 @@
           ],
           "output": "user/build/ls.o",
           "recipe": [
-            "$(CUPIDC_PRODUCTION_COMPILE) --source user/$< --output user/$@"
+            "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-user \\",
+            "--seed-manifest $(CUPIDBUILD_USER_SEED_MANIFEST) --root .. \\",
+            "--source user/$< --output user/$@"
           ],
           "tools": [
-            "cupid_c_compiler",
-            "host_python"
+            "cupid_builder",
+            "cupid_c_compiler"
           ]
         },
         {

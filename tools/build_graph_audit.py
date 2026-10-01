@@ -342,6 +342,7 @@ TOOL_MARKERS = (
     ("compile-kernel --seed-manifest", "cupid_c_compiler"),
     ("compile-doom --seed-manifest", "cupid_c_compiler"),
     ("compile-production --seed-manifest", "cupid_c_compiler"),
+    ("compile-user --seed-manifest", "cupid_c_compiler"),
     ("flatten-kernel --seed-manifest", "cupid_disassembler"),
     ("flatten-kernel --seed-manifest", "cupid_object"),
     ("generate-ksyms --seed-manifest", "cupid_disassembler"),
@@ -3653,6 +3654,65 @@ _CUPIDBUILD_GENERATED_SOURCES = (
     "kernel/util/demos_programs_gen.cc",
     "kernel/util/docs_programs_gen.cc",
 )
+
+_CUPIDBUILD_USER_SOURCES = (
+    "user/examples/cat.cc", "user/examples/hello.cc", "user/examples/ls.cc",
+)
+
+
+def _cupidbuild_user_compile_recipe() -> list[str]:
+    return [
+        "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+        "$(PRODUCTION_SEED_SUFFIX) compile-user \\",
+        "--seed-manifest $(CUPIDBUILD_USER_SEED_MANIFEST) --root .. \\",
+        "--source user/$< --output user/$@",
+    ]
+
+
+def _validate_cupidbuild_user_compile_delivery(
+    transforms: list[dict[str, object]], *, seed_inputs: list[str],
+) -> None:
+    approved_outputs = {"user/build/" + Path(source).with_suffix(".o").name
+                        for source in _CUPIDBUILD_USER_SOURCES}
+    seen = set()
+    for transform in transforms:
+        output = transform.get("output")
+        if (output not in approved_outputs
+                and transform.get("operation") != "compile_c_to_elf32_object"):
+            continue
+        inputs = transform.get("inputs", [])
+        source = _c_preprocessor_one_c_root(transform)
+        expected = {source, "user/cupid.h", "user/Makefile", *seed_inputs}
+        if (source not in _CUPIDBUILD_USER_SOURCES
+                or output != "user/build/" + Path(source).with_suffix(".o").name
+                or output in seen
+                or transform.get("operation") != "compile_c_to_elf32_object"
+                or transform.get("tools") != ["cupid_builder", "cupid_c_compiler"]
+                or transform.get("recipe") != _cupidbuild_user_compile_recipe()
+                or not isinstance(inputs, list) or set(inputs) != expected
+                or len(inputs) != len(expected)
+                or transform.get("order_only_inputs", []) != ["user/test-syscall-abi"]):
+            raise AuditError(f"CupidBuild user compile delivery differs for {output}")
+        seen.add(output)
+
+
+def _validate_cupidbuild_user_make_binding(root: Path, make: str) -> list[str]:
+    values = _read_evaluated_make_variables(root / "user", make, (
+        "PRODUCTION_SEED_MANIFEST", "PRODUCTION_SEED_DIRECTORY",
+        "PRODUCTION_SEED_SUFFIX", "CHECKED_SEED_INPUTS", "CUPIDBUILD_USER_COMPILE_INPUTS",
+        "CUPIDBUILD_USER_SEED_MANIFEST",
+    ))
+    manifest = values["PRODUCTION_SEED_MANIFEST"]
+    directory = posixpath.dirname(manifest) + "/"
+    expected = [manifest, *[directory + name + ".exe" for name in
+                ("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj", "cupidbuild")]]
+    if (values["PRODUCTION_SEED_SUFFIX"] != "exe"
+            or values["PRODUCTION_SEED_DIRECTORY"] != directory
+            or values["CUPIDBUILD_USER_SEED_MANIFEST"] != posixpath.normpath("user/" + manifest)
+            or values["CHECKED_SEED_INPUTS"].split() != expected
+            or values["CUPIDBUILD_USER_COMPILE_INPUTS"].split() != expected):
+        raise AuditError("CupidBuild user compile Make binding differs from the checked cohort")
+    return [posixpath.normpath("user/" + path) for path in expected]
 
 
 def _cupidbuild_generated_compile_recipe(source: str) -> list[str]:
@@ -8565,6 +8625,12 @@ def build_audit(
                 root, make, ("PRODUCTION_SEED_INPUTS",)
             )["PRODUCTION_SEED_INPUTS"].split(),
         )
+        for model in supplemental_models:
+            if model.directory == "user":
+                _validate_cupidbuild_user_compile_delivery(
+                    model.transforms,
+                    seed_inputs=_validate_cupidbuild_user_make_binding(root, make),
+                )
         _validate_iso_pattern_delivery(
             root_model.transforms,
             seed_inputs=_read_evaluated_make_variables(
@@ -9046,6 +9112,13 @@ def _c_preprocessor_profile_for_c_transform(
     output = str(transform.get("output", "<unknown>"))
     if transform.get("tools") == ["cupid_builder", "cupid_c_compiler"]:
         root = _c_preprocessor_one_c_root(transform)
+        if root in _CUPIDBUILD_USER_SOURCES:
+            if (directory != "user"
+                    or output != "user/build/" + Path(root).with_suffix(".o").name
+                    or transform.get("recipe") != _cupidbuild_user_compile_recipe()
+                    or transform.get("operation") != "compile_c_to_elf32_object"):
+                raise AuditError(f"CupidBuild user compile recipe differs for {output}")
+            return "USER_I386"
         if root in _CUPIDBUILD_GENERATED_SOURCES:
             if (directory != "."
                     or output != Path(root).with_suffix(".o").as_posix()

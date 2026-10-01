@@ -87,12 +87,11 @@ six-tool seed, runs one broad CupidDis known-instruction request, applies
 linked local-target and code-anchor checks to the pass-one and final kernel
 ELFs, and runs CupidObj `flat`. A separate native ELF renderer reconstructs
 the initialized physical-address image and must match CupidObj byte for byte.
-The real 431-input cohort reproduces the tracked kernel through a CupidC-built
-image. Both active checked seeds carry this transaction from revision
-`8403b0a82b5693409d2242fdbff32688c8f2cac5` and the same 77-input source
-snapshot, `25b05a6cb0e824136db8df79b4e7f2e176aea88f0446be550f36ece04798bbf9`.
-ADR 0372 records the capability, ADR 0374 records its earlier seed carriage,
-and ADR 0410 records the current pair. The normal Make edge calls CupidBuild
+The [user compiler handoff](docs/bootstrap/USER-COMPILE-HANDOFF.md) and
+[paired proof](docs/bootstrap/USER-COMPILE-PROOF.md) identify the active seed
+cohort and its acceptance. ADR 0372 records the capability, ADR 0374 records
+its earlier seed carriage, and ADR 0410 records the preceding long-file pair.
+The normal Make edge calls CupidBuild
 directly under ADR 0375; Hostbuild remains an optional parity oracle.
 
 The earlier checked `16a86f5b` pair carried the Windows full-cohort launch repair
@@ -141,27 +140,21 @@ owns all 83 Doom compilations through closed source/header bundles and filtered
 discovery that permits unrelated object writes while rejecting input membership
 or directory-identity changes. ADR 0396 records that separate profile handoff.
 
-Checked `compile-production` owns the three generated installation tables
-with their fixed kernel profile and six-record closures. Production records
-441 CupidBuild and eleven Python actions. ADR 0397 records the source
-capability and the bootstrap log records its paired promotion and handoff;
-the source-head user compiler transaction passes committed native fixed points
-and final OS/user/boot acceptance on both hosts. Fresh proposed-seed consumption,
-installation and Make adoption remain separate work; the installed seeds retain
-the preceding release. The bootstrap user proof record binds those boundaries.
+Guarded compilation binds each approved source cohort to its fixed compiler
+profile and complete closed source bundle. The generated-install cohort and
+user examples retain separate approval and publication rules. Their current
+ownership and acceptance are recorded in the
+[migration matrix](docs/bootstrap/MIGRATION-MATRIX.md) and
+[user compiler handoff](docs/bootstrap/USER-COMPILE-HANDOFF.md).
 
 **Hosted bootstrap runtime**:
 The static i386 C runtime linked into Cupid tool and contract images. It supplies the represented heap, file, memory, string, error, and working-directory interfaces without a host libc. Its string boundary includes binary `memchr`, which CupidBuild uses while validating frozen JSON. The active six-tool seeds contain CupidBuild beside CupidC, CupidASM, CupidDis, CupidLD, and CupidObj.
 
-CupidBuild directly coordinates two guarded assembly objects, three guarded
-raw images, the guarded JPEG object, kernel-symbol generation, kernel
-flattening, 157 kernel, 83 Doom, and three generated-install compilations,
-Doom profile publication, 186 ordinary
-CupidObj calls, and both
-normal kernel links and artifact verification. It participates in 441 of the
-452 audited transforms; Python participates in eleven. Disk and ISO image publication retain their
-Python safety and parity layers. The promoted checked runner admits CupidC,
-CupidObj, and CupidLD, while rejecting CupidASM, CupidDis, and CupidBuild.
+CupidBuild coordinates guarded transformations and checked tool invocations.
+The [migration matrix](docs/bootstrap/MIGRATION-MATRIX.md) records current
+ownership, and the [host dependency inventory](docs/bootstrap/HOST-DEPENDENCIES.md)
+records the remaining coordinators. The hosted runtime is the execution
+boundary; its presence does not establish ownership of a build transformation.
 
 On Linux, the runner freezes the manifest and six tools in fully sealed anonymous memfds, pins the working directory by descriptor, and calls `fchdir` before remapping captured streams. A retained tool descriptor in standard slot 0, 1, or 2 is duplicated above those slots before `fexecve` or `execveat`. The `dup2`, pipe read and write, and wait loops retry `EINTR`; `dup2` also retries `EBUSY`. Captured streams are sealed anonymous memfds, and a close-on-exec launch-status pipe preserves a genuine tool exit of 125. The static i386 startup supplies `cupid_linux_syscall5`.
 

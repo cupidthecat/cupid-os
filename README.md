@@ -1,23 +1,32 @@
 # cupid-os
 
-The checked Linux and Windows seeds now come from `8403b0a8` and the same
-77-input long-file profile. Both seeds rebuild themselves, and the complete
-default 76-input Windows bootstrap passes with its exact plan. Independent
-checks verify the committed source and every staged artifact. Both complete
-fresh OS builds pass without host compilers and produce identical 431-input
-cohorts and disk images. Both hosts pass user-program, artifact and private
-four-CPU boot checks. The fresh 89-input contract publication also passes
-native Windows verification of all 22 artifacts.
+The checked Linux and Windows seeds carry `compile-user` from producer
+`78e71bd6` and the same 77-input long-file profile. Both long-profile consumers
+reproduce the proved tools; the complete default Windows bootstrap passes its
+own 76-input plan. Native fixed points match 34 Linux and 42 Windows
+stage-three/four artifact pairs.
 
-CupidBuild owns 441 normal-build actions; eleven still use Python. Native user
-compilation and link coordination remain open. Source-head `compile-user` now
-captures each of the three examples with `user/cupid.h`, retains configurable
-output parents, and publishes a validated object under the fixed freestanding
-profile. Native and CupidC-built callers reproduce the existing objects on both
-hosts. Its committed paired native proofs and final user/boot replays pass.
-The proposed seeds await fresh self-consumption and default-profile checks;
-installation and Make adoption remain required. See
-[the source record](docs/bootstrap/USER-COMPILE-SOURCE.md).
+Normal user Make recipes invoke checked CupidBuild directly for `cat.cc`,
+`hello.cc` and `ls.cc`. Each closed compiler bundle contains the source and
+`user/cupid.h`. The fixed profile, configurable output parents and retained
+publication checks preserve the existing object bytes. The CLI receives a
+repository-relative seed manifest; Make prerequisites retain their paths from
+the user directory. Both hosts pass default, nested, lexical and accented
+build directories, Python-oracle byte comparisons and equal-object timestamps.
+All three external programs pass separate private four-CPU runtime boots.
+
+Both complete Toolchain publications verify 89 inputs, 77 producer inputs
+and 22 matching artifacts. Final normal OS builds pass all sixteen exact
+artifact checks and produce the same 9,578,092-byte raw kernel and 200 MiB
+image. The platform ABI and private four-CPU kernel/user checks pass on both
+hosts. The image SHA-256 is `e1ea00d86c9aa3ab083931fc72ef2e6362c2f5445aaf6d379ac6280a93b0e56a`.
+
+CupidBuild owns 444 normal-build actions; eight still use Python. User linking,
+image publication, the two remaining verification operations and Toolchain
+contract publication remain Python coordination. Make and host OS services
+remain required. GCC, NASM and host linkers are optional development oracles.
+See [the handoff record](docs/bootstrap/USER-COMPILE-HANDOFF.md) and
+[the paired proof](docs/bootstrap/USER-COMPILE-PROOF.md).
 
 The latest retained Doom replay advances
 demo tics but misses its 1,200-second deadline. Full gameplay, audio quality,
@@ -46,7 +55,7 @@ generated bin, docs, and demo installation tables with their existing kernel
 profile. Each bundle contains the source and five required headers. Checked
 publication preserves prior output on failure and retains timestamps for equal
 validated objects. The normal Make recipes invoke this operation directly.
-Production ownership remains 441 CupidBuild and eleven Python actions.
+Production ownership is 444 CupidBuild and eight Python actions.
 ADR 0397 records the source boundary; the bootstrap log records the handoff.
 
 Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a graphical desktop, window manager, built-in C compiler, assembler, and scripting language. It runs on real hardware and in QEMU. The design draws from TempleOS, OsakaOS, and Unix.
@@ -78,33 +87,28 @@ The 157 kernel-profile recipes continue to use `compile-kernel`. All 240
 kernel/Doom compiler roots already use `.cc`; this handoff changes ownership
 without changing the source language, compiler arguments, or OS behavior.
 
-Both checked six-tool cohorts come from source `8403b0a82b5693409d2242fdbff32688c8f2cac5`
-and the same 77-input snapshot `25b05a6cb0e824136db8df79b4e7f2e176aea88f0446be550f36ece04798bbf9`.
-Clean proofs match all 34 Linux and 42 native Windows stage-three/stage-four
-artifact pairs. Linux passes 47 failure, seven help, and 55 success groups;
-Windows passes 35 failure, seven help, and 42 success groups. Each compared coordinator uses
-its own generation's complete tool cohort. Independent promotion checks bind
-the source inventory to the commit and verify exact stage files and bytes,
-executable formats, build plans, parent lineage, and the proposed seed pair.
+Both checked six-tool cohorts come from source
+`78e71bd6137042720c378d2c596aa40b153dad11` and the 77-input snapshot
+`ae31a4da21f099ab2c9d449b3ed1825947a9bedcb9ff756b5125953076ec7f30`.
+Linux passes 55 failure, seven help and 62 success groups; Windows passes
+43 failure, seven help and 49 success groups. Independent verification binds
+committed producer bytes, both parent seeds and every staged artifact.
 
-The Linux manifest has SHA-256 `84b8bef11969bac58d69e97baacd86d8f1b4aa030ecd25359bb1dcdb8f679cbc`; the Windows
-manifest has SHA-256 `5d129b2575450dac756d75a4dc859501fdcd9bacf53190ed360ec66f68e21297`.
+The Linux manifest has SHA-256
+`b6f247af2034d7432333eed74230452fede2198ba744c30a5c410ce19c4b79b4`;
+the Windows manifest has SHA-256
+`1d40ec6e03bdd736e5993f8a204588f0e376541f4019b83bd00650469b9531bd`.
 
-The audit records 441 CupidBuild and eleven Python actions across 452
-transforms. Python still coordinates three user compilations, three user links,
-two image publications, two verification operations (user syscall ABI and the
-Toolchain manifest), and one Toolchain build/manifest publication.
-Make and host operating-system services remain required. GCC, NASM, and host
-linkers are not required by the normal code-producing path.
+The audit records 444 CupidBuild and eight Python actions across 452 transforms.
+Python coordinates three user links, two image publications, user syscall ABI
+and Toolchain manifest verification, and one Toolchain build/manifest publication.
+The normal code-producing path uses checked Cupid tools.
 
-The next compiler step is the three user compilations.
-Their existing profiles and captured headers must remain intact. User builds
-must keep configurable `BUILD` directories, including safe creation of missing
-parents, rather than being restricted to `user/build`. The three user links
-remain a separate transaction. IWAD-backed Doom gameplay acceptance is still
-open; compiler parity and asset-free smoke tests do not establish gameplay.
-`TempleOS/` remains read-only reference material and is excluded from builds
-and progress counts.
+The next coordination step is the three user links. Preserve their existing
+object/executable binding, physical path checks, loader validation, instruction
+inspection, input rechecks and recovery behavior. IWAD-backed Doom gameplay,
+audio, save/load, reboot and performance acceptance remain open.
+`TempleOS/` is read-only reference material, excluded from builds and metrics.
 
 [ADR 0396](docs/adr/0396-adopt-checked-doom-compilation-in-make.md) records the promotion and recipe handoff.
 

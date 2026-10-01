@@ -1,5 +1,21 @@
 # Cupid Toolchain capability matrix
 
+## Checked user compiler handoff, 2026-10-01
+
+Installed `78e71bd6` seeds carry the closed `compile-user` transaction.
+Normal Make uses it for all three examples, preserving the freestanding profile,
+configurable directories, object bytes and equal-output timestamps. Native and
+CupidC-built callers, paired fixed points, self-consumers, the default Windows
+profile and both complete publications pass. Paired final OS builds, platform
+ABI checks and separate private four-CPU user boots pass.
+
+User linking remains a separate Python transaction. Long Windows child working
+directories and serial record atomicity remain unresolved. Full Doom gameplay,
+audio quality, save/load, reboot and performance acceptance remain open.
+
+See [the handoff](USER-COMPILE-HANDOFF.md) and [the paired proof](USER-COMPILE-PROOF.md).
+Earlier sections retain their original checkpoint identities.
+
 ## Native user compilation source checkpoint, 2026-09-30
 
 Source-head `compile-user` captures the three approved examples in two-record

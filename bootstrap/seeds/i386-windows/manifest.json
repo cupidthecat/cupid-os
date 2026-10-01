@@ -39,8 +39,8 @@
       "file": "cupidbuild.exe",
       "name": "cupidbuild",
       "producer": false,
-      "sha256": "b36282e0cfe72a3bf56696cccd6b6847ebe84d944aa099a26fb0a03678489f95",
-      "size": 888320
+      "sha256": "c08b93d5d7f5bb4054baa4cbc9136fd760f4d8b1fdcdcac696de5a3b079f7d65",
+      "size": 894976
     }
   ],
   "provenance": {
@@ -49,19 +49,19 @@
     "fixed_point_result": "pass",
     "linux_candidate_build_plan_sha256": "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5",
     "native_build_plan_sha256": "5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc",
-    "parent_execution_seed_manifest_sha256": "c8c2780000575ff255b6f72287f85d4b47f85b420b3fa0f29eeacfe74207175b",
-    "parent_execution_seed_source_revision": "5ba6ea24fdef3b23c505551ab537688e681c9593",
-    "parent_plan_seed_manifest_sha256": "1a8a91581562751cca6c51c5cd3de1259a73e92a0c161d1425155724d80ba7a8",
-    "parent_plan_seed_source_revision": "5ba6ea24fdef3b23c505551ab537688e681c9593",
-    "plan_seed_manifest_sha256": "84b8bef11969bac58d69e97baacd86d8f1b4aa030ecd25359bb1dcdb8f679cbc",
+    "parent_execution_seed_manifest_sha256": "5d129b2575450dac756d75a4dc859501fdcd9bacf53190ed360ec66f68e21297",
+    "parent_execution_seed_source_revision": "8403b0a82b5693409d2242fdbff32688c8f2cac5",
+    "parent_plan_seed_manifest_sha256": "84b8bef11969bac58d69e97baacd86d8f1b4aa030ecd25359bb1dcdb8f679cbc",
+    "parent_plan_seed_source_revision": "8403b0a82b5693409d2242fdbff32688c8f2cac5",
+    "plan_seed_manifest_sha256": "b6f247af2034d7432333eed74230452fede2198ba744c30a5c410ce19c4b79b4",
     "producer_lineage": {
       "assembly": "native stage-three CupidASM from the checked i386 Windows bootstrap",
       "c": "native stage-three CupidC from the checked i386 Windows bootstrap",
       "link": "native stage-three CupidLD from the checked i386 Windows bootstrap"
     },
     "source_input_count": 77,
-    "source_revision": "8403b0a82b5693409d2242fdbff32688c8f2cac5",
-    "source_snapshot_sha256": "25b05a6cb0e824136db8df79b4e7f2e176aea88f0446be550f36ece04798bbf9"
+    "source_revision": "78e71bd6137042720c378d2c596aa40b153dad11",
+    "source_snapshot_sha256": "ae31a4da21f099ab2c9d449b3ed1825947a9bedcb9ff756b5125953076ec7f30"
   },
   "schema": "cupid.execution-seed.v2",
   "target": {

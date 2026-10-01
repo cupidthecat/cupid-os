@@ -1,5 +1,22 @@
 # Toolchain ownership migration matrix
 
+## Checked user compiler handoff, 2026-10-01
+
+Normal user object recipes now call checked `cupidbuild compile-user` for
+`cat.cc`, `hello.cc` and `ls.cc`. The audited graph has 444 CupidBuild actions
+and eight Python actions across 452 transforms. The compiler profile, source
+and header closure, seven seed prerequisites and order-only syscall ABI check
+remain bound by the recipe audit.
+
+Both hosts pass 131 recipe/audit methods, four actual Make output directories,
+Python-oracle byte comparisons, equal-object timestamps and separate private
+four-CPU user boots. The promoted pair also passes complete publication and
+final OS acceptance. All active source and vendor behavior remain in scope;
+`TempleOS/` remains excluded. The three user links are the next handoff.
+
+See [the handoff](USER-COMPILE-HANDOFF.md) and [the paired proof](USER-COMPILE-PROOF.md).
+Earlier sections retain their original checkpoint identities.
+
 ## Native user compilation source checkpoint, 2026-09-30
 
 The three user compiler transactions now have a tested source-head CupidBuild
