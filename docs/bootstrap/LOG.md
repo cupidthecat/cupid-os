@@ -41492,3 +41492,31 @@ unchanged files. Linux Make/runtime acceptance remains pending.
 The nineteen-path preview remains uninstalled and active ownership stays at
 441 CupidBuild/eleven Python. [The proof record](USER-COMPILE-PROOF.md) retains
 the completed evidence names and precise scopes.
+
+## Completed Linux publication and paired user handoff, 2026-09-30
+
+The complete Linux proposed-seed publication retry passes build and verification
+with the original deadlines. Independent verification rereads all 1,544 frozen
+inputs, 89 publication inputs, 77 producer inputs and 22 artifacts. Only that
+completed publication attaches to the Linux OS and handoff roots. The failed
+earlier attempts remain separate. The successful retry supports the load
+diagnosis but does not establish resource contention as the cause.
+
+Linux then passes normal OS/user ABI/artifact/private-boot acceptance. The
+paired independent reread matches sixteen artifact checks, both 431-input
+cohorts, all three unchanged users and both source images. Native Windows ABI
+and completed Linux publication remain their respective platform paths.
+
+Linux's four normal user Make handoffs pass in 152.975 seconds. Default, nested,
+lexical and accented directories match Windows objects, executable bytes and
+the unchanged Python wrappers. Equal-object timestamps remain unchanged after
+forced compilation. Independent verification rereads all 1,545 inputs and
+outputs. All three Linux external programs also pass separate private four-CPU
+max/e1000 boots with their PID-bound predicates and full SMP validation.
+
+Paired verification matches both hosts' Make outputs, runtime users, staged
+images and base images and binds the complete 131-method paired audit. The
+Windows full publication retry is still running. Seed installation, active
+recipe adoption and final embedded-manual replay remain required. The installed
+pair and ownership remain unchanged. [The proof record](USER-COMPILE-PROOF.md)
+names the completed independent records.

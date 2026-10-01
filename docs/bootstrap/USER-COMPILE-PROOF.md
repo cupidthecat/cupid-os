@@ -26,8 +26,7 @@ six final tools to the original proved images. The complete default Windows
 bootstrap also passes with its own 76-input snapshot and exact plan. Its 41
 stage-three/four pairs are equal; its default tool images retain their own
 identities. A combined independent reread confirms all three completed runs.
-Seed installation and the normal/custom user Make handoff remain separate
-acceptance steps.
+Seed installation and active recipe adoption remain required.
 
 The proposed seed passes the complete 254-test regression selection on each
 host. Linux skips sixteen Windows-only methods; Windows skips none. An
@@ -56,8 +55,12 @@ the complete SMP verifier. Independent verification checks each serial record,
 the users, sixteen base artifacts, 431 link inputs and both unchanged images.
 The corrected complete audits pass all 131 methods on each host: Windows in
 1206.878 seconds and Linux in 1685.448. An independent paired reread verifies
-both completed records and their five identical source/test files. Linux
-Make/runtime acceptance remains pending.
+both completed records and their five identical source/test files. The same
+four-path Make handoff and three external runtime boots also pass on Linux.
+Its actual Make run takes 152.975 seconds and independently retains all 1,545
+inputs, oracle bytes and equal-object timestamps. Paired verification matches
+every object and executable, the staged image and the base OS image across
+both hosts. Active recipe adoption remains required.
 
 The first private runtime launcher introduces an extra synchronous terminal
 completion count. Concurrent serial writes split that marker on two `hello`
@@ -123,7 +126,13 @@ The same Windows single-unit replay passes in 206.295 seconds with the exact
 compiler and frontend object identities. The complete Linux retry passes its
 four-stage checked-seed bootstrap and continues through contract compilation.
 The Windows complete retry starts after the heavier self/OS builds finish.
-Both retain the original deadlines; neither single-unit replay supplies
+Both retain the original deadlines. The complete Linux retry now passes both
+build and verification. An independent reread verifies its 1,544 unchanged
+inputs, 89 publication inputs, 77 producer inputs and 22 artifacts before the
+completed publication attaches to the Linux OS and handoff roots. Normal Linux
+OS/ABI/user/artifact/private-boot acceptance then passes; the independent paired
+reread matches both hosts' 431 link inputs, users and unchanged images.
+The Windows full retry remains running. Neither single-unit replay supplies
 publication acceptance.
 
 The regression records and independent reread are
@@ -142,6 +151,11 @@ records the three external runtime passes. Earlier failed launches and their
 available serial logs remain separate. The current paired audit reread is
 `build/user-handoff-validation-v4/independent-verification-v4.json`
 in the isolated handoff checkout.
+`user-publication-linux-independent-verification-v3.json` records completed
+Linux publication. `user-os-both-independent-acceptance-v2.json` records the
+paired OS/ABI/artifact/private-boot reread. Both host Make and runtime rereads
+feed `paired-user-handoff-independent-verification-v1.json`, which checks
+their matching outputs, image identities and complete paired audit evidence.
 `user-publication-windows-frontend-replay-v2.json` records its single-unit pass.
 `user-publication-linux-frontend-replay-v1.json` and
 `user-frontend-load-v1.json` retain the single-step result and process snapshot.
