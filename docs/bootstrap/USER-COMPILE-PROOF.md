@@ -1,5 +1,25 @@
 # User compilation staged proof and OS acceptance
 
+## Final Linux candidate acceptance, 2026-10-01
+
+The calibrated normal Linux build passes with host code-producing tools
+forbidden. Independent verification rereads 1,547 inputs, sixteen exact
+artifacts, 431 link inputs and the complete 89-input/77-producer/22-artifact
+publication. The platform ABI, unchanged user executables and private four-CPU
+max/e1000 disassembly/shell/SMP smoke pass. `hello`, `ls` and `cat` also pass
+separate private boots with PID-bound output and process-exit checks. The
+62-byte cat fixture contains a fake PID 999 exit line.
+
+The 200 MiB base image has SHA-256
+`e1ea00d86c9aa3ab083931fc72ef2e6362c2f5445aaf6d379ac6280a93b0e56a`;
+the separately staged runtime image has SHA-256
+`284f61beaf98addfb9c8c329bf582ed8c885754e3ed38e88a7ed37f9792f584b`.
+Both remain unchanged through their runtime checks. The retained record is
+`user-adoption-linux-independent-verification-v1.json` in the primary
+validation directory. Windows's calibrated build remains running. Its final
+image/runtime gates and the full paired reread remain required before adoption.
+Installed seeds and recipes retain the preceding release.
+
 ## Combined adoption candidate, 2026-10-01
 
 A fresh candidate combines the nineteen reviewed seed paths, five accepted
@@ -30,8 +50,10 @@ presenting the preceding release as current; the settled 65,057-byte revision
 receives separate captures and paired normal Make replays. Both settled builds
 reject the old row with the same 9,578,092-byte raw kernel before publication.
 Independent paired measurements calibrate that row alone by 340 bytes.
-The calibrated normal builds are running with host code-producing tools
-forbidden. Final image and boot checks remain required before adoption.
+The calibrated Linux build and final ABI/private kernel/user boots now pass
+independent verification. Windows's calibrated normal build remains running
+with host code-producing tools forbidden. Its image and runtime gates and
+the final paired reread remain required before adoption.
 
 ## Earlier source and preview acceptance
 

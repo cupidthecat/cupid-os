@@ -41599,3 +41599,26 @@ inputs and 22 artifacts against the live candidate. These checks do not accept
 the final image or runtime. The calibrated normal Make replays are running;
 paired image, ABI, private kernel/user boots and final independent verification
 remain required. Installed seeds and recipes remain unchanged.
+## 2026-10-01: verify the final Linux user-handoff candidate
+
+The calibrated normal Linux `make -j4 all` closes with status zero. Its sixteen
+artifacts and 431 link inputs match the paired calibration measurements.
+The native exact-size gate passes, and Hostbuild publishes the 200 MiB image
+with SHA-256 `e1ea00d86c9aa3ab083931fc72ef2e6362c2f5445aaf6d379ac6280a93b0e56a`.
+
+Final Linux acceptance passes the normal three-object user recipes, existing
+publication ABI gate, unchanged user executables, native artifact gate and
+private four-CPU max/e1000 disassembly/shell/SMP smoke. The three external
+programs each pass a separate private boot with the existing PID-bound output
+and process-exit predicates. The 62-byte cat fixture includes a fake PID 999
+exit line. The staged runtime image has SHA-256
+`284f61beaf98addfb9c8c329bf582ed8c885754e3ed38e88a7ed37f9792f584b`.
+The base and staged images remain unchanged through their respective smokes.
+
+`user-adoption-linux-independent-verification-v1.json` rereads all 1,547
+captured inputs, sixteen artifacts, 431 link inputs, source and staged images,
+users and objects. It verifies complete publication, ABI/artifact commands,
+serial logs, SMP validation and all three PID-bound predicates. The completed
+Linux records remain separate from Windows's live build. Windows image/runtime
+acceptance and full paired verification remain required before adoption.
+No installed seed, recipe or ownership count changes in this evidence commit.
