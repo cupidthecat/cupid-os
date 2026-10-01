@@ -41402,3 +41402,31 @@ bytes match the preceding acceptance. Independent paired verification passes.
 [The proof record](USER-COMPILE-PROOF.md) retains exact identities, logs and the
 two failed premature setup attempts. No failed or historical record supplies
 new acceptance. Production ownership remains 441 CupidBuild/eleven Python.
+
+## Proposed user compiler seed acceptance, 2026-09-30
+
+Both isolated proposed-seed regression roots pass the complete 254-test
+selection. Linux skips sixteen Windows-only methods; Windows skips none.
+Independent verification rereads the completed records, logs and all 1,544
+unchanged inputs in each root. Fresh OS builds and the three self/default
+consumers remain separate checks. Isolated Make handoff roots contain the
+proposed pair and five recipe/audit changes, with no active ownership change.
+
+Linux long-profile self-consumption now passes. Independent verification
+checks its 1,544 unchanged inputs, the committed 77-input producer snapshot,
+all stages and exact agreement with the original proved tool images. The two
+Windows compatibility runs remain pending.
+
+The first Windows publication command rejects a user-ABI-only argument before
+tool execution. Its corrected invocation and the Linux publication attempt
+later exceed the unchanged 360-second stage-four frontend compiler deadline.
+Concurrent build load is the first diagnosis hypothesis. A single-step replay
+uses the compiler image from the completed paired proof and verifies its
+object bytes against that proof. The Linux replay passes in 329.777 seconds;
+its compiler image matches the installed compiler and its frontend object
+matches the paired proof. The compiler is CPU-busy in the captured process
+snapshot and uses no swap. Full publication will be retried with the unchanged
+deadline after concurrent builds finish. The failed publication records remain
+preserved; they supply no accepted publication. See
+[the proof record](USER-COMPILE-PROOF.md) for the evidence names and remaining
+acceptance work.

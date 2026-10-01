@@ -20,9 +20,19 @@ independently pinned release author. Proposed Linux manifest SHA-256 is
 Windows is `1d40ec6e03bdd736e5993f8a204588f0e376541f4019b83bd00650469b9531bd`.
 The pair is not installed. Separate fresh consumer roots contain all 1,544
 captured inputs, with only the nineteen reviewed preview paths substituted.
-Both long-profile self-consumption runs and the complete default-profile
-Windows bootstrap are running. Seed installation and the normal/custom user
-Make handoff remain separate acceptance steps.
+Linux long-profile self-consumption passes. Independent verification checks
+all captured inputs and committed producer inputs, validates every stage, and
+matches all six final tools to the original proved images. The Windows
+long-profile consumer and complete default-profile bootstrap are still running.
+Seed installation and the normal/custom user Make handoff remain separate
+acceptance steps.
+
+The proposed seed passes the complete 254-test regression selection on each
+host. Linux skips sixteen Windows-only methods; Windows skips none. An
+independent reread verifies both completed records and all 1,544 unchanged
+inputs in each consumer root. Fresh OS builds use the proposed pair. Separate
+Make handoff roots add the five isolated recipe/audit changes; their actual
+build and runtime acceptance remains pending.
 
 ## Committed source OS replay
 
@@ -56,6 +66,34 @@ before copying it. A separate first Windows proof launch precedes completion
 of its source preparation and fails on the missing capture file before tool
 execution. The completed preparation supplies a new, separate passing run.
 Neither failed setup contributes fixed-point or runtime evidence.
+
+The first proposed Windows publication launch supplies `--windows-manifest`
+to the `build` subcommand, which rejects that user-ABI-only option before tool
+execution. The corrected invocation and the Linux invocation both later fail
+when stage-four compilation of `cupidc_frontend.cc` exceeds the existing
+360-second deadline. These failures occur during concurrent self-build and OS
+build work. Resource contention is a hypothesis; a single translation-unit
+replay uses the already verified compiler image and captured source before a
+new complete publication attempt. The deadline and production code remain
+unchanged. The failed records and private publication attempts supply no
+accepted publication or fixed-point evidence.
+
+The Linux single-unit replay passes in 329.777 seconds and produces the exact
+1,084,632-byte frontend object from the paired proof. The proposed compiler
+image also matches the installed compiler byte for byte. A process snapshot
+shows the replay compiler CPU-busy with no swap use; the WSL memory snapshot
+has ample available memory. The complete publication still needs a passing
+retry with the unchanged deadline after the concurrent builds finish. This
+single translation-unit result does not replace full publication acceptance.
+
+The regression records and independent reread are
+`user-regressions-*-v1.json` and
+`user-regressions-independent-verification-v1.json`. The publication failures
+are `user-publication-linux-v1.json`, `user-publication-windows-v1.json` and
+`user-publication-windows-v2.json`, with their separate command logs.
+`user-consumer-verification-self-linux-v1.json` records completed Linux
+self-consumption. `user-publication-linux-frontend-replay-v1.json` and
+`user-frontend-load-v1.json` retain the single-step result and process snapshot.
 
 Production ownership remains 441 CupidBuild actions and eleven Python actions.
 The three user links and full Doom gameplay, audio, save/load, reboot and
