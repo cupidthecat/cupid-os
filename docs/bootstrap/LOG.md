@@ -41549,3 +41549,28 @@ manual object and kernel links. Matching paired measurements must precede any
 size-row update, followed by normal image publication, native artifact checks,
 platform user ABI, four-CPU disassembly/shell/SMP smoke and three separate
 external user boots. No installed seed or active recipe changes at this checkpoint.
+
+## 2026-10-01: paired proposed-seed publication acceptance
+
+The complete Windows publication retry passes in 6316.456 seconds without
+changing source or deadlines. Its build and native manifest verification
+commands both close with status zero. The hosted runtime contract passes,
+live inputs still match the frozen build, and the Cupid author and Python
+oracle agree on all 67 stage pairs. Native Windows verifies all 22 artifacts.
+The earlier failed publication attempts and single-unit probes retain their
+separate records; this passing run does not establish their timeout cause.
+
+`verify-user-publications-v1.py` completes on Linux with status zero. Its paired
+independent record rereads all 1,544 captured inputs in each root, both 89-input
+publications, their 77 producer inputs and all 22 artifacts. Every artifact
+record matches across hosts. Evidence is
+`user-publication-independent-verification-v1.json` under
+`build/bootstrap/native-profile-validation-258bb5f3/`.
+
+The fresh preliminary Linux candidate build also closes at the unchanged native
+artifact-size gate: raw kernel 9,578,332 bytes, expected 9,577,752. The child
+Make exits two; the harness records the expected rejection and no image exists.
+This is pre-calibration evidence, not an accepted image build. Windows's fresh
+candidate build remains running. Settled-manual replay, paired measurements,
+normal image publication and boot acceptance remain required before installing
+the proposed seeds or changing active recipes.

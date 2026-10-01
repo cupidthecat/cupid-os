@@ -15,14 +15,22 @@ paired record is `paired-user-adoption-controls-verification-v1.json` in the
 primary validation directory. These controls supplement the earlier complete
 131-method paired audits and four-directory actual Make/runtime acceptance.
 
-Both fresh normal OS builds are running with host code-producing tools
-forbidden. Windows publication has passed its checked-seed bootstrap and
-continues through stage-four contract compilation. Neither live run supplies
-completed acceptance. Review also found an older manual section presenting the
-preceding release as current. Its settled revision will receive a separate
-capture and kernel replay after the running builds close. Kernel size rows
-remain unchanged until both hosts produce matching measurements. Final image,
-publication and boot checks remain required before adoption.
+Windows's complete publication retry now passes in 6316.456 seconds with the
+original deadlines. Both build and native verification commands close with
+status zero. It agrees with the Cupid author and Python oracle on all 67 stage
+pairs and publishes 22 artifacts. The independent paired reread verifies all
+1,544 frozen inputs per host, both 89-input publications and their 77 producer
+inputs; all 22 artifact records match. Its record is
+`user-publication-independent-verification-v1.json`.
+
+The fresh Linux candidate build closes at the unchanged size-policy gate.
+Its preliminary manual produces a 9,578,332-byte raw kernel against the
+9,577,752-byte row. No image is published. Windows's candidate build remains
+running with host code-producing tools forbidden. Review also found an older
+manual section presenting the preceding release as current. Its settled
+revision will receive a separate capture and kernel replay after both builds
+close. Size rows remain unchanged until matching paired measurements exist.
+Final image and boot checks remain required before adoption.
 
 ## Earlier source and preview acceptance
 
