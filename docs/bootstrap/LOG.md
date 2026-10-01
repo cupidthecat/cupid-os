@@ -41486,9 +41486,9 @@ open; successful external-runtime checks do not establish it.
 The complete Linux publication retry passes the checked-seed bootstrap and
 continues through its contracts. The Windows complete retry is now running
 after the heavier self/OS builds finish. Original deadlines remain unchanged.
-The current Windows audit passes all 131 methods in 1206.878 seconds and its
-independent reread retains five unchanged files. The Linux audit and Linux
-Make/runtime acceptance remain pending.
+The current audits pass all 131 methods on each host: Windows in 1206.878 seconds
+and Linux in 1685.448. The independent paired reread retains five identical
+unchanged files. Linux Make/runtime acceptance remains pending.
 The nineteen-path preview remains uninstalled and active ownership stays at
 441 CupidBuild/eleven Python. [The proof record](USER-COMPILE-PROOF.md) retains
 the completed evidence names and precise scopes.

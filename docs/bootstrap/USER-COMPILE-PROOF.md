@@ -54,9 +54,10 @@ Windows external programs also pass separate private four-CPU max/e1000 boots.
 Each uses the root Makefile's PID-bound output and process-exit predicate plus
 the complete SMP verifier. Independent verification checks each serial record,
 the users, sixteen base artifacts, 431 link inputs and both unchanged images.
-The corrected complete Windows audit passes all 131 methods in 1206.878 seconds;
-an independent reread verifies its five unchanged source/test files. Linux
-Make/runtime and the complete Linux audit remain pending.
+The corrected complete audits pass all 131 methods on each host: Windows in
+1206.878 seconds and Linux in 1685.448. An independent paired reread verifies
+both completed records and their five identical source/test files. Linux
+Make/runtime acceptance remains pending.
 
 The first private runtime launcher introduces an extra synchronous terminal
 completion count. Concurrent serial writes split that marker on two `hello`
@@ -138,8 +139,8 @@ records paired build-only acceptance. The Windows handoff reread is
 artifact and private boot checks; the record explicitly keeps full publication
 separate. `user-handoff-windows-runtime-independent-verification-v6.json`
 records the three external runtime passes. Earlier failed launches and their
-available serial logs remain separate. The current Windows audit reread is
-`build/user-handoff-validation-v4/independent-windows-verification-v4.json`
+available serial logs remain separate. The current paired audit reread is
+`build/user-handoff-validation-v4/independent-verification-v4.json`
 in the isolated handoff checkout.
 `user-publication-windows-frontend-replay-v2.json` records its single-unit pass.
 `user-publication-linux-frontend-replay-v1.json` and
