@@ -20,19 +20,30 @@ independently pinned release author. Proposed Linux manifest SHA-256 is
 Windows is `1d40ec6e03bdd736e5993f8a204588f0e376541f4019b83bd00650469b9531bd`.
 The pair is not installed. Separate fresh consumer roots contain all 1,544
 captured inputs, with only the nineteen reviewed preview paths substituted.
-Linux long-profile self-consumption passes. Independent verification checks
-all captured inputs and committed producer inputs, validates every stage, and
-matches all six final tools to the original proved images. The Windows
-long-profile consumer and complete default-profile bootstrap are still running.
+Both long-profile consumers pass. Independent verification checks all captured
+inputs and committed producer inputs, validates every stage, and matches all
+six final tools to the original proved images. The complete default Windows
+bootstrap also passes with its own 76-input snapshot and exact plan. Its 41
+stage-three/four pairs are equal; its default tool images retain their own
+identities. A combined independent reread confirms all three completed runs.
 Seed installation and the normal/custom user Make handoff remain separate
 acceptance steps.
 
 The proposed seed passes the complete 254-test regression selection on each
 host. Linux skips sixteen Windows-only methods; Windows skips none. An
 independent reread verifies both completed records and all 1,544 unchanged
-inputs in each consumer root. Fresh OS builds use the proposed pair. Separate
-Make handoff roots add the five isolated recipe/audit changes; their actual
-build and runtime acceptance remains pending.
+inputs in each consumer root. Both fresh normal `make -j4 all` builds also pass
+with host code-producing tools forbidden. Independent verification rereads all
+1,544 inputs per host, sixteen artifacts, 431 link inputs and both images.
+The results match the accepted source replay below. These are build checks;
+new-seed publication, user ABI and runtime acceptance remain separate.
+
+Separate Make handoff roots add five isolated recipe/audit changes. The
+corrected Windows recipe passes four ordinary builds: default, nested, lexical
+and accented output directories. All three objects and executables match the
+unchanged Python wrappers. Forced equal-object compilation preserves timestamps.
+An independent reread verifies all 1,545 handoff inputs and outputs. Linux Make
+acceptance, the complete corrected audit and runtime replay remain pending.
 
 ## Committed source OS replay
 
@@ -86,13 +97,22 @@ has ample available memory. The complete publication still needs a passing
 retry with the unchanged deadline after the concurrent builds finish. This
 single translation-unit result does not replace full publication acceptance.
 
+The same Windows single-unit replay passes in 206.295 seconds with the exact
+compiler and frontend object identities. A complete Linux publication retry is
+running with the original deadline. The Windows complete retry follows it;
+neither single-unit replay supplies publication acceptance.
+
 The regression records and independent reread are
 `user-regressions-*-v1.json` and
 `user-regressions-independent-verification-v1.json`. The publication failures
 are `user-publication-linux-v1.json`, `user-publication-windows-v1.json` and
 `user-publication-windows-v2.json`, with their separate command logs.
-`user-consumer-verification-self-linux-v1.json` records completed Linux
-self-consumption. `user-publication-linux-frontend-replay-v1.json` and
+`user-consumers-independent-verification-v1.json` records all three completed
+self/default consumers. `user-os-both-independent-build-verification-v1.json`
+records paired build-only acceptance. The Windows handoff reread is
+`user-handoff-windows-make-independent-verification-v2.json`.
+`user-publication-windows-frontend-replay-v2.json` records its single-unit pass.
+`user-publication-linux-frontend-replay-v1.json` and
 `user-frontend-load-v1.json` retain the single-step result and process snapshot.
 
 Production ownership remains 441 CupidBuild actions and eleven Python actions.

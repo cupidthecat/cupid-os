@@ -41430,3 +41430,32 @@ deadline after concurrent builds finish. The failed publication records remain
 preserved; they supply no accepted publication. See
 [the proof record](USER-COMPILE-PROOF.md) for the evidence names and remaining
 acceptance work.
+
+## Proposed seed consumer and fresh-build results, 2026-09-30
+
+Both long-profile consumers and the complete default Windows bootstrap now
+pass. Independent rereads retain all 1,544 inputs per root, committed producer
+closures and every staged artifact. Both long-profile consumers reproduce the
+original proved tool images. The default consumer keeps its own 76-input plan
+and passes 41 equal stage-three/four pairs. Its images are checked against that
+default proof, rather than the long-profile images.
+
+Both fresh proposed-seed `make -j4 all` builds pass with host code-producing
+tools forbidden. Independent verification matches sixteen artifacts, 431 link
+inputs and both images to the accepted source build. This is build-only
+evidence; completed current publications, user ABI checks and runtime replays
+remain required before seed installation.
+
+Windows's single frontend replay passes in 206.295 seconds with the same
+compiler and 1,084,632-byte object as the Linux replay and original paired
+proof. The complete Linux publication retry retains the 360-second deadline.
+The Windows complete retry follows it. Failed publication records remain
+intact, and the nineteen-path seed preview remains uninstalled.
+
+The isolated Windows user Make handoff passes default, nested, lexical and
+accented output paths in 371.764 seconds. All three objects and executables
+match the unchanged Python wrappers; forced equal-object compilation preserves
+timestamps. Independent verification rereads all 1,545 inputs and every output.
+The active recipes and ownership remain unchanged while the Linux handoff,
+corrected audit and runtime checks finish. [The proof record](USER-COMPILE-PROOF.md)
+names these completed records and remaining checks.
