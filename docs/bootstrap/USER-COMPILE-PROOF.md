@@ -38,12 +38,33 @@ with host code-producing tools forbidden. Independent verification rereads all
 The results match the accepted source replay below. These are build checks;
 new-seed publication, user ABI and runtime acceptance remain separate.
 
+Windows's platform acceptance now also passes its native closed ABI contract,
+three unchanged user executables, sixteen exact artifact checks and private
+four-CPU max/e1000 disassembly/shell/SMP replay. Independent verification rereads
+all 1,544 inputs, 431 link inputs and the unchanged image. This native ABI path
+does not consume a Toolchain publication; the complete proposed Windows
+publication remains an additional promotion gate.
+
 Separate Make handoff roots add five isolated recipe/audit changes. The
 corrected Windows recipe passes four ordinary builds: default, nested, lexical
 and accented output directories. All three objects and executables match the
 unchanged Python wrappers. Forced equal-object compilation preserves timestamps.
-An independent reread verifies all 1,545 handoff inputs and outputs. Linux Make
-acceptance, the complete corrected audit and runtime replay remain pending.
+An independent reread verifies all 1,545 handoff inputs and outputs. All three
+Windows external programs also pass separate private four-CPU max/e1000 boots.
+Each uses the root Makefile's PID-bound output and process-exit predicate plus
+the complete SMP verifier. Independent verification checks each serial record,
+the users, sixteen base artifacts, 431 link inputs and both unchanged images.
+The corrected complete Windows audit passes all 131 methods in 1206.878 seconds;
+an independent reread verifies its five unchanged source/test files. Linux
+Make/runtime and the complete Linux audit remain pending.
+
+The first private runtime launcher introduces an extra synchronous terminal
+completion count. Concurrent serial writes split that marker on two `hello`
+boots, despite complete PID-bound output and process exit. Another boot captures
+both but fails the SMP verifier's JIT requirement, since external ELF execution
+alone does not invoke the JIT. The completed replay adds ordinary shell setup
+and uses the existing external-runtime predicate. The split-marker records are
+retained; serial record atomicity remains open and is not claimed by this pass.
 
 ## Committed source OS replay
 
@@ -98,9 +119,11 @@ retry with the unchanged deadline after the concurrent builds finish. This
 single translation-unit result does not replace full publication acceptance.
 
 The same Windows single-unit replay passes in 206.295 seconds with the exact
-compiler and frontend object identities. A complete Linux publication retry is
-running with the original deadline. The Windows complete retry follows it;
-neither single-unit replay supplies publication acceptance.
+compiler and frontend object identities. The complete Linux retry passes its
+four-stage checked-seed bootstrap and continues through contract compilation.
+The Windows complete retry starts after the heavier self/OS builds finish.
+Both retain the original deadlines; neither single-unit replay supplies
+publication acceptance.
 
 The regression records and independent reread are
 `user-regressions-*-v1.json` and
@@ -111,6 +134,13 @@ are `user-publication-linux-v1.json`, `user-publication-windows-v1.json` and
 self/default consumers. `user-os-both-independent-build-verification-v1.json`
 records paired build-only acceptance. The Windows handoff reread is
 `user-handoff-windows-make-independent-verification-v2.json`.
+`user-os-windows-independent-acceptance-v2.json` records its platform ABI,
+artifact and private boot checks; the record explicitly keeps full publication
+separate. `user-handoff-windows-runtime-independent-verification-v6.json`
+records the three external runtime passes. Earlier failed launches and their
+available serial logs remain separate. The current Windows audit reread is
+`build/user-handoff-validation-v4/independent-windows-verification-v4.json`
+in the isolated handoff checkout.
 `user-publication-windows-frontend-replay-v2.json` records its single-unit pass.
 `user-publication-linux-frontend-replay-v1.json` and
 `user-frontend-load-v1.json` retain the single-step result and process snapshot.

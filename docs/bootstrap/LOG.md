@@ -41459,3 +41459,36 @@ timestamps. Independent verification rereads all 1,545 inputs and every output.
 The active recipes and ownership remain unchanged while the Linux handoff,
 corrected audit and runtime checks finish. [The proof record](USER-COMPILE-PROOF.md)
 names these completed records and remaining checks.
+
+## Proposed-seed Windows ABI and external-runtime acceptance, 2026-09-30
+
+Windows's fresh proposed-seed OS root passes the normal native closed user ABI
+gate, all three unchanged executables, sixteen exact artifact checks and the
+private four-CPU max/e1000 disassembly/shell/SMP replay. Independent verification
+checks all 1,544 inputs, 431 link inputs and the unchanged source image. The
+native ABI path does not consume a Toolchain publication; full paired
+publication remains a separate seed-promotion gate.
+
+All three external programs from the isolated Windows Make handoff also pass
+separate private four-CPU boots. Independent verification rereads 1,545 handoff
+inputs and the base OS inputs, users, artifacts, link inputs and images. Each
+boot passes the root Makefile's PID-bound external-runtime expression and the
+complete SMP verifier. The staged and base images retain their bytes.
+
+The earlier private launchers fail during directory preparation, stage argument
+parsing, terminal-marker counting and the extra JIT marker requirement. Two
+`hello` boots contain complete program output and process exit but concurrent
+serial writes split the terminal marker. The completed replay uses the existing
+external-runtime predicate and adds ordinary JIT shell setup for the broader
+SMP check. These failures remain recorded. Serial record atomicity is still
+open; successful external-runtime checks do not establish it.
+
+The complete Linux publication retry passes the checked-seed bootstrap and
+continues through its contracts. The Windows complete retry is now running
+after the heavier self/OS builds finish. Original deadlines remain unchanged.
+The current Windows audit passes all 131 methods in 1206.878 seconds and its
+independent reread retains five unchanged files. The Linux audit and Linux
+Make/runtime acceptance remain pending.
+The nineteen-path preview remains uninstalled and active ownership stays at
+441 CupidBuild/eleven Python. [The proof record](USER-COMPILE-PROOF.md) retains
+the completed evidence names and precise scopes.
