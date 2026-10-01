@@ -41520,3 +41520,32 @@ Windows full publication retry is still running. Seed installation, active
 recipe adoption and final embedded-manual replay remain required. The installed
 pair and ownership remain unchanged. [The proof record](USER-COMPILE-PROOF.md)
 names the completed independent records.
+
+## 2026-10-01: combined user compilation adoption candidate
+
+Prepared an isolated candidate from committed branch controls, the nineteen
+reviewed preview paths and the five accepted recipe/audit files. Its README,
+handoff record and embedded manual describe the direct user compiler recipes.
+All 1,547 captured inputs remain separate from the active branch. Generated
+ownership is 444 CupidBuild and eight Python actions across 452 transforms.
+
+Both fresh host roots pass the five-method recipe/production selection and the
+complete generated audit check. Independent seed and source validation confirms
+the proposed manifest pair and unchanged committed 77-input producer snapshot.
+`paired-user-adoption-controls-verification-v1.json` binds both completed records,
+their captures, commands and logs. The earlier complete 131-method paired audit
+and actual four-directory Make/oracle/runtime acceptance remain separate evidence.
+
+Fresh normal `make -j4 all` runs have started on both hosts with CC, CXX, CPP,
+HOSTCC, HOSTCXX, ASM, AS, LD, AR, NM and OBJCOPY poisoned. The current exact-size
+policy remains unchanged. Both builds are still running. Windows full
+publication has passed its checked-seed bootstrap and reached stage-four contract
+compilation; its completed verification is still required.
+
+Manual review found a second section that presented the preceding source and
+seed checkpoint as current. A settled revision is prepared outside the running
+roots. After both processes close, a new captured revision will rebuild the
+manual object and kernel links. Matching paired measurements must precede any
+size-row update, followed by normal image publication, native artifact checks,
+platform user ABI, four-CPU disassembly/shell/SMP smoke and three separate
+external user boots. No installed seed or active recipe changes at this checkpoint.

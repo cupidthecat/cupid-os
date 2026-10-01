@@ -1,5 +1,31 @@
 # User compilation staged proof and OS acceptance
 
+## Combined adoption candidate, 2026-10-01
+
+A fresh candidate combines the nineteen reviewed seed paths, five accepted
+recipe/audit files, the handoff record and README/manual updates. It captures
+1,547 inputs. Audit generation passes with 444 CupidBuild and eight Python
+actions across the same 452 transforms. The active branch still retains the
+preceding seeds and recipes.
+
+Both fresh host roots pass five focused recipe/ownership methods and the
+complete generated audit check. Independent seed and source checks confirm
+the proposed manifest pair and unchanged 77-input producer snapshot. The
+paired record is `paired-user-adoption-controls-verification-v1.json` in the
+primary validation directory. These controls supplement the earlier complete
+131-method paired audits and four-directory actual Make/runtime acceptance.
+
+Both fresh normal OS builds are running with host code-producing tools
+forbidden. Windows publication has passed its checked-seed bootstrap and
+continues through stage-four contract compilation. Neither live run supplies
+completed acceptance. Review also found an older manual section presenting the
+preceding release as current. Its settled revision will receive a separate
+capture and kernel replay after the running builds close. Kernel size rows
+remain unchanged until both hosts produce matching measurements. Final image,
+publication and boot checks remain required before adoption.
+
+## Earlier source and preview acceptance
+
 The fresh native Linux and Windows proofs pass from committed producer
 `78e71bd6137042720c378d2c596aa40b153dad11`. Both bind the same 77-input snapshot,
 `ae31a4da21f099ab2c9d449b3ed1825947a9bedcb9ff756b5125953076ec7f30`.
