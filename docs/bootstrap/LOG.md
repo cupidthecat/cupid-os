@@ -42039,3 +42039,57 @@ calibrated policy stay unchanged. Installed seeds remain the `78e71bd6` pair
 and ownership remains 444 CupidBuild/eight Python actions, including three user
 links. Committed producer proofs, seed promotion, checked deterministic drift
 and full Doom gameplay remain separate work.
+
+### 2026-10-02: Accept complete default new-parent consumption
+
+Complete v223 behavior roots retain the original 1,564-input captures with
+eleven reviewed control overlays and 394 original support files. This supplies
+the kernel, driver and Doom closure missing from the earlier thin projection.
+The original failed setup remains preserved; its preparations and authored
+release candidates are unchanged.
+
+Fresh native default qualification passes on both hosts using the proposed
+`cfd9f140` seeds as actual parents. Linux passes 62 success, 55 failure and seven
+help cases; Windows passes 49 success, 43 failure and seven help cases. The
+corrected independent verifier checks 228 rebuilt artifacts, 76 final-stage
+pairs and 7,300 behavior files, source captures/indexes, support/control bytes,
+preparations, actual parents, plans and selected release. Exact final directory
+membership follows all byte rereads. The first verifier draft had checked that
+membership too early; its rejected readiness receipt remains preserved.
+Sixteen metadata positives and 146 negatives pass for the corrected verifier,
+including late files and empty directories. Both terminal review axes pass.
+
+The accepted receipt is
+`paired-complete-self-consumption-qualifications-default-independent-v242.json`
+(5,788,123 bytes, SHA-256
+`73427bd5b7fbef93625c18601cb8e8d0ef780a44130cb362bfb150abe3b097fb`).
+`complete-self-consumption-default-terminal-reviews-v254.json` binds both
+terminal reviews. Evidence remains under
+`build/bootstrap/native-profile-validation-258bb5f3/`.
+
+Linux completes long qualification, but the first Windows long run fails in
+production behavior: stage three returns 0 and stage four reports
+`cupidbuild: checked CupidBuild digest mismatch`. The diagnostic covers several
+checks; the discarded temporary fixture cannot identify the failed condition.
+The closed failure and log remain unchanged. A retained operation replay with
+the same prepared tools and release passes fourteen positive and ten negative
+calls. This does not identify the earlier cause or accept the complete long run.
+
+The fresh Windows v260 retry uses a separate namespace, a 2 GiB launch guard and
+five-second resource observations. Review rejects its first monitor draft for
+silent sampling failures; that draft never launches. The corrected monitor
+retains errors and rejects incomplete observations after successful execution.
+Two positive and seven negative probes pass. The independently reviewed v266
+long verifier preserves the accepted byte/inventory checks and passes two
+monitor positives and fourteen negatives. Closed Windows success and paired
+independent long acceptance remain due.
+
+This checkpoint updates prose and the glossary definition only. Installed seeds
+remain `78e71bd6` and normal ownership remains 444 CupidBuild/eight Python actions,
+including three user links. Seed installation and native user-link recipe
+adoption still need canonical audit, provenance regressions, normal Make,
+complete ABI/users, publication, OS image and runtime acceptance. The embedded
+manual and calibrated policy retain their prior accepted bytes; their next
+implementation update must accompany fresh OS validation. Checked deterministic
+release drift and full Doom runtime remain open. TempleOS remains read-only
+reference material.

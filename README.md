@@ -1,5 +1,28 @@
 # cupid-os
 
+## New-parent default consumption, 2026-10-02
+
+The proposed `cfd9f140` seeds pass complete release-aware default qualification
+on native Windows and Linux. Independent acceptance rereads 228 stage artifacts,
+76 final-stage pairs and 7,300 behavior files, together with source captures,
+Git indexes, preparations and exact file/directory membership. Linux passes
+62 success, 55 failure and seven help cases; Windows passes 49 success, 43 failure
+and seven help cases. The [bootstrap guide](docs/bootstrap/README.md) records
+the evidence and remaining gates.
+
+Long consumption remains separate. Linux completes its long qualification;
+the first Windows run fails during production behavior with a checked-tool
+digest diagnostic. A retained replay of that operation passes fourteen positive
+and ten negative calls. The replay does not identify the earlier failure's
+cause. A fresh Windows retry and the paired independent long check remain due.
+
+Installed seeds remain `78e71bd6`; normal ownership remains 444 CupidBuild
+actions and eight Python actions across 452 transforms, including three user
+links. Proposed seed installation and native user-link recipes still require
+the canonical audit, provenance regressions, normal Make, ABI, user, publication,
+OS image and runtime gates. Full Doom gameplay, audio, save/load, reboot and
+performance acceptance remains open. TempleOS is reference material.
+
 ## Alias-aware user-link command source, 2026-10-01
 
 Source head exposes `cupidbuild link-user` for the approved `cat`, `hello` and

@@ -41,7 +41,8 @@ is not inferred.
 
 Separate authors create twelve-artifact release candidates from those paired
 preparations. Both authors finish successfully and pass independent terminal
-review. The release candidates remain unqualified:
+review. Authoring alone leaves the release candidates unqualified. Complete default
+consumption has since passed independent acceptance below; long remains due:
 
 | New-parent preparation and candidate | Evidence |
 | --- | --- |
@@ -70,11 +71,53 @@ failure. No bootstrap report is published. The thin 100-control projection
 contains the producer inputs but omits the OS support tree that profile
 behavior materializes. The preflights had checked source identities, prepared
 artifacts and reader boundaries without exercising that materialization.
-Follow-up must provide the original kernel, driver and Doom source/header
-closure together with the reviewed control overlays, and check that boundary
-before another full run. Creating empty include roots or dropping behavior
-cases would not establish that acceptance. The original preparations, source
-captures and unqualified candidates retain their existing identities.
+The complete v223 roots subsequently retain every original source input with
+eleven reviewed control overlays and 394 original behavior-support files:
+kernel/driver headers, assembly includes and Doom sources. These complete roots
+pass the materialization preflight. The original failed run, preparations,
+source captures and authored candidates retain their existing identities.
+
+### Complete new-parent results
+
+Both default native qualifications finish with return code 0 and final logs.
+Linux passes 62 success, 55 failure and seven help cases; Windows passes 49
+success, 43 failure and seven help cases. Independent acceptance rereads 228
+stage artifacts, 76 final-stage pairs and 7,300 behavior files, all original
+source captures and indexes, complete/thin root controls, support bytes,
+preparations, actual parents, plans and release. It checks exact file and
+directory membership after all final byte rereads. Both terminal review axes
+pass. The accepted receipt is 5,788,123 bytes with SHA-256
+`73427bd5b7fbef93625c18601cb8e8d0ef780a44130cb362bfb150abe3b097fb`.
+
+| Complete new-parent evidence | Result |
+| --- | --- |
+| `paired-complete-self-consumption-qualifications-default-independent-v242.json` | Default pair accepted |
+| `complete-self-consumption-default-terminal-reviews-v254.json` | Both review axes pass |
+| `complete-self-consumption-qualify-long-linux-v236.json` | Linux long completes; paired acceptance remains due |
+| `complete-self-consumption-qualify-long-windows-v236.json` and `.log` | Preserved closed failure; not accepted |
+| `windows-long-production-diagnostic-v256.json` | Actual operation replay: fourteen positives, ten negatives |
+| `complete-self-consumption-windows-long-retry-reviews-v260.json` | Fresh retry readiness only |
+| `complete-self-consumption-long-verifier-readiness-v271.json` | Independent long-verifier readiness only |
+
+The Windows long failure occurs in production behavior. Stage three returns 0;
+stage four returns 1 with `cupidbuild: checked CupidBuild digest mismatch`.
+The message covers path, capture, copy and artifact checks; the failed temporary
+fixture is unavailable. It does not establish byte corruption or a disk-space
+cause. The actual operation replay uses the immutable complete root, accepted
+prepared stage-three/four tools and the same selected release, and preserves
+all 24 calls and resource observations. Its success does not replace the full
+long run.
+
+The fresh v260 Windows retry binds the failed state/log and replay identities,
+preserves the qualification helper checks, and changes only its output namespace
+in the qualification command. It has a 2 GiB launch guard and five-second
+resource observations. Sampling exceptions are retained and successful child
+execution cannot pass with incomplete monitoring. Probe261 passes two positives
+and seven negatives, including preservation of a primary child error.
+The reviewed v266 independent verifier binds Linux v236 and Windows v260,
+retains the nine accepted verification helpers, and checks monitor metadata with
+two positives and fourteen negatives. It still requires a closed successful
+Windows state, per-profile review and full independent byte/membership checks.
 
 The private projected Make audit also completes seventeen queries and all ten
 contracts. An earlier projection incorrectly added the release to ordinary
@@ -98,8 +141,8 @@ compression has recovered space while preserving bytes, file identity,
 parents, ancestors and current source/index guards. Those metadata operations
 provide neither a new runtime verdict nor qualification of a release.
 
-Complete new-parent qualification and paired independent acceptance for both
-profiles remain due. Then check the proposed installed filesystem audit,
+Windows long qualification and paired independent long acceptance remain due.
+Then check the proposed installed filesystem audit,
 provenance regressions, normal Make recipes, complete ABI and users, ordinary
 publication, OS image and fresh runtime. Installation and ownership changes
 follow those results. Checked deterministic release drift and full Doom

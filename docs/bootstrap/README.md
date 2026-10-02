@@ -1,6 +1,6 @@
 # Cupid Toolchain bootstrap
 
-## Committed producer and new-parent preparation, 2026-10-02
+## Committed producer and new-parent qualification, 2026-10-02
 
 Commit `cfd9f140fd295284372beaee48b85c9320f7d144` contains the release-context
 implementation. Its frozen Windows and Linux captures each retain 1,564 source
@@ -9,35 +9,45 @@ pass using the installed `78e71bd6` parents. Independent verification checks
 228 rebuilt artifacts and 7,300 behavior files for default, or 231 artifacts
 and 7,300 behavior files for long.
 
-Separate private projections then supply the proposed `cfd9f140` seeds as the
-actual parents. Both profiles have reviewed preparations on both native hosts.
-The paired checks accept 76 final-stage pairs for default and 77 for long;
-separate authors create twelve-tool release candidates from those exact bytes.
-These new-parent candidates remain unqualified until fresh complete behavior
-runs and independent acceptance finish. The earlier qualifications used other
-parents and cannot establish that result.
+Separate projections supply the proposed `cfd9f140` seeds as the actual parents.
+Both profiles have reviewed preparations on both native hosts. Paired checks
+accept 76 final-stage pairs for default and 77 for long; separate authors create
+twelve-tool release candidates from those exact bytes. Complete behavior roots
+retain the original 1,564-input captures with eleven control overlays and 394
+original kernel, driver and Doom support files. The earlier thin-root Linux
+failure at the missing `drivers` include root remains recorded.
 
-The private projected Make audit passes all seventeen queries and ten
-contracts. Its ordinary manifest-verification edge retains the manifest and
-six tools; release-aware edges also capture their selected release. Native
-qualification preflights pass fifteen positives per host and 63 Windows or
-65 Linux rejections. The independent acceptance verifier passes ten metadata
-and inventory positives and 112 rejections. Those probes use explicitly named
-metadata fixtures and older report summaries; they establish verifier readiness.
+The new-parent default pair now passes complete behavior qualification and
+independent acceptance. The verifier checks 228 stage artifacts, 76 final-stage
+pairs and 7,300 behavior files, all source/index and preparation bytes, and exact
+file and directory membership after its final byte rereads. Linux passes 62
+success, 55 failure and seven help cases; Windows passes 49 success, 43 failure
+and seven help cases. Both terminal review axes pass. The accepted receipt is
+`paired-complete-self-consumption-qualifications-default-independent-v242.json`
+under `build/bootstrap/native-profile-validation-258bb5f3/`.
 
-The first fresh Linux default qualification stops at profile-behavior setup:
-the 100-control projection has no `drivers` include root. Its closed failure
-and final log remain preserved. This reveals a missing source-support check in
-the preflight. A complete behavior root must also retain the original kernel,
-driver and Doom source/header tree. No new-parent behavior result is accepted.
+Linux also completes long qualification. The first Windows long run exits 1
+during production behavior: stage three succeeds and stage four reports
+`cupidbuild: checked CupidBuild digest mismatch`. That diagnostic covers several
+capture/copy checks and does not prove which failed. The closed state and log
+remain preserved. A retained replay with the same prepared tools and release
+passes fourteen positive and ten negative calls; it does not establish the
+earlier cause or replace full qualification.
+
+A fresh Windows long retry has separate output/state names, a 2 GiB launch
+guard and resource sampling that rejects missing or failed observations. Its
+monitor probes pass two positives and seven negatives. The independently
+reviewed long verifier preserves the accepted byte and membership checks and
+passes two monitor positives and fourteen negatives. Closed Windows success
+and paired independent acceptance remain required.
 
 Installed seeds remain `78e71bd6`. Ownership remains 444 CupidBuild actions and
 eight Python actions across 452 transforms, including three Python user links.
-Seed installation and recipe adoption still require the canonical audit and
-normal Make, ABI, users, publication and OS/runtime gates. The
-[release-context guide](NEXT-SEED-RELEASE-CONTEXT.md#committed-producer-and-new-parent-consumption)
-records the separate evidence and remaining work. Earlier sections retain
-their original capture and parent identities.
+Seed installation and recipe adoption still require the canonical audit,
+provenance regressions and normal Make, ABI, users, publication and OS/runtime
+gates. The [release-context guide](NEXT-SEED-RELEASE-CONTEXT.md#committed-producer-and-new-parent-consumption)
+records the distinct evidence. Earlier sections retain their original captures
+and parent identities.
 
 ## Explicit seed-release context, 2026-10-02
 
