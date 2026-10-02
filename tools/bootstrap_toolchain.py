@@ -537,6 +537,7 @@ class SeedInputs:
     live_manifest_path: Path
     artifact_bytes: tuple[tuple[str, bytes], ...]
     tools: dict[str, Path]
+    behavior_release: object | None = None
 
 
 @dataclass(frozen=True)
@@ -3635,10 +3636,19 @@ def _materialize_behavior_seed(
         ).encode("ascii")
         artifact_bytes = tuple(staged_bytes)
 
+    if seed_inputs.behavior_release is not None:
+        manifest_bytes = seed_inputs.behavior_release.manifest_bytes(
+            manifest_bytes, artifact_bytes
+        )
+
     seed_root = behavior_root / directory_name
     seed_root.mkdir()
     manifest_path = seed_root / seed_inputs.live_manifest_path.name
     manifest_path.write_bytes(manifest_bytes)
+    if seed_inputs.behavior_release is not None:
+        (seed_root / "seed-release.json").write_bytes(
+            seed_inputs.behavior_release.payload
+        )
     for tool_name, contents in artifact_bytes:
         artifact_path = seed_root / artifact_files[tool_name]
         artifact_path.write_bytes(contents)
@@ -5479,6 +5489,8 @@ def _run_native_windows_behavior_checks(
         user_link_aliases=behavior_user_link_aliases,
         parent_plan_seed=linux_seed_inputs,
     )
+    if seed_inputs.behavior_release is not None:
+        behavior_seed_inputs = seed_inputs
 
     _check_cupidbuild_cupidobj_runner_behavior(
         runner,
@@ -9461,7 +9473,13 @@ def _bootstrap_from_frozen_seed(
     compare_fixed_point: bool,
     windows_long_paths: bool = False,
     windows_user_link_aliases: bool = True,
+    prepare_stages: bool = False,
+    release_request: object | None = None,
 ) -> dict[str, object]:
+    if type(prepare_stages) is not bool:
+        raise BootstrapError("stage preparation selection must be Boolean")
+    if prepare_stages and (release_request is not None or not compare_fixed_point):
+        raise BootstrapError("stage preparation requires comparison without a release")
     if type(windows_user_link_aliases) is not bool:
         raise BootstrapError("Windows user-link alias selection must be Boolean")
     if type(windows_long_paths) is not bool:
@@ -9563,6 +9581,25 @@ def _bootstrap_from_frozen_seed(
             if compare_fixed_point
             else None
         )
+        if prepare_stages:
+            from tools.bootstrap_stage_release import publish_preparation
+            return publish_preparation(
+                source_inputs, source_root, plan,
+                _windows_build_plan(plan, utf8=True, long_paths=windows_long_paths,
+                                    user_link_aliases=windows_user_link_aliases),
+                seed_inputs, None, (stage_two, stage_three, stage_four),
+                private_workspace, output_root, "elf32",
+            )
+        if release_request is not None:
+            from dataclasses import replace
+            authority = release_request.authorize(
+                source_inputs, source_root, plan,
+                _windows_build_plan(plan, utf8=True, long_paths=windows_long_paths,
+                                    user_link_aliases=windows_user_link_aliases),
+                seed_inputs, None, stage_three, stage_four, "elf32",
+            )
+            seed_inputs = replace(seed_inputs, behavior_release=authority)
+            runner = authority.runner(runner)
         behavior_evidence: dict[str, object] = {}
         behavior = _run_behavior_checks(
             runner,
@@ -9673,6 +9710,13 @@ def _bootstrap_from_frozen_seed(
         }
         if comparisons is not None:
             report["comparisons"] = comparisons
+        if release_request is not None:
+            report["behavior_release"] = {
+                "sha256": hashlib.sha256(release_request.payload).hexdigest(),
+                "size": len(release_request.payload),
+                "source_revision": release_request.source_revision,
+                "source_snapshot_sha256": release_request.snapshot_sha256,
+            }
         encoded_report = (
             json.dumps(
                 report, indent=2, sort_keys=True, ensure_ascii=True
@@ -9694,6 +9738,8 @@ def _bootstrap_from_frozen_seed(
             )
         require_source_closures(source_inputs, source_root, plan)
         require_live_seed_inputs(seed_inputs)
+        if release_request is not None:
+            release_request.require_live()
         publish_bootstrap_outputs(publication_root, output_root)
         return report
 
@@ -9706,7 +9752,13 @@ def _bootstrap_windows_from_frozen_seed(
     *,
     windows_long_paths: bool = False,
     windows_user_link_aliases: bool = True,
+    prepare_stages: bool = False,
+    release_request: object | None = None,
 ) -> dict[str, object]:
+    if type(prepare_stages) is not bool:
+        raise BootstrapError("stage preparation selection must be Boolean")
+    if prepare_stages and release_request is not None:
+        raise BootstrapError("stage preparation does not accept a release")
     if type(windows_user_link_aliases) is not bool:
         raise BootstrapError("Windows user-link alias selection must be Boolean")
     if type(windows_long_paths) is not bool:
@@ -9836,6 +9888,21 @@ def _bootstrap_windows_from_frozen_seed(
             assembly_names,
             CANDIDATE_TOOL_NAMES,
         )
+        if prepare_stages:
+            from tools.bootstrap_stage_release import publish_preparation
+            return publish_preparation(
+                source_inputs, source_root, linux_plan, native_plan,
+                plan_inputs, seed_inputs, (stage_two, stage_three, stage_four),
+                private_workspace, output_root, "pe32",
+            )
+        if release_request is not None:
+            from dataclasses import replace
+            authority = release_request.authorize(
+                source_inputs, source_root, linux_plan, native_plan,
+                plan_inputs, seed_inputs, stage_three, stage_four, "pe32",
+            )
+            seed_inputs = replace(seed_inputs, behavior_release=authority)
+            runner = authority.runner(runner)
         behavior = _run_native_windows_behavior_checks(
             runner,
             private_source_root,
@@ -9895,6 +9962,13 @@ def _bootstrap_windows_from_frozen_seed(
             "status": "pass",
             "target": EXPECTED_WINDOWS_TARGET,
         }
+        if release_request is not None:
+            report["behavior_release"] = {
+                "sha256": hashlib.sha256(release_request.payload).hexdigest(),
+                "size": len(release_request.payload),
+                "source_revision": release_request.source_revision,
+                "source_snapshot_sha256": release_request.snapshot_sha256,
+            }
         encoded_report = (
             json.dumps(
                 report, indent=2, sort_keys=True, ensure_ascii=True
@@ -9918,6 +9992,8 @@ def _bootstrap_windows_from_frozen_seed(
             source_inputs, source_root, linux_plan
         )
         require_live_seed_inputs(seed_inputs, plan_inputs)
+        if release_request is not None:
+            release_request.require_live()
         publish_bootstrap_outputs(publication_root, output_root)
         return report
 

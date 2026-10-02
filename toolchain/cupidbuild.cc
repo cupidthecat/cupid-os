@@ -3673,7 +3673,7 @@ static int cupidbuild_seed_manifest_path(
 static int cupidbuild_seed_freeze(
     cupidbuild_host_transaction_t *transaction, const char *working_directory,
     const char *requested_manifest, int require_inside, int require_promoted,
-    cupidbuild_seed_capture_t *seed) {
+    const char *requested_release, cupidbuild_seed_capture_t *seed) {
   const char *frozen_manifest = (const char *)0;
   char manifest_reason[128];
   cupid_seed_manifest_result_t parsed_manifest;
@@ -3683,6 +3683,7 @@ static int cupidbuild_seed_freeze(
   unsigned int manifest_format = 1u;
 #endif
   size_t index;
+  int manifest_valid;
   (void)memset(seed, 0, sizeof(*seed));
   if (!cupidbuild_seed_manifest_path(
           working_directory, requested_manifest, require_inside,
@@ -3708,9 +3709,37 @@ static int cupidbuild_seed_freeze(
         "cupidbuild: checked seed manifest is invalid: unreadable bytes\n");
     return 0;
   }
-  if (!cupid_seed_manifest_validate(seed->manifest, seed->manifest_size,
-                                    manifest_format, &parsed_manifest,
-                                    manifest_reason, sizeof(manifest_reason))) {
+  if (requested_release != (const char *)0) {
+    char release_path[CUPIDBUILD_PATH_BYTES];
+    const char *frozen_release = (const char *)0;
+    unsigned char *release;
+    size_t release_size = 0u;
+    if (!cupidbuild_path_safe(requested_release, 0) ||
+        !cupidbuild_seed_manifest_path(working_directory, requested_release,
+            require_inside, release_path, sizeof(release_path))) {
+      (void)fprintf(stderr, "cupidbuild: checked seed release path is invalid\n");
+      return 0;
+    }
+    if (!cupidbuild_host_freeze_input(transaction, release_path,
+            "seed-release.json", &frozen_release, (cupidbuild_host_snapshot_t *)0)) {
+      (void)fprintf(stderr, "cupidbuild: %s\n", cupidbuild_host_error(transaction));
+      return 0;
+    }
+    release = cupidbuild_host_read_frozen_input(transaction, frozen_release,
+        65536u, &release_size);
+    if (release == (unsigned char *)0) {
+      (void)fprintf(stderr, "cupidbuild: checked seed release is unreadable\n");
+      return 0;
+    }
+    manifest_valid = cupid_seed_manifest_validate_release(release, release_size,
+        seed->manifest, seed->manifest_size, manifest_format, &parsed_manifest,
+        manifest_reason, sizeof(manifest_reason));
+    free(release);
+  } else {
+    manifest_valid = cupid_seed_manifest_validate(seed->manifest, seed->manifest_size,
+        manifest_format, &parsed_manifest, manifest_reason, sizeof(manifest_reason));
+  }
+  if (!manifest_valid) {
     (void)fprintf(stderr, "cupidbuild: checked seed manifest is invalid: %s\n",
                   manifest_reason);
     return 0;
@@ -3833,7 +3862,7 @@ static const unsigned char cupidbuild_smp_trampoline_map[] =
 
 static int cupidbuild_assemble(
     const cupidbuild_assembly_request_t *request,
-    cupidbuild_assembly_kind_t kind) {
+    cupidbuild_assembly_kind_t kind, const char *seed_release) {
   cupidbuild_host_transaction_t *transaction =
       (cupidbuild_host_transaction_t *)0;
   cupidbuild_seed_capture_t seed;
@@ -3865,7 +3894,7 @@ static int cupidbuild_assemble(
     goto done;
   }
   if (!cupidbuild_seed_freeze(transaction, request->repository_root,
-                              request->seed_manifest, 1, 0, &seed)) {
+                              request->seed_manifest, 1, 0, seed_release, &seed)) {
     goto done;
   }
   frozen_assembler = seed.frozen_tools[0];
@@ -4025,27 +4054,48 @@ done:
                                        "guarded assembly output");
 }
 
-int cupidbuild_assemble_object(
-    const cupidbuild_assembly_request_t *request) {
-  return cupidbuild_assemble(request, CUPIDBUILD_ASSEMBLY_OBJECT);
+int cupidbuild_assemble_object(const cupidbuild_assembly_request_t *request) {
+  return cupidbuild_assemble_object_with_release(request, (const char *)0);
 }
 
-int cupidbuild_assemble_bootloader(
-    const cupidbuild_assembly_request_t *request) {
-  return cupidbuild_assemble(request, CUPIDBUILD_ASSEMBLY_BOOTLOADER);
+int cupidbuild_assemble_object_with_release(
+    const cupidbuild_assembly_request_t *request, const char *seed_release) {
+  return cupidbuild_assemble(request, CUPIDBUILD_ASSEMBLY_OBJECT, seed_release);
 }
 
-int cupidbuild_assemble_smp_trampoline(
-    const cupidbuild_assembly_request_t *request) {
-  return cupidbuild_assemble(request, CUPIDBUILD_ASSEMBLY_SMP_TRAMPOLINE);
+int cupidbuild_assemble_bootloader(const cupidbuild_assembly_request_t *request) {
+  return cupidbuild_assemble_bootloader_with_release(request, (const char *)0);
 }
 
-int cupidbuild_assemble_iso_pattern(
-    const cupidbuild_assembly_request_t *request) {
-  return cupidbuild_assemble(request, CUPIDBUILD_ASSEMBLY_ISO_PATTERN);
+int cupidbuild_assemble_bootloader_with_release(
+    const cupidbuild_assembly_request_t *request, const char *seed_release) {
+  return cupidbuild_assemble(request, CUPIDBUILD_ASSEMBLY_BOOTLOADER, seed_release);
+}
+
+int cupidbuild_assemble_smp_trampoline(const cupidbuild_assembly_request_t *request) {
+  return cupidbuild_assemble_smp_trampoline_with_release(request, (const char *)0);
+}
+
+int cupidbuild_assemble_smp_trampoline_with_release(
+    const cupidbuild_assembly_request_t *request, const char *seed_release) {
+  return cupidbuild_assemble(request, CUPIDBUILD_ASSEMBLY_SMP_TRAMPOLINE, seed_release);
+}
+
+int cupidbuild_assemble_iso_pattern(const cupidbuild_assembly_request_t *request) {
+  return cupidbuild_assemble_iso_pattern_with_release(request, (const char *)0);
+}
+
+int cupidbuild_assemble_iso_pattern_with_release(
+    const cupidbuild_assembly_request_t *request, const char *seed_release) {
+  return cupidbuild_assemble(request, CUPIDBUILD_ASSEMBLY_ISO_PATTERN, seed_release);
 }
 
 int cupidbuild_embed_jpeg(const cupidbuild_jpeg_request_t *request) {
+  return cupidbuild_embed_jpeg_with_release(request, (const char *)0);
+}
+
+int cupidbuild_embed_jpeg_with_release(
+    const cupidbuild_jpeg_request_t *request, const char *seed_release) {
   cupidbuild_host_transaction_t *transaction =
       (cupidbuild_host_transaction_t *)0;
   cupidbuild_seed_capture_t seed;
@@ -4074,7 +4124,7 @@ int cupidbuild_embed_jpeg(const cupidbuild_jpeg_request_t *request) {
     goto done;
   }
   if (!cupidbuild_seed_freeze(transaction, request->repository_root,
-                              request->seed_manifest, 1, 1, &seed)) {
+                              request->seed_manifest, 1, 1, seed_release, &seed)) {
     goto done;
   }
   object_arguments[0] = "wrap-jpeg";
@@ -4582,6 +4632,11 @@ done:
 }
 
 int cupidbuild_generate_ksyms(const cupidbuild_ksyms_request_t *request) {
+  return cupidbuild_generate_ksyms_with_release(request, (const char *)0);
+}
+
+int cupidbuild_generate_ksyms_with_release(
+    const cupidbuild_ksyms_request_t *request, const char *seed_release) {
   cupidbuild_host_transaction_t *transaction =
       (cupidbuild_host_transaction_t *)0;
   cupidbuild_seed_capture_t seed;
@@ -4616,7 +4671,7 @@ int cupidbuild_generate_ksyms(const cupidbuild_ksyms_request_t *request) {
     goto done;
   }
   if (!cupidbuild_seed_freeze(transaction, request->repository_root,
-                              request->seed_manifest, 1, 1, &seed)) {
+                              request->seed_manifest, 1, 1, seed_release, &seed)) {
     goto done;
   }
   disassembler_arguments[0] = "-n";
@@ -5036,6 +5091,11 @@ static void cupidbuild_report_checked_failure(
 }
 
 int cupidbuild_flatten_kernel(const cupidbuild_kernel_request_t *request) {
+  return cupidbuild_flatten_kernel_with_release(request, (const char *)0);
+}
+
+int cupidbuild_flatten_kernel_with_release(
+    const cupidbuild_kernel_request_t *request, const char *seed_release) {
   cupidbuild_host_transaction_t *transaction =
       (cupidbuild_host_transaction_t *)0;
   cupidbuild_seed_capture_t seed;
@@ -5099,7 +5159,8 @@ int cupidbuild_flatten_kernel(const cupidbuild_kernel_request_t *request) {
     }
     goto done;
   }
-  if (!cupidbuild_host_reserve_inputs(transaction, input_count + 8u)) {
+  if (!cupidbuild_host_reserve_inputs(transaction,
+          input_count + 8u + (seed_release != (const char *)0 ? 1u : 0u))) {
     (void)fprintf(stderr, "cupidbuild: %s\n",
                   cupidbuild_host_error(transaction));
     goto done;
@@ -5147,7 +5208,7 @@ int cupidbuild_flatten_kernel(const cupidbuild_kernel_request_t *request) {
     goto done;
   }
   if (!cupidbuild_seed_freeze(transaction, request->repository_root,
-                              request->seed_manifest, 1, 1, &seed)) {
+                              request->seed_manifest, 1, 1, seed_release, &seed)) {
     goto done;
   }
   disassembler_arguments[0] = "--require-known";
@@ -5669,8 +5730,12 @@ static int cupidbuild_profile_render_json(
   return 1;
 }
 
-int cupidbuild_generate_profile_manifest(
-    const cupidbuild_profile_request_t *request) {
+int cupidbuild_generate_profile_manifest(const cupidbuild_profile_request_t *request) {
+  return cupidbuild_generate_profile_manifest_with_release(request, (const char *)0);
+}
+
+int cupidbuild_generate_profile_manifest_with_release(
+    const cupidbuild_profile_request_t *request, const char *seed_release) {
   cupidbuild_host_transaction_t *transaction =
       (cupidbuild_host_transaction_t *)0;
   cupidbuild_host_profile_parent_t *profile_parent =
@@ -5744,11 +5809,13 @@ int cupidbuild_generate_profile_manifest(
       goto done;
     }
   }
-  if (membership.headers.count + membership.sources.count + 7u >
+  if (membership.headers.count + membership.sources.count + 7u +
+          (seed_release != (const char *)0 ? 1u : 0u) >
           CUPIDBUILD_PROFILE_TRANSACTION_INPUTS ||
       !cupidbuild_host_reserve_inputs(
           transaction,
-          membership.headers.count + membership.sources.count + 7u)) {
+          membership.headers.count + membership.sources.count + 7u +
+              (seed_release != (const char *)0 ? 1u : 0u))) {
     (void)fprintf(stderr,
                   "cupidbuild: Doom profile closure exceeds the frozen input "
                   "limit\n");
@@ -5818,7 +5885,7 @@ int cupidbuild_generate_profile_manifest(
     }
   }
   if (!cupidbuild_seed_freeze(transaction, request->repository_root,
-                              request->seed_manifest, 1, 1, &seed)) {
+                              request->seed_manifest, 1, 1, seed_release, &seed)) {
     goto done;
   }
   if (!cupidbuild_profile_snapshot(transaction, &membership, headers,
@@ -6027,14 +6094,14 @@ static int cupidbuild_compile_capture_input(
 static int cupidbuild_compile_bundle(
     cupidbuild_host_transaction_t *transaction, const char *root,
     const cupidbuild_compile_closure_t *closure,
-    cupidbuild_host_snapshot_t *bundle_snapshot) {
+    cupidbuild_host_snapshot_t *bundle_snapshot, size_t seed_input_count) {
   cupidbuild_compile_input_t inputs[CUPIDBUILD_COMPILE_INPUTS];
   size_t index;
   int source_found = 0;
   if (closure == (const cupidbuild_compile_closure_t *)0 ||
       closure->source == (const char *)0 || closure->count == 0u ||
       closure->count > CUPIDBUILD_COMPILE_INPUTS ||
-      !cupidbuild_host_reserve_inputs(transaction, closure->count + 7u)) {
+      !cupidbuild_host_reserve_inputs(transaction, closure->count + seed_input_count)) {
     return 0;
   }
   for (index = 0u; index < closure->count; index++) {
@@ -6055,7 +6122,8 @@ static int cupidbuild_compile_bundle(
 
 static int cupidbuild_compile_doom_bundle(
     cupidbuild_host_transaction_t *transaction, const char *root,
-    const char *source, cupidbuild_host_snapshot_t *bundle_snapshot) {
+    const char *source, cupidbuild_host_snapshot_t *bundle_snapshot,
+    size_t seed_input_count) {
   cupidbuild_profile_membership_t membership;
   cupidbuild_compile_input_t *inputs = (cupidbuild_compile_input_t *)0;
   cupidbuild_compile_input_t selected;
@@ -6072,7 +6140,7 @@ static int cupidbuild_compile_doom_bundle(
     (void)fprintf(stderr, "cupidbuild: Doom compiler input membership is invalid\n");
     goto done;
   }
-  total = membership.headers.count + membership.sources.count + 7u;
+  total = membership.headers.count + membership.sources.count + seed_input_count;
   if (total > CUPIDBUILD_PROFILE_TRANSACTION_INPUTS ||
       !cupidbuild_host_reserve_inputs(transaction, total)) {
     (void)fprintf(stderr, "cupidbuild: Doom compiler input count exceeds the limit\n");
@@ -6124,7 +6192,8 @@ done:
 }
 
 static int cupidbuild_compile(
-    const cupidbuild_compile_request_t *request, cupidbuild_compile_kind_t kind) {
+    const cupidbuild_compile_request_t *request, cupidbuild_compile_kind_t kind,
+    const char *seed_release) {
   cupidbuild_host_transaction_t *transaction =
       (cupidbuild_host_transaction_t *)0;
   cupidbuild_host_output_parent_t *output_parent =
@@ -6232,14 +6301,16 @@ static int cupidbuild_compile(
   }
   if (!(doom != 0
             ? cupidbuild_compile_doom_bundle(transaction, request->repository_root,
-                                               request->source, &bundle_snapshot)
+                request->source, &bundle_snapshot,
+                seed_release != (const char *)0 ? 8u : 7u)
             : cupidbuild_compile_bundle(transaction, request->repository_root,
-                                          closure, &bundle_snapshot))) {
+                closure, &bundle_snapshot,
+                seed_release != (const char *)0 ? 8u : 7u))) {
     (void)fprintf(stderr, "cupidbuild: frozen compiler closure cannot be captured\n");
     goto host_failure;
   }
   if (!cupidbuild_seed_freeze(transaction, request->repository_root,
-                              request->seed_manifest, 1, 1, &seed)) {
+                              request->seed_manifest, 1, 1, seed_release, &seed)) {
     goto done;
   }
   candidate_path = cupidbuild_host_candidate(transaction);
@@ -6328,18 +6399,38 @@ done:
 }
 
 int cupidbuild_compile_kernel(const cupidbuild_compile_request_t *request) {
-  return cupidbuild_compile(request, CUPIDBUILD_COMPILE_KERNEL);
+  return cupidbuild_compile_kernel_with_release(request, (const char *)0);
+}
+
+int cupidbuild_compile_kernel_with_release(
+    const cupidbuild_compile_request_t *request, const char *seed_release) {
+  return cupidbuild_compile(request, CUPIDBUILD_COMPILE_KERNEL, seed_release);
 }
 
 int cupidbuild_compile_doom(const cupidbuild_compile_request_t *request) {
-  return cupidbuild_compile(request, CUPIDBUILD_COMPILE_DOOM);
+  return cupidbuild_compile_doom_with_release(request, (const char *)0);
+}
+
+int cupidbuild_compile_doom_with_release(
+    const cupidbuild_compile_request_t *request, const char *seed_release) {
+  return cupidbuild_compile(request, CUPIDBUILD_COMPILE_DOOM, seed_release);
 }
 
 int cupidbuild_compile_production(const cupidbuild_compile_request_t *request) {
-  return cupidbuild_compile(request, CUPIDBUILD_COMPILE_PRODUCTION);
+  return cupidbuild_compile_production_with_release(request, (const char *)0);
+}
+
+int cupidbuild_compile_production_with_release(
+    const cupidbuild_compile_request_t *request, const char *seed_release) {
+  return cupidbuild_compile(request, CUPIDBUILD_COMPILE_PRODUCTION, seed_release);
 }
 
 int cupidbuild_compile_user(const cupidbuild_compile_request_t *request) {
+  return cupidbuild_compile_user_with_release(request, (const char *)0);
+}
+
+int cupidbuild_compile_user_with_release(
+    const cupidbuild_compile_request_t *request, const char *seed_release) {
   cupidbuild_user_compile_paths_t *paths =
       (cupidbuild_user_compile_paths_t *)calloc(1u, sizeof(*paths));
   char absolute_root[CUPIDBUILD_PATH_BYTES];
@@ -6363,7 +6454,7 @@ int cupidbuild_compile_user(const cupidbuild_compile_request_t *request) {
   normalized.repository_root = paths->repository_root;
   normalized.source = paths->source;
   normalized.output = paths->output;
-  result = cupidbuild_compile(&normalized, CUPIDBUILD_COMPILE_USER);
+  result = cupidbuild_compile(&normalized, CUPIDBUILD_COMPILE_USER, seed_release);
 done:
   free(paths);
   return result;
@@ -6380,7 +6471,8 @@ static int cupidbuild_user_link_root_is_absolute(const char *root) {
 }
 
 static int cupidbuild_link_user_prepared(const cupidbuild_user_link_request_t *request,
-                                        cupidbuild_host_output_parent_t *parent) {
+                                        cupidbuild_host_output_parent_t *parent,
+                                        const char *seed_release) {
   cupidbuild_host_transaction_t *transaction =
       (cupidbuild_host_transaction_t *)0;
   int own_parent = parent == (cupidbuild_host_output_parent_t *)0;
@@ -6443,7 +6535,7 @@ static int cupidbuild_link_user_prepared(const cupidbuild_user_link_request_t *r
   free(object);
   object = (unsigned char *)0;
   if (!cupidbuild_seed_freeze(transaction, request->repository_root,
-                              request->seed_manifest, 1, 1, &seed) ||
+                              request->seed_manifest, 1, 1, seed_release, &seed) ||
       !cupidbuild_host_require_publication_boundary(transaction)) {
     goto host_failure;
   }
@@ -6510,10 +6602,20 @@ done:
 }
 
 int cupidbuild_link_user_object(const cupidbuild_user_link_request_t *request) {
-  return cupidbuild_link_user_prepared(request, (cupidbuild_host_output_parent_t *)0);
+  return cupidbuild_link_user_object_with_release(request, (const char *)0);
+}
+
+int cupidbuild_link_user_object_with_release(
+    const cupidbuild_user_link_request_t *request, const char *seed_release) {
+  return cupidbuild_link_user_prepared(request, (cupidbuild_host_output_parent_t *)0, seed_release);
 }
 
 int cupidbuild_link_user(const cupidbuild_user_link_request_t *request) {
+  return cupidbuild_link_user_with_release(request, (const char *)0);
+}
+
+int cupidbuild_link_user_with_release(
+    const cupidbuild_user_link_request_t *request, const char *seed_release) {
   cupidbuild_host_output_parent_t *parent = (cupidbuild_host_output_parent_t *)0;
   cupidbuild_user_link_request_t physical;
   int result = 1;
@@ -6529,7 +6631,7 @@ int cupidbuild_link_user(const cupidbuild_user_link_request_t *request) {
     physical.repository_root = cupidbuild_host_output_parent_resolved_root(parent);
     physical.source = cupidbuild_host_output_parent_resolved_source(parent);
     physical.output = cupidbuild_host_output_parent_resolved_output(parent);
-    result = cupidbuild_link_user_prepared(&physical, parent);
+    result = cupidbuild_link_user_prepared(&physical, parent, seed_release);
   }
   if (!cupidbuild_host_output_parent_close(parent)) {
     (void)fprintf(stderr, "cupidbuild: user link parent cleanup failed\n");
@@ -6538,7 +6640,8 @@ int cupidbuild_link_user(const cupidbuild_user_link_request_t *request) {
   return result;
 }
 
-int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request) {
+int cupidbuild_run_checked_tool_with_release(
+    const cupidbuild_run_request_t *request, const char *seed_release) {
   cupidbuild_host_transaction_t *transaction =
       (cupidbuild_host_transaction_t *)0;
   cupidbuild_seed_capture_t seed;
@@ -6572,7 +6675,7 @@ int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request) {
     goto done;
   }
   if (!cupidbuild_seed_freeze(transaction, request->working_directory,
-                              request->seed_manifest, 0, 1, &seed)) {
+                              request->seed_manifest, 0, 1, seed_release, &seed)) {
     goto done;
   }
   if (!cupidbuild_host_require_frozen_inputs(transaction)) {
@@ -6618,4 +6721,8 @@ done:
     }
   }
   return result;
+}
+
+int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request) {
+  return cupidbuild_run_checked_tool_with_release(request, (const char *)0);
 }

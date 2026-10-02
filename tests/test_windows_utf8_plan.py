@@ -121,11 +121,18 @@ class WindowsUtf8PlanTests(unittest.TestCase):
     def test_installed_profile_matches_promoted_utf8_plan(self):
         manifest = json.loads((ROOT / "bootstrap/seeds/i386-windows/manifest.json").read_bytes())
         installed_plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"]
-        long_paths = manifest["provenance"]["source_input_count"] == 77
-        digest = bootstrap._build_plan_sha256(bootstrap._windows_build_plan(
-            installed_plan, utf8=True, long_paths=long_paths))
-        self.assertEqual(digest, manifest["provenance"]["native_build_plan_sha256"])
-        self.assertEqual(manifest["provenance"]["source_input_count"], 77 if long_paths else 76)
+        provenance = manifest["provenance"]
+        digest = provenance["native_build_plan_sha256"]
+        count = provenance["source_input_count"]
+        compiler = {name for _, names in bootstrap._promoted_windows_imports("cupidc", digest, count) for name in names}
+        coordinator = {name for _, names in bootstrap._promoted_windows_imports("cupidbuild", digest, count) for name in names}
+        long_paths = "GetFullPathNameW" in compiler
+        aliases = "GetFinalPathNameByHandleW" in coordinator
+        self.assertEqual(digest, bootstrap._build_plan_sha256(bootstrap._windows_build_plan(
+            installed_plan, utf8=True, long_paths=long_paths, user_link_aliases=aliases)))
+        snapshot = bootstrap.capture_source_snapshot(ROOT, installed_plan, windows_utf8=True,
+            windows_long_paths=long_paths, windows_user_link_aliases=aliases)
+        self.assertEqual(len(snapshot), count)
 
     def test_promoted_profiles_select_exact_imports_for_every_role(self):
         for utf8, count in ((False, 66), (True, 73)):

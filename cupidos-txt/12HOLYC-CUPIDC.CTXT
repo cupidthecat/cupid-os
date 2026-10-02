@@ -13,6 +13,41 @@ Verified against source on: 2026-10-01
 >style linkhover #0B3AA8
 >rule
 
+>h2 Explicit seed-release context
+>tree open Explicit seed-release context
+Every seeded CupidBuild command accepts an optional --seed-release record.
+The separate C APIs take the release path without changing request layouts.
+Original entry points retain historical parent rules. Explicit validation
+matches source, actual parents, complete plans and tool identities before the
+existing structural and target checks. The caller must review the record's
+authority; a record does not authenticate itself.
+
+The transaction captures the release with its inputs, limits it to 65,536
+bytes and checks it again after execution. Missing, empty or repeated CLI
+values are errors. Closure reservations include the release before retaining
+paths. Linux nonblocking opens reject FIFOs without waiting for a writer.
+
+Preparation retains all three toolchain stages and writes an unqualified
+receipt. Separate authoring creates a paired release exclusively. Fresh
+qualification rebuilds every object and tool before complete behavior runs.
+Both actual hosts pass the default and long profiles. Independent default
+checks bind 228 artifacts and 76 final-stage pairs; long checks bind 231 and
+77. Each profile retains 7,300 behavior files. Linux has 62 success, 55 failure
+and seven help cases; Windows has 49 success, 43 failure and seven help cases.
+
+The producer closure has 77 default or 78 long inputs. Windows stages have
+32 C objects, four default or five long assembly objects and six tools.
+Linux stages have 27 C objects, one startup object and six tools. Native
+regression verification accepts 1,129 executions and 31 platform skips.
+The fresh Windows native ABI report and three normal user builds match the
+accepted baseline. Seed promotion requires new committed producer proof and
+complete OS/manual/runtime acceptance. Checked deterministic drift still
+requires the hosted runtime support documented in the bootstrap guide.
+
+Installed seeds remain 78e71bd6. Ownership stays 444 CupidBuild/eight Python
+actions, including three Python user links. TempleOS is reference material.
+>endtree
+
 >h2 Alias-aware user-link command source
 >tree open Alias-aware user-link command source
 Source head exposes cupidbuild link-user for approved cat, hello and ls objects.

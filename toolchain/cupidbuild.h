@@ -67,6 +67,40 @@ int cupidbuild_link_user_object(const cupidbuild_user_link_request_t *request);
  * cat/hello/ls object pair and keep its retained chain through publication. */
 int cupidbuild_link_user(const cupidbuild_user_link_request_t *request);
 
+/* Explicit release authority for typed seeded transactions.
+ * Existing requests and entry points retain their ABI and historical rules.
+ * The caller authorizes the release record; its frozen bytes and observations
+ * stay in the transaction through validation and publication.
+ * A null release path selects the historical reader. */
+int cupidbuild_assemble_object_with_release(
+    const cupidbuild_assembly_request_t *request, const char *seed_release);
+int cupidbuild_assemble_bootloader_with_release(
+    const cupidbuild_assembly_request_t *request, const char *seed_release);
+int cupidbuild_assemble_smp_trampoline_with_release(
+    const cupidbuild_assembly_request_t *request, const char *seed_release);
+int cupidbuild_assemble_iso_pattern_with_release(
+    const cupidbuild_assembly_request_t *request, const char *seed_release);
+int cupidbuild_embed_jpeg_with_release(
+    const cupidbuild_jpeg_request_t *request, const char *seed_release);
+int cupidbuild_generate_ksyms_with_release(
+    const cupidbuild_ksyms_request_t *request, const char *seed_release);
+int cupidbuild_flatten_kernel_with_release(
+    const cupidbuild_kernel_request_t *request, const char *seed_release);
+int cupidbuild_generate_profile_manifest_with_release(
+    const cupidbuild_profile_request_t *request, const char *seed_release);
+int cupidbuild_compile_kernel_with_release(
+    const cupidbuild_compile_request_t *request, const char *seed_release);
+int cupidbuild_compile_doom_with_release(
+    const cupidbuild_compile_request_t *request, const char *seed_release);
+int cupidbuild_compile_production_with_release(
+    const cupidbuild_compile_request_t *request, const char *seed_release);
+int cupidbuild_compile_user_with_release(
+    const cupidbuild_compile_request_t *request, const char *seed_release);
+int cupidbuild_link_user_object_with_release(
+    const cupidbuild_user_link_request_t *request, const char *seed_release);
+int cupidbuild_link_user_with_release(
+    const cupidbuild_user_link_request_t *request, const char *seed_release);
+
 #define CUPIDBUILD_USER_PATH_BYTES 8192u
 typedef struct {
   char repository_root[CUPIDBUILD_USER_PATH_BYTES];
@@ -124,5 +158,11 @@ int cupidbuild_validate_jpeg_object_bytes(
     const unsigned char *jpeg_bytes, size_t jpeg_size,
     const char *source_identity);
 int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request);
+/* Explicit release authority for a promoted checked-tool seed. The request ABI
+ * is unchanged. The caller authorizes the release record; both files and the
+ * six tool images are frozen and retained through launch and final validation.
+ * A null release path preserves run_checked_tool's historical manifest rules. */
+int cupidbuild_run_checked_tool_with_release(
+    const cupidbuild_run_request_t *request, const char *seed_release);
 
 #endif

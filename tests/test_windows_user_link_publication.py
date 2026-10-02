@@ -182,9 +182,24 @@ class WindowsUserLinkPublicationTests(unittest.TestCase):
             provenance = changed.manifest["provenance"]
             self.assertEqual(provenance["source_input_count"], 78 if long_paths else 77)
             self.assertEqual(provenance["native_build_plan_sha256"], digest)
-            self.assertEqual(provenance["parent_execution_seed_manifest_sha256"], native.manifest_sha256)
-            self.assertEqual(provenance["parent_plan_seed_manifest_sha256"], parent.manifest_sha256)
+            same_profile = native.manifest["provenance"]["native_build_plan_sha256"] == digest and (
+                native.manifest["provenance"]["source_snapshot_sha256"] == bootstrap._source_snapshot_sha256(snapshot))
+            if same_profile:
+                self.assertIs(changed, native)
+                self.assertEqual(changed.manifest_bytes, native.manifest_bytes)
+            else:
+                self.assertEqual(provenance["parent_execution_seed_manifest_sha256"], native.manifest_sha256)
+                self.assertEqual(provenance["parent_plan_seed_manifest_sha256"], parent.manifest_sha256)
+                self.assertEqual(provenance["parent_execution_seed_source_revision"], native.manifest["provenance"]["source_revision"])
+                self.assertEqual(provenance["parent_plan_seed_source_revision"], parent.manifest["provenance"]["source_revision"])
             self.assertEqual(changed.artifact_bytes, native.artifact_bytes)
+            altered = {name: dict(record) for name, record in snapshot.items()}
+            altered[SHIM]["sha256"] = "0" * 64
+            rebuilt = bootstrap._retarget_native_windows_behavior_seed(native, digest, linux, altered,
+                utf8=True, long_paths=long_paths, user_link_aliases=True, parent_plan_seed=parent)
+            self.assertIsNot(rebuilt, native)
+            self.assertEqual(rebuilt.manifest["provenance"]["parent_execution_seed_manifest_sha256"], native.manifest_sha256)
+            self.assertEqual(rebuilt.manifest["provenance"]["parent_plan_seed_manifest_sha256"], parent.manifest_sha256)
             with self.assertRaisesRegex(bootstrap.BootstrapError, "build plan differs"):
                 bootstrap._retarget_native_windows_behavior_seed(native, digest, linux, snapshot,
                     utf8=True, long_paths=long_paths, parent_plan_seed=parent)

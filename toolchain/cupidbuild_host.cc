@@ -3237,7 +3237,8 @@ static int cupidbuild_host_read_regular(
   }
   descriptor = cupid_linux_syscall3(
       CUPIDBUILD_LINUX_SYS_OPEN, (unsigned int)path,
-      CUPIDBUILD_LINUX_O_NOFOLLOW, 0u);
+      CUPIDBUILD_LINUX_O_NOFOLLOW | CUPIDBUILD_LINUX_O_NONBLOCK |
+          CUPIDBUILD_LINUX_O_CLOEXEC, 0u);
   if (descriptor < 0 ||
       cupid_linux_syscall2(CUPIDBUILD_LINUX_SYS_FSTAT64,
                            (unsigned int)descriptor,
@@ -4408,7 +4409,7 @@ static int cupidbuild_host_read_regular(
   if (cupidbuild_host_path_has_link(path)) {
     return 0;
   }
-  descriptor = open(path, O_RDONLY | O_NOFOLLOW);
+  descriptor = open(path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
   if (descriptor < 0) {
     if (optional != 0 && errno == ENOENT) {
       snapshot->present = 0;

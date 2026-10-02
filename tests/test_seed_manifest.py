@@ -197,6 +197,106 @@ def changed(value):
 class ManifestTests(unittest.TestCase):
     records = []
     pair_records = []
+    release_records = []
+
+    def check_release(self, record, value, fmt, accepted=True, capacity=128):
+        payloads = [encode(item) if isinstance(item, dict) else item for item in (record, value)]
+        buffers = [ctypes.create_string_buffer(item) for item in payloads]
+        before = [bytes(item) for item in buffers]
+        result = Result()
+        ctypes.memset(ctypes.byref(result), 0xa5, ctypes.sizeof(result))
+        error = ctypes.create_string_buffer(b"!" * (capacity + 8))
+        status = self.release_api(buffers[0], len(payloads[0]), buffers[1], len(payloads[1]),
+                                  fmt, ctypes.byref(result), error, capacity)
+        self.assertEqual(status, int(accepted), error.value)
+        self.assertEqual([bytes(item) for item in buffers], before)
+        self.assertEqual(bytes(error)[capacity:], b"!" * 8 + b"\0")
+        if accepted:
+            document = json.loads(payloads[1])
+            self.assertEqual(result.artifact_count, 6)
+            self.assertEqual(result.current_windows_plan,
+                             5 if fmt == 2 and document["provenance"]["source_input_count"] == 78
+                             else 4 if fmt == 2 else 0)
+            for index, role in enumerate(("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj", "cupidbuild")):
+                artifact = next(item for item in document["artifacts"] if item["name"] == role)
+                actual = result.artifacts[index]
+                self.assertEqual((actual.file.decode(), actual.sha256.decode(), actual.size),
+                                 (artifact["file"], artifact["sha256"], artifact["size"]))
+            if capacity:
+                self.assertEqual(error.value, b"")
+        else:
+            self.assertEqual(bytes(result), bytes(ctypes.sizeof(result)))
+            if capacity > 1:
+                self.assertTrue(error.value)
+        if os.environ.get("CUPID_MANIFEST_RELEASE_EXPORT"):
+            summary = "0\n"
+            if accepted:
+                fields = ["1", str(result.artifact_count), str(result.current_windows_plan)]
+                for artifact in result.artifacts:
+                    fields.extend((artifact.file.decode(), str(artifact.size), artifact.sha256.decode()))
+                summary = " ".join(fields) + "\n"
+            self.release_records.append((*payloads, fmt, summary))
+
+    def test_explicit_release_retains_strict_historical_reader(self):
+        from tests.test_seed_pair import released_alias_pair
+        for long_paths in (False, True):
+            record, linux, windows = released_alias_pair(long_paths)
+            for fmt, document in ((1, linux), (2, windows)):
+                self.check(document, fmt, False)
+                self.check_release(record, document, fmt)
+                self.check_release(release(), document, fmt, False)
+                # A release match cannot replace a complete supported target.
+                altered = copy.deepcopy(document)
+                altered["target"]["entry"] += 1
+                self.check_release(record, altered, fmt, False)
+                self.check(document, fmt, False)
+
+    def test_release_aware_reader_clears_failures_and_bounds_diagnostics(self):
+        from tests.test_seed_pair import released_alias_pair
+        record, linux, windows = released_alias_pair()
+        for fmt, document in ((1, linux), (2, windows)):
+            for capacity in (0, 1, 2, 8, 128):
+                self.check_release(record, document, fmt, capacity=capacity)
+                self.check_release(b"bad", document, fmt, False, capacity)
+                self.check_release(record, b"bad", fmt, False, capacity)
+                altered = copy.deepcopy(document)
+                altered["provenance"]["fixed_point_result"] = "fail"
+                self.check_release(record, altered, fmt, False, capacity)
+            for invalid in (b"", b"x" * 1048577, encode(document) + b"x"):
+                self.check_release(record, invalid, fmt, False)
+        incoming = ctypes.create_string_buffer(encode(record))
+        manifest_input = ctypes.create_string_buffer(encode(windows))
+        args = [incoming, len(encode(record)), manifest_input, len(encode(windows)), 2, ctypes.pointer(Result()), None, 0]
+        for index in (0, 2, 5):
+            invalid = list(args)
+            invalid[index] = None
+            self.assertEqual(self.release_api(*invalid), 0)
+        for fmt in (0, 3, 0xffffffff):
+            invalid = list(args)
+            invalid[4] = fmt
+            self.assertEqual(self.release_api(*invalid), 0)
+        invalid = list(args)
+        invalid[-1] = 1
+        self.assertEqual(self.release_api(*invalid), 0)
+
+    def test_release_aware_reader_checks_every_release_identity(self):
+        from tests.test_seed_pair import released_alias_pair
+        record, linux, windows = released_alias_pair(True)
+        for fmt, document in ((1, linux), (2, windows)):
+            for key in ("source_revision", "source_snapshot_sha256", "source_input_count",
+                        "parent_source_revision", "parent_linux_manifest_sha256" if fmt == 1 else "parent_windows_manifest_sha256",
+                        "linux_plan_sha256", "windows_plan_sha256"):
+                altered = copy.deepcopy(record)
+                altered[key] = altered[key] + 1 if isinstance(altered[key], int) else "a" * len(altered[key])
+                if fmt == 1 and key == "windows_plan_sha256":
+                    continue  # The Linux manifest does not declare the Windows plan.
+                self.check_release(altered, document, fmt, False)
+            for index in range(6):
+                altered = copy.deepcopy(record)
+                row = next(item for item in altered["artifacts"] if item["format"] == ("elf32" if fmt == 1 else "pe32")
+                           and item["name"] == document["artifacts"][index]["name"])
+                row["size"] += 1
+                self.check_release(altered, document, fmt, False)
 
     def test_user_link_alias_profiles_require_exact_plan_count_and_parent(self):
         for long_paths in (False, True):
@@ -222,7 +322,7 @@ class ManifestTests(unittest.TestCase):
                         if field.startswith("parent_"):
                             altered["provenance"][field] = original
                     self.check(altered, fmt, False)
-                self.check(value, fmt, expected=expected)
+                self.check(value, fmt)
 
     def test_user_compile_parent_profiles_require_complete_release_tuple(self):
         for long_paths in (False, True):
@@ -579,6 +679,12 @@ class ManifestTests(unittest.TestCase):
                         'int test_pair(const unsigned char *r, size_t rn, '
                         'const unsigned char *l, size_t ln, const unsigned char *w, size_t wn, '
                         'char *e, size_t c) { return cupid_seed_pair_validate(r,rn,l,ln,w,wn,e,c); }\n')
+        with shim.open('a', encoding='utf-8') as stream:
+            stream.write('#if defined(_WIN32)\n__declspec(dllexport)\n#endif\n'
+                         'int test_manifest_release(const unsigned char *r, size_t rn, '
+                         'const unsigned char *m, size_t mn, unsigned int f, '
+                         'cupid_seed_manifest_result_t *o, char *e, size_t c) { '
+                         'return cupid_seed_manifest_validate_release(r,rn,m,mn,f,o,e,c); }\n')
         library = tmp / ("manifest.dll" if os.name == "nt" else "manifest.so")
         command = [_host_compiler(), "-std=c11", "-O2", "-pedantic", "-Wall", "-Wextra", "-Werror",
                    "-shared", "-I", str(DRAFT), "-I", str(ROOT / "toolchain"), "-x", "c", str(shim),
@@ -596,6 +702,10 @@ class ManifestTests(unittest.TestCase):
         cls.api.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_uint, ctypes.POINTER(Result),
                            ctypes.c_void_p, ctypes.c_size_t]
         cls.api.restype = ctypes.c_int
+        cls.release_api = cls.library.test_manifest_release
+        cls.release_api.argtypes = [ctypes.c_void_p, ctypes.c_size_t] * 2 + [ctypes.c_uint,
+            ctypes.POINTER(Result), ctypes.c_void_p, ctypes.c_size_t]
+        cls.release_api.restype = ctypes.c_int
 
     @classmethod
     def unload(cls):
@@ -616,8 +726,15 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(bytes(error)[capacity:], b"!" * 8 + b"\0")
         if accepted:
             decoded = json.loads(data)
-            expected = expected or (6, (3 if decoded["provenance"]["source_input_count"] == 77
-                                       else 2) if fmt == 2 else 0)
+            if expected is None:
+                profile = 0
+                if fmt == 2:
+                    provenance = decoded["provenance"]
+                    digest, count = provenance["native_build_plan_sha256"], provenance["source_input_count"]
+                    compiler = {name for _, names in seed._promoted_windows_imports("cupidc", digest, count) for name in names}
+                    coordinator = {name for _, names in seed._promoted_windows_imports("cupidbuild", digest, count) for name in names}
+                    profile = 2 + int("GetFullPathNameW" in compiler) + 2 * int("GetFinalPathNameByHandleW" in coordinator)
+                expected = (6, profile)
             self.assertEqual((result.artifact_count, result.current_windows_plan), expected)
             roles = ("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj", "cupidbuild")
             summary = ["1", str(expected[0]), str(expected[1])]
@@ -843,4 +960,13 @@ if __name__ == "__main__":
         destination.with_suffix(".txt").write_text(
             "".join("1\n" if row[3] else "0\n" for row in ManifestTests.pair_records), encoding="ascii")
         print(f"Exported {len(ManifestTests.pair_records)} long-profile pair cases")
+    if outcome.wasSuccessful() and os.environ.get("CUPID_MANIFEST_RELEASE_EXPORT"):
+        destination = Path(os.environ["CUPID_MANIFEST_RELEASE_EXPORT"])
+        with destination.with_suffix(".bin").open("xb") as stream:
+            for record, manifest_bytes, fmt, _ in ManifestTests.release_records:
+                stream.write(struct.pack("<III", len(record), len(manifest_bytes), fmt))
+                stream.write(record + manifest_bytes)
+        destination.with_suffix(".txt").write_text(
+            "".join(row[3] for row in ManifestTests.release_records), encoding="ascii")
+        print(f"Exported {len(ManifestTests.release_records)} release-aware manifest cases")
     sys.exit(not outcome.wasSuccessful())

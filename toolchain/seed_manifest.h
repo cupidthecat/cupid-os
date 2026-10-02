@@ -24,6 +24,19 @@ int cupid_seed_manifest_validate(const unsigned char *bytes, size_t size,
     unsigned int format, cupid_seed_manifest_result_t *result,
     char *error, size_t error_capacity);
 
+/* Validate a complete promoted manifest against an explicit release record.
+ * The release supplies the exact parent tuple, including new generations that
+ * are absent from the historical validator above. Every source, plan and
+ * artifact claim must match that record; supported semantic plans and target
+ * contracts are still checked. The caller authorizes and retains both inputs.
+ * This neither authenticates the record nor verifies image/file observations.
+ * Failure clears result. Storage and diagnostics follow validate's contract. */
+int cupid_seed_manifest_validate_release(
+    const unsigned char *release_bytes, size_t release_size,
+    const unsigned char *manifest_bytes, size_t manifest_size,
+    unsigned int format, cupid_seed_manifest_result_t *result,
+    char *error, size_t error_capacity);
+
 /* Require both promoted manifests to satisfy their complete supported semantic
  * contracts and the supplied release record. Hash the actual Linux manifest
  * bytes and bind the Windows plan reference to them. Inputs must remain

@@ -76,6 +76,7 @@ from tools.bootstrap_toolchain import (
     _windows_build_plan,
     _windows_imports,
     _windows_utf8_imports,
+    _promoted_windows_imports,
     _validate_static_i386_pe32,
     bootstrap_from_seed,
     bootstrap_windows_from_seed,
@@ -121,6 +122,15 @@ def _fixture_windows_imports(names):
     }
 
 
+def _promoted_windows_profile_flags(plan_sha256, source_input_count):
+    coordinator = dict(_promoted_windows_imports("cupidbuild", plan_sha256, source_input_count))
+    compiler = dict(_promoted_windows_imports("cupidc", plan_sha256, source_input_count))
+    return {
+        "long_paths": "GetFullPathNameW" in compiler["KERNEL32.dll"],
+        "user_link_aliases": "GetFinalPathNameByHandleW" in coordinator["KERNEL32.dll"],
+    }
+
+
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     def _assert_file_artifact_identity(self, reported, path):
         payload = path.read_bytes()
@@ -128,6 +138,32 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             reported,
             {"sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)},
         )
+
+    def test_promoted_profile_selection_preserves_same_count_distinct_members(self):
+        plan = _candidate_build_plan(json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))["build_plan"])
+        profiles = (
+            ("5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc", 77, True, False),
+            ("79241fcdd8784952cf9e1e74907ac817dc83e24429c5625d3424a889c2753d70", 77, False, True),
+            ("2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff", 78, True, True),
+        )
+        for digest, count, long_paths, aliases in profiles:
+            with self.subTest(plan=digest, count=count):
+                flags = _promoted_windows_profile_flags(digest, count)
+                self.assertEqual(flags, {"long_paths": long_paths, "user_link_aliases": aliases})
+                snapshot = capture_source_snapshot(REPO_ROOT, plan, windows_utf8=True,
+                    windows_long_paths=flags["long_paths"], windows_user_link_aliases=flags["user_link_aliases"])
+                self.assertEqual(len(snapshot), count)
+                self.assertEqual("toolchain/hosted/i386-windows/utf8_long_path_start.asm" in snapshot, long_paths)
+                self.assertEqual("toolchain/hosted/i386-windows/final_path_start.asm" in snapshot, aliases)
+
+    def test_promoted_profile_selection_rejects_unmatched_plan_count_pairs(self):
+        aliases = "79241fcdd8784952cf9e1e74907ac817dc83e24429c5625d3424a889c2753d70"
+        long_aliases = "2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff"
+        for digest, count in ((aliases, 78), (long_aliases, 77), (aliases, True),
+                              (long_aliases, 78.0), ("0" * 64, 77)):
+            with self.subTest(plan=digest, count=count):
+                with self.assertRaises(BootstrapError):
+                    _promoted_windows_profile_flags(digest, count)
 
     def test_artifact_report_identity_checks_bytes_size_and_exact_fields(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -846,7 +882,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             profiles,
             {
                 name + ".exe": _windows_utf8_imports(
-                    name, long_paths=PROMOTED_SOURCE_INPUT_COUNT == 77
+                    name, **_promoted_windows_profile_flags(
+                        PROMOTED_WINDOWS_PLAN_SHA256, PROMOTED_SOURCE_INPUT_COUNT
+                    )
                 )
                 for name in CANDIDATE_TOOL_NAMES
             },
@@ -1237,7 +1275,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
 
         promoted_profiles = {
             name: _windows_utf8_imports(
-                name, long_paths=PROMOTED_SOURCE_INPUT_COUNT == 77
+                name, **_promoted_windows_profile_flags(
+                    PROMOTED_WINDOWS_PLAN_SHA256, PROMOTED_SOURCE_INPUT_COUNT
+                )
             )
             for name in CANDIDATE_TOOL_NAMES
         }
@@ -1253,7 +1293,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 )
                 for name in ("cupidc", "cupiddis", "cupidobj")
             )
-            if PROMOTED_SOURCE_INPUT_COUNT == 77
+            if _promoted_windows_profile_flags(
+                PROMOTED_WINDOWS_PLAN_SHA256, PROMOTED_SOURCE_INPUT_COUNT
+            )["long_paths"]
             else ()
         )
         cases = (
@@ -6130,11 +6172,18 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         provenance = manifest["provenance"]
         revision = provenance["source_revision"]
         plan = manifest["build_plan"]
+        windows_provenance = json.loads(
+            WINDOWS_SEED_MANIFEST.read_text(encoding="utf-8")
+        )["provenance"]
+        flags = _promoted_windows_profile_flags(
+            windows_provenance["native_build_plan_sha256"], provenance["source_input_count"]
+        )
         live_inventory = capture_source_snapshot(
             REPO_ROOT,
             plan,
             windows_utf8=True,
-            windows_long_paths=provenance["source_input_count"] == 77,
+            windows_long_paths=flags["long_paths"],
+            windows_user_link_aliases=flags["user_link_aliases"],
         )
         committed_inventory = self._committed_source_inventory(
             revision, live_inventory
@@ -6547,11 +6596,18 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         plan = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))[
             "build_plan"
         ]
+        windows_provenance = json.loads(
+            WINDOWS_SEED_MANIFEST.read_text(encoding="utf-8")
+        )["provenance"]
+        flags = _promoted_windows_profile_flags(
+            windows_provenance["native_build_plan_sha256"], provenance["source_input_count"]
+        )
         live_inventory = capture_source_snapshot(
             REPO_ROOT,
             plan,
             windows_utf8=True,
-            windows_long_paths=provenance["source_input_count"] == 77,
+            windows_long_paths=flags["long_paths"],
+            windows_user_link_aliases=flags["user_link_aliases"],
         )
         committed_inventory = self._committed_source_inventory(
             revision, live_inventory

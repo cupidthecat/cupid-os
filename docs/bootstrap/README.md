@@ -1,5 +1,88 @@
 # Cupid Toolchain bootstrap
 
+## Explicit seed-release context, 2026-10-02
+
+CupidBuild accepts a caller-selected release record through separate C API
+arguments and `--seed-release` on every seeded command. Original APIs retain
+their layouts and historical parent rules. Explicit validation compares source,
+actual parents, complete plans and tool identities before the existing target
+and structural checks. The transaction captures the selected release and checks
+it again after execution. The caller must review the record's authority.
+
+The private coordinator separates unqualified preparation, exclusive paired
+release authoring and complete behavior qualification. Fresh qualification
+rebuilds every object and tool and matches them to the preparations. Both actual
+hosts pass for both profiles. Independent verification binds 228 artifacts and
+76 final-stage pairs for default, or 231 artifacts and 77 pairs for long. Each
+profile retains 7,300 behavior files. Linux passes 62 success, 55 failure and
+seven help cases; Windows passes 49 success, 43 failure and seven help cases.
+
+The default producer closure has 77 inputs; long has 78. Windows builds 32 C
+objects, four assembly objects and six tools per default stage. Long adds one
+assembly object. Linux builds 27 C objects, one startup object and six tools
+for either profile. The native regression suites select 580 methods per host;
+independent verification accepts 1,129 executions and 31 exact platform skips.
+
+Paired normal Cupid-only OS builds pass with 429 relocatable objects, two linked
+kernels and 16 checked artifacts. Both produce the same 200 MiB image containing
+the original captured manual. Regenerated canonical audits and eight conditional
+checks pass independently on the integration checkpoint. The fresh Windows
+native ABI report matches the full accepted report, and normal builds of `cat`,
+`hello` and `ls` reproduce the accepted executable bytes.
+
+The first complete ordinary Linux publication attempts fail with an I/O error
+while copying `cupidbuild.elf`. The long collector also fails to save its final
+state; its incomplete record remains preserved. Four later copy-boundary probes
+pass, which does not identify the cause. Fresh default and long retries pass
+with the unchanged ordinary commands and installed parents. Independent checks
+reread all 90 controls, 23 retained files and 22 static images for each profile.
+The six published tools match the independently qualified stage-four tools.
+Closed producer logs report agreement for 67 author/oracle pairs; discarded
+temporary objects are outside the independent retained-file check.
+
+Normal final-manual kernel preparations pass on both hosts. Independent checks
+reread all 1,564 source inputs and 431 production inputs per host and match all
+three kernel outputs. The same 68,681-byte manual is embedded in each raw kernel.
+The measured raw kernel is 9,581,716 bytes, pass-one ELF is 9,679,292 bytes and
+final ELF is 9,810,364 bytes. Each host rejects three isolated stale size limits,
+then accepts the complete 16-artifact candidate and applied policy. Only those
+three kernel policy rows change.
+
+Both final normal Make builds finish successfully. Their original collectors
+fail on kernel-file metadata retained before legitimate regeneration; those
+failed receipts remain unchanged. A separate verifier requires that exact
+failure and a closed successful Make command, then checks all 1,564 source
+inputs per host, 431 production inputs, 16 artifacts, the selected manual and
+complete disk layouts. Both 200 MiB images have SHA-256
+`f7fbd52ee59cb1b92914a55e745d22baface5dc723ab28d5974edffff88f8b91`.
+Both canonical audits and all four conditional checks per host pass again.
+
+Fresh normal users pass on both hosts. Independent verification checks the
+complete canonical ABI, three objects and three executables per host. Objects
+match across hosts; `cat`, `hello` and `ls` retain accepted executable bytes.
+The ABI still has 103 fields, 101 providers and a 412-byte table. Linux consumes
+all 23 files of the verified long publication without rebuilding it, with all
+90 controls matching current source. Native Windows also accepts both ordinary
+publications through the unchanged supported manifest-contract CLI.
+
+All eight serial private-image four-CPU max/e1000 boots pass: kernel disassembly
+and shell commands, then separate hello, ls and cat runs on each host.
+Independent verification applies the complete SMP/crypto/network contract and
+Makefile dynamic PID and payload hashes to retained serial logs. It checks exact
+staged FAT16 users and the 62-byte fixture plus boot/kernel placement. Source,
+users and base or staged images stay unchanged. The first Windows setup runs
+out of space before staging or boot; its failure remains recorded. A fresh run
+checks available space and forces completed-image compression before boot-time
+observations, with image bytes unchanged.
+
+The staged proofs bind frozen working-source captures. The final documentation
+checkpoint is separately captured and remains mutable. Their revision field
+names the c05 base, not a commit containing the changes. Fresh committed producer
+proofs remain required before seed installation or ownership changes. Checked deterministic release drift remains pending for the hosted
+runtime limitations recorded in the [release-context guide](NEXT-SEED-RELEASE-CONTEXT.md).
+Installed seeds remain `78e71bd6`; ownership remains 444 CupidBuild/eight Python
+actions, including three Python user links. ADR 0411 records the decision.
+
 ## Alias-aware user-link command source, 2026-10-01
 
 Source head exposes `cupidbuild link-user` for the approved `cat`, `hello` and

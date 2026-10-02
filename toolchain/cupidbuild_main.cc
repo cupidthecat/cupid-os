@@ -39,11 +39,13 @@ static void cupidbuild_usage(FILE *stream) {
       "--seed-manifest MANIFEST --root ROOT --source OBJECT --output OUTPUT\n"
       "       cupidbuild generate-profile-manifest "
       "--seed-manifest MANIFEST --root ROOT --output OUTPUT\n"
+      "Seeded commands accept [--seed-release RELEASE].\n"
       "       cupidbuild verify-artifact-sizes --root ROOT --policy POLICY "
       "--seed-manifest LINUX_MANIFEST "
       "[--checked-manifest WINDOWS_MANIFEST --execution-manifest MANIFEST]\n"
       "usage: cupidbuild run --seed-manifest MANIFEST "
-      "--root ROOT --tool {cupidc|cupidobj|cupidld} [--timeout SECONDS] -- "
+      "--root ROOT --tool {cupidc|cupidobj|cupidld} [--timeout SECONDS] "
+      "[--seed-release RELEASE] -- "
       "TOOL_ARGS...\n");
 }
 
@@ -51,7 +53,7 @@ static void cupidbuild_run_usage(FILE *stream) {
   (void)fprintf(stream,
                 "usage: cupidbuild run --seed-manifest MANIFEST "
                 "--root ROOT --tool {cupidc|cupidobj|cupidld} "
-                "[--timeout SECONDS] -- TOOL_ARGS...\n");
+                "[--timeout SECONDS] [--seed-release RELEASE] -- TOOL_ARGS...\n");
 }
 
 static int cupidbuild_take_value(int argc, char **argv, int *index,
@@ -143,6 +145,7 @@ int main(int argc, char **argv) {
   cupidbuild_kernel_request_t kernel_request;
   cupidbuild_profile_request_t profile_request;
   cupidbuild_run_request_t run_request;
+  const char *seed_release = (const char *)0;
   int operation = 0;
   int index;
   if (argc == 2 &&
@@ -219,6 +222,10 @@ int main(int argc, char **argv) {
         taken = cupidbuild_take_value(argc, argv, &index, "--output",
                                       output);
       }
+      if (taken == 0) {
+        taken = cupidbuild_take_value(argc, argv, &index, "--seed-release",
+                                      &seed_release);
+      }
       if (taken <= 0) {
         cupidbuild_usage(stderr);
         return 2;
@@ -227,7 +234,8 @@ int main(int argc, char **argv) {
     if (*seed_manifest == (const char *)0 ||
         *repository_root == (const char *)0 ||
         (input != (const char **)0 && *input == (const char *)0) ||
-        *output == (const char *)0) {
+        *output == (const char *)0 ||
+        (seed_release != (const char *)0 && seed_release[0] == '\0')) {
       cupidbuild_usage(stderr);
       return 2;
     }
@@ -238,42 +246,42 @@ int main(int argc, char **argv) {
         cupidbuild_usage(stderr);
         return 2;
       }
-      return cupidbuild_link_user(&request);
+      return cupidbuild_link_user_with_release(&request, seed_release);
     }
     if (operation == 1) {
-      return cupidbuild_assemble_object(&request);
+      return cupidbuild_assemble_object_with_release(&request, seed_release);
     }
     if (operation == 2) {
-      return cupidbuild_assemble_bootloader(&request);
+      return cupidbuild_assemble_bootloader_with_release(&request, seed_release);
     }
     if (operation == 3) {
-      return cupidbuild_assemble_smp_trampoline(&request);
+      return cupidbuild_assemble_smp_trampoline_with_release(&request, seed_release);
     }
     if (operation == 4) {
-      return cupidbuild_embed_jpeg(&request);
+      return cupidbuild_embed_jpeg_with_release(&request, seed_release);
     }
     if (operation == 5) {
-      return cupidbuild_generate_ksyms(&request);
+      return cupidbuild_generate_ksyms_with_release(&request, seed_release);
     }
     if (operation == 6) {
-      return cupidbuild_flatten_kernel(&kernel_request);
+      return cupidbuild_flatten_kernel_with_release(&kernel_request, seed_release);
     }
     if (operation == 8) {
-      return cupidbuild_assemble_iso_pattern(&request);
+      return cupidbuild_assemble_iso_pattern_with_release(&request, seed_release);
     }
     if (operation == 9) {
-      return cupidbuild_compile_kernel(&request);
+      return cupidbuild_compile_kernel_with_release(&request, seed_release);
     }
     if (operation == 10) {
-      return cupidbuild_compile_doom(&request);
+      return cupidbuild_compile_doom_with_release(&request, seed_release);
     }
     if (operation == 11) {
-      return cupidbuild_compile_production(&request);
+      return cupidbuild_compile_production_with_release(&request, seed_release);
     }
     if (operation == 12) {
-      return cupidbuild_compile_user(&request);
+      return cupidbuild_compile_user_with_release(&request, seed_release);
     }
-    return cupidbuild_generate_profile_manifest(&profile_request);
+    return cupidbuild_generate_profile_manifest_with_release(&profile_request, seed_release);
   }
   if (argc >= 2 && strcmp(argv[1], "run") == 0) {
     int separator = 0;
@@ -292,7 +300,9 @@ int main(int argc, char **argv) {
           (strcmp(argv[index], "--tool") == 0 &&
            run_request.tool != (const char *)0) ||
           (strcmp(argv[index], "--timeout") == 0 &&
-           timeout != (const char *)0)) {
+           timeout != (const char *)0) ||
+          (strcmp(argv[index], "--seed-release") == 0 &&
+           seed_release != (const char *)0)) {
         cupidbuild_run_usage(stderr);
         return 2;
       }
@@ -310,6 +320,10 @@ int main(int argc, char **argv) {
         taken = cupidbuild_take_value(argc, argv, &index, "--timeout",
                                       &timeout);
       }
+      if (taken == 0) {
+        taken = cupidbuild_take_value(argc, argv, &index, "--seed-release",
+                                      &seed_release);
+      }
       if (taken <= 0) {
         cupidbuild_run_usage(stderr);
         return 2;
@@ -321,10 +335,14 @@ int main(int argc, char **argv) {
         (strcmp(run_request.tool, "cupidc") != 0 &&
          strcmp(run_request.tool, "cupidobj") != 0 &&
          strcmp(run_request.tool, "cupidld") != 0) ||
+        (seed_release != (const char *)0 && seed_release[0] == '\0') ||
         (timeout != (const char *)0 &&
          !cupidbuild_parse_timeout(timeout, &run_request.timeout_seconds))) {
       cupidbuild_run_usage(stderr);
       return 2;
+    }
+    if (seed_release != (const char *)0) {
+      return cupidbuild_run_checked_tool_with_release(&run_request, seed_release);
     }
     return cupidbuild_run_checked_tool(&run_request);
   }

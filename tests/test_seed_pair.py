@@ -25,7 +25,75 @@ def bind(linux, windows=None):
     return linux, encode(windows)
 
 
+def released_alias_pair(long_paths=False):
+    linux = manifest_tests.user_link_alias_manifest(1, long_paths=long_paths)
+    windows = manifest_tests.user_link_alias_manifest(2, long_paths=long_paths)
+    record = release()
+    record.update(
+        source_input_count=linux["provenance"]["source_input_count"],
+        source_revision=linux["provenance"]["source_revision"],
+        source_snapshot_sha256=linux["provenance"]["source_snapshot_sha256"],
+        linux_plan_sha256=linux["build_plan_sha256"],
+        windows_plan_sha256=windows["provenance"]["native_build_plan_sha256"],
+        parent_source_revision="1234567890abcdef1234567890abcdef12345678",
+        parent_linux_manifest_sha256="0123456789abcdef" * 4,
+        parent_windows_manifest_sha256="fedcba9876543210" * 4,
+    )
+    linux["provenance"].update(
+        parent_seed_source_revision=record["parent_source_revision"],
+        parent_seed_manifest_sha256=record["parent_linux_manifest_sha256"])
+    windows["provenance"].update(
+        parent_execution_seed_source_revision=record["parent_source_revision"],
+        parent_execution_seed_manifest_sha256=record["parent_windows_manifest_sha256"],
+        parent_plan_seed_source_revision=record["parent_source_revision"],
+        parent_plan_seed_manifest_sha256=record["parent_linux_manifest_sha256"])
+    return record, linux, windows
+
+
 class PairTests(unittest.TestCase):
+    def test_reviewed_release_supplies_a_new_complete_parent_tuple(self):
+        for long_paths in (False, True):
+            record, linux, windows = released_alias_pair(long_paths)
+            self.check(record, *bind(linux, windows))
+            self.check(release(), *bind(linux, windows), False)
+            for key in ("parent_source_revision", "parent_linux_manifest_sha256",
+                        "parent_windows_manifest_sha256"):
+                altered = copy.deepcopy(record)
+                altered[key] = "a" * len(altered[key])
+                self.check(altered, *bind(linux, windows), False)
+            for fmt, document in ((1, linux), (2, windows)):
+                for key, value in document["provenance"].items():
+                    if not key.startswith("parent_"):
+                        continue
+                    altered = copy.deepcopy(document)
+                    altered["provenance"][key] = "b" * len(value)
+                    self.check(record, *bind(altered if fmt == 1 else linux,
+                                            altered if fmt == 2 else windows), False)
+
+    def test_new_release_parent_does_not_authorize_a_changed_plan_or_target(self):
+        for long_paths in (False, True):
+            record, linux, windows = released_alias_pair(long_paths)
+            for fmt in (1, 2):
+                for section in ("target", "provenance") + (("build_plan",) if fmt == 1 else ()):
+                    altered = copy.deepcopy(linux if fmt == 1 else windows)
+                    if section == "provenance":
+                        altered[section]["producer_lineage"]["c"] = "wrong producer"
+                    else:
+                        altered[section] = {}
+                    self.check(record, *bind(altered if fmt == 1 else linux,
+                                            altered if fmt == 2 else windows), False)
+            for count in (75, 79, True, 77.0):
+                altered_record = copy.deepcopy(record)
+                altered_linux = copy.deepcopy(linux)
+                altered_windows = copy.deepcopy(windows)
+                altered_record["source_input_count"] = count
+                altered_linux["provenance"]["source_input_count"] = count
+                altered_windows["provenance"]["source_input_count"] = count
+                self.check(altered_record, *bind(altered_linux, altered_windows), False)
+            left, right = bind(linux, windows)
+            self.check(record, left + b" ", right, False)
+            self.check(record, *bind(left + b" ", windows))
+
     def test_utf8_promotion_pair_binds_conditional_assembly_parent(self):
         linux = manifest_tests.candidate_manifest(1)
         windows = manifest_tests.candidate_manifest(2)
@@ -75,6 +143,11 @@ class PairTests(unittest.TestCase):
         record["windows_plan_sha256"] = windows["provenance"]["native_build_plan_sha256"]
         for item in (record, linux["provenance"], windows["provenance"]):
             item["source_revision"] = "f" * 40
+        record.update(
+            source_snapshot_sha256=linux["provenance"]["source_snapshot_sha256"],
+            parent_source_revision=linux["provenance"]["parent_seed_source_revision"],
+            parent_linux_manifest_sha256=linux["provenance"]["parent_seed_manifest_sha256"],
+            parent_windows_manifest_sha256=windows["provenance"]["parent_execution_seed_manifest_sha256"])
         linux_bytes, windows_bytes = bind(linux, windows)
         self.check(record, linux_bytes, windows_bytes)
         self.check(release(), linux_bytes, windows_bytes, False)
@@ -178,6 +251,11 @@ class PairTests(unittest.TestCase):
         for item in (record, l["provenance"], w["provenance"]):
             item["source_revision"] = "a" * 40
             item["source_input_count"] = 61
+        record.update(
+            source_snapshot_sha256=l["provenance"]["source_snapshot_sha256"],
+            parent_source_revision=l["provenance"]["parent_seed_source_revision"],
+            parent_linux_manifest_sha256=l["provenance"]["parent_seed_manifest_sha256"],
+            parent_windows_manifest_sha256=w["provenance"]["parent_execution_seed_manifest_sha256"])
         self.check(record, *bind(l, w))
         self.check(release(), *bind(l, w), False)
         self.check(record, *bind(l, manifest(2)), False)

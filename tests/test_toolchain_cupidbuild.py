@@ -2369,6 +2369,7 @@ class CupidBuildCliTests(unittest.TestCase):
             r"cupidbuild run --seed-manifest MANIFEST\s+"
             r"--root ROOT --tool \{cupidc\|cupidobj\|cupidld\} "
             r"\[--timeout SECONDS\]\s+"
+            r"\[--seed-release RELEASE\]\s+"
             r"-- TOOL_ARGS\.\.\.",
         )
 

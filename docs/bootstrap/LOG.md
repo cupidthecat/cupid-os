@@ -41868,3 +41868,174 @@ delivery failure remains unconfirmed. Full Windows v2 acceptance uses the
 existing 0.60-second spacing with the original 180-second deadline and every
 command, SMP, output and image assertion. The original failed acceptance and
 its stopped qualification wrapper remain separate from the passing recovery.
+
+## 2026-10-01: explicit release authority and paired staged behavior
+
+The shared seed reader now accepts an explicitly reviewed external release
+through a separate byte API. CupidBuild carries that authority as a separate
+argument across every seeded typed operation and CLI. Historical entry points
+and request layouts stay intact. The release is captured with the complete
+input closure and rechecked after tool execution. ADR 0411 records the parent
+hash cycle, authority boundary, bounded capture and input-table reservation fix.
+
+Actual Windows and Linux default preparations, paired authoring and fresh
+`tools.bootstrap_stage_release qualify-*` runs pass with host C/ASM tools
+forbidden. The private capture has 1,564 files and a 77-input producer closure.
+Independent qualification verifies all 228 artifacts, 76 stage-three/four pairs
+and 7,300 behavior files. Linux has 62 success/55 failure/seven help cases;
+Windows has 49/43/seven. Long preparation and authoring also pass independent
+checks for the 78-input closure, 231 artifacts and 77 pairs. Full long behavior
+qualification is running.
+
+The actual 580-method native selections pass on both hosts: 566 execute on
+Windows with fourteen skips; 563 execute on Linux with seventeen skips.
+Independent verification accepts all 1,129 executions and exact skip maps.
+Both original collectors reject a helper's auxiliary receipt after the
+successful unittest summary. Their failed states and logs remain intact.
+Parser checks reject failed suites, reduced counts, changed method identities
+and unexpected skips even when a success receipt follows them.
+
+`make check-bootstrap-audit` rejects stale active-build JSON and its summary
+on both hosts. Regeneration is isolated from the frozen proof source. Review
+first found that audit commands lacked a current Git inventory binding; the
+fixed driver checks detached c05, the owned worktree directories, all 1,564
+tracked paths and retained index bytes. Both hosts accept the real inventory
+and reject five altered Git responses before audit execution.
+
+Normal `make -j4 all` builds are running on both actual hosts with host C/ASM
+tools forbidden. Complete publications, final documented-source OS builds,
+manual replay and runtime smokes remain pending. Checked deterministic drift
+still needs the Windows hosted and raw Linux launch hooks. Installed seeds and
+444/eight production ownership remain unchanged. Private release revision c05
+is a working-source base; it is not committed-source or seed-promotion evidence.
+
+## 2026-10-02: closed long qualification, OS builds and Windows user ABI
+
+Fresh full long-profile qualification passes on both actual hosts. Independent
+verification checks all 1,564 source files and copies, the 78-input producer
+closure, 231 prepared and rebuilt artifacts, 77 fixed-point pairs and 7,300
+behavior files. Windows passes 49 success/43 failure/seven help cases; Linux
+passes 62/55/seven. Windows retains 32 C objects, five assembly objects and six
+tools per long stage. The first proposed verifier used 33 C/four assembly;
+review corrected it before execution and added exact plan-derived negative
+checks. Default qualification remains independently accepted.
+
+Both normal Cupid-only OS builds close successfully. Their 429 relocatable
+objects, two linked kernels, 16 policy artifacts and 200 MiB images pass paired
+independent verification. Both images contain the original captured manual and
+match the earlier baseline. Failed verifier receipts for the first-pass ELF
+kind and Windows terminal path rendering remain preserved; corrected checks
+pass separately. The regenerated integration audits also pass independently,
+including all eight conditional contract checks and the owned Git inventory.
+
+A fresh normal Windows user Make build passes the closed native ABI contract,
+compiles three objects through CupidBuild and links three programs through
+CupidLD. The full report retains 103 fields, 101 providers, a 412-byte table
+and all baseline types and offsets. `cat`, `hello` and `ls` are byte-identical
+to the accepted baseline. The independent verifier checks all six ELF outputs,
+commands, closed logs, original sources and unchanged OS outputs and image.
+The reader compares Windows pathname and descriptor creation times within
+their own families; the reviewed cross-family comparison was never executed.
+
+Both first complete ordinary Linux publication attempts fail with I/O copying
+`cupidbuild.elf`. The long collector also fails its final save; its raw running
+state is retained alongside the actual closed failure observation. Four later
+exact-tool copy-boundary replays pass. Their success does not identify the cause
+or qualify a publication. Fresh default and long retries are running with new
+roots, the unchanged ordinary CLI, original APIs and real installed parents.
+
+The new final documentation checkout preserves both prior frozen captures.
+Final documented-source builds, embedded-manual runtime checks and committed
+producer proof remain required. Checked deterministic release drift still
+needs the hosted Windows and raw Linux launch support described in ADR 0411.
+Installed seeds remain 78e71bd6; ownership remains 444 CupidBuild/eight Python
+actions, including three Python user links. TempleOS remains reference material.
+
+
+### 2026-10-02: Settle ordinary publication and final-manual policy
+
+Both fresh ordinary native Linux publications pass with installed parents and
+unchanged CLI behavior. Independent verification rereads all 90 controls,
+23 retained files and 22 static images per profile. Six published tools match
+the corresponding independently qualified stage-four cohort. Closed producer
+logs report all 67 author/oracle pairs; discarded temporary objects are outside
+the independent retained-file check. The earlier I/O failures remain intact,
+and later successful copies do not establish their cause.
+
+Both normal final-manual kernel preparations pass. Independent verification
+rereads all 1,564 source inputs and 431 production inputs per host, matches all
+three kernels and checks the same 68,681-byte embedded manual. Raw, pass-one
+and final measurements are 9,581,716, 9,679,292 and 9,810,364 bytes. Each host
+rejects three isolated stale limits and accepts the complete 16-artifact
+candidate before applying exactly those three policy rows. Applied policies
+also pass. The first Windows harness failed its root assertion before any
+command or mutation because the independent verifier recorded a WSL path.
+The reviewed conversion fixes that native harness boundary; the failure and
+replacement retain separate receipts.
+
+Full final images, native Windows publication consumption, current ABI/users,
+eight private runtime smokes and committed producer proofs remain pending.
+The embedded manual and producer source bytes stay unchanged during this prose
+update. Installed seeds remain the 78e71bd6 pair, and ownership remains
+444 CupidBuild actions and eight Python actions, including three user links.
+
+
+### 2026-10-02: Accept final images, ABI and eight runtime boots
+
+Both final normal Make builds finish successfully. Their original collectors
+fail on kernel-file metadata retained before legitimate regeneration; those
+failed receipts remain unchanged. A separate verifier requires that exact
+failure and a closed successful Make command, then checks all 1,564 source
+inputs per host, 431 production inputs, 16 artifacts, the selected manual and
+complete disk layouts. Both 200 MiB images have SHA-256
+`f7fbd52ee59cb1b92914a55e745d22baface5dc723ab28d5974edffff88f8b91`.
+Both canonical audits and all four conditional checks per host pass again.
+
+Fresh normal users pass on both hosts. Independent verification checks the
+complete canonical ABI, three objects and three executables per host. Objects
+match across hosts; `cat`, `hello` and `ls` retain accepted executable bytes.
+The ABI still has 103 fields, 101 providers and a 412-byte table. Linux consumes
+all 23 files of the verified long publication without rebuilding it, with all
+90 controls matching current source. Native Windows also accepts both ordinary
+publications through the unchanged supported manifest-contract CLI.
+
+All eight serial private-image four-CPU max/e1000 boots pass: kernel disassembly
+and shell commands, then separate hello, ls and cat runs on each host.
+Independent verification applies the complete SMP/crypto/network contract and
+Makefile dynamic PID and payload hashes to retained serial logs. It checks exact
+staged FAT16 users and the 62-byte fixture plus boot/kernel placement. Source,
+users and base or staged images stay unchanged. The first Windows setup runs
+out of space before staging or boot; its failure remains recorded. A fresh run
+checks available space and forces completed-image compression before boot-time
+observations, with image bytes unchanged.
+
+Review catches an unavailable `manual_embedded` field in the first independent
+image checker draft. The corrected check reads actual manual, kernel and disk
+bytes. Preflight accepts both exact failed receipts and rejects 28 invalid
+mutations. The original failed OS collectors remain unchanged.
+
+Force-compressing the completed verified Windows base image preserves its
+exact bytes. Only the failed run's incomplete owned image is removed after
+recording its hash and checking that it is the exact base-image prefix. The
+first cleanup preflight also stops before removal because an empty PowerShell
+collection reports a null scalar count. Explicit collection counting fixes
+that check. The original setup receipt, driver and log remain unchanged.
+
+Both staged images have SHA-256
+`c28f0e29953560b9ba20d69eae8046531d79aa93ef3d5edc26f4e7eac2ce73fa`.
+Independent checks match all three user files and the 62-byte fixture through
+both FAT copies and reject shared or cyclic cluster chains. The serial contract
+checks dynamic PID and payload hashes, including rejection of forged PID 999
+exit output. Eight actual SMP logs pass preflight; 24 invalid mutations reject.
+
+The separate image, user and runtime proofs are retained as
+`paired-user-link-stage-release-final-os-independent-verification-v6.json`,
+`paired-user-link-stage-release-final-users-independent-verification-v6.json`
+and `paired-user-link-stage-release-final-runtime-independent-verification-v7.json`
+under `build/bootstrap/native-profile-validation-258bb5f3/`.
+These proofs bind the settled working-source checkpoint. This update changes
+only four prose files; the 68,681-byte embedded manual, producer closures and
+calibrated policy stay unchanged. Installed seeds remain the `78e71bd6` pair
+and ownership remains 444 CupidBuild/eight Python actions, including three user
+links. Committed producer proofs, seed promotion, checked deterministic drift
+and full Doom gameplay remain separate work.

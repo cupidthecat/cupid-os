@@ -572,7 +572,8 @@ static int cupidbuild_json_lineage(const unsigned char *bytes,
 static int cupidbuild_json_provenance(const unsigned char *bytes,
                                       const cupidbuild_json_token_t *tokens,
                                       size_t count, size_t object,
-                                      int windows, int promoted, int candidate) {
+                                      int windows, int promoted, int candidate,
+                                      const cupid_seed_release_t *release) {
   static const char legacy_revision[] =
       "a17c9465911da41d59b7ada71733d36c39faa5ea";
   static const char legacy_snapshot[] =
@@ -758,7 +759,16 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
             cupidbuild_json_lower_hex_field(
                 bytes, tokens, count, object, "plan_seed_manifest_sha256",
                 64u) &&
-             ((candidate >= 3 && candidate <= 4 &&
+             ((release != (const cupid_seed_release_t *)0 &&
+              cupidbuild_json_string_field(bytes, tokens, count, object,
+                  "parent_execution_seed_manifest_sha256", release->parent_windows_manifest_sha256) &&
+              cupidbuild_json_string_field(bytes, tokens, count, object,
+                  "parent_execution_seed_source_revision", release->parent_source_revision) &&
+              cupidbuild_json_string_field(bytes, tokens, count, object,
+                  "parent_plan_seed_manifest_sha256", release->parent_linux_manifest_sha256) &&
+              cupidbuild_json_string_field(bytes, tokens, count, object,
+                  "parent_plan_seed_source_revision", release->parent_source_revision)) ||
+              (candidate >= 3 && candidate <= 4 &&
               cupidbuild_json_string_field(bytes, tokens, count, object,
                   "parent_execution_seed_manifest_sha256", long_path_parent_windows_manifest) &&
               cupidbuild_json_string_field(bytes, tokens, count, object,
@@ -878,7 +888,12 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
          (cupidbuild_json_string_field(
               bytes, tokens, count, object, "artifact_generation",
               "paired-stage-four-six-tool") &&
-           ((candidate >= 3 && candidate <= 4 &&
+           ((release != (const cupid_seed_release_t *)0 &&
+            cupidbuild_json_string_field(bytes, tokens, count, object,
+                "parent_seed_manifest_sha256", release->parent_linux_manifest_sha256) &&
+            cupidbuild_json_string_field(bytes, tokens, count, object,
+                "parent_seed_source_revision", release->parent_source_revision)) ||
+            (candidate >= 3 && candidate <= 4 &&
             cupidbuild_json_string_field(bytes, tokens, count, object,
                 "parent_seed_manifest_sha256", long_path_parent_linux_manifest) &&
             cupidbuild_json_string_field(bytes, tokens, count, object,
@@ -1236,6 +1251,7 @@ static int cupidbuild_json_manifest(const unsigned char *manifest,
                                          artifacts[CUPIDBUILD_SEED_ARTIFACTS],
                                      size_t *artifact_count_out,
                                      int *current_windows_plan_out,
+                                     const cupid_seed_release_t *release,
                                      const char **reason_out) {
   cupidbuild_json_token_t *tokens;
   size_t count = 0u;
@@ -1321,7 +1337,7 @@ static int cupidbuild_json_manifest(const unsigned char *manifest,
     candidate = 6;
   }
   if (!cupidbuild_json_provenance(manifest, tokens, count, provenance,
-                                  windows, promoted, candidate)) {
+                                  windows, promoted, candidate, release)) {
     *reason_out = "fixed-point provenance differs";
     free(tokens);
     return 0;
@@ -1364,9 +1380,9 @@ static int cupidbuild_json_manifest(const unsigned char *manifest,
 }
 
 
-int cupid_seed_manifest_validate(const unsigned char *bytes, size_t size,
+static int cupid_seed_manifest_validate_context(const unsigned char *bytes, size_t size,
     unsigned int format, cupid_seed_manifest_result_t *result,
-    char *error, size_t error_capacity) {
+    char *error, size_t error_capacity, const cupid_seed_release_t *release) {
   cupidbuild_seed_artifact_t artifacts[6];
   size_t artifact_count = 0u;
   size_t index;
@@ -1381,7 +1397,7 @@ int cupid_seed_manifest_validate(const unsigned char *bytes, size_t size,
   }
   memset(artifacts, 0, sizeof(artifacts));
   if (!cupidbuild_json_manifest(bytes, size, format == 2u, artifacts,
-      &artifact_count, &current_windows_plan, &reason)) {
+      &artifact_count, &current_windows_plan, release, &reason)) {
     return cupid_contract_set_error(&context, reason);
   }
   result->artifact_count = (uint32_t)artifact_count;
@@ -1392,6 +1408,28 @@ int cupid_seed_manifest_validate(const unsigned char *bytes, size_t size,
     result->artifacts[index].size = (uint32_t)artifacts[index].size;
   }
   return 1;
+}
+
+int cupid_seed_manifest_validate(const unsigned char *bytes, size_t size,
+    unsigned int format, cupid_seed_manifest_result_t *result,
+    char *error, size_t error_capacity) {
+  return cupid_seed_manifest_validate_context(bytes, size, format, result,
+      error, error_capacity, (const cupid_seed_release_t *)0);
+}
+
+int cupid_seed_manifest_validate_release(
+    const unsigned char *release_bytes, size_t release_size,
+    const unsigned char *manifest_bytes, size_t manifest_size,
+    unsigned int format, cupid_seed_manifest_result_t *result,
+    char *error, size_t error_capacity) {
+  cupid_seed_release_t release;
+  if (result) memset(result, 0, sizeof(*result));
+  if (!cupid_seed_release_parse(release_bytes, release_size, &release,
+                                 error, error_capacity) ||
+      !cupid_seed_release_match_manifest(release_bytes, release_size,
+          manifest_bytes, manifest_size, format, error, error_capacity)) return 0;
+  return cupid_seed_manifest_validate_context(manifest_bytes, manifest_size,
+      format, result, error, error_capacity, &release);
 }
 
 int cupid_seed_pair_validate(
@@ -1409,16 +1447,10 @@ int cupid_seed_pair_validate(
   size_t index;
   int ok;
   error_context_t context = {error, error_capacity, 0};
-  if (!cupid_seed_manifest_validate(linux_bytes, linux_size, 1u, &result,
-                                     error, error_capacity) ||
-      !cupid_seed_release_match_manifest(release_bytes, release_size,
-                                         linux_bytes, linux_size, 1u,
-                                         error, error_capacity) ||
-      !cupid_seed_manifest_validate(windows_bytes, windows_size, 2u, &result,
-                                     error, error_capacity) ||
-      !cupid_seed_release_match_manifest(release_bytes, release_size,
-                                         windows_bytes, windows_size, 2u,
-                                         error, error_capacity)) return 0;
+  if (!cupid_seed_manifest_validate_release(release_bytes, release_size,
+          linux_bytes, linux_size, 1u, &result, error, error_capacity) ||
+      !cupid_seed_manifest_validate_release(release_bytes, release_size,
+          windows_bytes, windows_size, 2u, &result, error, error_capacity)) return 0;
   tokens = (cupidbuild_json_token_t *)malloc(CUPIDBUILD_JSON_TOKENS * sizeof(*tokens));
   if (!tokens) return cupid_contract_set_error(&context, "JSON token storage is unavailable");
   if (!cupidbuild_json_parse(windows_bytes, windows_size, tokens, &count)) {
