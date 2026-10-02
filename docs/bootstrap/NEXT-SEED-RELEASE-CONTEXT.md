@@ -4,6 +4,110 @@ Installed Linux and Windows seeds remain the `78e71bd6` pair. Normal build
 ownership remains 444 CupidBuild actions and eight Python actions, including
 three user links. TempleOS remains reference material.
 
+## Committed producer and new-parent consumption
+
+Commit `cfd9f140fd295284372beaee48b85c9320f7d144` contains the implementation
+described below. Each native frozen source capture retains 1,564 inputs and
+the original Git index. Its default producer snapshot contains 77 inputs;
+long contains 78. Complete committed-source qualification passes on Windows
+and Linux for both profiles using the installed `78e71bd6` parent pair.
+Independent checks accept 228 rebuilt artifacts and 76 final-stage pairs for
+default, or 231 artifacts and 77 pairs for long. Each profile retains 7,300
+behavior files. These records are under
+`build/bootstrap/native-profile-validation-258bb5f3/`:
+
+| Accepted committed-source result | Evidence |
+| --- | --- |
+| Default, both native hosts | `paired-stage-release-committed-qualifications-default-independent-v28.json` |
+| Long, both native hosts | `paired-stage-release-committed-qualifications-long-independent-v28.json` |
+
+Consuming the proposed seeds is a separate step. Reviewed private projections
+retain exactly 100 controls per host and replace the selected seed inputs with
+the proposed `cfd9f140` pair. The actual parent manifest hashes are
+`59c5c33672ee5839efd5a27cc1b90c090984fcf0be74d3fcb7418f68215aa2f7`
+for Linux and
+`1966c1c82f250bf6b8fcaf881d703750eed9fbbe957251b2cd978c179add30ea`
+for Windows. Both parent revisions name `cfd9f140`.
+
+Both profiles have completed preparations on both native hosts. Independent
+paired checks reread every retained stage, source and plan, the original source
+captures and indexes, and all projection controls. They also check exact
+preparation file and directory membership after the byte rereads. Default
+accepts 76 final-stage pairs; long accepts 77. Linux and long Windows reproduce
+the initial six tools through all three stages. Default Windows uses a distinct
+startup, so its preparation makes no initial-tool equality claim. Its child
+CLI completed successfully; the original outer tool exit was unreported and
+is not inferred.
+
+Separate authors create twelve-artifact release candidates from those paired
+preparations. Both authors finish successfully and pass independent terminal
+review. The release candidates remain unqualified:
+
+| New-parent preparation and candidate | Evidence |
+| --- | --- |
+| Default paired preparation | `paired-self-consumption-preparations-default-v138.json` |
+| Long paired preparation | `paired-self-consumption-preparations-long-v138.json` |
+| Default author and candidate | `self-consumption-author-default-v144.json`, `paired-self-consumption-candidate-default-v144.json` |
+| Long author and candidate | `self-consumption-author-long-v144.json`, `paired-self-consumption-candidate-long-v144.json` |
+
+Fresh behavior qualification must use these actual new parents and candidates.
+The earlier completed proofs cannot substitute for it. The reviewed native
+driver retains both peer preparations directly, including the observed Ubuntu
+UNC path on Windows, and checks every object, tool and behavior file after
+execution. Native preflights pass fifteen positives per host and 63 Windows
+or 65 Linux rejections. A separate reviewed acceptance verifier passes ten
+metadata and inventory positives and 112 rejections. Its fixtures use four
+older completed report summaries and four explicit terminal-metadata fixtures;
+they do not establish a new-parent behavior result. It rejects late files,
+late empty directories, symlinks and FIFOs and finally rereads all twelve
+retained supports, including both executed reader dependencies.
+
+The first fresh Linux default run reaches profile-behavior setup and fails
+with `CupidBuild profile behavior include root is unavailable: drivers`.
+The actual outer and child results are both 1, and the closed log is final.
+`self-consumption-qualify-default-linux-v173.json` and its log preserve that
+failure. No bootstrap report is published. The thin 100-control projection
+contains the producer inputs but omits the OS support tree that profile
+behavior materializes. The preflights had checked source identities, prepared
+artifacts and reader boundaries without exercising that materialization.
+Follow-up must provide the original kernel, driver and Doom source/header
+closure together with the reviewed control overlays, and check that boundary
+before another full run. Creating empty include roots or dropping behavior
+cases would not establish that acceptance. The original preparations, source
+captures and unqualified candidates retain their existing identities.
+
+The private projected Make audit also completes seventeen queries and all ten
+contracts. An earlier projection incorrectly added the release to ordinary
+manifest verification's input closure. The corrected projection preserves its
+original seven members, the manifest and six tools, while release-aware edges
+retain the additional selected release. Useful negatives reject missing,
+duplicate, extra and altered dependencies. This is projected-audit evidence;
+canonical installed audit and normal-build adoption remain separate gates.
+
+The initial metadata-probe review found an executed reader missing from the
+final support reread. Its receipt remains preserved; fresh probe209 retains
+and rereads both dependencies and passes both review axes. A Windows readiness
+writer also failed on a bare Linux path before creating its output. Its fresh
+replacement uses the already observed Ubuntu UNC mapping. Both failures retain
+their original outcomes.
+
+Runs require a successful fresh native check of at least 512 MiB free on both
+the evidence and output volumes, as well as the driver's internal check. The
+current wrapper launches nothing when its external budget check fails. Closed historical image and receipt
+compression has recovered space while preserving bytes, file identity,
+parents, ancestors and current source/index guards. Those metadata operations
+provide neither a new runtime verdict nor qualification of a release.
+
+Complete new-parent qualification and paired independent acceptance for both
+profiles remain due. Then check the proposed installed filesystem audit,
+provenance regressions, normal Make recipes, complete ABI and users, ordinary
+publication, OS image and fresh runtime. Installation and ownership changes
+follow those results. Checked deterministic release drift and full Doom
+gameplay, audio, save/load, reboot and performance acceptance remain open.
+Installed seeds and the 444/eight ownership count still name the current
+production checkpoint. The later sections preserve the earlier working-source
+capture evidence and its remaining work at that time.
+
 ## Why the separate context exists
 
 The proposed alias seed pair failed the original Windows default behavior
@@ -212,7 +316,9 @@ Checked deterministic release drift remains pending. The Windows test-only
 race build needs a hosted replacement for `getenv`; the raw Linux adapter has
 no equivalent launch hook. Native drift checks do not replace those tests.
 
-The private release revision is the c05 working-source base. It does not name
+The earlier private release revision is the c05 working-source base. It does not name
 a commit containing the new implementation. Preserve failed runs and frozen
-captures. Complete the coherent source/tests/docs commit and fresh committed
-producer proofs before installing seeds or changing production ownership.
+captures. That checkpoint required a coherent source/tests/docs commit and
+fresh committed producer proofs before installing seeds or changing production
+ownership. The committed-producer section above records the subsequent proof
+and the separate new-parent consumption still required.

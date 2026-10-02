@@ -1,5 +1,44 @@
 # Cupid Toolchain bootstrap
 
+## Committed producer and new-parent preparation, 2026-10-02
+
+Commit `cfd9f140fd295284372beaee48b85c9320f7d144` contains the release-context
+implementation. Its frozen Windows and Linux captures each retain 1,564 source
+inputs and the Git index. All four complete committed-source qualifications
+pass using the installed `78e71bd6` parents. Independent verification checks
+228 rebuilt artifacts and 7,300 behavior files for default, or 231 artifacts
+and 7,300 behavior files for long.
+
+Separate private projections then supply the proposed `cfd9f140` seeds as the
+actual parents. Both profiles have reviewed preparations on both native hosts.
+The paired checks accept 76 final-stage pairs for default and 77 for long;
+separate authors create twelve-tool release candidates from those exact bytes.
+These new-parent candidates remain unqualified until fresh complete behavior
+runs and independent acceptance finish. The earlier qualifications used other
+parents and cannot establish that result.
+
+The private projected Make audit passes all seventeen queries and ten
+contracts. Its ordinary manifest-verification edge retains the manifest and
+six tools; release-aware edges also capture their selected release. Native
+qualification preflights pass fifteen positives per host and 63 Windows or
+65 Linux rejections. The independent acceptance verifier passes ten metadata
+and inventory positives and 112 rejections. Those probes use explicitly named
+metadata fixtures and older report summaries; they establish verifier readiness.
+
+The first fresh Linux default qualification stops at profile-behavior setup:
+the 100-control projection has no `drivers` include root. Its closed failure
+and final log remain preserved. This reveals a missing source-support check in
+the preflight. A complete behavior root must also retain the original kernel,
+driver and Doom source/header tree. No new-parent behavior result is accepted.
+
+Installed seeds remain `78e71bd6`. Ownership remains 444 CupidBuild actions and
+eight Python actions across 452 transforms, including three Python user links.
+Seed installation and recipe adoption still require the canonical audit and
+normal Make, ABI, users, publication and OS/runtime gates. The
+[release-context guide](NEXT-SEED-RELEASE-CONTEXT.md#committed-producer-and-new-parent-consumption)
+records the separate evidence and remaining work. Earlier sections retain
+their original capture and parent identities.
+
 ## Explicit seed-release context, 2026-10-02
 
 CupidBuild accepts a caller-selected release record through separate C API
