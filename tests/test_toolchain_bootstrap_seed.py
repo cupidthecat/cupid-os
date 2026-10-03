@@ -7088,7 +7088,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
 
     @unittest.skipUnless(os.name == "nt", "native Windows bootstrap")
-    def test_checked_windows_seed_builds_a_native_producer_fixed_point(self):
+    def test_checked_windows_seed_replays_the_installed_long_profile(self):
         with tempfile.TemporaryDirectory(
             prefix=".checked-windows-bootstrap-", dir=REPO_ROOT
         ) as temporary:
@@ -7114,6 +7114,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     sys.executable,
                     str(BOOTSTRAP_TOOL),
                     "bootstrap-windows",
+                    "--windows-long-paths",
                     "--manifest",
                     str(WINDOWS_SEED_MANIFEST),
                     "--plan-manifest",
@@ -7177,7 +7178,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 report["comparisons"],
                 {
                     "all_equal": True,
-                    "assembly_objects": 4,
+                    "assembly_objects": 5,
                     "c_objects": 32,
                     "compared_generations": [
                         "stage-three",
@@ -7215,8 +7216,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "build_plan"
                 ]
             )
+            self.assertEqual(_build_plan_sha256(candidate_linux_plan), PROMOTED_LINUX_PLAN_SHA256)
+            self.assertEqual(report["build_plan_sha256"], PROMOTED_WINDOWS_PLAN_SHA256)
+            self.assertEqual(report["candidate_build_plan_sha256"], PROMOTED_WINDOWS_PLAN_SHA256)
+            self.assertEqual(report["initial_seed_matches_stage_two"], {name: True for name in CANDIDATE_TOOL_NAMES})
             candidate_inventory = capture_source_snapshot(
-                REPO_ROOT, candidate_linux_plan, windows_utf8=True, windows_user_link_aliases=True
+                REPO_ROOT, candidate_linux_plan, windows_utf8=True, windows_long_paths=True, windows_user_link_aliases=True
             )
             candidate_snapshot = hashlib.sha256(
                 json.dumps(
@@ -7232,7 +7237,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["source_inputs"]["count"],
-                77,
+                78,
             )
             self.assertEqual(
                 report["source_inputs"]["sha256"],
@@ -7252,7 +7257,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "stage-four",
             ):
                 stage = report["stages"][stage_name]
-                self.assertEqual(len(stage["objects"]), 36)
+                self.assertEqual(len(stage["objects"]), 37)
                 self.assertEqual(
                     set(stage["tools"]), set(CANDIDATE_TOOL_NAMES)
                 )
@@ -11166,6 +11171,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             == [
                 "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-doom " + chr(92),
                 '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" ' + chr(92),
+                '--seed-release $(PRODUCTION_SEED_RELEASE) ' + chr(92),
                 f"--source {transform['inputs'][0]} --output {transform['output']}",
             ]
         )
@@ -11846,7 +11852,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             for stage_name in ("stage-three", "stage-four"):
                 self._assert_file_artifact_identity(
                     windows_cupiddis["artifacts"][f"{stage_name}-image"],
-                    output / "behavior" / f"{stage_name}-windows-cupiddis.exe",
+                    output / "behavior" / f"{stage_name}-cupiddis.exe",
                 )
             self.assertEqual(
                 [

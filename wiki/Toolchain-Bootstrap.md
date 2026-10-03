@@ -1,5 +1,43 @@
 # Toolchain bootstrap
 
+## Evidence recovery, 2026-10-03
+
+The local receipts under
+`build/bootstrap/native-profile-validation-258bb5f3/` were deleted.
+Earlier dated sections record results observed at the time; their named
+receipts are now unavailable. The saved staged source and both complete LFS
+assets have been recovered and checked against the surviving source export.
+Replacement image, forced-user and strict four-CPU runtime qualification now
+passes on both hosts, with an independent paired comparison. The new runs
+reuse observed surviving generated files and objects; they do not qualify a
+fresh clean kernel or complete six-tool bootstrap. See
+[the recovery and qualification scope](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/USER-LINK-ADOPTION.md#evidence-recovery).
+
+## Native user links, 2026-10-03
+
+Normal Make now uses the paired `cfd9f140` release and native CupidBuild for all
+three default user links. The graph retains 452 transforms, with 447 CupidBuild
+actions and five Python actions. Custom address spellings keep their existing
+numeric override path.
+
+The terminal completion message now uses the existing serial formatter.
+Five deterministic POSIX checks pass, and all eight new strict four-CPU boots
+pass on native Windows and Linux. The paired gate compares 1,567 source files,
+431 production inputs, all sixteen artifacts, complete ABI, user objects and
+executables, and the settled embedded manual. Both fresh 200 MiB images have
+SHA-256 `151145dbb680bf9ee256f018bcbf788b58dddfdc2d041c936cfcc6602d19e1b9`.
+The selected suites pass 577 executions with five named Windows pthread skips.
+The exact raw-kernel policy remains 9,583,576 bytes. Full Doom acceptance
+remains open.
+
+See [the implementation and qualification status](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/USER-LINK-ADOPTION.md).
+
+The private persistent-image suffix primitive also passes native large-disk
+tests and fresh Cupid-built small-case tests on both hosts. A real FAT file
+and disk tail survive publication with each allocation below 16 MiB.
+Checked large-disk tests and a guarded image coordinator remain required;
+the normal image action stays with Python.
+
 ## Paired new-parent consumption, 2026-10-02
 
 The proposed `cfd9f140` seeds pass complete release-aware self-consumption on

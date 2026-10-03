@@ -59,7 +59,8 @@ class CupidBuildUserProductionTests(unittest.TestCase):
                             'CHECKED_SEED_RUN', 'CHECKED_SEED_INPUTS', 'CUPIDBUILD_USER_COMPILE_INPUTS',
                             'CC', 'CXX', 'CPP', 'HOSTCC', 'HOSTCXX', 'ASM', 'AS', 'LD', 'AR', 'NM',
                             'OBJCOPY', 'CFLAGS', 'EXTRA_CFLAGS', 'PRODUCTION_SEED_DIRECTORY',
-                            'PRODUCTION_SEED_SUFFIX', 'CUPIDBUILD_USER_SEED_MANIFEST')], *[build + '/' + name + '.o'
+                            'PRODUCTION_SEED_SUFFIX', 'CUPIDBUILD_USER_SEED_MANIFEST',
+                            'CUPIDBUILD_USER_SEED_RELEASE')], *[build + '/' + name + '.o'
                             for name in ('hello', 'ls', 'cat')]], cwd=ROOT,
                             capture_output=True, text=True,
                             encoding='mbcs' if os.name == 'nt' else 'utf-8', timeout=60)
@@ -73,12 +74,13 @@ class CupidBuildUserProductionTests(unittest.TestCase):
                         self.assertIn('cupidbuild.' + suffix + ' compile-user', command)
                         self.assertIn('--seed-manifest bootstrap/seeds/i386-' +
                                       ('windows' if host == 'Windows_NT' else 'linux') + '/manifest.json', command)
+                        self.assertIn('--seed-release bootstrap/seeds/release.json', command)
                         self.assertIn('--output user/' + build + '/' + name + '.o', command)
 
     def test_make_binding_rejects_cohort_drift(self):
-        names = ('PRODUCTION_SEED_MANIFEST', 'PRODUCTION_SEED_DIRECTORY',
+        names = ('PRODUCTION_SEED_MANIFEST', 'PRODUCTION_SEED_RELEASE', 'PRODUCTION_SEED_DIRECTORY',
                  'PRODUCTION_SEED_SUFFIX', 'CHECKED_SEED_INPUTS', 'CUPIDBUILD_USER_COMPILE_INPUTS',
-                 'CUPIDBUILD_USER_SEED_MANIFEST')
+                 'CUPIDBUILD_USER_SEED_MANIFEST', 'CUPIDBUILD_USER_SEED_RELEASE')
         values = audit._read_evaluated_make_variables(ROOT / 'user', 'make', names)
         for name in names[1:]:
             changed = dict(values, **{name: values[name] + ' unapproved'})

@@ -2328,3 +2328,47 @@ Both complete audit suites now pass all 129 methods. Windows takes 1,083.918
 seconds; Linux takes 1,657.047 seconds without Git environment overrides.
 `fresh-audit-suite-*-v1.log` retains the full results. The source audit and
 production ownership counts remain unchanged by this evidence update.
+
+### 2026-10-03: Native default user links and serial completion
+
+The normal fixed-address user recipes now use the native guarded user-link
+operation with an explicit reviewed release record. Its retained parent,
+object/tool captures, inspection and publication rules also apply to the
+default Make handoff. Alternative address spellings retain the numeric override
+path. Ownership becomes 447 CupidBuild actions and five Python actions across
+452 transforms.
+
+Terminal completion joins existing formatter serialization through one
+serial_printf call. The pending command still executes, clears state and prints
+its prompt in the same order. Raw serial and panic behavior retain their
+existing interfaces. Deterministic contention checks cover complete PID/value
+and byte-count/checksum records, command state, idle behavior and pre-BKL output.
+The settled embedded manual and replacement OS/image, forced-user and paired
+strict runtime checks now pass. The new source/generated-input qualification
+does not establish a fresh clean kernel or complete six-tool bootstrap.
+Full Doom runtime remains open.
+
+### 2026-10-03: Qualification evidence recovery
+
+The local bootstrap receipts were deleted. Historical outcomes remain dated
+observations; their named receipts are unavailable. Recovery v523 verifies all
+1,567 saved staged-index files and both complete LFS assets against the
+surviving source export. The surviving normal-build roots supply observed
+generated files and objects for new image, forced-user and strict four-CPU
+runtime qualification. Independent paired terminal verification v584 passes:
+1,567 source files, sixteen artifacts, 431 production inputs, complete ABI,
+three user objects and executables, the exact manual and identical 200 MiB
+images. Both hosts select 291 methods, with 577 executions and five named
+Windows pthread skips in total. All eight strict four-CPU boots pass.
+This scope does not qualify a fresh clean kernel or complete six-tool bootstrap.
+Native user-link ownership remains 447 CupidBuild actions and five Python
+actions across 452 transforms. Full Doom runtime remains open.
+
+
+Private persistent-image suffix preservation passes native small and populated
+200 MiB FAT/tail checks, then fresh CupidC/ASM/LD builds with CupidDis
+certification and all small cases on both hosts. Windows certifies eighteen
+objects and passes twenty-two cases with one declared POSIX skip; Linux
+certifies twelve objects and passes twenty-three cases. The 16 MiB guard
+limits individual allocations. Checked large-disk coverage and a guarded
+image coordinator remain required before image ownership changes.

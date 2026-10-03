@@ -43,7 +43,7 @@ LINUX_BOOTSTRAP_SEED_INPUTS = (
     "bootstrap/seeds/i386-linux/cupidobj.elf",
     "bootstrap/seeds/i386-linux/cupidbuild.elf",
 )
-WINDOWS_PRODUCTION_SEED_INPUTS = (
+WINDOWS_EXECUTION_SEED_INPUTS = (
     "bootstrap/seeds/i386-windows/manifest.json",
     "bootstrap/seeds/i386-windows/cupidasm.exe",
     "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -52,6 +52,17 @@ WINDOWS_PRODUCTION_SEED_INPUTS = (
     "bootstrap/seeds/i386-windows/cupidobj.exe",
     "bootstrap/seeds/i386-windows/cupidbuild.exe",
 )
+WINDOWS_PRODUCTION_SEED_INPUTS = (
+    WINDOWS_EXECUTION_SEED_INPUTS[0],
+    "bootstrap/seeds/release.json",
+    *WINDOWS_EXECUTION_SEED_INPUTS[1:],
+)
+LINUX_PRODUCTION_SEED_INPUTS = (
+    LINUX_BOOTSTRAP_SEED_INPUTS[0],
+    "bootstrap/seeds/release.json",
+    *LINUX_BOOTSTRAP_SEED_INPUTS[1:],
+)
+
 
 
 def _write(path, content):
@@ -709,7 +720,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertEqual(transform["operation"], "verify_user_syscall_abi")
         self.assertEqual(len(module.USER_SYSCALL_ABI_NATIVE_BUILD_INPUTS), 27)
-        self.assertEqual(len(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS), 7)
+        self.assertEqual(len(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS), 8)
         self.assertEqual(
             repo_inputs("NATIVE_WINDOWS_USER_SYSCALL_ABI_INPUTS"),
             module.USER_SYSCALL_ABI_NATIVE_BUILD_INPUTS,
@@ -722,7 +733,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             input_variables["USER_SYSCALL_ABI_PLATFORM_ARGUMENTS"],
             "--windows-manifest ../bootstrap/seeds/i386-windows/manifest.json",
         )
-        self.assertEqual(len(module.USER_SYSCALL_ABI_AUDIT_INPUTS), 34)
+        self.assertEqual(len(module.USER_SYSCALL_ABI_AUDIT_INPUTS), 35)
         self.assertEqual(
             module.USER_SYSCALL_ABI_AUDIT_INPUTS,
             tuple(
@@ -5298,6 +5309,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 endif
                 \t$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) generate-profile-manifest \
                 \t\t--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+                  \t\t--seed-release $(PRODUCTION_SEED_RELEASE) \
                 \t\t--output $@
                 BOOTSTRAP_ARTIFACTS := kernel/doom/unit.o
                 $(filter kernel/% drivers/% toolchain/%,$(BOOTSTRAP_ARTIFACTS)) \
@@ -6663,13 +6675,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["windows_help_cases"], 7)
         self.assertEqual(contract["windows_success_behavior_cases"], 49)
         self.assertEqual(contract["windows_failure_behavior_cases"], 43)
-        self.assertEqual(contract["contract_manifest_inputs"], 89)
-        self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 89)
+        self.assertEqual(contract["contract_manifest_inputs"], 90)
+        self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 90)
         self.assertIn(
             "toolchain/x86.cc",
             module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
         )
-        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 123)
+        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 124)
         self.assertTrue(
             set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS).issubset(
                 module.TOOLCHAIN_CONTRACT_LINUX_INPUTS
@@ -7317,7 +7329,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "native Windows driver loses UTF-8 plan selection": (
                 "bootstrap",
-                "native_plan = _windows_build_plan(linux_plan, utf8=True, long_paths=windows_long_paths)",
+                "native_plan = _windows_build_plan(linux_plan, utf8=True, long_paths=windows_long_paths,\n"
+                "        user_link_aliases=windows_user_link_aliases)",
                 "native_plan = _windows_build_plan(linux_plan)",
                 r"fixed-point source freeze differs",
             ),
@@ -8902,10 +8915,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "bootstrap",
                 "            CANDIDATE_TOOL_NAMES,\n"
                 "        )\n"
-                "        behavior = _run_native_windows_behavior_checks(",
+                "        if prepare_stages:",
                 "            TOOL_NAMES,\n"
                 "        )\n"
-                "        behavior = _run_native_windows_behavior_checks(",
+                "        if prepare_stages:",
                 r"fixed-point source freeze differs",
             ),
             "native Windows comparison drops its expected inventory check": (
@@ -10037,7 +10050,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 765,
+                    "active_sources": 766,
                     "features": 255,
                     "transforms": 452,
                     "unreachable_sources": 41,
@@ -10059,7 +10072,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 self.assertEqual(unreachable[fixture], "not_reached")
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (7000, 183),
+                "c.expression.sizeof": (7003, 183),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -10101,9 +10114,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     self.assertEqual(
                         transform["tools"],
                         [
+                            "cupid_builder",
                             "cupid_disassembler",
                             "cupid_linker",
-                            "host_python",
                         ],
                     )
                     self.assertEqual(
@@ -10629,13 +10642,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 249,
                     "cupid_assembler": 8,
-                    "cupid_builder": 444,
+                    "cupid_builder": 447,
                     "cupid_object": 192,
                     "cupid_linker": 8,
                     "cupid_disassembler": 10,
                     "cupid_c_contract": 3,
                     "host_c_compiler": 0,
-                    "host_python": 8,
+                    "host_python": 5,
                 },
             )
             self.assertFalse(
@@ -10658,7 +10671,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 114)
+            self.assertEqual(toolchain_cohort["source_count"], 115)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -11164,7 +11177,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             cupidobj_command,
             r"bootstrap/seeds/i386-(?:linux|windows)/cupidbuild\.(?:elf|exe) "
             r"run --seed-manifest bootstrap/seeds/i386-(?:linux|windows)/"
-            r"manifest\.json --root .+ --tool cupidobj --$",
+            r"manifest\.json --seed-release bootstrap/seeds/release\.json --root .+ --tool cupidobj --$",
         )
         makefile_source = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
         self.assertIn("override CUPIDOBJ :=", makefile_source)
@@ -11177,7 +11190,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             cupidld_command,
             r"bootstrap/seeds/i386-(?:linux|windows)/cupidbuild\.(?:elf|exe) "
             r"run --seed-manifest bootstrap/seeds/i386-(?:linux|windows)/"
-            r"manifest\.json --root .+ --tool cupidld --$",
+            r"manifest\.json --seed-release bootstrap/seeds/release\.json --root .+ --tool cupidld --$",
         )
         self.assertIn("override CUPIDLD :=", makefile_source)
         self.assertIn("override CUPIDLD_INPUTS :=", makefile_source)
@@ -11421,6 +11434,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
                 "$(PRODUCTION_SEED_SUFFIX) flatten-kernel \\",
                 '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+                '--seed-release $(PRODUCTION_SEED_RELEASE) \\',
                 "--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \\",
                 "--output $(KERNEL)",
             ],
@@ -11452,6 +11466,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
                 "$(PRODUCTION_SEED_SUFFIX) assemble-bootloader \\",
                 '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+                '--seed-release $(PRODUCTION_SEED_RELEASE) \\',
                 "--source $< --output $@",
             ],
         )
@@ -11482,6 +11497,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
                 "$(PRODUCTION_SEED_SUFFIX) assemble-smp-trampoline \\",
                 '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+                '--seed-release $(PRODUCTION_SEED_RELEASE) \\',
                 "--source $< --output $@",
             ],
         )
@@ -11526,6 +11542,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                         "assemble-cupidasm-object \\",
                         "--seed-manifest $(PRODUCTION_SEED_MANIFEST) "
                         '--root "$(CURDIR)" \\',
+                        '--seed-release $(PRODUCTION_SEED_RELEASE) \\',
                         "--source $< --output $@",
                     ],
                 )
@@ -11871,7 +11888,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
 
         for host, expected_seed in (
-            ("Windows_NT", set(WINDOWS_PRODUCTION_SEED_INPUTS)),
+            ("Windows_NT", set(WINDOWS_EXECUTION_SEED_INPUTS)),
             ("Linux", set(LINUX_BOOTSTRAP_SEED_INPUTS)),
         ):
             with self.subTest(host=host):
@@ -12037,7 +12054,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 set(root_values["PRODUCTION_SEED_INPUTS"].split()),
-                {root_manifest, *root_images},
+                {root_manifest, "bootstrap/seeds/release.json", *root_images},
             )
             self.assertEqual(
                 set(root_values["CHECKED_SEED_INPUTS"].split()),
@@ -12045,6 +12062,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "Makefile",
                     "tools/bootstrap_toolchain.py",
                     root_manifest,
+                    "bootstrap/seeds/release.json",
                     *root_images,
                 },
             )
@@ -12057,7 +12075,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 set(user_values["CHECKED_SEED_INPUTS"].split()),
-                {user_manifest, *user_images},
+                {user_manifest, "../bootstrap/seeds/release.json", *user_images},
             )
             self.assertEqual(
                 root_values["BOOTSTRAP_SEED_MANIFEST"],
@@ -12325,7 +12343,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             relative_driver = driver.relative_to(REPO_ROOT).as_posix()
             for host, seed_inputs in (
                 ("Windows_NT", WINDOWS_PRODUCTION_SEED_INPUTS),
-                ("Linux", LINUX_BOOTSTRAP_SEED_INPUTS),
+                ("Linux", LINUX_PRODUCTION_SEED_INPUTS),
             ):
                 variables = (
                     f"OS={host}",
@@ -12412,7 +12430,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 poison_inputs[name] = path.relative_to(REPO_ROOT).as_posix()
             for host, seed_inputs in (
                 ("Windows_NT", WINDOWS_PRODUCTION_SEED_INPUTS),
-                ("Linux", LINUX_BOOTSTRAP_SEED_INPUTS),
+                ("Linux", LINUX_PRODUCTION_SEED_INPUTS),
             ):
                 variables = (
                     f"OS={host}",
@@ -12457,6 +12475,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                             "$(PRODUCTION_SEED_SUFFIX) generate-ksyms \\",
                             "--seed-manifest $(PRODUCTION_SEED_MANIFEST) "
                             '--root "$(CURDIR)" \\',
+                            '--seed-release $(PRODUCTION_SEED_RELEASE) \\',
                             "--source $< --output $@",
                         ],
                     )
@@ -12494,7 +12513,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 poison_inputs[name] = path.relative_to(REPO_ROOT).as_posix()
             for host, seed_inputs in (
                 ("Windows_NT", WINDOWS_PRODUCTION_SEED_INPUTS),
-                ("Linux", LINUX_BOOTSTRAP_SEED_INPUTS),
+                ("Linux", LINUX_PRODUCTION_SEED_INPUTS),
             ):
                 variables = (
                     f"OS={host}",
@@ -12548,6 +12567,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                             "$(PRODUCTION_SEED_SUFFIX) flatten-kernel \\",
                             "--seed-manifest $(PRODUCTION_SEED_MANIFEST) "
                             '--root "$(CURDIR)" \\',
+                            '--seed-release $(PRODUCTION_SEED_RELEASE) \\',
                             "--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \\",
                             "--output $(KERNEL)",
                         ],
@@ -12578,6 +12598,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
                 "$(PRODUCTION_SEED_SUFFIX) assemble-iso-pattern \\",
                 '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+                '--seed-release $(PRODUCTION_SEED_RELEASE) \\',
                 "--source $< --output $@",
             ],
         }
@@ -12643,6 +12664,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
                 "$(PRODUCTION_SEED_SUFFIX) flatten-kernel \\",
                 '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+                '--seed-release $(PRODUCTION_SEED_RELEASE) \\',
                 "--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \\",
                 "--output $(KERNEL)",
             ],

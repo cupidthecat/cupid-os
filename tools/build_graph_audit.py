@@ -67,6 +67,7 @@ LINUX_BOOTSTRAP_SEED_INPUTS = (
 )
 WINDOWS_PRODUCTION_SEED_INPUTS = (
     "bootstrap/seeds/i386-windows/manifest.json",
+    "bootstrap/seeds/release.json",
     "bootstrap/seeds/i386-windows/cupidasm.exe",
     "bootstrap/seeds/i386-windows/cupidc.exe",
     "bootstrap/seeds/i386-windows/cupiddis.exe",
@@ -313,6 +314,17 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/x86.cc",
     "toolchain/x86.h",
 )
+# The ordinary verifier captures its execution manifest and six tools.
+# Its closure remains independent of selected root/user release context.
+TOOLCHAIN_MANIFEST_EXECUTION_SEED_INPUTS = (
+    'bootstrap/seeds/i386-windows/manifest.json',
+    'bootstrap/seeds/i386-windows/cupidasm.exe',
+    'bootstrap/seeds/i386-windows/cupidc.exe',
+    'bootstrap/seeds/i386-windows/cupiddis.exe',
+    'bootstrap/seeds/i386-windows/cupidld.exe',
+    'bootstrap/seeds/i386-windows/cupidobj.exe',
+    'bootstrap/seeds/i386-windows/cupidbuild.exe',
+)
 TOOLCHAIN_MANIFEST_CONTRACT_TRANSFORM_INPUTS = frozenset(
     {
         "toolchain/Makefile",
@@ -322,7 +334,7 @@ TOOLCHAIN_MANIFEST_CONTRACT_TRANSFORM_INPUTS = frozenset(
         *TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS,
         *TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS,
         *LINUX_BOOTSTRAP_SEED_INPUTS,
-        *WINDOWS_PRODUCTION_SEED_INPUTS,
+        *TOOLCHAIN_MANIFEST_EXECUTION_SEED_INPUTS,
     }
 )
 TOOL_MARKERS = (
@@ -345,6 +357,8 @@ TOOL_MARKERS = (
     ("compile-doom --seed-manifest", "cupid_c_compiler"),
     ("compile-production --seed-manifest", "cupid_c_compiler"),
     ("compile-user --seed-manifest", "cupid_c_compiler"),
+    ("link-user --seed-manifest", "cupid_disassembler"),
+    ("link-user --seed-manifest", "cupid_linker"),
     ("flatten-kernel --seed-manifest", "cupid_disassembler"),
     ("flatten-kernel --seed-manifest", "cupid_object"),
     ("generate-ksyms --seed-manifest", "cupid_disassembler"),
@@ -633,6 +647,7 @@ _CUPIDOBJ_PROFILE_MANIFEST_RECIPE = [
     "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
     "$(PRODUCTION_SEED_SUFFIX) generate-profile-manifest \\",
     '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+    '--seed-release $(PRODUCTION_SEED_RELEASE) \\',
     "--output $@",
 ]
 _CUPIDOBJ_PROFILE_MANIFEST_CONTROL_INPUTS = (
@@ -3492,6 +3507,7 @@ def _cupidbuild_kernel_compile_recipe(source: str) -> list[str]:
         "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
         "$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
         '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+        '--seed-release $(PRODUCTION_SEED_RELEASE) \\',
         f"--source {source} --output {output}",
     ]
 
@@ -3622,6 +3638,7 @@ def _cupidbuild_doom_compile_recipe(source: str) -> list[str]:
         "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
         "$(PRODUCTION_SEED_SUFFIX) compile-doom \\",
         '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+        '--seed-release $(PRODUCTION_SEED_RELEASE) \\',
         f"--source {source_argument} --output {output_argument}",
     ]
 
@@ -3666,10 +3683,10 @@ _CUPIDBUILD_USER_SOURCES = (
 
 def _cupidbuild_user_compile_recipe() -> list[str]:
     return [
-        "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
-        "$(PRODUCTION_SEED_SUFFIX) compile-user \\",
-        "--seed-manifest $(CUPIDBUILD_USER_SEED_MANIFEST) --root .. \\",
-        "--source user/$< --output user/$@",
+        '$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-user \\',
+        '--seed-manifest $(CUPIDBUILD_USER_SEED_MANIFEST) --root .. \\',
+        '--seed-release $(CUPIDBUILD_USER_SEED_RELEASE) \\',
+        '--source user/$< --output user/$@',
     ]
 
 
@@ -3700,22 +3717,135 @@ def _validate_cupidbuild_user_compile_delivery(
         seen.add(output)
 
 
-def _validate_cupidbuild_user_make_binding(root: Path, make: str) -> list[str]:
-    values = _read_evaluated_make_variables(root / "user", make, (
-        "PRODUCTION_SEED_MANIFEST", "PRODUCTION_SEED_DIRECTORY",
-        "PRODUCTION_SEED_SUFFIX", "CHECKED_SEED_INPUTS", "CUPIDBUILD_USER_COMPILE_INPUTS",
-        "CUPIDBUILD_USER_SEED_MANIFEST",
+def _cupidbuild_user_link_recipe() -> list[str]:
+    return [
+        '$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) link-user \\',
+        '--seed-manifest $(CUPIDBUILD_USER_SEED_MANIFEST) --root .. \\',
+        '--seed-release $(CUPIDBUILD_USER_SEED_RELEASE) \\',
+        '--source user/$< --output user/$@',
+    ]
+
+
+def _validate_cupidbuild_user_link_delivery(
+    transforms: list[dict[str, object]], *, seed_inputs: list[str],
+) -> None:
+    approved_outputs = {"user/build/" + Path(source).stem for source in _CUPIDBUILD_USER_SOURCES}
+    seen = set()
+    for transform in transforms:
+        output = transform.get("output")
+        if output not in approved_outputs:
+            if transform.get("operation") == "link_elf32_executable":
+                raise AuditError(f"Unapproved CupidBuild user link delivery: {output}")
+            continue
+        inputs = transform.get("inputs", [])
+        expected = {output + ".o", "user/Makefile", *seed_inputs}
+        if (output in seen or transform.get("operation") != "link_elf32_executable"
+                or transform.get("tools") != ["cupid_builder", "cupid_disassembler", "cupid_linker"]
+                or transform.get("recipe") != _cupidbuild_user_link_recipe()
+                or not isinstance(inputs, list) or set(inputs) != expected
+                or len(inputs) != len(expected) or transform.get("order_only_inputs", [])):
+            raise AuditError(f"CupidBuild user link delivery differs for {output}")
+        seen.add(output)
+    if seen != approved_outputs:
+        raise AuditError("CupidBuild user link delivery is missing an approved program")
+
+
+def _validate_cupidbuild_root_release_context(
+    transforms: list[dict[str, object]], *, seed_inputs: list[str],
+) -> None:
+    if len(seed_inputs) != 8 or len(set(seed_inputs)) != 8:
+        raise AuditError("CupidBuild root release context requires eight distinct content inputs")
+    native = "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX)"
+    for transform in transforms:
+        tokens = _recipe_tokens(transform.get("recipe", []))
+        native_positions = [index for index, token in enumerate(tokens) if token == native]
+        macro_runner = any(token in {"$(CUPIDOBJ)", "$(CUPIDLD)"} for token in tokens)
+        seeded_verb = len(tokens) > 1 and tokens[1] in {
+            "run", "assemble-bootloader", "assemble-smp-trampoline",
+            "assemble-cupidasm-object", "assemble-iso-pattern", "embed-jpeg",
+            "generate-ksyms", "flatten-kernel", "generate-profile-manifest",
+            "compile-kernel", "compile-doom", "compile-production", "compile-user",
+            "link-user", "validate-code", "verify-artifact-sizes",
+        }
+        inferred_builder = "cupid_builder" in transform.get("tools", [])
+        literal_dispatcher = bool(tokens) and re.search(
+            r"(?:^|[/\\])cupidbuild\.(?:exe|elf)$", tokens[0].strip("\"'").lower()
+        ) is not None
+        if not (native_positions or macro_runner or seeded_verb or inferred_builder or literal_dispatcher):
+            continue
+        if native_positions or seeded_verb or literal_dispatcher or (inferred_builder and not macro_runner):
+            if native_positions != [0] or len(tokens) < 2:
+                raise AuditError("CupidBuild root recipe has an unapproved dispatcher position")
+            # This independent verifier selects the fixed root release inside
+            # its unchanged API. Its existing complete trust-unit gate applies.
+            if tokens[1] == "verify-artifact-sizes":
+                continue
+            for option, selected in (
+                ("--seed-manifest", "$(PRODUCTION_SEED_MANIFEST)"),
+                ("--seed-release", "$(PRODUCTION_SEED_RELEASE)"),
+                ("--root", '"$(CURDIR)"'),
+            ):
+                positions = [index for index, token in enumerate(tokens) if token == option]
+                if (len(positions) != 1 or positions[0] + 1 >= len(tokens)
+                        or tokens[positions[0] + 1] != selected
+                        or ("--" in tokens and positions[0] >= tokens.index("--"))):
+                    raise AuditError(f"CupidBuild root recipe differs from selected {option} context")
+        # Macro argv is checked separately by the exact root binding gate.
+        # Every selected seed/release is a content input, never a scheduling edge.
+        inputs = transform.get("inputs", [])
+        order_only = transform.get("order_only_inputs", [])
+        if (not isinstance(inputs, list) or not isinstance(order_only, list)
+                or any(inputs.count(path) != 1 or path in order_only for path in seed_inputs)):
+            raise AuditError("CupidBuild root delivery lost a distinct seed/release content edge")
+
+
+def _validate_cupidbuild_root_seed_make_binding(root: Path, make: str) -> list[str]:
+    values = _read_evaluated_make_variables(root, make, (
+        "PRODUCTION_SEED_MANIFEST", "PRODUCTION_SEED_RELEASE", "PRODUCTION_SEED_DIRECTORY",
+        "PRODUCTION_SEED_SUFFIX", "PRODUCTION_SEED_INPUTS", "CUPIDOBJ", "CUPIDLD",
     ))
     manifest = values["PRODUCTION_SEED_MANIFEST"]
+    release = values["PRODUCTION_SEED_RELEASE"]
     directory = posixpath.dirname(manifest) + "/"
-    expected = [manifest, *[directory + name + ".exe" for name in
+    suffix = values["PRODUCTION_SEED_SUFFIX"]
+    expected = [manifest, release, *[directory + name + "." + suffix for name in
                 ("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj", "cupidbuild")]]
-    if (values["PRODUCTION_SEED_SUFFIX"] != "exe"
+    if (not manifest or not release or suffix != "exe"
+            or values["PRODUCTION_SEED_DIRECTORY"] != directory
+            or len(expected) != len(set(expected))
+            or values["PRODUCTION_SEED_INPUTS"].split() != expected):
+        raise AuditError("CupidBuild root Make binding differs from the checked release cohort")
+    for variable, tool in (("CUPIDOBJ", "cupidobj"), ("CUPIDLD", "cupidld")):
+        command = [directory + "cupidbuild." + suffix, "run", "--seed-manifest", manifest,
+                   "--seed-release", release, "--root", root.as_posix(), "--tool", tool, "--"]
+        try:
+            actual = shlex.split(values[variable])
+        except ValueError as error:
+            raise AuditError(f"CupidBuild root {variable} binding cannot be tokenized: {error}") from error
+        if actual != command:
+            raise AuditError(f"CupidBuild root {variable} binding differs from the selected release")
+    return expected
+
+
+def _validate_cupidbuild_user_make_binding(root: Path, make: str) -> list[str]:
+    values = _read_evaluated_make_variables(root / "user", make, (
+        "PRODUCTION_SEED_MANIFEST", "PRODUCTION_SEED_RELEASE", "PRODUCTION_SEED_DIRECTORY",
+        "PRODUCTION_SEED_SUFFIX", "CHECKED_SEED_INPUTS", "CUPIDBUILD_USER_COMPILE_INPUTS",
+        "CUPIDBUILD_USER_SEED_MANIFEST", "CUPIDBUILD_USER_SEED_RELEASE",
+    ))
+    manifest = values["PRODUCTION_SEED_MANIFEST"]
+    release = values["PRODUCTION_SEED_RELEASE"]
+    directory = posixpath.dirname(manifest) + "/"
+    expected = [manifest, release, *[directory + name + ".exe" for name in
+                ("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj", "cupidbuild")]]
+    if (not manifest or not release or len(expected) != len(set(expected))
+            or values["PRODUCTION_SEED_SUFFIX"] != "exe"
             or values["PRODUCTION_SEED_DIRECTORY"] != directory
             or values["CUPIDBUILD_USER_SEED_MANIFEST"] != posixpath.normpath("user/" + manifest)
+            or values["CUPIDBUILD_USER_SEED_RELEASE"] != posixpath.normpath("user/" + release)
             or values["CHECKED_SEED_INPUTS"].split() != expected
             or values["CUPIDBUILD_USER_COMPILE_INPUTS"].split() != expected):
-        raise AuditError("CupidBuild user compile Make binding differs from the checked cohort")
+        raise AuditError("CupidBuild user Make binding differs from the checked release cohort")
     return [posixpath.normpath("user/" + path) for path in expected]
 
 
@@ -3724,6 +3854,7 @@ def _cupidbuild_generated_compile_recipe(source: str) -> list[str]:
         "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
         "$(PRODUCTION_SEED_SUFFIX) compile-production \\",
         '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+        '--seed-release $(PRODUCTION_SEED_RELEASE) \\',
         "--source $< --output $@",
     ]
 
@@ -8585,6 +8716,7 @@ def build_audit(
     root = root.resolve()
     production_root = _is_checked_seed_runner_production_root(root)
     if production_root:
+        root_seed_inputs = _validate_cupidbuild_root_seed_make_binding(root, make)
         _validate_checked_seed_runner_contract(root)
     source_suffix_policy = _load_source_suffix_ownership_policy(root)
     complete_supported_graph = production_root and {
@@ -8604,6 +8736,7 @@ def build_audit(
     ]
     models = [root_model, *supplemental_models]
     if production_root:
+        _validate_cupidbuild_root_release_context(root_model.transforms, seed_inputs=root_seed_inputs)
         _validate_kernel_flatten_delivery(
             root,
             make,
@@ -8631,9 +8764,12 @@ def build_audit(
         )
         for model in supplemental_models:
             if model.directory == "user":
+                user_seed_inputs = _validate_cupidbuild_user_make_binding(root, make)
                 _validate_cupidbuild_user_compile_delivery(
-                    model.transforms,
-                    seed_inputs=_validate_cupidbuild_user_make_binding(root, make),
+                    model.transforms, seed_inputs=user_seed_inputs,
+                )
+                _validate_cupidbuild_user_link_delivery(
+                    model.transforms, seed_inputs=user_seed_inputs,
                 )
         _validate_iso_pattern_delivery(
             root_model.transforms,
@@ -17289,6 +17425,7 @@ def _validate_iso_pattern_delivery(
         "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
         "$(PRODUCTION_SEED_SUFFIX) assemble-iso-pattern \\",
         '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+        '--seed-release $(PRODUCTION_SEED_RELEASE) \\',
         "--source $< --output $@",
     ]
     if (
@@ -17312,6 +17449,7 @@ _KERNEL_FLATTEN_RECIPE = [
     "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
     "$(PRODUCTION_SEED_SUFFIX) flatten-kernel \\",
     '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+    '--seed-release $(PRODUCTION_SEED_RELEASE) \\',
     "--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \\",
     "--output $(KERNEL)",
 ]
@@ -17372,6 +17510,7 @@ def _validate_kernel_flatten_delivery(
         (
             "KERNEL",
             "PRODUCTION_SEED_MANIFEST",
+            "PRODUCTION_SEED_RELEASE",
             "PRODUCTION_SEED_DIRECTORY",
             "PRODUCTION_SEED_SUFFIX",
             "PRODUCTION_SEED_INPUTS",
@@ -17421,6 +17560,7 @@ def _validate_kernel_flatten_delivery(
     seed_inputs = values["PRODUCTION_SEED_INPUTS"].split()
     expected_seed_inputs = [
         seed_manifest,
+        values["PRODUCTION_SEED_RELEASE"],
         *[
             f"{seed_directory}{tool}.{seed_suffix}"
             for tool in (

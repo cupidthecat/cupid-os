@@ -31,9 +31,12 @@ override PRODUCTION_SEED_SUFFIX := elf
 USER_SYSCALL_ABI_PLATFORM_ARGUMENTS := --windows-long-paths
 endif
 
+PRODUCTION_SEED_RELEASE ?= ../bootstrap/seeds/release.json
 override PRODUCTION_SEED_DIRECTORY := $(dir $(PRODUCTION_SEED_MANIFEST))
 override CUPIDBUILD_USER_SEED_MANIFEST := $(patsubst $(abspath ..)/%,%,$(abspath $(PRODUCTION_SEED_MANIFEST)))
+override CUPIDBUILD_USER_SEED_RELEASE := $(patsubst $(abspath ..)/%,%,$(abspath $(PRODUCTION_SEED_RELEASE)))
 override CHECKED_SEED_INPUTS := $(PRODUCTION_SEED_MANIFEST) \
+	$(PRODUCTION_SEED_RELEASE) \
 	$(PRODUCTION_SEED_DIRECTORY)cupidasm.$(PRODUCTION_SEED_SUFFIX) \
 	$(PRODUCTION_SEED_DIRECTORY)cupidc.$(PRODUCTION_SEED_SUFFIX) \
 	$(PRODUCTION_SEED_DIRECTORY)cupiddis.$(PRODUCTION_SEED_SUFFIX) \
@@ -254,13 +257,24 @@ all: test-syscall-abi $(BOOTSTRAP_ARTIFACTS)
 .PRECIOUS: $(USER_OBJECTS) $(BOOTSTRAP_ARTIFACTS)
 .SECONDARY: $(USER_OBJECTS)
 
+# The typed operation owns the approved fixed-address link. Preserve the
+# existing numeric override parser for explicitly selected spellings.
+ifeq ($(USER_TEXT_ADDRESS),0x01C00000)
+$(BUILD)/%: $(BUILD)/%.o $(CHECKED_SEED_INPUTS) Makefile
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) link-user \
+		--seed-manifest $(CUPIDBUILD_USER_SEED_MANIFEST) --root .. \
+		--seed-release $(CUPIDBUILD_USER_SEED_RELEASE) \
+		--source user/$< --output user/$@
+else
 $(BUILD)/%: $(BUILD)/%.o $(CUPIDLD_USER_LINK_INPUTS) Makefile
 	$(CUPIDLD_USER_LINK) --input user/$< --output user/$@ \
 		--text-address $(USER_TEXT_ADDRESS) --entry _start
+endif
 
 $(BUILD)/%.o: examples/%.cc cupid.h $(CUPIDBUILD_USER_COMPILE_INPUTS) Makefile | test-syscall-abi
 	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-user \
 		--seed-manifest $(CUPIDBUILD_USER_SEED_MANIFEST) --root .. \
+		--seed-release $(CUPIDBUILD_USER_SEED_RELEASE) \
 		--source user/$< --output user/$@
 
 test-syscall-abi: $(USER_SYSCALL_ABI_INPUTS) Makefile

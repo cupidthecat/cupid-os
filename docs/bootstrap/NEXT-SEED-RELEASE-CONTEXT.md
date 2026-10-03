@@ -1,8 +1,26 @@
 # Explicit release context for seed consumption
 
-Installed Linux and Windows seeds remain the `78e71bd6` pair. Normal build
-ownership remains 444 CupidBuild actions and eight Python actions, including
-three user links. TempleOS remains reference material.
+The public adoption worktree now carries the paired `cfd9f140` release and native
+default user-link recipes. Ownership is 447 CupidBuild actions and five Python
+actions across 452 transforms. The raw-kernel policy is calibrated to
+9,583,576 bytes. Replacement image/users qualification and all eight strict
+four-CPU boots pass on both hosts, with independent paired acceptance. See
+[native user-link adoption](USER-LINK-ADOPTION.md).
+The sections below retain their earlier qualification checkpoints and original
+parent identities. TempleOS remains reference material.
+
+## Evidence recovery
+
+The receipt directory was deleted. The following historical sections describe
+the original observations; they do not establish that their receipts remain
+available. Recovery v523 checks all 1,567 saved staged-index files against the
+surviving byte-identical source export, including both materialized LFS assets.
+The new qualification observes the surviving source, generated files and
+objects, then builds a fresh image and forces the three user builds.
+Independent paired verification v584 passes the complete source, artifact,
+ABI, user and manual comparisons, 577 test executions and eight strict boots.
+This reuses observed build inputs; it does not claim a fresh clean kernel or
+complete six-tool bootstrap. See [the current evidence scope](USER-LINK-ADOPTION.md#evidence-recovery).
 
 ## Committed producer and new-parent consumption
 

@@ -237,6 +237,34 @@ class ManifestTests(unittest.TestCase):
                 summary = " ".join(fields) + "\n"
             self.release_records.append((*payloads, fmt, summary))
 
+    def test_installed_long_default_retarget_records_actual_parents_and_is_strictly_rejected(self):
+        windows = seed.verify_seed_inputs(ROOT / "bootstrap/seeds/i386-windows/manifest.json")
+        linux = seed.verify_seed_inputs(ROOT / "bootstrap/seeds/i386-linux/manifest.json")
+        self.assertEqual(windows.manifest["provenance"]["source_input_count"], 78)
+        plan = seed._candidate_build_plan(linux.manifest["build_plan"])
+        snapshot = seed.capture_source_snapshot(ROOT, plan, windows_utf8=True, windows_user_link_aliases=True)
+        self.assertEqual(len(snapshot), 77)
+        digest = seed._build_plan_sha256(seed._windows_build_plan(plan, utf8=True, user_link_aliases=True))
+        changed = seed._retarget_native_windows_behavior_seed(windows, digest, plan, snapshot,
+            utf8=True, user_link_aliases=True, parent_plan_seed=linux)
+        self.assertIsNot(changed, windows)
+        provenance = changed.manifest["provenance"]
+        self.assertEqual(provenance["source_input_count"], 77)
+        self.assertEqual(provenance["native_build_plan_sha256"], digest)
+        self.assertEqual(provenance["parent_execution_seed_manifest_sha256"], windows.manifest_sha256)
+        self.assertEqual(provenance["parent_plan_seed_manifest_sha256"], linux.manifest_sha256)
+        self.assertEqual(provenance["parent_execution_seed_source_revision"], windows.manifest["provenance"]["source_revision"])
+        self.assertEqual(provenance["parent_plan_seed_source_revision"], linux.manifest["provenance"]["source_revision"])
+        self.check(windows.manifest, 2)
+        self.check(changed.manifest, 2, False)
+        data = encode(changed.manifest)
+        incoming = ctypes.create_string_buffer(data)
+        error = ctypes.create_string_buffer(128)
+        result = Result()
+        self.assertEqual(self.api(incoming, len(data), 2, ctypes.byref(result), error, len(error)), 0)
+        self.assertIn(b"fixed-point provenance differs", error.value)
+        self.check(windows.manifest, 2)
+
     def test_explicit_release_retains_strict_historical_reader(self):
         from tests.test_seed_pair import released_alias_pair
         for long_paths in (False, True):

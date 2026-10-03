@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-10-01
+Verified against source on: 2026-10-03
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -12,6 +12,38 @@ Verified against source on: 2026-10-01
 >style link #1D4ED8
 >style linkhover #0B3AA8
 >rule
+
+>h2 Normal user links and serial records
+>tree open Normal user links and serial records
+The installed Linux and Windows six-tool releases come from committed source
+cfd9f140fd295284372beaee48b85c9320f7d144. Both default and long profiles
+pass complete paired self-consumption. Default verification checks 228 stage
+artifacts and 76 final-stage pairs; long checks 231 artifacts and 77 pairs.
+Each profile retains 7,300 behavior files.
+
+Normal Make passes bootstrap/seeds/release.json to seeded CupidBuild commands.
+The three approved user programs use native link-user at 0x01C00000. It freezes
+the object and six-tool cohort, checks the selected release, runs CupidLD and
+CupidDis, validates the executable, rechecks inputs and publishes through the
+retained output parent. Equal executables preserve timestamps. An explicit
+nondefault USER_TEXT_ADDRESS keeps the existing numeric override path.
+
+The audited graph has 452 transforms: CupidBuild owns 447 actions and Python
+owns five. Python still coordinates two image publications, the user syscall
+ABI check, Toolchain manifest verification and Toolchain contract publication.
+Make and host operating-system services remain required. GCC, NASM and host
+linkers are absent from normal code production.
+
+Terminal completion uses the existing guarded serial formatter. Its complete
+message shares the same serialization as syscall PID, value and checksum
+records when CPUs log concurrently. Pending command execution, clearing and
+prompt behavior retain their existing order. The external program ABI remains
+version 5 with 103 fields, 101 providers and a 412-byte i386 table.
+
+Full Doom gameplay, audio, save/load, reboot and performance acceptance remains
+open. TempleOS is read-only reference material. Older checkpoint sections keep
+their original release and ownership counts.
+>endtree
 
 >h2 Explicit seed-release context
 >tree open Explicit seed-release context
@@ -159,8 +191,8 @@ Default, nested, lexical and accented output directories pass on both hosts.
 All three objects and executables match the Python oracle. Forced equal-object
 compilation preserves timestamps. Each external program passes a private
 four-CPU max/e1000 boot with PID-bound output and process-exit checks.
-The terminal serial completion marker can interleave with concurrent syscall
-logging; serial record atomicity remains an open issue.
+The earlier raw terminal completion marker could interleave with syscall
+logging. The guarded formatter described above now serializes that record.
 
 Both seeds come from 78e71bd6 and the same committed 77-input snapshot.
 Linux matches 34 staged artifact pairs; Windows matches 42. Both long-profile
