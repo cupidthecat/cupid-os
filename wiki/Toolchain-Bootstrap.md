@@ -86,6 +86,501 @@ the canonical audit, provenance regressions, normal Make, ABI, user, publication
 OS image and runtime gates. Full Doom gameplay, audio, save/load, reboot and
 performance acceptance remains open. TempleOS is reference material.
 
+## Committed producer and new-parent preparation, 2026-10-02
+
+Commit [`06aafd8b`](https://github.com/cupidthecat/cupid-os/commit/06aafd8b) records the committed
+`cfd9f140` producer proofs and the remaining new-parent qualification. All four
+native/profile producer runs from that committed source pass with the installed
+`78e71bd6` parents. They retain all 1,564 captured source files and the 77-input
+default or 78-input long producer closure.
+
+The proposed `cfd9f140` parent pair has four complete staged preparations.
+Independent checks compare 76 default or 77 long final-stage pairs, and separate
+authors create twelve-tool release candidates from those exact bytes. These
+new-parent candidates remain unqualified; results obtained with the installed
+parents cannot establish their behavior.
+
+The private projected Make audit passes seventeen queries and ten contracts.
+Qualification preflights pass fifteen positives per host and 63 Windows or
+65 Linux rejections. The independent acceptance verifier passes ten metadata
+and inventory positives and 112 rejections. Its explicitly named metadata
+fixtures and older report summaries establish readiness only.
+
+The first fresh Linux default qualification fails at profile-behavior setup:
+the 100-control execution projection lacks the `drivers` include root. The
+closed failed run and its final diagnostic remain preserved. Complete behavior
+execution also requires the original kernel, driver and Doom source/header
+tree. Fresh complete roots and qualification runs are still required.
+
+Installed seeds remain `78e71bd6`. Ownership remains 444 CupidBuild actions and
+eight Python actions across 452 transforms, including three Python user links.
+Installation and recipe adoption require the canonical audit and normal Make,
+ABI, users, publication and OS/runtime checks. The
+[release-context guide](https://github.com/cupidthecat/cupid-os/blob/06aafd8b/docs/bootstrap/NEXT-SEED-RELEASE-CONTEXT.md#committed-producer-and-new-parent-consumption)
+separates the accepted evidence from those remaining steps.
+
+## Explicit release context for new seed parents, 2026-10-02
+
+Commit [`cfd9f140`](https://github.com/cupidthecat/cupid-os/commit/cfd9f140fd295284372beaee48b85c9320f7d144) adds release-aware CupidBuild operations and
+the `--seed-release` option. A caller-reviewed paired release lets a new
+producer validate its actual parent manifests without embedding the completed
+manifest hashes into its own source. Original C request layouts and strict
+entry points retain their historical rules. Transactions capture the release
+with bounded reads, reserve the complete input closure and recheck identities
+before publication. Linux rejects FIFO inputs without waiting for a writer.
+
+`python -m tools.bootstrap_stage_release` separates preparation, release
+authoring and full qualification. Preparation retains three stages and an
+explicitly unqualified receipt. Authoring checks both hosts' sources, plans,
+actual parents and twelve prepared tools. Qualification rebuilds every stage,
+matches all prepared objects and tools, then runs complete behavior checks.
+The release remains caller-selected review evidence.
+
+Both default and long-file profiles pass complete staged qualification on
+Windows and Linux. Independent checks cover 228 default or 231 long-profile
+artifacts, 76 or 77 matching final-stage pairs, and 7,300 behavior files per
+profile. The broader 580-method selection on each host executes 1,129 tests
+with 31 platform skips. Ordinary Linux publications and their native Windows
+consumption also pass.
+
+Both normal OS builds pass with host C/ASM tools forbidden. Paired independent
+checks cover 1,564 source inputs per host, 431 production ELF inputs and sixteen
+artifacts. The 68,681-byte manual is embedded in both 9,581,716-byte raw kernels;
+pass-one and final kernels are 9,679,292 and 9,810,364 bytes. Both 200 MiB images
+have SHA-256
+`f7fbd52ee59cb1b92914a55e745d22baface5dc723ab28d5974edffff88f8b91`.
+Complete user ABI checks and paired objects and executables pass. All eight
+private four-CPU max/e1000 boots pass the kernel/disassembly/shell/SMP checks
+and separate cat, hello and ls runs. Canonical audits and four conditional
+checks per host pass. The bootstrap log preserves failed collectors and setup
+attempts beside the separate acceptance records.
+
+Installed seeds remain `78e71bd6`. Production ownership remains 444 CupidBuild
+and eight Python actions, including three user links. Fresh producer proofs
+from this committed source are required before installing new seeds or
+adopting the link recipes. Checked deterministic release drift, serial record
+atomicity and full Doom gameplay, audio, save/load, reboot and performance
+acceptance remain open. `TempleOS/` remains reference material.
+
+[The release workflow](https://github.com/cupidthecat/cupid-os/blob/cfd9f140fd295284372beaee48b85c9320f7d144/docs/bootstrap/NEXT-SEED-RELEASE-CONTEXT.md) gives the preparation and qualification commands.
+[ADR 0411](https://github.com/cupidthecat/cupid-os/blob/cfd9f140fd295284372beaee48b85c9320f7d144/docs/adr/0411-validate-new-seed-parents-through-explicit-releases.md) records the release and transaction checks.
+
+## Qualified user linking through directory aliases, 2026-10-01
+
+Commit [`c05c287e`](https://github.com/cupidthecat/cupid-os/commit/c05c287ef2baa65750b107ade0fa146ba23d5d63) adds the alias-aware `cupidbuild link-user` command.
+Source-built CupidBuild resolves existing repository and parent aliases for the
+approved cat, hello and ls objects, retains the physical directory chain and
+freezes the object and six-tool cohort. Checked CupidLD and CupidDis, the loader
+validator and live identity checks must all pass before publication. Equal
+executable bytes preserve timestamps. Missing parents, escaping aliases and
+linked or nonregular leaves are rejected. Windows requires a drive-rooted
+canonical path; UNC roots remain unsupported.
+
+Both hosts complete the 477-method regressions and the native/checked resolver,
+operation and command tests. Independent qualification rereads 1,558 source
+inputs per host, sixteen exact artifacts and 431 matching link inputs. Both
+normal OS builds forbid host C/ASM tools and retain the preceding user binaries.
+Both hosts pass their platform ABI check, kernel/disassembler smoke and three
+separate external-program boots. All eight private four-CPU max/e1000 boots
+validate SMP runtime and preserve their base or staged images.
+
+The 66,594-byte manual is embedded in both 9,579,628-byte raw kernels. Both
+200 MiB images have SHA-256
+`a9c44748cff1c04339c4d2c6f62b117e404fb98874d4bfddd61a374e1f346ed4`.
+Linux passes both complete publications with 90 controls, 77 default or 78
+long-profile producer inputs, 22 artifacts and 67 matching pairs each. The
+source log retains failed fixtures, size-policy rejection and the first
+Windows kernel setup failure; the setup failure's cause remains unconfirmed.
+
+Installed seeds remain `78e71bd6`, with ownership at 444 CupidBuild/eight Python
+actions. The three normal user links still use Python. Committed producer proof,
+new seed carriage and recipe adoption remain separate acceptance steps. Serial
+record atomicity and full Doom runtime acceptance remain open.
+
+[Alias resolution](https://github.com/cupidthecat/cupid-os/blob/c05c287ef2baa65750b107ade0fa146ba23d5d63/docs/bootstrap/USER-LINK-ALIASES.md) and
+[the command record](https://github.com/cupidthecat/cupid-os/blob/c05c287ef2baa65750b107ade0fa146ba23d5d63/docs/bootstrap/USER-LINK-CLI.md) describe the implementation,
+limits and qualified evidence.
+
+## Verified physical user-link source, 2026-10-01
+
+Commit [`77a114a0`](https://github.com/cupidthecat/cupid-os/commit/77a114a09c90fe2210f214984f18452771838e74) integrates the physical
+`cupidbuild_link_user_object` API. It retains an existing output-parent chain,
+freezes the approved object and six-tool cohort, runs checked CupidLD and
+CupidDis, validates the user ELF and publishes through the guarded transaction.
+CupidLD accepts one caller-owned output flag; ordinary invocation retains its
+atomic publisher. Equal validated executable bytes preserve timestamps.
+
+Both hosts pass 172 native methods, fourteen checked link methods, 57 checked
+observer methods and sixteen user compiler methods. Corrected conditional
+audit fixtures pass their affected methods and all 39 native and 39 checked
+preprocessor methods. Both normal OS builds forbid host code-producing tools.
+Final independent verification rereads 1,549 inputs per host, sixteen artifacts,
+431 link inputs, unchanged user executables and eight private four-CPU boots.
+Both hosts pass the platform ABI, kernel/disassembly/shell/SMP smoke and separate
+`cat`, `hello` and `ls` boots. Base and staged images remain unchanged.
+
+The 65,853-byte manual is embedded in both kernels. Raw kernels are
+9,578,888 bytes; pass-one and final ELFs are 9,675,196 and 9,806,268 bytes.
+Both 200 MiB images have SHA-256
+`784d906d6a122e7a600a0a8a1fe0022e7cfa7a291f959605c0898f37d25a80db`.
+Linux passes complete default and long-profile publications with 89 control
+inputs, 76 or 77 producer inputs, 22 artifacts and 67 matching contract pairs.
+The source record retains the stale-fixture and evidence-wrapper failures.
+
+The installed seeds remain `78e71bd6`, and production ownership remains 444
+CupidBuild/eight Python actions. The three normal user links still use Python.
+Alias resolution, CLI exposure, new checked seeds and recipe adoption remain
+separate acceptance steps. Serial record atomicity and full Doom gameplay,
+audio, save/load, reboot and performance acceptance remain open.
+
+[The source record](https://github.com/cupidthecat/cupid-os/blob/77a114a09c90fe2210f214984f18452771838e74/docs/bootstrap/USER-LINK-SOURCE.md) binds the implementation and final evidence.
+
+## Accepted user compilation handoff, 2026-10-01
+
+Commit `1440d33f` installs the paired `78e71bd6` seeds and direct CupidBuild
+recipes for `cat`, `hello` and `ls` objects. Production ownership is 444
+CupidBuild and eight Python actions across 452 transforms. Both installed hosts
+pass the five focused ownership methods and complete generated audit check;
+the 77-input producer snapshot remains unchanged.
+
+Linux and Windows pass final normal Make builds with host code-producing tools
+forbidden. Independent paired verification rereads 1,547 captured inputs per
+host, sixteen artifacts and 431 link inputs. Complete publications also match
+their 89 inputs, 77 producer inputs and 22 artifacts. Both hosts pass the user
+ABI and artifact gates, private four-CPU kernel/disassembly/shell/SMP checks,
+and separate boots for all three external programs with PID-bound output and
+process-exit checks. Both 200 MiB images have SHA-256
+`e1ea00d86c9aa3ab083931fc72ef2e6362c2f5445aaf6d379ac6280a93b0e56a`
+and remain unchanged through acceptance.
+
+The settled manual is 65,057 bytes. Paired measurements establish the
+9,578,092-byte raw kernel before its policy row changes by 340 bytes.
+Earlier replays reject the old size before image publication. Only the manual
+object and two kernel ELFs differ from the preceding accepted link cohort;
+the other 428 link inputs retain their bytes. The
+[handoff record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/USER-COMPILE-HANDOFF.md)
+and [proof record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/USER-COMPILE-PROOF.md)
+retain the completed evidence and failed attempts.
+
+Python still coordinates three user links, two image publications, user syscall
+ABI and Toolchain manifest verification, and one Toolchain build/manifest
+publication. Full Doom gameplay, audio quality, save/load, reboot and performance
+acceptance remain open, along with serial record atomicity and long Windows
+child working directories. `TempleOS/` remains outside builds and metrics.
+
+## Earlier native user compilation source checkpoint, 2026-09-30
+
+Source-head `compile-user` captures each approved example with `user/cupid.h`
+in a closed two-record bundle. It retains the fixed freestanding profile,
+configurable output parents, source/output binding and the guarded publication
+checks. Native and CupidC-built coordinators reproduce all three real objects
+on both hosts. Long Windows repository arguments launch from a short directory.
+
+Seventeen staged-helper and related methods pass on each host. The helper checks
+the three sources, logical filenames, lexical aliases, unchanged timestamps,
+eight failures and recovery. Checked readers also pass the next exact parent
+tuple: 1,367 manifest cases, fifteen pair cases and 320 policy requests per host.
+The complete sixteen-method caller suite also passes after integration, with
+thirteen unchanged source/test files bound before and after each host run.
+
+The source step is committed as `78e71bd6`. Both normal OS kernel targets and
+images match, with sixteen artifacts, 431 link inputs and 1,544 source/control
+inputs rechecked. The 64,715-byte manual produces a 9,577,752-byte raw kernel;
+only that measured size row changes. Windows user and private four-CPU boot
+checks pass and preserve the image. Linux's updated publication, user ABI gate
+and final user/boot replay also pass. Both hosts retain identical images and
+unchanged user executables.
+
+Fresh native proofs from committed producer `78e71bd6` pass with the same
+77-input snapshot. Linux matches 34 stage-three/four pairs and passes 55/7/62
+failure/help/success groups; Windows matches 42 pairs and passes 43/7/49.
+Independent verification checks all 1,544 root inputs and the committed
+producer. The nineteen-path release preview passes independent manifest and
+release author checks. Both long-profile consumers now pass, with independent
+verification of every stage, committed inputs and agreement with the original
+proved tool images. The complete default Windows consumer also passes its own
+76-input plan and 41 equal stage-three/four pairs. A combined independent reread
+checks all three consumers. Both proposed-seed regression roots
+pass all 254 methods; Linux skips sixteen Windows-only cases and Windows skips
+none. Independent rereads retain all 1,544 inputs in each root. Both fresh normal
+`make -j4 all` builds pass with host code-producing tools forbidden. Their
+sixteen artifacts, 431 link inputs and images match the accepted source replay.
+New-seed publication, user ABI and runtime checks remain separate acceptance.
+
+Windows's native closed ABI gate, three unchanged executables, sixteen artifact
+checks and private four-CPU disassembly/shell/SMP replay now also pass. An
+independent reread verifies the captured inputs, link cohort and unchanged
+image. Full Windows publication remains a separate promotion gate.
+
+Both proposed contract publications exceed the unchanged 360-second stage-four
+frontend compiler deadline during concurrent build work. Single frontend
+replays pass in 329.777 seconds on Linux and 206.295 seconds on Windows; both
+produce the exact proved object with the unchanged compiler image. These
+failed publications remain recorded. The complete Linux retry passes its
+checked-seed bootstrap and continues through contracts. The Windows complete
+retry is now running after the heavier self/OS builds finish. Both retain the
+original deadlines. The proposed pair remains uninstalled.
+
+The installed release and normal Make recipes remain unchanged. Seed carriage
+and paired Make handoff remain required. The isolated Windows handoff passes
+default, nested, lexical and accented directories, with all three objects and
+executables matching the Python wrappers and equal-object timestamps retained.
+Independent verification checks all 1,545 inputs and outputs. Each Windows
+external program also passes a separate private four-CPU boot, its PID-bound
+output/process-exit predicate and the complete SMP verifier. The images remain
+unchanged. Earlier private launchers expose split serial terminal markers;
+serial record atomicity remains open. The corrected complete audits pass all
+131 methods on each host, with five identical unchanged files independently
+rechecked. Linux's four-path Make handoff and all three private external runtime
+boots now also pass. Paired verification matches all user objects and
+executables, unchanged timestamps and staged/base image identities.
+The complete Linux publication retry passes build and verification with the
+original limits; independent verification checks 89 inputs, 77 producer inputs
+and 22 artifacts. Its completed publication supplies the Linux OS and handoff
+ABI checks. Both hosts' OS/artifact/private-boot records independently match.
+Windows full publication, seed installation, active recipe adoption and final
+embedded-manual replay remain required. The repository
+[proof record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/USER-COMPILE-PROOF.md)
+retains exact identities and failed setup records.
+Ownership stays at 441 CupidBuild actions and eleven Python actions. The three
+user links and full Doom runtime gate remain separate work.
+[The source record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/USER-COMPILE-SOURCE.md)
+retains tests, failed approaches and Linux recovery evidence.
+
+## Promoted long-file release, 2026-09-30
+
+The checked Linux and Windows six-tool seeds now come from `8403b0a8` and the
+same 77-input source snapshot. Both native fixed points and both long-profile
+self-bootstrap proofs pass. The complete default 76-input Windows bootstrap
+also passes with its own exact plan. Independent verification binds the
+committed closure, captured parents and every staged artifact.
+
+Both hosts pass the complete OS build, the three unchanged user programs,
+sixteen artifact checks and private four-CPU disassembly/shell/SMP smoke.
+Their 431 link inputs and images match. The corrected Linux ABI recipe produces
+a fresh publication; native Windows verifies its current 89 inputs, 77 producer
+inputs and 22 artifacts. The reviewed nineteen-path release is installed.
+The final embedded-manual replay has its own acceptance record.
+
+The final 63,444-byte manual produces matching 9,576,480-byte raw kernels and
+9,806,268-byte final ELFs. Native checks reject both obsolete policy values
+before their measured rows change. Both final user/artifact/private-boot
+replays pass and preserve the images. Final image SHA-256 is
+`af2a2c537facca3aa5ac4a38af47685f82873e6c58a960c24a979621893b3165`.
+The installed regression selection passes 253 methods, followed by twenty-five
+manifest methods with explicit historical fixtures.
+The final 79-method manifest and size-policy replay passes after kernel size
+calibration, with its captured inputs unchanged.
+
+Ownership remains 441 CupidBuild actions and eleven Python actions. Native
+user compilation, links and full Doom runtime acceptance remain open. The
+[repository release record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/LONG-FILE-RELEASE.md)
+retains exact identities, commands, failed harness attempts and evidence.
+The following entries retain their earlier checkpoint states.
+
+## User ABI profile selection and image acceptance, 2026-09-30
+
+The Linux user recipe now passes `--windows-long-paths` to its syscall ABI
+operation. The API and CLI keep their default profile when this option is absent.
+Windows retains the native contract path. Six new methods check dispatch,
+non-Boolean rejection before execution, the recipe, reuse of an authenticated
+89-input/77-producer publication, and live-input replacement. The initial four
+fail before the change. All twenty ABI/profile methods pass on each host.
+The first live-drift fixture expected the later ABI check's diagnostic; the
+existing runner correctly rejects that replacement during contract execution.
+The corrected fixture asserts that earlier rejection and preserves the report.
+
+Both hosts also pass the 148-method driver selection and all 54 policy methods;
+Linux has sixteen expected driver skips. All 129 audit methods pass on both hosts. Linux runs without Git environment
+overrides. Driver, ABI and policy selections retain their separate passing records. The generated audit
+and current-source check pass. Ownership remains 441 CupidBuild actions and
+eleven Python actions. This selection repair does not move user compilation
+or linking into CupidBuild.
+
+The 63,220-byte manual is embedded in a 9,576,256-byte raw kernel. Its first-pass
+ELF is 9,675,196 bytes after a page-boundary increase; the final ELF remains
+9,802,172 bytes. Size checks reject the obsolete raw and first-pass values before
+those two policy rows are calibrated. The installed-seed Windows image build,
+sixteen native artifact checks, three unchanged user programs and the private
+four-CPU `max`/e1000 disassembly, shell and SMP smoke pass. Its source image is
+unchanged through the smoke. All 241 compiler closures remain unchanged.
+Its 431 link inputs and image match both final proposed-seed image builds;
+proposed-seed Windows smoke also passes. Image SHA-256 is
+`ce64fd631010ff723af7840d77ace5eea3788cfe66be2be99a0ab7181ea21e83`.
+
+The ABI driver itself is a captured publication control input. Updating it
+correctly invalidates the earlier publication, even though the compiled C
+inputs are unchanged. A copied cohort is rejected rather than relabeled as
+current. A fresh complete Linux publication is rebuilding through the corrected
+user recipe. Its acceptance and final native Windows verification remain open.
+The earlier default-profile Linux user rebuild was stopped, and its unsuccessful
+record is retained. An acceptance harness also used an obsolete artifact-log
+suffix after its native check passed; the corrected Windows replay completes
+the smoke. These harness failures are separate from OS and contract failures.
+
+Evidence is under `build/bootstrap/native-profile-validation-258bb5f3/`:
+`user-profile-red-windows-v1.log`, `user-abi-regressions-*-v3.log`,
+`user-profile-regressions-*-v1.log`, `user-profile-policy-suite-*-v1.log`,
+`fresh-audit-suite-windows-v1.log`, `user-profile-installed-os-acceptance-v1.json`
+and `fresh-final-os-windows-acceptance-v5.json`. The installed `5ba6ea24` seed
+pair remains unchanged; reviewed preview v4 carries the settled size policy.
+Its paired fixed points, self-consumption and default-profile bootstrap have
+passed, but the preview stays separate until the remaining publication and
+Linux user/boot checks pass. Full Doom runtime acceptance remains open.
+
+## Long-profile release acceptance, 2026-09-30
+
+The reviewed pair names producer `8403b0a82b5693409d2242fdbff32688c8f2cac5`
+and the 77-input snapshot
+`25b05a6cb0e824136db8df79b4e7f2e176aea88f0446be550f36ece04798bbf9`.
+Linux manifest SHA-256 is
+`84b8bef11969bac58d69e97baacd86d8f1b4aa030ecd25359bb1dcdb8f679cbc`;
+Windows manifest SHA-256 is
+`5d129b2575450dac756d75a4dc859501fdcd9bacf53190ed360ec66f68e21297`.
+The complete `5ba6ea24` pair remains their captured parent generation.
+
+Fresh native proofs compare 42 Windows artifacts and 34 Linux artifacts per
+stage. Long-profile self-consumption passes on each host and reproduces all
+twelve proposed tools. The complete default Windows bootstrap also passes
+with its own 76-input closure and exact default plan. Independent checks bind
+the committed source, captured parents, actual executable formats and hashes,
+all three stages, behavior results, and all 1,540 frozen repository inputs.
+Default-profile output is checked against its own stage pairs; it is not claimed
+to equal the long-profile executable cohort.
+
+Both complete fresh OS builds pass with host code-producing tools forbidden.
+All 431 link inputs, sixteen artifacts and the 209,715,200-byte image match
+across hosts. The first build contains the older captured manual and a
+9,575,044-byte kernel. Its 428 other link inputs match the current installed-seed
+image; only the embedded manual object and two linked ELFs differ. Windows
+user-program, native artifact, disassembly, shell and SMP checks also pass.
+The final manual replay and publication acceptance are recorded separately.
+
+The proposed-pair regression selection passes 208 methods per host, with sixteen
+expected Linux skips. CupidC-built policy readers pass 54 methods and 288
+requests on each host. Profile fixtures now select default and long counts
+explicitly, including their different historical-parent rejection boundaries.
+
+Evidence is under `build/bootstrap/native-profile-validation-258bb5f3/`:
+`fresh-native-both-proof-verification-v1.json`, all three
+`fresh-consumer-verification-*-v1.json` reports, paired
+`fresh-os-*-verification-v1.json`, `fresh-os-windows-acceptance-v1.json`,
+and `fresh-regressions-*-v2.log`. Production ownership remains 441 CupidBuild
+actions and eleven Python actions. Native user compilation/link coordination
+and complete Doom runtime acceptance remain open.
+
+Publication and final-manual acceptance are still pending. The checked seeds
+remain unchanged until those records pass.
+
+## Policy fixtures select their bootstrap profile, 2026-09-30
+
+A proposed-seed regression run reaches 208 methods on each host. Both initial
+runs report two failures in one policy method: its fixture inherits the
+installed seed's source count and expects a generation-comparison diagnostic.
+With a 77-input seed, the reader correctly rejects the historical parent
+earlier, at the individual parent check. The narrow Linux reproduction takes
+1.1 seconds of test time. Host-built and CupidC-built readers agree on all nine
+diagnostic probes, ruling out a compiler difference or malformed fixture digest.
+
+The fixture now selects the default 76-input and long 77-input profiles
+explicitly. It checks the default generation comparison and the long profile's
+individual historical-parent rejection, with accepted baselines and recovery
+after each negative request. Reader code and seed identities are unchanged.
+Both CupidC-built readers pass all 54 policy methods and 288 requests against
+the proposed pair. The corrected 208-method selection passes on both hosts;
+Linux has sixteen expected skips. Evidence includes `policy-parent-fixture-probes-v1.json`,
+`fresh-native-policy-*-v2.json` and `fresh-regressions-*-v2.log` under
+`build/bootstrap/native-profile-validation-258bb5f3/`.
+
+The 62,214-byte manual is embedded in a 9,575,248-byte kernel. An isolated
+Windows image build, all sixteen artifact checks, three unchanged user binaries
+and the private four-CPU `max`/e1000 disassembly, `ls` and SMP smoke pass. The
+source image is unchanged by the smoke. All 241 compiler input closures remain
+unchanged, including 83 Doom sources; only the manual object and two kernel ELFs
+change among 431 link inputs. `policy-fixture-windows-os-acceptance-v2.json`
+records this installed-seed replay. Proposed-seed OS acceptance remains separate.
+
+## Fresh native proofs and linked-worktree audit, 2026-09-30
+
+Both native staged proofs pass from producer commit `8403b0a8`, with the same
+77-input snapshot `25b05a6cb0e824136db8df79b4e7f2e176aea88f0446be550f36ece04798bbf9`.
+Windows compares 36 objects and six tools per generation; Linux compares 28
+objects and six tools. Every stage-three artifact equals stage four. Independent
+verification checks all three stages, the named Git archive, captured parents
+and 1,540 repository inputs. The fresh paired release preview passes its pinned
+verifier and release author. It remains uninstalled while self-consumption,
+complete default-profile compatibility, publication and OS acceptance run.
+
+The audit now resolves a Windows linked worktree from WSL after native Git
+rejects its drive-letter metadata path. It reads the existing link, converts
+that path with `wslpath`, and supplies explicit Git metadata and worktree paths.
+The top-level root must still match before tracked files are enumerated. Native
+Git lookup, invalid-link fallback and listing errors retain their behavior.
+Git metadata is unchanged, and untracked bootstrap fixtures remain outside the
+tracked source inventory.
+
+The minimized real probe fails before the change and passes afterward in
+0.076 seconds. Four new methods cover tracked selection, unchanged link bytes,
+invalid links and translations, missing conversion support, wrong-root rejection,
+listing failure and native lookup. All eight selected methods, including the
+original full CLI case and resolver ownership cases, pass on each host. Linux
+runs without `GIT_DIR` or `GIT_WORK_TREE` overrides. The regenerated audit and
+its independent check pass. An inline WSL probe first corrupted a regex during
+argument transport; the file-based probe establishes the path diagnosis.
+
+The updated manual is embedded in a 9,575,044-byte kernel. The isolated Windows
+image build, all sixteen artifact checks, three unchanged user binaries and a
+private four-CPU `max`/e1000 boot smoke pass. The smoke disassembles `/bin/ls.cc`,
+runs `ls` and verifies SMP runtime behavior without changing the source image.
+All 241 retained compiler input closures, including 83 Doom sources, remain
+unchanged. Only the manual object and two linked kernel ELFs change among 431
+link inputs. This replay uses the installed seeds; proposed-seed OS acceptance
+remains a separate requirement.
+
+The repository records evidence under `build/bootstrap/native-profile-validation-258bb5f3/`, including
+`fresh-native-both-proof-verification-v1.json`, `fresh-promotion-preview-v2/`,
+`git-inventory-red-linux-v1.log`, `git-inventory-green-linux-v2.log` and both
+`worktree-audit-regressions-*-v1.log` files, plus
+`worktree-windows-os-acceptance-v2.json`. Producer source and installed seed
+identities remain unchanged by this audit repair. Ownership stays at 441
+CupidBuild actions and eleven Python actions. Full Doom runtime acceptance
+and native user compilation/link coordination remain open.
+
+## Native validation for both bootstrap profiles, 2026-09-30
+
+The shared manifest reader accepts the complete installed `5ba6ea24` parent
+pair for the default 76-input profile as well as the explicit 77-input long
+profile. Windows still requires the selected profile's exact plan and import
+table. Linux shares one plan across these profiles; the reviewed release and
+captured inventory bind the selected count and source digest.
+
+The artifact-policy reader accepts the 77-input profile only with that complete
+current parent tuple. Its Windows record requires the exact long-profile plan
+and matching Linux candidate plan. The default 76-input record can also use the
+current parent tuple. Existing historical combinations retain their checks.
+The retained native coordinator separately validates release identity, actual
+manifest bytes, all twelve seed images and the sixteen artifact observations.
+The standalone policy API does not authenticate executable payloads.
+
+Both hosts pass 164 regressions; Windows has four expected skips. CupidC-built
+shared readers match the host reference for 1,313 manifest and fifteen paired
+cases on each host. Cupid-built policy contracts pass 54 methods and 280 requests
+per host, including count, plan, mixed parent and recovery cases. An incrementally
+linked CupidBuild passes all sixteen actual artifact checks in both proposed
+77-input OS roots. The previous binary rejects those same roots at the source
+count. Source captures and artifacts remain unchanged. This is verifier evidence;
+neither earlier failed OS build is relabeled as an accepted image.
+
+Evidence is under `build/bootstrap/native-profile-validation-258bb5f3/`.
+The three focused methods first failed, then passed after both native readers
+were extended. The first Linux policy launch passed a Windows path spelling
+through WSL and failed before executing the caller; the corrected POSIX spelling
+passes. A default-profile metadata probe cannot establish that ordinary Windows
+images have the correct default import table. Fresh staged proofs, the complete
+default bootstrap path, self-consumption and OS acceptance from the new producer
+revision remain required before promotion. The installed seed pins stay unchanged.
+
+
 ## Lineage replay and OS acceptance, 2026-09-30
 
 Both proposed seeds rebuild themselves with the explicit long profile. All six
@@ -3364,3 +3859,73 @@ increase; the calibrated policy and rebuilt image pass. The unchanged source
 image has SHA-256 `f1f9896e9aae2c55a6bf834db84ae81a4290e5abec44db7950ef5d070bebe018`.
 Independent source and artifact evidence is
 `verification-final-acceptance-v4.json` under the current proof directory.
+
+## Profile validation OS replay, 2026-09-30
+
+Installed seeds pass the updated manual image, all sixteen native artifact
+checks, three unchanged user executables and the private four-CPU max/e1000
+disassembly, shell and SMP smoke. The source image remains unchanged. All 241
+compiler closures remain identical, including the 83 Doom objects. Only the
+manual object and two kernel ELFs change in the 431-input cohort. The 61,483-byte
+manual is present in its object, ELF and raw kernel. The measured raw kernel is
+9,574,520 bytes, and the 209,715,200-byte image has SHA-256
+`adc4222825b715b8762836058a5fb953a9918702cf7da6838264cd5a4bca71c8`.
+
+The first size gate rejects the manual's 816-byte kernel increase. Updating only
+the raw-kernel policy row to the measured value makes the image build pass.
+The calibrated policy suite passes 79 methods. Evidence includes
+`os-build-v1.json`, `os-build-v2.json` and `windows-os-acceptance-v2.json` under
+`build/bootstrap/native-profile-validation-258bb5f3/`.
+
+A separate native assembly transaction uses the real default 76-input UTF-8
+images with a synthetic current-parent provenance fixture. It passes and emits
+the reference CupidASM bytes, rejects a mixed parent and a long-profile CupidC
+image, then passes recovery. This checks the default executable boundary without
+claiming a complete named-commit default bootstrap. Its evidence is
+`default-profile-transaction-v1.json`. Fresh staged proofs and seed promotion
+remain open; the installed cohort and ownership counts are unchanged.
+
+## Long-profile audit fixtures, 2026-09-30
+
+The complete 125-method audit run reports five failures in four stale inventory
+methods. The exact long-profile inventory has 765 active and 41 unreachable
+source files, 36 CupidASM-owned assemblies, nine hosted startup assemblies,
+6,976 `sizeof` expressions across 183 files, and 114 Toolchain source files.
+Both Make host branches include the resolver shim in their declared bootstrap
+closure. The producer's default capture remains 76 inputs; its long capture
+remains 77.
+
+The fixtures now assert that inventory and check the resolver's positive
+ownership and missing-input failure. Their complete closure comparisons still
+reject extra or missing members. The first four-method rerun passes three and
+reaches a further stale expression count; the next reaches the old Toolchain
+cohort count. These assertions are corrected against the generated audit without
+changing the inventory or build recipes. Original and focused logs are under
+`build/bootstrap/native-profile-validation-258bb5f3/`.
+
+The fresh native staged proofs use the unchanged producer closure from commit
+`8403b0a8`. This fixture repair changes tests and documentation only. Installed
+seed identities and production ownership remain unchanged.
+
+The corrected four-method Windows rerun passes. The initial suite's other
+121 methods passed before this test-only repair. The first Linux invocation
+cannot resolve the Windows worktree's Git metadata and falls back to a filesystem
+scan that includes leftover bootstrap fixtures. An obsolete repeat is stopped;
+the corrected invocation supplies POSIX `GIT_DIR` and `GIT_WORK_TREE` paths.
+Repository metadata and inventory rules remain unchanged. Its log is
+`audit-focused-linux-v5.log`.
+
+The updated assembly-inventory manual also passes installed-seed image acceptance:
+sixteen artifacts, three unchanged user programs and the private four-CPU smoke.
+The 61,700-byte manual is embedded in the object, ELF and raw kernel. Only its
+object and two linked ELFs change in the 431-input cohort. The raw kernel is
+9,574,736 bytes; its 216-byte increase is measured before changing the policy.
+The unchanged source image has SHA-256
+`6476cbe7174f7c0e3fdefc96a4db8f38a5b94ddd6bb2b97a645c70d46047d093`.
+Evidence includes `fixture-os-build-v3.json`, `fixture-os-build-v4.json` and
+`fixture-windows-os-acceptance-v5.json` in the same directory.
+
+The corrected four-method Linux rerun also passes with the explicit Git paths.
+Both hosts now pass every affected method, including missing-resolver rejection
+and the final manifest-drift failure. The full initial 125-method run and the
+separate corrected reruns remain recorded as distinct evidence.
