@@ -6,6 +6,60 @@ three user links. TempleOS remains reference material.
 
 ## Committed producer and new-parent consumption
 
+Both default and long new-parent profiles now pass complete paired independent
+acceptance. Each native root retains the original 1,564-input capture with
+eleven control overlays and 394 original behavior-support files. Qualifications
+consume the proposed `cfd9f140` pair as actual parents and match every rebuilt
+object/tool to the reviewed preparations before running behavior.
+
+| Accepted new-parent result | Exact receipt |
+| --- | --- |
+| Default: 228 artifacts, 76 pairs, 7,300 behavior files | `paired-complete-self-consumption-qualifications-default-independent-v242.json` |
+| Long: 231 artifacts, 77 pairs, 7,300 behavior files | `paired-complete-self-consumption-qualifications-long-independent-v266.json` |
+
+Long uses the closed Linux v236 qualification and fresh Windows v260 retry.
+Linux passes 62 success, 55 failure and seven help cases; Windows passes 49
+success, 43 failure and seven help cases, for either profile. Independent
+verification rereads source captures/indexes, complete/thin roots and support
+bytes, preparations, parents, plans, release, every stage artifact and all
+behavior files. Final file and directory membership follows all byte rereads.
+Both terminal review axes pass; long review is retained in
+`complete-self-consumption-long-terminal-reviews-v285.json`.
+
+The long receipt is 5,769,221 bytes with SHA-256
+`da5c7dde61dab51ba8a7d4b791d9f0385a46e0123659022afb2754d4afe201fa`.
+The original Windows failure, operation replay and rejected monitor/collector
+attempts remain preserved. The fresh Windows run records 612 samples without
+sampling errors and minimum free space 1,169,780,736 bytes. Neither successful
+replay nor those observations establish the earlier failure's cause.
+
+The isolated adoption candidates pass 129 audit methods per host, twelve Make
+binding methods and three lineage methods per host. A forced normal Windows
+user Make build compares the complete canonical ABI and all three object and
+executable bytes with the accepted results. Its first collector used the wrong
+release-path spelling; Make succeeded, but that receipt is rejected. A fresh
+forced run checks the actual repository-relative spelling and source bytes and
+passes in `native-user-link-adoption-normal-users-windows-v284.json`.
+
+The candidate Make bootstrap target explicitly selects the installed long
+profile. Its ordinary replay checks 78 producer inputs, 37 Windows objects,
+five assembly objects, exact plans/current snapshot and all six initial tools.
+Omitting the long flag retains historical default CLI rules. The native-reader
+negative checks actual retargeted parents and strict default provenance rejection.
+That ordinary rejection remains separate from the accepted release-authorized
+default qualification.
+
+Installed seeds remain `78e71bd6` and ownership remains 444/eight. Complete
+seed/provenance suites, Linux publication/users, normal OS image and fresh runtime
+remain adoption gates. Installation, final canonical checks, embedded manual
+and calibrated policy changes follow a coherent accepted implementation.
+Checked deterministic release drift and full Doom runtime remain open.
+
+The following sections retain earlier checkpoints, including their pending
+work at the time. Their original capture and parent identities remain unchanged.
+
+## Earlier committed-producer and default checkpoints
+
 Commit `cfd9f140fd295284372beaee48b85c9320f7d144` contains the implementation
 described below. Each native frozen source capture retains 1,564 inputs and
 the original Git index. Its default producer snapshot contains 77 inputs;

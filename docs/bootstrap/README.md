@@ -1,6 +1,31 @@
 # Cupid Toolchain bootstrap
 
-## Committed producer and new-parent qualification, 2026-10-02
+## Paired new-parent consumption, 2026-10-02
+
+The proposed `cfd9f140` seeds pass complete release-aware self-consumption on
+native Windows and Linux for both default and long-file profiles. Independent
+acceptance checks 228 stage artifacts and 76 final-stage pairs for default,
+or 231 artifacts and 77 pairs for long. Each profile retains 7,300 behavior
+files. Both terminal review axes pass. The [release-context guide](NEXT-SEED-RELEASE-CONTEXT.md#committed-producer-and-new-parent-consumption) records source, preparation,
+parent, plan, release and final file/directory checks.
+
+The first Windows long failure remains preserved. Its targeted replay passes,
+and a fresh full retry completes successfully. The independent long verifier
+binds Windows v260 and Linux v236. Windows retains 612 resource observations
+without sampling errors, with minimum free space 1,169,780,736 bytes. These
+observations do not identify the earlier failure's cause.
+
+Installed seeds remain `78e71bd6`; normal ownership remains 444 CupidBuild
+actions and eight Python actions across 452 transforms, including three user
+links. Isolated adoption candidates pass both 129-method audit suites. Normal
+Windows Make matches the complete 103-field, 101-provider, 412-byte user ABI
+and all three accepted user objects/executables. Full seed/provenance suites,
+Linux publication/users and normal OS image/runtime adoption remain required.
+The embedded manual and policy update belongs with that implementation and
+fresh OS validation. Full Doom gameplay, audio, save/load, reboot and performance
+acceptance remains open. TempleOS is read-only reference material.
+
+## Earlier committed-producer and default checkpoint, 2026-10-02
 
 Commit `cfd9f140fd295284372beaee48b85c9320f7d144` contains the release-context
 implementation. Its frozen Windows and Linux captures each retain 1,564 source

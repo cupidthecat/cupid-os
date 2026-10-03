@@ -42093,3 +42093,53 @@ manual and calibrated policy retain their prior accepted bytes; their next
 implementation update must accompany fresh OS validation. Checked deterministic
 release drift and full Doom runtime remain open. TempleOS remains read-only
 reference material.
+
+### 2026-10-02: Accept complete paired long new-parent consumption
+
+The fresh Windows v260 qualification finishes with return code 0 and final log.
+It passes 49 success, 43 failure and seven help cases. Linux v236 already passes
+62 success, 55 failure and seven help cases. The Windows sampler retains 612
+observations, no errors and minimum free space 1,169,780,736 bytes. The earlier
+Windows v236 failure and successful limited replay remain unchanged; the new
+run does not establish the original failure's cause.
+
+Both review axes approve the exact closed mixed-version pair. The independently
+reviewed v266 verifier runs on native Linux and passes 231 stage artifacts,
+77 final-stage pairs and 7,300 behavior files, together with all source/index,
+root/control/support, preparation, actual-parent, plan and release checks.
+Final membership follows all retained-byte rereads. Both terminal consistency
+reviews pass without repeating full artifact reads. The exact receipt is
+`paired-complete-self-consumption-qualifications-long-independent-v266.json`
+(5,769,221 bytes, SHA-256
+`da5c7dde61dab51ba8a7d4b791d9f0385a46e0123659022afb2754d4afe201fa`).
+`complete-self-consumption-long-terminal-reviews-v285.json` records those reviews.
+
+The first Windows terminal-summary collector imports the Linux-only verifier
+and stops before producing output. Its failed attempt remains preserved. A
+fresh summary extracts only the actual monitor helper; full acceptance executes
+the complete verifier on native Linux.
+
+Both candidate full audit suites pass 129 methods with closed successful commands
+and unchanged 1,565-input source maps. The final fixture correction adds the
+selected release as the 115th toolchain-cohort input. Twelve Make binding and
+three lineage methods pass per host. Normal Windows user Make matches the full
+ABI and all three accepted objects/executables. Its first collector expects a
+user-relative release path instead of the actual repository-relative spelling;
+Make returns 0, but that receipt remains rejected. A fresh forced Make run and
+corrected collector pass all checks and final source rereads.
+
+Disk preflight rejects one old image claim before any compression. Its current
+bytes differ from that historical record; the image is excluded. Two other
+exact closed private images are NTFS-compressed with unchanged bytes, file and
+ancestor identity, recovering about 390 MiB. No source or seed is changed.
+The native Linux seed-suite driver and gate are copied byte-exactly to native
+ext4 evidence storage, preserving their 2 GiB filesystem launch guard; Windows
+checks a separate 1 GiB physical-C floor before launch. Full seed suite results
+remain pending.
+
+Both profile acceptance receipts are now complete. Installed seeds remain
+`78e71bd6` and ownership remains 444 CupidBuild/eight Python actions. Linux
+publication/users, normal image/runtime acceptance, embedded manual/policy
+validation and final installed canonical checks remain due before adoption.
+This checkpoint changes five prose files only. TempleOS remains read-only and
+full Doom runtime acceptance remains open.

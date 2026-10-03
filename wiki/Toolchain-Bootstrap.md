@@ -1,6 +1,31 @@
 # Toolchain bootstrap
 
-## New-parent default consumption, 2026-10-02
+## Paired new-parent consumption, 2026-10-02
+
+The proposed `cfd9f140` seeds pass complete release-aware self-consumption on
+native Windows and Linux for both default and long-file profiles. Independent
+acceptance checks 228 stage artifacts and 76 final-stage pairs for default,
+or 231 artifacts and 77 pairs for long. Each profile retains 7,300 behavior
+files. Both terminal review axes pass. The [bootstrap guide](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/README.md) records source, preparation,
+parent, plan, release and final file/directory checks.
+
+The first Windows long failure remains preserved. Its targeted replay passes,
+and a fresh full retry completes successfully. The independent long verifier
+binds Windows v260 and Linux v236. Windows retains 612 resource observations
+without sampling errors, with minimum free space 1,169,780,736 bytes. These
+observations do not identify the earlier failure's cause.
+
+Installed seeds remain `78e71bd6`; normal ownership remains 444 CupidBuild
+actions and eight Python actions across 452 transforms, including three user
+links. Isolated adoption candidates pass both 129-method audit suites. Normal
+Windows Make matches the complete 103-field, 101-provider, 412-byte user ABI
+and all three accepted user objects/executables. Full seed/provenance suites,
+Linux publication/users and normal OS image/runtime adoption remain required.
+The embedded manual and policy update belongs with that implementation and
+fresh OS validation. Full Doom gameplay, audio, save/load, reboot and performance
+acceptance remains open. TempleOS is read-only reference material.
+
+## Earlier default-consumption checkpoint, 2026-10-02
 
 The proposed `cfd9f140` seeds pass complete release-aware default qualification
 on native Windows and Linux. Independent acceptance rereads 228 stage artifacts,
