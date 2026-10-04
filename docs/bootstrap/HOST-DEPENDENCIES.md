@@ -1,5 +1,14 @@
 # Host dependency inventory
 
+## Toolchain publication seed facts, 2026-10-04
+
+Hosted publication still uses Python for capture, process launch, independent
+checks and transactions. Its Cupid-built policy now consumes CUPMAN5/CUPMAN6
+requests after the shared reader validates the selected Linux seed. The classic
+CUPMAN4/CUPMAN2 formats retain their historical validation. No host C compiler
+or assembler is added to the normal build. Ownership remains 447 CupidBuild
+and five Python actions; seed installation and the ABI Make handoff are pending.
+
 ## Linux behavior-plan coordination, 2026-10-04
 
 The release coordinator now materializes Linux fixtures from the authorized

@@ -43248,3 +43248,114 @@ The first external runtime receipt check assumes a UTF-8 PowerShell driver log
 and stops on its UTF-16 byte-order mark. Reading its declared encoding and the
 actual success text makes the receipt retry pass; the boot command itself had
 already closed successfully. This changes only the ignored evidence helper.
+
+## 2026-10-04: captured seed facts for Toolchain publication policy
+
+The complete f6a8b6dd producer qualifications close with status zero on both
+hosts. Linux reports 73 success, 66 failure and seven help cases; native Windows
+reports 60 success, 54 failure and seven help cases. Independent verification
+rereads each complete 1,584-file committed source capture, the 82-input compiler
+snapshot, selected plans and parents, all 243 qualified stage artifacts and 81
+final-stage pairs. The retained ABI gate matches the complete independent oracle
+and runs twenty-two cases per host. The caller release is 2,736 bytes with SHA-256
+`59b4c934f172026c8a7c63cbaf37a270da8772be123b432ceae7d10d680484f2`.
+The original preparation and failed qualification records remain unchanged.
+
+Private candidate projections are created only after both independent verdicts
+pass. Their reviewed seed pins and actual twelve qualified images pass the
+shared pair reader. Complete projection bytes are reread independently. Both
+hosts are preparing new-parent consumption for the default 81-input and long
+82-input profiles. These copies are private consumption controls; installation
+and the native ABI Make handoff remain pending.
+
+A direct Toolchain author probe exposes its historical manifest and plan pins.
+The original fixture succeeds, a formatting-only manifest change fails, and the
+actual candidate seed also fails. A disposable digest-only change still fails;
+a second change to the plan digest succeeds. No diagnosis copy changes the
+active source or candidate bytes. Both prototypes are archived outside the
+include roots with every file byte preserved.
+
+CUPMAN5 author and CUPMAN6 verification requests now carry immutable seed
+facts after shared-reader validation. Their native policy binds the raw
+manifest hash and all six ordered tool identities. Classic CUPMAN4 and CUPMAN2
+layouts retain their historical checks and use a frozen historical fixture.
+The existing publication rules, source inventories and sixty-nine raw stage
+comparisons remain. See ADR 0417 for the authority and observation boundary.
+
+The first two new regressions fail on unknown request magic before implementation.
+The first implementation compile fails because a helper was inserted before its
+types; moving it after the existing parser fixes that source-order mistake.
+The first complete runner selection exposes unit fixtures that omit executable
+bytes and simultaneous test directory changes held by the strict reader. The
+fixtures mock only that new boundary, while checked-seed integration uses the
+real reader. Running integration separately preserves the strict lifetime check.
+A new adapter test initially assumes JSON whitespace is rejected. The shared
+reader accepts it, so the corrected tests check invalid provenance separately
+and bind the exact hash of harmless formatting. All initial logs remain intact.
+
+The final native contract selections pass 52 methods per host: 76.683 seconds
+on Windows and 66.718 seconds on Linux. The Windows adapter selection passes
+82 methods in 28.793 seconds; its separate runner selection passes 29 methods
+in 90.103 seconds, including three expected POSIX skips. The combined Linux
+adapter and runner selection passes all 111 methods in 171.124 seconds.
+Positive and negative cases cover seed facts, raw pair lanes, artifact drift,
+framing, membership, live drift and recovery. Three publication profiles per
+host build and run the verification contract with checked Cupid tools.
+
+Separate probes build the new policy with the actual qualified candidate tools
+on both hosts. CUPMAN5 authoring and CUPMAN6 verification each pass canonical,
+wrong-manifest-identity rejection and recovery cases. All 1,586 captured probe
+inputs remain unchanged. Other publication and raw-pair facts are unit fixtures,
+so these results establish the policy boundary rather than complete hosted
+publication. The native PE is 166,912 bytes with SHA-256
+`9a1ab01e5f2fc2bbd03eb342dd46ab4d94789b595b4d1e3982c7fe6036ae5220`;
+the static ELF is 178,000 bytes with SHA-256
+`91263da69ba7390ccbfe82cfb0f7ba5088cf33799fa09c8c516c17a3302ae26f`.
+
+All 82 qualified compiler input files remain byte-identical. The first source
+audit check correctly rejects stale generated source facts. Regeneration changes
+only the publication contract hash, line count and affected feature occurrence
+counts. Scope remains 770 active inputs, 43 unreachable source-like files, 452
+transforms and 255 requirements; every audit contract passes. The generated
+active preprocessor cases remain byte-identical. Installed seeds and production
+ownership remain 447 CupidBuild and five Python actions. Incremental manual,
+image and private boot acceptance is in progress.
+
+The first new-parent Windows long-path preparation fails in stage three when
+its frontend compilation reaches the unchanged 360-second timeout. Four
+preparations and the incremental kernel build were active. The failure log and
+closed command receipt remain intact; every complete Windows projection input
+still matches its retained bytes. Scheduling load is a possible cause, not an
+established diagnosis. A reduced-concurrency replay is pending. No timeout,
+source input or acceptance requirement changes.
+
+Both first Linux new-parent preparations also fail in stage three at the same
+360-second frontend timeout. Their separate failure logs and command receipts
+are retained. Candidate compiler images match the already-qualified stage-three
+images exactly, and both 82-input compiler snapshots match the original source
+captures. The default Windows preparation is still active. Reduced-concurrency
+checks will separate scheduling load from path or profile behavior.
+
+Incremental manual acceptance closes successfully with host C and assembly
+producers forbidden. The 154,351-byte manual is present in all three kernel
+outputs. The raw kernel measures 9,587,136 bytes with SHA-256
+`89885d54e3ccb4876e010174aad2aad31205aba70972daedf4c9be6f90be1bc9`.
+The final and pass-one ELF sizes remain 9,814,460 and 9,683,388 bytes. Only the
+measured raw policy row changes. This reuses the earlier complete C/assembly
+build, with FORCE, the Doom profile and active-case include explicitly old.
+
+An initial artifact check names a nonexistent Make target and exits before
+validation. The direct native gate then correctly rejects only the stale raw
+size. After that one policy update, Make all passes all sixteen artifact checks
+and publishes the image with host code producers forbidden. Four explicit old
+targets let this image command consume the freshly rebuilt kernel and boot
+outputs. The 209,715,200-byte base image has SHA-256
+`d1148c34583823a92f8d97db3cdc44c8eadf7dedb2d3dc36a634c5bd9da07903`.
+
+The strict private four-CPU max/e1000 boot completes ls and passes the independent
+SMP log validator. Every artifact, the manual, policy, installed release and
+base image retain their measured bytes afterward. The new acceptance and
+runtime receipts are manifest-context-acceptance-windows.json and
+manifest-context-runtime-verification-windows.json in the ignored build proof
+directory. Neither this source acceptance nor the paired producer verdicts
+install new seeds or transfer the ABI recipe.

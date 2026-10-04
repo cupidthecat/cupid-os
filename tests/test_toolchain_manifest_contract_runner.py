@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import struct
@@ -10,6 +11,7 @@ from unittest import mock
 
 from tests.test_toolchain_manifest_contract import (
     _fixture,
+    _seed_context_bytes,
     _seed_fixture,
 )
 from tools import bootstrap_toolchain, toolchain_manifest_contract
@@ -125,7 +127,7 @@ def _expected_report():
 
 
 def _decode_request(request: bytes):
-    if request[:8] != b"CUPMAN2\0":
+    if request[:8] != b"CUPMAN6\0":
         raise AssertionError("request magic differs")
     offset = 8
 
@@ -148,6 +150,14 @@ def _decode_request(request: bytes):
         offset += size
         return value
 
+    seed_context = {
+        "manifest_sha256": take_bytes().decode("ascii"),
+        "build_plan_sha256": take_bytes().decode("ascii"),
+        "artifacts": tuple(
+            (take_bytes().decode("ascii"), take_u64(), take_bytes().decode("ascii"))
+            for _ in range(take_u32())
+        ),
+    }
     manifest = take_bytes()
     def take_observations():
         observations = []
@@ -178,6 +188,7 @@ def _decode_request(request: bytes):
         "seed_bytes": seed_bytes,
         "seed_observations": seed_observations,
         "seed_path": seed_path,
+        "seed_context": seed_context,
     }
 
 
@@ -217,6 +228,15 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
         )
         self.capture_closure = self.capture_closure_patch.start()
         self.addCleanup(self.capture_closure_patch.stop)
+        # Unit fixtures omit executable bytes; real cohort validation is exercised
+        # by the checked-seed integration tests and the adapter boundary tests.
+        self.seed_context_patch = mock.patch.object(
+            toolchain_manifest_contract.cupidc_toolchain_contracts,
+            "_manifest_seed_context_from_captured",
+            side_effect=lambda manifest, _artifacts: _seed_context_bytes(manifest),
+        )
+        self.seed_context_patch.start()
+        self.addCleanup(self.seed_context_patch.stop)
         self.membership_patch = mock.patch.object(
             toolchain_manifest_contract,
             "_require_live_closure_membership",
@@ -512,6 +532,15 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
             self.assertEqual(len(decoded["bootstrap_observations"]), 80)
             self.assertEqual(len(decoded["seed_observations"]), 6)
             self.assertEqual(
+                decoded["seed_context"]["manifest_sha256"],
+                hashlib.sha256(decoded["seed_bytes"]).hexdigest(),
+            )
+            self.assertEqual(
+                decoded["seed_context"]["artifacts"],
+                tuple((name, size, digest) for name, _kind, size, digest
+                      in decoded["seed_observations"]),
+            )
+            self.assertEqual(
                 decoded["seed_path"],
                 manifest["bootstrap"]["seed_manifest"]["path"],
             )
@@ -634,6 +663,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                         )
 
     def _check_seed_publication_profile(self, *, aliases=False, long_paths=False):
+        self.seed_context_patch.stop()
         execution_manifest = REPO_ROOT / (
             "bootstrap/seeds/i386-windows/manifest.json"
             if os.name == "nt"

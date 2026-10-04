@@ -1,5 +1,37 @@
 # Explicit release context for seed consumption
 
+## Paired producer qualification and publication policy, 2026-10-04
+
+Both complete f6a8b6dd qualifications close successfully. Linux reports 73
+success, 66 failure and seven help cases; native Windows reports 60 success,
+54 failure and seven help cases. Independent verification rereads the complete
+1,584-file source captures, 82 compiler inputs, both plans and parents, all
+243 qualified stage artifacts and 81 final-stage pairs. It also checks the
+retained six-input ABI fixture, complete oracle and twenty-two behavior cases
+per host. The producer release remains separate from seed installation.
+
+Private candidate projections retain that qualified pair and the exact reviewed
+Python pins. Their default snapshot has 81 inputs and SHA-256
+`cefb9063eac1349cc438be2534d69277f6a82de88d572bde36bd30ee428f7d87`.
+The 82-input long-path snapshot remains
+`a8ef7680c3e5e097487e14186f770b8a05ae3e9ac3d7963912c9dd24b51c7dee`.
+Both hosts are preparing new-parent consumption for both profiles. These
+private control projections do not change the installed seeds.
+
+The first Windows long-path and both Linux preparations hit the unchanged
+360-second frontend timeout while four preparations and a kernel rebuild
+were active. Their failures remain retained. Compiler images and complete
+source snapshots match the qualified inputs. Reduced-concurrency checks are
+pending; scheduling load remains a hypothesis.
+
+Toolchain publication exposes another historical seed parser. Source-head
+adapters now validate captured seed bytes and all six images through the shared
+reader, then send CUPMAN5/CUPMAN6 facts to native publication policy. The
+classic CUPMAN4/CUPMAN2 checks remain. This contract is outside the compiler
+producer snapshots; its changed source and adapters require their own hosted
+publication acceptance before installation. See
+[ADR 0417](../adr/0417-pass-captured-seed-facts-to-toolchain-publication-policy.md).
+
 ## Authorized Linux behavior plans, 2026-10-04
 
 The earlier frozen Linux retry completes compilation but fails because its

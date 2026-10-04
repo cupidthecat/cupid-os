@@ -46,6 +46,12 @@ exact sizes and ownership after the caller has validated its selected seed
 release and images. It does not establish release authority or file lifetime.
 _Avoid_: authenticated release, file capture, seed promotion
 
+**Toolchain publication seed context**:
+Immutable manifest, plan and six tool identities supplied to publication policy
+after the shared reader validates the selected Linux seed. The caller retains
+the original observations through final revalidation.
+_Avoid_: release authority, executable validation, filesystem snapshot
+
 **Source-resolved raw control edge**:
 A bounded record that binds a raw call or jump at one source instruction offset
 to the address CupidASM resolved before encoding. Local rows also retain the

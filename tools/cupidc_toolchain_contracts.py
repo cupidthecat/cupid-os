@@ -105,6 +105,7 @@ CONTRACT_CONTROL_INPUTS = (
 )
 MANIFEST_AUTHOR_SOURCE = "toolchain/tests/toolchain_manifest_contract.cc"
 MANIFEST_AUTHOR_MAGIC = b"CUPMAN4\0"
+MANIFEST_CAPTURED_AUTHOR_MAGIC = b"CUPMAN5\0"
 BOOTSTRAP_OBJECT_NAMES = (
     "runtime",
     "ctool",
@@ -1190,6 +1191,53 @@ def _append_author_pairs(
         _append_author_bytes(payload, second_bytes)
 
 
+def _manifest_seed_context(seed) -> bytes:
+    """Capture policy facts after the shared reader validates one pinned cohort.
+
+    The caller retains the original observation lifetime through publication.
+    The returned bytes carry identities, not release authority.
+    """
+    try:
+        require_live_seed_inputs(seed)
+        checked = verify_seed_inputs(seed.live_manifest_path)
+        if (checked.manifest_bytes != seed.manifest_bytes or
+                checked.artifact_bytes != seed.artifact_bytes or
+                checked.manifest.get("schema") != "cupid.bootstrap-seed.v2"):
+            raise ContractError("captured manifest seed differs from the checked cohort")
+        require_live_seed_inputs(seed, checked)
+    except (BootstrapError, OSError) as error:
+        raise ContractError(f"cannot capture manifest seed context: {error}") from error
+    document = checked.manifest
+    payload = bytearray()
+    _append_author_bytes(payload, checked.manifest_sha256.encode("ascii"))
+    _append_author_bytes(payload, document["build_plan_sha256"].encode("ascii"))
+    rows = sorted(document["artifacts"], key=lambda row: row["file"])
+    payload.extend(struct.pack("<I", len(rows)))
+    for row in rows:
+        _append_author_bytes(payload, row["file"].encode("ascii"))
+        payload.extend(struct.pack("<Q", row["size"]))
+        _append_author_bytes(payload, row["sha256"].encode("ascii"))
+    return bytes(payload)
+
+
+def _manifest_seed_context_from_captured(manifest_bytes, artifacts) -> bytes:
+    """Validate captured bytes with the shared pinned reader before framing."""
+    names = [name for name, _payload in artifacts]
+    expected = {role + ".elf" for role in TOOL_NAMES}
+    if len(names) != len(expected) or set(names) != expected:
+        raise ContractError("captured manifest seed tool inventory differs")
+    with tempfile.TemporaryDirectory(prefix="cupid-manifest-seed-context-") as temporary:
+        root = Path(temporary)
+        (root / "manifest.json").write_bytes(manifest_bytes)
+        for name, payload in artifacts:
+            (root / name).write_bytes(payload)
+        try:
+            seed = freeze_seed_inputs(root / "manifest.json", root / "frozen")
+            return _manifest_seed_context(seed)
+        except (BootstrapError, OSError) as error:
+            raise ContractError(f"cannot validate captured manifest seed: {error}") from error
+
+
 def _manifest_author_request(
     artifact_observations: Sequence[tuple[str, int, int, str]],
     input_observations: Sequence[tuple[str, int, int, str]],
@@ -1202,8 +1250,13 @@ def _manifest_author_request(
     executable_pairs: Sequence[tuple[str, int, bytes, int, bytes]],
     bootstrap_object_pairs: Sequence[tuple[str, int, bytes, int, bytes]],
     bootstrap_tool_pairs: Sequence[tuple[str, int, bytes, int, bytes]],
+    *, seed_context: bytes | None = None,
 ) -> bytes:
-    payload = bytearray(MANIFEST_AUTHOR_MAGIC)
+    payload = bytearray(MANIFEST_AUTHOR_MAGIC if seed_context is None else MANIFEST_CAPTURED_AUTHOR_MAGIC)
+    if seed_context is not None:
+        if not isinstance(seed_context, bytes) or not seed_context:
+            raise ContractError("manifest author captured seed context is unavailable")
+        payload.extend(seed_context)
     _append_author_observations(payload, artifact_observations)
     _append_author_observations(payload, input_observations)
     _append_author_observations(payload, bootstrap_observations)
@@ -1496,6 +1549,7 @@ def _checked_manifest_author_bytes(
         executable_pairs,
         bootstrap_object_pairs,
         bootstrap_tool_pairs,
+        seed_context=_manifest_seed_context(seed),
     )
     request_path = workspace / "toolchain-manifest-author-request.bin"
     request_path.write_bytes(request)

@@ -1,5 +1,27 @@
 # Cupid Toolchain bootstrap
 
+## Captured seed facts for Toolchain publication, 2026-10-04
+
+Production adapters send CUPMAN5 author and CUPMAN6 verification requests after
+the shared reader validates the selected Linux seed. Their captured manifest,
+plan and six image identities let the native publication policy consume the
+active ABI cohort without adding release hashes to C source. The classic
+CUPMAN4 and CUPMAN2 interfaces keep their historical checks. Publication
+schemas, artifact inventories and all sixty-nine stage comparisons remain
+unchanged. See [ADR 0417](../adr/0417-pass-captured-seed-facts-to-toolchain-publication-policy.md).
+
+The source checkpoint passes 163 test methods per host, with three expected
+POSIX skips on Windows, candidate-tool policy probes, all sixteen artifact
+checks and a strict private four-CPU boot that completes `ls`. Incremental
+manual acceptance reuses the earlier complete C/assembly build. The measured
+raw kernel is 9,587,136 bytes; only its exact policy row changes.
+
+The paired f6a8b6dd producer qualification now passes on both hosts, with
+independent source and artifact rereads. New-parent default and long-path
+consumption is underway. Installed seeds and ownership remain 447 CupidBuild
+and five Python actions across 452 transforms. The native ABI recipe handoff
+still requires release consumption, installation and normal build acceptance.
+
 ## Authorized Linux behavior plans, 2026-10-04
 
 Release-qualified Linux fixtures now carry the captured candidate plan and its

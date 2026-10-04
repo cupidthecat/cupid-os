@@ -456,7 +456,7 @@ def _profile_fixture(*, user_link_aliases=False, long_paths=False):
 
 
 def _seed_fixture(manifest):
-    seed_path = REPO_ROOT / "bootstrap/seeds/i386-linux/manifest.json"
+    seed_path = REPO_ROOT / "tests/fixtures/toolchain-manifest-classic-linux-seed.json"
     seed_bytes = seed_path.read_bytes()
     seed_manifest = json.loads(seed_bytes.decode("ascii"))
     if manifest["bootstrap"]["build_plan_sha256"] != BUILD_PLAN_SHA256:
@@ -629,6 +629,49 @@ def _author_request(
     return bytes(payload)
 
 
+def _captured_seed_fixture():
+    """Candidate metadata with real installed identities, not a producer proof."""
+    from tools import bootstrap_toolchain as seed
+    document = json.loads((REPO_ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())
+    document["build_plan"] = seed._candidate_build_plan(document["build_plan"])
+    document["build_plan_sha256"] = seed._build_plan_sha256(document["build_plan"])
+    document["provenance"]["source_input_count"] = 82
+    payload = _json_bytes(document)
+    observations = [(row["file"], 1, row["size"], row["sha256"])
+                    for row in sorted(document["artifacts"], key=lambda row: row["file"])]
+    return payload, observations
+
+
+def _seed_context_bytes(seed_bytes, *, manifest_digest=None, plan_digest=None, facts=None):
+    document = json.loads(seed_bytes)
+    result = bytearray()
+    _append_bytes(result, (manifest_digest or _digest(seed_bytes)).encode("ascii"))
+    _append_bytes(result, (plan_digest or document["build_plan_sha256"]).encode("ascii"))
+    if facts is None:
+        facts = [(row["file"], row["size"], row["sha256"])
+                 for row in sorted(document["artifacts"], key=lambda row: row["file"])]
+    result.extend(struct.pack("<I", len(facts)))
+    for name, size, digest in facts:
+        _append_bytes(result, name.encode("ascii"))
+        result.extend(struct.pack("<Q", size))
+        _append_bytes(result, digest.encode("ascii"))
+    return bytes(result)
+
+
+def _context_request(mode, *, seed_bytes=None, observations=None, context=None):
+    if seed_bytes is None or observations is None:
+        captured_bytes, captured_observations = _captured_seed_fixture()
+        seed_bytes = captured_bytes if seed_bytes is None else seed_bytes
+        observations = captured_observations if observations is None else observations
+    manifest, artifact_observations = _fixture()
+    manifest["bootstrap"]["seed_manifest"]["sha256"] = _digest(seed_bytes)
+    builder = _author_request if mode == "author" else _request
+    classic = builder(manifest=manifest, observations=artifact_observations,
+                      seed_manifest_bytes=seed_bytes, seed_observations=observations)
+    return (b"CUPMAN5\0" if mode == "author" else b"CUPMAN6\0") + (
+        _seed_context_bytes(seed_bytes) if context is None else context) + classic[8:]
+
+
 def _matching_object_pairs(manifest):
     object_pairs = []
     for index, name in enumerate(OBJECT_COMPARISON_NAMES):
@@ -758,6 +801,87 @@ class ToolchainManifestContractTests(unittest.TestCase):
             ).encode("ascii"),
         )
         self.assertEqual(result.stderr, "")
+
+    def test_captured_seed_author_accepts_candidate_plan_without_manifest_pins(self):
+        seed_bytes, observations = _captured_seed_fixture()
+        result = self.run_author_request(_context_request("author", seed_bytes=seed_bytes, observations=observations))
+        self.assertEqual((result.returncode, result.stderr), (0, ""))
+        manifest = json.loads(result.stdout)
+        self.assertEqual(manifest["bootstrap"]["seed_manifest"]["sha256"], _digest(seed_bytes))
+        self.assertEqual(manifest["tool_fixed_point"]["c_objects"], 29)
+
+    def test_captured_seed_verifier_accepts_candidate_plan_without_manifest_pins(self):
+        result = self.run_request(_context_request("check"))
+        self.assertEqual((result.returncode, result.stderr), (0, ""))
+        self.assertEqual(json.loads(result.stdout)["artifact_count"], 22)
+
+    def test_captured_seed_context_still_binds_raw_manifest_and_each_tool_fact(self):
+        seed_bytes, observations = _captured_seed_fixture()
+        contexts = [_seed_context_bytes(seed_bytes, manifest_digest="0" * 64),
+                    _seed_context_bytes(seed_bytes, plan_digest="1" * 64)]
+        facts = [(name, size, digest) for name, _kind, size, digest in observations]
+        contexts.extend(_seed_context_bytes(seed_bytes, facts=changed) for changed in (
+            facts[:-1], [facts[0], *facts[:-1]], facts[::-1],
+            [(facts[0][0], 0, facts[0][2]), *facts[1:]],
+            [(facts[0][0], facts[0][1] + 1, facts[0][2]), *facts[1:]],
+            [(facts[0][0], facts[0][1], "0" * 64), *facts[1:]],
+        ))
+        for mode in ("author", "check"):
+            run = self.run_author_request if mode == "author" else self.run_request
+            for context in contexts:
+                with self.subTest(mode=mode, context=context[:80]):
+                    result = run(_context_request(mode, seed_bytes=seed_bytes, observations=observations, context=context))
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertEqual(result.stdout, "")
+            self.assertEqual(run(_context_request(mode)).returncode, 0)
+
+    def test_captured_seed_requests_reject_prefix_truncation_and_trailing_data(self):
+        for mode in ("author", "check"):
+            run = self.run_author_request if mode == "author" else self.run_request
+            payload = _context_request(mode)
+            for changed in (*[payload[:length] for length in (0, 7, 12, 78, 144, 200, 650, len(payload) - 1)], payload + b"\0"):
+                with self.subTest(mode=mode, length=len(changed)):
+                    result = run(changed)
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertEqual(result.stdout, "")
+            self.assertEqual(run(payload).returncode, 0)
+
+    def test_captured_seed_author_still_compares_every_raw_pair_lane(self):
+        seed_bytes, seed_observations = _captured_seed_fixture()
+        for lane in ("object_pairs", "executable_pairs", "bootstrap_object_pairs",
+                     "bootstrap_tool_pairs"):
+            with self.subTest(lane=lane):
+                manifest, observations = _fixture()
+                manifest["bootstrap"]["seed_manifest"]["sha256"] = _digest(seed_bytes)
+                pairs = {
+                    "object_pairs": _matching_object_pairs(manifest),
+                    "executable_pairs": _matching_executable_pairs(manifest),
+                    "bootstrap_object_pairs": _matching_bootstrap_pairs(
+                        BOOTSTRAP_OBJECT_NAMES, "bootstrap-object"),
+                    "bootstrap_tool_pairs": _matching_bootstrap_pairs(
+                        BOOTSTRAP_TOOL_NAMES, "bootstrap-tool"),
+                }
+                name, kind, payload, other_kind, _other = pairs[lane][0]
+                pairs[lane][0] = (name, kind, payload, other_kind, payload + b"drift")
+                classic = _author_request(
+                    manifest=manifest, observations=observations,
+                    seed_manifest_bytes=seed_bytes, seed_observations=seed_observations,
+                    **pairs)
+                request = b"CUPMAN5\0" + _seed_context_bytes(seed_bytes) + classic[8:]
+                self.assert_author_failure(request)
+        self.assertEqual(self.run_author_request(_context_request("author")).returncode, 0)
+
+    def test_captured_seed_verifier_still_rejects_publication_artifact_drift(self):
+        seed_bytes, seed_observations = _captured_seed_fixture()
+        manifest, observations = _fixture()
+        manifest["bootstrap"]["seed_manifest"]["sha256"] = _digest(seed_bytes)
+        manifest["artifacts"][0]["sha256"] = "0" * 64
+        classic = _request(
+            manifest=manifest, observations=observations,
+            seed_manifest_bytes=seed_bytes, seed_observations=seed_observations)
+        result = self.run_request(b"CUPMAN6\0" + _seed_context_bytes(seed_bytes) + classic[8:])
+        self.assertEqual((result.returncode, result.stdout), (1, ""))
+        self.assertEqual(self.run_request(_context_request("check")).returncode, 0)
 
     def test_author_hashes_matching_stage_object_pairs(self):
         manifest, observations = _fixture()

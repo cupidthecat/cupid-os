@@ -14,7 +14,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-from tools import cupidc_toolchain_contracts
+from tools import bootstrap_toolchain, cupidc_toolchain_contracts
 from tools.bootstrap_toolchain import _candidate_build_plan, _build_plan_sha256
 
 
@@ -1379,6 +1379,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 executable_pairs,
                 bootstrap_object_pairs,
                 bootstrap_tool_pairs,
+                *, seed_context,
             ):
                 del (
                     artifact_observations,
@@ -1395,6 +1396,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 captured["bootstrap_sha256"] = (
                     bootstrap_snapshot_sha256
                 )
+                captured["seed_context"] = seed_context
                 return b"author request"
 
             with (
@@ -1402,6 +1404,11 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     cupidc_toolchain_contracts,
                     "freeze_seed_inputs",
                     return_value=seed,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_manifest_seed_context",
+                    return_value=b"checked captured seed context",
                 ),
                 mock.patch.object(
                     cupidc_toolchain_contracts,
@@ -1453,6 +1460,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 )
 
             self.assertEqual(result, b"authored\n")
+            self.assertEqual(captured["seed_context"], b"checked captured seed context")
             self.assertEqual(
                 captured["inputs"],
                 (
@@ -3745,6 +3753,84 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     cupidc_toolchain_contracts.run_published_contract(
                         root, executable, (), 45
                     )
+
+
+class ManifestSeedContextTests(unittest.TestCase):
+    def setUp(self):
+        self.manifest = (Path(__file__).resolve().parents[1] /
+                         "bootstrap/seeds/i386-linux/manifest.json")
+        self.seed = bootstrap_toolchain.verify_seed_inputs(self.manifest)
+        self.artifacts = tuple((self.seed.tools[role].name, payload)
+                               for role, payload in self.seed.artifact_bytes)
+
+    def test_captured_cohort_matches_the_live_shared_reader(self):
+        context = cupidc_toolchain_contracts._manifest_seed_context(self.seed)
+        captured = cupidc_toolchain_contracts._manifest_seed_context_from_captured(
+            self.seed.manifest_bytes, self.artifacts)
+        self.assertEqual(captured, context)
+        self.assertIn(self.seed.manifest_sha256.encode("ascii"), context)
+        for row in self.seed.manifest["artifacts"]:
+            self.assertIn(row["sha256"].encode("ascii"), context)
+
+    def test_captured_cohort_rejects_missing_duplicate_and_extra_tools(self):
+        for artifacts in (self.artifacts[:-1],
+                          (*self.artifacts[:-1], self.artifacts[0]),
+                          (*self.artifacts, ("unexpected.elf", b"image"))):
+            with self.subTest(names=[name for name, _payload in artifacts]):
+                with self.assertRaisesRegex(cupidc_toolchain_contracts.ContractError,
+                                            "tool inventory differs"):
+                    cupidc_toolchain_contracts._manifest_seed_context_from_captured(
+                        self.seed.manifest_bytes, artifacts)
+
+    def test_captured_cohort_rejects_changed_manifest_before_framing(self):
+        changed = json.loads(self.seed.manifest_bytes)
+        changed["provenance"]["source_revision"] = "0" * 40
+        with self.assertRaises(cupidc_toolchain_contracts.ContractError):
+            cupidc_toolchain_contracts._manifest_seed_context_from_captured(
+                json.dumps(changed).encode("ascii"), self.artifacts)
+
+    def test_captured_context_binds_valid_manifest_formatting(self):
+        payload = b"\n" + self.seed.manifest_bytes
+        context = cupidc_toolchain_contracts._manifest_seed_context_from_captured(
+            payload, self.artifacts)
+        self.assertIn(hashlib.sha256(payload).hexdigest().encode("ascii"), context)
+        self.assertNotEqual(context,
+                            cupidc_toolchain_contracts._manifest_seed_context(self.seed))
+
+    def test_captured_cohort_rejects_image_drift_and_recovers(self):
+        name, payload = self.artifacts[0]
+        changed = bytes([payload[0] ^ 1]) + payload[1:]
+        with self.assertRaises(cupidc_toolchain_contracts.ContractError):
+            cupidc_toolchain_contracts._manifest_seed_context_from_captured(
+                self.seed.manifest_bytes, ((name, changed), *self.artifacts[1:]))
+        self.assertEqual(
+            cupidc_toolchain_contracts._manifest_seed_context_from_captured(
+                self.seed.manifest_bytes, self.artifacts),
+            cupidc_toolchain_contracts._manifest_seed_context(self.seed))
+
+    def test_captured_context_rejects_live_seed_drift_and_recovers(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "manifest.json"
+            manifest.write_bytes(self.seed.manifest_bytes)
+            for name, payload in self.artifacts:
+                (root / name).write_bytes(payload)
+            captured = bootstrap_toolchain.freeze_seed_inputs(manifest, root / "frozen")
+            expected = cupidc_toolchain_contracts._manifest_seed_context(captured)
+            name, payload = self.artifacts[0]
+            (root / name).write_bytes(payload + b"changed")
+            with self.assertRaises(cupidc_toolchain_contracts.ContractError):
+                cupidc_toolchain_contracts._manifest_seed_context(captured)
+            (root / name).write_bytes(payload)
+            self.assertEqual(cupidc_toolchain_contracts._manifest_seed_context(captured),
+                             expected)
+
+    def test_windows_execution_seed_cannot_supply_linux_policy_facts(self):
+        manifest = self.manifest.parent.parent / "i386-windows/manifest.json"
+        captured = bootstrap_toolchain.verify_seed_inputs(manifest)
+        with self.assertRaisesRegex(cupidc_toolchain_contracts.ContractError,
+                                    "checked cohort"):
+            cupidc_toolchain_contracts._manifest_seed_context(captured)
 
 
 if __name__ == "__main__":

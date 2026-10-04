@@ -2650,6 +2650,21 @@ layout. Prepared compiler artifacts remain unqualified until complete behavior
 and release consumption pass.
 >endtree
 
+>h2 Toolchain publication seed observations
+>tree
+Toolchain publication validates the selected Linux seed through the shared
+reader, then passes its captured manifest, plan and six image identities to
+the Cupid-built policy. CUPMAN5 authors the publication; CUPMAN6 verifies it.
+The policy retains its complete artifact and source inventories and all
+sixty-nine raw stage-pair comparisons. The caller retains and rechecks the
+original file observations through publication.
+
+The classic CUPMAN4 and CUPMAN2 formats keep their historical seed checks.
+Captured facts describe the selected bytes; release authority and filesystem
+lifetime remain separate. Installed seeds and build ownership change only
+after their own release and normal-build acceptance.
+>endtree
+
 >h2 See Also
 [03CUPIDSC.CTXT - CupidScript](open:03CUPIDSC.CTXT)
 [12HOLYC-CUPIDC.CTXT - HolyC comparison](open:12HOLYC-CUPIDC.CTXT)

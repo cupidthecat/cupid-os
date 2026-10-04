@@ -1,5 +1,17 @@
 # Toolchain ownership migration matrix
 
+## Toolchain publication seed context, 2026-10-04
+
+The hosted publisher and verifier use captured seed facts after shared-reader
+validation. Their native policy keeps the complete publication and raw
+comparison rules. Python still owns both orchestration actions. This capability
+does not change the 447 CupidBuild and five Python actions across 452 transforms.
+
+Both complete f6a8b6dd producer qualifications pass with independent rereads.
+Default and long-path new-parent consumption is running. Release installation
+and normal acceptance must precede the proposed ABI Make handoff to 448
+CupidBuild and four Python actions.
+
 ## Linux behavior-plan coordination, 2026-10-04
 
 The coordinator fixes the release qualification's Linux fixture plan without

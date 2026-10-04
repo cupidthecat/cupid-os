@@ -52,6 +52,10 @@ static const unsigned char manifest_request_magic[8] = {
     'C', 'U', 'P', 'M', 'A', 'N', '2', 0};
 static const unsigned char manifest_author_request_magic[8] = {
     'C', 'U', 'P', 'M', 'A', 'N', '4', 0};
+static const unsigned char manifest_captured_author_magic[8] = {
+    'C', 'U', 'P', 'M', 'A', 'N', '5', 0};
+static const unsigned char manifest_captured_check_magic[8] = {
+    'C', 'U', 'P', 'M', 'A', 'N', '6', 0};
 static const char manifest_schema[] = "cupid.toolchain-contracts.v3";
 static const char manifest_report_schema[] =
     "cupid.toolchain-manifest-verification.v1";
@@ -311,6 +315,12 @@ typedef struct {
   text_t comparisons[MANIFEST_COMPARISON_COUNT];
   manifest_digest_size_t
       object_comparisons[MANIFEST_OBJECT_COMPARISON_COUNT];
+  int has_captured_seed;
+  text_t captured_seed_manifest_sha256;
+  text_t captured_seed_build_plan_sha256;
+  text_t captured_seed_files[SEED_ARTIFACT_COUNT];
+  text_t captured_seed_sha256[SEED_ARTIFACT_COUNT];
+  uint64_t captured_seed_sizes[SEED_ARTIFACT_COUNT];
 } manifest_state_t;
 
 static const char *const manifest_artifact_names[MANIFEST_ARTIFACT_COUNT] = {
@@ -446,6 +456,13 @@ static void manifest_state_release(manifest_state_t *state) {
   for (index = 0u; index < MANIFEST_OBJECT_COMPARISON_COUNT; index++) {
     cupid_contract_text_release(&state->object_comparisons[index].sha256);
   }
+  cupid_contract_text_release(&state->captured_seed_manifest_sha256);
+  cupid_contract_text_release(&state->captured_seed_build_plan_sha256);
+  for (index = 0u; index < SEED_ARTIFACT_COUNT; index++) {
+    cupid_contract_text_release(&state->captured_seed_files[index]);
+    cupid_contract_text_release(&state->captured_seed_sha256[index]);
+  }
+  state->has_captured_seed = 0;
 }
 
 static int manifest_expected_inventories_match(error_context_t *context,
@@ -504,8 +521,11 @@ static int manifest_expected_inventories_match(error_context_t *context,
   }
   if (!cupid_contract_text_equals_literal(&state->seed_manifest_path,
                            manifest_expected_seed_path) ||
-      !cupid_contract_text_equals_literal(&state->seed_manifest_sha256,
-                           manifest_expected_seed_manifest_sha256) ||
+      (state->has_captured_seed
+          ? cupid_contract_text_compare(&state->seed_manifest_sha256,
+                &state->captured_seed_manifest_sha256) != 0
+          : !cupid_contract_text_equals_literal(&state->seed_manifest_sha256,
+                manifest_expected_seed_manifest_sha256)) ||
       !cupid_contract_text_equals_literal(&state->build_plan_sha256,
                            manifest_expected_build_plan_sha256)) {
     return cupid_contract_set_error(context, "manifest bootstrap plan identity differs");
@@ -577,6 +597,65 @@ static int manifest_slice_equals_literal(const byte_slice_t *value,
   size_t length = strlen(literal);
   return value->size == length &&
          memcmp(value->bytes, literal, length) == 0;
+}
+
+/* The caller validates the selected seed through the shared pinned reader and
+ * retains its observation lifetime. This policy consumes captured identities;
+ * the classic requests retain their manifest parser and historical pins. */
+static int manifest_read_captured_seed(error_context_t *context,
+    binary_reader_t *reader, manifest_state_t *state) {
+  static const char *const ordered_files[SEED_ARTIFACT_COUNT] = {
+      "cupidasm.elf", "cupidbuild.elf", "cupidc.elf", "cupiddis.elf",
+      "cupidld.elf", "cupidobj.elf"};
+  byte_slice_t manifest_digest;
+  byte_slice_t plan_digest;
+  uint32_t count;
+  size_t index;
+  if (!cupid_contract_binary_read_slice(context, reader, &manifest_digest) ||
+      !cupid_contract_binary_read_slice(context, reader, &plan_digest) ||
+      !manifest_slice_sha256_valid(&manifest_digest) ||
+      (!manifest_slice_equals_literal(&plan_digest,
+           manifest_expected_seed_build_plan_sha256) &&
+       !manifest_slice_equals_literal(&plan_digest,
+           manifest_expected_build_plan_sha256)) ||
+      !cupid_contract_binary_read_u32(context, reader, &count) ||
+      count != SEED_ARTIFACT_COUNT) {
+    return cupid_contract_set_error(context, "captured seed context differs");
+  }
+  if (!manifest_text_copy_slice(context,
+          &state->captured_seed_manifest_sha256, &manifest_digest) ||
+      !manifest_text_copy_slice(context,
+          &state->captured_seed_build_plan_sha256, &plan_digest)) {
+    return 0;
+  }
+  for (index = 0u; index < SEED_ARTIFACT_COUNT; index++) {
+    byte_slice_t file;
+    byte_slice_t digest;
+    uint64_t size;
+    int role;
+    if (!cupid_contract_binary_read_slice(context, reader, &file) ||
+        !cupid_contract_binary_read_u64(context, reader, &size) ||
+        !cupid_contract_binary_read_slice(context, reader, &digest) ||
+        !manifest_slice_equals_literal(&file, ordered_files[index]) ||
+        size == 0u || size > UINT32_MAX ||
+        !manifest_slice_sha256_valid(&digest)) {
+      return cupid_contract_set_error(context, "captured seed tool facts differ");
+    }
+    role = manifest_slice_literal_index(&file, cupid_contract_seed_files,
+                                      SEED_ARTIFACT_COUNT);
+    if (role < 0) {
+      return cupid_contract_set_error(context, "captured seed tool role differs");
+    }
+    if (!manifest_text_copy_slice(context,
+            &state->captured_seed_files[(size_t)role], &file) ||
+        !manifest_text_copy_slice(context,
+            &state->captured_seed_sha256[(size_t)role], &digest)) {
+      return 0;
+    }
+    state->captured_seed_sizes[(size_t)role] = size;
+  }
+  state->has_captured_seed = 1;
+  return 1;
 }
 
 static int manifest_basename_valid(const text_t *path) {
@@ -1807,6 +1886,33 @@ static int manifest_parse_seed_closure(error_context_t *context,
   return cupid_contract_json_finish(context, &reader);
 }
 
+static int manifest_select_seed_closure(error_context_t *context,
+    const manifest_state_t *state, byte_slice_t source,
+    manifest_seed_closure_t *closure) {
+  size_t index;
+  byte_slice_t plan;
+  if (!state->has_captured_seed) {
+    return manifest_parse_seed_closure(context, source, closure);
+  }
+  plan.bytes = state->captured_seed_build_plan_sha256.bytes;
+  plan.size = state->captured_seed_build_plan_sha256.size;
+  if (!manifest_text_copy_slice(context, &closure->build_plan_sha256, &plan)) {
+    return 0;
+  }
+  for (index = 0u; index < SEED_ARTIFACT_COUNT; index++) {
+    byte_slice_t file = {state->captured_seed_files[index].bytes,
+                         state->captured_seed_files[index].size};
+    byte_slice_t digest = {state->captured_seed_sha256[index].bytes,
+                           state->captured_seed_sha256[index].size};
+    if (!manifest_text_copy_slice(context, &closure->files[index], &file) ||
+        !manifest_text_copy_slice(context, &closure->sha256[index], &digest)) {
+      return 0;
+    }
+    closure->sizes[index] = state->captured_seed_sizes[index];
+  }
+  return 1;
+}
+
 static int manifest_parse_string_literal(error_context_t *context, json_reader_t *reader,
                                          const char *expected,
                                          const char *message) {
@@ -2094,12 +2200,19 @@ static int manifest_validate_request(error_context_t *context, const file_image_
   (void)memset(input_matched, 0, sizeof(input_matched));
   (void)memset(bootstrap_matched, 0, sizeof(bootstrap_matched));
   (void)memset(seed_matched, 0, sizeof(seed_matched));
-  if (reader.size < sizeof(manifest_request_magic) ||
-      memcmp(reader.bytes, manifest_request_magic,
-             sizeof(manifest_request_magic)) != 0) {
+  if (reader.size < sizeof(manifest_request_magic)) {
     return cupid_contract_set_error(context, "request magic differs from CUPMAN2");
   }
   reader.position = sizeof(manifest_request_magic);
+  if (memcmp(reader.bytes, manifest_captured_check_magic,
+             sizeof(manifest_captured_check_magic)) == 0) {
+    if (!manifest_read_captured_seed(context, &reader, state)) {
+      return 0;
+    }
+  } else if (memcmp(reader.bytes, manifest_request_magic,
+                    sizeof(manifest_request_magic)) != 0) {
+    return cupid_contract_set_error(context, "request magic differs from CUPMAN2");
+  }
   if (!cupid_contract_binary_read_slice(context, &reader, &manifest_source)) {
     return 0;
   }
@@ -2233,10 +2346,11 @@ static int manifest_validate_request(error_context_t *context, const file_image_
         memcmp(state->seed_manifest_sha256.bytes, seed_digest, 64u) != 0) {
       return cupid_contract_set_error(context, "live bootstrap seed differs from the manifest");
     }
-    ok = manifest_parse_seed_closure(context, seed_source, &seed_closure);
+    ok = manifest_select_seed_closure(context, state, seed_source, &seed_closure);
     if (ok &&
-        (!cupid_contract_text_equals_literal(&seed_closure.build_plan_sha256,
-                            manifest_expected_seed_build_plan_sha256) ||
+        ((!state->has_captured_seed &&
+          !cupid_contract_text_equals_literal(&seed_closure.build_plan_sha256,
+                            manifest_expected_seed_build_plan_sha256)) ||
          !cupid_contract_text_equals_literal(&state->build_plan_sha256,
                             manifest_expected_build_plan_sha256))) {
       ok = cupid_contract_set_error(context, "live bootstrap build plan differs from the manifest");
@@ -2475,10 +2589,13 @@ static int manifest_author_read_seed(error_context_t *context, binary_reader_t *
   manifest_digest_hex(seed_source.bytes, seed_source.size, seed_digest);
   if (!manifest_slice_equals_literal(
           &seed_path, manifest_expected_seed_path) ||
-      memcmp(seed_digest, manifest_expected_seed_manifest_sha256, 64u) != 0 ||
-      !manifest_parse_seed_closure(context, seed_source, &closure) ||
-      !cupid_contract_text_equals_literal(&closure.build_plan_sha256,
-                           manifest_expected_seed_build_plan_sha256)) {
+      memcmp(seed_digest, state->has_captured_seed
+                 ? (const char *)state->captured_seed_manifest_sha256.bytes
+                 : manifest_expected_seed_manifest_sha256, 64u) != 0 ||
+      !manifest_select_seed_closure(context, state, seed_source, &closure) ||
+      (!state->has_captured_seed &&
+       !cupid_contract_text_equals_literal(&closure.build_plan_sha256,
+                           manifest_expected_seed_build_plan_sha256))) {
     manifest_seed_closure_release(&closure);
     if (!context->has_error) {
       return cupid_contract_set_error(context, "manifest author seed closure differs");
@@ -2676,12 +2793,19 @@ static int manifest_validate_author_request(error_context_t *context, const file
                                             manifest_state_t *state) {
   binary_reader_t reader = {request->bytes, request->size, 0u};
   (void)memset(state, 0, sizeof(*state));
-  if (reader.size < sizeof(manifest_author_request_magic) ||
-      memcmp(reader.bytes, manifest_author_request_magic,
-             sizeof(manifest_author_request_magic)) != 0) {
+  if (reader.size < sizeof(manifest_author_request_magic)) {
     return cupid_contract_set_error(context, "request magic differs from CUPMAN4");
   }
   reader.position = sizeof(manifest_author_request_magic);
+  if (memcmp(reader.bytes, manifest_captured_author_magic,
+             sizeof(manifest_captured_author_magic)) == 0) {
+    if (!manifest_read_captured_seed(context, &reader, state)) {
+      return 0;
+    }
+  } else if (memcmp(reader.bytes, manifest_author_request_magic,
+                    sizeof(manifest_author_request_magic)) != 0) {
+    return cupid_contract_set_error(context, "request magic differs from CUPMAN4");
+  }
   if (!manifest_author_read_artifacts(context, &reader, state) ||
       !manifest_author_read_inputs(context, &reader, state) ||
       !manifest_author_read_bootstrap_inputs(context, &reader, state) ||

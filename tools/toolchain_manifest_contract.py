@@ -63,6 +63,7 @@ except ModuleNotFoundError:
 
 REPORT_SCHEMA = "cupid.toolchain-manifest-verification.v1"
 REQUEST_MAGIC = b"CUPMAN2\0"
+CAPTURED_REQUEST_MAGIC = b"CUPMAN6\0"
 REGULAR_FILE = 1
 LINUX_ENTRY = 0x08048000
 WINDOWS_ENTRY = int(EXPECTED_WINDOWS_TARGET["entry"])
@@ -137,8 +138,13 @@ def _encode_request(
     seed_manifest_path: str,
     seed_manifest_bytes: bytes,
     seed_observations: Sequence[tuple[str, int, int, str]],
+    *, seed_context: bytes | None = None,
 ) -> bytes:
-    output = bytearray(REQUEST_MAGIC)
+    output = bytearray(REQUEST_MAGIC if seed_context is None else CAPTURED_REQUEST_MAGIC)
+    if seed_context is not None:
+        if not isinstance(seed_context, bytes) or not seed_context:
+            raise ToolchainManifestContractError("captured manifest seed context is unavailable")
+        output.extend(seed_context)
     output.extend(_pack_bytes(manifest_bytes))
     _append_observations(output, artifact_observations)
     _append_observations(output, input_observations)
@@ -1226,6 +1232,12 @@ def verify_with_contract(
                 closure_snapshots,
             ) = _capture_live_manifest_closure(reader, root, oracle)
             snapshots = (*publication_snapshots, *closure_snapshots)
+            seed_parent = PurePosixPath(seed_path).parent
+            captured_tools = tuple((PurePosixPath(path).name, payload)
+                for path, payload in closure_snapshots
+                if PurePosixPath(path).parent == seed_parent and path.endswith(".elf"))
+            seed_context = cupidc_toolchain_contracts._manifest_seed_context_from_captured(
+                seed_bytes, captured_tools)
             request = _encode_request(
                 manifest_bytes,
                 artifact_observations,
@@ -1234,6 +1246,7 @@ def verify_with_contract(
                 seed_path,
                 seed_bytes,
                 seed_observations,
+                seed_context=seed_context,
             )
             cupidc_toolchain_contracts.verify_publication_inputs(root, oracle)
             oracle_report = _expected_report(oracle)

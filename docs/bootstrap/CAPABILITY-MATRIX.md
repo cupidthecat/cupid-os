@@ -1,5 +1,19 @@
 # Cupid Toolchain capability matrix
 
+## Toolchain publication from captured seed facts, 2026-10-04
+
+The native publication policy accepts CUPMAN5 author and CUPMAN6 verification
+requests with a captured Linux manifest identity, supported plan and six tool
+identities. The adapters validate the cohort through the shared seed reader
+and keep live observations through final checks. All publication inventories
+and sixty-nine raw comparisons remain enforced. Classic CUPMAN4 and CUPMAN2
+requests retain their historical seed checks. See
+[ADR 0417](../adr/0417-pass-captured-seed-facts-to-toolchain-publication-policy.md).
+
+Both complete f6a8b6dd producer qualifications and independent artifact checks
+pass. Default and long-path new-parent consumption is running. Installation
+and the native ABI Make handoff remain pending.
+
 ## Authorized Linux behavior plans, 2026-10-04
 
 Release-qualified Linux fixtures now carry the captured candidate plan and its
