@@ -1,5 +1,16 @@
 # Host dependency inventory
 
+## Native ABI qualification boundary, 2026-10-04
+
+The normal graph has 452 transforms: 447 owned by CupidBuild and five with
+Python prerequisites. Three user compilation transforms depend on the shared
+Python-coordinated ABI gate. Disk-image and ISO publication account for the
+other two. Source-head CupidBuild has a read-only native ABI command, and both
+bootstrap matrices require its complete report, rejection and recovery checks.
+Paired seed qualification and the normal recipe handoff remain pending.
+Make and host OS services remain required; host code-producing toolchains
+remain optional oracles.
+
 ## Checked user compiler handoff, 2026-10-01
 
 Python still coordinates eight of 452 audited transforms: three user links,

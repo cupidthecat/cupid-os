@@ -228,6 +228,14 @@ class StageReleaseTests(unittest.TestCase):
         child_arguments = ["run", "--tool", "cupidobj", "--", "--seed-manifest", "child-only"]
         runner.run(Path("cupidbuild"), child_arguments, 60)
         self.assertEqual(calls[-1][1], child_arguments)
+        for abi_arguments in (["verify-user-abi", "--root", directory],
+                              ["verify-user-abi"],
+                              ["verify-user-abi", "--root", directory,
+                               "--seed-manifest", directory / "absent.json"]):
+            with mock.patch.object(release, "_regular_bytes", side_effect=AssertionError(
+                    "unseeded ABI commands must not observe or inject a release")):
+                runner.run(Path("cupidbuild"), abi_arguments, 60)
+            self.assertEqual(calls[-1][1], abi_arguments)
         class DriftRunner(Runner):
             def run(_self, executable, arguments, timeout):
                 path.write_bytes(payload + b" ")

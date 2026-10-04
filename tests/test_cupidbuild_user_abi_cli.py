@@ -95,6 +95,18 @@ class CupidBuiltUserAbiCommandTests(unittest.TestCase):
         self.assertEqual(result.stderr, "")
         self.assertEqual(json.loads(result.stdout), oracle.check_syscall_abi(self.root))
 
+    def test_checked_command_passes_the_complete_staged_behavior_gate(self):
+        stage = bootstrap.Stage({}, {"cupidbuild": self.program})
+        behavior = self.root / "behavior"
+        behavior.mkdir()
+        bootstrap._check_cupidbuild_user_abi_behavior(
+            bootstrap.ToolRunner(self.root), ROOT, behavior, stage, stage, "checked ")
+        record = json.loads((behavior / "cupidbuild-user-abi/behavior.json").read_text())
+        self.assertEqual(len(record["cases"]), 22)
+        self.assertEqual(sum(row["status"] == 0 for row in record["cases"]), 11)
+        self.assertEqual(record["oracle_report"], oracle.check_syscall_abi(ROOT))
+        self.assertEqual(record["tool_sha256"], [self.program_sha256] * 2)
+
     def test_checked_command_resolves_relative_roots(self):
         for root in (".", "./", "././", str(self.root) + "/./"):
             with self.subTest(root=root):

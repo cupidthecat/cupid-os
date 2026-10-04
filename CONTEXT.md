@@ -34,6 +34,10 @@ _Avoid_: include overlay, private directory copy, production ownership
 A reviewed description of a paired Linux and Windows tool cohort, including its source, parent generations, build plans, and artifact identities. Matching a manifest to this record establishes agreement with the described release; trusting the record and retaining stable observations of its files are separate responsibilities.
 _Avoid_: manifest authenticity, executable validation, seed promotion
 
+**Bootstrap behavior fixture**:
+Captured inputs used to check a staged Cupid tool's runtime contract separately from the compiler producer snapshot. Its retained record describes original inputs and deliberate test cases; it does not establish seed promotion.
+_Avoid_: compiler build input, promoted seed evidence
+
 **Source-resolved raw control edge**:
 A bounded record that binds a raw call or jump at one source instruction offset
 to the address CupidASM resolved before encoding. Local rows also retain the

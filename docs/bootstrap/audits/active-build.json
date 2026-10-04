@@ -45405,7 +45405,7 @@
         "cupidc",
         "cupidbuild"
       ],
-      "failure_behavior_cases": 55,
+      "failure_behavior_cases": 66,
       "gnu_c_sources": 1,
       "help_cases": 7,
       "include_roots": [
@@ -45456,6 +45456,7 @@
         "cupidld"
       ],
       "source_head_capabilities": [
+        "cupid.cupidbuild_native_user_abi",
         "cupid.cupidbuild_checked_cupidc_runner",
         "cupid.cupidbuild_checked_cupidobj_runner",
         "cupid.cupidbuild_guarded_object_transaction",
@@ -45483,12 +45484,16 @@
       ],
       "status": "pass",
       "strict_c_sources": 28,
-      "success_behavior_cases": 62,
+      "success_behavior_cases": 73,
       "tool_c_sources": 29,
       "tool_images": 6,
-      "windows_failure_behavior_cases": 43,
+      "user_abi_behavior_inputs": 6,
+      "user_abi_behavior_sha256": "bb2738353eb0dea16b047808d9fde2c26c41d950754b6ae92e9ea0cb9c157ee1",
+      "user_abi_failure_cases": 11,
+      "user_abi_success_cases": 11,
+      "windows_failure_behavior_cases": 54,
       "windows_help_cases": 7,
-      "windows_success_behavior_cases": 49
+      "windows_success_behavior_cases": 60
     }
   },
   "features": [
@@ -60073,7 +60078,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "d3795ea63a280fbc320c3112bbf932e9292654293f681185532e9c6cd56d7c84"
+        "sha256": "8e3f49010a566af8223a7a53f38ac973689b0a2bfdf1c51be2709d45841a0ce3"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
@@ -60082,7 +60087,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "1e37861958798c7df9664972138517cc3b8dec62ecfd534d1989f1a232bc6a9b"
+      "sha256": "3af0038ee1e8f4181be2e6411e030fbef9adfc4ed8adc506493e2856be81f33d"
     },
     "text_hash_policy": "canonical_lf"
   },

@@ -11949,9 +11949,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 55,
+        "failure_cases": 66,
         "help_cases": 7,
-        "success_cases": 62,
+        "success_cases": 73,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -12151,6 +12151,81 @@ def _cupid_toolchain_fixed_point_contract(
         ) != 1:
             raise AuditError("Cupid Toolchain fixed-point user compile behavior differs: "
                              f"{matrix_name} must call the shared gate once in live code")
+    abi_helpers = [node for node in bootstrap_tree.body
+                   if isinstance(node, ast.FunctionDef)
+                   and node.name == "_check_cupidbuild_user_abi_behavior"]
+    abi_wrapper = (ast.get_source_segment(bootstrap_source, abi_helpers[0]) or ""
+                   if len(abi_helpers) == 1 else "")
+    if ("from tools.bootstrap_user_abi import check_behavior" not in abi_wrapper or
+            "check_behavior(runner, source_root, behavior_root, stage_two, stage_three, label_prefix)"
+            not in abi_wrapper or live_linked_code_policy_call_count(abi_helpers[0], "check_behavior") != 1):
+        raise AuditError("Cupid Toolchain fixed-point user ABI behavior differs: shared gate is unavailable")
+    for matrix_name in ("_run_behavior_checks", "_run_native_windows_behavior_checks"):
+        matrix = next(node for node in bootstrap_tree.body
+                      if isinstance(node, ast.FunctionDef) and node.name == matrix_name)
+        calls = [node for node in ast.walk(matrix) if isinstance(node, ast.Call)
+                 and isinstance(node.func, ast.Name)
+                 and node.func.id == "_check_cupidbuild_user_abi_behavior"]
+        expected_names = ("runner", "profile_source_root", "behavior_root", "stage_two", "stage_three")
+        expected_label = "native Windows " if matrix_name == "_run_native_windows_behavior_checks" else ""
+        if (len(calls) != 1 or live_linked_code_policy_call_count(
+                matrix, "_check_cupidbuild_user_abi_behavior") != 1 or
+                len(calls[0].args) != 6 or calls[0].keywords or
+                any(not isinstance(node, ast.Name) or node.id != name
+                    for node, name in zip(calls[0].args, expected_names)) or
+                not isinstance(calls[0].args[5], ast.Constant) or calls[0].args[5].value != expected_label):
+            raise AuditError("Cupid Toolchain fixed-point user ABI behavior differs: "
+                             f"{matrix_name} must pass the actual source and both generations once in live code")
+    try:
+        abi_behavior_source = (root / "tools/bootstrap_user_abi.py").read_text(encoding="utf-8")
+        abi_behavior_tree = ast.parse(abi_behavior_source)
+    except (OSError, SyntaxError) as error:
+        raise AuditError("Cupid Toolchain fixed-point user ABI behavior differs: source is unavailable") from error
+    abi_fragments = (
+        "MAX_INPUT_BYTES = 1024 * 1024", "parent.is_symlink()",
+        "release._regular_bytes(path, MAX_INPUT_BYTES)",
+        "observed.st_mtime_ns, observed.st_ctime_ns", "stat.S_ISREG(observed.st_mode)",
+        'for path in (root, *sorted(root.rglob("*")))',
+        'original = _capture(source_root, oracle.ABI_INPUTS)',
+        'for name, (payload, _observed) in original.items()',
+        'expected = oracle.check_syscall_abi(root)',
+        '_capture(source_root, oracle.ABI_INPUTS) != original',
+        'tuple(release._regular_bytes(path) for path in tools) != tool_bytes',
+        'seed._run_stage_pair(', 'runner, stage_two, stage_three, "cupidbuild",',
+        '["verify-user-abi", "--root", root]', 'timeout=60',
+        'seed._expect_status(result, status,', '_tree(root) != before',
+        'actual = release._json(result.stdout.encode("utf-8"))',
+        'result.stderr or _canonical(actual) != _canonical(expected)',
+        'result.stdout or not result.stderr or diagnostic not in result.stderr',
+        'command("canonical")', 'command("unicode-and-escaped-literals")',
+        'command(name, 1, diagnostic)', 'command(name + "-repair")',
+        'command(name, 2, "verify-user-abi --root ROOT", arguments)',
+        'command("final-recovery")', 'before.count(needle) != 1',
+        'path.write_bytes(before)', 'len(records) != 22',
+        '"schema": "cupid.bootstrap-user-abi-behavior.v1"',
+        '(gate / "behavior.json").write_bytes(release._encode(evidence))',
+        'json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)',
+    )
+    if any(fragment not in abi_behavior_source for fragment in abi_fragments):
+        raise AuditError("Cupid Toolchain fixed-point user ABI behavior differs: "
+                         "complete oracle, failure, recovery, or retained-input checks are missing")
+    abi_behavior = next((node for node in abi_behavior_tree.body
+                         if isinstance(node, ast.FunctionDef) and node.name == "check_behavior"), None)
+    abi_matrices = {target.id: node.value for node in ast.walk(abi_behavior)
+                    if isinstance(node, ast.Assign) for target in node.targets
+                    if isinstance(target, ast.Name) and target.id in ("failures", "usage_cases")} if abi_behavior else {}
+    expected_abi_cases = {
+        "failures": ("version", "provider", "string-open", "character-open", "string-escaped-close",
+                     "character-escaped-close", "invalid-utf8", "missing-input"),
+        "usage_cases": ("missing-root", "duplicate-root", "unexpected-seed"),
+    }
+    for name, expected_cases in expected_abi_cases.items():
+        value = abi_matrices.get(name)
+        if (not isinstance(value, ast.Tuple) or len(value.elts) != len(expected_cases) or
+                any(not isinstance(row, ast.Tuple) or not row.elts or
+                    not isinstance(row.elts[0], ast.Constant) or row.elts[0].value != case
+                    for row, case in zip(value.elts, expected_cases))):
+            raise AuditError("Cupid Toolchain fixed-point user ABI behavior differs: negative matrix differs")
     candidate_image_helper_names = (
         "_file_backed_entry_offset",
         "_corrupt_candidate_entry_instruction",
@@ -16112,9 +16187,9 @@ def _cupid_toolchain_fixed_point_contract(
             )
         expected_native_windows_behavior = ast.parse(
             "{"
-            "'failure_cases': len(tool_names) + 37, "
+            "'failure_cases': len(tool_names) + 48, "
             "'help_cases': len(tool_names) + 1, "
-            "'success_cases': len(tool_names) + 43"
+            "'success_cases': len(tool_names) + 54"
             "}",
             mode="eval",
         ).body
@@ -16130,8 +16205,8 @@ def _cupid_toolchain_fixed_point_contract(
             expected_native_windows_behavior, include_attributes=False
         ):
             missing_native_windows_fragments.append(
-                "_run_native_windows_behavior_checks: return forty-three failure, "
-                "seven help, and forty-nine success cases"
+                "_run_native_windows_behavior_checks: return fifty-four failure, "
+                "seven help, and sixty success cases"
             )
         if (
             live_linked_code_policy_call_count(
@@ -16822,10 +16897,15 @@ return tuple(
         "success_behavior_cases": expected_behavior_matrix["success_cases"],
         "failure_behavior_cases": expected_behavior_matrix["failure_cases"],
         "windows_help_cases": 7,
-        "windows_success_behavior_cases": 49,
-        "windows_failure_behavior_cases": 43,
+        "windows_success_behavior_cases": 60,
+        "windows_failure_behavior_cases": 54,
+        "user_abi_behavior_inputs": 6,
+        "user_abi_behavior_sha256": _source_digest(root / "tools/bootstrap_user_abi.py"),
+        "user_abi_success_cases": 11,
+        "user_abi_failure_cases": 11,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
+            "cupid.cupidbuild_native_user_abi",
             "cupid.cupidbuild_checked_cupidc_runner",
             "cupid.cupidbuild_checked_cupidobj_runner",
             "cupid.cupidbuild_guarded_object_transaction",

@@ -119,8 +119,8 @@ class CompileProductionBehaviorTests(unittest.TestCase):
         original_read = Path.read_text
         original = original_read(path, encoding="utf-8")
         contract = build_graph_audit._cupid_toolchain_fixed_point_contract(root)
-        self.assertEqual(contract["success_behavior_cases"], 62)
-        self.assertEqual(contract["windows_success_behavior_cases"], 49)
+        self.assertEqual(contract["success_behavior_cases"], 73)
+        self.assertEqual(contract["windows_success_behavior_cases"], 60)
         for old, new in (
             ("tuple(path.stat().st_mtime_ns for path in paths) != old_times", "False"),
             ("success(source, expected[source])", "success(source)"),

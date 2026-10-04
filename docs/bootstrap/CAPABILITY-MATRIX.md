@@ -1,5 +1,27 @@
 # Cupid Toolchain capability matrix
 
+## Native ABI bootstrap behavior gates, 2026-10-04
+
+Both complete bootstrap matrices require `verify-user-abi --root ROOT` in
+stage three and stage four. Each generation runs eleven positive and eleven
+negative cases. The gate checks the complete independent oracle report,
+Unicode paths and escaped literals, version and provider drift, four incomplete
+literal forms, invalid UTF-8, missing input, argument rejection and recovery.
+
+The retained behavior bundle includes the six declaration identities, the
+oracle report, staged executable hashes and all case results. Each pair must
+preserve the fixture tree, including bytes and timestamps. Original source
+captures and executable bytes are rechecked around each pair. The declarations
+remain separate from the 81-/82-input compiler producer snapshots.
+See [ADR 0414](../adr/0414-qualify-native-abi-behavior-in-both-stage-matrices.md).
+
+The Linux matrix now requires 73 success, 66 failure and seven help cases;
+the native Windows matrix requires 60 success, 54 failure and seven help cases.
+These are requirements enforced by the drivers and source audit. Fresh paired
+release qualification is pending. Installed seeds and the normal Make ABI
+recipe retain their current roles: 447 CupidBuild actions and five Python
+actions across 452 transforms.
+
 ## Native syscall ABI command at toolchain head, 2026-10-03
 
 Source-head CupidBuild provides `verify-user-abi --root ROOT`. It retains the

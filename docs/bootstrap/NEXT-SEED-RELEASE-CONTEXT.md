@@ -1,5 +1,28 @@
 # Explicit release context for seed consumption
 
+## Native ABI release work, 2026-10-04
+
+Toolchain head includes the shared ABI validator and native command from
+`b93a05e9`. Both complete bootstrap matrices now require the command in the
+final two generations, with retained six-input fixtures and eleven positive
+and eleven negative cases per generation. The Linux requirement is 73 success,
+66 failure and seven help cases; Windows requires 60 success, 54 failure and
+seven help cases. Preparations remain unqualified until paired release
+qualification passes those matrices under ADR 0411.
+
+The committed validator bytes have SHA-256
+`6886219a30d2ae990cd8257f9908a7ae1724a1efb615d285114d2bf9ac3c5fce`.
+The compiler snapshots are
+`cefc3b16c8138728f8387cf2ca75bb26350a4bdfa7b29ff8b9df4246a709a73f`
+for 81 inputs and
+`d983f249c7e54a47d60f04ace82dfbc283e16f1bfb73ea16c93bfbc36cc7670f`
+for 82 long/alias inputs. Earlier reports retain their original source hashes.
+The raw-kernel policy at this checkpoint is 9,585,024 bytes. Ownership remains
+447 CupidBuild actions and five Python actions. The ABI recipe contributes
+Python prerequisites to all three user compilation transforms; disk and ISO
+publication account for the other two. The historical checkpoints below keep
+their original measured values and qualification scope.
+
 The public adoption worktree now carries the paired `cfd9f140` release and native
 default user-link recipes. Ownership is 447 CupidBuild actions and five Python
 actions across 452 transforms. The raw-kernel policy is calibrated to

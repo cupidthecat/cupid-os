@@ -42909,3 +42909,76 @@ classifications and the existing missing-policy, wrong-owner, invalid-shape,
 classification-drift and active/unreachable-overlap failures. Staging now owns
 43 explicit files, including the fixture ownership policy. The final artifact,
 manual, image and unrelated-worktree checks are repeated before commit.
+
+## 2026-10-04: require native ABI behavior in both bootstrap matrices
+
+Both complete drivers call one shared native ABI gate with the actual OS source
+root and the final two CupidBuild generations. Each generation runs eleven
+success cases and eleven rejection cases. The six ABI declarations are captured
+as bounded regular files with unlinked ancestors. The gate retains their
+identities separately from compiler producer inputs and compares the complete
+native JSON report with the independent Python oracle. Integer-only JSON and
+unique decoded keys are required; booleans cannot substitute for integers.
+
+Cases cover canonical input, a Unicode root with Unicode comments and valid
+escaped literals, version drift, provider drift, four incomplete quoted literal
+forms, invalid UTF-8, missing input, three invalid argument forms, and recovery
+after every semantic/input failure. Each pair must agree in status, stdout and
+stderr. Commands must preserve fixture membership, bytes and metadata. Original
+source captures and staged executable bytes are rechecked around each pair.
+The retained record includes source sizes/hashes, the full oracle report,
+executable hashes and case output hashes. Occupied evidence paths are preserved.
+
+The Linux matrix requires 73 success, 66 failure and seven help cases. Native
+Windows requires 60 success, 54 failure and seven help cases. The audit checks
+both live calls, their actual source and generation arguments, retained-input
+checks, strict complete-report comparison, and the named negative matrices.
+The generated contract also binds the qualification module hash. ADR 0414 keeps these runtime fixtures separate from the producer snapshot.
+The explicit release runner leaves `verify-user-abi` arguments unchanged,
+including the invalid seed-manifest case; only seeded operations receive
+release authorization under ADR 0411.
+
+Fresh public command builds use only the installed CupidC, CupidASM and CupidLD
+on each host. Windows passes eight methods with one POSIX-only skip in
+168.288 seconds. Linux passes all nine command methods and the initial five gate
+methods in 168.391 seconds. The final six gate methods plus the updated release
+runner method pass on Windows in 13.524 seconds and Linux in 12.017 seconds.
+The gate regression method rejects eighteen output, mutation, generation and
+recovery defects. Separate source-audit mutations reject missing or misbound
+gates, weakened oracle comparison, failure stdout, and lost input checks.
+
+The four existing compilation behavior suites pass all sixteen Windows methods
+in 25.624 seconds. The twelve release methods pass on Windows in 38.755 seconds
+with one POSIX FIFO skip. Those release methods and the sixteen compilation
+behavior methods pass on Linux in 95.887 seconds. The updated fixed-point audit
+suite rejects all 262 mutations, and it passes with the strict disassembler
+matrix check in 416.299 seconds. A separate whole-report drift method passes
+in 0.925 seconds.
+The generated audit and its final check pass with 770 active sources,
+43 unreachable source-like files, 255 features and 452 transforms. Generated
+preprocessor-case bytes remain unchanged.
+
+Supplemental checks run all 44 ABI commands against the retained stage-three
+and stage-four executables on each host. They agree with the full oracle and
+recover from every required failure. These checks use the earlier staged
+artifacts whose corrected validator object equivalence is recorded above;
+they do not replace a fresh complete paired release qualification. Original
+bootstrap/preparation reports keep their original source identities.
+
+The first fixed-point test selection uses a nonexistent class name and is
+rejected before that method runs. The corrected selection exposes an incomplete
+temporary repository fixture: it lacks the new qualification module. That run
+is stopped after its repeated missing-module failures. Each mutation fixture
+now copies the module, and the complete fresh retry passes. An initial audit
+command writes a duplicate generated manifest under the wrong filename; its
+bytes match the canonical checked manifest, and the duplicate is removed.
+The final check selects the existing canonical path.
+
+This checkpoint changes host-side qualification and documentation only. It
+changes no active C/assembly source, compiler output, installed seed, normal
+ABI recipe, kernel output or runtime contract. Ownership remains 447 CupidBuild
+actions and five Python actions. Three user compilation transforms inherit the
+shared Python ABI prerequisite; disk and ISO publication account for the other
+two. Fresh paired preparation, release-authorized qualification, seed adoption
+and the normal ABI recipe handoff remain required for issue 34. TempleOS stays
+read-only reference material.

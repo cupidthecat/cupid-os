@@ -142,10 +142,10 @@ class CompileUserBehaviorTests(unittest.TestCase):
         original_read = Path.read_text
         original = original_read(path, encoding="utf-8")
         contract = build_graph_audit._cupid_toolchain_fixed_point_contract(root)
-        self.assertEqual(contract["success_behavior_cases"], 62)
-        self.assertEqual(contract["failure_behavior_cases"], 55)
-        self.assertEqual(contract["windows_success_behavior_cases"], 49)
-        self.assertEqual(contract["windows_failure_behavior_cases"], 43)
+        self.assertEqual(contract["success_behavior_cases"], 73)
+        self.assertEqual(contract["failure_behavior_cases"], 66)
+        self.assertEqual(contract["windows_success_behavior_cases"], 60)
+        self.assertEqual(contract["windows_failure_behavior_cases"], 54)
         for old, new in (
             ("tuple(path.stat().st_mtime_ns for path in user_paths) != user_old_times", "False"),
             ("success(user_source, expected[user_source])", "success(user_source)"),

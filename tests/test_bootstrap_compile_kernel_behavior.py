@@ -141,8 +141,8 @@ class CompileKernelBehaviorTests(unittest.TestCase):
         original_read = Path.read_text
         original = original_read(bootstrap_path, encoding="utf-8")
         contract = build_graph_audit._cupid_toolchain_fixed_point_contract(root)
-        self.assertEqual(contract["success_behavior_cases"], 62)
-        self.assertEqual(contract["windows_success_behavior_cases"], 49)
+        self.assertEqual(contract["success_behavior_cases"], 73)
+        self.assertEqual(contract["windows_success_behavior_cases"], 60)
         for old, new in (
             ("tuple(output.stat().st_mtime_ns for output in outputs) != before", "False"),
             ("success(code_source, expected=expected_code)", "success(code_source)"),

@@ -4444,6 +4444,26 @@ def _check_cupidbuild_compile_user_behavior(
         success(user_source, expected[user_source])
 
 
+def _check_cupidbuild_user_abi_behavior(
+    runner: ToolRunner,
+    source_root: Path,
+    behavior_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+    label_prefix: str,
+) -> None:
+    from tools.bootstrap_user_abi import check_behavior
+    from tools.bootstrap_toolchain import BootstrapError as GateError
+
+    try:
+        check_behavior(runner, source_root, behavior_root, stage_two, stage_three, label_prefix)
+    except GateError as error:
+        # The command-line module can run as __main__; keep its public error type.
+        if isinstance(error, BootstrapError):
+            raise
+        raise BootstrapError(str(error)) from error
+
+
 def _check_cupidbuild_embed_jpeg_behavior(
     runner: ToolRunner,
     source_root: Path,
@@ -5572,6 +5592,9 @@ def _run_native_windows_behavior_checks(
     _check_cupidbuild_compile_user_behavior(
         runner, behavior_root, stage_two, stage_three, behavior_seed_inputs, "native Windows ",
     )
+    _check_cupidbuild_user_abi_behavior(
+        runner, profile_source_root, behavior_root, stage_two, stage_three, "native Windows ",
+    )
 
     _check_cupidbuild_generate_profile_behavior(
         runner,
@@ -5822,9 +5845,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 37,
+        "failure_cases": len(tool_names) + 48,
         "help_cases": len(tool_names) + 1,
-        "success_cases": len(tool_names) + 43,
+        "success_cases": len(tool_names) + 54,
     }
 
 
@@ -6620,6 +6643,9 @@ def _run_behavior_checks(
     )
     _check_cupidbuild_compile_user_behavior(
         runner, behavior_root, stage_two, stage_three, seed_inputs, "",
+    )
+    _check_cupidbuild_user_abi_behavior(
+        runner, profile_source_root, behavior_root, stage_two, stage_three, "",
     )
 
     _check_cupidbuild_generate_profile_behavior(
@@ -9375,9 +9401,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 55,
+        "failure_cases": 66,
         "help_cases": len(tool_names) + 1,
-        "success_cases": 62,
+        "success_cases": 73,
     }
 
 
