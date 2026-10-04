@@ -43155,3 +43155,96 @@ Windows qualification closes successfully with 60 success, 54 failure and
 seven help cases; Linux remains in progress. Neither their earlier source
 capture nor this source acceptance qualifies the changed artifact-policy seed.
 Fresh committed producer/consumption proofs and installation remain required.
+
+## 2026-10-04: bind Linux behavior fixtures to the authorized candidate plan
+
+The unchanged-timeout Linux retry for frozen 30598dd1 sources finishes its
+compilation stages, then closes with a checked CupidObj runner failure:
+`manifest text differs from release identity`. No full report is published.
+The original failed log and both unqualified preparations remain unchanged.
+The original Windows qualification has independently passed 1,580 source
+rereads, 135 stage artifacts, 45 final-stage pairs and the complete retained
+ABI record. Its evidence describes the earlier frozen source, not later fixes.
+
+A replay using the actual immutable prepared ELF tools reproduces the Linux
+failure twice. The reduced case is one released CupidBuild/CupidObj help call
+and fails in under a second. The materialized Linux manifest retains the
+parent's 27-source plan with digest
+`9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5`.
+The reviewed 29-source candidate requires
+`48d6cc38b7a7362a83a911d2d3aaae8e79537c3f1744f3f5e7aac997728ed7f4`.
+All six actual image identities, release bytes and provenance fields match.
+Changing only the fixture plan and digest to the verified prepared plan makes
+the minimal replay pass. The original complete checked-runner helper passes
+after the coordinator fix, including its negative child-option case and
+recovery. The replay checks original tool and release bytes after execution.
+
+Authorization now retains immutable encoded candidate-plan bytes. Linux
+fixture materialization validates their digest against the selected release
+before writing the plan and digest. Parent lineage, source fields, images and
+release payload remain unchanged. Windows execution manifests retain their
+layout without Linux root plan fields. ADR 0416 records this boundary.
+
+The new seam test goes red for the exact old plan digest before the fix. The
+15-method release selection then fails one new test on each host because it
+incorrectly assumes Windows execution manifests contain a Linux plan. The
+implementation checks and remaining methods pass, with the named Windows
+POSIX skip. Correcting that test's format distinction makes its isolated
+replay pass on both hosts. These are separate closed failed and successful
+logs. The other new cases cover immutable capture after caller mutation and
+rejection of a wrong plan or duplicate decoded keys before seed publication.
+
+The first independent Windows verifier also assumes each stage record has
+only object/tool maps. It stops on the existing producer-generation field.
+Requiring that field and its exact generation value makes the fresh verifier
+pass. The failed verifier log remains intact; the qualification itself had
+already closed successfully.
+
+The committed 819cb3d4 source captures retain 1,583 files per host and the same
+82-input snapshot on both hosts:
+`a8ef7680c3e5e097487e14186f770b8a05ae3e9ac3d7963912c9dd24b51c7dee`.
+Both actual Freedoom assets match their committed LFS pointers in all three
+copies. Their staged preparations remain in progress and unqualified. This
+Python coordination fix does not alter the compiler snapshot or those staged
+inputs. Complete qualification must execute fresh committed control sources;
+any preparation reuse requires independent source, plan, parent and actual
+artifact checks. Installed seeds, public ownership and the ABI Make handoff
+remain unchanged.
+
+The related kernel, Doom, generated-production and user behavior selections
+pass all sixteen methods per host (28.909 seconds on Windows and 23.923 seconds
+on Linux). Both 819cb3d4 preparation commands close successfully; their stage
+records still declare unqualified status. Incremental manual/kernel acceptance
+is in progress. It reuses the earlier complete C/assembly build while marking
+the unchanged FORCE, Doom profile and active preprocessor-case inputs old.
+Only the changed documentation, generated source when needed, symbol table,
+kernel links and raw-image checks run again. The active preprocessor-case
+bytes still match the committed file.
+
+Both prepared cohorts independently pass exact source, plan, parent and actual
+artifact rereads: 243 stage artifacts and 81 final-stage pairs. The current
+coordinator leaves their 82-input compiler snapshot unchanged. This supports
+reuse of the unqualified preparation inputs, not release installation.
+
+Incremental acceptance closes successfully with host C/assembly producers
+forbidden. The 153,587-byte manual is present in all three kernel outputs.
+The raw kernel measures 9,586,372 bytes; only its exact policy row changes.
+The two ELF outputs remain 9,814,460 and 9,683,388 bytes. The first direct
+artifact check fails on the stale raw row; the subsequent Make image command
+passes all sixteen exact artifacts and publishes the image. It consumes the
+fresh kernel and boot outputs through four explicit old targets, rather than
+repeating the earlier complete C/assembly build.
+
+The private four-CPU `max`/e1000 smoke completes `ls` and passes the strict SMP
+runtime validator. All sixteen artifacts, manual, policy, installed release
+and base image retain their measured bytes afterward. The measured acceptance
+and runtime receipts are `abi-linux-plan-acceptance-windows.json` and
+`abi-linux-plan-runtime-verification-windows.json` beside the closed logs in
+the ignored proof directory. The final canonical source audit check passes;
+the generated inventory and action ownership remain unchanged. Fresh committed
+full qualification and both-host release consumption still remain required.
+
+The first external runtime receipt check assumes a UTF-8 PowerShell driver log
+and stops on its UTF-16 byte-order mark. Reading its declared encoding and the
+actual success text makes the receipt retry pass; the boot command itself had
+already closed successfully. This changes only the ignored evidence helper.

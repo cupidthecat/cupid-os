@@ -268,6 +268,7 @@ class BehaviorRelease:
     payload: bytes
     identity: dict
     format_name: str
+    linux_plan_bytes: bytes
 
     def manifest_bytes(self, payload, artifacts):
         document = _json(payload)
@@ -280,6 +281,11 @@ class BehaviorRelease:
         for key in ("source_revision", "source_snapshot_sha256", "source_input_count"):
             provenance[key] = identity[key]
         if self.format_name == "elf32":
+            linux_plan = _json(self.linux_plan_bytes)
+            if seed._build_plan_sha256(linux_plan) != identity["linux_plan_sha256"]:
+                raise seed.BootstrapError("behavior Linux plan differs from authorized release")
+            document["build_plan"] = linux_plan
+            document["build_plan_sha256"] = identity["linux_plan_sha256"]
             provenance["parent_seed_manifest_sha256"] = identity["parent_linux_manifest_sha256"]
             provenance["parent_seed_source_revision"] = identity["parent_source_revision"]
         else:
@@ -350,7 +356,7 @@ class ReleaseRequest:
         identity = _expected_identity(self.source_revision, source_inputs.inventory, linux_plan,
                                       windows_plan, self.linux_seed, self.windows_seed, self.cohorts)
         _check_record(self.payload, identity)
-        return BehaviorRelease(self.payload, identity, format_name)
+        return BehaviorRelease(self.payload, identity, format_name, _encode(linux_plan))
 
 
 def _capture_pair(root, linux_seed, windows_seed, long_paths, aliases):

@@ -1,5 +1,13 @@
 # Toolchain ownership migration matrix
 
+## Linux behavior-plan coordination, 2026-10-04
+
+The coordinator fixes the release qualification's Linux fixture plan without
+changing compiler source, staged images or public recipes. Both new host
+preparations pass their stage comparisons and remain unqualified. Complete
+behavior and consumption must run from committed control sources. Ownership
+remains 447 CupidBuild actions and five Python actions across 452 transforms.
+
 ## Artifact observation source checkpoint, 2026-10-04
 
 CupidBuild constructs CUPSIZE3 policy requests from release-validated paired

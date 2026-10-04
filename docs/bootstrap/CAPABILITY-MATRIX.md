@@ -1,5 +1,16 @@
 # Cupid Toolchain capability matrix
 
+## Authorized Linux behavior plans, 2026-10-04
+
+Release-qualified Linux fixtures now carry the captured candidate plan and its
+digest. The previous fixture retained its parent's 27-source plan while the
+ABI release required 29 sources, and the native reader correctly rejected it.
+Authorization retains immutable plan bytes; a wrong digest fails before
+publication. Actual prepared-tool replays and both host test selections pass.
+Compiler inputs and tool bytes remain unchanged. Fresh committed complete
+qualification and consumption remain required. See
+[ADR 0416](../adr/0416-carry-authorized-linux-plans-into-behavior-fixtures.md).
+
 ## Artifact policy from captured seed facts, 2026-10-04
 
 Source-head CupidBuild uses the shared release-aware seed readers before giving

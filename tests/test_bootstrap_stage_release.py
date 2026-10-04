@@ -191,6 +191,28 @@ class StageReleaseTests(unittest.TestCase):
             request.authorize(source, ROOT, self.linux_plan, self.windows_plan,
                 self.linux, None, *self.stages["elf32"][1:], "elf32")
 
+    def test_linux_behavior_materialization_uses_authorized_candidate_plan(self):
+        request = self.request()
+        source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True)
+        for format_name in ("elf32", "pe32"):
+            stages = self.stages[format_name]
+            authority = request.authorize(source, ROOT, self.linux_plan, self.windows_plan,
+                self.linux, self.windows if format_name == "pe32" else None,
+                stages[1], stages[2], format_name)
+            parent = self.linux if format_name == "elf32" else self.windows
+            path = seed._materialize_behavior_seed(replace(parent, behavior_release=authority),
+                self.root, format_name + "-plan-regression", stages[2])
+            document = json.loads(path.read_bytes())
+            if format_name == "elf32":
+                self.assertEqual(document["build_plan_sha256"], seed._build_plan_sha256(self.linux_plan))
+                self.assertEqual(document["build_plan"], self.linux_plan)
+            else:
+                self.assertNotIn("build_plan", document)
+                self.assertNotIn("build_plan_sha256", document)
+            self.assertEqual(document["provenance"]["source_revision"], self.revision)
+            self.assertEqual((path.parent / "seed-release.json").read_bytes(), request.payload)
+            self.assertEqual(parent.live_manifest_path.read_bytes(), parent.manifest_bytes)
+
     def test_matching_rebuild_generations_cannot_change_prepared_objects(self):
         request = self.request()
         for stage in self.stages["elf32"][1:]:
@@ -199,6 +221,30 @@ class StageReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(seed.BootstrapError, "objects differ from prepared"):
             request.authorize(source, ROOT, self.linux_plan, self.windows_plan,
                 self.linux, None, *self.stages["elf32"][1:], "elf32")
+
+    def test_authorized_linux_plan_is_retained_as_immutable_bytes(self):
+        request = self.request()
+        source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True)
+        authority = request.authorize(source, ROOT, self.linux_plan, self.windows_plan,
+            self.linux, None, *self.stages["elf32"][1:], "elf32")
+        expected = copy.deepcopy(self.linux_plan)
+        self.linux_plan["links"]["cupidbuild"].pop()
+        path = seed._materialize_behavior_seed(replace(self.linux, behavior_release=authority),
+            self.root, "immutable-plan", self.stages["elf32"][2])
+        self.assertEqual(json.loads(path.read_bytes())["build_plan"], expected)
+
+    def test_wrong_retained_plan_fails_before_behavior_seed_publication(self):
+        request = self.request()
+        source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True)
+        authority = request.authorize(source, ROOT, self.linux_plan, self.windows_plan,
+            self.linux, None, *self.stages["elf32"][1:], "elf32")
+        for payload in (release._encode(self.linux.manifest["build_plan"]),
+                        b'{"sources":[],"sources":[]}'):
+            changed = replace(authority, linux_plan_bytes=payload)
+            with self.assertRaises(seed.BootstrapError):
+                seed._materialize_behavior_seed(replace(self.linux, behavior_release=changed),
+                    self.root, "wrong-plan", self.stages["elf32"][2])
+            self.assertFalse((self.root / "wrong-plan").exists())
 
     def test_runner_inserts_release_before_child_separator_and_checks_drift(self):
         calls = []

@@ -1,5 +1,14 @@
 # Host dependency inventory
 
+## Linux behavior-plan coordination, 2026-10-04
+
+The release coordinator now materializes Linux fixtures from the authorized
+candidate plan rather than its older parent plan. It retains immutable plan
+bytes and checks the release-bound digest before publication. This fixes
+qualification metadata; compiler inputs, installed tools and public ownership
+remain unchanged. Complete qualification with committed control sources and
+the native ABI Make handoff remain pending.
+
 ## Artifact policy source capability, 2026-10-04
 
 Source-head native artifact verification uses the shared release-aware seed

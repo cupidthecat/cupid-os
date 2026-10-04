@@ -1,5 +1,19 @@
 # Explicit release context for seed consumption
 
+## Authorized Linux behavior plans, 2026-10-04
+
+The earlier frozen Linux retry completes compilation but fails because its
+behavior fixture retains the 27-source parent plan. The release requires the
+29-source candidate plan. The coordinator now captures that authorized plan
+as immutable bytes and checks its digest before writing the fixture. Actual
+prepared-tool replays pass; original frozen inputs and failure logs stay intact.
+
+Both 819cb3d4 preparations close successfully. This coordination fix leaves
+their 82-input compiler snapshot unchanged. Preparation reuse requires exact
+source, plan, parent and artifact rereads, followed by fresh committed control
+sources, release authoring and complete qualification. Installation, paired
+consumption and the default native ABI recipe handoff remain pending.
+
 ## Artifact policy compatibility, 2026-10-04
 
 The new 82-input ABI cohort exposes a second manifest parser in artifact policy

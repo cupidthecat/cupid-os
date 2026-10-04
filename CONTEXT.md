@@ -36,6 +36,8 @@ _Avoid_: manifest authenticity, executable validation, seed promotion
 
 **Bootstrap behavior fixture**:
 Captured inputs used to check a staged Cupid tool's runtime contract separately from the compiler producer snapshot. Its retained record describes original inputs and deliberate test cases; it does not establish seed promotion.
+Its executable plan describes the staged tools under test; parent lineage
+describes the inputs used to build them.
 _Avoid_: compiler build input, promoted seed evidence
 
 **Artifact policy observation request**:

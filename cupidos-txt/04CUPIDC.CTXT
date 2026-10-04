@@ -2642,6 +2642,12 @@ The original CUPSIZE2 API keeps its historical manifest checks. The new
 observation API clears results on failure, bounds diagnostics and retains no
 input pointers or mutable global state. The checked seeds still use the earlier
 implementation; paired release qualification and installation remain separate.
+
+Release-qualified Linux behavior fixtures carry the authorized candidate build
+plan and its digest. The parent plan remains lineage, rather than describing
+the staged tools under test. Windows fixtures keep their execution-manifest
+layout. Prepared compiler artifacts remain unqualified until complete behavior
+and release consumption pass.
 >endtree
 
 >h2 See Also
