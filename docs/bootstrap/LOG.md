@@ -42432,3 +42432,118 @@ Both terminal review axes pass this private small-case scope. The suffix
 primitive still needs checked large-disk coverage and a guarded image
 coordinator before ownership can move. CupidBuild ownership stays at 447 actions and Python at five.
 TempleOS remains read-only.
+
+## 2026-10-03: Shared CupidC block static assertions
+
+The shared frontend accepts `_Static_assert` in function compounds in strict
+C11 and Cupid mode without GNU extensions. It reuses the target constant
+evaluator and publishes a declaration record. The record owns any enums
+introduced inside a type or expression query. Linear IR validates that binding
+slice and emits no runtime work. Assertions after `return` are still checked.
+ADR 0412 records the statement placement and remaining `for` initializer
+boundary. No active source or vendor behavior is simplified.
+
+Frontend contracts cover local typedefs, arrays and parameters, nested scope
+and shadowing, enum activation and expiry, unevaluated operands, short-circuit
+faults, concatenated diagnostics, malformed declarations, syntax depth and
+bounded storage. Failed parses preserve the tape, arena and prior result,
+and the same job recovers. The object contract compares complete ELF32 bytes
+with equivalent assertion-free functions, checks symbols and relocations,
+and repeats emission without changing the frozen unit. The Cupid-built
+driver matches native output and preserves a prior object on rejection.
+
+The initial regression runs exposed stale exact source inventories, hosted
+object fingerprints, command help and Doom recipe locks. The repaired locks
+retain exact values. The generic header sweep records preprocessing failures
+alongside parse failures and visits all 175 selected headers. It pins 171
+successes and four specific failures; the Windows UTF-8 bridge fails under
+that generic Linux macro profile. No header is excluded.
+
+Native Windows passes all 184 frontend and IR methods. A fresh Linux Clang
+selection passes 187 methods: the same 184 plus the block assertion object,
+Cupid-built driver and hosted source frontier checks. The focused frontend
+and object selectors also pass on each host. The Windows object selection
+passes 114 of 116 methods on its second run; the remaining two stale Doom
+recipe expectations are corrected and both targeted reruns pass. The original
+116-method full run had thirteen failures, including stale help text in the
+fixed-point check. Its generated stages are not treated as a passing test.
+The corrected fixed-point replay passes in 965.995 seconds. It builds and
+compares successive static i386 Linux generations of CupidC, CupidASM,
+CupidDis, CupidLD and CupidObj through Cupid-built producers. It does not
+exercise CupidBuild. All 117 Windows object methods now have passing evidence
+across the broader selection and focused reruns.
+
+The default GCC build initially fails with `-Werror=maybe-uninitialized` in the
+existing floating-update IR implementation. A focused compile
+reproduces the warning. Moving the postfix old-value validation immediately
+after its successful stack pop fixes that compile with the same strict flags.
+No placeholder initialization or warning suppression is added. Prefix updates
+do not inspect the old value. All four update forms at both floating widths
+emit identical complete ELF bytes before and after the change, SHA-256
+`d23a16037208640f0a0dfd311a9f6232eb0ffc60077781b234082de72cbd9dd2`.
+The floating IR and object selectors pass their signed-zero, NaN,
+one-time-designator and transactional recovery checks. The refreshed audit
+pins 766 active inputs, 255 feature requirements and 452 transforms. All
+seventeen artifact-policy methods pass before kernel size calibration.
+`make check-bootstrap-audit` exits successfully. The Windows normal OS build
+and runtime evidence follows below.
+
+The first fresh OS attempt rejects two Doom outputs because the discovered
+directory closure changes during checked execution while the IR source is
+edited. The attempt remains failed. Finish source verification before retrying
+the normal build; do not weaken that publication check. The retry uses only
+objects produced in this initially empty worktree, with no surviving OS
+objects copied from another build.
+
+On the final guarded sources, all 300 Windows frontend, IR and object methods
+outside the dedicated fixed-point check pass in 409.878 seconds.
+The separate final Windows fixed-point check passes in 992.407 seconds. These
+runs cover all 301 compiler methods on the final sources. The final audit
+check passes with the guarded IR locks.
+The complete final Linux suite passes all 301 frontend, IR and object methods
+with default GCC in 1,312.953 seconds, including its own static fixed point.
+
+The settled `make -j8 all` replay finishes every compilation, both kernel
+links, symbol generation and the native flattening transaction. Its exact-size
+gate rejects the new raw kernel at 9,583,916 bytes against the old 9,583,576
+value. Both ELF sizes remain unchanged at 9,679,292 and 9,810,364 bytes.
+The final ELF and raw kernel contain the new manual heading. Change only the
+raw-kernel exact policy row by the measured 340 bytes; no seed or ELF policy
+row changes. The failed gate remains separate from the final build replay.
+The raw-kernel SHA-256 before that policy update is
+`0c6e0088d614ef4f3314b127ac70507820de68bfb5693b72de898649fa68417b`.
+
+All seventeen policy methods pass after that one-row update. A `-j16` replay
+then fails with `checked CupidC failed` for `kernel/lang/cupidc.cc` and
+`kernel/lang/cupidc_parse.cc`. Both sources passed in the preceding `-j8`
+run. Source inspection finds a 180-second ordinary compile budget, but the
+captured generic failure omits the child status, so timeout is not proved.
+Return to eight jobs with the existing deadlines and all publication checks.
+The higher-concurrency attempt remains failed.
+
+The final eight-job normal Windows build exits successfully with `CC`, `AS`,
+`LD`, `NM`, `OBJCOPY` and `NASM` set to forbidden command names. CupidBuild
+accepts all sixteen exact artifacts and the normal image publisher produces
+209,715,200 bytes, SHA-256
+`ec11fee6aadf8712c8e3a87aa55eb13f8be7aee5ff279de9dbaccd31ada560af`.
+All three kernel artifacts match their pre-calibration bytes. This worktree
+started without OS objects, generated C sources or an image; retries reuse
+only outputs created here. The two full Freedoom source assets were recovered
+with bytes matching their checked LFS object IDs. No prior kernel objects or
+generated tables are copied from another build. This is a Windows clean-root
+qualification, not a paired Linux OS build or complete six-tool promotion.
+
+The strict private-image QEMU boot smoke passes with four CPUs, `cpu=max`
+and e1000. It verifies all four CPUs online, RDRAND seeding, SSE2 and FPU,
+all 62 TLS self-tests, DHCP, desktop startup, Terminal and completed JIT
+execution of `ls`. The original image retains its recorded SHA-256 after
+the smoke. The final `make check-bootstrap-audit` also exits successfully.
+This checks ordinary startup and the Terminal command, not full Doom runtime.
+Retained logs, artifact hashes and a qualification receipt are under the
+ignored `build/bootstrap/block-static-asserts-20261003/` directory; its
+`evidence.json` includes failed attempts as well as the final passing runs.
+
+This is source-head compiler work. Checked seeds, the private in-kernel
+parser, and normal ownership remain unchanged: 447 CupidBuild actions and
+five Python actions. The new manual section documents that boundary.
+TempleOS remains read-only and outside the inventories.

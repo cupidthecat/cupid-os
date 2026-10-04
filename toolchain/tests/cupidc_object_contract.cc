@@ -18041,6 +18041,100 @@ cleanup:
   return 1;
 }
 
+static int run_block_static_assert_object(const char *host_root) {
+  static const char assertion_source[] =
+      "int unevaluated(void);\n"
+      "int checked(void) {\n"
+      "  _Static_assert(sizeof(enum { FIRST = 9 }) == 4, \"enum declaration\");\n"
+      "  _Static_assert(sizeof((enum { SECOND = 11 })0) == 4, \"expression declaration\");\n"
+      "  _Static_assert(sizeof(unevaluated()) == 4, \"no call\");\n"
+      "  _Static_assert(1 || (1 / 0), \"skipped fault\");\n"
+      "  { _Static_assert(_Alignof(int) == 4, \"nested\"); }\n"
+      "  return FIRST + SECOND;\n"
+      "  _Static_assert(sizeof(enum { AFTER_RETURN = 1 }) == 4, \"unreachable\");\n"
+      "}\n"
+      "void empty(void) { _Static_assert(1, \"empty\"); }\n";
+  static const char direct_source[] =
+      "int unevaluated(void);\n"
+      "int checked(void) { { } return 9 + 11; }\n"
+      "void empty(void) { }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *assertion_output = NULL;
+  ctool_buffer_t *direct_output = NULL;
+  ctool_c_translation_unit_t assertion_unit;
+  ctool_c_translation_unit_t direct_unit;
+  ctool_bytes_t assertion_bytes;
+  ctool_bytes_t direct_bytes;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_u32 index;
+  int passed = 0;
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/block-static-assert-object.c", assertion_source,
+                    &assertion_unit) ||
+      !parse_source(job, "/block-static-assert-object.c", direct_source,
+                    &direct_unit) ||
+      !check_status(ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                          &assertion_output), CTOOL_OK,
+                    "block assertion output buffer") ||
+      !check_status(ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                          &direct_output), CTOOL_OK,
+                    "plain output buffer") ||
+      !expect_object_success_preserves_unit(job, &assertion_unit,
+                    assertion_output, "block assertion object") ||
+      !expect_object_success_preserves_unit(job, &direct_unit,
+                    direct_output, "plain object")) {
+    if (job != NULL) (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  assertion_bytes = ctool_buffer_view(assertion_output);
+  direct_bytes = ctool_buffer_view(direct_output);
+  if (assertion_bytes.size == 0u || assertion_bytes.size != direct_bytes.size ||
+      memcmp(assertion_bytes.data, direct_bytes.data,
+             (size_t)assertion_bytes.size) != 0) {
+    (void)fprintf(stderr, "block assertions changed the object bytes\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/block-static-assert-object.o");
+  object_source.contents = assertion_bytes;
+  if (!check_status(ctool_elf32_read(job, &object_source, &object), CTOOL_OK,
+                     "read block assertion object") ||
+      object.relocation_count != 0u) {
+    goto cleanup;
+  }
+  for (index = 0u; index < object.symbol_count; index++) {
+    if (string_equal(object.symbols[index].name, "FIRST") ||
+        string_equal(object.symbols[index].name, "SECOND") ||
+        string_equal(object.symbols[index].name, "AFTER_RETURN")) {
+      (void)fprintf(stderr, "assertion enumerator acquired a symbol\n");
+      goto cleanup;
+    }
+  }
+  if (ctool_buffer_rewind(assertion_output, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(job, &assertion_unit,
+                    assertion_output, "repeat block assertion object")) {
+    goto cleanup;
+  }
+  assertion_bytes = ctool_buffer_view(assertion_output);
+  if (assertion_bytes.size != direct_bytes.size ||
+      memcmp(assertion_bytes.data, direct_bytes.data,
+             (size_t)assertion_bytes.size) != 0) {
+    goto cleanup;
+  }
+  passed = 1;
+cleanup:
+  if (direct_output != NULL) ctool_buffer_close(direct_output);
+  if (assertion_output != NULL) ctool_buffer_close(assertion_output);
+  if (job != NULL) ctool_job_close(job);
+  if (passed != 0) {
+    (void)puts("block-static-asserts: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_block_enum_object(const char *host_root) {
   static const char enum_source[] =
       "int cursor_constants(void) {\n"
@@ -33102,21 +33196,21 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 131u, 82u, 140u, 31u, 143u, 270u, 368u, 463u, 88u, 37u, 65u,
+      65u, 131u, 82u, 140u, 31u, 143u, 270u, 368u, 463u, 91u, 37u, 65u,
       46u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 188766u, 118477u, 183181u, 42212u,
-      190304u, 505711u, 579035u, 916190u, 153631u, 70368u, 85466u,
+      190304u, 505745u, 579035u, 916370u, 160618u, 70368u, 85460u,
       73546u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 214448u, 137444u, 220508u, 49484u,
-      226668u, 544716u, 649488u, 1084632u, 174068u, 79348u, 141560u,
+      226668u, 544760u, 649488u, 1084736u, 182072u, 79348u, 141552u,
       80856u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x08d1d4d1u, 0x3e007f3eu,
       0x90f1448fu, 0x999f97b7u, 0xb49d8eb9u,
-      0xefb1c487u, 0x788cef1du, 0xf550ff5fu, 0x6b129b78u,
-      0x34558a49u, 0x4285e204u, 0x9a880083u};
+      0x6c17acdeu, 0x788cef1du, 0x90513d61u, 0xf1ddd046u,
+      0x34558a49u, 0x3811ba0cu, 0x9a880083u};
   ctool_u32 index;
   int all_matched = 1;
   if (first_index > past_last_index ||
@@ -52462,6 +52556,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "block-enums") == 0) {
     return run_block_enum_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "block-static-asserts") == 0) {
+    return run_block_static_assert_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "bit-field-stores") == 0) {
     return run_bit_field_store_object(argv[2]);
   }
@@ -52690,7 +52787,7 @@ int main(int argc, char **argv) {
                 "pointer-arithmetic|function-pointers|"
                 "function-pointer-casts|doom-compatibility-pointers|"
                 "automatic-objects|"
-                "block-externs|block-functions|block-typedefs|block-enums|"
+                "block-externs|block-functions|block-typedefs|block-enums|block-static-asserts|"
                 "bit-field-stores|bit-field-promotions|"
                 "bit-field-mutations|"
                 "aggregate-initializers|union-initializers|"

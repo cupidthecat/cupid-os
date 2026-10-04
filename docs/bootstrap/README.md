@@ -1,5 +1,18 @@
 # Cupid Toolchain bootstrap
 
+## Block static assertions at compiler head, 2026-10-03
+
+Shared CupidC accepts C11 `_Static_assert` declarations throughout function
+compounds, including nested and unreachable blocks. The existing target
+constant evaluator checks local names and layout without retaining runtime
+operands. Declaration records own any enum names introduced by the assertion.
+Positive and transactional failure contracts pass, and assertion-bearing
+ELF32 objects match their assertion-free equivalents byte for byte.
+The checked seeds and normal build ownership are unchanged.
+[ADR 0412](../adr/0412-cupidc-block-static-assertions.md) records the boundary.
+The same checkpoint restores strict GCC compilation of floating-update IR
+without changing emitted update bytes or suppressing warnings.
+
 ## Evidence recovery, 2026-10-03
 
 The local receipts under

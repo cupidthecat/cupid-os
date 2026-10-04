@@ -13,6 +13,12 @@ Verified against source on: 2026-10-03
 >style linkhover #0B3AA8
 >rule
 
+>h2 Shared compiler block assertions
+The shared bootstrap compiler at source head accepts C11 _Static_assert
+inside function compounds. It checks local names and target layout at compile
+time, and successful assertions emit no runtime work. This capability has not
+yet moved into the checked seeds or the private in-kernel JIT/AOT parser.
+
 >h2 Normal user links and serial records
 >tree open Normal user links and serial records
 The installed Linux and Windows six-tool releases come from committed source

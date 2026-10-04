@@ -23419,9 +23419,17 @@ static ctool_status_t cfront_parse_block_item(
     return cfront_parse_statement(context, statement_out);
   }
   if (cfront_peek_is(context, "_Static_assert") == CTOOL_TRUE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT, first,
-        "block static assertions are outside this function-body slice");
+    ctool_u32 first_binding = context->block_bindings.count;
+    ctool_c_statement_t statement;
+    ctool_status_t status = cfront_parse_static_assert(context);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    cfront_statement_init(&statement, CTOOL_C_STATEMENT_DECLARATION, first);
+    statement.first_block_binding = first_binding;
+    statement.block_binding_count =
+        context->block_bindings.count - first_binding;
+    return cfront_append_statement(context, &statement, statement_out);
   }
   if (cfront_starts_declaration_specifier(context, first) == CTOOL_TRUE) {
     return cfront_parse_block_declaration(context, CTOOL_FALSE,

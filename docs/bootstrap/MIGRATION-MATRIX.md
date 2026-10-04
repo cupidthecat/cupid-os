@@ -1,5 +1,15 @@
 # Toolchain ownership migration matrix
 
+## Block assertions at compiler head, 2026-10-03
+
+Shared CupidC now accepts C11 `_Static_assert` in function compounds. Tests
+cover lexical enum ownership, transactional rejection, and identical object
+bytes with the assertions removed. Installed seeds still use the previous
+frontend. Normal ownership remains 447 CupidBuild actions and five Python
+actions across 452 transforms. Seed promotion, the private runtime parser,
+the image coordinator, and full Doom acceptance remain open.
+See [ADR 0412](../adr/0412-cupidc-block-static-assertions.md).
+
 ## Checked user compiler handoff, 2026-10-01
 
 Normal user object recipes now call checked `cupidbuild compile-user` for

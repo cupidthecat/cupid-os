@@ -1,5 +1,18 @@
 # Cupid Toolchain capability matrix
 
+## Block static assertions at compiler head, 2026-10-03
+
+The shared frontend accepts `_Static_assert` as a declaration in a function
+compound. Local typedefs, object and parameter layout, enum shadowing, and
+new enum definitions follow lexical scope. Successful assertions publish a
+declaration record and no runtime expression. Existing IR validates its
+binding slice and emits no assertion instructions. False assertions, malformed
+messages, nonconstant expressions, invalid statement placement and configured
+limits fail transactionally. This capability is not yet in the checked seeds
+or private runtime compiler. See ADR 0412.
+The shared IR passes strict GCC compilation after a local postfix validation
+change. Floating update objects and signed-zero/NaN behavior are preserved.
+
 ## Checked user compiler handoff, 2026-10-01
 
 Installed `78e71bd6` seeds carry the closed `compile-user` transaction.

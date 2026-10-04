@@ -7169,6 +7169,10 @@ static ctool_status_t cir_lower_floating_update(
   }
   if (status == CTOOL_OK && postfix == CTOOL_TRUE) {
     status = cir_pop(context, &old);
+    if (status == CTOOL_OK &&
+        (old.kind != CIR_STACK_VALUE || old.type != expression->type)) {
+      return cir_invalid_unit(context, &expression->location);
+    }
   }
   if (status == CTOOL_OK) {
     status = cir_pop(context, &address);
@@ -7177,9 +7181,7 @@ static ctool_status_t cir_lower_floating_update(
       (address.kind != CIR_STACK_ADDRESS ||
        right.kind != CIR_STACK_VALUE ||
        address.type != operand_expression->type ||
-       right.type != expression->type ||
-       (postfix == CTOOL_TRUE &&
-        (old.kind != CIR_STACK_VALUE || old.type != expression->type)))) {
+       right.type != expression->type)) {
     return cir_invalid_unit(context, &expression->location);
   }
   if (status == CTOOL_OK) {

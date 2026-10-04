@@ -751,6 +751,51 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "block-functions: ok\n")
 
+    def test_block_static_assertions_add_no_runtime_code_or_symbols(self):
+        result = subprocess.run(
+            [str(self.contract_path), "block-static-asserts", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT, text=True, capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "block-static-asserts: ok\n")
+
+    def test_block_static_assertions_work_in_cupid_built_driver(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        with tempfile.TemporaryDirectory(prefix=".block-assert-driver-", dir=REPO_ROOT) as temp:
+            root = Path(temp)
+            source = root / "source.cc"
+            output = root / "cupid.o"
+            source.write_text(
+                "int checked(int input) {\n"
+                "_Static_assert(sizeof(enum { VALUE = 7 }) == 4, \"enum\");\n"
+                "_Static_assert(sizeof(input) == 4, \"parameter\");\n"
+                "return input + VALUE; }\n", encoding="utf-8",
+            )
+            arguments = ["--root", root, "-c", "/source.cc"]
+            hosted = subprocess.run(
+                [str(self.hosted_cupidc_path), *map(str, arguments), "-o", "/hosted.o"],
+                cwd=REPO_ROOT, text=True, capture_output=True, timeout=60,
+            )
+            cupid = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path, [*arguments, "-o", "/cupid.o"], timeout=60,
+            )
+            self.assertEqual(hosted.returncode, 0, hosted.stderr)
+            self.assertEqual(cupid.returncode, 0, cupid.stderr)
+            self.assertEqual(output.read_bytes(), (root / "hosted.o").read_bytes())
+            before = output.read_bytes()
+            source.write_text(
+                "void bad(void) {\n_Static_assert(0, \"blocked \" \"layout\");\n}\n",
+                encoding="utf-8",
+            )
+            cupid = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path, [*arguments, "-o", "/cupid.o"], timeout=60,
+            )
+            self.assertNotEqual(cupid.returncode, 0)
+            self.assertIn("/source.cc:2:1", cupid.stderr)
+            self.assertIn("static assertion failed: blocked layout", cupid.stderr)
+            self.assertEqual(output.read_bytes(), before)
+
     def test_block_enumerators_emit_like_direct_integer_constants(self):
         result = subprocess.run(
             [str(self.contract_path), "block-enums", str(REPO_ROOT)],
@@ -3553,7 +3598,9 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(
                 transform["recipe"],
                 [
-                    "$(CUPIDC_KERNEL_COMPILE) --profile doom-tree "
+                    "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-doom \\",
+                    '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+                    "--seed-release $(PRODUCTION_SEED_RELEASE) \\",
                     f"--source {expected_source} "
                     f"--output {expected_output}"
                 ],
@@ -3690,7 +3737,9 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(
                 transform["recipe"],
                 [
-                    "$(CUPIDC_KERNEL_COMPILE) --profile doom-compat "
+                    "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-doom \\",
+                    '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+                    "--seed-release $(PRODUCTION_SEED_RELEASE) \\",
                     f"--source {source} --output {transform['output']}"
                 ],
             )
@@ -3764,7 +3813,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
             "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
             "[-U NAME] [--cupid] [--gnu] [--doom-compat] [--freestanding] "
-            "[--root NATIVE_ROOT]\n"
+            "[--root NATIVE_ROOT] [--source-bundle CUPSRC1_FILE]\n"
         )
         with tempfile.TemporaryDirectory(
             prefix=".cupidc-forced-include-errors-", dir=REPO_ROOT
@@ -3941,7 +3990,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
             "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
             "[-U NAME] [--cupid] [--gnu] [--doom-compat] [--freestanding] "
-            "[--root NATIVE_ROOT]\n"
+            "[--root NATIVE_ROOT] [--source-bundle CUPSRC1_FILE]\n"
         )
         with tempfile.TemporaryDirectory(
             prefix=".cupidc-include-errors-", dir=REPO_ROOT
@@ -4077,7 +4126,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
             "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
             "[-U NAME] [--cupid] [--gnu] [--doom-compat] [--freestanding] "
-            "[--root NATIVE_ROOT]\n"
+            "[--root NATIVE_ROOT] [--source-bundle CUPSRC1_FILE]\n"
         )
         hosted_help = subprocess.run(
             [str(self.hosted_cupidc_path), "--help"],
@@ -4216,7 +4265,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
             "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
             "[-U NAME] [--cupid] [--gnu] [--doom-compat] "
-            "[--freestanding] [--root NATIVE_ROOT]\n"
+            "[--freestanding] [--root NATIVE_ROOT] [--source-bundle CUPSRC1_FILE]\n"
         )
         conflict = (
             "cupidc: --cupid cannot be combined with --doom-compat\n"
@@ -4493,7 +4542,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
             "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
             "[-U NAME] [--cupid] [--gnu] [--doom-compat] [--freestanding] "
-            "[--root NATIVE_ROOT]\n"
+            "[--root NATIVE_ROOT] [--source-bundle CUPSRC1_FILE]\n"
         )
         generation_one_tools = {
             "cupidasm": self.cupid_cupidasm_path,

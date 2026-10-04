@@ -1,5 +1,15 @@
 # Toolchain bootstrap
 
+## Block static assertions at compiler head, 2026-10-03
+
+Shared CupidC accepts C11 `_Static_assert` declarations in function compounds.
+Lexical names and target layout determine the result. Successful checks add no
+runtime code; introduced enum names remain scoped to their block. Checked
+production seeds and build ownership are unchanged.
+[ADR 0412](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0412-cupidc-block-static-assertions.md) records the frontend and object contracts.
+The shared IR also passes strict GCC compilation after a postfix validation
+change that preserves floating update bytes and behavior.
+
 ## Evidence recovery, 2026-10-03
 
 The local receipts under

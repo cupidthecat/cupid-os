@@ -1300,20 +1300,25 @@ static int run_header_sweep(const char *host_root, int header_count,
     }
     path.text = ctool_string(header_paths[index]);
     status = ctool_job_load_source(job, &path, &source);
-    if (status == CTOOL_OK) {
-      (void)memset(&tape, 0xa5, sizeof(tape));
-      status = ctool_c_preprocess(job, &source, &pp_request, &tape);
-    }
-    if (status != CTOOL_OK || tape.tokens == NULL ||
-        tape.token_count == 0u || ctool_job_diagnostic_count(job) != 0u) {
+    if (status != CTOOL_OK) {
       (void)fprintf(stderr, "header-sweep: prepare %s: %s\n",
                     header_paths[index], ctool_status_name(status));
       (void)ctool_job_render_diagnostics(job);
       ctool_job_close(job);
       return 1;
     }
-    (void)memset(&unit, 0xa5, sizeof(unit));
-    status = ctool_c_parse(job, &tape, &parse_request, &unit);
+    (void)memset(&tape, 0xa5, sizeof(tape));
+    (void)memset(&unit, 0, sizeof(unit));
+    status = ctool_c_preprocess(job, &source, &pp_request, &tape);
+    if (status == CTOOL_OK) {
+      if (tape.tokens == NULL || tape.token_count == 0u ||
+          ctool_job_diagnostic_count(job) != 0u) {
+        ctool_job_close(job);
+        return 1;
+      }
+      (void)memset(&unit, 0xa5, sizeof(unit));
+      status = ctool_c_parse(job, &tape, &parse_request, &unit);
+    }
     if (status == CTOOL_OK) {
       if (ctool_job_diagnostic_count(job) != 0u) {
         ctool_job_close(job);
@@ -1865,12 +1870,15 @@ static char *build_static_assert_snapshot_source(void) {
 }
 
 static int validate_static_assert_limits(frontend_fixture_t *fixture,
-                                         const char *host_root) {
+                                         const char *host_root,
+                                         ctool_bool block_scope) {
   static const char anchor_source[] =
       "typedef unsigned int static_assert_limit_anchor_t;\n";
-  static const char short_source[] =
+  static const char file_short_source[] =
       "_Static_assert(0, \"small output\");\n";
-  static const char long_source[] =
+  static const char block_short_source[] =
+      "void checked(void) { _Static_assert(0, \"small output\"); }\n";
+  static const char file_long_source[] =
       "_Static_assert(0, \"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
       "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
       "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -1881,6 +1889,10 @@ static int validate_static_assert_limits(frontend_fixture_t *fixture,
       "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
       "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
       "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\");\n";
+  const char *short_source = block_scope == CTOOL_TRUE
+                                ? block_short_source : file_short_source;
+  const char *long_source = file_long_source;
+  char *block_long_source = NULL;
   char *snapshot_source = build_static_assert_snapshot_source();
   ctool_c_pp_result_t anchor_tape;
   ctool_c_pp_result_t short_tape;
@@ -1904,6 +1916,17 @@ static int validate_static_assert_limits(frontend_fixture_t *fixture,
   size_t long_bytes;
   size_t snapshot_bytes;
   int failed = 1;
+
+  if (block_scope == CTOOL_TRUE) {
+    size_t size = sizeof(file_long_source) + 64u;
+    block_long_source = (char *)malloc(size);
+    if (block_long_source == NULL) {
+      goto cleanup;
+    }
+    (void)snprintf(block_long_source, size, "void checked(void) { %s }\n",
+                   file_long_source);
+    long_source = block_long_source;
+  }
 
   if (snapshot_source == NULL ||
       parse_valid_fixture(fixture, "/static-assert-snapshot-success.c",
@@ -2046,6 +2069,7 @@ cleanup:
   free(snapshot_copy);
   free(long_copy);
   free(short_copy);
+  free(block_long_source);
   free(snapshot_source);
   return failed;
 }
@@ -4434,7 +4458,7 @@ static int run_static_asserts(const char *host_root) {
     }
     free(depth_source);
   }
-  if (validate_static_assert_limits(&fixture, host_root) != 0) {
+  if (validate_static_assert_limits(&fixture, host_root, CTOOL_FALSE) != 0) {
     goto cleanup;
   }
   failed = 0;
@@ -4447,6 +4471,147 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("static-asserts: ok\n");
+  }
+  return failed;
+}
+
+static int run_block_static_asserts(const char *host_root) {
+  static const char source[] =
+      "enum { WIDTH = 4 }; int query(void);\n"
+      "int checked(int parameter) {\n"
+      "  _Static_assert(WIDTH == 4, \"file enum\");\n"
+      "  typedef unsigned char byte; int values[5];\n"
+      "  _Static_assert(sizeof(byte) == 1, \"local typedef\");\n"
+      "  _Static_assert(sizeof(values) == 20, \"local array\");\n"
+      "  _Static_assert(sizeof(parameter) == 4, \"parameter\");\n"
+      "  _Static_assert(sizeof(query()) == 4, \"unevaluated call\");\n"
+      "  _Static_assert(sizeof(parameter / 0) == 4, \"unevaluated fault\");\n"
+      "  _Static_assert(1 || (1 / 0), \"short circuit\");\n"
+      "  _Static_assert(sizeof(enum local { FROM_ASSERT = 9 }) == 4, \"new enum\");\n"
+      "  _Static_assert(FROM_ASSERT == 9, \"enum activation\");\n"
+      "  _Static_assert(sizeof((enum { FROM_EXPRESSION = 11 })0) == 4, \"cast enum\");\n"
+      "  _Static_assert(FROM_EXPRESSION == 11, \"expression enum activation\");\n"
+      "  { enum { WIDTH = 8 }; typedef unsigned short byte;\n"
+      "    _Static_assert(WIDTH == 8 && sizeof(byte) == 2, \"inner scope\"); }\n"
+      "  _Static_assert(WIDTH == 4 && sizeof(byte) == 1, \"restored scope\");\n"
+      "  _Static_assert(_Alignof(enum local) == 4, \"visible tag\");\n"
+      "  return FROM_ASSERT + FROM_EXPRESSION;\n"
+      "  _Static_assert(1, \"unreachable declaration\");\n"
+      "}\n"
+      "void only_assertions(void) { _Static_assert(1, \"only\"); }\n";
+  static const frontend_failure_case_t failures[] = {
+      {"false after return", "void bad(void) { return; _Static_assert(0, \"after return\"); }",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATIC_ASSERT},
+      {"parameter is not constant", "void bad(int n) { _Static_assert(n, \"runtime\"); }",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"object hides file enum", "enum { N = 1 }; void bad(void) { int N; _Static_assert(N, \"hidden\"); }",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"expired assertion enum", "void bad(void) { { _Static_assert(sizeof(enum { N = 1 }) == 4, \"inner\"); } _Static_assert(N, \"expired\"); }",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"assertion enum conflicts with parameter", "void bad(int N) { _Static_assert(sizeof(enum { N = 1 }) == 4, \"duplicate\"); }",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"missing block assertion message", "void bad(void) { _Static_assert(1); }",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATIC_ASSERT},
+      {"non-string block assertion message", "void bad(void) { _Static_assert(1, 42); }",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATIC_ASSERT},
+      {"missing block assertion semicolon", "void bad(void) { _Static_assert(1, \"message\") }",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATIC_ASSERT},
+      {"selected division fault", "void bad(void) { _Static_assert(1 / 0, \"fault\"); }",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"assertion used as if body", "void bad(void) { if (1) _Static_assert(1, \"body\"); }",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+      {"assertion used as while body", "void bad(void) { while (1) _Static_assert(1, \"body\"); }",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+      {"assertion used as labeled statement", "void bad(void) { label: _Static_assert(1, \"body\"); }",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+      {"assertion used as case statement", "void bad(int n) { switch (n) { case 0: _Static_assert(1, \"body\"); } }",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  ctool_u32 declarations = 0u;
+  int failed = 1;
+  if (begin_frontend_fixture(&fixture, "block-static-asserts", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(&fixture, "/block-static-asserts.c", source, &unit) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.statement_count; index++) {
+    if (unit.statements[index].kind == CTOOL_C_STATEMENT_DECLARATION) {
+      declarations++;
+    }
+  }
+  if (unit.function_definition_count != 2u || declarations != 20u ||
+      unit.expression_count != 3u || unit.expression_child_count != 2u ||
+      unit.block_binding_count != 6u) {
+    (void)fprintf(stderr, "block-static-asserts: graph differs: declarations=%u expressions=%u children=%u bindings=%u\n",
+                  declarations, unit.expression_count, unit.expression_child_count,
+                  unit.block_binding_count);
+    goto cleanup;
+  }
+  fixture.pp_request.mode = CTOOL_C_PP_MODE_CUPID;
+  fixture.parse_request.mode = CTOOL_C_PP_MODE_CUPID;
+  if (parse_valid_fixture(&fixture, "/block-static-asserts-cupid.cc",
+                          source, &unit) != 0 ||
+      unit.expression_count != 3u || unit.block_binding_count != 6u) {
+    goto cleanup;
+  }
+  fixture.pp_request.mode = CTOOL_C_PP_MODE_C11;
+  fixture.parse_request.mode = CTOOL_C_PP_MODE_C11;
+  for (index = 0u; index < ARRAY_COUNT(failures); index++) {
+    if (expect_frontend_failure(&fixture, &failures[index], "/block-static-assert-failure.c") != 0) {
+      goto cleanup;
+    }
+  }
+  {
+    static const frontend_failure_case_t message = {
+        "concatenated block message", "void bad(void) {\n_Static_assert(0, \"alpha \" \"beta\");\n}",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATIC_ASSERT};
+    if (expect_frontend_failure_at_message(&fixture, &message,
+          "/block-static-assert-message.c", 2u, 1u,
+          "static assertion failed: alpha beta") != 0) {
+      goto cleanup;
+    }
+  }
+  {
+    char *depth_source = build_depth_source("block-static-assert", 32u);
+    ctool_c_translation_unit_t depth_unit;
+    frontend_failure_case_t depth_failure;
+    if (depth_source == NULL) goto cleanup;
+    if (parse_valid_fixture(&fixture, "/block-static-assert-depth.c",
+                            depth_source, &depth_unit) != 0) {
+      free(depth_source);
+      goto cleanup;
+    }
+    free(depth_source);
+    depth_source = build_depth_source("block-static-assert",
+                                      CTOOL_C_PARSE_NESTING_LIMIT - 1u);
+    if (depth_source == NULL) goto cleanup;
+    depth_failure.name = "block assertion at occupied nesting limit";
+    depth_failure.source = depth_source;
+    depth_failure.status = CTOOL_ERR_LIMIT;
+    depth_failure.diagnostic_code = CTOOL_C_PARSE_DIAG_LIMIT;
+    if (expect_frontend_failure(&fixture, &depth_failure,
+                                "/block-static-assert-depth.c") != 0) {
+      free(depth_source);
+      goto cleanup;
+    }
+    free(depth_source);
+  }
+  if (validate_static_assert_limits(&fixture, host_root, CTOOL_TRUE) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("block-static-asserts: ok\n");
   }
   return failed;
 }
@@ -5343,11 +5508,10 @@ static int run_block_bindings(const char *host_root) {
         "struct S;\nvoid bad(void) { struct S local; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
        2u, 27u, "block object requires a complete object type"},
-      {{"block static assertion boundary",
-        "void bad(void) { _Static_assert(1, \"ok\"); }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       1u, 18u,
-       "block static assertions are outside this function-body slice"},
+      {{"false block static assertion",
+        "void bad(void) { _Static_assert(0, \"block failure\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATIC_ASSERT},
+       1u, 18u, "static assertion failed: block failure"},
       {{"block attribute boundary",
         "void bad(void) { int local __attribute__((aligned(8))); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
@@ -7782,14 +7946,14 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 270u, 7624u,
-       70606u, 1004u, 369u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 270u, 7627u,
+       70617u, 1004u, 369u, 0u, 0u},
       {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 368u, 9323u,
        77764u, 1132u, 755u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 463u,
-       17772u, 116542u, 2647u, 1597u, 0u, 0u},
-      {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 88u, 3280u,
-       21579u, 358u, 200u, 0u, 0u},
+       17781u, 116583u, 2650u, 1599u, 0u, 0u},
+      {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 91u, 3379u,
+       22318u, 376u, 209u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
       {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1866u,
@@ -20097,9 +20261,9 @@ cleanup:
 
 static int run_boundaries(const char *host_root) {
   static const frontend_failure_case_t body = {
-      "block assertion boundary",
-      "int boundary_function(void) { _Static_assert(1, \"\"); }\n",
-      CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT};
+      "false block assertion",
+      "int boundary_function(void) { _Static_assert(0, \"\"); }\n",
+      CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATIC_ASSERT};
   static const frontend_failure_case_t exe = {
       "Cupid #exe boundary", "#exe { }\n", CTOOL_ERR_UNSUPPORTED,
       CTOOL_C_PARSE_DIAG_UNSUPPORTED};
@@ -21567,13 +21731,17 @@ static char *build_depth_source(const char *kind, ctool_u32 depth) {
       free(text);
       return NULL;
     }
-  } else if (strcmp(kind, "static-assert") == 0) {
-    if (append_scale_text(text, capacity, &used, "struct Root {\n") != 0) {
+  } else if (strcmp(kind, "static-assert") == 0 ||
+             strcmp(kind, "block-static-assert") == 0) {
+    int block = strcmp(kind, "block-static-assert") == 0;
+    if (append_scale_text(text, capacity, &used,
+                         block ? "void bad(void) {\n" : "struct Root {\n") != 0) {
       free(text);
       return NULL;
     }
     for (index = 0u; index < depth; index++) {
-      if (append_scale_text(text, capacity, &used, "struct {\n") != 0) {
+      if (append_scale_text(text, capacity, &used,
+                            block ? "{\n" : "struct {\n") != 0) {
         free(text);
         return NULL;
       }
@@ -21585,12 +21753,14 @@ static char *build_depth_source(const char *kind, ctool_u32 depth) {
       return NULL;
     }
     for (index = 0u; index < depth; index++) {
-      if (append_scale_text(text, capacity, &used, "};\n") != 0) {
+      if (append_scale_text(text, capacity, &used,
+                            block ? "}\n" : "};\n") != 0) {
         free(text);
         return NULL;
       }
     }
-    if (append_scale_text(text, capacity, &used, "};\n") != 0) {
+    if (append_scale_text(text, capacity, &used,
+                          block ? "}\n" : "};\n") != 0) {
       free(text);
       return NULL;
     }
@@ -35983,7 +36153,7 @@ int main(int argc, char **argv) {
                    "section-attributes|unused-attributes|used-attributes|"
                    "function-codegen-attributes|"
                    "naked-functions|"
-                   "static-asserts|"
+                   "static-asserts|block-static-asserts|"
                    "function-bodies|old-style-empty-functions|"
                    "wide-variadics|floating-transport|floating-arithmetic|"
                    "floating-comparisons|floating-conversions|"
@@ -36068,6 +36238,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "static-asserts") == 0) {
     return run_static_asserts(argv[2]);
+  }
+  if (strcmp(argv[1], "block-static-asserts") == 0) {
+    return run_block_static_asserts(argv[2]);
   }
   if (strcmp(argv[1], "function-bodies") == 0) {
     return run_function_bodies(argv[2]);

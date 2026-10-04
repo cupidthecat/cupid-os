@@ -1,5 +1,15 @@
 # cupid-os
 
+## Block static assertions at compiler head, 2026-10-03
+
+Shared CupidC accepts C11 `_Static_assert` declarations in function compounds.
+The checks use lexical names and target layout, including enums introduced by
+the assertion. They emit no runtime work. The checked production seeds and
+private in-kernel compiler keep their existing language boundaries.
+See [ADR 0412](docs/adr/0412-cupidc-block-static-assertions.md).
+The shared IR also passes strict GCC compilation after placing postfix
+validation beside the stack pop that initializes its old value.
+
 ## Evidence recovery, 2026-10-03
 
 The local receipts under

@@ -27,6 +27,15 @@ paired seed carriage, and ADR 0371 records production ownership.
 
 CupidC is a HolyC-inspired C compiler built into the cupid-os kernel. It compiles `.cc` source files to native x86 machine code. Programs run directly in ring 0 without a virtual machine or interpreter. Every active CupidC translation unit already uses `.cc`; this transfer has no C source to rename.
 
+## Shared compiler block assertions
+
+The shared bootstrap frontend accepts C11 `_Static_assert` declarations inside
+function compounds, including nested blocks and declarations after `return`.
+It checks local typedefs, enum constants, and target layout at compile time.
+Successful assertions add no runtime code. This source-head capability is
+separate from the checked seed and private JIT/AOT parser.
+[ADR 0412](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0412-cupidc-block-static-assertions.md) records its tests and limits.
+
 ---
 
 ## Overview
