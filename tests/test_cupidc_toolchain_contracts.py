@@ -311,7 +311,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             },
             "tool_fixed_point": {
                 "all_equal": True,
-                "c_objects": 27,
+                "c_objects": 29,
                 "compared_generations": list(
                     cupidc_toolchain_contracts.CONVERGED_GENERATIONS
                 ),
@@ -396,6 +396,10 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             "toolchain/cupidbuild_artifacts.cc": "int cupidbuild_artifacts;\n",
             "toolchain/cupidbuild_artifacts.h": "int cupidbuild_artifacts_header;\n",
             "toolchain/artifact_size_policy.cc": "int artifact_size_policy;\n",
+            "toolchain/user_syscall_abi.cc": "int user_syscall_abi;\n",
+            "toolchain/user_syscall_abi.h": "int user_syscall_abi_header;\n",
+            "toolchain/cupidbuild_user_abi.cc": "int cupidbuild_user_abi;\n",
+            "toolchain/cupidbuild_user_abi.h": "int cupidbuild_user_abi_header;\n",
             "toolchain/cupidc_emit.cc": "int emit;\n",
             "toolchain/hosted/i386-linux/include/stdio.h": "int stdio;\n",
             "toolchain/hosted/i386-linux/runtime.cc": "int runtime;\n",
@@ -747,7 +751,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            cupidc_toolchain_contracts.BOOTSTRAP_OBJECT_NAMES[-9:],
+            cupidc_toolchain_contracts.BOOTSTRAP_OBJECT_NAMES[-11:],
             (
                 "cupidbuild",
                 "cupidbuild_host",
@@ -757,6 +761,8 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 "contract_parse_internal",
                 "cupidbuild_artifacts",
                 "artifact_size_policy",
+                "user_syscall_abi",
+                "cupidbuild_user_abi",
                 "start",
             ),
         )
@@ -767,7 +773,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._tool_fixed_point_record(),
             {
                 "all_equal": True,
-                "c_objects": 27,
+                "c_objects": 29,
                 "compared_generations": ["stage-three", "stage-four"],
                 "startup_objects": 1,
                 "tool_images": 6,
@@ -781,7 +787,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 90)
+        self.assertEqual(len(inputs), 92)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)
@@ -3022,8 +3028,8 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             expected = cupidc_toolchain_contracts.check_syscall_abi(root)
             before = (output / "manifest.json").read_bytes()
             publication = cupidc_toolchain_contracts.verify_publication(output)
-            self.assertEqual(publication["input_count"], 90)
-            self.assertEqual(publication["bootstrap"]["source_inputs"]["count"], 78)
+            self.assertEqual(publication["input_count"], 92)
+            self.assertEqual(publication["bootstrap"]["source_inputs"]["count"], 82)
             completed = subprocess.CompletedProcess(
                 ["user-syscall-abi-contract.elf"], 0,
                 json.dumps(expected) + "\n", "",
@@ -3348,16 +3354,18 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     tools["cupidc"],
                     tools["cupidc"],
                     tools["cupidc"],
+                    tools["cupidc"],
                     tools["cupidasm"],
                     tools["cupidld"],
                 ],
             )
             compile_sources = [
-                call[1][call[1].index("-c") + 1] for call in calls[:4]
+                call[1][call[1].index("-c") + 1] for call in calls[:5]
             ]
             self.assertEqual(
                 compile_sources,
                 [
+                    "/toolchain/user_syscall_abi.cc",
                     "/toolchain/tests/user_syscall_abi_contract.cc",
                     "/toolchain/ctool_host.cc",
                     "/toolchain/ctool.cc",

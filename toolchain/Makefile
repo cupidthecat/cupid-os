@@ -196,6 +196,8 @@ CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.cc artifact_size_policy.h con
                               elf32.cc elf32.h pe32.h pe32_impl.h x86.cc x86.h \
                               cupidbuild.cc cupidbuild.h \
                               cupidbuild_artifacts.cc cupidbuild_artifacts.h \
+                              cupidbuild_user_abi.cc cupidbuild_user_abi.h \
+                              user_syscall_abi.cc user_syscall_abi.h \
                               cupidbuild_host.cc cupidbuild_host.h \
                               cupidbuild_main.cc \
                               cupidc_pp.cc cupidc_pp.h \
@@ -233,7 +235,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS := \
 	path_encoding.h native_utf8.h \
 	seed_manifest.h seed_release.h \
 	ctool.h ctool_host.h cupidasm.h cupidbuild.h cupidbuild_host.h \
-	cupidbuild_artifacts.h \
+	cupidbuild_artifacts.h cupidbuild_user_abi.h user_syscall_abi.h \
 	cupidc_emit.h \
 	cupidc_frontend.h cupidc_ir.h cupidc_pp.h cupidc_type.h \
 	cupiddis.h cupidld.h cupidobj.h elf32.h pe32.h pe32_impl.h x86.h \
@@ -367,6 +369,7 @@ CUPIDLD_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
 SEED_MANIFEST_OBJECTS := $(BUILD_DIR)/seed_manifest.o $(BUILD_DIR)/seed_release.o \
                          $(BUILD_DIR)/contract_parse_internal.o
 CUPIDBUILD_OBJECTS := $(BUILD_DIR)/cupidbuild_artifacts.o $(BUILD_DIR)/artifact_size_policy.o \
+                      $(BUILD_DIR)/user_syscall_abi.o $(BUILD_DIR)/cupidbuild_user_abi.o \
                       $(SEED_MANIFEST_OBJECTS) $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                       $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidbuild_host.o \
                       $(BUILD_DIR)/cupidbuild.o \
@@ -557,7 +560,15 @@ $(BUILD_DIR)/cupidbuild_artifacts.o: cupidbuild_artifacts.cc cupidbuild_artifact
 $(BUILD_DIR)/artifact_size_policy.o: artifact_size_policy.cc artifact_size_policy.h contract_parse_internal.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidbuild_main.o: cupidbuild_main.cc cupidbuild.h cupidbuild_artifacts.h artifact_size_policy.h | $(BUILD_DIR)
+$(BUILD_DIR)/user_syscall_abi.o: user_syscall_abi.cc user_syscall_abi.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/cupidbuild_user_abi.o: cupidbuild_user_abi.cc cupidbuild_user_abi.h \
+    user_syscall_abi.h cupidbuild_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/cupidbuild_main.o: cupidbuild_main.cc cupidbuild.h cupidbuild_artifacts.h \
+    artifact_size_policy.h cupidbuild_user_abi.h user_syscall_abi.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/as_elf.o: ../kernel/lang/as_elf.cc ../kernel/lang/as_elf.h cupidasm.h ctool.h elf32.h | $(BUILD_DIR)

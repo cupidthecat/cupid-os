@@ -168,6 +168,8 @@
     "toolchain/tests/native_utf8_argv_contract.cc": "not_reached",
     "toolchain/tests/native_utf8_fault_contract.cc": "not_reached",
     "toolchain/tests/path_encoding_contract.cc": "not_reached",
+    "toolchain/tests/user_abi_allocation_probe.cc": "host_fixture",
+    "toolchain/tests/user_abi_observer_probe.cc": "host_fixture",
     "toolchain/tests/windows_long_path_contract.cc": "not_reached",
     "toolchain/tests/windows_utf8_contract.cc": "not_reached",
     "toolchain/tests/windows_utf8_entry_contract.cc": "not_reached"

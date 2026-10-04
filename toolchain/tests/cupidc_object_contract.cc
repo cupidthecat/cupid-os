@@ -34169,6 +34169,10 @@ static int run_self_host_link_tools(const char *host_root,
       {"/toolchain/cupidbuild_artifacts.cc", "/toolchain/cupidbuild_artifacts.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
       {"/toolchain/artifact_size_policy.cc", "/toolchain/artifact_size_policy.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/user_syscall_abi.cc", "/toolchain/user_syscall_abi.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidbuild_user_abi.cc", "/toolchain/cupidbuild_user_abi.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE}};
   static const ctool_u32 cupidasm_objects[] = {
       0u, 7u, 6u, 3u, 2u, 4u, 5u, 1u};
@@ -34181,7 +34185,7 @@ static int run_self_host_link_tools(const char *host_root,
   static const ctool_u32 cupidc_objects[] = {
       0u, 20u, 19u, 18u, 17u, 16u, 15u, 3u, 2u, 4u, 5u, 1u};
   static const ctool_u32 cupidbuild_objects[] = {
-      0u, 23u, 21u, 22u, 3u, 2u, 4u, 26u, 27u, 28u, 30u, 31u, 1u};
+      0u, 23u, 21u, 22u, 3u, 2u, 4u, 26u, 27u, 28u, 30u, 31u, 32u, 33u, 1u};
   static const ctool_u32 runtime_objects[] = {0u, 14u, 1u};
   ctool_host_adapter_t adapter;
   ctool_limits_t limits = ctool_default_limits();

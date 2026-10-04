@@ -77,7 +77,7 @@ def artifact_manifest(fmt):
     value = manifest(fmt)
     provenance = value["provenance"]
     provenance["source_input_count"] = 76
-    plan = seed._candidate_build_plan(manifest(1)["build_plan"])
+    plan = copy.deepcopy(manifest(1)["build_plan"])
     if fmt == 1:
         value["build_plan"] = plan
         value["build_plan_sha256"] = seed._build_plan_sha256(plan)
@@ -115,7 +115,7 @@ def long_path_manifest(fmt):
         provenance["parent_seed_manifest_sha256"] = "1a8a91581562751cca6c51c5cd3de1259a73e92a0c161d1425155724d80ba7a8"
     else:
         plan = value["provenance"]["linux_candidate_build_plan_sha256"]
-        linux = seed._candidate_build_plan(manifest(1)["build_plan"])
+        linux = copy.deepcopy(manifest(1)["build_plan"])
         assert plan == seed._build_plan_sha256(linux)
         provenance["native_build_plan_sha256"] = seed._build_plan_sha256(
             seed._windows_build_plan(linux, utf8=True, long_paths=True))
@@ -165,6 +165,21 @@ def user_link_alias_manifest(fmt, *, long_paths):
         value["provenance"]["native_build_plan_sha256"] = (
             "2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff" if long_paths else
             "79241fcdd8784952cf9e1e74907ac817dc83e24429c5625d3424a889c2753d70")
+    return value
+
+
+def user_abi_manifest(fmt, *, long_paths=False, aliases=False):
+    value = user_compile_parent_manifest(fmt, long_paths=long_paths)
+    plan = seed._candidate_build_plan(manifest(1)["build_plan"])
+    value["provenance"]["source_input_count"] = 80 + int(long_paths) + int(aliases)
+    if fmt == 1:
+        value["build_plan"] = plan
+        value["build_plan_sha256"] = seed._build_plan_sha256(plan)
+    else:
+        value["provenance"]["linux_candidate_build_plan_sha256"] = seed._build_plan_sha256(plan)
+        value["provenance"]["native_build_plan_sha256"] = seed._build_plan_sha256(
+            seed._windows_build_plan(plan, utf8=True, long_paths=long_paths,
+                                     user_link_aliases=aliases))
     return value
 
 
@@ -241,8 +256,10 @@ class ManifestTests(unittest.TestCase):
         windows = seed.verify_seed_inputs(ROOT / "bootstrap/seeds/i386-windows/manifest.json")
         linux = seed.verify_seed_inputs(ROOT / "bootstrap/seeds/i386-linux/manifest.json")
         self.assertEqual(windows.manifest["provenance"]["source_input_count"], 78)
-        plan = seed._candidate_build_plan(linux.manifest["build_plan"])
+        plan = copy.deepcopy(linux.manifest["build_plan"])
         snapshot = seed.capture_source_snapshot(ROOT, plan, windows_utf8=True, windows_user_link_aliases=True)
+        snapshot = {path: row for path, row in snapshot.items()
+                    if path not in ("toolchain/user_syscall_abi.h", "toolchain/cupidbuild_user_abi.h")}
         self.assertEqual(len(snapshot), 77)
         digest = seed._build_plan_sha256(seed._windows_build_plan(plan, utf8=True, user_link_aliases=True))
         changed = seed._retarget_native_windows_behavior_seed(windows, digest, plan, snapshot,
@@ -351,6 +368,68 @@ class ManifestTests(unittest.TestCase):
                             altered["provenance"][field] = original
                     self.check(altered, fmt, False)
                 self.check(value, fmt)
+
+    def test_user_abi_candidate_retains_all_four_windows_import_profiles(self):
+        for long_paths in (False, True):
+            for aliases in (False, True):
+                for fmt in (1, 2):
+                    value = user_abi_manifest(fmt, long_paths=long_paths, aliases=aliases)
+                    profile = (4 if aliases else 2) + int(long_paths)
+                    self.check(value, fmt, expected=(6, profile if fmt == 2 else 0))
+                    for count in (79, 83, True, float(value["provenance"]["source_input_count"])):
+                        altered = copy.deepcopy(value)
+                        altered["provenance"]["source_input_count"] = count
+                        self.check(altered, fmt, False)
+                    fields = ("build_plan_sha256",) if fmt == 1 else (
+                        "linux_candidate_build_plan_sha256", "native_build_plan_sha256")
+                    for field in fields:
+                        altered = copy.deepcopy(value)
+                        owner = altered if fmt == 1 else altered["provenance"]
+                        previous = manifest(fmt) if fmt == 1 else manifest(fmt)["provenance"]
+                        owner[field] = previous[field]
+                        self.check(altered, fmt, False)
+                    self.check(value, fmt, expected=(6, profile if fmt == 2 else 0))
+
+    def test_user_abi_candidate_requires_both_complete_source_and_link_rows(self):
+        value = user_abi_manifest(1)
+        plan = value["build_plan"]
+        self.assertEqual(len(plan["sources"]), 29)
+        self.assertEqual(plan["links"]["cupidbuild"][-3:],
+                         ["user_syscall_abi", "cupidbuild_user_abi", "runtime"])
+        for name in ("user_syscall_abi", "cupidbuild_user_abi"):
+            index = next(index for index, row in enumerate(plan["sources"]) if row["name"] == name)
+            for key, original in plan["sources"][index].items():
+                altered = copy.deepcopy(value)
+                altered["build_plan"]["sources"][index][key] = changed(original)
+                self.check(altered, 1, False)
+            for section in ("sources", "link"):
+                altered = copy.deepcopy(value)
+                if section == "sources":
+                    altered["build_plan"]["sources"].pop(index)
+                else:
+                    altered["build_plan"]["links"]["cupidbuild"].remove(name)
+                altered["build_plan_sha256"] = seed._build_plan_sha256(altered["build_plan"])
+                self.check(altered, 1, False)
+        altered = copy.deepcopy(value)
+        order = altered["build_plan"]["links"]["cupidbuild"]
+        order[-3], order[-2] = order[-2], order[-3]
+        altered["build_plan_sha256"] = seed._build_plan_sha256(altered["build_plan"])
+        self.check(altered, 1, False)
+        self.check(value, 1, expected=(6, 0))
+
+    def test_user_abi_windows_profile_cannot_borrow_another_inventory_or_plan(self):
+        profiles = [user_abi_manifest(2, long_paths=long_paths, aliases=aliases)
+                    for long_paths in (False, True) for aliases in (False, True)]
+        for index, value in enumerate(profiles):
+            for other_index, other in enumerate(profiles):
+                if other_index == index:
+                    continue
+                altered = copy.deepcopy(value)
+                altered["provenance"]["native_build_plan_sha256"] = other["provenance"]["native_build_plan_sha256"]
+                same_count = value["provenance"]["source_input_count"] == other["provenance"]["source_input_count"]
+                # Count 81 supports both long paths and default user-link aliases.
+                self.check(altered, 2, same_count,
+                           expected=(6, (3 if other_index == 2 else 4)) if same_count else None)
 
     def test_user_compile_parent_profiles_require_complete_release_tuple(self):
         for long_paths in (False, True):

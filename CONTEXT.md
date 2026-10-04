@@ -529,14 +529,16 @@ _Avoid_: aggregate scalar, borrowed object address
 **Hosted source frontier**:
 The unchanged implementation and contract files that hosted CupidC can
 preprocess, parse, lower, and emit as deterministic i386 ELF32 objects. The
-current target-profile gate contains 50 strict C11 roots and three GNU-enabled
-runtime roots. `HOSTED_I386_LINUX` owns 35 Linux requests,
-`HOSTED_I386_WINDOWS` owns six `_WIN32=1` requests,
+current target-profile gate contains 60 strict C11 requests and four GNU-enabled
+runtime requests. `HOSTED_I386_LINUX` owns 45 Linux requests,
+`HOSTED_I386_WINDOWS` owns nine `_WIN32=1` requests,
 `FREESTANDING_I386` owns the headerless Windows command probe, and
 `HOSTED_I386_KERNEL_BRIDGE` owns the two requests that may include
-`/kernel/lang`. The GNU profile owns the Linux runtime, its behavior probe,
-and the Windows runtime wrapper. Together they cover the complete 22-source
-static Linux tool union, all six Windows-profile roots, the direct Windows
+`/kernel/lang`. The Linux GNU profile owns the Linux runtime, its behavior probe,
+and the Windows runtime wrapper. Separate Windows UTF-8, publication and build
+profiles each own one strict request; the UTF-8 runtime has its own GNU request.
+Together they cover the complete 29-source static Linux tool union, all nine
+Windows-profile requests, the direct Windows
 runtime contract, `kernel/lang/as_elf.cc`, and all seventeen Toolchain contract
 translation units.
 The retired `HOSTED_TOOLCHAIN_64` and `HOSTED_KERNEL_BRIDGE_64` names have no
@@ -908,12 +910,18 @@ the complete ownership rule.
 _Avoid_: counting only normal image recipes, implicit startup ownership, NASM-owned transforms
 
 **Cupid-built syscall ABI contract**:
-The static i386 contract that checks the external-program table before CupidC compiles the tracked user programs. It snapshots and rereads six ABI declarations, checks version 5, 103 fields, 412 table bytes, public scalar types and constants, both VFS record layouts, and all 101 providers, then emits the reviewed fingerprints. On Linux, stage-three and stage-four CupidC compile it as part of the static Toolchain cohort. CupidLD links the matching ELF, and the checked publisher requires identical objects and executables. On Windows, the checked PE execution seed builds a temporary copy from a separate frozen 26-file closure. CupidC compiles the contract and runtime objects, CupidASM supplies startup, and CupidLD links a validated PE that runs directly. Both paths give the contract and Python oracle the same frozen six-file snapshot and require identical JSON. The Windows path never reads or changes the Linux contract publication. ADR 0264 records the semantic transfer, and ADR 0295 records native Windows execution.
+The static i386 contract that checks the external-program table before CupidC compiles the tracked user programs. It snapshots and rereads six ABI declarations, checks version 5, 103 fields, 412 table bytes, public scalar types and constants, both VFS record layouts, and all 101 providers, then emits the reviewed fingerprints. On Linux, stage-three and stage-four CupidC compile it as part of the static Toolchain cohort. CupidLD links the matching ELF, and the checked publisher requires identical objects and executables. On Windows, the checked PE execution seed builds a temporary copy from a separate frozen 28-file closure. CupidC compiles the contract and runtime objects, CupidASM supplies startup, and CupidLD links a validated PE that runs directly. Both paths give the contract and Python oracle the same frozen six-file snapshot and require identical JSON. The Windows path never reads or changes the Linux contract publication. ADR 0264 records the semantic transfer, and ADR 0295 records native Windows execution.
 _Avoid_: Python-only ABI checker, user-program runtime, kernel syscall implementation
 
 **Hosted i386 ABI profile**:
-The deterministic hosted C request used to compile an i386 tool closure. Linux requests search `/toolchain` for quoted and angle includes and the checked i386 Linux declaration set for angle includes only, define `__SIZEOF_POINTER__` as four, and leave `_WIN32` undefined. Only `kernel/lang/as_elf.cc` and `toolchain/tests/cupidasm_kernel_elf_contract.cc` also search `/kernel/lang`; all 33 `HOSTED_I386_LINUX` roots are kept outside that bridge. `HOSTED_I386_WINDOWS` defines `_WIN32=1` for `ctool_host.cc`, all six Cupid Toolchain driver roots, including CupidDis and CupidBuild, and the CupidLD publication runtime while keeping the same four-byte pointer fact and declaration set. The definition on `cupiddis_main.cc` is required for byte parity between the native proof and the Linux path that reconstructs Windows behavior. The headerless Windows probe uses the separate `FREESTANDING_I386` profile. The Windows tool runtime selects the shared hosted implementation through `CUPID_RUNTIME_WINDOWS`. The CupidC command represents these roots with `-I` and `--include-angle` in caller order. Repeatable `-include` options represent preprocessing inputs that run in order before the primary source. Tool sources use strict C11. The Linux runtime, Windows runtime wrapper, and Linux behavior probe enable CupidC's GNU variadic built-ins.
+The deterministic hosted C request used to compile an i386 tool closure. Linux requests search `/toolchain` for quoted and angle includes and the checked i386 Linux declaration set for angle includes only, define `__SIZEOF_POINTER__` as four, and leave `_WIN32` undefined. Only `kernel/lang/as_elf.cc` and `toolchain/tests/cupidasm_kernel_elf_contract.cc` also search `/kernel/lang`; all 45 `HOSTED_I386_LINUX` roots are kept outside that bridge. `HOSTED_I386_WINDOWS` defines `_WIN32=1` for `ctool_host.cc`, all six Cupid Toolchain driver roots, including CupidDis and CupidBuild, and the CupidLD publication runtime while keeping the same four-byte pointer fact and declaration set. The definition on `cupiddis_main.cc` is required for byte parity between the native proof and the Linux path that reconstructs Windows behavior. The headerless Windows probe uses the separate `FREESTANDING_I386` profile. The Windows tool runtime selects the shared hosted implementation through `CUPID_RUNTIME_WINDOWS`. The CupidC command represents these roots with `-I` and `--include-angle` in caller order. Repeatable `-include` options represent preprocessing inputs that run in order before the primary source. Tool sources use strict C11. The Linux runtime, Windows runtime wrapper, and Linux behavior probe enable CupidC's GNU variadic built-ins.
 _Avoid_: `HOSTED_TOOLCHAIN_64`, vendored libc, host system headers
+
+**ABI source observation**:
+The retained six-declaration source view used to check Cupid's external-program
+ABI before reporting success. It detects source drift through revalidation and
+does not imply an atomic filesystem snapshot.
+_Avoid_: ABI freeze, provider execution, user-program runtime test
 
 **Hosted i386 Linux runtime**:
 The repository-owned startup and narrow C service layer for static Cupid-built i386 Linux commands. CupidASM supplies process entry and `int 0x80` system-call wrappers. CupidC supplies allocation, unbuffered files, standard streams, fixed-width integer declarations, memory and string functions, `errno`, `getcwd`, formatted diagnostics, and the checked `printf`, `puts`, `snprintf`, `fputc`, and `fputs` surface. Integer formatting covers `int`, `long`, and `long long` decimal and hexadecimal values, including zero-padded widths. String formatting accepts a fixed or argument-supplied precision. A CupidC-built `.cc` runtime contract checks the heap, files, errors, arguments, formatting, memory, and string behavior under Linux or WSL. It is a separate behavior probe and does not enter the 22-source fixed-point plan.

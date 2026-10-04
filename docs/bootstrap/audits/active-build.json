@@ -3406,6 +3406,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -3441,6 +3442,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "Makefile",
           "bootstrap/seeds/i386-windows/manifest.json",
@@ -6839,6 +6841,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -6874,6 +6877,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -7177,6 +7181,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -7212,6 +7217,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -7515,6 +7521,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -7550,6 +7557,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -7853,6 +7861,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -7888,6 +7897,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -8191,6 +8201,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -8226,6 +8237,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -8529,6 +8541,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -8564,6 +8577,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -8867,6 +8881,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -8902,6 +8917,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -9205,6 +9221,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -9240,6 +9257,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -9543,6 +9561,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -9578,6 +9597,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -9881,6 +9901,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -9916,6 +9937,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -10219,6 +10241,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -10254,6 +10277,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -10557,6 +10581,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -10592,6 +10617,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -10895,6 +10921,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -10930,6 +10957,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -11233,6 +11261,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -11268,6 +11297,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -11571,6 +11601,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -11606,6 +11637,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -11909,6 +11941,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -11944,6 +11977,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -12247,6 +12281,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -12282,6 +12317,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -12585,6 +12621,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -12620,6 +12657,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -12923,6 +12961,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -12958,6 +12997,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -13261,6 +13301,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -13296,6 +13337,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -13599,6 +13641,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -13634,6 +13677,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -13937,6 +13981,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -13972,6 +14017,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -14275,6 +14321,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -14310,6 +14357,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -14613,6 +14661,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -14648,6 +14697,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -14951,6 +15001,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -14986,6 +15037,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -15289,6 +15341,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -15324,6 +15377,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -15627,6 +15681,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -15662,6 +15717,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -15965,6 +16021,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -16000,6 +16057,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -16303,6 +16361,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -16338,6 +16397,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -16641,6 +16701,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -16676,6 +16737,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -16979,6 +17041,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -17014,6 +17077,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -17317,6 +17381,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -17352,6 +17417,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -17655,6 +17721,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -17690,6 +17757,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -17993,6 +18061,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -18028,6 +18097,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -18331,6 +18401,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -18366,6 +18437,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -18669,6 +18741,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -18704,6 +18777,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -19007,6 +19081,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -19042,6 +19117,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -19345,6 +19421,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -19380,6 +19457,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -19683,6 +19761,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -19718,6 +19797,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -20021,6 +20101,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -20056,6 +20137,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -20359,6 +20441,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -20394,6 +20477,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -20697,6 +20781,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -20732,6 +20817,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -21035,6 +21121,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -21070,6 +21157,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -21373,6 +21461,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -21408,6 +21497,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -21711,6 +21801,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -21746,6 +21837,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -22049,6 +22141,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -22084,6 +22177,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -22387,6 +22481,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -22422,6 +22517,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -22725,6 +22821,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -22760,6 +22857,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -23063,6 +23161,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -23098,6 +23197,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -23401,6 +23501,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -23436,6 +23537,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -23739,6 +23841,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -23774,6 +23877,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -24077,6 +24181,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -24112,6 +24217,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -24415,6 +24521,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -24450,6 +24557,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -24753,6 +24861,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -24788,6 +24897,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -25091,6 +25201,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -25126,6 +25237,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -25429,6 +25541,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -25464,6 +25577,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -25767,6 +25881,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -25802,6 +25917,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -26105,6 +26221,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -26140,6 +26257,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -26443,6 +26561,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -26478,6 +26597,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -26781,6 +26901,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -26816,6 +26937,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -27119,6 +27241,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -27154,6 +27277,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -27457,6 +27581,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -27492,6 +27617,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -27795,6 +27921,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -27830,6 +27957,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -28133,6 +28261,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -28168,6 +28297,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -28471,6 +28601,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -28506,6 +28637,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -28809,6 +28941,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -28844,6 +28977,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -29147,6 +29281,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -29182,6 +29317,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -29485,6 +29621,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -29520,6 +29657,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -29823,6 +29961,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -29858,6 +29997,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -30161,6 +30301,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -30196,6 +30337,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -30499,6 +30641,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -30534,6 +30677,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -30837,6 +30981,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -30872,6 +31017,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -31175,6 +31321,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -31210,6 +31357,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -31513,6 +31661,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -31548,6 +31697,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -31851,6 +32001,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -31886,6 +32037,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -32189,6 +32341,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -32224,6 +32377,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -32527,6 +32681,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -32562,6 +32717,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -32865,6 +33021,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -32900,6 +33057,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -33203,6 +33361,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -33238,6 +33397,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -33541,6 +33701,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -33576,6 +33737,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -33879,6 +34041,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -33914,6 +34077,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -34217,6 +34381,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -34252,6 +34417,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -34555,6 +34721,7 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -34590,6 +34757,7 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
           "Makefile",
@@ -44163,13 +44331,13 @@
     },
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
-      "direct_angle_occurrences": 314,
-      "direct_quoted_occurrences": 2249,
-      "include_occurrences": 2563,
+      "direct_angle_occurrences": 321,
+      "direct_quoted_occurrences": 2255,
+      "include_occurrences": 2576,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2563,
+      "ordinary_marker_occurrences": 2576,
       "pp_token_operand_occurrences": 0,
-      "source_files": 725,
+      "source_files": 729,
       "status": "pass"
     },
     "c_preprocessor_line_directives": {
@@ -44182,7 +44350,7 @@
       "numeric_marker_occurrences": 0,
       "ordinary_marker_occurrences": 0,
       "pp_token_line_occurrences": 0,
-      "source_files": 725,
+      "source_files": 729,
       "status": "pass"
     },
     "c_preprocessor_pragmas": {
@@ -44791,7 +44959,7 @@
           ],
           "mode": "CTOOL_C_PP_MODE_C11",
           "name": "HOSTED_I386_LINUX",
-          "tracked_translation_units": 43
+          "tracked_translation_units": 45
         },
         {
           "compatibility_pointer_conversions": false,
@@ -45016,16 +45184,16 @@
         }
       ],
       "status": "pass",
-      "total_translation_units": 416,
-      "tracked_translation_units": 412
+      "total_translation_units": 418,
+      "tracked_translation_units": 414
     },
     "c_source_ownership": {
       "active": [],
       "active_tracked_c_sources": 0,
-      "active_tracked_cupid_c_sources": 416,
+      "active_tracked_cupid_c_sources": 418,
       "cupid_c_ownership_evidence": {
-        "checked_cupidc_compile": 248,
-        "checked_cupidc_contract": 38,
+        "checked_cupidc_compile": 249,
+        "checked_cupidc_contract": 39,
         "explicit_runtime_delivery_policy": 130
       },
       "cupidc_owned_tracked_c_sources": 0,
@@ -45033,13 +45201,13 @@
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
         "residual_c_sources": 17,
         "runtime_delivery_sources": 130,
-        "sha256": "8d2c8f4def106a39298b3b151c05193174390db2a83bac5ac9566ba0023b6fee",
-        "unreachable_cupid_c_sources": 19
+        "sha256": "3494d28ecfef764fe0f028a8875a355ec1229d31e35cf101d86b9f0112696f39",
+        "unreachable_cupid_c_sources": 21
       },
-      "proven_cupidc_owned_tracked_cupid_c_sources": 416,
+      "proven_cupidc_owned_tracked_cupid_c_sources": 418,
       "status": "pass",
       "tracked_c_sources": 17,
-      "tracked_cupid_c_sources": 435,
+      "tracked_cupid_c_sources": 439,
       "unreachable": [
         {
           "classification": "historical_copy",
@@ -45192,6 +45360,16 @@
           "policy": "source_suffix_policy"
         },
         {
+          "classification": "host_fixture",
+          "path": "toolchain/tests/user_abi_allocation_probe.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "host_fixture",
+          "path": "toolchain/tests/user_abi_observer_probe.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
           "classification": "not_reached",
           "path": "toolchain/tests/windows_long_path_contract.cc",
           "policy": "source_suffix_policy"
@@ -45208,17 +45386,17 @@
         }
       ],
       "unreachable_tracked_c_sources": 17,
-      "unreachable_tracked_cupid_c_sources": 19
+      "unreachable_tracked_cupid_c_sources": 21
     },
     "cupid_toolchain_fixed_point": {
       "checked_seed_publication": "complete-bundle",
       "checked_seed_source_boundary_checks": 5,
       "checked_seed_source_root": "private-captured",
-      "compared_c_objects": 27,
+      "compared_c_objects": 29,
       "compared_startup_objects": 1,
       "compared_tool_images": 6,
       "compiler_c_sources": 11,
-      "contract_manifest_inputs": 90,
+      "contract_manifest_inputs": 92,
       "executed_tools": [
         "cupidasm",
         "cupiddis",
@@ -45267,7 +45445,7 @@
           "tool": "cupidc"
         },
         {
-          "objects": 13,
+          "objects": 15,
           "tool": "cupidbuild"
         }
       ],
@@ -45304,9 +45482,9 @@
         "stage-four"
       ],
       "status": "pass",
-      "strict_c_sources": 26,
+      "strict_c_sources": 28,
       "success_behavior_cases": 62,
-      "tool_c_sources": 27,
+      "tool_c_sources": 29,
       "tool_images": 6,
       "windows_failure_behavior_cases": 43,
       "windows_help_cases": 7,
@@ -49366,6 +49544,7 @@
         "toolchain/tests/cupiddis_contract.cc",
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
+        "toolchain/user_syscall_abi.cc",
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
@@ -49617,6 +49796,7 @@
         "toolchain/cupidasm_main.cc",
         "toolchain/cupidbuild.cc",
         "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_ir.cc",
@@ -49636,11 +49816,11 @@
         "toolchain/tests/cupidc_object_contract.cc",
         "toolchain/tests/cupidc_pp_contract.cc",
         "toolchain/tests/cupidld_contract.cc",
-        "toolchain/tests/user_syscall_abi_contract.cc",
+        "toolchain/user_syscall_abi.cc",
         "toolchain/x86.cc"
       ],
       "id": "c.control.continue",
-      "occurrences": 1315
+      "occurrences": 1317
     },
     {
       "category": "control",
@@ -49796,10 +49976,11 @@
         "toolchain/tests/cupidc_pp_contract.cc",
         "toolchain/tests/cupidc_type_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
-        "toolchain/tests/user_syscall_abi_contract.cc"
+        "toolchain/tests/user_syscall_abi_contract.cc",
+        "toolchain/user_syscall_abi.cc"
       ],
       "id": "c.control.do",
-      "occurrences": 121
+      "occurrences": 122
     },
     {
       "category": "control",
@@ -50078,6 +50259,7 @@
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_main.cc",
+        "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_ir.cc",
@@ -50111,13 +50293,13 @@
         "toolchain/tests/elf32_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
         "toolchain/tests/toolchain_manifest_contract.cc",
-        "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
         "toolchain/x86.cc",
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5614
+      "occurrences": 5618
     },
     {
       "category": "control",
@@ -50364,6 +50546,7 @@
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_main.cc",
+        "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_ir.cc",
@@ -50401,10 +50584,11 @@
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4926
+      "occurrences": 4931
     },
     {
       "category": "control",
@@ -50444,6 +50628,7 @@
         "toolchain/cupidbuild.cc",
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidc_main.cc",
         "toolchain/cupiddis_main.cc",
         "toolchain/cupidld.cc",
@@ -50458,10 +50643,11 @@
         "toolchain/tests/cupidc_object_contract.cc",
         "toolchain/tests/cupidc_type_contract.cc",
         "toolchain/tests/cupidld_contract.cc",
-        "toolchain/tests/elf32_contract.cc"
+        "toolchain/tests/elf32_contract.cc",
+        "toolchain/user_syscall_abi.cc"
       ],
       "id": "c.control.goto",
-      "occurrences": 3423
+      "occurrences": 3432
     },
     {
       "category": "control",
@@ -50829,6 +51015,7 @@
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
         "toolchain/cupidbuild_main.cc",
+        "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_frontend.h",
@@ -50869,12 +51056,13 @@
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
         "toolchain/x86.cc",
         "user/examples/cat.cc",
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 44466
+      "occurrences": 44513
     },
     {
       "category": "control",
@@ -51213,6 +51401,7 @@
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_main.cc",
+        "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_frontend.h",
@@ -51253,11 +51442,12 @@
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
         "toolchain/x86.cc",
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 27570
+      "occurrences": 27594
     },
     {
       "category": "control",
@@ -51621,6 +51811,7 @@
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_main.cc",
+        "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_frontend.h",
@@ -51651,12 +51842,13 @@
         "toolchain/tests/hosted_i386_runtime_contract.cc",
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
+        "toolchain/user_syscall_abi.cc",
         "toolchain/x86.cc",
         "user/examples/cat.cc",
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3050
+      "occurrences": 3057
     },
     {
       "category": "declaration",
@@ -51938,12 +52130,12 @@
         "toolchain/tests/hosted_i386_windows_contract.cc",
         "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "toolchain/tests/toolchain_manifest_contract.cc",
-        "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 3056
+      "occurrences": 3057
     },
     {
       "category": "declarator",
@@ -51988,10 +52180,11 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
-        "toolchain/tests/x86_contract.cc"
+        "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc"
       ],
       "id": "c.declarator.variadic",
-      "occurrences": 62
+      "occurrences": 63
     },
     {
       "category": "expression",
@@ -52186,6 +52379,7 @@
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_main.cc",
+        "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_ir.cc",
@@ -52223,11 +52417,12 @@
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
         "toolchain/x86.cc",
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 7005
+      "occurrences": 7027
     },
     {
       "category": "extension",
@@ -53226,6 +53421,7 @@
         "toolchain/cupidbuild_artifacts.h",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_user_abi.h",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.cc",
@@ -53284,12 +53480,14 @@
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
+        "toolchain/user_syscall_abi.h",
         "toolchain/x86.cc",
         "toolchain/x86.h",
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3400
+      "occurrences": 3409
     },
     {
       "category": "preprocessor",
@@ -53701,6 +53899,7 @@
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
         "toolchain/cupidbuild_main.cc",
+        "toolchain/cupidbuild_user_abi.h",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.h",
         "toolchain/cupidc_ir.h",
@@ -53736,11 +53935,12 @@
         "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
         "toolchain/tests/cupidc_static_long_double_control_fixture.h",
         "toolchain/tests/cupidc_static_long_double_integer_fixture.h",
+        "toolchain/user_syscall_abi.h",
         "toolchain/x86.h",
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 856
+      "occurrences": 858
     },
     {
       "category": "preprocessor",
@@ -53837,10 +54037,11 @@
         "toolchain/tests/cupidc_type_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
         "toolchain/x86.cc"
       ],
       "id": "c.preprocessor.function_macro",
-      "occurrences": 221
+      "occurrences": 222
     },
     {
       "category": "preprocessor",
@@ -54287,6 +54488,7 @@
         "toolchain/cupidbuild.h",
         "toolchain/cupidbuild_artifacts.h",
         "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_user_abi.h",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.h",
         "toolchain/cupidc_ir.h",
@@ -54315,11 +54517,12 @@
         "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
         "toolchain/tests/cupidc_static_long_double_control_fixture.h",
         "toolchain/tests/cupidc_static_long_double_integer_fixture.h",
+        "toolchain/user_syscall_abi.h",
         "toolchain/x86.h",
         "user/cupid.h"
       ],
       "id": "c.preprocessor.ifndef",
-      "occurrences": 320
+      "occurrences": 322
     },
     {
       "category": "preprocessor",
@@ -54805,6 +55008,8 @@
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
         "toolchain/cupidbuild_main.cc",
+        "toolchain/cupidbuild_user_abi.cc",
+        "toolchain/cupidbuild_user_abi.h",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.cc",
@@ -54870,6 +55075,8 @@
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
+        "toolchain/user_syscall_abi.h",
         "toolchain/x86.cc",
         "toolchain/x86.h",
         "user/examples/cat.cc",
@@ -54877,7 +55084,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2563
+      "occurrences": 2576
     },
     {
       "category": "preprocessor",
@@ -55078,10 +55285,11 @@
         "kernel/doom/dglibc_compat.h",
         "kernel/lang/cupidc.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
-        "toolchain/tests/x86_contract.cc"
+        "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc"
       ],
       "id": "c.preprocessor.variadic_macro",
-      "occurrences": 17
+      "occurrences": 18
     },
     {
       "category": "qualifier",
@@ -55396,6 +55604,8 @@
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
         "toolchain/cupidbuild_main.cc",
+        "toolchain/cupidbuild_user_abi.cc",
+        "toolchain/cupidbuild_user_abi.h",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.cc",
@@ -55458,6 +55668,8 @@
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
+        "toolchain/user_syscall_abi.h",
         "toolchain/x86.cc",
         "toolchain/x86.h",
         "user/cupid.h",
@@ -55465,7 +55677,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 18376
+      "occurrences": 18392
     },
     {
       "category": "qualifier",
@@ -55969,6 +56181,7 @@
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_main.cc",
+        "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_frontend.h",
@@ -56013,12 +56226,13 @@
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
         "toolchain/x86.cc",
         "user/cupid.h",
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10658
+      "occurrences": 10661
     },
     {
       "category": "type",
@@ -56421,6 +56635,8 @@
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
         "toolchain/cupidbuild_main.cc",
+        "toolchain/cupidbuild_user_abi.cc",
+        "toolchain/cupidbuild_user_abi.h",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_ir.cc",
@@ -56474,13 +56690,15 @@
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
+        "toolchain/user_syscall_abi.h",
         "toolchain/x86.cc",
         "user/cupid.h",
         "user/examples/cat.cc",
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 11836
+      "occurrences": 11862
     },
     {
       "category": "type",
@@ -56658,7 +56876,7 @@
         "toolchain/tests/cupidc_type_contract.cc",
         "toolchain/tests/cupidobj_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
-        "toolchain/tests/user_syscall_abi_contract.cc",
+        "toolchain/user_syscall_abi.cc",
         "toolchain/x86.cc",
         "toolchain/x86.h"
       ],
@@ -57224,6 +57442,8 @@
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
         "toolchain/cupidbuild_main.cc",
+        "toolchain/cupidbuild_user_abi.cc",
+        "toolchain/cupidbuild_user_abi.h",
         "toolchain/cupidc_main.cc",
         "toolchain/cupiddis_main.cc",
         "toolchain/cupidld_main.cc",
@@ -57266,13 +57486,15 @@
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
+        "toolchain/user_syscall_abi.h",
         "toolchain/x86.cc",
         "user/cupid.h",
         "user/examples/cat.cc",
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 25752
+      "occurrences": 25771
     },
     {
       "category": "type",
@@ -57756,12 +57978,14 @@
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
+        "toolchain/user_syscall_abi.h",
         "toolchain/x86.cc",
         "toolchain/x86.h",
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 1092
+      "occurrences": 1094
     },
     {
       "category": "type",
@@ -58053,12 +58277,14 @@
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
+        "toolchain/user_syscall_abi.h",
         "toolchain/x86.cc",
         "toolchain/x86.h",
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 1156
+      "occurrences": 1160
     },
     {
       "category": "type",
@@ -58243,6 +58469,7 @@
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
         "toolchain/cupidbuild_main.cc",
+        "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidc_main.cc",
         "toolchain/cupiddis_main.cc",
         "toolchain/cupidld_main.cc",
@@ -58276,10 +58503,12 @@
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
+        "toolchain/user_syscall_abi.h",
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 4325
+      "occurrences": 4333
     },
     {
       "category": "type",
@@ -58846,6 +59075,7 @@
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
         "toolchain/cupidbuild_main.cc",
+        "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_ir.cc",
@@ -58892,6 +59122,7 @@
         "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
+        "toolchain/user_syscall_abi.cc",
         "toolchain/x86.cc",
         "toolchain/x86.h",
         "user/cupid.h",
@@ -58900,7 +59131,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 16073
+      "occurrences": 16086
     },
     {
       "category": "declaration",
@@ -59814,7 +60045,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "1417ba9623bfad7970fd935f5d2f3ad61293225c2ef517e658d89a79a1d81f52",
+    "active_source_digest": "daed87408a50921b4fd0fd1f471e5cb166d0a78b1311d118f7193b8e48772d7b",
     "control_files": [
       {
         "path": "Makefile",
@@ -59822,15 +60053,15 @@
       },
       {
         "path": "user/Makefile",
-        "sha256": "e13350b4ae0ed9f0adc86891d8c3917ee67c15d47711c102a0b0c9da6f70e19a"
+        "sha256": "546ba7d3e5b99fbb16f5fddd2e3e7d9c0567ae84c6016d96d333a7555f890508"
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "5de9b4254116de5fdc487d5b6f6f58972fb3c5580e8dc53e546231aa7ee480c2"
+        "sha256": "5ee66541f6f111a50304a97e51851dd2b56de9ebeb51174fed86e6cddf53fdd0"
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
-        "sha256": "8d2c8f4def106a39298b3b151c05193174390db2a83bac5ac9566ba0023b6fee"
+        "sha256": "3494d28ecfef764fe0f028a8875a355ec1229d31e35cf101d86b9f0112696f39"
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
@@ -59842,7 +60073,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "b7f548697d78761504cb1d9456a6d17a91ad1f1bf40169218f41ee40b290f377"
+        "sha256": "d3795ea63a280fbc320c3112bbf932e9292654293f681185532e9c6cd56d7c84"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
@@ -59851,7 +60082,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "2f4f21cc7b95cd1b85d82738b5e07f63e51fd3ae10a45a3d4b38b5c0b76e2167"
+      "sha256": "1e37861958798c7df9664972138517cc3b8dec62ecfd534d1989f1a232bc6a9b"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -59885,7 +60116,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 115,
+        "source_count": 119,
         "title": "Establish a host-runnable shared Cupid Toolchain core"
       },
       {
@@ -60247,7 +60478,7 @@
           "bin/godspeak.cc",
           "bin/notepad.cc"
         ],
-        "source_count": 583,
+        "source_count": 587,
         "title": "Implement the active C and Cupid C preprocessing contract"
       },
       {
@@ -60293,7 +60524,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 689,
+        "source_count": 693,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -60436,7 +60667,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 115
+        "source_count": 119
       },
       {
         "cohorts": [
@@ -85030,15 +85261,84 @@
       "includes": [
         "toolchain/cupidbuild.h",
         "toolchain/cupidbuild_artifacts.h",
+        "toolchain/cupidbuild_user_abi.h",
         "toolchain/native_utf8.h"
       ],
       "language": "cupid_c",
-      "lines": 351,
+      "lines": 383,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_main.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "61fa82c2cabb5e8b02ab49629a4ed9421d36086402d1533f4f146eb3885895c2"
+      "sha256": "9ef8937280fc64d2ebd1a1de0d4bc7cf4fbba47599c7721b5538c5ab2ab0f46d"
+    },
+    {
+      "build_owners": [
+        "cupid_c_contract"
+      ],
+      "builds": [
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.control.continue",
+        "c.control.else",
+        "c.control.for",
+        "c.control.goto",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.expression.sizeof",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.int",
+        "c.type.unsigned",
+        "c.type.void"
+      ],
+      "includes": [
+        "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_user_abi.h"
+      ],
+      "language": "cupid_c",
+      "lines": 99,
+      "origin": "tracked",
+      "path": "toolchain/cupidbuild_user_abi.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "4eabaaccf8b55647bb9961f457c0c9777582f005e6b494f28c16f909810a2c8b"
+    },
+    {
+      "build_owners": [
+        "cupid_builder",
+        "cupid_c_compiler",
+        "cupid_object"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.type.char",
+        "c.type.int"
+      ],
+      "includes": [
+        "toolchain/user_syscall_abi.h"
+      ],
+      "language": "c_header",
+      "lines": 18,
+      "origin": "tracked",
+      "path": "toolchain/cupidbuild_user_abi.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "543551422df61d870d46106aeb7cff521f9ac3e3a968d33860a8b6327359068d"
     },
     {
       "build_owners": [
@@ -87045,12 +87345,12 @@
         "toolchain/seed_release.h"
       ],
       "language": "cupid_c",
-      "lines": 1472,
+      "lines": 1512,
       "origin": "tracked",
       "path": "toolchain/seed_manifest.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "1b5fe5c6f3e986d7ecb8970217fd49aaaf531d7a4a5a93c3abe68940695c2ac1"
+      "sha256": "cda0312366419778ffab8d722f729b734cedb496b93c063eceac07b1867c027e"
     },
     {
       "build_owners": [
@@ -87561,12 +87861,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 52839,
+      "lines": 52843,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_object_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "579aabc57b9757b7bd7871d530b0be81be7c27e889a791160d9b183964e326b4"
+      "sha256": "2c98e612d6a6c6d41ac6a914135665d862c6105009fbba58747b35acace930fe"
     },
     {
       "build_owners": [
@@ -87613,7 +87913,7 @@
       "path": "toolchain/tests/cupidc_pp_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c139a6719acbc84ea5f40c0ade221820fabd43ded521fecb87758c08f40a41f6"
+      "sha256": "8821e08720f19b6a00a67795377c37c9319345a8a57e3044a252f49cbae5871c"
     },
     {
       "build_owners": [
@@ -88067,12 +88367,12 @@
         "toolchain/contract_parse_internal.h"
       ],
       "language": "cupid_c",
-      "lines": 2890,
+      "lines": 2897,
       "origin": "tracked",
       "path": "toolchain/tests/toolchain_manifest_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "faebdbb0ab0d758ad69261202aba685a7f4034d1d09cb281a323989668daf9ad"
+      "sha256": "d42af8d187e0ce9b5757862a9abda7bfc8c3047aff468353b17e7547d7ac1d8f"
     },
     {
       "build_owners": [
@@ -88089,14 +88389,11 @@
       "cohort": "toolchain_contract",
       "features": [
         "c.control.break",
-        "c.control.continue",
         "c.control.do",
-        "c.control.else",
         "c.control.for",
         "c.control.if",
         "c.control.return",
         "c.control.while",
-        "c.declarator.unsized_array",
         "c.declarator.variadic",
         "c.expression.sizeof",
         "c.preprocessor.define",
@@ -88106,7 +88403,6 @@
         "c.qualifier.const",
         "c.storage.static",
         "c.type.char",
-        "c.type.enum",
         "c.type.int",
         "c.type.long",
         "c.type.struct",
@@ -88114,14 +88410,16 @@
         "c.type.unsigned",
         "c.type.void"
       ],
-      "includes": [],
+      "includes": [
+        "toolchain/user_syscall_abi.h"
+      ],
       "language": "cupid_c",
-      "lines": 1658,
+      "lines": 157,
       "origin": "tracked",
       "path": "toolchain/tests/user_syscall_abi_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "67bd84340af7edcee7366368b097ed2fdf91d831f1879069e6d7381ea204c64c"
+      "sha256": "1e27b9b173133fdcec76a77e58dbbaf85f1ffccaad9b19889f38e72174738ae4"
     },
     {
       "build_owners": [
@@ -88169,6 +88467,96 @@
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
       "sha256": "05b612dc39708afcc031e297fd96bcf4c3cab1c99860cbe7923d7120e4776a6b"
+    },
+    {
+      "build_owners": [
+        "cupid_assembler",
+        "cupid_c_compiler",
+        "cupid_c_contract",
+        "cupid_linker",
+        "host_python"
+      ],
+      "builds": [
+        "toolchain",
+        "user"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.control.break",
+        "c.control.continue",
+        "c.control.do",
+        "c.control.else",
+        "c.control.for",
+        "c.control.goto",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.declarator.unsized_array",
+        "c.declarator.variadic",
+        "c.expression.sizeof",
+        "c.preprocessor.define",
+        "c.preprocessor.function_macro",
+        "c.preprocessor.include",
+        "c.preprocessor.variadic_macro",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.enum",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.unsigned",
+        "c.type.void"
+      ],
+      "includes": [
+        "toolchain/user_syscall_abi.h"
+      ],
+      "language": "cupid_c",
+      "lines": 1604,
+      "origin": "tracked",
+      "path": "toolchain/user_syscall_abi.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "6886219a30d2ae990cd8257f9908a7ae1724a1efb615d285114d2bf9ac3c5fce"
+    },
+    {
+      "build_owners": [
+        "cupid_assembler",
+        "cupid_builder",
+        "cupid_c_compiler",
+        "cupid_c_contract",
+        "cupid_linker",
+        "cupid_object",
+        "host_python"
+      ],
+      "builds": [
+        ".",
+        "toolchain",
+        "user"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.type.char",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.unsigned"
+      ],
+      "includes": [
+        "kernel/doom/src/include_stubs/stddef.h"
+      ],
+      "language": "c_header",
+      "lines": 50,
+      "origin": "tracked",
+      "path": "toolchain/user_syscall_abi.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "3033f13335301e0c87096f6a2e0a9c636ff147152146ba0a943b61368b1612e3"
     },
     {
       "build_owners": [
@@ -88386,10 +88774,10 @@
     }
   ],
   "summary": {
-    "active_sources": 766,
+    "active_sources": 770,
     "features": 255,
     "transforms": 452,
-    "unreachable_sources": 41
+    "unreachable_sources": 43
   },
   "supplemental_builds": [
     {
@@ -88602,6 +88990,8 @@
             "toolchain/hosted/i386-windows/runtime.cc",
             "toolchain/hosted/i386-windows/tool_start.asm",
             "toolchain/tests/user_syscall_abi_contract.cc",
+            "toolchain/user_syscall_abi.cc",
+            "toolchain/user_syscall_abi.h",
             "tools/bootstrap_toolchain.py",
             "tools/cupidc_toolchain_contracts.py",
             "tools/user_syscall_abi.py",
@@ -88747,6 +89137,8 @@
             "toolchain/cupidbuild.h",
             "toolchain/cupidbuild_host.h",
             "toolchain/cupidbuild_artifacts.h",
+            "toolchain/cupidbuild_user_abi.h",
+            "toolchain/user_syscall_abi.h",
             "toolchain/cupidc_emit.h",
             "toolchain/cupidc_frontend.h",
             "toolchain/cupidc_ir.h",
@@ -88770,6 +89162,8 @@
             "toolchain/elf32.cc",
             "toolchain/cupidbuild.cc",
             "toolchain/cupidbuild_artifacts.cc",
+            "toolchain/cupidbuild_user_abi.cc",
+            "toolchain/user_syscall_abi.cc",
             "toolchain/cupidbuild_host.cc",
             "toolchain/cupidbuild_main.cc",
             "toolchain/cupidc_pp.cc",
@@ -88879,6 +89273,8 @@
             "toolchain/cupidbuild.h",
             "toolchain/cupidbuild_host.h",
             "toolchain/cupidbuild_artifacts.h",
+            "toolchain/cupidbuild_user_abi.h",
+            "toolchain/user_syscall_abi.h",
             "toolchain/cupidc_emit.h",
             "toolchain/cupidc_frontend.h",
             "toolchain/cupidc_ir.h",
@@ -88908,6 +89304,8 @@
             "toolchain/elf32.cc",
             "toolchain/cupidbuild.cc",
             "toolchain/cupidbuild_artifacts.cc",
+            "toolchain/cupidbuild_user_abi.cc",
+            "toolchain/user_syscall_abi.cc",
             "toolchain/cupidbuild_host.cc",
             "toolchain/cupidbuild_main.cc",
             "toolchain/cupidc_pp.cc",
@@ -89398,6 +89796,26 @@
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
       "sha256": "639b159f176a5f135fb55c26f924dae5c5b64f1acf2a590724a4af18b829819c"
+    },
+    {
+      "classification": "host_fixture",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 44,
+      "path": "toolchain/tests/user_abi_allocation_probe.cc",
+      "reason": "native syscall ABI allocation-failure probe compiled by the host test harness",
+      "relations": [],
+      "sha256": "4e1962a9978ab2299fb4feec111cdf0dd565afaec2d8e55cb33e3b9ac2ef3a27"
+    },
+    {
+      "classification": "host_fixture",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 37,
+      "path": "toolchain/tests/user_abi_observer_probe.cc",
+      "reason": "native syscall ABI observer-failure probe compiled by the host test harness",
+      "relations": [],
+      "sha256": "3741d4f7b151e4cec928e37e7757ee3f0e20ca700d7ebd30d667fc211fb54709"
     },
     {
       "classification": "not_reached",

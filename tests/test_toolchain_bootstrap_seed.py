@@ -142,9 +142,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     def test_promoted_profile_selection_preserves_same_count_distinct_members(self):
         plan = _candidate_build_plan(json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))["build_plan"])
         profiles = (
-            ("5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc", 77, True, False),
-            ("79241fcdd8784952cf9e1e74907ac817dc83e24429c5625d3424a889c2753d70", 77, False, True),
-            ("2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff", 78, True, True),
+            ("e9efefe58f1d105bbc30874cc8d627a96b2acc2de85a5205fddad99ab159ab11", 81, True, False),
+            ("f3132b33a0945a6d15484a39c853716468dec96b4d158c4cc550161286092a16", 81, False, True),
+            ("1a348ed367f047ac4a67dfc4e819155c0c96e66be19ff216b06d19db3efbe188", 82, True, True),
         )
         for digest, count, long_paths, aliases in profiles:
             with self.subTest(plan=digest, count=count):
@@ -223,7 +223,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 retargeted.manifest_sha256,
                 hashlib.sha256(retargeted.manifest_bytes).hexdigest(),
             )
-            self.assertEqual(retargeted.manifest["provenance"]["source_input_count"], 71)
+            self.assertEqual(retargeted.manifest["provenance"]["source_input_count"], 75)
             self.assertEqual(retargeted.manifest["provenance"]["linux_candidate_build_plan_sha256"],
                              _build_plan_sha256(candidate_plan))
             self.assertEqual(retargeted.manifest["provenance"]["source_snapshot_sha256"],
@@ -720,6 +720,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "cupidbuild", "cupidbuild_host", "cupidbuild_main",
             "seed_manifest", "seed_release", "contract_parse_internal",
             "cupidbuild_artifacts", "artifact_size_policy",
+            "user_syscall_abi", "cupidbuild_user_abi",
         }
         checked_plan["sources"] = [
             source for source in checked_plan["sources"]
@@ -747,7 +748,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         )
         self.assertEqual(checked_plan, original_plan)
         self.assertEqual(
-            candidate_plan["sources"][-8:],
+            candidate_plan["sources"][-10:],
             [
                 {
                     "gnu_extensions": False,
@@ -774,6 +775,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                  "path": "/toolchain/cupidbuild_artifacts.cc"},
                 {"gnu_extensions": False, "name": "artifact_size_policy",
                  "path": "/toolchain/artifact_size_policy.cc"},
+                {"gnu_extensions": False, "name": "user_syscall_abi",
+                 "path": "/toolchain/user_syscall_abi.cc"},
+                {"gnu_extensions": False, "name": "cupidbuild_user_abi",
+                 "path": "/toolchain/cupidbuild_user_abi.cc"},
             ],
         )
         self.assertEqual(
@@ -791,6 +796,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "contract_parse_internal",
                 "cupidbuild_artifacts",
                 "artifact_size_policy",
+                "user_syscall_abi",
+                "cupidbuild_user_abi",
                 "runtime",
             ],
         )
@@ -802,7 +809,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             REPO_ROOT, candidate_plan, windows_utf8=True
         )
         self.assertEqual(
-            len(source_inventory), 76
+            len(source_inventory), 80
         )
         for path in (
             "toolchain/cupidbuild.cc",
@@ -822,7 +829,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         )
         self.assertEqual(
             _build_plan_sha256(candidate_plan),
-            "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5"
+            "48d6cc38b7a7362a83a911d2d3aaae8e79537c3f1744f3f5e7aac997728ed7f4"
         )
 
     def test_promoted_linux_seed_verifies_all_six_artifacts(self):
@@ -1727,6 +1734,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "contract_parse_internal",
                 "cupidbuild_artifacts",
                 "artifact_size_policy",
+                "user_syscall_abi",
+                "cupidbuild_user_abi",
                 "publication_runtime",
                 "runtime",
             ],
@@ -5244,7 +5253,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             for plan in observed_plans:
                 self.assertEqual(set(plan["links"]), set(CANDIDATE_TOOL_NAMES))
-                self.assertEqual(len(plan["sources"]), 27)
+                self.assertEqual(len(plan["sources"]), 29)
             self.assertEqual(
                 report["build_plan_sha256"],
                 _build_plan_sha256(checked_plan),
@@ -5413,7 +5422,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["candidate_build_plan_sha256"],
-                "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5",
+                "48d6cc38b7a7362a83a911d2d3aaae8e79537c3f1744f3f5e7aac997728ed7f4",
             )
             self.assertEqual(
                 report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
@@ -5573,7 +5582,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             for plan in observed_plans:
                 self.assertEqual(set(plan["links"]), set(CANDIDATE_TOOL_NAMES))
-                self.assertEqual(len(plan["sources"]), 32)
+                self.assertEqual(len(plan["sources"]), 34)
                 self.assertEqual(len(plan["assembly_sources"]), 3)
             self.assertEqual(
                 report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
@@ -5794,7 +5803,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 source_head_windows_plan_sha256,
-                "6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748",
+                "be18b62e78d8259d1586ca20450eadb4901d8a36f26fdc7982db0b3d1aba5224",
             )
             self.assertEqual(
                 report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
@@ -5804,7 +5813,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {
                     "all_equal": True,
                     "assembly_objects": 3,
-                    "c_objects": 32,
+                    "c_objects": 34,
                     "compared_generations": [
                         "stage-three",
                         "stage-four",
@@ -7088,193 +7097,79 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
 
     @unittest.skipUnless(os.name == "nt", "native Windows bootstrap")
-    def test_checked_windows_seed_replays_the_installed_long_profile(self):
+    def test_checked_windows_seed_prepares_the_long_alias_source_head(self):
         with tempfile.TemporaryDirectory(
             prefix=".checked-windows-bootstrap-", dir=REPO_ROOT
         ) as temporary:
-            output = Path(temporary) / "published"
+            root = Path(temporary)
+            output = root / "prepared"
             environment = dict(os.environ)
-            environment["PATH"] = str(Path(temporary) / "no-host-tools")
-            for name in (
-                "CC",
-                "CXX",
-                "CPP",
-                "HOSTCC",
-                "HOSTCXX",
-                "ASM",
-                "AS",
-                "LD",
-                "AR",
-                "NM",
-                "OBJCOPY",
-            ):
+            environment["PATH"] = str(root / "no-host-tools")
+            for name in ("CC", "CXX", "CPP", "HOSTCC", "HOSTCXX", "ASM",
+                         "AS", "LD", "AR", "NM", "OBJCOPY"):
                 environment[name] = f"__cupid_host_{name}_must_not_run__"
             result = subprocess.run(
-                [
-                    sys.executable,
-                    str(BOOTSTRAP_TOOL),
-                    "bootstrap-windows",
-                    "--windows-long-paths",
-                    "--manifest",
-                    str(WINDOWS_SEED_MANIFEST),
-                    "--plan-manifest",
-                    str(SEED_MANIFEST),
-                    "--root",
-                    str(REPO_ROOT),
-                    "--output",
-                    str(output),
-                ],
-                cwd=REPO_ROOT,
-                env=environment,
-                text=True,
-                capture_output=True,
-                timeout=3000,
+                [sys.executable, "-m", "tools.bootstrap_stage_release",
+                 "prepare-windows", "--windows-long-paths",
+                 "--linux-manifest", str(SEED_MANIFEST),
+                 "--windows-manifest", str(WINDOWS_SEED_MANIFEST),
+                 "--root", str(REPO_ROOT), "--output", str(output)],
+                cwd=REPO_ROOT, env=environment, text=True,
+                capture_output=True, timeout=3000,
             )
-
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(
-                result.stdout,
-                "checked i386 Windows bootstrap: ok "
-                "(native stage three equals stage four)\n",
-            )
+            self.assertEqual(result.stdout,
+                             "stage preparation: written (behavior pending)\n")
             self.assertEqual(result.stderr, "")
-            self.assertEqual(
-                sorted(path.name for path in output.iterdir()),
-                [
-                    "behavior",
-                    "bootstrap-report.json",
-                    "stage-four",
-                    "stage-three",
-                    "stage-two",
-                ],
-            )
-            report = json.loads(
-                (output / "bootstrap-report.json").read_text(
-                    encoding="utf-8"
-                )
-            )
-            self.assertEqual(
-                report["schema"], "cupid.windows-bootstrap-report.v1"
-            )
-            self.assertEqual(report["status"], "pass")
-            self.assertEqual(report["platform"], "windows-native")
-            self.assertEqual(
-                report["seed_manifest_sha256"],
-                hashlib.sha256(WINDOWS_SEED_MANIFEST.read_bytes()).hexdigest(),
-            )
-            self.assertEqual(
-                report["plan_manifest_sha256"],
-                hashlib.sha256(SEED_MANIFEST.read_bytes()).hexdigest(),
-            )
-            self.assertEqual(
-                report["seed_source_revision"],
-                PROMOTED_SOURCE_REVISION,
-            )
-            self.assertEqual(
-                report["plan_source_revision"],
-                PROMOTED_SOURCE_REVISION,
-            )
-            self.assertEqual(
-                report["comparisons"],
-                {
-                    "all_equal": True,
-                    "assembly_objects": 5,
-                    "c_objects": 32,
-                    "compared_generations": [
-                        "stage-three",
-                        "stage-four",
-                    ],
-                    "tool_images": 6,
-                },
-            )
-            self.assertEqual(
-                report["behavior_generations"],
-                ["stage-three", "stage-four"],
-            )
-            self.assertEqual(
-                report["stages"]["stage-two"]["producer_generation"],
-                "checked-windows-execution-seed",
-            )
-            self.assertEqual(
-                report["stages"]["stage-three"]["producer_generation"],
-                "native-stage-two",
-            )
-            self.assertEqual(
-                report["stages"]["stage-four"]["producer_generation"],
-                "native-stage-three",
-            )
-            self.assertEqual(
-                report["behavior"],
-                {
-                    "failure_cases": 43,
-                    "help_cases": 7,
-                    "success_cases": 49,
-                },
-            )
-            candidate_linux_plan = _candidate_build_plan(
-                json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))[
-                    "build_plan"
-                ]
-            )
-            self.assertEqual(_build_plan_sha256(candidate_linux_plan), PROMOTED_LINUX_PLAN_SHA256)
-            self.assertEqual(report["build_plan_sha256"], PROMOTED_WINDOWS_PLAN_SHA256)
-            self.assertEqual(report["candidate_build_plan_sha256"], PROMOTED_WINDOWS_PLAN_SHA256)
-            self.assertEqual(report["initial_seed_matches_stage_two"], {name: True for name in CANDIDATE_TOOL_NAMES})
-            candidate_inventory = capture_source_snapshot(
-                REPO_ROOT, candidate_linux_plan, windows_utf8=True, windows_long_paths=True, windows_user_link_aliases=True
-            )
-            candidate_snapshot = hashlib.sha256(
-                json.dumps(
-                    candidate_inventory,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                    ensure_ascii=True,
-                ).encode("ascii")
-            ).hexdigest()
-            self.assertEqual(
-                report["source_snapshot_sha256"],
-                candidate_snapshot,
-            )
-            self.assertEqual(
-                report["source_inputs"]["count"],
-                78,
-            )
-            self.assertEqual(
-                report["source_inputs"]["sha256"],
-                report["source_snapshot_sha256"],
-            )
-            self.assertEqual(
-                report["initial_seed_matches_stage_two"],
-                {
-                    name: (WINDOWS_SEED_MANIFEST.parent / f"{name}.exe").read_bytes()
-                    == (output / "stage-two" / f"{name}.exe").read_bytes()
-                    for name in CANDIDATE_TOOL_NAMES
-                },
-            )
-            for stage_name in (
-                "stage-two",
-                "stage-three",
-                "stage-four",
-            ):
-                stage = report["stages"][stage_name]
-                self.assertEqual(len(stage["objects"]), 37)
-                self.assertEqual(
-                    set(stage["tools"]), set(CANDIDATE_TOOL_NAMES)
-                )
-                for tool_name in CANDIDATE_TOOL_NAMES:
-                    self.assertTrue(
-                        (output / stage_name / f"{tool_name}.exe").is_file()
-                    )
-            for name in report["stages"]["stage-three"]["objects"]:
-                self.assertEqual(
-                    (output / "stage-three" / f"{name}.o").read_bytes(),
-                    (output / "stage-four" / f"{name}.o").read_bytes(),
-                )
-            for tool_name in CANDIDATE_TOOL_NAMES:
-                self.assertEqual(
-                    (output / "stage-three" / f"{tool_name}.exe").read_bytes(),
-                    (output / "stage-four" / f"{tool_name}.exe").read_bytes(),
-                )
+            self.assertEqual(sorted(path.name for path in output.iterdir()),
+                             ["source", "stage-four", "stage-preparation.json",
+                              "stage-three", "stage-two"])
+            record = json.loads((output / "stage-preparation.json").read_text())
+            self.assertEqual(record["schema"], "cupid.bootstrap-stage-preparation.v1")
+            self.assertEqual((record["status"], record["format"]),
+                             ("unqualified", "pe32"))
+            self.assertEqual(len(record["source_inputs"]), 82)
+            self.assertEqual(_build_plan_sha256(record["linux_plan"]),
+                             "48d6cc38b7a7362a83a911d2d3aaae8e79537c3f1744f3f5e7aac997728ed7f4")
+            self.assertEqual(_build_plan_sha256(record["windows_plan"]),
+                             "1a348ed367f047ac4a67dfc4e819155c0c96e66be19ff216b06d19db3efbe188")
+            snapshot = capture_source_snapshot(REPO_ROOT, record["linux_plan"],
+                windows_utf8=True, windows_long_paths=True, windows_user_link_aliases=True)
+            self.assertEqual(record["source_inputs"], snapshot)
+            for name, identity in snapshot.items():
+                self._assert_file_artifact_identity(identity, output / "source" / name)
+            for stage_name in ("stage-two", "stage-three", "stage-four"):
+                stage = record["stages"][stage_name]
+                self.assertEqual(len(stage["objects"]), 39)
+                self.assertEqual(set(stage["tools"]), set(CANDIDATE_TOOL_NAMES))
+                for kind in ("objects", "tools"):
+                    for role, identity in stage[kind].items():
+                        self._assert_file_artifact_identity(
+                            {key: identity[key] for key in ("sha256", "size")},
+                            output / stage_name / identity["file"])
+            for kind in ("objects", "tools"):
+                self.assertEqual(record["stages"]["stage-three"][kind],
+                                 record["stages"]["stage-four"][kind])
+            # Changed long/alias bytes need an explicit paired release. Keep
+            # the original native entry point's parent rejection (ADR 0411).
+            frozen = freeze_seed_inputs(WINDOWS_SEED_MANIFEST, root / "windows-seed")
+            linux = freeze_seed_inputs(SEED_MANIFEST, root / "linux-seed")
+            retargeted = _retarget_native_windows_behavior_seed(
+                frozen, _build_plan_sha256(record["windows_plan"]),
+                record["linux_plan"], snapshot, utf8=True, long_paths=True,
+                user_link_aliases=True, parent_plan_seed=linux)
+            tools = {name: output / "stage-four" / row["file"]
+                     for name, row in record["stages"]["stage-four"]["tools"].items()}
+            manifest = _materialize_behavior_seed(retargeted, root,
+                "unreleased-behavior", Stage(objects={}, tools=tools))
+            rejected = subprocess.run(
+                [str(tools["cupidbuild"]), "run", "--seed-manifest", str(manifest),
+                 "--root", str(REPO_ROOT), "--tool", "cupidobj", "--", "--help"],
+                cwd=REPO_ROOT, env=environment, text=True, capture_output=True, timeout=60)
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn("fixed-point provenance differs", rejected.stderr)
+            self.assertFalse((output / "bootstrap-report.json").exists())
 
     def test_checked_seed_run_forwards_cupidasm_help(self):
         if os.name == "nt" and shutil.which("wsl") is None:
@@ -11590,7 +11485,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 env=environment,
                 text=True,
                 capture_output=True,
-                timeout=3000,
+                timeout=6000,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -11618,13 +11513,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["candidate_build_plan_sha256"],
-                "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5",
+                "48d6cc38b7a7362a83a911d2d3aaae8e79537c3f1744f3f5e7aac997728ed7f4",
             )
             self.assertEqual(
                 report["comparisons"],
                 {
                     "all_equal": True,
-                    "c_objects": 27,
+                    "c_objects": 29,
                     "compared_generations": [
                         "stage-three",
                         "stage-four",
@@ -12002,7 +11897,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["source_inputs"]["count"],
-                77,
+                81,
             )
             self.assertEqual(
                 len(report["source_inputs"]["sha256"]),
@@ -12014,7 +11909,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 len(report["source_inputs"]["files"]),
-                77,
+                81,
             )
             for tool_name in CANDIDATE_TOOL_NAMES:
                 stage_three = output / "stage-three" / f"{tool_name}.elf"

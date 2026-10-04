@@ -1,5 +1,6 @@
 #include "cupidbuild.h"
 #include "cupidbuild_artifacts.h"
+#include "cupidbuild_user_abi.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,6 +44,7 @@ static void cupidbuild_usage(FILE *stream) {
       "       cupidbuild verify-artifact-sizes --root ROOT --policy POLICY "
       "--seed-manifest LINUX_MANIFEST "
       "[--checked-manifest WINDOWS_MANIFEST --execution-manifest MANIFEST]\n"
+      "       cupidbuild verify-user-abi --root ROOT\n"
       "usage: cupidbuild run --seed-manifest MANIFEST "
       "--root ROOT --tool {cupidc|cupidobj|cupidld} [--timeout SECONDS] "
       "[--seed-release RELEASE] -- "
@@ -114,6 +116,34 @@ static int cupidbuild_artifact_command(int argc, char **argv) {
   return 0;
 }
 
+static int cupidbuild_user_abi_command(int argc, char **argv) {
+  const char *root = NULL;
+  cupid_user_abi_report_t result;
+  char error[CUPID_USER_ABI_ERROR_BYTES];
+  char json[CUPID_USER_ABI_JSON_BYTES];
+  int index;
+  for (index = 2; index < argc; index++) {
+    if (cupidbuild_take_value(argc, argv, &index, "--root", &root) != 1) {
+      cupidbuild_usage(stderr);
+      return 2;
+    }
+  }
+  if (root == NULL || root[0] == '\0') {
+    cupidbuild_usage(stderr);
+    return 2;
+  }
+  if (!cupidbuild_verify_user_abi(root, &result, error, sizeof(error))) {
+    (void)fprintf(stderr, "Cupid user ABI verification failed: %s\n", error);
+    return 1;
+  }
+  if (!cupid_user_abi_format_json(&result, json, sizeof(json)) ||
+      printf("%s", json) < 0) {
+    (void)fprintf(stderr, "Cupid user ABI verification failed: cannot write report\n");
+    return 1;
+  }
+  return 0;
+}
+
 static int cupidbuild_parse_timeout(const char *text,
                                     unsigned int *seconds_out) {
   unsigned int value = 0u;
@@ -155,6 +185,8 @@ int main(int argc, char **argv) {
   }
   if (argc >= 2 && strcmp(argv[1], "verify-artifact-sizes") == 0)
     return cupidbuild_artifact_command(argc, argv);
+  if (argc >= 2 && strcmp(argv[1], "verify-user-abi") == 0)
+    return cupidbuild_user_abi_command(argc, argv);
   (void)memset(&request, 0, sizeof(request));
   (void)memset(&kernel_request, 0, sizeof(kernel_request));
   (void)memset(&profile_request, 0, sizeof(profile_request));

@@ -12,6 +12,7 @@ from tools import artifact_size_policy as oracle
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES = ("cupidbuild_artifacts", "artifact_size_policy", "contract_parse_internal",
+           "user_syscall_abi", "cupidbuild_user_abi",
            "seed_manifest", "seed_release", "cupidbuild", "cupidbuild_host",
            "ctool", "ctool_host", "elf32", "path_encoding")
 

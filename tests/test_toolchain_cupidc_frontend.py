@@ -469,7 +469,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
                 "0x0b000003",
             ),
         }
-        self.assertEqual(len(headers), 175)
+        self.assertEqual(len(headers), 177)
         self.assertEqual(len(failures), 4)
         expected_lines = []
         for header in headers:
@@ -480,7 +480,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
             expected_lines.append(
                 f"FAIL\t{header}\tinput\t{code}\t{path}\t{line}\t{column}"
             )
-        expected_lines.append("header-sweep: ok 171 4")
+        expected_lines.append("header-sweep: ok 173 4")
         result = subprocess.run(
             [
                 str(self.contract_path),

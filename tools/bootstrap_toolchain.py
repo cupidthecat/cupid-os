@@ -471,6 +471,8 @@ CANDIDATE_SOURCES = (
     ("contract_parse_internal", "/toolchain/contract_parse_internal.cc", False),
     ("cupidbuild_artifacts", "/toolchain/cupidbuild_artifacts.cc", False),
     ("artifact_size_policy", "/toolchain/artifact_size_policy.cc", False),
+    ("user_syscall_abi", "/toolchain/user_syscall_abi.cc", False),
+    ("cupidbuild_user_abi", "/toolchain/cupidbuild_user_abi.cc", False),
 )
 CANDIDATE_CUPIDBUILD_LINK = (
     "start",
@@ -485,6 +487,8 @@ CANDIDATE_CUPIDBUILD_LINK = (
     "contract_parse_internal",
     "cupidbuild_artifacts",
     "artifact_size_policy",
+    "user_syscall_abi",
+    "cupidbuild_user_abi",
     "runtime",
 )
 REPORT_SCHEMA = "cupid.bootstrap-report.v1"
@@ -2729,13 +2733,17 @@ def _promoted_windows_imports(
     if profile in (
         ("a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99", 73),
         ("6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748", 76),
+        ("be18b62e78d8259d1586ca20450eadb4901d8a36f26fdc7982db0b3d1aba5224", 80),
     ):
         return _windows_utf8_imports(tool_name)
-    if profile == ("5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc", 77):
+    if profile in (("5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc", 77),
+                   ("e9efefe58f1d105bbc30874cc8d627a96b2acc2de85a5205fddad99ab159ab11", 81)):
         return _windows_utf8_imports(tool_name, long_paths=True)
-    if profile == ("79241fcdd8784952cf9e1e74907ac817dc83e24429c5625d3424a889c2753d70", 77):
+    if profile in (("79241fcdd8784952cf9e1e74907ac817dc83e24429c5625d3424a889c2753d70", 77),
+                   ("f3132b33a0945a6d15484a39c853716468dec96b4d158c4cc550161286092a16", 81)):
         return _windows_utf8_imports(tool_name, user_link_aliases=True)
-    if profile == ("2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff", 78):
+    if profile in (("2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff", 78),
+                   ("1a348ed367f047ac4a67dfc4e819155c0c96e66be19ff216b06d19db3efbe188", 82)):
         return _windows_utf8_imports(tool_name, long_paths=True, user_link_aliases=True)
     raise BootstrapError("promoted Windows import profile differs")
 

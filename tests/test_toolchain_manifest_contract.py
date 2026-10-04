@@ -86,6 +86,8 @@ BOOTSTRAP_OBJECT_NAMES = (
     "contract_parse_internal",
     "cupidbuild_artifacts",
     "artifact_size_policy",
+    "user_syscall_abi",
+    "cupidbuild_user_abi",
     "start",
 )
 BOOTSTRAP_TOOL_NAMES = (
@@ -97,7 +99,7 @@ BOOTSTRAP_TOOL_NAMES = (
     "cupidbuild",
 )
 BUILD_PLAN_SHA256 = (
-    "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5"
+    "48d6cc38b7a7362a83a911d2d3aaae8e79537c3f1744f3f5e7aac997728ed7f4"
 )
 SEED_MANIFEST_SHA256 = (
     "59c5c33672ee5839efd5a27cc1b90c090984fcf0be74d3fcb7418f68215aa2f7"
@@ -120,6 +122,7 @@ INPUT_PATHS = (
     "toolchain/cupidbuild.h",
     "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.h",
+    "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
     "toolchain/cupidc_ir.h",
@@ -187,6 +190,7 @@ INPUT_PATHS = (
     "toolchain/tests/x86_catalogue_contract.inc",
     "toolchain/tests/x86_contract.cc",
     "toolchain/tests/x86_inline_cases.inc",
+    "toolchain/user_syscall_abi.h",
     "toolchain/x86.cc",
     "toolchain/x86.h",
     "tools/bootstrap_toolchain.py",
@@ -214,6 +218,8 @@ BOOTSTRAP_PATHS = (
     "toolchain/cupidbuild_host.cc",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidbuild_main.cc",
+    "toolchain/cupidbuild_user_abi.cc",
+    "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.cc",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.cc",
@@ -269,6 +275,8 @@ BOOTSTRAP_PATHS = (
     "toolchain/seed_release.h",
     "toolchain/tests/hosted_i386_windows_contract.cc",
     "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
+    "toolchain/user_syscall_abi.cc",
+    "toolchain/user_syscall_abi.h",
     "toolchain/x86.cc",
     "toolchain/x86.h",
 )
@@ -401,7 +409,7 @@ def _fixture():
         },
         "tool_fixed_point": {
             "all_equal": True,
-            "c_objects": 27,
+            "c_objects": 29,
             "compared_generations": ["stage-three", "stage-four"],
             "startup_objects": 1,
             "tool_images": 6,
@@ -730,7 +738,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(
             result.stdout,
             '{"artifact_count":22,"artifact_total_bytes":682,'
-            '"bootstrap_source_input_count":76,"input_count":90,'
+            '"bootstrap_source_input_count":80,"input_count":92,'
             '"schema":"cupid.toolchain-manifest-verification.v1"}\n',
         )
         self.assertEqual(result.stderr, "")
@@ -886,7 +894,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         )
         self.assertEqual(result.stderr, "")
 
-    def test_author_decides_all_sixty_five_stage_pairs(self):
+    def test_author_decides_all_sixty_nine_stage_pairs(self):
         manifest, observations = _fixture()
         object_pairs = _matching_object_pairs(manifest)
         executable_pairs = _matching_executable_pairs(manifest)
@@ -923,7 +931,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     bootstrap_tool_pairs,
                 )
             ),
-            67,
+            69,
         )
 
     def test_author_rejects_mismatch_in_each_remaining_pair_lane(self):
@@ -1521,7 +1529,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
             json.loads(result.stdout)["tool_fixed_point"],
             {
                 "all_equal": True,
-                "c_objects": 27,
+                "c_objects": 29,
                 "compared_generations": ["stage-three", "stage-four"],
                 "startup_objects": 1,
                 "tool_images": 6,
@@ -1723,7 +1731,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         inputs = manifest["bootstrap"]["source_inputs"]
         shim = "toolchain/hosted/i386-windows/utf8_long_path_start.asm"
         inputs["files"][shim] = _digest_size("long path resolver", 31)
-        inputs["count"] = 77
+        inputs["count"] = 81
         inputs["sha256"] = _digest(_json_bytes(inputs["files"]))
         request = _author_request(manifest=manifest, observations=observations)
         result = self.run_author_request(request)
@@ -1732,7 +1740,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(result.stdout, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
         verified = self.run_request(_request(manifest=manifest, observations=observations))
         self.assertEqual(verified.returncode, 0, verified.stderr)
-        self.assertEqual(json.loads(verified.stdout)["bootstrap_source_input_count"], 77)
+        self.assertEqual(json.loads(verified.stdout)["bootstrap_source_input_count"], 81)
         bad = copy.deepcopy(manifest)
         bad_inputs = bad["bootstrap"]["source_inputs"]
         bad_inputs["files"]["toolchain/unexpected.asm"] = bad_inputs["files"].pop(shim)
@@ -1762,7 +1770,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(verified.returncode, 0, verified.stderr)
         self.assertEqual(
             json.loads(verified.stdout)["bootstrap_source_input_count"],
-            78 if long_paths else 77,
+            82 if long_paths else 81,
         )
 
     def test_alias_inventory_is_authored_and_verified(self):
@@ -1815,10 +1823,10 @@ class ToolchainManifestContractTests(unittest.TestCase):
 
     def test_current_publication_inventory_counts_are_exact(self):
         self.assertEqual(len(ARTIFACT_NAMES), 22)
-        self.assertEqual(len(INPUT_PATHS), 90)
-        self.assertEqual(len(BOOTSTRAP_PATHS), 76)
+        self.assertEqual(len(INPUT_PATHS), 92)
+        self.assertEqual(len(BOOTSTRAP_PATHS), 80)
         self.assertEqual(len(OBJECT_COMPARISON_NAMES), 17)
-        self.assertEqual(len(BOOTSTRAP_OBJECT_NAMES), 28)
+        self.assertEqual(len(BOOTSTRAP_OBJECT_NAMES), 30)
         self.assertEqual(len(BOOTSTRAP_TOOL_NAMES), 6)
         for input_count in (75, 77, 80, 82, 86, 87, 88, 89, 91):
             with self.subTest(input_count=input_count):

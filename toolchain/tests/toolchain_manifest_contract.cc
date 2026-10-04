@@ -58,13 +58,13 @@ static const char manifest_report_schema[] =
 
 #define MANIFEST_ARTIFACT_COUNT 22u
 #define MANIFEST_INPUT_LIMIT 256u
-#define MANIFEST_EXPECTED_INPUT_COUNT 90u
-#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 76u
-#define MANIFEST_LONG_PATH_BOOTSTRAP_FILE_COUNT 77u
-#define MANIFEST_ALIAS_LONG_PATH_BOOTSTRAP_FILE_COUNT 78u
+#define MANIFEST_EXPECTED_INPUT_COUNT 92u
+#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 80u
+#define MANIFEST_LONG_PATH_BOOTSTRAP_FILE_COUNT 81u
+#define MANIFEST_ALIAS_LONG_PATH_BOOTSTRAP_FILE_COUNT 82u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
-#define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 27u
+#define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 29u
 #define MANIFEST_BOOTSTRAP_STARTUP_OBJECT_COUNT 1u
 #define MANIFEST_BOOTSTRAP_OBJECT_COUNT                                      \
   (MANIFEST_BOOTSTRAP_C_OBJECT_COUNT +                                      \
@@ -74,7 +74,7 @@ static const char manifest_report_schema[] =
 static const char manifest_expected_seed_path[] =
     "bootstrap/seeds/i386-linux/manifest.json";
 static const char manifest_expected_build_plan_sha256[] =
-    "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5";
+    "48d6cc38b7a7362a83a911d2d3aaae8e79537c3f1744f3f5e7aac997728ed7f4";
 static const char manifest_expected_seed_build_plan_sha256[] =
     "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5";
 static const char manifest_expected_seed_manifest_sha256[] =
@@ -99,6 +99,7 @@ static const char *const
     "toolchain/cupidbuild.h",
     "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.h",
+    "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
     "toolchain/cupidc_ir.h",
@@ -166,6 +167,7 @@ static const char *const
     "toolchain/tests/x86_catalogue_contract.inc",
     "toolchain/tests/x86_contract.cc",
     "toolchain/tests/x86_inline_cases.inc",
+    "toolchain/user_syscall_abi.h",
     "toolchain/x86.cc",
     "toolchain/x86.h",
     "tools/bootstrap_toolchain.py",
@@ -195,6 +197,8 @@ static const char *const manifest_expected_bootstrap_paths
     "toolchain/cupidbuild_host.cc",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidbuild_main.cc",
+    "toolchain/cupidbuild_user_abi.cc",
+    "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.cc",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.cc",
@@ -250,10 +254,12 @@ static const char *const manifest_expected_bootstrap_paths
     "toolchain/seed_release.h",
     "toolchain/tests/hosted_i386_windows_contract.cc",
     "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
+    "toolchain/user_syscall_abi.cc",
+    "toolchain/user_syscall_abi.h",
     "toolchain/x86.cc",
     "toolchain/x86.h",
-    "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
     "toolchain/hosted/i386-windows/final_path_start.asm",
+    "toolchain/hosted/i386-windows/utf8_long_path_start.asm",
 };
 
 static int manifest_bootstrap_count_valid(size_t count) {
@@ -383,7 +389,8 @@ static const char *const
         "cupidld_main",  "cupidc_pp",     "cupidc_type",    "cupidc_frontend",
         "cupidc_ir",     "cupidc_emit",   "cupidc_main",    "cupidbuild",
         "cupidbuild_host", "cupidbuild_main", "seed_manifest", "seed_release",
-        "contract_parse_internal", "cupidbuild_artifacts", "artifact_size_policy", "start",
+        "contract_parse_internal", "cupidbuild_artifacts", "artifact_size_policy",
+        "user_syscall_abi", "cupidbuild_user_abi", "start",
 };
 
 static const char *const

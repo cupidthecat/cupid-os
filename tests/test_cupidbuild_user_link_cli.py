@@ -20,7 +20,8 @@ _NATIVE_CALLER = '#define main cupidbuild_cli_entry\n#include "cupidbuild_main.c
 '''
 
 class CupidBuildUserLinkCliTests(alias.CupidBuildUserLinkAliasOperationTests):
-    native_modules_extra = ('artifact_size_policy', 'cupidbuild_artifacts')
+    native_modules_extra = ('artifact_size_policy', 'cupidbuild_artifacts',
+                            'user_syscall_abi', 'cupidbuild_user_abi')
     caller_source = ('#include "cupidbuild_main.cc"\n'
                     if os.environ.get('CUPIDBUILD_USER_LINK_CHECKED') == '1' else _NATIVE_CALLER)
 

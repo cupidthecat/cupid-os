@@ -1,5 +1,29 @@
 # cupid-os
 
+## Native ABI command at toolchain head, 2026-10-03
+
+Source-head CupidBuild provides `verify-user-abi --root ROOT`. It observes the
+six syscall ABI sources and their ancestors, validates their captured bytes,
+rechecks them, and closes the observations before emitting JSON. The standalone
+contract uses the same semantic module. Both enforce the reviewed version-5
+ABI, including 103 fields, 412 table bytes and 101 providers.
+
+Fresh command builds pass with Cupid tools on Windows and Linux. Native tests
+cover malformed inputs, allocation failure, concurrency and source drift. The command
+creates no files, locks or children. See
+[ADR 0413](docs/adr/0413-share-syscall-abi-validation-with-cupidbuild.md) and
+[the bootstrap record](docs/bootstrap/README.md) for limits and qualification.
+
+Installed seeds and the normal ABI recipe retain their current roles.
+Ownership remains 447 CupidBuild actions and five Python actions across 452
+transforms. A paired release and the ABI recipe handoff remain required.
+
+The final ABI selection passes all 41 methods on Linux and 40 on Windows,
+with one POSIX-only Windows skip. The normal Windows OS and forced user builds
+pass with host C/ASM tools forbidden. A strict private-image four-CPU max/e1000
+boot passes runtime checks and completes `ls`; the base image stays unchanged.
+The bootstrap log records the failed attempts and the accepted scope.
+
 ## Block static assertions at compiler head, 2026-10-03
 
 Shared CupidC accepts C11 `_Static_assert` declarations in function compounds.

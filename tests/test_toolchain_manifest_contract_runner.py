@@ -118,8 +118,8 @@ def _expected_report():
     return {
         "artifact_count": 22,
         "artifact_total_bytes": 682,
-        "bootstrap_source_input_count": 76,
-        "input_count": 90,
+        "bootstrap_source_input_count": 80,
+        "input_count": 92,
         "schema": "cupid.toolchain-manifest-verification.v1",
     }
 
@@ -499,7 +499,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                 decoded["artifact_observations"],
                 sorted(observations),
             )
-            self.assertEqual(len(decoded["input_observations"]), 90)
+            self.assertEqual(len(decoded["input_observations"]), 92)
             self.assertIn(
                 "toolchain/x86.cc",
                 {
@@ -509,7 +509,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                     ]
                 },
             )
-            self.assertEqual(len(decoded["bootstrap_observations"]), 76)
+            self.assertEqual(len(decoded["bootstrap_observations"]), 80)
             self.assertEqual(len(decoded["seed_observations"]), 6)
             self.assertEqual(
                 decoded["seed_path"],
@@ -675,7 +675,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                             )
                         )
         expected = _expected_report()
-        expected["bootstrap_source_input_count"] = 76 + int(aliases) + int(long_paths)
+        expected["bootstrap_source_input_count"] = 80 + int(aliases) + int(long_paths)
         self.assertEqual(report, expected)
 
     def test_checked_seed_build_runs_the_manifest_contract(self):
@@ -1083,11 +1083,13 @@ class ToolchainManifestLiveCandidateTests(unittest.TestCase):
                     reader, REPO_ROOT, manifest
                 )
                 self.assertEqual({row[0] for row in bootstrap}, set(expected))
-                self.assertEqual(len(bootstrap), 76)
+                self.assertEqual(len(bootstrap), 80)
                 REAL_REQUIRE_LIVE_MEMBERSHIP(reader, inputs, bootstrap, seed_bytes)
                 for omitted in (
                     "toolchain/cupidbuild_artifacts.cc",
                     "toolchain/artifact_size_policy.cc",
+                    "toolchain/user_syscall_abi.cc",
+                    "toolchain/cupidbuild_user_abi.cc",
                 ):
                     with self.subTest(omitted=omitted):
                         with self.assertRaisesRegex(

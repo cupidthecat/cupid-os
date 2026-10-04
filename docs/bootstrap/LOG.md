@@ -42547,3 +42547,365 @@ This is source-head compiler work. Checked seeds, the private in-kernel
 parser, and normal ownership remain unchanged: 447 CupidBuild actions and
 five Python actions. The new manual section documents that boundary.
 TempleOS remains read-only and outside the inventories.
+
+## 2026-10-03: Share ABI semantics and add a read-only CupidBuild command
+
+`toolchain/user_syscall_abi.cc` now owns the semantic checks formerly embedded
+in the standalone contract. Its public API borrows six exact-length byte spans
+and returns a caller-owned report. It checks the reviewed version-5 i386 ABI:
+103 fields, 412 table bytes, both VFS layouts, scalar and network constants,
+and 101 provider bindings. The reviewed field and provider SHA-256 values
+remain `3e4d31320b2f56d19d37796ef679d1abbb228de9f36c9520d2dd5ec430c3c0bc`
+and `0a51ba85c93b0249215b05e54867fabe0e7206d7e58a7695911a6ecb060916f4`.
+The report keeps the existing JSON schema and every oracle field.
+
+The shared module has no filesystem access or mutable global state. Inputs
+need no trailing NUL. Each source must be nonempty, valid UTF-8 without embedded
+NULs, and at most 1 MiB. The tokenizer retains its 32,768-token bound. Result
+and diagnostic storage must be disjoint from the inputs and from each other.
+Failures clear the report and bound optional diagnostics. The formatter
+requires a validated report and clears writable output on capacity failure.
+Late tokenizer errors now free both source and token storage before returning.
+
+The standalone `check` and `check-snapshot` commands retain their read and
+reread boundary. Linux contract links and native Windows private contract
+builds include the shared module. The Windows source and control closure grows
+from 26 to 28 files; the Make prerequisite inventory also includes its own
+control file. Source-head `cupidbuild verify-user-abi --root ROOT` retains the
+six original files and their ancestor identities, validates their captured
+bytes, rechecks the observations, and closes them before publishing the report.
+No files, locks, directories or child processes are created. These sequential
+checks detect drift rather than providing an atomic filesystem snapshot.
+
+Relative roots resolve against the working directory. POSIX normalization
+removes dot components and repeated slashes but rejects parent components;
+collapsing a parent could hide a linked or missing ancestor. Windows uses the
+host adapter's absolute spelling and removes trailing separators while
+preserving drive roots. Platform selection uses the adapter's execution format
+so the shared coordinator does not need a Windows-only compiler definition.
+ADR 0413 records the ownership boundary.
+
+The candidate Linux plan has 29 C sources and 15 CupidBuild link roles. Its
+SHA-256 is `48d6cc38b7a7362a83a911d2d3aaae8e79537c3f1744f3f5e7aac997728ed7f4`.
+The four exact UTF-8 Windows profiles retain their previous import identities:
+
+| Windows profile | Captured inputs | Plan SHA-256 |
+| --- | ---: | --- |
+| Default | 80 | `be18b62e78d8259d1586ca20450eadb4901d8a36f26fdc7982db0b3d1aba5224` |
+| Long paths | 81 | `e9efefe58f1d105bbc30874cc8d627a96b2acc2de85a5205fddad99ab159ab11` |
+| User-link aliases | 81 | `f3132b33a0945a6d15484a39c853716468dec96b4d158c4cc550161286092a16` |
+| Long paths and aliases | 82 | `1a348ed367f047ac4a67dfc4e819155c0c96e66be19ff216b06d19db3efbe188` |
+
+The native seed reader and Python import selector keep the historical plans
+and reject changed source rows, missing modules, altered link order, mismatched
+counts and unreviewed import profiles. The Python installed-seed reader still
+requires the installed plan; the new candidate has not been promoted. Historical test fixtures now use the installed plan explicitly;
+upgrading those fixtures through the current candidate builder had silently
+changed the contract they were meant to test. The source-head publication
+uses 92 input records, 30 bootstrap objects and 69 stage-pair comparisons.
+Its 80 mandatory bootstrap records remain a sorted prefix; the two optional
+Windows shims follow that prefix. Sorting the complete array together caused
+positive author and verifier requests to fail and was corrected without
+loosening inventory checks.
+
+The first native compile rejected a const-discarding free. The coordinator now
+keeps owned allocations separately from borrowed spans. An early mutation test
+missed CRLF declarations; only its negative fixture normalizes line endings
+before changing the declaration. The first checked Windows command run used
+a nonexistent PE validator helper. Later runs exposed POSIX dot components,
+missing Windows platform selection and trailing Windows separators. Each
+failure remains separate from the corrected platform run. Stale producer,
+publication, help and audit fixtures were updated to exact current values.
+
+All 102 successful-path allocation points are individually denied in a fault
+probe. Every denial clears the result, leaves no live allocations and permits
+a subsequent successful validation. Other native tests cover input and output
+canaries, exact-size spans, source and token limits, UTF-8 errors, 24 concurrent
+mixed pass/fail calls, a real source edit after semantic validation, and close
+failure. A 75-method Windows native validator, artifact and seed run passes.
+The final Linux combined run passes 75 command, validator, seed and standalone
+ABI methods in 184.634 seconds. The final Windows command run passes six
+methods and skips the POSIX-only parent-component case in 162.791 seconds.
+Each command executable is freshly compiled and linked with checked Cupid
+producers, validated for its target, and rehashed between calls.
+
+The final source-closure selection passes 41 methods in 89.098 seconds. It
+preprocesses all active profiles, visits all 177 selected headers, and builds
+all six static tools with the source-head compiler. The header sweep retains
+173 successes and the same four named failures. The final publication suite
+passes 150 methods in 153.056 seconds, with three named platform skips. Its
+Cupid-built author and verifier enforce the complete 69-pair inventories.
+These fixture and command runs do not establish a new paired six-tool release.
+
+Installed seeds and the normal ABI recipe retain their current coordination.
+The audit records 770 active inputs, 255 feature requirements and 452
+transforms, with 447 CupidBuild actions and five Python actions. Paired release
+qualification, ABI recipe adoption, Toolchain publication and image coordination
+remain open under issue 34. No active OS behavior is removed or rewritten to
+fit the tools. TempleOS remains read-only and outside these inventories.
+
+The normal OS build initially rejects changing Doom input membership while
+other tests create and remove source fixtures. That attempt remains failed.
+Final audit, OS, runtime and remaining integration evidence follows below.
+
+The broad 270-method plan/publication run started before the source and fixture
+repairs settled. It fails 28 assertions in 2,676.628 seconds. Nineteen belong
+to the earlier publication fixture and are superseded by the closed passing
+150-method publication run. Seven corrected plan/count fixture methods pass
+in 0.732 seconds. The two real bootstrap attempts remain distinct: Linux
+rejects a coordinator source edit during capture; Windows reaches the native
+CupidObj runner and rejects the changed long/alias cohort's new parent without
+an explicit release. ADR 0411 requires that rejection. No new parent hashes
+are added to the native historical reader.
+
+The Windows integration run passes the corrected historical metadata and
+current-seed execution cases, but two methods fail when a concurrent bootstrap
+creates private objects or changes profile membership. Those two methods pass
+in an isolated 19.309-second rerun. All other methods in that 201-method run
+pass, with twelve named platform skips. The first run's eight stale fixture
+failures remain separate. Five Linux recipe and historical-fixture methods
+pass in 16.082 seconds; Windows rejects borrowed UTF-8 payloads under an ANSI
+historical profile, while Linux retains its compatible static ELF behavior.
+The JPEG and symbol recipe assertions now require their actual explicit
+release argument.
+
+The settled 129-method audit run fails three stale count assertions in
+1,096.077 seconds. The include inventory correction passes in the targeted
+rerun; the source-cohort assertion then exposes a fourth stale value, 115
+instead of 119. The final targeted drift check follows below. This preserves
+all inventory and negative-mutation checks rather than dropping their counts.
+
+The Windows long/alias regression now prepares all three six-tool stages,
+checks every recorded source and artifact, and compares stages three and four.
+It also materializes the actual changed tools and requires the original native
+entry point to reject the unreviewed parent. Its preparation is explicitly
+unqualified and cannot publish a complete bootstrap report. Full paired
+release-aware behavior qualification remains a separate gate. The Linux
+complete-bootstrap regression still requires all existing behavior checks.
+
+The final audit drift method passes in 244.598 seconds. Together with the
+unchanged passing methods in the full audit and corrected targeted checks,
+all 129 audit methods have passing results at the settled source. The generated
+report has 770 active sources, 119 Toolchain cohort files, 37 ABI audit inputs,
+729 include-operand sources and 2,576 include occurrences. The new source adds
+24 `sizeof` occurrences in two files; the explicit count is 7,027 in 185 files.
+
+The twelve existing stage-preparation and release-structure methods pass in
+31.621 seconds, with the POSIX FIFO replacement method skipped on Windows.
+They use the current candidate inventory and keep unqualified preparations
+separate from release-authorized behavior and complete publication.
+
+### 2026-10-04: Settled OS and staged qualification
+
+The final eight-job Windows OS replay starts after the file-mutating fixture
+suites finish. Its compiler proofs run from separate private source captures.
+Host `CC`, `AS`, `LD`, `NM`, `OBJCOPY` and `NASM` commands remain forbidden.
+Final artifact measurements and strict private-image runtime evidence follow.
+
+The final Windows long/alias preparation method passes in 1,590.502 seconds.
+It rebuilds 34 C objects, five assembly objects and six tools in each of three
+stages, then rehashes every source and artifact. All 45 stage-three/four pairs
+match. The 82-input snapshot and both exact plans match the active source.
+The method then materializes the actual staged tools with the new parent and
+requires the original native entry point's provenance rejection. The prepared
+bundle remains unqualified and contains no complete bootstrap report.
+
+The first settled OS replay also fails its directory-closure check. A retained
+compiler source copy was placed under the build directory during that replay;
+its header directories changed discovery membership for three Doom objects.
+The copy has been moved outside the repository. This failure is recorded as a
+proof-layout mistake, and the unchanged drift guard remains required on retry.
+
+Git requires LF source endings. Before normalization, a retained external
+capture checks the shared validator with the installed, stage-two and
+stage-three Linux Cupid compilers. All three canonical-LF objects equal their
+raw-source objects: 79,468 bytes, SHA-256
+`631a07433ab105e3618d5ad895b541e9fda11bb4f8de4a9f37178bb76ea8ca43`.
+The raw validator source hash is
+`ccf006ec38688dbf12747cd1e2204ed0b5022d80016d02f30fab3077c6bf955d`;
+its LF source hash is
+`517ebe6aa5d700297c24d5d6ad9006d760282882c890da278aa91ae2e9a7622a`.
+The standalone wrapper's LF object also equals its raw-source object with the
+retained stage-three compiler: 7,980 bytes, SHA-256
+`2f8ed6eeee59545524b03647ce665af6ea963186a4b51720cbffdf87c75fa8b0`.
+These checks establish object equivalence for the two normalized source files.
+They do not establish a paired release for the canonical source snapshot.
+
+The first complete Linux retry reaches behavior qualification after building
+all three six-tool stages, then hits the test's 3,000-second deadline. It remains
+a failed 3,000.016-second run. The complete regression now permits 6,000 seconds;
+its fresh retry uses a separate 1,577-file canonical source copy outside the OS
+build root. The longer deadline does not remove any stage or behavior check.
+
+Fresh canonical-source ABI selections pass 40 methods on each host: 39 execute
+on Windows with its one POSIX-only skip in 292.253 seconds, and all 40 execute
+on Linux in 271.287 seconds. Each selection includes the freshly Cupid-built
+public command, native validator and coordinator fault tests, and all existing
+standalone ABI methods. The canonical source produces the same reviewed ABI
+and provider reports.
+
+The first canonical-copy retry fails in 670.228 seconds. The unchanged
+`cupidc_frontend.cc` compilation reaches its 360-second per-job deadline while
+the eight-job OS rebuild is active. Resource contention is a possible cause,
+not an established diagnosis. That failure remains separate from the earlier
+completed stage builds. The next complete retry runs after OS qualification,
+with the ordinary compiler deadline and every original check retained.
+
+Additional literal-boundary review reproduces four false successes: a lone
+opening string or character quote, and either quote escaped at the final byte.
+The native regression fails all four cases in 4.643 seconds. The tokenizer had
+inferred completion from the last byte instead of observing an unescaped closing
+quote. It now records the actual closing event, frees both token allocations
+on failure, clears the report and permits recovery. Valid escaped string and
+character literals still pass. All twelve native methods pass in 4.236 seconds
+after the correction; fresh checked-command coverage also requires each failure
+and repair. Earlier stage preparations and normalization object identities
+predate this correction and are not final producer proof for it.
+
+The final literal-aware ABI selection passes 41 methods per host. Windows
+executes 40 with its one POSIX-only skip in 173.615 seconds; Linux executes
+all 41 in 160.682 seconds. Both fresh Cupid-built commands reject each of the
+four incomplete literal boundaries without success output, then succeed after
+repair. The unchanged independent oracle still matches every report field.
+
+The canonical audit regeneration and its subsequent check both pass. The
+next concurrent OS replay fails when regeneration atomically replaces
+`toolchain/tests/cupidc_pp_active_cases.inc`, which the Doom compiler captures
+as a header. Its bytes remain unchanged, but its retained file identity changes.
+The unchanged source and directory guards reject that replacement. Regeneration
+was moved outside the OS replay; no input guard was weakened.
+
+The forced normal Windows user build passes with host code producers forbidden.
+Its Python-coordinated gate builds the extracted standalone contract with the
+checked Cupid tools and emits the same complete version-5 report. Fresh `hello`,
+`ls` and `cat` objects and executables pass their existing typed compile and link
+transactions. The gate's coordination remains with Python.
+
+The exclusive normal eight-job Windows OS replay passes in 1,968.145 seconds.
+`CC`, `CXX`, `HOSTCC`, `AS`, `ASM`, `LD`, `NM`, `OBJCOPY` and `NASM` are forbidden.
+All sixteen artifact-policy rows match actual output. The first completed
+kernel preparation rejects all three old kernel sizes, then only those three
+rows are changed to measured exact values. All seventeen policy methods pass
+in 14.686 seconds. The final kernels retain those measured bytes:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Raw kernel | 9,585,024 | `eacfa61c383c6b970e65e97307ea4e7158324fcaa262e97ead74f54513a612e2` |
+| Final ELF | 9,814,460 | `cf1e615e2cb5574830aacbb1a290cc7eed2fcaa1f9cf28c48b57a4a454e7d85f` |
+| Pass-one ELF | 9,683,388 | `b3680b46af2f527765a676e087dd49ff51f0a0bc1b83fe901daf0db5bd2684c1` |
+
+Each contains the complete 152,237-byte manual with SHA-256
+`ce5deb32344e2166dd95d9d20cd031123ab717531d5870c905dda9915a88ca18`.
+The normal image builder preserves FAT data in the existing 200 MiB image.
+The resulting image has SHA-256
+`738742dc1060dff777f36f3cc4dc43e6c092a5ceaa47d1737cb299c460c79e87`.
+This is a Windows normal-build qualification, not a paired Linux OS rebuild or
+a clean FAT-data qualification.
+
+The strict private-image max/e1000 four-CPU boot passes in 50.625 seconds.
+All four CPUs come online; the required RDRAND, SSE2, FPU, 62 crypto checks,
+DHCP, desktop and Terminal markers pass, and `ls` completes. The original image
+hash stays unchanged. This smoke does not establish full Doom runtime acceptance.
+
+Final staged retries use two separate 1,577-file source copies outside the
+OS build root. Their collectors retain published test output before ordinary
+temporary-directory cleanup and preserve every original assertion. The final
+validator source has SHA-256
+`5bb6d72ef933e6c16c919aeeeb06b1cf584336d84a533d2226b59743989f5a73`.
+Their closed producer and behavior results follow below.
+
+The final Windows long/alias retry passes its test in 1,391.992 seconds
+(1,392.678 seconds including retained-output collection). Independent rehashing
+checks all 82 source inputs against both the retained snapshot and current
+source, all 135 artifacts across the three stages, and all 45 final-stage
+pairs. The source snapshot is
+`29c821db3e612610bc42af820f5757972fa47082d3fc9e9096b9ef9f03a2dcf8`;
+the retained preparation record has SHA-256
+`bb717f93d6f0e8cea3c5aba4a8b57f89a36881756ad9585357bf5b2cf6ba8918`.
+The final validator object is 79,452 bytes with SHA-256
+`fcf1e9830b9f5efd5f7216764d55023a3413eadab56f192ac596c5f22a35be26`.
+This retry includes the literal correction. The method requires the actual
+staged CupidBuild to reject its changed parent with the original provenance
+check. Its preparation remains unqualified and has no complete bootstrap
+report; paired release-aware behavior qualification remains required.
+
+Separate checks execute `verify-user-abi` from all three staged CupidBuild
+executables on each host. All 66 commands pass in 7.977 seconds: 36 successful
+reports match the complete independent ABI oracle, and 30 expected failures
+reject the four incomplete literal boundaries or a missing input without
+success output. Every repair succeeds. Original ABI source bytes and all six
+observed executable hashes remain unchanged. The three Windows CupidBuild
+images share SHA-256
+`d00f67e0fde9e6663e970faa4d6fd1c923e4e2be542e396121107611dcde3008`;
+the three Linux images share SHA-256
+`beacc5af45e2c6c11a007e377505c83e17476c1e9b4c7fa85dc1a44d9b61c4ab`.
+These are standalone command checks on separate fixture copies. They do not
+replace the full bootstrap behavior matrix or qualify a paired Windows release.
+
+The final complete Linux bootstrap test passes in 3,094.260 seconds
+(3,094.931 seconds including retained-output collection). Each of its three
+stages rebuilds 29 C objects, one startup object and all six tools. All 36
+stage-three/four pairs match. Both final generations pass the existing matrix
+of 62 success cases, 55 failure cases and seven help cases, together with the
+Windows runtime bridge contracts. The 6,000-second test deadline retains every
+original compiler, stage and behavior check; the completed run exceeds the
+former 3,000-second limit by 94.260 seconds.
+
+Independent verification rehashes all 81 recorded source inputs against current
+source and the retained source copy, all 108 stage artifacts and 52 recorded
+Windows bridge artifact rows. It compares every final-stage pair byte for byte
+and confirms that retained stage artifacts match the preliminary observations.
+The source snapshot is
+`ebc2e04628839a5ea6236c8ace6f43eb755d18981bd5e6712664fb1e71a31cd1`;
+the complete report has SHA-256
+`1226f926df37b67861426aa5668df056f84bdea06ec4948df67f88370465a8de`.
+Its final validator object has the same 79,452-byte identity as the native
+Windows preparation. The collectors' 1,577-file copies include documentation
+captured before final log additions; the verified compiler inputs are the
+81- and 82-input snapshots, not a claim that every copied document equals the
+final commit.
+
+This checkpoint adds the shared validator, retained-source command, candidate
+plans, complete hosted closure and their positive and negative tests. Installed
+seeds and Make coordination remain unchanged. Issue 34 remains open with five
+Python actions across the 452-transform normal graph. A paired release must
+qualify the new ABI command in its behavior gates before seed promotion and the
+ABI recipe handoff. Windows preparation is not that release; the Windows OS
+replay is not a paired Linux OS rebuild. Full Doom runtime acceptance remains
+open, and TempleOS remains read-only reference material.
+
+The staged whitespace check finds one extra LF at the validator's end of file.
+Removing that byte changes no other source bytes. The final committed validator
+has SHA-256 `6886219a30d2ae990cd8257f9908a7ae1724a1efb615d285114d2bf9ac3c5fce`.
+All eight installed and stage-two/three/four compilers on Windows and Linux
+recompile these corrected bytes in 31.427 seconds. Every object is byte-identical
+to the recorded 79,452-byte staged object with SHA-256
+`fcf1e9830b9f5efd5f7216764d55023a3413eadab56f192ac596c5f22a35be26`.
+Compiler images and captured inputs stay unchanged during that comparison.
+The frozen full bootstrap and preparation reports retain the earlier
+`5bb6d72e` source hash and their original source snapshots. They are not rewritten
+to describe the corrected EOF. The object-equivalence receipt supplies the
+boundary between those tested artifacts and the committed bytes; a future
+paired release still requires fresh committed-source qualification.
+The corrected 81-input Linux snapshot is `cefc3b16c8138728f8387cf2ca75bb26350a4bdfa7b29ff8b9df4246a709a73f`;
+the corrected 82-input Windows long/alias snapshot is `d983f249c7e54a47d60f04ace82dfbc283e16f1bfb73ea16c93bfbc36cc7670f`.
+
+The post-staging audit rejects both new fault probes because unreachable tracked
+`.cc` files require explicit source-suffix ownership. The earlier unstaged audit
+could not see them in Git's tracked inventory. Both probes now have matching
+`host_fixture` records in the ownership policy and the auditor's named evidence.
+The whole-report regression asserts both classifications and the exact updated
+inventory. No production source is excluded or reclassified. Regeneration
+passes in 72.870 seconds: 770 active sources, 43 unreachable source-like files,
+255 features and 452 transforms. The generated preprocessor-case bytes remain
+unchanged with SHA-256
+`12044ecb1093227fd7deffa6eb44b8b93c2072049ee10f21caf17a5c796b21ee`.
+These host fault probes do not count toward Cupid-owned production progress.
+
+The final generated-report check passes in 79.356 seconds. All nine targeted
+source-ownership and whole-report drift methods pass in 262.620 seconds
+(262.905 seconds including log collection), including the positive fixture
+classifications and the existing missing-policy, wrong-owner, invalid-shape,
+classification-drift and active/unreachable-overlap failures. Staging now owns
+43 explicit files, including the fixture ownership policy. The final artifact,
+manual, image and unrelated-worktree checks are repeated before commit.

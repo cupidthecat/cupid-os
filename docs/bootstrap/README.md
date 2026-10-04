@@ -1,5 +1,38 @@
 # Cupid Toolchain bootstrap
 
+## Native syscall ABI command at toolchain head, 2026-10-03
+
+Source-head CupidBuild provides `verify-user-abi --root ROOT`. It retains the
+six ABI sources and their ancestors, validates the captured bytes, rechecks
+those observations, and closes them before emitting the existing JSON report.
+The standalone contract uses the same semantic module. Both enforce the
+reviewed version-5 i386 ABI, including 103 fields, 412 table bytes, VFS layouts,
+scalar and socket constants, and all 101 providers.
+
+The memory API accepts bounded UTF-8 spans without trailing NUL bytes, shares
+no mutable state, and clears the result on failure. The command creates no
+files, locks or children. POSIX roots accept dot and repeated slash components;
+parent components are rejected to preserve ancestor checks. Sequential source
+rechecks do not imply an atomic snapshot. See
+[ADR 0413](../adr/0413-share-syscall-abi-validation-with-cupidbuild.md).
+
+Candidate plans now contain 29 C objects. The native seed reader and Python
+import selector admit the new 80-, 81- and 82-input UTF-8 profiles with their
+complete source, link and import identities. The Python installed-seed reader
+remains pinned to the installed plan. Historical native profiles stay valid.
+This is source-head work.
+Installed seeds and the normal ABI recipe remain unchanged: 447 CupidBuild
+actions and five Python actions across 452 transforms. Paired release
+qualification and the recipe handoff remain open.
+
+The final ABI selection passes 41 methods on Linux and 40 on Windows, with one
+POSIX-only Windows skip. The forced normal Windows user build and ordinary OS
+replay pass with host code producers forbidden. All sixteen artifact checks
+pass, and a strict private-image four-CPU max/e1000 boot completes `ls` after the
+full SMP, FPU, crypto and DHCP contract. The base image stays unchanged.
+[The log](LOG.md) records failed attempts, measured artifacts and qualification
+limits. The normal image replay preserves existing FAT data.
+
 ## Block static assertions at compiler head, 2026-10-03
 
 Shared CupidC accepts C11 `_Static_assert` declarations throughout function

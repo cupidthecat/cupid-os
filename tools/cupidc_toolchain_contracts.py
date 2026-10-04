@@ -133,6 +133,8 @@ BOOTSTRAP_OBJECT_NAMES = (
     "contract_parse_internal",
     "cupidbuild_artifacts",
     "artifact_size_policy",
+    "user_syscall_abi",
+    "cupidbuild_user_abi",
     "start",
 )
 WINDOWS_RUNTIME_INPUTS = (
@@ -183,6 +185,8 @@ NATIVE_WINDOWS_USER_ABI_BUILD_INPUTS = tuple(
             "toolchain/hosted/i386-windows/runtime.cc",
             "toolchain/hosted/i386-windows/tool_start.asm",
             "toolchain/tests/user_syscall_abi_contract.cc",
+            "toolchain/user_syscall_abi.cc",
+            "toolchain/user_syscall_abi.h",
             "tools/bootstrap_toolchain.py",
             "tools/cupidc_toolchain_contracts.py",
             "tools/user_syscall_abi.py",
@@ -190,6 +194,7 @@ NATIVE_WINDOWS_USER_ABI_BUILD_INPUTS = tuple(
     )
 )
 NATIVE_WINDOWS_USER_ABI_COMPILE_PLAN = (
+    ("user_syscall_abi", "/toolchain/user_syscall_abi.cc", (), False),
     (
         "contract",
         "/toolchain/tests/user_syscall_abi_contract.cc",
@@ -213,6 +218,7 @@ NATIVE_WINDOWS_USER_ABI_COMPILE_PLAN = (
 NATIVE_WINDOWS_USER_ABI_LINK_ORDER = (
     "start",
     "contract",
+    "user_syscall_abi",
     "ctool_host",
     "ctool",
     "runtime",
@@ -223,7 +229,7 @@ CONTRACT_LINK_OBJECT_KEYS = frozenset(
         for name, _source, _gnu_extensions in EXPECTED_SOURCES
         if not name.endswith("_main")
     }
-    | {"as_elf", "contract", "start"}
+    | {"as_elf", "contract", "start", "user_syscall_abi"}
 )
 
 
@@ -257,7 +263,7 @@ CONTRACT_PLANS = (
     ContractPlan(
         "user-syscall-abi",
         "toolchain/tests/user_syscall_abi_contract.cc",
-        ("start", "contract", "ctool_host", "ctool", "runtime"),
+        ("start", "contract", "user_syscall_abi", "ctool_host", "ctool", "runtime"),
     ),
     ContractPlan(
         "cupidc-pp",

@@ -2254,7 +2254,8 @@ class CupidBuildCliTests(unittest.TestCase):
             "$(PRODUCTION_SEED_DIRECTORY)"
             "cupidbuild.$(PRODUCTION_SEED_SUFFIX) generate-ksyms "
             "--seed-manifest $(PRODUCTION_SEED_MANIFEST) "
-            '--root "$(CURDIR)" --source $< --output $@',
+            '--root "$(CURDIR)" --seed-release $(PRODUCTION_SEED_RELEASE) '
+            '--source $< --output $@',
         )
         self.assertNotIn("$(PYTHON)", rule)
         self.assertNotIn("tools/hostbuild.py", rule.lower())
@@ -2277,7 +2278,8 @@ class CupidBuildCliTests(unittest.TestCase):
                     "$(PRODUCTION_SEED_DIRECTORY)"
                     "cupidbuild.$(PRODUCTION_SEED_SUFFIX) embed-jpeg "
                     "--seed-manifest $(PRODUCTION_SEED_MANIFEST) "
-                    '--root "$(CURDIR)" --source $< --output $@',
+                    '--root "$(CURDIR)" --seed-release $(PRODUCTION_SEED_RELEASE) '
+                    '--source $< --output $@',
                 )
                 self.assertNotIn("$(PYTHON)", rule)
                 self.assertNotIn("tools/hostbuild.py", rule)
@@ -3841,36 +3843,13 @@ int main(int argc, char **argv) {
         else:
             document["schema"] = "cupid.bootstrap-seed.v2"
             plan = document["build_plan"]
-            if "cupidbuild" not in plan["links"]:
-                plan["sources"].extend(
-                    [
-                    {
-                        "gnu_extensions": False,
-                        "name": "cupidbuild",
-                        "path": "/toolchain/cupidbuild.cc",
-                    },
-                    {
-                        "gnu_extensions": False,
-                        "name": "cupidbuild_host",
-                        "path": "/toolchain/cupidbuild_host.cc",
-                    },
-                    {
-                        "gnu_extensions": False,
-                        "name": "cupidbuild_main",
-                        "path": "/toolchain/cupidbuild_main.cc",
-                    },
-                    ]
-                )
-                plan["links"]["cupidbuild"] = [
-                    "start",
-                    "cupidbuild_main",
-                    "cupidbuild",
-                    "cupidbuild_host",
-                    "ctool_host",
-                    "ctool",
-                    "elf32",
-                    "runtime",
-                ]
+            # Match the historical source/link plan to the 59/61-input contract.
+            removed = {"seed_manifest", "seed_release", "contract_parse_internal",
+                       "artifact_size_policy", "cupidbuild_artifacts"}
+            plan["sources"] = [row for row in plan["sources"]
+                               if row["name"] not in removed]
+            plan["links"]["cupidbuild"] = [name for name in plan["links"]["cupidbuild"]
+                                          if name not in removed]
             encoded_plan = json.dumps(
                 plan,
                 sort_keys=True,
@@ -4692,7 +4671,21 @@ int main(int argc, char **argv) {
             self.assertIn("checked CupidDis failed", result.stderr)
             self.assertEqual(output.read_bytes(), b"last known good raw image")
 
-    def test_six_tool_v2_contract_reaches_checked_execution_profiles(self):
+    def _assert_historical_seed_execution(self, result, output):
+        if os.name == "nt":
+            # Metadata acceptance reaches the profile check. Borrowed UTF-8
+            # executables do not satisfy this historical ANSI profile.
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr,
+                             "cupidbuild: checked seed execution profile mismatch\n")
+            self.assertEqual(output.read_bytes(), b"last known good object")
+        else:
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((result.stdout, result.stderr), ("", ""))
+            self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+
+    def test_historical_v2_metadata_retains_its_execution_profile(self):
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-object-v2-contract-", dir=REPO_ROOT
         ) as temporary:
@@ -4709,11 +4702,9 @@ int main(int argc, char **argv) {
 
             result = self._run_object(source, output, manifest)
 
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual((result.stdout, result.stderr), ("", ""))
-            self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+            self._assert_historical_seed_execution(result, output)
 
-    def test_six_tool_v2_contract_accepts_59_and_61_source_inputs(self):
+    def test_historical_v2_metadata_accepts_59_and_61_source_inputs(self):
         for source_input_count in (59, 61):
             with self.subTest(
                 source_input_count=source_input_count
@@ -4743,13 +4734,9 @@ int main(int argc, char **argv) {
                 self.assertNotIn(
                     "fixed-point provenance differs", result.stderr
                 )
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual((result.stdout, result.stderr), ("", ""))
-                self.assertEqual(
-                    output.read_bytes()[:7], b"\x7fELF\x01\x01\x01"
-                )
+                self._assert_historical_seed_execution(result, output)
 
-    def test_six_tool_v2_contract_accepts_the_active_seed_as_parent(self):
+    def test_historical_v2_metadata_accepts_the_reviewed_parent(self):
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-object-v2-active-parent-", dir=REPO_ROOT
         ) as temporary:
@@ -4794,9 +4781,7 @@ int main(int argc, char **argv) {
             result = self._run_object(source, output, manifest)
 
             self.assertNotIn("fixed-point provenance differs", result.stderr)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual((result.stdout, result.stderr), ("", ""))
-            self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+            self._assert_historical_seed_execution(result, output)
 
     @unittest.skipUnless(os.name == "nt", "native Windows seed contract")
     def test_six_tool_v2_contract_accepts_the_current_windows_plan(self):
@@ -4805,14 +4790,6 @@ int main(int argc, char **argv) {
         ) as temporary:
             root = Path(temporary)
             manifest = self._copy_checked_assembly_seed(root / "seed")
-            document = self._promote_seed_contract(manifest)
-            document["provenance"]["native_build_plan_sha256"] = (
-                "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669"
-            )
-            manifest.write_text(
-                json.dumps(document, indent=2, sort_keys=True) + "\n",
-                encoding="utf-8",
-            )
             source = root / "input.asm"
             output = root / "output.o"
             source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")

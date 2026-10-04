@@ -2601,6 +2601,30 @@ revision, and both Windows parent roles must select the same generation.
 That historical seed named the kernel-flatten pair as its parent.
 >endtree
 
+>h2 Native ABI validation at toolchain head
+>tree
+Source-head CupidBuild provides:
+
+cupidbuild verify-user-abi --root ROOT
+
+It retains six ABI declarations and their ancestors, checks the captured
+bytes, revalidates the observations, and closes them before reporting success.
+The standalone ABI contract uses the same semantic validator. It checks
+version 5, 103 fields, 412 table bytes, public scalar and socket constants,
+both VFS record layouts, and all 101 providers.
+
+The command creates no files, locks or child processes. Sources must be
+bounded UTF-8 without embedded NUL bytes. Relative roots resolve against the
+working directory. POSIX roots accept dot and repeated slash components and
+reject parent components so missing or linked ancestors cannot be hidden.
+Sequential rechecks detect drift; they are not an atomic filesystem snapshot.
+
+This command is not yet in the checked seeds. Normal Make retains the
+Python-coordinated ABI gate. Across 452 audited transforms, CupidBuild owns
+447 actions and Python owns five. Seed qualification and the ABI recipe
+handoff remain separate work.
+>endtree
+
 >h2 See Also
 [03CUPIDSC.CTXT - CupidScript](open:03CUPIDSC.CTXT)
 [12HOLYC-CUPIDC.CTXT - HolyC comparison](open:12HOLYC-CUPIDC.CTXT)

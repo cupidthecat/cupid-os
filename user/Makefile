@@ -61,6 +61,8 @@ USER_SYSCALL_ABI := $(PYTHON) ../tools/cupidc_toolchain_contracts.py \
 	$(USER_SYSCALL_ABI_PLATFORM_ARGUMENTS) \
 	--output ../toolchain/build/cupidc-contracts
 NATIVE_WINDOWS_USER_SYSCALL_ABI_INPUTS := \
+	../toolchain/user_syscall_abi.cc \
+	../toolchain/user_syscall_abi.h \
 	../kernel/core/syscall.cc \
 	../kernel/core/syscall.h \
 	../kernel/core/types.h \
@@ -89,6 +91,8 @@ NATIVE_WINDOWS_USER_SYSCALL_ABI_INPUTS := \
 	../tools/user_syscall_abi.py \
 	cupid.h
 USER_SYSCALL_ABI_PUBLICATION_INPUTS := \
+	../toolchain/user_syscall_abi.h \
+	../toolchain/cupidbuild_user_abi.h \
 	../kernel/core/syscall.cc \
 	../kernel/core/syscall.h \
 	../kernel/core/types.h \
@@ -157,6 +161,10 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS := \
 	../tools/user_syscall_abi.py \
 	cupid.h
 USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS := \
+	../toolchain/user_syscall_abi.cc \
+	../toolchain/user_syscall_abi.h \
+	../toolchain/cupidbuild_user_abi.cc \
+	../toolchain/cupidbuild_user_abi.h \
 	../link.ld \
 	../toolchain/ctool.cc \
 	../toolchain/ctool.h \

@@ -339,6 +339,7 @@ class CupidBuiltUserSyscallAbiContractTests(unittest.TestCase):
         try:
             cls.frozen_seed = freeze_seed_inputs(manifest, build / "seed")
             contract_object = build / "contract.o"
+            abi_object = build / "abi.o"
             runtime_object = build / "runtime.o"
             start_object = build / "start.o"
             cls.contract = build / "user-abi.elf"
@@ -360,6 +361,21 @@ class CupidBuiltUserSyscallAbiContractTests(unittest.TestCase):
                         "/toolchain/hosted/i386-linux/include",
                         "-o",
                         logical(contract_object),
+                    ),
+                ),
+                (
+                    "cupidc",
+                    (
+                        "--root",
+                        REPO_ROOT,
+                        "-c",
+                        "/toolchain/user_syscall_abi.cc",
+                        "-I",
+                        "/toolchain",
+                        "--include-angle",
+                        "/toolchain/hosted/i386-linux/include",
+                        "-o",
+                        logical(abi_object),
                     ),
                 ),
                 (
@@ -401,6 +417,7 @@ class CupidBuiltUserSyscallAbiContractTests(unittest.TestCase):
                         cls.contract,
                         start_object,
                         contract_object,
+                        abi_object,
                         runtime_object,
                     ),
                 ),

@@ -161,6 +161,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/cupidbuild.h",
     "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.h",
+    "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
     "toolchain/cupidc_ir.h",
@@ -228,6 +229,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/tests/x86_catalogue_contract.inc",
     "toolchain/tests/x86_contract.cc",
     "toolchain/tests/x86_inline_cases.inc",
+    "toolchain/user_syscall_abi.h",
     "toolchain/x86.cc",
     "toolchain/x86.h",
     "tools/bootstrap_toolchain.py",
@@ -255,6 +257,8 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/cupidbuild_host.cc",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidbuild_main.cc",
+    "toolchain/cupidbuild_user_abi.cc",
+    "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.cc",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.cc",
@@ -311,6 +315,8 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/seed_release.h",
     "toolchain/tests/hosted_i386_windows_contract.cc",
     "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
+    "toolchain/user_syscall_abi.cc",
+    "toolchain/user_syscall_abi.h",
     "toolchain/x86.cc",
     "toolchain/x86.h",
 )
@@ -436,6 +442,8 @@ USER_SYSCALL_ABI_NATIVE_BUILD_INPUTS = (
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/tests/user_syscall_abi_contract.cc",
+    "toolchain/user_syscall_abi.cc",
+    "toolchain/user_syscall_abi.h",
     "tools/bootstrap_toolchain.py",
     "tools/cupidc_toolchain_contracts.py",
     "tools/user_syscall_abi.py",
@@ -459,6 +467,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/cupidbuild.h",
     "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.h",
+    "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
     "toolchain/cupidc_ir.h",
@@ -526,6 +535,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/tests/x86_catalogue_contract.inc",
     "toolchain/tests/x86_contract.cc",
     "toolchain/tests/x86_inline_cases.inc",
+    "toolchain/user_syscall_abi.h",
     "toolchain/x86.cc",
     "toolchain/x86.h",
     "tools/bootstrap_toolchain.py",
@@ -553,6 +563,8 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/cupidbuild_host.cc",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidbuild_main.cc",
+    "toolchain/cupidbuild_user_abi.cc",
+    "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.cc",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.cc",
@@ -609,6 +621,8 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/seed_release.h",
     "toolchain/tests/hosted_i386_windows_contract.cc",
     "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
+    "toolchain/user_syscall_abi.cc",
+    "toolchain/user_syscall_abi.h",
     "toolchain/x86.cc",
     "toolchain/x86.h",
 )
@@ -723,6 +737,14 @@ KNOWN_UNREACHABLE_SOURCE_POLICIES = {
     "toolchain/tests/cupiddis_kernel_adapter_contract.cc": (
         "host_oracle",
         "native public kernel-adapter contract outside production build roots",
+    ),
+    "toolchain/tests/user_abi_allocation_probe.cc": (
+        "host_fixture",
+        "native syscall ABI allocation-failure probe compiled by the host test harness",
+    ),
+    "toolchain/tests/user_abi_observer_probe.cc": (
+        "host_fixture",
+        "native syscall ABI observer-failure probe compiled by the host test harness",
     ),
 }
 KNOWN_ACTIVE_ASSEMBLY_POLICIES: dict[str, tuple[str, str]] = {}
@@ -992,7 +1014,7 @@ _C_PP_ACTIVE_COUNTS = {
     "CUPID_RUNTIME": 108,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
-    "HOSTED_I386_LINUX": 43,
+    "HOSTED_I386_LINUX": 45,
     "HOSTED_I386_WINDOWS": 9,
     "HOSTED_I386_KERNEL_BRIDGE": 2,
     "HOSTED_I386_LINUX_GNU": 3,
@@ -1010,6 +1032,8 @@ _C_PP_HOSTED_I386_STRICT_CASES = (
     "/toolchain/cupidbuild.cc",
     "/toolchain/cupidbuild_host.cc",
     "/toolchain/cupidbuild_main.cc",
+    "/toolchain/user_syscall_abi.cc",
+    "/toolchain/cupidbuild_user_abi.cc",
     "/toolchain/cupidasm.cc",
     "/toolchain/cupidasm_main.cc",
     "/toolchain/cupidc_emit.cc",
@@ -11788,6 +11812,8 @@ def _cupid_toolchain_fixed_point_contract(
         ("contract_parse_internal", "/toolchain/contract_parse_internal.cc", False),
         ("cupidbuild_artifacts", "/toolchain/cupidbuild_artifacts.cc", False),
         ("artifact_size_policy", "/toolchain/artifact_size_policy.cc", False),
+        ("user_syscall_abi", "/toolchain/user_syscall_abi.cc", False),
+        ("cupidbuild_user_abi", "/toolchain/cupidbuild_user_abi.cc", False),
     )
     candidate_toolchain_links = expected_toolchain_links + (
         (
@@ -11805,6 +11831,8 @@ def _cupid_toolchain_fixed_point_contract(
                 "contract_parse_internal",
                 "cupidbuild_artifacts",
                 "artifact_size_policy",
+                "user_syscall_abi",
+                "cupidbuild_user_abi",
                 "runtime",
             ),
         ),
@@ -15175,7 +15203,7 @@ def _cupid_toolchain_fixed_point_contract(
             "publication must carry stages two through four"
         )
     if bootstrap_assignment("CANDIDATE_SOURCES") != tuple(
-        candidate_toolchain_sources[-8:]
+        candidate_toolchain_sources[-10:]
     ):
         missing_bootstrap_fragments.append(
             "candidate source constants must match the audited inventory"
