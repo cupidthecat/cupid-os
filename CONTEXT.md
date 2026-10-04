@@ -44,6 +44,12 @@ Its executable plan describes the staged tools under test; parent lineage
 describes the inputs used to build them.
 _Avoid_: compiler build input, promoted seed evidence
 
+**Reviewed seed behavior reuse**:
+Explicit authority to check byte-identical staged tools through a reviewed seed
+release. Both stage tool sets must match the pinned cohort; the publication
+author still owns its actual source observations and producer comparisons.
+_Avoid_: new producer qualification, source inventory substitution
+
 **Artifact policy observation request**:
 An immutable description of a policy and captured artifact facts, used to decide
 exact sizes and ownership after the caller has validated its selected seed

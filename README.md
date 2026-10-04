@@ -1,5 +1,20 @@
 # cupid-os
 
+## Reviewed seed behavior boundary, 2026-10-04
+
+The release coordinator can reuse an explicitly selected, pinned seed release
+for behavior checks when both staged tool sets match its six Linux images
+exactly. It preserves the SDK's actual source observations and the native
+publication author's stage comparisons. Both host boundary selections pass
+37 methods; real unchanged SDK helpers also pass with qualified tool fixtures.
+Ordinary SDK release propagation and seed installation remain pending. See
+[ADR 0418](docs/adr/0418-reuse-reviewed-seed-tools-for-sdk-behavior.md).
+
+The updated embedded manual passes the incremental Cupid-only build, all
+sixteen artifact checks, the complete audit and a strict private four-CPU
+`max`/e1000 boot with completed `ls`. Only its wrapped object changes among
+429 objects; installed seeds and ownership stay unchanged.
+
 ## Windows file staging, 2026-10-04
 
 Host image and standalone staging accept absolute Windows sources such as

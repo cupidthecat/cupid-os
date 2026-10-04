@@ -1,5 +1,14 @@
 # Host dependency inventory
 
+## Reviewed seed behavior authority, 2026-10-04
+
+The release coordinator adds a bounded capture and authorization boundary for
+reusing reviewed Linux tools in SDK behavior fixtures. Both actual stage tool
+sets must match the pinned release; this does not compare producer objects or
+claim the SDK's source inventory as the seed's producer inventory. No host
+C/assembly tool, installed seed or ownership change is introduced. Ordinary
+SDK integration remains pending, with 447 CupidBuild and five Python actions.
+
 ## Host staging path correction, 2026-10-04
 
 Python still parses host-to-guest stage entries and writes their FAT files. It

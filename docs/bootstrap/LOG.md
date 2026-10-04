@@ -43456,3 +43456,90 @@ base image remains unchanged afterward. The acceptance receipt is
 stage-parser-checkpoint-retry-1-acceptance-windows.json in the external private
 diagnostic directory. This source checkpoint keeps 447 CupidBuild and five
 Python actions; it does not install the proposed pair or complete Doom runtime.
+
+## 2026-10-04: reviewed seed authority for SDK behavior fixtures
+
+The second ordinary Windows publication failure is reduced to the unchanged
+SDK helper in 0.397 seconds. The actual checked runner rejects fixed-point
+provenance in 0.071 seconds and preserves the prior output. Adding only the
+explicit reviewed release makes that same request pass in 6.256 seconds.
+The complete helper then passes through the existing release wrapper in
+20.800 seconds, including its positive and negative runner cases. Selected
+seed and release bytes stay unchanged. This identifies a missing authority
+boundary; it does not explain the separate first frontend timeout.
+
+`capture_seed_behavior_release` now opens the explicitly selected regular
+release through the existing bounded reader, validates all claims against
+independent reviewed pins, and rechecks the selected Linux seed through the
+shared reader. Its request retains exact release and plan bytes. Authorization
+requires both staged tool sets to match the reviewed six Linux images exactly.
+Wrong membership, tool bytes, plan, selection or format fails before fixture
+materialization. Drift in the original release, manifest or images also fails.
+The existing materializer and runner wrapper carry and recheck the release
+through real child execution. See ADR 0418.
+
+The request reuses evidence for identical tool bytes. It leaves the SDK's
+source observations and rebuilt objects intact. The native publication author
+still owns the complete stage comparisons. The earlier `ReleaseRequest`
+continues to require source, objects and tools from prepared producer cohorts.
+
+The new nine-method regression group and existing coordinator/pin groups pass
+37 methods per host: 40.570 seconds on Windows with two declared POSIX skips,
+and 79.752 seconds on Linux with all methods executed. Coverage includes every
+unreviewed release field, duplicate keys and roles, wrong artifact identities,
+both stage tool sets, plan and format changes, live release/manifest/image
+drift, bounded regular-file capture, and recovery. Returned authority records
+cannot mutate the request's retained release bytes.
+
+Real unchanged SDK helpers pass through the new capture API on both hosts,
+in 24.977 seconds on Windows and 25.863 seconds on Linux. They use the qualified
+images as both stage tool sets, retain an actual 81-input source inventory
+alongside the reviewed 82-input seed provenance, and reject a changed staged
+tool. The frozen ordinary controls and all supplied seed/release inputs remain
+unchanged. Evidence is retained in cupid-sdk-runner-provenance-probe-20261004.
+These helper probes do not replace fresh SDK-generated stages or ordinary
+publication acceptance.
+
+The SDK's production path remains unchanged. Integration must explicitly
+select the release, capture the coordinator and pin-validator dependencies,
+preserve native comparisons, and retain observations through final publication.
+The current 92-input publication inventory, all 82 compiler producer inputs,
+installed seed pair and 447 CupidBuild/five Python ownership remain unchanged.
+Normal publication, seed installation and the native ABI recipe are pending.
+
+Independent paired rereads verify 72 executed methods and the two declared
+skips, actual helper results, both exact 476-byte ELF objects per host, all
+materialized seed/release files and unchanged source captures. The first
+verifier assumes UTF-8 for PowerShell's UTF-16 logs and fails before publishing
+a receipt. A separate BOM-aware verifier passes without changing either log.
+Its receipt is seed-behavior-boundaries-paired-independent.json.
+
+The 155,616-byte embedded manual has SHA-256
+8a1ce4df76833dd2548f3255ca17731f73af6eb4acb5838ffebbc6801072a499.
+The incremental kernel Make passes in 804.074 seconds with host C/assembly/link
+commands forbidden. Only cupidos-txt/04CUPIDC.o changes among 429 objects.
+The old exact policy correctly rejects the measured raw kernel size; only
+that row changes from 9,587,668 to 9,588,404 bytes. Final ELF and pass-one
+sizes remain 9,814,460 and 19,683,388 bytes.
+
+Image Make passes in 7.634 seconds, including all sixteen artifact checks.
+The 200 MiB image has SHA-256
+c056deee19d7cee56e95290376d4ddc6f5577d4fcb1ba90d4c42d7ca68153486.
+Its complete FAT suffix matches the retained prior image. The complete
+three-root audit passes in 92.927 seconds without changing canonical outputs.
+A fresh strict private four-CPU max/e1000 boot completes ls in 60.433 seconds;
+the retained serial log passes an independent SMP/crypto/network check.
+
+The first collector then uses installed_seed_files for an earlier receipt
+whose actual field is seed_inputs. Its failed status and all five closed steps
+remain retained. A separate recovery requires that exact failure, checks each
+completed command and log, and rereads all 429 objects, sixteen artifacts,
+manual offsets, image, 82 compiler inputs and fourteen installed seed files.
+It reuses no failed command and changes no source or output. The recovery
+receipt is seed-behavior-checkpoint-independent-recovery-windows.json.
+
+The owned ABI proposal is copied byte-for-byte onto the accepted e44 staging
+base. Its complete three-root audit passes again. The older proposal and
+failure evidence remain intact; this does not install seeds or commit the
+native ABI recipe. Public ownership remains 447 CupidBuild and five Python
+actions, and ordinary SDK release integration remains pending.

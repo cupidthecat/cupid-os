@@ -359,6 +359,80 @@ class ReleaseRequest:
         return BehaviorRelease(self.payload, identity, format_name, _encode(linux_plan))
 
 
+@dataclass(frozen=True)
+class SeedBehaviorRequest:
+    """Reuse a pinned seed cohort for behavior, without claiming a new producer proof.
+
+    The publication author still owns comparisons of the rebuilt objects. Its
+    source inventory may differ from the reviewed seed's producer inventory.
+    Only byte-identical tools from both rebuilt stages can reuse this authority.
+    """
+
+    path: Path
+    payload: bytes
+    linux_seed: seed.SeedInputs
+    linux_plan_bytes: bytes
+
+    def _identity(self):
+        from tools.seed_release_identity import (
+            ReleaseIdentityError, verify_release_identity_bytes,
+        )
+        try:
+            return verify_release_identity_bytes(self.payload)
+        except ReleaseIdentityError as error:
+            raise seed.BootstrapError(f"behavior seed release is invalid: {error}") from error
+
+    @property
+    def source_revision(self):
+        return self._identity()["source_revision"]
+
+    @property
+    def snapshot_sha256(self):
+        return self._identity()["source_snapshot_sha256"]
+
+    def require_live(self):
+        if _regular_bytes(self.path, MAX_RELEASE_BYTES) != self.payload:
+            raise seed.BootstrapError("caller seed release changed during behavior")
+        seed.require_live_seed_inputs(self.linux_seed)
+
+    def authorize(self, source_inputs, source_root, linux_plan, windows_plan,
+                  linux_seed, windows_seed, stage_three, stage_four, format_name):
+        # These remain the publication author's actual source and object facts;
+        # they are not replaced by the reused seed's producer claims.
+        del source_inputs, source_root, windows_plan
+        self.require_live()
+        identity = self._identity()
+        if (format_name != "elf32" or windows_seed is not None or
+                linux_seed.manifest_bytes != self.linux_seed.manifest_bytes or
+                linux_seed.artifact_bytes != self.linux_seed.artifact_bytes):
+            raise seed.BootstrapError("behavior seed selection differs from reviewed cohort")
+        if (seed._build_plan_sha256(linux_plan) != identity["linux_plan_sha256"] or
+                seed._build_plan_sha256(_json(self.linux_plan_bytes)) != identity["linux_plan_sha256"]):
+            raise seed.BootstrapError("behavior seed plan differs from reviewed cohort")
+        expected = {row["name"]: {"size": row["size"], "sha256": row["sha256"]}
+                    for row in identity["artifacts"] if row["format"] == "elf32"}
+        for stage in (stage_three, stage_four):
+            actual = {role: _identity(_regular_bytes(path)) for role, path in stage.tools.items()}
+            if actual != expected:
+                raise seed.BootstrapError("behavior stage tools differ from reviewed seed cohort")
+        return BehaviorRelease(self.payload, identity, "elf32", self.linux_plan_bytes)
+
+
+def capture_seed_behavior_release(path, linux_seed):
+    """Capture explicitly selected release bytes against independently reviewed pins."""
+    payload = _regular_bytes(path, MAX_RELEASE_BYTES)
+    checked = seed.verify_seed_inputs(linux_seed.live_manifest_path)
+    if (checked.manifest.get("schema") != seed.PROMOTED_SEED_SCHEMA or
+            checked.manifest_bytes != linux_seed.manifest_bytes or
+            checked.artifact_bytes != linux_seed.artifact_bytes):
+        raise seed.BootstrapError("behavior seed selection differs from reviewed cohort")
+    request = SeedBehaviorRequest(path.absolute(), payload, linux_seed,
+                                  _encode(checked.manifest["build_plan"]))
+    request._identity()
+    request.require_live()
+    return request
+
+
 def _capture_pair(root, linux_seed, windows_seed, long_paths, aliases):
     if (linux_seed.manifest.get("schema") != seed.PROMOTED_SEED_SCHEMA or
             windows_seed.manifest.get("schema") != seed.PROMOTED_WINDOWS_SEED_SCHEMA):

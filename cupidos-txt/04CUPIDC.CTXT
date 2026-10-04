@@ -2676,6 +2676,21 @@ lifetime remain separate. Installed seeds and build ownership change only
 after their own release and normal-build acceptance.
 >endtree
 
+>h2 Reviewed seed behavior authority
+>tree
+The release coordinator can capture an explicitly selected seed release
+against independently reviewed provenance and all twelve tool identities.
+Both staged Linux tool sets must match the six reviewed images exactly before
+behavior fixtures can reuse that authority. Wrong tools, plans, selection or
+release bytes fail before fixture publication.
+
+The fixtures describe the reviewed cohort. The SDK keeps its actual source
+inventory, and the native publication author keeps its stage comparisons.
+Release and selected seed observations are rechecked through the existing
+runner boundary. SDK integration, ordinary publication and seed installation
+remain separate acceptance steps.
+>endtree
+
 >h2 See Also
 [03CUPIDSC.CTXT - CupidScript](open:03CUPIDSC.CTXT)
 [12HOLYC-CUPIDC.CTXT - HolyC comparison](open:12HOLYC-CUPIDC.CTXT)

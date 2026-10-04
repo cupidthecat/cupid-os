@@ -1,5 +1,22 @@
 # Cupid Toolchain bootstrap
 
+## Reviewed seed behavior boundary, 2026-10-04
+
+The coordinator captures an explicitly selected release against independent
+pins and requires exact reviewed tool bytes in both stages before reusing it
+for behavior. It leaves the SDK's actual source inventory and the native
+publication author's comparisons intact. The 37-method boundary selections
+pass on both hosts, and real unchanged SDK helpers pass through the new API
+with qualified tool fixtures. The ordinary SDK path still needs release
+propagation and complete dependency capture; its 92-input inventory is unchanged.
+See [ADR 0418](../adr/0418-reuse-reviewed-seed-tools-for-sdk-behavior.md).
+
+The 155,616-byte embedded manual passes incremental kernel/image acceptance
+with host C/assembly/link commands forbidden. All sixteen artifact checks,
+the complete three-root audit and a strict private four-CPU `max`/e1000 boot
+with completed `ls` pass. Only its wrapped object changes among 429 objects;
+the measured raw kernel is 9,588,404 bytes. Installed seeds remain unchanged.
+
 ## Windows staging parser, 2026-10-04
 
 The host staging parser preserves a Windows drive colon before the guest-path
