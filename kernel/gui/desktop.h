@@ -45,6 +45,10 @@ void desktop_draw_background(void);
 void desktop_draw_taskbar(void);
 void desktop_draw_icons(void);
 
+/* Invalidate desktop caches derived from the shared UI theme. Call while the
+ * graphics writer lease that published the theme is still held. */
+void desktop_theme_changed(void);
+
 /* Desktop background API (used by apps like BG Studio) */
 #define DESKTOP_ANIM_THEME_TIME   0
 #define DESKTOP_ANIM_THEME_HEARTS 1

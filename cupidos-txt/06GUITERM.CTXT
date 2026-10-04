@@ -17,17 +17,17 @@ Verified against source on: 2026-05-15
 
 >h2 What It Is
 >tree open What It Is
-CupidOS Terminal is a GUI window over the normal shell, not a second shell
-implementation.
+CupidOS Terminal places a GUI window over the normal shell. It does not
+implement a second shell.
 
-Source: kernel/gui/terminal_app.c, kernel/gui/gui.c, kernel/gui/desktop.c
+Source: kernel/gui/terminal_app.cc, kernel/gui/gui.cc, kernel/gui/desktop.cc
 
-Source-verified structure:
+Implementation:
 - shell owns the text and color buffers
 - terminal app reads those buffers for redraw
 - shell switches into GUI output mode when Terminal launches
 - shell wrap width tracks terminal window width
-- SSH/Telnet clients use kernel/lang/ssh_io.c to bridge bytes, hidden
+- SSH/Telnet clients use kernel/lang/ssh_io.cc to bridge bytes, hidden
   password input, VT/xterm keys, and terminal geometry
 >endtree
 
@@ -35,7 +35,7 @@ Source-verified structure:
 >tree open Launch Model
 terminal launches the GUI terminal app.
 
-Current behavior from kernel/gui/terminal_app.c:
+Current behavior from kernel/gui/terminal_app.cc:
 - only one terminal window instance is kept at a time
 - the window title is Terminal
 - launch switches shell output to GUI mode
@@ -61,8 +61,8 @@ The terminal redraw path uses:
 The content area is clipped to the window interior and recalculated against the
 current font scale.
 
-This is why ANSI color commands and normal shell output behave the same in text
-mode and GUI mode.
+The shared redraw path gives ANSI color commands and ordinary shell output the
+same behavior in text and GUI modes.
 >endtree
 
 >h2 SSH/Telnet Mode
@@ -89,7 +89,7 @@ Useful commands:
 
 >h2 Controls
 >tree open Controls
-Source-verified terminal controls:
+kernel/gui/terminal_app.cc defines these controls:
 - mouse wheel scrolls history
 - Page Up / Page Down scroll by chunks
 - Ctrl + + increases font scale
@@ -109,8 +109,23 @@ When a JIT program is running:
 - the shell/terminal path routes keys to the active program buffer
 - once the program exits, input returns to the shell prompt
 
-This is why interactive CupidC/CupidASM programs still work inside the GUI
-terminal window.
+The same routing lets interactive CupidC and CupidASM programs receive input
+inside the GUI terminal window.
+>endtree
+
+>h2 Graphics Ownership
+>tree open Graphics Ownership
+The terminal command runs JIT code in the terminal process while the desktop
+continues on another CPU. Direct graphics therefore use the same PID-tagged
+handoff as retained windows and the desktop compositor.
+
+Fullscreen entry waits for an in-flight desktop frame. A JIT return releases
+its render scopes, while process exit or remote kill releases them from the
+reaper before PID reuse. The frontier runs gfxgui_test through AOT and JIT,
+then exercises nested ownership through voluntary exit and a generation-bound
+remote kill. A stale delayed request must spare the reused PID before its own
+helper kills it, and the next AOT graphics run must reuse that PID and draw.
+Raw gfx2d calls must stay inside fullscreen or a window paint scope.
 >endtree
 
 >h2 GodSpeak Hotkey
@@ -141,11 +156,11 @@ through the shared app-launch path instead of ad hoc special cases.
 
 >h2 Notes
 >tree open Notes
-There is also a hosted /bin/terminal.cc program in the tree, but the main
-GUI terminal path used by the OS desktop/shell launcher is the kernel-side
-terminal app (kernel/gui/terminal_app.c).
+The tree also contains a hosted /bin/terminal.cc program. The desktop and
+shell launcher use the kernel-side terminal app in
+kernel/gui/terminal_app.cc.
 
-For users, the practical command remains:
+Run the kernel-side terminal app with:
   terminal
 >endtree
 

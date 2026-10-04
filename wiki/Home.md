@@ -1,6 +1,6 @@
 # cupid-os Wiki
 
-Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system written in C and x86 Assembly, combining clean design with nostalgic aesthetics. It runs entirely in ring 0 with no security boundaries - inspired by TempleOS and OsakaOS.
+**cupid-os** is a 32-bit operating system written in C and x86 assembly. Its ring-0 execution model and desktop draw on TempleOS and OsakaOS. The system does not isolate programs from the kernel.
 
 ---
 
@@ -14,9 +14,10 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 | [Shell Commands](Shell-Commands) | Full reference for built-ins and auto-discovered `/bin` / `/home/bin` commands |
 | [CupidScript](CupidScript) | Scripting language guide - variables, loops, functions, examples |
 | [CupidC Compiler](CupidC-Compiler) | HolyC-inspired C compiler - JIT/AOT, inline assembly, kernel bindings |
+| [Toolchain Bootstrap](Toolchain-Bootstrap) | Checked Cupid tools, staged rebuild, provenance, and fixed-point verification |
 | [CupidDoc CTXT](CupidDoc-CTXT) | TempleOS-inspired executable `.ctxt` documents in Notepad, including clickable code, links, trees, and sprite widgets |
 | [CupidASM Assembler](CupidASM-Assembler) | x86-32 assembler - Intel syntax, JIT/AOT, include files, kernel bindings |
-| [CupidC 2D Graphics Library](CupidC-2D-Graphics-Library) | Full API reference for the hardware-accelerated 2D graphics library |
+| [CupidC 2D Graphics Library](CupidC-2D-Graphics-Library) | API reference for the software-rendered 2D graphics library |
 | [User Programs](User-Programs) | Writing and deploying CupidC programs in /bin/ and /home/bin/ |
 | [Ed Editor](Ed-Editor) | How to use the built-in ed(1) line editor |
 | [Desktop Environment](Desktop-Environment) | VBE 640x480 32bpp graphics, window manager, mouse, terminal app |
@@ -80,22 +81,31 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 
 ## Philosophy
 
-cupid-os embraces complete user empowerment:
+cupid-os deliberately exposes the machine to programs:
 
-- **No security boundaries** - all code runs in ring 0
-- **Direct hardware access** - no abstraction hiding the metal
-- **Full memory visibility** - no virtual memory restrictions
-- **Transparency** - every byte of the system is inspectable
+- All code runs in ring 0 without a security boundary between applications and the kernel.
+- Programs can access hardware directly.
+- Programs share the flat address space and can inspect kernel memory.
+- The source includes the operating system, desktop, languages, and build tools.
 
-This makes cupid-os ideal for learning how computers really work at the lowest level.
+This model is useful for operating-system experiments and low-level study, but it is not safe for untrusted code.
 
 ---
 
 ## Quick Start
 
+The repository includes a checked static i386 Linux seed and a checked native
+PE32 Windows execution seed. Linux runs the static seed directly. Native
+Windows builds run output-bearing CupidC, CupidASM, CupidObj, CupidLD, and
+CupidDis recipes from the PE32 seed. WSL still runs the Linux seed for
+fixed-point reconstruction and the complete published Toolchain contract
+cohort. The user ABI, artifact-size, and Toolchain manifest contracts run as
+checked native PE files. The last two still inspect Linux publication
+provenance.
+
 ```bash
 # Install dependencies (Ubuntu/Debian)
-sudo apt-get install nasm gcc gcc-multilib make qemu-system-x86 mtools
+sudo apt-get install python3 make qemu-system-x86
 
 # Build
 make
@@ -103,6 +113,10 @@ make
 # Run (with serial output)
 make run
 ```
+
+On Windows, install GNU Make, Python 3, WSL with a Linux distribution, and
+QEMU. GCC, Clang, binutils, and NASM are needed only for explicit native
+development builds and comparison oracles.
 
 ---
 
@@ -128,15 +142,15 @@ cupid-os/
 │   ├── smp/                   # AP bringup, LAPIC/IOAPIC, BKL
 │   └── usb/                   # UHCI/EHCI, HID, hubs, mass storage
 ├── drivers/
-│   ├── keyboard.c/h           # PS/2 keyboard (IRQ1)
-│   ├── mouse.c/h              # PS/2 mouse (IRQ12)
-│   ├── vga.c/h                # VBE 640x480 32bpp
-│   ├── ata.c/h                # ATA/IDE disk
-│   ├── serial.c/h             # COM1 serial port
-│   ├── timer.c/h + pit.c/h    # PIT timer
-│   ├── rtl8139.c/h            # Realtek NIC
-│   ├── e1000.c/h              # Intel NIC
-│   └── speaker.c/h            # PC speaker
+│   ├── keyboard.cc/h           # PS/2 keyboard (IRQ1)
+│   ├── mouse.cc/h              # PS/2 mouse (IRQ12)
+│   ├── vga.cc/h                # VBE 640x480 32bpp
+│   ├── ata.cc/h                # ATA/IDE disk
+│   ├── serial.cc/h            # COM1 serial port
+│   ├── timer.cc/h + pit.cc/h   # PIT timer
+│   ├── rtl8139.cc/h            # Realtek NIC
+│   ├── e1000.cc/h              # Intel NIC
+│   └── speaker.cc/h            # PC speaker
 ├── bin/
 │   ├── browser.cc + browser/  # render-pipeline browser
 │   ├── ssh.cc, telnet.cc      # remote terminal clients

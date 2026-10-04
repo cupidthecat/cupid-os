@@ -1,13 +1,18 @@
 # SMP Tier 2
 
-CupidOS P5 Tier 2 SMP adds symmetric multiprocessing support for up to 32
-logical CPUs. The design is deliberately conservative: a single shared
-runqueue under a **big kernel lock (BKL)**, per-CPU LAPIC timers, and all
-external IRQs routed through the BSP. This gives correct multiprocessor
-boot and scheduling without the complexity of lock-free per-CPU runqueues or
-full IRQ migration.
+CupidOS supports symmetric multiprocessing on up to 32 logical CPUs. It uses a
+single shared runqueue under a **big kernel lock (BKL)**, per-CPU LAPIC timers,
+and routes external IRQs through the BSP. The implementation does not use
+per-CPU runqueues or IRQ migration.
 
 Related pages: [USB](USB.md), [Swap](Swap.md)
+
+The context-switch object and SMP trampoline now publish through the promoted
+CupidBuild seed without Python. The object transaction requires CupidASM
+output and strict CupidDis relocation, target, and function-anchor evidence.
+The raw transaction keeps the 4,096-byte image and exact mixed-mode v2 map
+private until CupidDis accepts its source-resolved edges. ADR 0354 records the
+object handoff, and ADR 0357 records the raw recipe handoff.
 
 ---
 
@@ -20,18 +25,19 @@ Related pages: [USB](USB.md), [Swap](Swap.md)
 | Timer source | per-CPU LAPIC periodic timer, vector 0x20 |
 | External IRQs | all on BSP (keyboard, mouse, disk, ...) |
 | IPI vectors | 0xF0 reschedule, 0xF1 cross-CPU call, 0xFE panic |
-| New source files | 13 |
+| Per-CPU selector | `%gs`, one 128-byte `per_cpu_t` per logical CPU |
 
-New files:
+Core files:
 
 ```
-kernel/smp/percpu.h / percpu.c       per-CPU data, GS-base init
-kernel/smp/lapic.h  / lapic.c        Local APIC driver
-kernel/smp/ioapic.h / ioapic.c       IOAPIC driver
-kernel/smp/smp.h    / smp.c          AP trampoline, bringup, IPI wrappers
-kernel/smp/bkl.h    / bkl.c          big kernel lock (ticket spinlock)
-kernel/smp/mp.h / mp.c           MP table + ACPI MADT discovery
-bin/smp.cc                       `smp` shell command
+kernel/smp/percpu.h / percpu.cc      per-CPU data, GS-base init
+kernel/smp/lapic.h  / lapic.cc       Local APIC driver
+kernel/smp/ioapic.h / ioapic.cc       IOAPIC driver
+kernel/smp/smp.h    / smp.cc         AP trampoline, bringup, IPI wrappers
+kernel/smp/bkl.h    / bkl.cc         big kernel lock (ticket spinlock)
+kernel/smp/mp_tables.h / mp_tables.cc MP table discovery
+kernel/smp/acpi.h / acpi.cc       ACPI MADT fallback
+kernel/lang/shell.cc              `smp` shell command
 ```
 
 ---
@@ -42,23 +48,22 @@ The LAPIC and IOAPIC must be live before any AP is released. The 8259 PIC
 must be fully masked so that its IRQ lines do not collide with LAPIC vectors.
 
 ```
-percpu_init_bsp()       // allocate BSP per_cpu_t, load GS, set cpu_id=0
+percpu_init_bsp()       // initialise static per_cpu_t array/GDT, load BSP GS
 lapic_init_bsp()        // map LAPIC MMIO, software-enable, calibrate PIT-ch2
-ioapic_init_all()       // discover IOAPICs via MADT, build GSI table
 pic_mask_all()          // OCW1=0xFF on both 8259s - all legacy IRQ lines masked
+ioapic_init_all(bsp_id) // discover IOAPICs via MADT, build GSI table
+keyboard_init()         // install handler only after IOAPIC setup
 bkl_init()              // initialise ticket spinlock, per-CPU recursion counters
 smp_init()              // parse MP/MADT, populate cpu_table[], write trampoline
 smp_init_ipi()          // wire IPI vectors 0xF0/0xF1/0xFE in IDT
-                        // --- uniprocessor regression gate ---
-                        // if cpu_count == 1 -> skip AP bringup entirely
                         // --- AP bringup ---
 for each AP:
-    lapic_send_init_ipi(apic_id)
-    lapic_send_sipi(apic_id, 0x08)   // trampoline at 0x8000
-    wait up to 10 ms for AP to set ap_ready flag
+    send INIT, wait 10 ms
+    send SIPI vector 0x08 twice      // trampoline at 0x8000
+    wait up to 100 ms for cpus[i].online
 ```
 
-> **Warning** - reversing `lapic_init_bsp` and `ioapic_init_all` causes
+> Reversing `lapic_init_bsp` and `ioapic_init_all` causes
 > spurious LAPIC vectors during the IOAPIC redirection table write and
 > locks the BSP before APs are released. Do not reorder.
 
@@ -69,21 +74,33 @@ for each AP:
 ### `per_cpu_t` struct (kernel/smp/percpu.h)
 
 ```c
-typedef struct {
-    uint32_t  self;          // GS:0  - pointer to this struct (cheap self-ref)
-    uint32_t  cpu_id;        // GS:4  - logical CPU index 0..31
-    uint32_t  apic_id;       // GS:8  - APIC hardware ID
-    uint32_t  current_pid;   // GS:12 - PID running on this CPU
-    uint32_t  bkl_depth;     // GS:16 - BKL recursion depth
-    uint32_t  bkl_irqflags;  // GS:20 - EFLAGS saved on outermost lock
-    uint8_t   pad[104];      // pad to 128 bytes
+typedef struct per_cpu_t {
+    struct per_cpu_t *self_ptr; // GS:0x00
+    uint8_t cpu_id;              // GS:0x04, logical CPU index
+    uint8_t apic_id;             // GS:0x05, hardware APIC ID
+    uint8_t bootstrap;           // GS:0x06, BSP marker
+    uint8_t online;              // GS:0x07
+    process_t *current;          // GS:0x08, reserved task pointer
+    process_t *idle;             // GS:0x0C, reserved idle pointer
+    uint32_t bkl_depth;          // GS:0x10, mirrored global BKL depth
+    uint64_t preempt_count;      // GS:0x14
+    uint8_t *idle_stack_top;     // GS:0x1C, AP bootstrap stack
+    uint32_t bkl_eflags_saved;   // GS:0x20, outer caller EFLAGS
+    uint32_t current_pid;        // GS:0x24, 0 means CPU-local idle loop
+    void (*call_fn)(void *);     // GS:0x28, cross-CPU call
+    void *call_arg;              // GS:0x2C
+    uint8_t call_pending;        // GS:0x30
+    uint8_t call_done;           // GS:0x31
+    uint8_t reschedule_pending;  // GS:0x32
+    uint8_t interrupt_depth;     // GS:0x33
+    uint8_t _pad[74];
 } per_cpu_t;
 
 _Static_assert(sizeof(per_cpu_t) == 128, "per_cpu_t size mismatch");
 ```
 
-`this_cpu()` compiles to a single `mov eax, gs:[0]` - the struct starts
-with a self-pointer so callers never need to know the linear address.
+`this_cpu()` compiles to a single `mov eax, gs:[0]`. The struct starts with a
+self-pointer, so callers do not need its linear address.
 
 ### GDT layout
 
@@ -92,13 +109,22 @@ with a self-pointer so callers never need to know the linear address.
 | 0 | 0x00 | null descriptor |
 | 1 | 0x08 | flat code segment (ring 0) |
 | 2 | 0x10 | flat data segment (ring 0) |
-| 3 | 0x18 | TSS |
+| 3 | 0x18 | reserved |
 | 4 | 0x20 | (reserved) |
 | 5-36 | 0x28-0x128 | 32 per-CPU data descriptors (one per logical CPU) |
 
 BSP uses slot 5 (selector 0x28). AP n uses slot 5+n. The descriptor base
 points to the `per_cpu_t` allocated for that CPU; limit = 127; DPL = 0;
 type = data, writable.
+
+Compiler-head CupidC represents the unchanged GDT setup directly. Its typed
+GNU assembly boundary accepts the packed six-byte GDTR, the exact AX and
+memory clobbers, and a 16-bit GS selector. CS reload uses a relative
+call-and-RETF trampoline, so the emitted object needs no local-label
+relocation. Two full compiles of `kernel/smp/percpu.cc` produce the same
+6,760-byte object with SHA-256
+`3c2c6f0e00e5edec1ca16cba91e9fc593d1c42e24f4ebd3591e5f574fb0dd772`.
+The normal build owns it through the checked wrapper.
 
 ---
 
@@ -245,6 +271,21 @@ The trampoline is a 4KB raw binary placed at physical address 0x8000. The
 BSP writes it there before sending SIPI. It runs in 16-bit real mode then
 transitions each AP to 32-bit protected mode.
 
+The production build invokes the promoted CupidBuild seed directly. CupidASM
+assembles a private 4,096-byte candidate and writes its source-derived v2 range
+map. CupidBuild requires 16-bit code in `[0x000, 0x01f)`, data in
+`[0x01f, 0x210)`, 32-bit code in `[0x210, 0x254)`, and data in
+`[0x254, 0x1000)`. The map stays pinned while CupidDis requires known code,
+local targets, and source-resolved edges. The policy covers four local
+relative transfers, the local far jump that changes mode, and the indirect
+call to `ap_main_c` as an unprovable runtime target. An invalid range, target,
+mode, or source edge blocks publication. CupidBuild replaces
+`kernel/smp_trampoline.bin` only after assembly and inspection succeed. A
+failure preserves the previous trampoline, and the private map is not
+published. ADR 0305 records local-target adoption, ADR 0308 records the map
+handoff, ADR 0340 records source-resolved edges, and ADR 0357 records direct
+publication ownership.
+
 ### Trampoline stages
 
 ```nasm
@@ -269,15 +310,8 @@ tramp32:
     mov  eax, [LAPIC_VA + 0x20]
     shr  eax, 24               ; APIC ID in bits 31:24
 
-    ; Look up logical cpu_id in BSP-populated apic_to_cpu[] table
-    mov  ecx, [apic_to_cpu + eax*4]
-
-    ; Load idle stack pointer
-    mov  esp, [idle_stacks + ecx*4]
-
-    ; Set GS = 0x10 (flat data) temporarily, ap_main_c fixes it
-    mov  ax, 0x10
-    mov  gs, ax
+    ; Scan apic_to_cpu_id[32] for the logical CPU slot
+    ; Load temporary GS=0x10 and idle_stack_tops[cpu_id]
 
     call ap_main_c             ; -> loads real kernel GDT + per-CPU GS
 ```
@@ -285,13 +319,29 @@ tramp32:
 ### `ap_main_c` (C side)
 
 ```c
-void ap_main_c(uint32_t cpu_id) {
-    percpu_init_ap(cpu_id);    // allocate per_cpu_t, set GS selector
-    lapic_init_ap();           // enable LAPIC, start periodic timer
-    bkl_acquire();
-    scheduler_ap_idle();       // enter idle loop, release BKL each round
+void ap_main_c(void) {
+    fpu_init_cpu();            // first operation: no logging or XMM use
+    uint8_t my_apic = lapic_get_id();
+    int cpu_id = 0;
+    for (int j = 1; j < smp_cpu_count_var; j++) {
+        if (cpus[j].apic_id == my_apic) { cpu_id = j; break; }
+    }
+    percpu_load_kernel_gdt(cpu_id);
+    this_cpu()->online = 1;
+    idt_load_ap();
+    lapic_init_ap();
+    __asm__ volatile("sti");
+    for (;;) {
+        schedule();
+        __asm__ volatile("sti; hlt");
+    }
 }
 ```
+
+CR0 and CR4 are per logical CPU, so the BSP cannot enable SSE for an AP.
+`fpu_init_cpu()` is compiled with `target("general-regs-only")`, performs no
+logging, and establishes CR0/CR4, `FNINIT`, and MXCSR before ordinary AP C
+code can execute compiler-generated SSE.
 
 ---
 
@@ -304,35 +354,54 @@ save on the outermost acquire.
 
 ```c
 typedef struct {
-    volatile uint32_t next_ticket;
-    volatile uint32_t now_serving;
-} ticket_lock_t;
+    volatile uint32_t ticket_head;
+    volatile uint32_t ticket_tail;
+    int32_t owner_cpu;
+    uint32_t depth;
+} bkl_t;
 ```
 
 ### Acquire / release
 
 ```c
-void bkl_acquire(void) {
-    uint32_t cpu = this_cpu()->cpu_id;
-    if (this_cpu()->bkl_depth > 0) {   // recursive - just increment depth
-        this_cpu()->bkl_depth++;
+void bkl_lock(void) {
+    uint32_t eflags = save_and_cli();
+    per_cpu_t *cpu = this_cpu();
+    if (klock.owner_cpu == cpu->cpu_id) {
+        klock.depth++;
+        cpu->bkl_depth = klock.depth;
         return;
     }
-    // save EFLAGS and disable interrupts (outermost only)
-    this_cpu()->bkl_irqflags = read_eflags();
-    cli();
-    uint32_t my_ticket = atomic_fetch_add(&bkl.next_ticket, 1);
-    while (bkl.now_serving != my_ticket) { __asm__ volatile("pause"); }
-    this_cpu()->bkl_depth = 1;
+    uint32_t ticket = atomic_fetch_add(&klock.ticket_tail, 1);
+    while (klock.ticket_head != ticket) pause();
+    klock.owner_cpu = cpu->cpu_id;
+    klock.depth = 1;
+    cpu->bkl_depth = 1;
+    cpu->bkl_eflags_saved = eflags;
 }
 
-void bkl_release(void) {
-    this_cpu()->bkl_depth--;
-    if (this_cpu()->bkl_depth > 0) return;
-    bkl.now_serving++;
-    write_eflags(this_cpu()->bkl_irqflags);   // restore interrupts
+void bkl_unlock(void) {
+    per_cpu_t *cpu = this_cpu();
+    if (klock.depth == 0 || klock.owner_cpu != cpu->cpu_id) return;
+    uint32_t eflags = cpu->bkl_eflags_saved;
+    klock.depth--;
+    cpu->bkl_depth = klock.depth;
+    if (klock.depth != 0) return;
+    klock.owner_cpu = -1;
+    cpu->bkl_eflags_saved = 0;
+    atomic_fetch_add(&klock.ticket_head, 1);
+    process_reschedule_if_pending();
+    restore_if(eflags);
 }
 ```
+
+A real switch uses a different release path. `schedule()` may transfer only
+its sole BKL acquisition. After it publishes the outgoing PCB detached
+(`on_cpu = 0xFF`), `context_switch.asm` loads the target ESP and FPU state,
+then calls `bkl_context_switch_release()` on the target stack with interrupts
+still disabled. The target's saved interrupt policy is restored only after
+that handoff. Nested scheduling requests remain CPU-local and are consumed by
+the outer `bkl_unlock()`.
 
 ### What is wrapped
 
@@ -347,30 +416,40 @@ void bkl_release(void) {
 
 ## Scheduler Integration
 
-`process_t` gains two new fields:
+`process_t` contains two SMP ownership fields:
 
 ```c
 uint8_t  on_cpu;     // logical cpu_id currently executing this process
 uint8_t  last_cpu;   // logical cpu_id last time it ran (for NUMA hints)
 ```
 
-`current_pid` moves from a global variable into `per_cpu_t.current_pid`.
-Each CPU reads `this_cpu()->current_pid` to identify its own running
-process; the global accessor `get_current_pid()` compiles to
-`mov eax, gs:[12]`.
+`per_cpu_t.current_pid` stores the running process for each CPU. Each CPU reads
+`this_cpu()->current_pid` to identify its own running
+process. The field is at offset `0x24`; `process_get_current_pid()` loads it
+through the per-CPU pointer selected by `%gs`.
 
-APs run `schedule()` inside their idle loop:
+Only a detached `READY` PCB (`on_cpu == 0xFF`) may migrate. PID 1's single
+stack is a BSP-only fallback. Each AP enters its inline schedule / `STI; HLT`
+loop with `current_pid == 0`; its first dispatch saves that PID-less bootstrap
+stack and FPU state in `cpu_idle_contexts[cpu_id]`. A blocked or terminated AP
+task can switch back to its own CPU-local context and detach safely for the
+quiescent reaper without borrowing PID 1 or another CPU's stack.
 
-```c
-void scheduler_ap_idle(void) {
-    while (1) {
-        bkl_acquire();
-        schedule();
-        bkl_release();
-        __asm__ volatile("hlt");   // wait for next LAPIC timer tick
-    }
-}
-```
+---
+
+## Interrupt Entry and Per-CPU GS
+
+Common exception and IRQ entry keeps the live per-CPU `%gs` selector while C
+runs; only `%ds`, `%es`, and `%fs` are replaced with the flat data selector.
+Entry increments `interrupt_depth`, so BKL unlock and direct `schedule()` calls
+leave a request pending until the handler completes and, for IRQs,
+`irq_handler()` has sent the LAPIC EOI. Common exit then decrements the depth
+and calls `process_reschedule_if_pending()` at an explicit suspension point.
+
+The saved `%gs` frame slot is discarded rather than reloaded. A suspended
+frame may resume on a different CPU and must retain that destination CPU's
+live selector; restoring the source selector would make `this_cpu()` address
+the wrong `per_cpu_t`.
 
 ---
 
@@ -380,20 +459,35 @@ void scheduler_ap_idle(void) {
 
 | Vector | Purpose |
 |---|---|
-| 0xF0 | Reschedule - target CPU calls `schedule()` on next tick |
+| 0xF0 | Reschedule - target consumes its published reschedule request |
 | 0xF1 | Cross-CPU function call - target runs `fn(arg)` atomically |
-| 0xFE | Panic - target halts and prints its CPU id |
+| 0xFE | Panic - target disables interrupts and stays halted |
 
 ### Handler skeleton
 
 ```nasm
-ipi_reschedule:
+ipi_reschedule_stub:
     pushal
-    call   ipi_reschedule_c   ; sets per-CPU reschedule_pending flag
+    call   ipi_reschedule_c   ; EOI, then consume the published request
     popal
-    mov    dword [LAPIC_VA + 0xB0], 0   ; EOI
     iret
+
+ipi_panic_stub:
+    cli
+.halt:
+    hlt
+    jmp    .halt
 ```
+
+The reschedule and cross-CPU-call entries are naked `void (void)` functions.
+Their assembly owns the complete register save, handler call, restore, and
+interrupt return. The panic entry owns its complete halt loop. No entry has a
+C prologue, epilogue, local frame, or `RET`.
+
+The sender stores `target.reschedule_pending` before raising the IPI. The
+handler does not re-arm the request: it sends EOI and calls the process safe
+point, which either switches from the IPI frame or leaves the request for the
+outer BKL unlock.
 
 ### Cross-CPU call
 
@@ -412,29 +506,124 @@ void smp_call_on_cpu(uint32_t cpu, void (*fn)(void *), void *arg) {
 
 ## Shell Commands
 
-The `smp` command (bin/smp.cc) provides two views:
+The `smp` command is implemented by `shell_smp_cmd` in
+`kernel/lang/shell.cc` and provides two views:
 
 ```
-smp              List all CPUs with status
-smp info         Show BKL ticket counts and current CPU for the shell process
+smp              List per-CPU APIC, online, preemption, and PID state
+smp info         Show whether this CPU holds the BKL, CPU count, and CPU id
 ```
 
 Example output:
 
 ```
-CPU  APIC  STATUS
-  0     0  online (BSP)
-  1     1  online
-  2     2  online
-  3     3  online
+[0] apic=0 online=1 preempts=0 current_pid=2
+[1] apic=1 online=1 preempts=0 current_pid=0
+[2] apic=2 online=1 preempts=0 current_pid=0
+[3] apic=3 online=1 preempts=0 current_pid=0
 
-BKL: now_serving=1402 next_ticket=1402 (unlocked)
-shell running on cpu 0
+bkl: free
+cpus: 4
+me: 0
 ```
 
 ---
 
 ## Testing
+
+### Checked-seed ownership and smoke
+
+The normal build compiles `kernel/smp/acpi.cc`,
+`kernel/smp/mp_tables.cc`, `kernel/smp/lapic.cc`,
+`kernel/smp/percpu.cc`, and `kernel/smp/smp.cc` with checked-seed CupidC. The
+wrapper freezes and verifies the seed, uses the fixed kernel profile,
+validates each i386 ELF32 object, and only then replaces the production
+output. A forced build with an invalid host compiler proves that none of
+these recipes falls back to Clang or GCC.
+
+The active Linux and Windows seeds use v2 and contain six tool images,
+including CupidBuild. Both bind revision
+`0232cb57aad5d6bdfd7bd77499762514b2f0ebfd`, the exact 59-input snapshot
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`,
+and their platform build plan. The Linux plan has SHA-256
+`52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`;
+its 6,602-byte manifest has SHA-256
+`470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781`.
+The Windows native plan has SHA-256
+`f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`;
+its 2,852-byte manifest has SHA-256
+`e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4`
+and pairs to the exact Linux manifest bytes. Candidate proof and promoted-seed
+self-consumption pass on both platforms, including the SMP-trampoline
+transaction used by the normal build. In the self-consumption runs, all six
+initial images equal stage two. CupidBuild owns the context-switch
+object and raw trampoline publications directly. Across the supported graph,
+CupidBuild participates in 195 transforms and Python in 257. Its publication
+work includes 186 ordinary CupidObj recipes plus the typed JPEG,
+kernel-symbol, and kernel-flatten transactions; none changes the SMP
+transaction. ADR 0356
+records the preceding seed refresh, ADR 0357 records the raw recipe transfer,
+ADR 0362 records the direct CupidObj handoff, ADR 0367 records the preceding
+pair, and ADR 0370 records the active seed pair.
+
+The active bootstrap closure has 59 inputs and SHA-256
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
+Source CupidBuild accepts promoted-v2 source counts of 58 or 59 and rejects 57
+or 60. This compatibility window covers the preceding 58-input pair and the
+active 59-input pair. The first promotion attempt failed closed on provenance, so no
+invalid seed became active. ADR 0366 records the compatibility decision. The
+normal JPEG Make edges now invoke the promoted typed transaction directly.
+
+The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260
+seconds with all fourteen exact policy artifacts accepted. Its 4,096-byte
+`kernel/smp_trampoline.bin` has SHA-256
+`b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`.
+A private four-vCPU `max`/e1000 smoke passed in 64.601 seconds. The BSP and all
+three APs came online, the ordered direct, named, and typedef callback markers
+passed, the overall feature14 and JIT completion markers followed, and no
+reject marker appeared. The source image was unchanged. The 33,219-byte log
+has SHA-256
+`e39a1905002c2baa483c65eb6e763f4f62907c22f8954873dbb20f4ba5a53e93`.
+This run remains checkpoint evidence for the promoted local-target adoption.
+The pre-documentation artifact gate later passed in 651.3 seconds and accepted
+all fourteen exact paths.
+
+The integrated fully poisoned build first reached the exact-size gate with
+three rebuilt kernel outputs. The artifact group passed all 46 tests in 4.160
+seconds, with four expected Windows skips. After the pass-one ELF, final ELF,
+and raw kernel policy rows were updated, the repeated build passed in 874.531
+seconds with all fourteen artifacts accepted, existing FAT contents preserved,
+and `hello.iso` staged. The 4,096-byte SMP
+trampoline kept SHA-256
+`b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`.
+
+The integrated strong full private frontier smoke passed in 883.513 seconds
+with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
+fixture. The BSP and all three APs completed the SMP checks. The 640-by-480
+framebuffer changed 89,630 pixels. AC97 produced 36,877,878 stereo 44.1 kHz
+frames with a peak of 25,600, and the PC speaker produced 76,251 stereo 44.1
+kHz frames with a peak of 29,912. The expected direct-call, named-callback,
+typedef-callback, global-callback, automatic-callback, and overall feature14
+PASS markers each appeared once and in order. The feature run then printed a
+clean JIT completion. The 161,418-byte log has SHA-256
+`bc30f5083b96a36362bec5975c0a88437c4f23515de329328bb03d8f6c3e9326`.
+The source image was unchanged at SHA-256
+`31b25b6881419b1bb8a04b2b3765323b21c5706ac114af1a07b514dcdcd07ea3`.
+
+The earlier `smp.c` compiler proof produced an 8,444-byte object with SHA-256
+`806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.
+The checked production root is now `kernel/smp/smp.cc`. Its current hash is
+`bd3189b2a1a6d15728c559172f5d6acca0889103428085cec8cc1024742a22d1`;
+the existing `__FILE__` diagnostic accounts for the change.
+
+The earlier sequential e1000 and RTL8139 gates use four `max` vCPUs. Each run brings the
+BSP and all three APs online, initializes the selected NIC, prints
+`[fpu] SSE2 enabled`, `[fpu] boot smoke ok`, and
+`FPU boot smoke passed`, then finishes
+`feature16_asm_fpu.cc` with its PASS marker and CupidC JIT completion. The
+same logs show RDRAND seeding, exactly 62 successful crypto checks, scheduler,
+desktop, and terminal startup. The gate rejects known SMP, storage, crypto,
+exception, panic, corruption, and illegal-instruction failures.
 
 ### `make run-smp`
 
@@ -450,31 +639,20 @@ Equivalent to:
 qemu-system-i386 <common-flags> -smp cpus=4 -serial stdio
 ```
 
-All 4 APs should appear in `smp` output within a few hundred milliseconds
-of boot.
+All four CPUs, including the BSP and three APs, should appear in `smp` output
+within a few hundred milliseconds of boot.
 
 ### `feature20_smp`
 
 An atomic increment stress test:
 
 ```c
-// 4 threads each increment a shared counter 10000 times
-// under the BKL. Expected final value: 40000.
+// One thread performs 100000 atomic increments.
+// Expected final value: 100000.
 feature20_smp
 ```
 
-Run it and verify the final counter value matches 40000.
-
-### X_VERIFY cross-CPU call probe
-
-```
-X_VERIFY
-```
-
-Sends a cross-CPU call from CPU 0 to CPU 1 and waits for the done flag.
-Pass = "cross-CPU call OK" printed to serial.
-
----
+Run it and verify the final counter value matches 100000.
 
 ## Known Limits
 
@@ -484,15 +662,15 @@ Pass = "cross-CPU call OK" printed to serial.
 | No NUMA awareness | all memory allocated from a single pool |
 | No TLB shootdown | paging changes not propagated to other CPUs |
 | No per-CPU runqueues | single shared runqueue under BKL caps parallelism |
-| All IRQs on BSP | IRQ migration not implemented |
+| External IOAPIC IRQs target the BSP | IRQ affinity/migration is not implemented; every CPU still receives its LAPIC timer |
 | No MWAIT idle | APs use HLT in idle loop |
 | BKL serialisation | only one CPU in kernel at a time |
+| Timer callback cadence | Every active logical callback currently runs on each LAPIC timer tick in hard-IRQ context; frequency-aware deferred work remains |
 
 For workloads that are mostly user-space compute with occasional kernel calls
 the BKL overhead is acceptable. Workloads with heavy concurrent kernel entry
 (e.g., many processes doing simultaneous disk I/O) will serialize at the BKL.
-Replacing the BKL with fine-grained locking is the natural next step for
-Tier 3.
+Fine-grained locking would be required to remove this serialization.
 
 ---
 
@@ -501,15 +679,16 @@ Tier 3.
 | File | Purpose |
 |---|---|
 | `kernel/smp/percpu.h` | `per_cpu_t` struct definition, `this_cpu()` macro |
-| `kernel/smp/percpu.c` | BSP + AP per-CPU init, GDT slot allocation |
+| `kernel/smp/percpu.cc` | BSP + AP per-CPU init, GDT slot allocation |
 | `kernel/smp/lapic.h` | LAPIC register offsets, API declarations |
-| `kernel/smp/lapic.c` | MMIO map, software enable, PIT calibration, IPI send |
+| `kernel/smp/lapic.cc` | MMIO map, software enable, PIT calibration, IPI send |
 | `kernel/smp/ioapic.h` | IOAPIC register layout, API |
-| `kernel/smp/ioapic.c` | Redirection table init, GSI routing, ISA remap |
+| `kernel/smp/ioapic.cc` | Redirection table init, GSI routing, ISA remap |
 | `kernel/smp/smp.h` | `cpu_table_t`, AP trampoline API |
-| `kernel/smp/smp.c` | Trampoline placement, INIT/SIPI sequence, idle loop |
-| `kernel/smp/bkl.h` | `bkl_acquire` / `bkl_release` declarations |
-| `kernel/smp/bkl.c` | Ticket spinlock implementation |
-| `kernel/smp/mp.h` | MP table + ACPI MADT parser API |
-| `kernel/smp/mp.c` | `_MP_` scan, MADT walk, cpu/ioapic/gsi table build |
-| `bin/smp.cc` | `smp` and `smp info` shell commands |
+| `kernel/smp/smp.cc` | Trampoline placement, INIT/SIPI sequence, idle loop, and naked IPI entries |
+| `kernel/smp/bkl.h` | `bkl_lock` / `bkl_unlock` and target-stack handoff declarations |
+| `kernel/smp/bkl.cc` | Ticket spinlock implementation |
+| `kernel/smp/mp_tables.h` | MP table parser API |
+| `kernel/smp/mp_tables.cc` | `_MP_` scan and CPU/IOAPIC discovery |
+| `kernel/smp/acpi.h` / `kernel/smp/acpi.cc` | ACPI RSDP/RSDT/XSDT/MADT fallback |
+| `kernel/lang/shell.cc` | `smp` and `smp info` shell commands |

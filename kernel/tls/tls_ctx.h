@@ -27,7 +27,7 @@
 #define TLS_ERR_HANDSHAKE_STATE -11
 
 typedef struct {
-    int state;            /* opaque to callers; see tls_handshake.c */
+    int state;            /* opaque to callers; see tls_handshake.cc */
     int last_error;
 
     /* Record layer holds keys + xport callbacks. */

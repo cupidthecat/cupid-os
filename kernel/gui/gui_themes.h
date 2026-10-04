@@ -77,11 +77,13 @@ typedef struct {
 } ui_style_t;
 
 void        ui_theme_set(const ui_theme_t *theme);
-ui_theme_t *ui_theme_get(void);
+/* Borrowed immutable view; hold the shared graphics writer lease while using it. */
+const ui_theme_t *ui_theme_get(void);
 void        ui_theme_reset_default(void);
 
 void        ui_style_set(const ui_style_t *style);
-ui_style_t *ui_style_get(void);
+/* Borrowed immutable view; hold the shared graphics writer lease while using it. */
+const ui_style_t *ui_style_get(void);
 
 /* Load/save from .theme file (INI-style) */
 int         ui_theme_load(const char *path);

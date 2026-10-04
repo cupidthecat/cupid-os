@@ -1,0 +1,439 @@
+# Explicit release context for seed consumption
+
+The public adoption worktree now carries the paired `cfd9f140` release and native
+default user-link recipes. Ownership is 447 CupidBuild actions and five Python
+actions across 452 transforms. The raw-kernel policy is calibrated to
+9,583,576 bytes. Replacement image/users qualification and all eight strict
+four-CPU boots pass on both hosts, with independent paired acceptance. See
+[native user-link adoption](USER-LINK-ADOPTION.md).
+The sections below retain their earlier qualification checkpoints and original
+parent identities. TempleOS remains reference material.
+
+## Evidence recovery
+
+The receipt directory was deleted. The following historical sections describe
+the original observations; they do not establish that their receipts remain
+available. Recovery v523 checks all 1,567 saved staged-index files against the
+surviving byte-identical source export, including both materialized LFS assets.
+The new qualification observes the surviving source, generated files and
+objects, then builds a fresh image and forces the three user builds.
+Independent paired verification v584 passes the complete source, artifact,
+ABI, user and manual comparisons, 577 test executions and eight strict boots.
+This reuses observed build inputs; it does not claim a fresh clean kernel or
+complete six-tool bootstrap. See [the current evidence scope](USER-LINK-ADOPTION.md#evidence-recovery).
+
+## Committed producer and new-parent consumption
+
+Both default and long new-parent profiles now pass complete paired independent
+acceptance. Each native root retains the original 1,564-input capture with
+eleven control overlays and 394 original behavior-support files. Qualifications
+consume the proposed `cfd9f140` pair as actual parents and match every rebuilt
+object/tool to the reviewed preparations before running behavior.
+
+| Accepted new-parent result | Exact receipt |
+| --- | --- |
+| Default: 228 artifacts, 76 pairs, 7,300 behavior files | `paired-complete-self-consumption-qualifications-default-independent-v242.json` |
+| Long: 231 artifacts, 77 pairs, 7,300 behavior files | `paired-complete-self-consumption-qualifications-long-independent-v266.json` |
+
+Long uses the closed Linux v236 qualification and fresh Windows v260 retry.
+Linux passes 62 success, 55 failure and seven help cases; Windows passes 49
+success, 43 failure and seven help cases, for either profile. Independent
+verification rereads source captures/indexes, complete/thin roots and support
+bytes, preparations, parents, plans, release, every stage artifact and all
+behavior files. Final file and directory membership follows all byte rereads.
+Both terminal review axes pass; long review is retained in
+`complete-self-consumption-long-terminal-reviews-v285.json`.
+
+The long receipt is 5,769,221 bytes with SHA-256
+`da5c7dde61dab51ba8a7d4b791d9f0385a46e0123659022afb2754d4afe201fa`.
+The original Windows failure, operation replay and rejected monitor/collector
+attempts remain preserved. The fresh Windows run records 612 samples without
+sampling errors and minimum free space 1,169,780,736 bytes. Neither successful
+replay nor those observations establish the earlier failure's cause.
+
+The isolated adoption candidates pass 129 audit methods per host, twelve Make
+binding methods and three lineage methods per host. A forced normal Windows
+user Make build compares the complete canonical ABI and all three object and
+executable bytes with the accepted results. Its first collector used the wrong
+release-path spelling; Make succeeded, but that receipt is rejected. A fresh
+forced run checks the actual repository-relative spelling and source bytes and
+passes in `native-user-link-adoption-normal-users-windows-v284.json`.
+
+The candidate Make bootstrap target explicitly selects the installed long
+profile. Its ordinary replay checks 78 producer inputs, 37 Windows objects,
+five assembly objects, exact plans/current snapshot and all six initial tools.
+Omitting the long flag retains historical default CLI rules. The native-reader
+negative checks actual retargeted parents and strict default provenance rejection.
+That ordinary rejection remains separate from the accepted release-authorized
+default qualification.
+
+Installed seeds remain `78e71bd6` and ownership remains 444/eight. Complete
+seed/provenance suites, Linux publication/users, normal OS image and fresh runtime
+remain adoption gates. Installation, final canonical checks, embedded manual
+and calibrated policy changes follow a coherent accepted implementation.
+Checked deterministic release drift and full Doom runtime remain open.
+
+The following sections retain earlier checkpoints, including their pending
+work at the time. Their original capture and parent identities remain unchanged.
+
+## Earlier committed-producer and default checkpoints
+
+Commit `cfd9f140fd295284372beaee48b85c9320f7d144` contains the implementation
+described below. Each native frozen source capture retains 1,564 inputs and
+the original Git index. Its default producer snapshot contains 77 inputs;
+long contains 78. Complete committed-source qualification passes on Windows
+and Linux for both profiles using the installed `78e71bd6` parent pair.
+Independent checks accept 228 rebuilt artifacts and 76 final-stage pairs for
+default, or 231 artifacts and 77 pairs for long. Each profile retains 7,300
+behavior files. These records are under
+`build/bootstrap/native-profile-validation-258bb5f3/`:
+
+| Accepted committed-source result | Evidence |
+| --- | --- |
+| Default, both native hosts | `paired-stage-release-committed-qualifications-default-independent-v28.json` |
+| Long, both native hosts | `paired-stage-release-committed-qualifications-long-independent-v28.json` |
+
+Consuming the proposed seeds is a separate step. Reviewed private projections
+retain exactly 100 controls per host and replace the selected seed inputs with
+the proposed `cfd9f140` pair. The actual parent manifest hashes are
+`59c5c33672ee5839efd5a27cc1b90c090984fcf0be74d3fcb7418f68215aa2f7`
+for Linux and
+`1966c1c82f250bf6b8fcaf881d703750eed9fbbe957251b2cd978c179add30ea`
+for Windows. Both parent revisions name `cfd9f140`.
+
+Both profiles have completed preparations on both native hosts. Independent
+paired checks reread every retained stage, source and plan, the original source
+captures and indexes, and all projection controls. They also check exact
+preparation file and directory membership after the byte rereads. Default
+accepts 76 final-stage pairs; long accepts 77. Linux and long Windows reproduce
+the initial six tools through all three stages. Default Windows uses a distinct
+startup, so its preparation makes no initial-tool equality claim. Its child
+CLI completed successfully; the original outer tool exit was unreported and
+is not inferred.
+
+Separate authors create twelve-artifact release candidates from those paired
+preparations. Both authors finish successfully and pass independent terminal
+review. Authoring alone leaves the release candidates unqualified. Complete default
+consumption has since passed independent acceptance below; long remains due:
+
+| New-parent preparation and candidate | Evidence |
+| --- | --- |
+| Default paired preparation | `paired-self-consumption-preparations-default-v138.json` |
+| Long paired preparation | `paired-self-consumption-preparations-long-v138.json` |
+| Default author and candidate | `self-consumption-author-default-v144.json`, `paired-self-consumption-candidate-default-v144.json` |
+| Long author and candidate | `self-consumption-author-long-v144.json`, `paired-self-consumption-candidate-long-v144.json` |
+
+Fresh behavior qualification must use these actual new parents and candidates.
+The earlier completed proofs cannot substitute for it. The reviewed native
+driver retains both peer preparations directly, including the observed Ubuntu
+UNC path on Windows, and checks every object, tool and behavior file after
+execution. Native preflights pass fifteen positives per host and 63 Windows
+or 65 Linux rejections. A separate reviewed acceptance verifier passes ten
+metadata and inventory positives and 112 rejections. Its fixtures use four
+older completed report summaries and four explicit terminal-metadata fixtures;
+they do not establish a new-parent behavior result. It rejects late files,
+late empty directories, symlinks and FIFOs and finally rereads all twelve
+retained supports, including both executed reader dependencies.
+
+The first fresh Linux default run reaches profile-behavior setup and fails
+with `CupidBuild profile behavior include root is unavailable: drivers`.
+The actual outer and child results are both 1, and the closed log is final.
+`self-consumption-qualify-default-linux-v173.json` and its log preserve that
+failure. No bootstrap report is published. The thin 100-control projection
+contains the producer inputs but omits the OS support tree that profile
+behavior materializes. The preflights had checked source identities, prepared
+artifacts and reader boundaries without exercising that materialization.
+The complete v223 roots subsequently retain every original source input with
+eleven reviewed control overlays and 394 original behavior-support files:
+kernel/driver headers, assembly includes and Doom sources. These complete roots
+pass the materialization preflight. The original failed run, preparations,
+source captures and authored candidates retain their existing identities.
+
+### Complete new-parent results
+
+Both default native qualifications finish with return code 0 and final logs.
+Linux passes 62 success, 55 failure and seven help cases; Windows passes 49
+success, 43 failure and seven help cases. Independent acceptance rereads 228
+stage artifacts, 76 final-stage pairs and 7,300 behavior files, all original
+source captures and indexes, complete/thin root controls, support bytes,
+preparations, actual parents, plans and release. It checks exact file and
+directory membership after all final byte rereads. Both terminal review axes
+pass. The accepted receipt is 5,788,123 bytes with SHA-256
+`73427bd5b7fbef93625c18601cb8e8d0ef780a44130cb362bfb150abe3b097fb`.
+
+| Complete new-parent evidence | Result |
+| --- | --- |
+| `paired-complete-self-consumption-qualifications-default-independent-v242.json` | Default pair accepted |
+| `complete-self-consumption-default-terminal-reviews-v254.json` | Both review axes pass |
+| `complete-self-consumption-qualify-long-linux-v236.json` | Linux long completes; paired acceptance remains due |
+| `complete-self-consumption-qualify-long-windows-v236.json` and `.log` | Preserved closed failure; not accepted |
+| `windows-long-production-diagnostic-v256.json` | Actual operation replay: fourteen positives, ten negatives |
+| `complete-self-consumption-windows-long-retry-reviews-v260.json` | Fresh retry readiness only |
+| `complete-self-consumption-long-verifier-readiness-v271.json` | Independent long-verifier readiness only |
+
+The Windows long failure occurs in production behavior. Stage three returns 0;
+stage four returns 1 with `cupidbuild: checked CupidBuild digest mismatch`.
+The message covers path, capture, copy and artifact checks; the failed temporary
+fixture is unavailable. It does not establish byte corruption or a disk-space
+cause. The actual operation replay uses the immutable complete root, accepted
+prepared stage-three/four tools and the same selected release, and preserves
+all 24 calls and resource observations. Its success does not replace the full
+long run.
+
+The fresh v260 Windows retry binds the failed state/log and replay identities,
+preserves the qualification helper checks, and changes only its output namespace
+in the qualification command. It has a 2 GiB launch guard and five-second
+resource observations. Sampling exceptions are retained and successful child
+execution cannot pass with incomplete monitoring. Probe261 passes two positives
+and seven negatives, including preservation of a primary child error.
+The reviewed v266 independent verifier binds Linux v236 and Windows v260,
+retains the nine accepted verification helpers, and checks monitor metadata with
+two positives and fourteen negatives. It still requires a closed successful
+Windows state, per-profile review and full independent byte/membership checks.
+
+The private projected Make audit also completes seventeen queries and all ten
+contracts. An earlier projection incorrectly added the release to ordinary
+manifest verification's input closure. The corrected projection preserves its
+original seven members, the manifest and six tools, while release-aware edges
+retain the additional selected release. Useful negatives reject missing,
+duplicate, extra and altered dependencies. This is projected-audit evidence;
+canonical installed audit and normal-build adoption remain separate gates.
+
+The initial metadata-probe review found an executed reader missing from the
+final support reread. Its receipt remains preserved; fresh probe209 retains
+and rereads both dependencies and passes both review axes. A Windows readiness
+writer also failed on a bare Linux path before creating its output. Its fresh
+replacement uses the already observed Ubuntu UNC mapping. Both failures retain
+their original outcomes.
+
+Runs require a successful fresh native check of at least 512 MiB free on both
+the evidence and output volumes, as well as the driver's internal check. The
+current wrapper launches nothing when its external budget check fails. Closed historical image and receipt
+compression has recovered space while preserving bytes, file identity,
+parents, ancestors and current source/index guards. Those metadata operations
+provide neither a new runtime verdict nor qualification of a release.
+
+Windows long qualification and paired independent long acceptance remain due.
+Then check the proposed installed filesystem audit,
+provenance regressions, normal Make recipes, complete ABI and users, ordinary
+publication, OS image and fresh runtime. Installation and ownership changes
+follow those results. Checked deterministic release drift and full Doom
+gameplay, audio, save/load, reboot and performance acceptance remain open.
+Installed seeds and the 444/eight ownership count still name the current
+production checkpoint. The later sections preserve the earlier working-source
+capture evidence and its remaining work at that time.
+
+## Why the separate context exists
+
+The proposed alias seed pair failed the original Windows default behavior
+consumer with `fixed-point provenance differs`. That reader recognized only
+historical parent tuples embedded in its source. Embedding the completed new
+manifest digests would change the source that produces those manifests.
+ADR 0411 uses the existing external release record to break that cycle.
+
+`cupid_seed_manifest_validate_release` accepts reviewed release bytes and
+checks every applicable manifest claim before structural, target and plan
+validation. The original reader retains historical rules. The pair API still
+hashes the actual Linux manifest bytes to verify the Windows plan reference.
+
+Every typed seeded operation has a separate release-aware C entry point. The
+original functions pass a null release and keep their request layouts. Every
+seeded CLI accepts `--seed-release RELEASE`; missing, empty and repeated values
+are usage errors. The transaction captures the release with its source and
+tools, enforces a 65,536-byte limit and rechecks observations after execution.
+
+The release does not authenticate itself. The caller must review its source,
+actual parent manifests, complete plans and twelve paired tool identities.
+Release parsing and file lifetime are separate checks.
+
+## Reproduce preparation and qualification
+
+Use `python -m tools.bootstrap_stage_release` from the reviewed source root.
+Every command requires `--root`, `--linux-manifest`, `--windows-manifest` and
+`--output`. Select the same real parent seed pair for both hosts.
+
+1. Run `prepare-linux` on Linux and `prepare-windows` on Windows, with separate
+   new output directories. Add `--windows-long-paths` to both for the long-file
+   profile. Preparation retains source, objects and six tools through stages
+   two, three and four. It compares the final stages and writes an explicitly
+   `unqualified` receipt. It supplies no complete bootstrap report or behavior
+   verdict. The complete publication checker rejects this bundle.
+2. Independently check the source closure, actual parents, full plan digests,
+   every retained object and tool, and equality of stages three and four. A
+   preparation receipt alone does not establish that review.
+3. Run `author` with both `--linux-preparation` and `--windows-preparation`,
+   `--source-revision` and `--source-snapshot-sha256`. Select those two source
+   identities from the reviewed capture. Use the same profile flags. Authoring
+   checks source, plans, parents and all prepared bytes, then exclusively
+   creates a twelve-artifact release candidate. Existing records are preserved.
+4. Review the candidate independently. Run `qualify-linux` and
+   `qualify-windows` on their actual hosts with the same paired inputs and
+   `--release`. Each uses a new output directory. It rebuilds every stage,
+   compares all final-stage objects and tools with the preparations, then runs
+   complete behavior with the selected release. The runner inserts the release
+   before the child argument separator and preserves child arguments.
+5. Verify the closed child result, report, source copies, plans, parents, all
+   artifact bytes and behavior files again. Only completed full behavior writes
+   the normal bootstrap report. Committed-source proof, seed installation and
+   recipe ownership require their own later acceptance.
+
+Directory aliases are enabled by default. `--no-windows-user-link-aliases`
+selects another closure and plan and must be used consistently throughout a
+separate preparation, authoring and qualification sequence. Never relabel an
+existing receipt or change parent or source fields to make it match.
+
+## Current evidence
+
+The private source capture contains 1,564 files. Default producer inputs number
+77; adding long-file support gives 78. Both source review axes pass. Native
+coordinator and staged-publication tests execute 77 methods across both hosts,
+with one Windows POSIX FIFO skip. Generated fixture bytes in those unit tests
+are metadata fixtures, not staged tool acceptance.
+
+Actual default preparations retain 228 artifacts across three stages per host,
+and all 76 final-stage pairs match. A separate author creates the paired release
+from those actual tools and selected `78e71bd6` parents. Independent authoring
+verification checks its 180-file Linux preparation mirror and original bytes.
+
+Fresh complete default qualification passes on both hosts with host C/ASM tools
+forbidden. Linux reports 62 success, 55 failure and seven help cases; Windows
+reports 49 success, 43 failure and seven help cases. Independent verification
+rereads every stage against preparation, all 1,564 source files and copies,
+closed logs, plans, parents and 7,300 behavior files.
+
+Long preparations retain 231 artifacts and match all 77 final-stage pairs.
+The separate release author and its 181-file Linux mirror pass independent
+verification. Fresh complete long qualification passes on both actual hosts.
+It retains 7,300 behavior files and the same exact per-host behavior counts as
+default. Independent verification checks all prepared and rebuilt bytes, closed
+commands and logs, source copies, parents, plans and release claims.
+
+Windows has 32 C objects, four assembly objects and six tools per default stage.
+The long stage adds `utf8_long_path_start.asm`, giving five assembly objects and
+43 total artifacts. Linux has 27 C objects, one startup object and six tools
+for either profile. The verifier derives those counts from the selected plans;
+its useful negative checks reject the earlier incorrect 33-C/four-assembly
+split, floating-point counts and a false comparison result.
+
+The broader native selection runs 580 methods per host: 566 execute on Windows
+and 563 on Linux, with fourteen and seventeen exact platform skips. Independent
+verification accepts all 1,129 executions. The original collectors failed
+because a helper wrote one auxiliary JSON receipt after the unittest summary.
+Those failures remain unchanged. The separate verifier accepts only the exact
+known trailer after a complete successful method log; a failed suite followed
+by a receipt remains a failure.
+
+Cupid-built normal dispatchers and typed-operation callers also retain the
+earlier verified 114 executed results and eight platform skips. The byte API
+corpus retains 3,770 actual checked results. The source C bytes in those captures
+are unchanged. These narrower checks remain separate from the new full staged
+qualification.
+
+## Corrections and remaining work
+
+The first profile and Doom probes crashed when release capture grew the input
+table and invalidated retained tool-path pointers. Reserving the complete
+closure plus the release before retaining paths fixes that failure. Linux
+regular-file candidates use nonblocking opens so FIFO rejection cannot wait
+for a writer. Bounded capture now opens one handle, checks kind and identity,
+reads at most the limit plus one byte, and rechecks handle and pathname state.
+
+Review also found missing rebuilt-object comparisons, incomplete behavior
+summary acceptance, overwritten first observations and an unbound audit Git
+inventory. Each was corrected before the corresponding driver ran. The audit
+driver now checks the owned detached checkout, base revision, all 1,564 tracked
+paths and index bytes before and after commands.
+
+Both initial canonical audits reject stale `active-build.json` and
+`ACTIVE-SOURCE-AUDIT.md`. A separate integration checkpoint regenerates them.
+Both actual canonical audits and all four conditional contracts per host pass;
+independent verification binds their source copies, owned Git inventory, index,
+closed commands and complete method logs. The earlier failed records remain
+unchanged.
+
+Both fresh normal `make -j4 all` builds pass with host C/ASM tools forbidden.
+Independent verification checks all 1,564 source files and copies per host,
+429 i386 relocatable objects, two linked kernel executables and 16 artifacts.
+The images match byte for byte at 200 MiB and contain the original captured
+manual. The first OS verifier incorrectly classified the linked first-pass
+kernel as relocatable; the second used Linux separators for a Windows terminal
+line. Those failed receipts remain preserved. The corrected verifier checks
+both ELF kinds and each host's exact terminal rendering.
+
+A fresh normal Windows user build passes its closed native ABI contract. The
+entire canonical ABI report matches the accepted baseline, including types and
+offsets, 103 fields, 101 providers and the 412-byte table. Actual CupidBuild
+compiles three i386 objects and the normal CupidLD route links `cat`, `hello`
+and `ls`. All three executables match the accepted bytes. Independent proof
+rereads the source, support, six retained outputs, closed Make command and log,
+full ABI report and unchanged OS image. This does not establish guest execution.
+
+The first complete ordinary Linux default and long publication attempts fail
+with `[Errno 5] Input/output error: 'cupidbuild.elf'`. The long collector's final
+save also fails, leaving its raw state marked running after the actual process
+closed with failure. A separate terminal observation records that distinction.
+Four exact-tool copy probes later pass at the failed fixture and evidence
+boundaries. The cause remains unknown. Fresh default and long retries pass
+in new roots with the unchanged ordinary CLI and installed parents. Independent
+verification rereads all 90 controls, 23 retained files and 22 static images per
+profile; all six published tools match the corresponding qualified stage-four
+tools. The closed producer logs establish the declared 67 author/oracle pairs.
+Temporary discarded objects are outside the independent retained-file check.
+
+Both final-manual normal kernel preparations pass. Independent verification
+rereads all 1,564 source inputs and 431 production inputs per host, matches the
+three kernels and finds the same 68,681-byte manual in both raw kernels. Raw,
+pass-one and final sizes are 9,581,716, 9,679,292 and 9,810,364 bytes. Each host
+rejects all three isolated old-size policies and accepts the full 16-artifact
+candidate before applying only those three measured rows. The applied policy
+also passes. The first Windows calibration harness stopped before any command
+because the independent record used a WSL path. The corrected native path
+conversion passes with separate evidence; the failed receipt remains intact.
+Both final normal Make builds finish successfully. Their original collectors
+fail on kernel-file metadata retained before legitimate regeneration; those
+failed receipts remain unchanged. A separate verifier requires that exact
+failure and a closed successful Make command, then checks all 1,564 source
+inputs per host, 431 production inputs, 16 artifacts, the selected manual and
+complete disk layouts. Both 200 MiB images have SHA-256
+`f7fbd52ee59cb1b92914a55e745d22baface5dc723ab28d5974edffff88f8b91`.
+Both canonical audits and all four conditional checks per host pass again.
+
+Fresh normal users pass on both hosts. Independent verification checks the
+complete canonical ABI, three objects and three executables per host. Objects
+match across hosts; `cat`, `hello` and `ls` retain accepted executable bytes.
+The ABI still has 103 fields, 101 providers and a 412-byte table. Linux consumes
+all 23 files of the verified long publication without rebuilding it, with all
+90 controls matching current source. Native Windows also accepts both ordinary
+publications through the unchanged supported manifest-contract CLI.
+
+All eight serial private-image four-CPU max/e1000 boots pass: kernel disassembly
+and shell commands, then separate hello, ls and cat runs on each host.
+Independent verification applies the complete SMP/crypto/network contract and
+Makefile dynamic PID and payload hashes to retained serial logs. It checks exact
+staged FAT16 users and the 62-byte fixture plus boot/kernel placement. Source,
+users and base or staged images stay unchanged. The first Windows setup runs
+out of space before staging or boot; its failure remains recorded. A fresh run
+checks available space and forces completed-image compression before boot-time
+observations, with image bytes unchanged.
+
+The completed verified Windows base image is force-compressed with unchanged
+bytes. Only the incomplete owned copy from the failed run is removed after recording
+its hash and checking the exact base-image prefix. The failed receipt, driver
+and log remain preserved.
+
+Native Windows file observations can report different creation times through
+pathname and descriptor APIs. The final user driver compares creation time
+within each family and shares only device, inode, size and modification time
+across families. Its actual reader checks include identical-byte replacement,
+changed content with restored modification time, malformed JSON and wrong hashes.
+
+Checked deterministic release drift remains pending. The Windows test-only
+race build needs a hosted replacement for `getenv`; the raw Linux adapter has
+no equivalent launch hook. Native drift checks do not replace those tests.
+
+The earlier private release revision is the c05 working-source base. It does not name
+a commit containing the new implementation. Preserve failed runs and frozen
+captures. That checkpoint required a coherent source/tests/docs commit and
+fresh committed producer proofs before installing seeds or changing production
+ownership. The committed-producer section above records the subsequent proof
+and the separate new-parent consumption still required.

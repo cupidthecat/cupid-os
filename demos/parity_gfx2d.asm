@@ -16,6 +16,7 @@ main:
     cmp  eax, 0
     je   .no_gui
 
+    call gfx2d_fullscreen_enter
     call gfx2d_init
 
     push 96
@@ -82,12 +83,14 @@ main:
     call gfx2d_surface_free
     add  esp, 4
 
+    call gfx2d_fullscreen_exit
     push msg_ok
     call print
     add  esp, 4
     ret
 
 .alloc_fail:
+    call gfx2d_fullscreen_exit
     push msg_alloc
     call print
     add  esp, 4
@@ -99,6 +102,7 @@ main:
     push eax
     call gfx2d_surface_free
     add  esp, 4
+    call gfx2d_fullscreen_exit
     push msg_pixel
     call print
     add  esp, 4

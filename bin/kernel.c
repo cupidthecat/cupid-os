@@ -86,7 +86,7 @@ extern uint32_t _kernel_end;
 extern uint32_t _bss_start;  /* Linker symbol: start of BSS at 0x100000 */
 
 /* The Makefile auto-discovers bin/ .cc files and generates
- * kernel/bin_programs_gen.c with all extern symbols and an
+ * kernel/util/bin_programs_gen.cc with all extern symbols and an
  * install_bin_programs() function.  To add a new CupidC program:
  *   1. Create bin/<name>.cc
  *   2. Run make

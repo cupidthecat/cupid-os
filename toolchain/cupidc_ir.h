@@ -1,0 +1,442 @@
+#ifndef CUPID_TOOLCHAIN_CUPIDC_IR_H
+#define CUPID_TOOLCHAIN_CUPIDC_IR_H
+
+#include "cupidc_frontend.h"
+
+typedef enum {
+  CTOOL_C_IR_INSTRUCTION_INTEGER = 1,
+  CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_LOAD,
+  CTOOL_C_IR_INSTRUCTION_CONVERT,
+  CTOOL_C_IR_INSTRUCTION_BINARY,
+  CTOOL_C_IR_INSTRUCTION_CALL_DIRECT,
+  CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO,
+  CTOOL_C_IR_INSTRUCTION_JUMP,
+  CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+  CTOOL_C_IR_INSTRUCTION_RETURN_VOID,
+  CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_STORE,
+  CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_STORE_VALUE,
+  CTOOL_C_IR_INSTRUCTION_DISCARD,
+  CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_BIT_FIELD_LOAD,
+  CTOOL_C_IR_INSTRUCTION_UNARY,
+  CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE,
+  CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_DEREFERENCE,
+  CTOOL_C_IR_INSTRUCTION_ADDRESS_OF,
+  CTOOL_C_IR_INSTRUCTION_POINTER_BINARY,
+  CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER,
+  CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT,
+  CTOOL_C_IR_INSTRUCTION_FUNCTION_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_FUNCTION_TO_POINTER,
+  CTOOL_C_IR_INSTRUCTION_ZERO_OBJECT,
+  CTOOL_C_IR_INSTRUCTION_ELEMENT_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_COMPOUND_LITERAL_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_COMPOUND_LITERAL_STAGING_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_COPY_OBJECT,
+  CTOOL_C_IR_INSTRUCTION_STRING_LITERAL_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_COPY_STRING,
+  CTOOL_C_IR_INSTRUCTION_VARIADIC_START,
+  CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT,
+  CTOOL_C_IR_INSTRUCTION_VARIADIC_END,
+  CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_VALUE,
+  CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_OLD_VALUE,
+  CTOOL_C_IR_INSTRUCTION_ASSEMBLY,
+  CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD,
+  CTOOL_C_IR_INSTRUCTION_ATOMIC_STORE,
+  CTOOL_C_IR_INSTRUCTION_ATOMIC_EXCHANGE,
+  CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD,
+  CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_OR,
+  CTOOL_C_IR_INSTRUCTION_FLOATING,
+  CTOOL_C_IR_INSTRUCTION_STORE_OLD_VALUE
+} ctool_c_ir_instruction_kind_t;
+
+typedef struct {
+  ctool_c_ir_instruction_kind_t kind;
+  /* Value-producing instructions use type for their result. Object-address
+   * instructions, aggregate LOAD, STORE, and ZERO_OBJECT use the object type.
+   * FUNCTION_ADDRESS retains its function-designator type.
+   * STRING_LITERAL_ADDRESS retains its character-array type.
+   * STORE_VALUE and STORE_OLD_VALUE use the assignment result type. Control
+   * instructions and DISCARD use CTOOL_C_TYPE_NONE, except RETURN_VALUE,
+   * which retains the result type. ASSEMBLY consumes its possibly empty
+   * frontend operand
+   * slice and uses CTOOL_C_TYPE_NONE. ATOMIC_* retain the unqualified
+   * integer object type; ATOMIC_STORE uses it for width even though it
+   * produces no value. */
+  ctool_u32 type;
+  /* LOAD and CONVERT retain their source type. MEMBER_ADDRESS and
+   * BIT_FIELD_LOAD, BIT_FIELD_STORE_VALUE, and
+   * BIT_FIELD_STORE_OLD_VALUE retain their record operand type. STORE,
+   * STORE_VALUE, and STORE_OLD_VALUE retain the stored value type. DISCARD
+   * retains its consumed value type.
+   * UNARY retains its operand type. BINARY retains its left operand type;
+   * supported wide shifts validate their represented count before the
+   * instruction is published. POINTER_BINARY retains its left operand type.
+   * ARRAY_TO_POINTER retains its array operand type. MEMBER_ADDRESS may
+   * consume a record-object address or an owned structure-value snapshot.
+   * A scalar member of a snapshot is read by the following typed LOAD.
+   * DUPLICATE_VALUE retains the duplicated value type. DUPLICATE_ADDRESS
+   * retains the duplicated object's type. DEREFERENCE retains its pointer
+   * operand type. ADDRESS_OF retains its object or function operand type.
+   * FUNCTION_TO_POINTER retains its function operand type. ZERO_OBJECT and
+   * COPY_OBJECT retain aggregate address operand types. COPY_STRING retains
+   * its character-array address operand type. ELEMENT_ADDRESS retains its
+   * fixed-array operand type.
+   * VARIADIC_START/VARIADIC_ARGUMENT/VARIADIC_END retain the consumed
+   * cursor-object type. VARIADIC_ARGUMENT uses type for the loaded result.
+   * CALL_DIRECT retains the function type, while
+   * CALL_INDIRECT retains the function pointer type. BRANCH_ZERO retains its
+   * consumed condition type. ASSEMBLY uses CTOOL_C_TYPE_NONE. ATOMIC_*
+   * retain their evaluated object-pointer type. */
+  ctool_u32 input_type;
+  ctool_c_expression_operator_t operation;
+  /* CONVERT uses NONE for an explicit cast, except that a direct four-byte
+   * integer literal zero cast to a represented function pointer records
+   * NULL_POINTER. Implicit conversions retain their exact conversion kind. */
+  ctool_c_conversion_kind_t conversion;
+  /* CALL_DIRECT and CALL_INDIRECT retain the actual argument count after
+   * named argument conversions and default argument promotions. Other
+   * instructions keep zero. */
+  ctool_u32 argument_count;
+  /* CALL_DIRECT and CALL_INDIRECT use this as the first entry in the owning
+   * unit's packed argument_types array. Each call owns exactly argument_count
+   * contiguous entries. A zero-argument call keeps the current packed cursor.
+   * Other instructions use CTOOL_C_AST_NONE. */
+  ctool_u32 first_argument_type;
+  /* PARAMETER_ADDRESS uses an absolute frontend parameter index.
+   * LOCAL_ADDRESS uses an absolute frontend block-binding index for a
+   * represented scalar or a complete fixed array or record.
+   * COMPOUND_LITERAL_ADDRESS and COMPOUND_LITERAL_STAGING_ADDRESS use the
+   * absolute frontend expression index of the unnamed automatic object. The
+   * staging address is private storage used to finish aggregate initialization
+   * before replacing the persistent object. Object offsets and structure
+   * snapshot storage stay private to the emitter. STRING_LITERAL_ADDRESS uses
+   * an absolute frontend expression index. COPY_STRING uses an absolute
+   * semantic initializer index. FILE_ADDRESS,
+   * CALL_DIRECT, and
+   * FUNCTION_ADDRESS use an absolute file-binding index.
+   * MEMBER_ADDRESS, BIT_FIELD_LOAD, BIT_FIELD_STORE_VALUE, and
+   * BIT_FIELD_STORE_OLD_VALUE use an absolute graph-member index. A CONVERT
+   * that records a width-aware bit-field integer promotion does too.
+   * ELEMENT_ADDRESS uses a direct fixed-array element index.
+   * POINTER_BINARY uses an absolute graph-type index for its right operand.
+   * VARIADIC_START uses the absolute final named parameter index.
+   * ASSEMBLY uses an absolute frontend assembly index. Branches use a
+   * function-relative instruction index. Other instructions use
+   * CTOOL_C_AST_NONE. */
+  ctool_u32 reference;
+  /* ATOMIC_* retain the validated GNU memory order from zero through five.
+   * FLOATING carries the low 64 bits of its target representation. */
+  ctool_u64 integer_bits;
+  /* FLOATING with long-double type carries the target x87 sign and biased
+   * exponent in the low sixteen bits. Canonical zero, subnormal, normal,
+   * infinity, and NaN payloads are represented. Other instructions keep this
+   * zero. */
+  ctool_u32 floating_high_bits;
+  ctool_c_pp_location_t location;
+  ctool_c_pp_location_t physical_location;
+} ctool_c_ir_instruction_t;
+
+typedef struct {
+  ctool_u32 binding;
+  ctool_u32 declared_type;
+  /* Canonical noinline, target, and naked policy retained for later IR
+   * consumers. */
+  ctool_u32 function_codegen_attributes;
+  /* Decoded section override copied from the canonical function binding.
+   * An ordinary function owns an empty string. */
+  ctool_string_t section_name;
+  ctool_u32 first_instruction;
+  ctool_u32 instruction_count;
+  ctool_u32 maximum_stack_depth;
+  ctool_c_pp_location_t location;
+  ctool_c_pp_location_t physical_location;
+} ctool_c_ir_function_t;
+
+typedef struct {
+  /* Source-ordered unit effects. Each entry is an absolute index into the
+   * borrowed translation unit's file_assemblies table. */
+  const ctool_u32 *file_assemblies;
+  ctool_u32 file_assembly_count;
+  const ctool_c_ir_function_t *functions;
+  ctool_u32 function_count;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 instruction_count;
+  /* Post-conversion actual argument types, packed in call-instruction order.
+   * Each call owns exactly argument_count contiguous entries starting at
+   * first_argument_type. */
+  const ctool_u32 *argument_types;
+  ctool_u32 argument_type_count;
+} ctool_c_ir_unit_t;
+
+/* Reports whether call instructions own one complete, ordered partition of
+ * the packed post-conversion argument types. Non-call instructions may not
+ * own call metadata, and every packed type must name a type in the borrowed
+ * translation unit. This checks the call-slice interchange contract only;
+ * instruction semantics remain the responsibility of the lowerer and
+ * emitter. */
+ctool_status_t ctool_c_ir_validate_call_slices(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir, ctool_bool *valid_out);
+
+/* Reports whether two published semantic types are compatible function
+ * types. The query follows qualified and aligned wrappers and compares return
+ * and parameter types structurally. A malformed graph, a non-function type,
+ * or an out-of-range type returns CTOOL_OK with a false result. Missing job or
+ * output arguments return CTOOL_ERR_INVALID_ARGUMENT. */
+ctool_status_t ctool_c_ir_function_types_compatible(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 left, ctool_u32 right, ctool_bool *compatible_out);
+
+/* Reports whether two published semantic types carry compatible represented
+ * four-byte object, void, or function pointer values. Top-level pointer-object
+ * qualifiers do not belong to the value after lvalue conversion. Referent
+ * qualifiers remain significant. The query compares qualified, aligned,
+ * pointer, array, vector, function, enumeration, and scalar nodes with a
+ * memoized worklist. It returns all scratch storage to the job arena before
+ * returning. Function types are compared structurally. Top-level const,
+ * volatile, and restrict parameter qualification is ignored, while atomic
+ * and referent qualification remains significant. Distinct record nodes
+ * remain compatible only when the frontend has canonicalized them to the same
+ * graph entry. A malformed graph or out-of-range type returns CTOOL_OK with a
+ * false result. Missing job or output arguments return
+ * CTOOL_ERR_INVALID_ARGUMENT. */
+ctool_status_t ctool_c_ir_pointer_value_types_compatible(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 left, ctool_u32 right, ctool_bool *compatible_out);
+
+/* Applies the same structural relation to pointer comparison operands.
+ * Requiring object referents rejects function and void pointers, as needed
+ * for relational comparison. */
+ctool_status_t ctool_c_ir_pointer_comparison_types_compatible(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 left, ctool_u32 right, ctool_bool require_object_referents,
+    ctool_bool *compatible_out);
+
+/* Checks one pointer conversion against the IR lowerer's qualification,
+ * object-to-void, and explicit i386 function/data compatibility rules. */
+ctool_status_t ctool_c_ir_pointer_conversion_is_valid(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 source_type, ctool_u32 target_type,
+    ctool_c_conversion_kind_t conversion, ctool_bool *valid_out);
+
+/* Reports whether two represented object pointers may participate in pointer
+ * subtraction. The pointed-to types must be compatible complete objects.
+ * Immediate pointed-to qualification, including atomic qualification, does
+ * not change compatibility for this operation. */
+ctool_status_t ctool_c_ir_pointer_arithmetic_types_compatible(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 left, ctool_u32 right, ctool_bool *compatible_out);
+
+/* Reports whether a complete array object may decay to a represented pointer
+ * to its first element. Array qualification follows the C rule that moves it
+ * to the element type. */
+ctool_status_t ctool_c_ir_array_decay_types_compatible(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 array_type, ctool_u32 pointer_type,
+    ctool_bool *compatible_out);
+
+typedef enum {
+  CTOOL_C_IR_DIAG_INVALID_REQUEST = 0x0d000001u,
+  CTOOL_C_IR_DIAG_INVALID_UNIT = 0x0d000002u,
+  CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE = 0x0d000003u,
+  CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT = 0x0d000004u,
+  CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION = 0x0d000005u,
+  CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION = 0x0d000006u,
+  CTOOL_C_IR_DIAG_ABI = 0x0d000007u,
+  CTOOL_C_IR_DIAG_LIMIT = 0x0d000008u,
+  CTOOL_C_IR_DIAG_INTERNAL = 0x0d000009u,
+  CTOOL_C_IR_DIAG_EXTERNAL_INLINE = 0x0d00000au
+} ctool_c_ir_diag_code_t;
+
+ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
+                                const ctool_c_translation_unit_t *unit,
+                                ctool_c_ir_unit_t *result_out);
+
+/* The typed translation unit is borrowed and remains unchanged. Success
+ * publishes immutable function and instruction arrays in the job arena.
+ * Each function owns a contiguous instruction slice and a typed abstract
+ * stack that begins and ends empty. It also retains canonical noinline and
+ * target code generation policy for later consumers. Represented one-byte
+ * and two-byte integer
+ * values occupy canonical 32-bit stack words after signed or unsigned
+ * extension. An eight-byte integer constant, parameter load, or call result
+ * also occupies one abstract stack entry. The i386 emitter stores its two
+ * words in private frame storage and keeps the temporary address out of the
+ * public IR. A supported structure value uses the same one-entry snapshot
+ * model. Branch targets are
+ * relative to that slice, and every join has the same address/value stack
+ * shape on each incoming path. A pre-test while loop uses BRANCH_ZERO for its
+ * forward exit
+ * and JUMP for its backward edge. A for loop evaluates its optional expression
+ * or declaration initializer once, then its optional condition, body, and
+ * optional iteration expression in C source order. Declarations in supported
+ * compound statements use the same source-ordered block bindings as outer
+ * declarations. A block typedef advances lexical visibility without emitting
+ * runtime work or reserving local storage. A block extern object does the
+ * same, and its uses publish FILE_ADDRESS against the canonical linked
+ * binding. A block enumerator also advances visibility without storage or
+ * declaration instructions; a represented use publishes INTEGER. An omitted
+ * condition has no false exit.
+ * Break uses JUMP to the nearest loop or switch exit. Continue uses JUMP to
+ * the nearest loop's continuation point. A do continuation reaches its
+ * condition, while a for continuation reaches its iteration expression when
+ * one is present and its condition otherwise. Identifier labels select
+ * zero-width targets inside one function.
+ * Direct goto statements use JUMP with a function-relative target. Forward
+ * targets are resolved before the immutable result is published.
+ * A switch evaluates its promoted four- or eight-byte integer condition once.
+ * DUPLICATE_VALUE preserves that value while equality tests select resolved
+ * case targets.
+ * LOCAL_ADDRESS, COMPOUND_LITERAL_ADDRESS,
+ * COMPOUND_LITERAL_STAGING_ADDRESS, STRING_LITERAL_ADDRESS, and FILE_ADDRESS
+ * push object addresses.
+ * A referenced automatic scalar receives one target-sized slot.
+ * A referenced fixed array or record receives its target size and alignment,
+ * up to four-byte alignment. Each compound-literal source site keeps one
+ * automatic slot and lowers its initializer at every evaluation before
+ * producing that slot's address. Aggregate compound literals build a separate
+ * staging object, then COPY_OBJECT replaces the persistent object's complete
+ * representation after every explicit initializer expression has run.
+ * ZERO_OBJECT consumes an aggregate address of input_type and performs
+ * semantic zero initialization for the complete object named by type.
+ * COPY_STRING consumes a character-array address and copies the exact bytes
+ * retained by its semantic initializer. The enclosing automatic initializer
+ * first zeroes the complete destination, so array elements beyond the copied
+ * bytes retain C's implicit zero initialization.
+ * ELEMENT_ADDRESS consumes a fixed-array address and produces one direct
+ * element address. COPY_OBJECT consumes destination and source aggregate
+ * addresses. Automatic array and structure
+ * initializer lists zero the complete object once, then evaluate represented
+ * scalar or supported structure expression leaves in source order and store
+ * them through ELEMENT_ADDRESS and MEMBER_ADDRESS paths. DUPLICATE_ADDRESS
+ * preserves a represented scalar address, or a complete record address for
+ * bit-field mutation, while a supported integer, pointer, or floating
+ * compound assignment loads and stores the object. This evaluates the
+ * destination once. Integer mutation supports non-Boolean scalar objects that
+ * occupy one, two, four, or eight bytes. Narrow values are promoted for the
+ * 32-bit computation and converted back before an exact-width store.
+ * Eight-byte mutation uses a private snapshot and keeps one semantic load and
+ * store. Compound assignments retain integer-promotion, usual arithmetic, and
+ * assignment conversions. A non-atomic compound assignment with a floating
+ * operand uses its usual `float`, `double`, or `long double` computation type,
+ * including when the other operand is an integer. The result is converted
+ * back to the left type before a scalar or integer bit-field store. Pointer
+ * compound assignments and updates use POINTER_BINARY with a complete-object
+ * stride.
+ * Prefix updates produce the stored value. Postfix updates produce the value
+ * from before the store.
+ * MEMBER_ADDRESS consumes a record address and pushes the selected complete,
+ * direct, non-bit-field member address. BIT_FIELD_LOAD consumes a record
+ * address and pushes the selected field's extracted integer value.
+ * BIT_FIELD_STORE_VALUE consumes a record address followed by a converted
+ * integer value, replaces the selected field within its storage unit, and
+ * pushes the stored field value after width truncation and signed extension.
+ * BIT_FIELD_STORE_OLD_VALUE consumes a record address, the previously loaded
+ * field value, and a converted replacement value. It stores the replacement
+ * once and pushes the earlier value for postfix update.
+ * DEREFERENCE consumes a pointer value and pushes the referenced object
+ * address or function designator. It emits no target instruction because
+ * both forms occupy one 32-bit machine word, while the public IR keeps their
+ * meanings distinct. ADDRESS_OF performs the inverse transition for an
+ * object or function designator. FUNCTION_ADDRESS publishes a linked function
+ * designator, and FUNCTION_TO_POINTER records its value conversion.
+ * ARRAY_TO_POINTER consumes an array address and produces the address of its
+ * first element without emitting a target instruction. POINTER_BINARY scales
+ * an integer operand by the pointed-to object size. Pointer subtraction
+ * divides the byte difference by that size and produces signed int.
+ * LOAD consumes an object address. A scalar load pushes the loaded value. A
+ * structure load snapshots the complete object and pushes one handle to that
+ * snapshot. STORE consumes the value on top of the stack and the destination
+ * address below it, without producing a result. Structure STORE copies the
+ * complete object. STORE_VALUE consumes the same pair and pushes the stored
+ * scalar value or preserved structure snapshot. STORE_OLD_VALUE consumes an
+ * object address, its previously loaded scalar value, and a replacement
+ * value. It stores the replacement once and pushes the earlier value so a
+ * postfix update preserves its exact payload. DISCARD consumes one value.
+ * An explicit cast to void evaluates its operand once and produces no result.
+ * A represented integer, object pointer, function pointer, `float`, `double`,
+ * `long double`, or supported structure operand emits DISCARD. A void operand
+ * leaves the abstract stack at its incoming depth and emits no extra
+ * instruction.
+ * CALL_DIRECT consumes its arguments after they have been evaluated in source
+ * order. CALL_INDIRECT also consumes the function pointer below those
+ * arguments. Each call owns its actual argument count and a contiguous packed
+ * slice containing one post-conversion type per argument. Named arguments use
+ * assignment conversions. Ellipsis and unprototyped arguments use the default
+ * argument promotions. Argument zero is deepest among the arguments, and the
+ * final argument is on top. Each argument occupies one abstract stack entry.
+ * After compatibility checks, the i386 emitter uses declared parameter types
+ * for named slots and packed actual types for unnamed slots. Represented
+ * four-byte scalar arguments, including `float`, use one slot. Signed and
+ * unsigned eight-byte integers and `double` use two slots. A `long double`
+ * uses three slots. Named structure arguments are copied inline and
+ * rounded up to four bytes. Arguments occupy increasing addresses in source
+ * order, and a wide integer stores its low word before its high word. A call
+ * with a structure, wide integer, `double`, or `long double` argument
+ * reserves one outgoing area before filling those slots. An indirect callee
+ * remains below the argument handles while the emitter fills that area.
+ * Parameter addresses account for the full width of
+ * every earlier argument. Ellipsis and unprototyped calls accept represented
+ * four-byte integer and pointer types, signed and unsigned eight-byte
+ * integers, `double`, or `long double`. An unnamed `float` is converted to
+ * `double` by default argument promotion. Atomic and aggregate unnamed
+ * arguments remain unsupported. A structure result uses a hidden
+ * pointer before the explicit
+ * arguments. The callee copies into that storage, returns its address in EAX,
+ * and removes the hidden pointer with RET 4. Either call pushes one result
+ * unless its result type is void. Narrow caller and callee results are
+ * normalized from the declared AL or AX lane.
+ * An eight-byte integer result arrives with its low word in EAX and its high
+ * word in EDX. RETURN_VALUE restores those registers from the private
+ * snapshot. A floating result crosses the i386 ABI in x87 ST0. The emitter
+ * spills an incoming four-, eight-, or twelve-byte call result immediately,
+ * then reloads ST0 for a floating RETURN_VALUE. VARIADIC_START places the
+ * cursor after the full width of the final named cdecl parameter.
+ * VARIADIC_ARGUMENT reads a represented four-byte
+ * pointer, integer, or enum and advances the stored cursor by four bytes. A
+ * signed or unsigned eight-byte integer, 64-bit enum, or `double` is copied
+ * into a fresh private snapshot, produces one abstract handle, and advances
+ * the cursor by eight bytes. A `long double` uses a twelve-byte snapshot and
+ * advances the cursor by twelve. Every form keeps the cursor on i386 four-byte
+ * slot alignment. `va_arg(arguments, float)` is invalid because default
+ * argument promotion passes a `double`. Atomic and aggregate variadic reads
+ * remain unsupported.
+ * Eight-byte integer BINARY records support addition, subtraction,
+ * multiplication, division, remainder, left shift, signed or unsigned right
+ * shift, AND, OR, XOR, and all six comparisons. Floating BINARY records
+ * support addition, subtraction, multiplication, division, and all six
+ * comparisons after both operands reach the common `float`, `double`, or
+ * `long double` width. Runtime conversion between `long double` and every
+ * represented signed or unsigned integer width uses typed CONVERT records.
+ * The frontend folds static long-double truth, comparison, logic, conditional
+ * selection, and floating-width conversion into final initializer records,
+ * including canonical x87 infinity and NaN results, so those expressions add
+ * no runtime IR. Static long-double objects
+ * use the same twelve-byte load and store path as automatic objects.
+ * `float` and `double` values can also join through
+ * conditional selection when the controlling value is an integer or pointer.
+ * UNARY records support plus,
+ * negate, complement, and logical not. Wide values also feed short-circuit
+ * logic, conditional selection, and structured scalar conditions. Supported
+ * shift counts are represented 32-bit integers, and defined C counts from
+ * zero through 63 preserve both words. CONVERT records support represented
+ * integer widening to eight bytes and explicit or assignment narrowing back
+ * to a represented integer. They also support explicit and assignment
+ * conversion among `float`, `double`, and `long double`, plus floating
+ * widening for common arithmetic and conversion between `long double` and
+ * represented integer widths. They also support the same-rank
+ * signed-to-unsigned usual arithmetic conversion
+ * and, in GNU mode, promotion of a wide enum to its exact compatible signed or
+ * unsigned integer type. Boolean narrowing tests both source words. Boolean
+ * integer mutation remains unsupported.
+ * Supported structure values are complete, nonvolatile, nonatomic structures
+ * whose alignment does not exceed four bytes. Structure RETURN_VALUE copies
+ * into the caller-provided result object.
+ * Failure zeros the result, rewinds allocations made during the operation,
+ * and keeps its structured diagnostic in the job. */
+
+#endif
