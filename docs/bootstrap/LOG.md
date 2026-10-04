@@ -42982,3 +42982,28 @@ shared Python ABI prerequisite; disk and ISO publication account for the other
 two. Fresh paired preparation, release-authorized qualification, seed adoption
 and the normal ABI recipe handoff remain required for issue 34. TempleOS stays
 read-only reference material.
+
+## 2026-10-04: correct shared ABI action accounting
+
+The ownership totals above remain correct, but the explanation of the five
+Python actions was wrong. The audit records 443 root transforms (441
+CupidBuild, two Python image publications), seven user transforms (six
+CupidBuild, one Python ABI gate), and two hosted contract transforms (both
+Python). Their sum is 452 transforms: 447 CupidBuild and five Python actions.
+Three user compilation transforms have an order-only dependency on the shared
+ABI gate; those edges do not add three verification actions.
+
+The uncommitted ABI Make candidate has seven CupidBuild user transforms and no
+Python user transform. Its supported graph is 448 CupidBuild actions and four
+Python actions, with all 770 active sources and 418 preprocessor jobs retained.
+The four remaining Python actions are the two image publications and the two
+hosted contract actions. The image/user roots alone have 450 transforms, of
+which 448 belong to CupidBuild and two to Python. The hosted contract root
+continues to count in the 452-transform supported graph.
+
+This correction follows direct inspection of both complete audit records;
+it does not change supported roots or drop test, OS or vendored behavior.
+Fresh paired seed preparation remains in progress, and the Make candidate is
+not installed or committed. The earlier source capture and its documents
+retain their original bytes. Issue 34 and the wiki receive the corrected
+accounting.

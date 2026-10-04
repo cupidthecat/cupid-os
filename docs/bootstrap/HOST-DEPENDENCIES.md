@@ -2,10 +2,10 @@
 
 ## Native ABI qualification boundary, 2026-10-04
 
-The normal graph has 452 transforms: 447 owned by CupidBuild and five with
-Python prerequisites. Three user compilation transforms depend on the shared
-Python-coordinated ABI gate. Disk-image and ISO publication account for the
-other two. Source-head CupidBuild has a read-only native ABI command, and both
+The supported graph has 452 transforms: 447 owned by CupidBuild and five
+Python actions. These are the shared ABI gate, disk-image and ISO publication,
+hosted contract publication, and hosted contract verification. Three user
+compilations depend on the one ABI gate. Source-head CupidBuild has a read-only native ABI command, and both
 bootstrap matrices require its complete report, rejection and recovery checks.
 Paired seed qualification and the normal recipe handoff remain pending.
 Make and host OS services remain required; host code-producing toolchains

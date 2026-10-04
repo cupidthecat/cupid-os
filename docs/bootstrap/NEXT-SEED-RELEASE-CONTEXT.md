@@ -18,9 +18,10 @@ for 81 inputs and
 `d983f249c7e54a47d60f04ace82dfbc283e16f1bfb73ea16c93bfbc36cc7670f`
 for 82 long/alias inputs. Earlier reports retain their original source hashes.
 The raw-kernel policy at this checkpoint is 9,585,024 bytes. Ownership remains
-447 CupidBuild actions and five Python actions. The ABI recipe contributes
-Python prerequisites to all three user compilation transforms; disk and ISO
-publication account for the other two. The historical checkpoints below keep
+447 CupidBuild actions and five Python actions. The Python actions are the
+shared ABI gate, disk and ISO publication, hosted contract publication, and
+hosted contract verification. All three user compilations depend on the one ABI
+gate; those dependency edges are not separate actions. The historical checkpoints below keep
 their original measured values and qualification scope.
 
 The public adoption worktree now carries the paired `cfd9f140` release and native
