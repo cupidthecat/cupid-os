@@ -1,5 +1,70 @@
 # Freedoom runtime handoff
 
+## Absolute Windows staging correction, 2026-10-04
+
+The original drive-colon failure is reproduced by the minimal `C:/a:/b`
+parser test. It returns host source `C` instead of `C:/a`, before any FAT
+operation. The parser now skips a leading ASCII drive colon when a second
+separator follows. With only one separator, existing one-letter source syntax
+retains its meaning. A colon later in a guest destination remains guest text;
+the FAT writer still owns its filename validation.
+
+Eight regression methods cover forward and backward slashes, drive-relative
+and UNC sources, spaces and Unicode, both image/stage CLI entries, legacy
+relative and POSIX paths, missing separators and relative guest destinations.
+A real Unicode host source passes the public CLI and stages into a compact FAT
+image. An independent directory and cluster-chain reader verifies its bytes.
+A relative destination is rejected before writing, preserving both image and
+source. The complete existing host-build module plus these methods passes all
+98 methods on Windows and Linux in 17.608 and 25.589 seconds.
+
+The original absolute Windows IWAD command succeeds against a fresh private
+copy of the accepted image in 17.079 seconds. Its entire 209,715,200-byte result
+matches the earlier relative-path staged image, SHA-256
+`da0e46d6d6ce446728699de7f1e8e85c47768d5a52ff9f0e4fb0bf19c05384cd`.
+Source image and IWAD bytes remain unchanged through the replay. Evidence is
+`stage-parser-fix-1-independent.json` and both `hostbuild-stage-suite-retry-1-*-closed.json`
+records in the private diagnostic directory below. This proves staging behavior;
+it does not turn the frame timeout into runtime acceptance.
+
+## Private frame-return diagnostic, 2026-10-04
+
+The accepted `9e566013` source image, with the older installed seed pair, is
+copied into a private fixture and staged with the pinned Phase 1 IWAD. A second
+copy is the writable guest disk. The source image and staged fixture remain
+unchanged through the probe. This is separate from candidate-seed runtime
+acceptance.
+
+The probe verifies the linked `DG_DrawFrame` entry bytes against guest memory
+and arms a debugger breakpoint there. Its intended frame evidence requires
+`GS_LEVEL`, positive game tics and renderer frame count, a non-null
+`DG_ScreenBuffer`, the actual call's stack return address, return from the draw
+function, and a colored 640-by-400 viewport. `DG_Init` alone cannot pass it.
+The debugger uses the [GDB remote protocol](https://sourceware.org/gdb/current/onlinedocs/gdb.html/Packets.html).
+
+The executed retry reaches neither the draw-entry breakpoint nor `DG_Init`
+within its explicit 180-second frame observation. It exits one after 247.374
+seconds including startup, with no panic. The log records a 1,295,697-byte
+`HOMEFS.SYS` rewrite requiring 317 clusters. Allocation advances through
+cluster index 200 before the observation ends; no rendered frame is proven.
+This locates the last observed progress boundary, not a performance cause.
+The existing 1,200-second timedemo requirement is unchanged.
+
+The first staging helper fails before writing because the optional stage CLI
+splits an absolute Windows source path at its drive colon. A fresh retry uses
+the repository-relative path used by Make and succeeds. The first guest helper
+then fails before typing Doom because its XML parser rejects QEMU's undeclared
+`xi:include` prefix. A separate namespace-aware retry passes that handshake
+and reaches the frame observation above. All original failures remain retained.
+
+Private evidence is under `cupid-doom-frame-return-probe-20261004/`:
+`prepared-frame-probe-retry-1.json`, `frame-return-result-retry-1.json`,
+`serial-retry-1.log`, `rsp-transcript-retry-1.json`, and the original helper
+failures. The linked symbols, verified entry bytes, debugger packets, kernel,
+ELF, IWAD and image identities are retained with the exact command. Gameplay
+frame acceptance, input, audio quality, save/load and reboot persistence remain
+open.
+
 ## Current exact-image runtime replay, 2026-09-30
 
 The accepted `ea2f135a` image repeats the pinned Freedoom diagnostic with four

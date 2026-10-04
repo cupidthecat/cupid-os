@@ -22,6 +22,10 @@ _Avoid_: every build target, only the default target
 A related group of active sources migrated and verified under one tool-ownership and behavior gate.
 _Avoid_: directory (a cohort may cross directories), individual file count
 
+**Host stage entry**:
+A mapping from a host source file to an absolute guest path in a Cupid OS disk image. Its host pathname and guest pathname belong to separate namespaces.
+_Avoid_: guest source file, host destination path
+
 **Toolchain job**:
 An owned, bounded lifetime for deterministic Cupid Toolchain arena, buffer, logical-path, source, and diagnostic state.
 _Avoid_: global compiler state, platform context

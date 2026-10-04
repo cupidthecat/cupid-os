@@ -1,5 +1,14 @@
 # Host dependency inventory
 
+## Host staging path correction, 2026-10-04
+
+Python still parses host-to-guest stage entries and writes their FAT files. It
+now preserves Windows drive-qualified sources instead of treating their drive
+colon as the guest separator. Both image and standalone staging keep their
+existing filesystem and publication responsibilities. This adds no toolchain
+dependency or ownership transfer: the supported graph retains 447 CupidBuild
+and five Python actions. Native ABI recipe and seed installation are pending.
+
 ## Toolchain publication seed facts, 2026-10-04
 
 Hosted publication still uses Python for capture, process launch, independent

@@ -43359,3 +43359,100 @@ runtime receipts are manifest-context-acceptance-windows.json and
 manifest-context-runtime-verification-windows.json in the ignored build proof
 directory. Neither this source acceptance nor the paired producer verdicts
 install new seeds or transfer the ABI recipe.
+
+## Windows staging paths and private Doom frame boundary, 2026-10-04
+
+The first private IWAD setup rejects an absolute Windows source because the
+stage parser splits its drive colon. The relative-path retry stages the pinned
+28,795,076-byte IWAD and preserves the accepted source image. A debugger probe
+then verifies DG_DrawFrame's linked entry bytes in guest memory. Its intended
+gate requires gameplay state, positive game tics and renderer frame count, a
+non-null screen buffer, the actual call's stack return address and draw return,
+then a colored viewport. The first guest helper rejects QEMU's undeclared XML
+namespace before typing Doom; a separate corrected helper reaches the gate.
+
+That executed frame retry returns one after 247.374 seconds, including startup.
+The explicit 180-second frame window sees no draw-entry breakpoint or DG_Init.
+Its last logged HomeFS rewrite is 1,295,697 bytes across 317 clusters, with
+allocation observed through index 200. No panic occurs. These observations
+locate a progress boundary; they do not diagnose the timeout or prove a frame.
+The existing 1,200-second timedemo and all gameplay acceptance remain open.
+
+The minimal staging regression is C:/a:/b. Before the fix, the one-millisecond
+test receives source C instead of C:/a. The parser now retains a leading ASCII
+drive colon when a second separator follows. Both CLI entries use the same
+parser; one-separator legacy syntax remains. Seven new positive and negative
+methods cover Windows source spellings, UNC, Unicode, spaces, relative/POSIX
+sources, malformed syntax and relative guest destinations. An initial CLI
+test used a nonexistent parser factory; the corrected test calls main and
+checks the arguments delivered to the image and stage backends.
+
+Both complete host-build selections pass all 97 methods, in 15.012 seconds
+on Windows and 20.949 seconds on Linux. The original absolute-path IWAD request
+then passes against a fresh private image in 17.079 seconds. Its entire staged
+image matches the previously accepted relative-path result, SHA-256
+da0e46d6d6ce446728699de7f1e8e85c47768d5a52ff9f0e4fb0bf19c05384cd.
+Source image, pinned IWAD and parser bytes remain unchanged through that replay.
+Evidence is retained outside active include roots in
+cupid-doom-frame-return-probe-20261004; FREEDOOM-RUNTIME.md names the receipts.
+
+All four default/long new-parent consumption qualifications now pass their
+independent source, artifact and behavior rereads. Together the profiles
+retain 483 artifacts and 161 final-stage comparisons. The ordinary Windows
+Toolchain publication then fails in stage three at the unchanged 360-second
+frontend deadline; its actual Make result is two. A Linux user setup starts
+the old Python ABI recipe's full bootstrap and is deliberately interrupted
+after 117.748 seconds to serialize large jobs. Its actual Make result is -15,
+and the scoped interruption record identifies only its own descendants.
+Neither failure is overwritten or relabeled as acceptance.
+
+A fresh serial controller retries ordinary publication and independent
+verification on both hosts, then queues fresh paired OS builds and the
+remaining old-recipe Linux user check. Sources and frontend limits stay fixed.
+Installed seed bytes and ownership remain 447 CupidBuild and five Python
+actions. The native ABI recipe handoff remains a separate proposed change.
+
+The final regression set adds a real Unicode source through the standalone
+stage CLI. An independent raw FAT directory/cluster reader verifies the
+payload. Relative guest syntax is rejected before writing, leaving the
+source and image unchanged. Both full host-build selections now pass all 98
+methods: 17.608 seconds on Windows and 25.589 seconds on Linux. Their new
+records preserve the earlier 97-method evidence.
+
+The first CTXT draft uses an incorrect tree-closing directive. Its initial
+Make returns zero, but that result is separate from final manual acceptance.
+The corrected endtree manual is rebuilt before measuring the final artifacts.
+The first audit helper omits the user and Toolchain supplemental roots and
+returns two before runtime. Its failed command remains retained. A separate
+continuation rechecks the already successful kernel, policy and image steps,
+then invokes the complete three-root audit and private runtime gate.
+
+The ordinary publication retry passes the frontend step and fails later,
+after 2,023 seconds, when the checked CupidObj runner rejects fixed-point
+provenance. Its actual Make result is two. This is a different boundary from
+the first timeout; both records remain intact. No normal OS or deferred Linux
+user build starts. The SDK's release propagation at that runner boundary still
+needs a minimized reproduction and review.
+
+Final staging-checkpoint acceptance passes. The corrected 154,880-byte manual
+has SHA-256 2e2c72068f7ab2467d92f079682504f352b944ca71855c2e48645fbc8e8e3cc2
+and appears exactly once in the raw, final ELF and pass-one ELF kernels. The
+incremental final Make returns zero in 696.084 seconds with host C/assembly/link
+commands forbidden. It reuses the prior full C/assembly build. Only the wrapped
+manual object changes among all 429 recorded objects; all 82 qualified compiler
+inputs and the older installed seed files retain their bytes.
+
+The exact-size gate initially rejects the stale raw row. Only that measured
+row changes, from 9,587,136 to 9,587,668 bytes. The final and pass-one ELF sizes
+remain 9,814,460 and 9,683,388 bytes. Make all then passes all sixteen artifact
+checks and publishes the image in 9.468 seconds. Its entire FAT partition
+matches the pre-checkpoint image. The new 209,715,200-byte image has SHA-256
+05e32de458bb9982095d148a270bc0733e2faf389c3e01ff5c64eb8223bc14d9.
+
+The complete three-root audit passes in 100.412 seconds without generated-file
+changes. The private four-CPU max/e1000 boot completes ls and passes the strict
+SMP validator in 56.842 seconds. Every measured artifact, manual, release and
+base image remains unchanged afterward. The acceptance receipt is
+stage-parser-checkpoint-retry-1-acceptance-windows.json in the external private
+diagnostic directory. This source checkpoint keeps 447 CupidBuild and five
+Python actions; it does not install the proposed pair or complete Doom runtime.

@@ -14,6 +14,17 @@ Verified against source on: 2026-09-27
 >rule
 >sprite /docs/image.bmp 64 64 | open:11CTXT.CTXT
 
+>h2 Host file staging
+>tree open Host file staging
+The host image and stage commands use SRC:/guest/path entries. A Windows
+drive colon stays in SRC when the guest separator follows:
+C:/Cupid assets/freedoom1.wad:/wads/freedoom1.wad
+Backslash, drive-relative and UNC host sources are also accepted. Relative
+and POSIX host sources keep their existing syntax. The guest destination
+must start with /. Staging remains a host operation; it does not prove that
+Doom renders a frame or that a new seed release is installed.
+>endtree
+
 >h2 Source and seed checkpoint
 >tree open Source and seed checkpoint
 Both checked six-tool seed cohorts bind source

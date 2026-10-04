@@ -1,5 +1,19 @@
 # cupid-os
 
+## Windows file staging, 2026-10-04
+
+Host image and standalone staging accept absolute Windows sources such as
+`C:/Cupid assets/freedoom1.wad:/wads/freedoom1.wad`. The parser keeps the drive
+colon in the host source. Relative and POSIX sources retain their existing
+syntax, and guest destinations still require a leading slash. Both host-build
+suites pass 98 methods. A fresh private absolute-path IWAD replay produces
+exactly the accepted relative-path image bytes. See
+[the retained runtime limits](docs/bootstrap/FREEDOOM-RUNTIME.md).
+
+The corrected embedded manual and image pass all sixteen artifact checks,
+the complete source audit and a private four-CPU `max`/e1000 boot that completes
+`ls`. This incremental acceptance reuses the earlier complete C/assembly build.
+
 ## Authorized Linux behavior plans, 2026-10-04
 
 Release-qualified Linux fixtures now carry the captured candidate plan and its

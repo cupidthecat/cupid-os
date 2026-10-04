@@ -1,5 +1,32 @@
 # Cupid Toolchain bootstrap
 
+## Windows staging parser, 2026-10-04
+
+The host staging parser preserves a Windows drive colon before the guest-path
+separator. The original minimal `C:/a:/b` test returns source `C`; the corrected
+parser returns `C:/a` and destination `/b`. Eight new positive and negative
+methods cover both CLI entries, drive-relative and UNC sources, Unicode,
+existing relative/POSIX paths and destination rejection. All 98 host-build
+methods pass on each host. A real Unicode source reaches FAT staging; an
+independent directory/cluster reader verifies its payload, and a relative guest
+destination is rejected before any image write. Absolute-path IWAD staging into a fresh private image
+matches the previous relative-path image exactly.
+
+The corrected 154,880-byte manual is present in all three kernel outputs.
+Incremental build and image publication pass with host C/assembly/link commands
+forbidden. Only its wrapped manual object changes among 429 objects; the raw
+kernel's measured size is 9,587,668 bytes, and only that exact policy row changes.
+All sixteen artifact checks, the complete source audit and a strict private
+four-CPU `max`/e1000 boot with completed `ls` pass. Existing FAT contents and
+the measured source image remain unchanged through their respective checks.
+
+The separate Doom frame-return probe times out before `DG_Init` or a draw-frame
+breakpoint. No rendered frame is proven; full runtime acceptance stays open.
+All four native default/long consumption qualifications now pass independent
+verification. Ordinary publication has a retained frontend timeout and a later
+checked-runner provenance failure; seed installation and ABI recipe ownership
+remain pending.
+
 ## Captured seed facts for Toolchain publication, 2026-10-04
 
 Production adapters send CUPMAN5 author and CUPMAN6 verification requests after

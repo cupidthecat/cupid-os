@@ -183,9 +183,15 @@ def _ceil_div(a: int, b: int) -> int:
 
 
 def _parse_stage(value: str) -> StageFile:
-    if ":" not in value:
+    separator = value.find(":")
+    if separator == 1 and value[0] in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ":
+        # A Windows drive colon belongs to SRC when another separator follows.
+        drive_separator = value.find(":", 2)
+        if drive_separator != -1:
+            separator = drive_separator
+    if separator == -1:
         raise argparse.ArgumentTypeError("stage entries must be SRC:/guest/path")
-    src, dest = value.split(":", 1)
+    src, dest = value[:separator], value[separator + 1:]
     if not dest.startswith("/"):
         raise argparse.ArgumentTypeError("stage destination must start with /")
     return StageFile(Path(src), dest)
