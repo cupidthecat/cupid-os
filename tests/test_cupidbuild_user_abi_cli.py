@@ -95,6 +95,35 @@ class CupidBuiltUserAbiCommandTests(unittest.TestCase):
         self.assertEqual(result.stderr, "")
         self.assertEqual(json.loads(result.stdout), oracle.check_syscall_abi(self.root))
 
+    def test_checked_artifact_command_accepts_82_inputs_and_release_supplied_parents(self):
+        from tests.artifact_release_fixtures import install_future_fixture
+        shutil.copytree(ROOT / "bootstrap/seeds", self.root / "bootstrap/seeds")
+        policy = json.loads((ROOT / "bootstrap/artifact-size-policy.json").read_bytes())
+        (self.root / "bootstrap/artifact-size-policy.json").write_text(json.dumps(policy))
+        for row in policy["artifacts"]:
+            path = self.root / row["path"]
+            if not path.exists():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with path.open("wb") as stream:
+                    stream.truncate(row["exact_bytes"])
+        install_future_fixture(self.root, new_parent=True)
+        arguments = ("verify-artifact-sizes", "--root", str(self.root),
+                     "--policy", "bootstrap/artifact-size-policy.json",
+                     "--seed-manifest", "bootstrap/seeds/i386-linux/manifest.json")
+        result = self.run_command(*arguments)
+        self.assertEqual((result.returncode, result.stderr), (0, ""))
+        self.assertEqual(result.stdout, "Cupid artifact sizes: ok (16 exact artifacts)\n")
+        release = self.root / "bootstrap/seeds/release.json"
+        original = release.read_bytes()
+        document = json.loads(original)
+        document["parent_windows_manifest_sha256"] = "a" * 64
+        release.write_text(json.dumps(document))
+        result = self.run_command(*arguments)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        release.write_bytes(original)
+        self.assertEqual(self.run_command(*arguments).returncode, 0)
+
     def test_checked_command_passes_the_complete_staged_behavior_gate(self):
         stage = bootstrap.Stage({}, {"cupidbuild": self.program})
         behavior = self.root / "behavior"

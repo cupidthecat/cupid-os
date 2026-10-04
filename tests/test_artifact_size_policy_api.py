@@ -1,15 +1,59 @@
 import concurrent.futures
+import copy
 import ctypes
 import os
 from pathlib import Path
 import subprocess
+import struct
 import tempfile
 import unittest
 
-from tests.test_artifact_size_policy_contract import _host_compiler, _request
+from tests.test_artifact_size_policy_contract import (
+    _host_compiler, _request, _manifest, _windows_manifest, _policy,
+    _observations, _windows_observations, _append_bytes, _json_bytes,
+    MANIFEST_PATH, WINDOWS_MANIFEST_PATH,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def observation_request(*, policy=None, manifest_path=MANIFEST_PATH,
+                        windows_manifest_path=WINDOWS_MANIFEST_PATH,
+                        linux_sizes=None, windows_identities=None,
+                        windows_observations=None, observations=None):
+    roles = ("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj", "cupidbuild")
+    linux = {row["name"]: row for row in _manifest()["artifacts"]}
+    windows_manifest = _windows_manifest("a" * 64)
+    windows = {row["name"]: row for row in windows_manifest["artifacts"]}
+    if policy is None:
+        policy = _policy(manifest_path)
+    if linux_sizes is None:
+        linux_sizes = [linux[role]["size"] for role in roles]
+    if windows_identities is None:
+        windows_identities = [(windows[role]["size"], windows[role]["sha256"]) for role in roles]
+    if windows_observations is None:
+        windows_observations = _windows_observations(windows_manifest)
+    if observations is None:
+        observations = _observations(policy)
+    payload = bytearray(b"CUPSIZE3")
+    for value in (_json_bytes(policy), manifest_path.encode(), windows_manifest_path.encode()):
+        _append_bytes(payload, value)
+    for size in linux_sizes:
+        payload.extend(struct.pack("<Q", size))
+    for size, digest in windows_identities:
+        payload.extend(struct.pack("<Q", size))
+        _append_bytes(payload, digest.encode())
+    payload.extend(struct.pack("<I", len(windows_observations)))
+    for path, kind, size, digest in windows_observations:
+        _append_bytes(payload, path.encode())
+        payload.extend(struct.pack("<IQ", kind, size))
+        _append_bytes(payload, digest.encode())
+    payload.extend(struct.pack("<I", len(observations)))
+    for path, kind, size in observations:
+        _append_bytes(payload, path.encode())
+        payload.extend(struct.pack("<IQ", kind, size))
+    return bytes(payload)
 
 
 class PolicyResult(ctypes.Structure):
@@ -33,6 +77,12 @@ class ArtifactSizePolicyApiTests(unittest.TestCase):
             "                artifact_size_policy_result_t *result,\n"
             "                char *error, size_t capacity) {\n"
             "  return artifact_size_policy_validate(bytes, size, result, error, capacity);\n"
+            "}\n"
+            "#if defined(_WIN32)\n__declspec(dllexport)\n#endif\n"
+            "int policy_observations_test(const unsigned char *bytes, size_t size,\n"
+            "                artifact_size_policy_result_t *result,\n"
+            "                char *error, size_t capacity) {\n"
+            "  return artifact_size_policy_validate_observations(bytes, size, result, error, capacity);\n"
             "}\n",
             encoding="utf-8",
         )
@@ -58,6 +108,9 @@ class ArtifactSizePolicyApiTests(unittest.TestCase):
             ctypes.c_void_p, ctypes.c_size_t,
         ]
         cls.api.restype = ctypes.c_int
+        cls.observation_api = cls.library.policy_observations_test
+        cls.observation_api.argtypes = cls.api.argtypes
+        cls.observation_api.restype = ctypes.c_int
 
     @classmethod
     def unload_library(cls):
@@ -65,15 +118,93 @@ class ArtifactSizePolicyApiTests(unittest.TestCase):
         _ctypes.FreeLibrary(cls.library._handle)
         cls.library._handle = 0
 
-    def call(self, payload, capacity=512):
+    def call(self, payload, capacity=512, *, captured=False):
         request = ctypes.create_string_buffer(payload)
         before = bytes(request)
         result = PolicyResult(99, 99)
         error = ctypes.create_string_buffer(b"!" * (capacity + 8))
-        status = self.api(request, len(payload), ctypes.byref(result), error, capacity)
+        api = self.observation_api if captured else self.api
+        status = api(request, len(payload), ctypes.byref(result), error, capacity)
         self.assertEqual(bytes(request), before)
         self.assertEqual(bytes(error)[capacity:], b"!" * 8 + b"\0")
         return status, result, error
+
+    def test_captured_policy_has_the_same_decision_and_a_separate_request_boundary(self):
+        payload = observation_request()
+        status, result, error = self.call(payload, captured=True)
+        self.assertEqual((status, result.artifact_count, result.total_exact_bytes), (1, 16, 1042))
+        self.assertEqual(error.value, b"")
+        for wrong, captured, magic in ((payload, False, b"CUPSIZE2"), (_request(), True, b"CUPSIZE3")):
+            status, result, error = self.call(wrong, captured=captured)
+            self.assertEqual((status, result.artifact_count, result.total_exact_bytes), (0, 0, 0))
+            self.assertEqual(error.value, b"request magic differs from " + magic)
+
+    def test_captured_policy_rejects_every_truncation_and_trailing_input(self):
+        payload = observation_request()
+        for end in range(len(payload)):
+            status, result, _ = self.call(payload[:end], captured=True)
+            self.assertEqual((status, result.artifact_count, result.total_exact_bytes), (0, 0, 0), end)
+        status, result, error = self.call(payload + b"x", captured=True)
+        self.assertEqual((status, result.artifact_count, result.total_exact_bytes), (0, 0, 0))
+        self.assertEqual(error.value, b"request has trailing input")
+
+    def test_captured_seed_facts_observations_and_policy_remain_strict(self):
+        roles = ("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj", "cupidbuild")
+        linux = {row["name"]: row["size"] for row in _manifest()["artifacts"]}
+        windows_manifest = _windows_manifest("a" * 64)
+        windows = {row["name"]: (row["size"], row["sha256"]) for row in windows_manifest["artifacts"]}
+        cases = [dict(manifest_path="../seed.json"), dict(windows_manifest_path="other/manifest.json")]
+        for index in range(6):
+            for size in (0, 0x100000000):
+                sizes = [linux[role] for role in roles]
+                sizes[index] = size
+                cases.append(dict(linux_sizes=sizes))
+                identities = [windows[role] for role in roles]
+                identities[index] = (size, identities[index][1])
+                cases.append(dict(windows_identities=identities))
+            for digest in ("", "A" * 64, "g" * 64, "0" * 63, "0" * 65, "0" * 64, "\0" * 64):
+                identities = [windows[role] for role in roles]
+                identities[index] = (identities[index][0], digest)
+                cases.append(dict(windows_identities=identities))
+        observations = _observations(_policy())
+        win_observations = _windows_observations(windows_manifest)
+        cases.extend([dict(observations=observations[:-1]),
+                      dict(observations=[observations[0], *observations[:-1]]),
+                      dict(windows_observations=win_observations[:-1]),
+                      dict(windows_observations=[win_observations[0], *win_observations[:-1]])])
+        for key, value in (("producer", "HostCompiler"), ("exact_bytes", 0), ("path", "other.bin")):
+            policy = copy.deepcopy(_policy())
+            policy["artifacts"][0][key] = value
+            cases.append(dict(policy=policy))
+        for case in cases:
+            with self.subTest(case=case):
+                status, result, _ = self.call(observation_request(**case), captured=True)
+                self.assertEqual((status, result.artifact_count, result.total_exact_bytes), (0, 0, 0))
+        self.assertEqual(self.call(observation_request(), captured=True)[0], 1)
+
+    def test_captured_diagnostics_concurrency_null_arguments_and_recovery(self):
+        payload = observation_request()
+        for capacity in (0, 1, 2, 8, 128):
+            status, result, error = self.call(payload + b"x", capacity, captured=True)
+            self.assertEqual((status, result.artifact_count, result.total_exact_bytes), (0, 0, 0))
+            if capacity:
+                self.assertEqual(error.value, b"request has trailing input"[:capacity - 1])
+            self.assertEqual(self.call(payload, capacity, captured=True)[0], 1)
+        request = ctypes.create_string_buffer(payload)
+        result = PolicyResult(99, 99)
+        self.assertEqual(self.observation_api(request, len(payload), ctypes.byref(result), None, 0), 1)
+        for data, size, output, error, capacity in (
+            (None, 1, ctypes.byref(result), None, 0),
+            (request, len(payload), None, None, 0),
+            (request, len(payload), ctypes.byref(result), None, 1),
+        ):
+            self.assertEqual(self.observation_api(data, size, output, error, capacity), 0)
+            self.assertEqual((result.artifact_count, result.total_exact_bytes), (0, 0))
+        def exercise(index):
+            status, facts, _ = self.call(payload + (b"x" if index % 2 else b""), captured=True)
+            return (status, facts.artifact_count, facts.total_exact_bytes) == ((0, 0, 0) if index % 2 else (1, 16, 1042))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+            self.assertTrue(all(pool.map(exercise, range(384))))
 
     def test_valid_request_returns_facts_and_clears_diagnostic(self):
         status, result, error = self.call(_request())

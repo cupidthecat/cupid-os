@@ -1,5 +1,25 @@
 # Explicit release context for seed consumption
 
+## Artifact policy compatibility, 2026-10-04
+
+The new 82-input ABI cohort exposes a second manifest parser in artifact policy
+that accepts at most 78 inputs. Source-head CupidBuild now validates the reviewed
+pair and all images through the shared release-aware reader, then sends captured
+facts to the separate CUPSIZE3 policy API. Its older CUPSIZE2 API remains strict.
+
+The committed 30598dd1 ABI preparation and qualification sources remain frozen.
+Their receipts do not qualify this policy change. New committed producer proofs
+must capture the changed policy and native adapter bytes before seed installation.
+The ABI Make candidate remains separate until that release passes consumption
+and normal OS/user acceptance. See [ADR 0415](../adr/0415-validate-artifact-policy-from-reviewed-seed-observations.md).
+
+The source checkpoint's Windows kernel and private four-CPU boot pass. All
+sixteen artifact checks pass with only the measured raw-kernel row changed to
+9,586,032 bytes. The source tests and image publication do not qualify a new
+seed release; fresh committed paired producer and consumption proofs remain
+required.
+
+
 ## Native ABI release work, 2026-10-04
 
 Toolchain head includes the shared ABI validator and native command from

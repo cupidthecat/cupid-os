@@ -1,5 +1,25 @@
 # cupid-os
 
+## Artifact policy from captured seed facts, 2026-10-04
+
+Source-head CupidBuild uses the shared release-aware seed readers before giving
+captured sizes and digests to the artifact policy module. This admits the reviewed
+82-input ABI profile and new release-supplied parents without adding parent hashes
+to C source. The new CUPSIZE3 policy API preserves the complete size, owner,
+observation and recovery rules. The original CUPSIZE2 API keeps its historical
+manifest checks. See [the interface](docs/bootstrap/ARTIFACT-OBSERVATIONS.md).
+
+The source checkpoint passes both host test selections, a fresh Windows kernel
+build, all sixteen artifact checks and a strict private four-CPU boot with a
+completed `ls` command. The measured raw kernel is 9,586,032 bytes. Image
+publication consumes that freshly built kernel; paired seed acceptance remains
+separate.
+
+Installed seeds and production ownership remain unchanged: 447 CupidBuild and
+five Python actions across 452 transforms. Fresh committed producer proofs,
+release consumption, installation and the ABI recipe handoff remain required.
+
+
 ## Native ABI bootstrap behavior gates, 2026-10-04
 
 Both complete bootstrap matrices require `verify-user-abi --root ROOT` in

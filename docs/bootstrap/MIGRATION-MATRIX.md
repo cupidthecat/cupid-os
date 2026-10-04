@@ -1,5 +1,16 @@
 # Toolchain ownership migration matrix
 
+## Artifact observation source checkpoint, 2026-10-04
+
+CupidBuild constructs CUPSIZE3 policy requests from release-validated paired
+manifests and actual image bytes. The older CUPSIZE2 API remains available for
+historical contracts. This source capability removes the duplicated 78-input
+policy ceiling without changing installed tools or production recipes.
+Ownership remains 447 CupidBuild actions and five Python actions. The pending
+ABI Make handoff would move one shared action, producing 448 and four across
+the same 452-transform supported graph. See [the interface](ARTIFACT-OBSERVATIONS.md).
+
+
 ## Native ABI bootstrap behavior gates, 2026-10-04
 
 Both complete bootstrap matrices require `verify-user-abi --root ROOT` in

@@ -38,6 +38,12 @@ _Avoid_: manifest authenticity, executable validation, seed promotion
 Captured inputs used to check a staged Cupid tool's runtime contract separately from the compiler producer snapshot. Its retained record describes original inputs and deliberate test cases; it does not establish seed promotion.
 _Avoid_: compiler build input, promoted seed evidence
 
+**Artifact policy observation request**:
+An immutable description of a policy and captured artifact facts, used to decide
+exact sizes and ownership after the caller has validated its selected seed
+release and images. It does not establish release authority or file lifetime.
+_Avoid_: authenticated release, file capture, seed promotion
+
 **Source-resolved raw control edge**:
 A bounded record that binds a raw call or jump at one source instruction offset
 to the address CupidASM resolved before encoding. Local rows also retain the

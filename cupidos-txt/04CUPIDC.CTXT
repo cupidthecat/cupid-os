@@ -2625,6 +2625,25 @@ Python-coordinated ABI gate. Across 452 audited transforms, CupidBuild owns
 handoff remain separate work.
 >endtree
 
+>h2 Artifact policy observations at toolchain head
+>tree
+Source-head CupidBuild validates the reviewed release, both supported seed
+manifests and all twelve ELF32/PE32 images before checking artifact policy.
+Release-aware readers accept the complete parent tuple supplied by that record.
+They keep target, plan, provenance and image checks; the record does not
+authenticate itself.
+
+The policy module receives captured sizes and digests through CUPSIZE3. It
+checks all sixteen artifact paths, owners and exact sizes plus six Windows
+image observations. It reads no files. CupidBuild retains and rechecks source,
+image and directory observations, then closes them before reporting success.
+
+The original CUPSIZE2 API keeps its historical manifest checks. The new
+observation API clears results on failure, bounds diagnostics and retains no
+input pointers or mutable global state. The checked seeds still use the earlier
+implementation; paired release qualification and installation remain separate.
+>endtree
+
 >h2 See Also
 [03CUPIDSC.CTXT - CupidScript](open:03CUPIDSC.CTXT)
 [12HOLYC-CUPIDC.CTXT - HolyC comparison](open:12HOLYC-CUPIDC.CTXT)

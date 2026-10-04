@@ -1,5 +1,15 @@
 # Host dependency inventory
 
+## Artifact policy source capability, 2026-10-04
+
+Source-head native artifact verification uses the shared release-aware seed
+reader and a separate CUPSIZE3 policy-observation API. The policy-only hosted
+contract keeps its existing dependency closure and CUPSIZE2 behavior. Installed
+seeds and the five Python actions remain unchanged. Paired qualification and
+the ABI handoff are still required; the four actions afterward are disk/ISO
+publication and hosted contract publication/verification.
+
+
 ## Native ABI qualification boundary, 2026-10-04
 
 The supported graph has 452 transforms: 447 owned by CupidBuild and five

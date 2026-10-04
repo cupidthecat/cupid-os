@@ -43007,3 +43007,151 @@ Fresh paired seed preparation remains in progress, and the Make candidate is
 not installed or committed. The earlier source capture and its documents
 retain their original bytes. Issue 34 and the wiki receive the corrected
 accounting.
+
+## 2026-10-04: separate artifact policy from seed provenance parsing
+
+The 82-input ABI cohort exposed an older manifest parser in artifact policy.
+Its CUPSIZE2 source-count and parent rules stop at the 78-input installed
+cohort, although CupidBuild already validates the reviewed release, paired
+manifests and all twelve actual images through the shared readers.
+
+Add a separate CUPSIZE3 observation API. Its fixed role order contains six
+Linux sizes and six Windows size/digest pairs, followed by six Windows image
+observations and sixteen artifact observations. The caller must establish
+release authority, supported manifest semantics, image contents and stable
+file observations. The policy module checks the envelope, complete paths and
+owners, seed sizes, Windows digests, exact artifact sizes and failure markers.
+It does not read files or authenticate captured facts. The original CUPSIZE2
+API retains its historical manifest rules and rejects CUPSIZE3 requests.
+
+CupidBuild constructs these facts only after complete release-aware pair,
+manifest and image validation. Alternate Linux execution cohorts use the same
+release-aware reader. Existing input, directory and close checks remain in
+place, and the command interface and success line stay unchanged. No new
+parent hashes or source-count allowances are added to the C readers. This
+keeps the hosted policy-only contract independent of the checked runner's
+filesystem, hash and process implementation. ADR 0415 and the observation
+interface document the boundary.
+
+The API selection has twelve methods, including four new methods. It checks
+all request truncations, both entry-point magic boundaries, invalid sizes and
+digests, policy and observation failures, bounded diagnostics, unchanged
+inputs, concurrent calls and recovery. All twelve pass on Windows and Linux.
+The 57 legacy policy methods also pass on both hosts. Windows passes the full
+29-method API/native-command selection in 64.093 seconds. Its freshly
+Cupid-built dispatcher passes ten methods in 225.028 seconds, with the one
+named POSIX skip. Those checks include an 82-input fixture with new explicit
+parents, rejection and recovery. The fixture uses real installed image bytes
+with synthetic reviewed claims; it is not a producer or promotion proof.
+
+Linux runs the seventeen native-command and ten freshly Cupid-built command
+methods together. The first run fails one allocation method because a fixture
+refactor removed its still-used hashlib import. The other 26 methods pass.
+Restoring that import makes the isolated allocation method pass in 36.438
+seconds. The strengthened matching-release semantic rejection method also
+passes in 25.802 seconds. It rejects an unsupported count and native plan even
+when the supplied release matches those claims. The closed failed log remains
+unchanged; the retry logs record separate successful runs.
+
+The first strict Clang policy build rejects a request-magic array used only
+for sizeof. Comparing against that actual array restores the strict build.
+Two initial log redirects target a missing build directory and execute no
+checks; creating the directory precedes the recorded reruns. A documentation
+helper stops after finding two existing glossary definitions where it expected
+one. The subsequent edit adds the new glossary term once and preserves both
+existing definitions. The first source audit omits supplemental roots and
+rejects the missing three USER_I386 roots. The corrected complete-root audit
+passes with 770 active sources, 43 unreachable source-like files, 255 features
+and 452 transforms; all contracts pass.
+
+The frozen 30598dd1 ABI preparations independently retain 243 stage artifacts
+and 81 final-stage pairs. Their original caller release remains unchanged.
+Complete native Windows qualification reaches behavior after all 45 final-stage
+artifacts. The first Linux qualification closes with a stage-four frontend
+compile timeout at the unchanged 360-second limit while the independent OS
+build competes for resources. Its failure log is retained, and no full report
+was written. A fresh retry remains required after the competing build finishes.
+These earlier frozen sources do not qualify the changed artifact-policy bytes.
+
+The isolated ABI Make candidate is also tested against explicitly selected
+prepared tool copies. Its default installed seeds remain untouched, and that
+probe cannot establish complete release qualification or installation. The
+normal graph still has 447 CupidBuild actions and five Python actions across
+452 transforms. The pending ABI handoff moves one shared action, leaving 448
+CupidBuild and four Python actions. Disk/ISO and hosted contract publication
+and verification remain in scope. TempleOS remains read-only reference material.
+
+The embedded manual now describes the observation interface at source head.
+Fresh normal Windows kernel and image acceptance is in progress with host
+code-producing tools forbidden. Only measured kernel-size policy rows may
+change after that build. Paired committed producer/consumption proofs and seed
+installation remain separate requirements.
+
+## 2026-10-04: paired explicit ABI Make preview
+
+The isolated Make candidate passes an explicit prepared-cohort replay on native
+Windows and Linux with Python and all host code-producing launchers poisoned.
+Both hosts run the complete native ABI report, three CupidBuild compilations
+and three CupidBuild links. A forced version-4 ABI declaration makes Make exit
+2 with the expected diagnostic before any compile or link command. All six
+prior objects/executables retain their bytes and timestamps. Restoring version
+5 and forcing the graph again succeeds without replacing equal outputs.
+
+Independent paired verification rereads all fifteen selected seed/release
+files, both complete ABI reports, six source identities, Make bytes, commands,
+statuses and output hashes. All six objects/executables match each other and
+the earlier accepted b93 checkpoint. The first baseline lookup used the active
+branch worktree, which has no retained user executables; the comparison stops
+without an equivalence claim. The accepted block-assert checkpoint retains all
+six outputs and supplies the actual subsequent byte comparison.
+
+Evidence is retained under the isolated adoption worktree's
+`toolchain/build/abi-adoption-20261004/`: `make-preview-inputs.json`,
+`make-preview-windows.json`, `make-preview-linux.json` and
+`make-preview-paired-verification.json`, plus every closed command stream.
+The selected seed copies come from the independently checked 30598dd1
+preparations and the unchanged caller release. They are private, uninstalled
+probe inputs; neither this replay nor materializing their manifests qualifies
+complete bootstrap behavior or promotes a release. Default installed seeds
+and the public Make recipe remain unchanged until paired release acceptance.
+
+## 2026-10-04: artifact-policy source acceptance
+
+The fresh Windows kernel, boot binary and ISO build closes successfully with
+host C, C++, preprocessor, assembler and linker launchers forbidden. The
+153,245-byte manual is present in all three kernel outputs. Its added 1,008
+bytes produce a 9,586,032-byte raw kernel. The final ELF remains 9,814,460
+bytes and pass one remains 9,683,388 bytes. Their hashes change, and the
+measured identities are retained separately from historical policy rows.
+
+An ordinary serial `make verify-artifact-sizes` starts another forced kernel
+replay. That redundant replay is stopped and its closed interrupted log is
+preserved; it does not establish artifact verification. The direct installed
+verifier then exits 1 for exactly the stale raw-kernel size. Changing only
+that measured row makes all sixteen artifacts pass. All twelve seed-size
+rows, both ELF rows and the boot row retain their prior values.
+
+Make image publication passes with the same forbidden host launchers and four
+explicit old-target options for `kernel/kernel.bin`, `kernel/kernel.elf`,
+`kernel/kernel.elf.pass1` and `boot/boot.bin`. It consumes the successful fresh
+kernel/boot build, runs the ordinary artifact gate and publishes the 200 MiB
+image. This is image acceptance from those measured outputs, not a second
+complete forced kernel replay. The image SHA-256 is
+`dec2be9337779ab7187a24caba76b12465c01a4616a61f92031596a6019d8001`.
+
+The strict private four-CPU max/e1000 boot and completed `ls` command pass.
+Independent revalidation of the retained serial log passes the SMP contract.
+All sixteen artifact bytes, the selected policy and release, manual and base
+image remain unchanged after the boot. The receipt is
+`toolchain/build/source-policy-acceptance-windows.json`; runtime rechecks are
+in `source-policy-runtime-verification-windows.json` beside the closed logs.
+
+The complete-root canonical audit check also passes. The source graph remains
+770 active sources, 43 unreachable source-like files, 255 features and 452
+transforms, with 447 CupidBuild actions and five Python actions. The Linux
+qualification retry starts from the unchanged 30598dd1 capture, release and
+preparations at the unchanged timeout, using a fresh output directory. The
+Windows qualification closes successfully with 60 success, 54 failure and
+seven help cases; Linux remains in progress. Neither their earlier source
+capture nor this source acceptance qualifies the changed artifact-policy seed.
+Fresh committed producer/consumption proofs and installation remain required.

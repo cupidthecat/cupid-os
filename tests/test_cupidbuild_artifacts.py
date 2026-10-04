@@ -1,5 +1,7 @@
 """Public native artifact-verifier behavior, compared with the Python oracle."""
 import ctypes
+import copy
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -90,6 +92,83 @@ class CupidBuildArtifactTests(unittest.TestCase):
             ("bootstrap/seeds/i386-windows/manifest.json" if os.name == "nt"
              else self.manifest.as_posix()))
 
+    def install_future_fixture(self, *, new_parent=False):
+        from tests.artifact_release_fixtures import install_future_fixture
+        return install_future_fixture(self.root, new_parent=new_parent)
+
+    def test_future_82_input_cohort_and_explicit_new_parents_pass_without_old_parser_limits(self):
+        for new_parent in (False, True):
+            self.install_future_fixture(new_parent=new_parent)
+            for selected in (False, True):
+                result = self.selected_cli() if selected else self.run_cli()
+                self.assertEqual((result.returncode, result.stderr), (0, b""))
+                self.assertEqual(result.stdout.replace(b"\r\n", b"\n"),
+                                 b"Cupid artifact sizes: ok (16 exact artifacts)\n")
+            if os.name != "nt":
+                shutil.copytree(self.root / "bootstrap/seeds/i386-linux", self.root / "future-execution",
+                                dirs_exist_ok=True)
+                result = self.selected_cli(execution="future-execution/manifest.json")
+                self.assertEqual((result.returncode, result.stderr), (0, b""))
+
+    def test_future_cohort_still_requires_complete_release_plans_targets_and_actual_images(self):
+        from tests.test_seed_release import encode
+        record, linux, windows = self.install_future_fixture(new_parent=True)
+        sources = (("bootstrap/seeds/release.json", record),
+                   (self.manifest.as_posix(), linux),
+                   ("bootstrap/seeds/i386-windows/manifest.json", windows))
+        originals = {name: (self.root / name).read_bytes() for name, _ in sources}
+        cases = []
+        for key in ("source_input_count", "parent_source_revision", "parent_linux_manifest_sha256",
+                    "parent_windows_manifest_sha256", "linux_plan_sha256", "windows_plan_sha256"):
+            altered = copy.deepcopy(record)
+            value = altered[key]
+            altered[key] = value + 1 if isinstance(value, int) else "a" * len(value)
+            cases.append((sources[0][0], encode(altered)))
+        for name, document in sources[1:]:
+            for section, field in (("target", "entry"), ("provenance", "source_input_count")):
+                altered = copy.deepcopy(document)
+                altered[section][field] += 1
+                cases.append((name, encode(altered)))
+            altered = copy.deepcopy(document)
+            altered["artifacts"][0]["sha256"] = "0" * 64
+            cases.append((name, encode(altered)))
+        for name, payload in cases:
+            with self.subTest(input=name):
+                (self.root / name).write_bytes(payload)
+                result = self.selected_cli()
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, b"")
+                (self.root / name).write_bytes(originals[name])
+                self.assertEqual(self.selected_cli().returncode, 0)
+        # Matching release claims must still satisfy a supported semantic plan.
+        for count, native_plan in ((83, record["windows_plan_sha256"]),
+                                   (82, "a" * 64)):
+            changed_record = copy.deepcopy(record)
+            changed_linux = copy.deepcopy(linux)
+            changed_windows = copy.deepcopy(windows)
+            changed_record.update(source_input_count=count, windows_plan_sha256=native_plan)
+            changed_linux["provenance"]["source_input_count"] = count
+            changed_windows["provenance"].update(source_input_count=count,
+                                                native_build_plan_sha256=native_plan)
+            linux_bytes = encode(changed_linux)
+            changed_windows["provenance"]["plan_seed_manifest_sha256"] = hashlib.sha256(linux_bytes).hexdigest()
+            for name, payload in zip(originals, (encode(changed_record), linux_bytes, encode(changed_windows))):
+                (self.root / name).write_bytes(payload)
+            result = self.selected_cli()
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, b"")
+            for name, payload in originals.items():
+                (self.root / name).write_bytes(payload)
+            self.assertEqual(self.selected_cli().returncode, 0)
+        image = self.root / "bootstrap/seeds/i386-linux/cupidc.elf"
+        payload = image.read_bytes()
+        image.write_bytes(payload[:-1] + bytes([payload[-1] ^ 1]))
+        result = self.selected_cli()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, b"")
+        image.write_bytes(payload)
+        self.assertEqual(self.selected_cli().returncode, 0)
+
     def test_selected_execution_accepts_current_cohort(self):
         result = self.selected_cli()
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -152,7 +231,6 @@ class CupidBuildArtifactTests(unittest.TestCase):
         self.assertEqual(built.returncode, 0, built.stderr.decode(errors="replace"))
 
         def inventory():
-            import hashlib
             return {path.relative_to(self.root).as_posix():
                     hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
                     for path in self.root.rglob("*")}

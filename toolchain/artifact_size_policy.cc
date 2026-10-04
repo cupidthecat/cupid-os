@@ -60,6 +60,8 @@ typedef struct {
 
 static const unsigned char request_magic[8] = {
     'C', 'U', 'P', 'S', 'I', 'Z', 'E', '2'};
+static const unsigned char observation_magic[8] = {
+    'C', 'U', 'P', 'S', 'I', 'Z', 'E', '3'};
 static const char policy_schema[] = "cupid.artifact-size-policy.v1";
 static const char seed_schema[] = "cupid.bootstrap-seed.v2";
 static const char windows_seed_schema[] = "cupid.execution-seed.v2";
@@ -1728,7 +1730,8 @@ static int validate_windows_observations(error_context_t *context,
   return 1;
 }
 
-static int validate_request(error_context_t *context, const byte_slice_t *request, uint64_t *total) {
+static int validate_request(error_context_t *context, const byte_slice_t *request,
+                             uint64_t *total, int captured) {
   binary_reader_t reader = {request->bytes, request->size, 0u};
   byte_slice_t policy_source;
   byte_slice_t manifest_path;
@@ -1749,81 +1752,107 @@ static int validate_request(error_context_t *context, const byte_slice_t *reques
   (void)memset(&manifest, 0, sizeof(manifest));
   (void)memset(&windows_manifest, 0, sizeof(windows_manifest));
   if (reader.size < sizeof(request_magic) ||
-      memcmp(reader.bytes, request_magic, sizeof(request_magic)) != 0) {
-    return cupid_contract_set_error(context, "request magic differs from CUPSIZE2");
+      memcmp(reader.bytes, captured ? observation_magic : request_magic, sizeof(request_magic)) != 0) {
+    return cupid_contract_set_error(context, captured
+        ? "request magic differs from CUPSIZE3" : "request magic differs from CUPSIZE2");
   }
   reader.position = sizeof(request_magic);
   if (!cupid_contract_binary_read_slice(context, &reader, &policy_source) ||
-      !cupid_contract_binary_read_slice(context, &reader, &manifest_path) ||
-      !cupid_contract_binary_read_slice(context, &reader, &manifest_source) ||
-      !cupid_contract_binary_read_slice(context, &reader, &manifest_digest) ||
-      !cupid_contract_binary_read_slice(context, &reader, &windows_manifest_path) ||
-      !cupid_contract_binary_read_slice(context, &reader, &windows_manifest_source) ||
-      !cupid_contract_binary_read_u32(context, &reader, &windows_observation_count)) {
+      !cupid_contract_binary_read_slice(context, &reader, &manifest_path)) {
     return 0;
   }
-  if (!cupid_contract_logical_path_valid(manifest_path.bytes, manifest_path.size)) {
-    return cupid_contract_set_error(context, "seed manifest logical path is unsafe");
+  if (!captured &&
+      (!cupid_contract_binary_read_slice(context, &reader, &manifest_source) ||
+       !cupid_contract_binary_read_slice(context, &reader, &manifest_digest))) return 0;
+  if (!cupid_contract_binary_read_slice(context, &reader, &windows_manifest_path)) return 0;
+  if (captured) {
+    for (index = 0u; index < SEED_ARTIFACT_COUNT; index++) {
+      if (!cupid_contract_binary_read_u64(context, &reader, &manifest.sizes[index]) ||
+          manifest.sizes[index] == 0u || manifest.sizes[index] > UINT32_MAX) {
+        return cupid_contract_set_error(context, "captured Linux seed size is invalid");
+      }
+    }
+    for (index = 0u; index < SEED_ARTIFACT_COUNT; index++) {
+      byte_slice_t digest;
+      if (!cupid_contract_binary_read_u64(context, &reader, &windows_manifest.sizes[index]) ||
+          windows_manifest.sizes[index] == 0u || windows_manifest.sizes[index] > UINT32_MAX ||
+          !cupid_contract_binary_read_slice(context, &reader, &digest) ||
+          !lower_hex_valid(digest.bytes, digest.size, 64u)) {
+        cupid_contract_set_error(context, "captured Windows seed identity is invalid");
+        goto done;
+      }
+      windows_manifest.digests[index].bytes = (unsigned char *)malloc(digest.size);
+      if (windows_manifest.digests[index].bytes == NULL) {
+        cupid_contract_set_error(context, "cannot allocate captured Windows seed digest");
+        goto done;
+      }
+      (void)memcpy(windows_manifest.digests[index].bytes, digest.bytes, digest.size);
+      windows_manifest.digests[index].size = digest.size;
+    }
+  } else if (!cupid_contract_binary_read_slice(context, &reader, &windows_manifest_source)) {
+    return 0;
   }
-  if (!lower_hex_valid(manifest_digest.bytes, manifest_digest.size, 64u)) {
-    return cupid_contract_set_error(context, "seed manifest digest observation is invalid");
+  if (!cupid_contract_binary_read_u32(context, &reader, &windows_observation_count)) goto done;
+  if (!cupid_contract_logical_path_valid(manifest_path.bytes, manifest_path.size)) {
+    cupid_contract_set_error(context, "seed manifest logical path is unsafe"); goto done;
+  }
+  if (!captured && !lower_hex_valid(manifest_digest.bytes, manifest_digest.size, 64u)) {
+    cupid_contract_set_error(context, "seed manifest digest observation is invalid"); goto done;
   }
   if (!cupid_contract_logical_path_valid(windows_manifest_path.bytes,
                           windows_manifest_path.size)) {
-    return cupid_contract_set_error(context, "Windows seed manifest logical path is unsafe");
+    cupid_contract_set_error(context, "Windows seed manifest logical path is unsafe"); goto done;
   }
   if (!slice_equals_literal(
           &windows_manifest_path,
           "bootstrap/seeds/i386-windows/manifest.json")) {
-    return cupid_contract_set_error(context, "Windows seed manifest logical path differs");
+    cupid_contract_set_error(context, "Windows seed manifest logical path differs"); goto done;
   }
   if (windows_observation_count != SEED_ARTIFACT_COUNT) {
-    return cupid_contract_set_error(context, "request does not contain six Windows seed observations");
+    cupid_contract_set_error(context, "request does not contain six Windows seed observations"); goto done;
   }
   for (index = 0u; index < SEED_ARTIFACT_COUNT; index++) {
     if (!cupid_contract_binary_read_slice(context, &reader, &windows_observations[index].path) ||
         !cupid_contract_binary_read_u32(context, &reader, &windows_observations[index].kind) ||
         !cupid_contract_binary_read_u64(context, &reader, &windows_observations[index].size) ||
         !cupid_contract_binary_read_slice(context, &reader, &windows_observations[index].digest)) {
-      return 0;
+      goto done;
     }
     if (!cupid_contract_logical_path_valid(windows_observations[index].path.bytes,
                             windows_observations[index].path.size)) {
-      return cupid_contract_set_error(context, "Windows seed observation path is unsafe");
+      cupid_contract_set_error(context, "Windows seed observation path is unsafe"); goto done;
     }
     if (!lower_hex_valid(windows_observations[index].digest.bytes,
                          windows_observations[index].digest.size, 64u)) {
-      return cupid_contract_set_error(context, "Windows seed observation digest is invalid");
+      cupid_contract_set_error(context, "Windows seed observation digest is invalid"); goto done;
     }
   }
   if (!cupid_contract_binary_read_u32(context, &reader, &observation_count)) {
-    return 0;
+    goto done;
   }
   if (observation_count != ARTIFACT_COUNT) {
-    return cupid_contract_set_error(context, "request does not contain sixteen artifact observations");
+    cupid_contract_set_error(context, "request does not contain sixteen artifact observations"); goto done;
   }
   for (index = 0u; index < ARTIFACT_COUNT; index++) {
     if (!cupid_contract_binary_read_slice(context, &reader, &observations[index].path) ||
         !cupid_contract_binary_read_u32(context, &reader, &observations[index].kind) ||
         !cupid_contract_binary_read_u64(context, &reader, &observations[index].size)) {
-      return 0;
+      goto done;
     }
     if (!cupid_contract_logical_path_valid(observations[index].path.bytes,
                             observations[index].path.size)) {
-      return cupid_contract_set_error(context, "artifact observation path is unsafe");
+      cupid_contract_set_error(context, "artifact observation path is unsafe"); goto done;
     }
   }
   if (reader.position != reader.size) {
-    return cupid_contract_set_error(context, "request has trailing input");
+    cupid_contract_set_error(context, "request has trailing input"); goto done;
   }
-  if (!parse_seed_manifest(context, manifest_source, &manifest) ||
-      !parse_windows_manifest(context, windows_manifest_source, &manifest,
-                              &manifest_digest, &windows_manifest) ||
+  if ((!captured &&
+       (!parse_seed_manifest(context, manifest_source, &manifest) ||
+        !parse_windows_manifest(context, windows_manifest_source, &manifest,
+                                &manifest_digest, &windows_manifest))) ||
       !parse_policy(context, policy_source, &policy)) {
-    policy_release(&policy);
-    windows_manifest_release(&windows_manifest);
-    seed_manifest_release(&manifest);
-    return 0;
+    goto done;
   }
   if (validate_policy(context, &policy, &manifest, &windows_manifest, &manifest_path,
                       total) &&
@@ -1832,15 +1861,16 @@ static int validate_request(error_context_t *context, const byte_slice_t *reques
       validate_observations(context, observations, &policy)) {
     ok = 1;
   }
+done:
   policy_release(&policy);
   windows_manifest_release(&windows_manifest);
   seed_manifest_release(&manifest);
   return ok;
 }
 
-int artifact_size_policy_validate(const unsigned char *bytes, size_t size,
+static int validate(const unsigned char *bytes, size_t size,
                                   artifact_size_policy_result_t *result,
-                                  char *error, size_t error_capacity) {
+                                  char *error, size_t error_capacity, int captured) {
   error_context_t context = {error, error_capacity, 0};
   byte_slice_t request = {bytes, size};
   uint64_t total = 0u;
@@ -1858,10 +1888,20 @@ int artifact_size_policy_validate(const unsigned char *bytes, size_t size,
       (bytes == (const unsigned char *)0 && size != 0u)) {
     return cupid_contract_set_error(&context, "invalid artifact-size policy API arguments");
   }
-  if (!validate_request(&context, &request, &total)) {
+  if (!validate_request(&context, &request, &total, captured)) {
     return 0;
   }
   result->artifact_count = ARTIFACT_COUNT;
   result->total_exact_bytes = total;
   return 1;
+}
+
+int artifact_size_policy_validate(const unsigned char *bytes, size_t size,
+    artifact_size_policy_result_t *result, char *error, size_t error_capacity) {
+  return validate(bytes, size, result, error, error_capacity, 0);
+}
+
+int artifact_size_policy_validate_observations(const unsigned char *bytes, size_t size,
+    artifact_size_policy_result_t *result, char *error, size_t error_capacity) {
+  return validate(bytes, size, result, error, error_capacity, 1);
 }
