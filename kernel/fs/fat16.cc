@@ -783,27 +783,47 @@ static int fat16_write_fat_entry(uint16_t cluster, uint16_t value) {
 /**
  * fat16_alloc_cluster - Allocate a free cluster from the FAT
  *
- * Scans the FAT for a free entry (value 0x0000), marks it as end-of-chain,
- * and returns the cluster number.
+ * Scans each FAT sector once for its first free entry, marks it as
+ * end-of-chain, and returns the lowest free data cluster.
  *
  * @return Cluster number (>= 2) on success, 0 on failure (disk full)
 */
 static uint16_t fat16_alloc_cluster(void) {
-    /* Calculate total data clusters */
+    if (fs.bytes_per_sector != 512u || fs.sectors_per_cluster == 0u ||
+        (fs.sectors_per_cluster & (fs.sectors_per_cluster - 1u)) != 0u ||
+        fs.num_fats == 0u || fs.num_fats > 2u || fs.sectors_per_fat == 0u ||
+        fs.root_dir_entries == 0u ||
+        fs.fat_start > 0xffffffffu - (uint32_t)fs.num_fats * fs.sectors_per_fat) {
+        return 0;
+    }
     uint32_t root_dir_sectors = ((uint32_t)fs.root_dir_entries * 32 +
         fs.bytes_per_sector - 1) / fs.bytes_per_sector;
-    uint32_t data_sectors = fs.total_sectors -
-        (fs.reserved_sectors + (uint32_t)fs.num_fats * fs.sectors_per_fat +
-         root_dir_sectors);
+    uint32_t metadata_sectors = fs.reserved_sectors +
+        (uint32_t)fs.num_fats * fs.sectors_per_fat + root_dir_sectors;
+    if (fs.total_sectors <= metadata_sectors) return 0;
+    uint32_t data_sectors = fs.total_sectors - metadata_sectors;
     uint32_t total_clusters = data_sectors / fs.sectors_per_cluster;
+    if (total_clusters > 65533u || total_clusters + 2u >
+        (uint32_t)fs.sectors_per_fat * (512u / 2u)) return 0;
+    uint32_t limit = total_clusters + 2u;
+    uint32_t cluster = 2u;
+    uint8_t buffer[512];
 
-    /* Cluster numbers start at 2 */
-    for (uint16_t c = 2; c < (uint16_t)(total_clusters + 2); c++) {
-        uint16_t entry = fat16_read_fat_entry(c);
-        if (entry == FAT16_FREE) {
-            /* Mark as end-of-chain */
-            if (fat16_write_fat_entry(c, FAT16_EOC_MAX) != 0) return 0;
-            return c;
+    while (cluster < limit) {
+        uint32_t offset = cluster * 2u;
+        uint32_t sector = offset / 512u;
+        uint32_t position = offset % 512u;
+        if (blockcache_read(fs.fat_start + sector, buffer) != 0) return 0;
+        while (position < 512u && cluster < limit) {
+            uint16_t entry = (uint16_t)((uint16_t)buffer[position] |
+                ((uint16_t)buffer[position + 1u] << 8u));
+            if (entry == FAT16_FREE) {
+                if (fat16_write_fat_entry((uint16_t)cluster, FAT16_EOC_MAX) != 0)
+                    return 0;
+                return (uint16_t)cluster;
+            }
+            cluster++;
+            position += 2u;
         }
     }
     serial_printf("[fat16_alloc_cluster] DISK FULL: no free clusters (total=%u)\n",

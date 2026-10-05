@@ -165,6 +165,7 @@
     "toolchain/tests/cupidbuild_observer_batch_contract.cc": "not_reached",
     "toolchain/tests/cupidbuild_user_elf_contract.cc": "not_reached",
     "toolchain/tests/cupiddis_kernel_adapter_contract.cc": "host_oracle",
+    "toolchain/tests/fat16_allocation_contract.cc": "not_reached",
     "toolchain/tests/native_utf8_argv_contract.cc": "not_reached",
     "toolchain/tests/native_utf8_fault_contract.cc": "not_reached",
     "toolchain/tests/path_encoding_contract.cc": "not_reached",

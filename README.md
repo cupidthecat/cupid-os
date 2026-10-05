@@ -1,5 +1,15 @@
 # cupid-os
 
+## FAT allocation scan, 2026-10-05
+
+FAT16 examines all candidate entries in a sector after one read and still
+allocates the lowest free data cluster. The controlled HomeFS-sized replacement
+uses 9,708 reads instead of 2,284,936 and produces identical FAT bytes. Native
+and Cupid-built failure contracts pass on both hosts. Complete FAT objects match
+across both normal Make paths, and the new image passes strict four-CPU boot.
+The IWAD observation reaches game tics; completed-frame acceptance stays open. See
+[ADR 0425](docs/adr/0425-scan-fat16-free-clusters-by-sector.md).
+
 ## Reviewed seed behavior boundary, 2026-10-04
 
 The release coordinator can reuse an explicitly selected, pinned seed release

@@ -43543,3 +43543,114 @@ base. Its complete three-root audit passes again. The older proposal and
 failure evidence remain intact; this does not install seeds or commit the
 native ABI recipe. Public ownership remains 447 CupidBuild and five Python
 actions, and ordinary SDK release integration remains pending.
+
+## 2026-10-05: bounded FAT scans during Doom initialization
+
+Six paged debugger samples cover all four CPUs over 180 seconds after the
+Doom command. They reach DG_Init inside vfs_mkdir, HomeFS flush and FAT
+container replacement. Allocation advances while timer writeback sometimes
+waits for the big kernel lock. No completed frame is accepted. The first
+diagnostic had read only the initial thread-info page; its separate retry
+enumerates every page and retains all four stacks. These observations narrow
+the progress boundary without proving a deadlock or the full timeout cause.
+
+A controlled extraction of the four actual static FAT helpers reproduces
+2,284,936 sector-read calls for a 317-cluster replacement after 7,049 occupied
+entries. The sector-scan implementation uses 9,708 reads and the same 634
+copy writes. Both select clusters 7,049 through 7,365 in order and produce the
+same 131,072-byte FAT tables, SHA-256
+2f2770c52b48ae84010cfa6323294737cd3c78842822f0be79f0eec4e26bd9c1.
+ADR 0425 records lowest-free selection, invalid-geometry rejection, scan-error
+handling, FAT-copy marking and unchanged durable publication ordering.
+
+Thirteen native methods pass per host. The original allocator fails the read
+bound and scan-error cases and faults on invalid geometry. The first Windows
+harness fails to compile because its host size_t spelling conflicts with the
+kernel header; a private caller alias fixes the harness without changing the
+production header. Checked CupidC and CupidLD then build each native caller.
+All thirteen methods run both native and Cupid-built callers per host: 52 case
+executions, with no skips. The final paired proof adds non-power-of-two cluster
+and empty-root-directory failures, covering twelve invalid geometries.
+Independent rereading proves the same 13,856-byte
+caller object on both platforms, SHA-256
+a26635a96a4d8fffdc0bafd2d332aa84c15ef6a5e7d4eaf45d0d594e8bb42bea.
+The first external checked controller misreads a void helper's return value;
+its corrected version retains actual runner results. The first Linux link
+omits -m elf_i386 and returns two. A separate corrected Linux retry passes.
+All original failures and private source directories remain retained.
+
+The kernel compilation and Doom storage selection runs 37 methods on each
+host. Its first run returns one because an older Make fixture omits the existing
+production seed-release prerequisite. The corrected fixture passes the full
+selection in 217.086 seconds on Windows and 198.946 seconds on Linux. The new
+caller is staged explicitly and classified outside the three supported Make
+roots in the source-suffix ownership policy.
+
+The complete 70,027-byte FAT source compiles through normal Make on both hosts
+with host C, assembly and link commands forbidden. Each emits the same
+65,672-byte i386 object, SHA-256
+3642859a85f0077924b055779d71a13aac746dae52c50f33941061c43fb9f547.
+The Linux full-source command returns zero in 59.168 seconds. The current
+frontier lock records this measured result.
+
+The complete frontier command also returns zero in 1,897.026 seconds from a
+byte-verified Linux source control. All 156 sources compile twice without a
+boundary. Independent rereading validates every i386 object and proves that
+both copies match the independently qualified OS build. The complete cohort
+totals 4,421,572 bytes. Its 469-input snapshot has SHA-256
+f850bf807a896c1c49e12400f8d55fe2dd6c5c2287f2349482bb520e066b4015.
+Ten other object locks and the snapshot expectations were stale from earlier
+compiler changes. They are refreshed from these actual results. A separate
+assertion replay runs all nineteen post-build assertions from the real test
+against the retained outputs; it does not mock or repeat compilation.
+
+The final canonical audit records the newly tracked caller outside the three
+supported roots. Generation and check return zero in 97.259 and 87.114 seconds.
+The audit has 770 active sources, 44 sources outside those roots, 255 feature
+cases and unchanged ownership across 452 transforms.
+
+A fresh incremental Windows control retains all 1,589 accepted source files
+and changes only FAT and the embedded manual. Its dry run predicts one ordinary
+C root and two generated C roots. Actual kernel, expected old-policy rejection,
+image and strict four-CPU runtime steps return [0, 1, 0, 0] in 490.973, 2.548,
+6.361 and 49.138 seconds. The completed ls/SMP smoke uses 512 MiB, four max CPUs,
+e1000 and the declared 64 MiB TCG cache. Independent verification rereads all
+429 i386 objects, sixteen artifacts, fifteen installed seed files and 82
+compiler inputs. Only FAT, the manual wrapper and generated symbols change.
+
+The 156,352-byte manual has SHA-256
+1c78d2b07e7c73ee2215d333b5734063efdcfda8d61caeb1ccf06de0e3c67b92
+and appears exactly once in each kernel output. The raw kernel measures
+9,590,484 bytes; final and pass-one ELFs measure 9,818,556 and 9,687,484 bytes.
+Only those three policy rows change. The 200 MiB image has SHA-256
+3353849bd88f6015a0750498a21e017dc276e9238f306d20c3e63bda58befbaa.
+Its complete FAT suffix remains identical to the accepted base.
+
+The same exact-image IWAD probe now reaches graphics setup. Its first five
+samples remain at zero game tics and frames; the last reads five tics and
+renderer frame count one, with OPL3_Generate4Ch active. It still returns one
+after 226.224 seconds because no completed draw call is observed in the
+unchanged 180-second post-command window. Independent verification retains
+that failed boundary and confirms unchanged source image, private fixture and
+ELF. The pinned Phase 1 IWAD is unchanged. Gameplay, timedemo, audio, save/load
+and reboot persistence remain open; no source is pruned or disabled.
+
+The separate full-audio demo1 replay retains the existing 1,200-second command
+deadline and returns one after 1,290.333 seconds including startup. Its serial
+log reaches graphics setup and later reports that EHCI could not quiesce the
+async schedule before submit. Independent rereading confirms unchanged source
+image, staged IWAD fixture and exact kernel. This neither completes the demo
+nor diagnoses the timeout. The 107,882-byte serial log has SHA-256
+fe48015a3981b96903a73cec40b72b09ed924fba9fed0cc297d672210a05533c.
+The command and independent receipts remain in the timedemo subdirectory of
+cupid-fat-doom-initialization-20261005.
+
+Evidence is in cupid-doom-initialization-probe-20261005,
+cupid-fat-os-acceptance-20261005 and cupid-fat-doom-initialization-20261005.
+Receipts include fat-checked-retry3-paired-independent.json,
+fat-full-source-closed-linux.json, fat-complete-frontier-independent-linux.json,
+fat-refreshed-frontier-test-assertions-final-independent-linux.json,
+fat-tracked-canonical-audit-closed-windows.json, manual-independent-windows.json and
+initialization-independent.json. Installed seeds and normal ownership remain
+447 CupidBuild and five Python actions across 452 transforms. TempleOS is
+read-only reference material and is excluded from the proof.

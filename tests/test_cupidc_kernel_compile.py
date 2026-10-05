@@ -1242,6 +1242,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
             ),
             {
                 "$(PRODUCTION_SEED_MANIFEST)",
+                "$(PRODUCTION_SEED_RELEASE)",
                 "$(PRODUCTION_SEED_DIRECTORY)cupidasm.$(PRODUCTION_SEED_SUFFIX)",
                 "$(PRODUCTION_SEED_DIRECTORY)cupidc.$(PRODUCTION_SEED_SUFFIX)",
                 "$(PRODUCTION_SEED_DIRECTORY)cupiddis.$(PRODUCTION_SEED_SUFFIX)",

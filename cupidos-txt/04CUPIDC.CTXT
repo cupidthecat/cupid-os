@@ -14,6 +14,20 @@ Verified against source on: 2026-09-27
 >rule
 >sprite /docs/image.bmp 64 64 | open:11CTXT.CTXT
 
+>h2 FAT16 allocation
+>tree open FAT16 allocation
+The active FAT16 allocator reads each examined FAT sector once per scan and
+selects the lowest free data cluster. Reserved entries and free tail padding
+are excluded. Invalid geometry or a failed scan read returns allocation failure
+before marking an entry. The existing helper marks every FAT copy; HomeFS
+still syncs a replacement chain before publishing its directory entry.
+
+A controlled 317-cluster container replacement uses 9,708 sector-read calls
+and preserves the complete FAT bytes and allocation order. Native and
+Cupid-built tests cover successful scans and storage failures on both hosts.
+This work does not establish Doom gameplay, audio or save/load acceptance.
+>endtree
+
 >h2 Host file staging
 >tree open Host file staging
 The host image and stage commands use SRC:/guest/path entries. A Windows

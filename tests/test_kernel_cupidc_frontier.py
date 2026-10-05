@@ -1912,7 +1912,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                3950472,
+                4421572,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -1983,9 +1983,9 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(
                 object_records["toolchain/x86.cc"],
                 (
-                    141560,
-                    "3fd60be7172031081dc7a948571fb61b8"
-                    "130a68d16457e3467acb363d83d746a",
+                    141552,
+                    "f912265d1ed23b00a3c6877ab4bdd129"
+                    "d43d234ff8171e31d1a2c4ccfa1f34eb",
                 ),
             )
             port_io_object_records = {
@@ -1996,18 +1996,18 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 ),
                 "drivers/keyboard.cc": (
                     11740,
-                    "0703723bd6aecb968fd011d8921cf8595"
-                    "eff10d2e8d30b9dd5c68c74f85e6daa",
+                    "0703723bd6aecb968fd011d8921cf859"
+                    "5eff10d2e8d30b9dd5c68c74f85e6daa",
                 ),
                 "drivers/mouse.cc": (
                     12936,
-                    "0fc5292e291cd8ff0403cda1948029cb8"
-                    "f1e92051e04f882e8935dc371f330d8",
+                    "0fc5292e291cd8ff0403cda1948029cb"
+                    "8f1e92051e04f882e8935dc371f330d8",
                 ),
                 "drivers/pci.cc": (
                     7136,
-                    "7d006772700b8b0192daa7690417bc687"
-                    "2b8324588cd67e50126cf318858a68e",
+                    "7d006772700b8b0192daa7690417bc68"
+                    "72b8324588cd67e50126cf318858a68e",
                 ),
                 "drivers/pit.cc": (
                     1816,
@@ -2045,9 +2045,9 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "fdd72e64326cef807bf825725096a5aa",
                 ),
                 "kernel/lang/shell.cc": (
-                    175980,
-                    "841aea7e7daeb2ded4d68e51a95588e54"
-                    "d1619bb25bd6b5bef7de7f893502769",
+                    173564,
+                    "e33958e9ab18224c4bd7117a14bf995a"
+                    "017b045002a47ca5f50fd1be5039c00f",
                 ),
                 "kernel/usb/ehci.cc": (
                     22824,
@@ -2070,8 +2070,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             source_driven_object_records = {
                 "drivers/serial.cc": (
                     20776,
-                    "7b049fdc9ef79fee075e5903fa9846635"
-                    "6d089135665591249194b5b81690bbd",
+                    "7b049fdc9ef79fee075e5903fa984663"
+                    "56d089135665591249194b5b81690bbd",
                 ),
                 "drivers/timer.cc": (
                     6404,
@@ -2080,8 +2080,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 ),
                 "kernel/audio/nuked_opl3.cc": (
                     40424,
-                    "a3a04ade4029d9333902bb93376fb5eef"
-                    "21f349ee5a1406bd0751cc4cee9f2a1",
+                    "a3a04ade4029d9333902bb93376fb5ee"
+                    "f21f349ee5a1406bd0751cc4cee9f2a1",
                 ),
                 "kernel/core/app_launch.cc": (
                     5488,
@@ -2090,8 +2090,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 ),
                 "kernel/core/kernel.cc": (
                     25972,
-                    "90fc64e3e92e2a1fac573c7f983f272"
-                    "70ab5b47c5eba6164b5703ad317003ed6",
+                    "90fc64e3e92e2a1fac573c7f983f2727"
+                    "0ab5b47c5eba6164b5703ad317003ed6",
                 ),
                 "kernel/core/panic.cc": (
                     10212,
@@ -2105,18 +2105,18 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 ),
                 "kernel/core/string.cc": (
                     14460,
-                    "d48bb6ea18b7124fbefeaca0d5d5ee8"
-                    "a517db950f21ea88e30ededd6c5c2a577",
+                    "d48bb6ea18b7124fbefeaca0d5d5ee8a"
+                    "517db950f21ea88e30ededd6c5c2a577",
                 ),
                 "kernel/cpu/fpu.cc": (
                     6620,
-                    "14c3ea232b7d4455ceabd561c69293cc5"
-                    "849abae24d9f210aa69d64ed8c8a5cb",
+                    "14c3ea232b7d4455ceabd561c69293cc"
+                    "5849abae24d9f210aa69d64ed8c8a5cb",
                 ),
                 "kernel/cpu/idt.cc": (
                     8756,
-                    "0ad16fd3250bc09ced7c928cb287123db"
-                    "245980de73c15f0249db71a2f2f6ea3",
+                    "0ad16fd3250bc09ced7c928cb287123d"
+                    "b245980de73c15f0249db71a2f2f6ea3",
                 ),
                 "kernel/cpu/irq.cc": (
                     4308,
@@ -2135,23 +2135,23 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 ),
                 "kernel/cpu/pic.cc": (
                     2408,
-                    "c1855a19e0cd285953996344493dcefe9"
-                    "16f06d89fed706219718920b4d2ea5d",
+                    "c1855a19e0cd285953996344493dcefe"
+                    "916f06d89fed706219718920b4d2ea5d",
                 ),
                 "kernel/cpu/simd.cc": (
                     8768,
-                    "fd280c321b8eb38a90d4f0982d70b8d"
-                    "f0364585e3da322eb2c9de722e071f8d4",
+                    "fd280c321b8eb38a90d4f0982d70b8df"
+                    "0364585e3da322eb2c9de722e071f8d4",
                 ),
                 "kernel/fs/fat16.cc": (
-                    64216,
-                    "99e47b46782d2c3f49ff46a41ee4d6af"
-                    "f57910aebc4ee7f2f6c86b2848728a30",
+                    65672,
+                    "3642859a85f0077924b055779d71a13a"
+                    "ac746dae52c50f33941061c43fb9f547",
                 ),
                 "kernel/fs/iso9660.cc": (
-                    13444,
-                    "e55e4612db707b47b5312685bffa4ac4"
-                    "573b96f905c7887957551bf7495b679e",
+                    13452,
+                    "34b8d669539365babac7d02cd51dd580"
+                    "e7c873775b679e0213e9180b49680917",
                 ),
                 "kernel/fs/loopdev.cc": (
                     3456,
@@ -2170,13 +2170,13 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 ),
                 "kernel/gfx/glyph_raster.cc": (
                     11744,
-                    "83d2f4cac28abbc5bb8a92020ab7fb572"
-                    "51b1b927b4fdbc40981f29556aa1e80",
+                    "83d2f4cac28abbc5bb8a92020ab7fb57"
+                    "251b1b927b4fdbc40981f29556aa1e80",
                 ),
                 "kernel/gfx/jpeg.cc": (
-                    21120,
-                    "ccabae9e3b979031079f1ed72189c990f"
-                    "3aee4aa773c6ec742b5ccc263570851",
+                    21132,
+                    "7ceffc0070f4e2bb26ba47f77c68a999"
+                    "a043f558ec41d30b9082e18744aeac2e",
                 ),
                 "kernel/gfx/png.cc": (
                     24128,
@@ -2184,29 +2184,29 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "d4207a08fa5ab8731e58a84cd0dd84be",
                 ),
                 "kernel/gui/ed.cc": (
-                    54992,
-                    "7bc80e9e9371d8827ce71502df104d67"
-                    "9e47b20300c1a45969845aefdaabedf6",
+                    55032,
+                    "dabc5904d830f11eeb73e1b8e4a7f691"
+                    "e28c3a730a4b4d66b52ddd3ca516aa24",
                 ),
                 "kernel/lang/as.cc": (
-                    148080,
-                    "546f8d003a0654066f995c487f001c35"
-                    "dd1947177fd01b95b70857326d950da6",
+                    165532,
+                    "d34560b2f67d535f37437b4dee5f1249"
+                    "c1f845ab9e654bc468b09db35a2d2e8d",
                 ),
                 "kernel/lang/cupidc.cc": (
-                    295092,
-                    "bb3f53af867851946d91c2dd0bf0d7ca"
-                    "4e39007265655972da0aa63711eb507b",
+                    282560,
+                    "5128bc506f19dabdacba7d9171591790"
+                    "270c2b7422db0b89868816b7e1ebf4a3",
                 ),
                 "kernel/lang/cupidc_lex.cc": (
-                    50348,
-                    "740f0ee2ce71c01f7eca1cab8aa15506"
-                    "c0be33fcc558d2c65d6d9e4d07c0a5d0",
+                    50428,
+                    "ed167056018f56bbefccd147ca35932e"
+                    "4d815ab6e126ff473e4e7c9963249291",
                 ),
                 "kernel/lang/cupidc_parse.cc": (
-                    388988,
-                    "c3769211b10f26b1817e819bd47f74bc"
-                    "96998a255f6414177c28e40a16c42a06",
+                    508488,
+                    "27af09c37216cde40f20e3dfc4bef8f2"
+                    "b41e8bc8f48f772ce7cf661c9c4c9371",
                 ),
                 "kernel/lang/cupidc_string.cc": (
                     7332,
@@ -2229,9 +2229,9 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "52253feeea531cad851215e17f793e2d",
                 ),
                 "kernel/network/sshd.cc": (
-                    48936,
-                    "319919ad47d1346aa2a2450f75dd4092"
-                    "f25165b4cfe569408442a4ad981509d3",
+                    48944,
+                    "766ff45396c659ac384b7edc0f8ff0df"
+                    "14215dbdd2d2efa0823879ee1b670bad",
                 ),
                 "kernel/network/udp.cc": (
                     3188,
@@ -2261,11 +2261,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 },
                 source_driven_object_records,
             )
-            self.assertEqual(manifest["input_snapshot"]["count"], 450)
+            self.assertEqual(manifest["input_snapshot"]["count"], 469)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "de167e1f14e6d276e125c72e71c5057b"
-                "ede7e0b4e8165ac9f11de91e619c2c42",
+                "f850bf807a896c1c49e12400f8d55fe2dd"
+                "6c5c2287f2349482bb520e066b4015",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

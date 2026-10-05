@@ -1171,6 +1171,12 @@ _Avoid_: copy-and-unlink rename, deleting the prior file first, mutating an evic
 A nestable group of related HomeFS mutations. Operations update the live tree and mark it dirty, but only the outermost `homefs_batch_end` publishes `HOMEFS.SYS` and reports the durable result. An unmatched end fails, depth overflow is rejected, and unmount remains busy while a batch is open. The guest dglibc diagnostic uses one batch so its many filesystem probes produce one final container replacement instead of rewriting the whole tree after each probe.
 _Avoid_: transaction rollback for the in-memory tree, hiding the outer publication error, unmounting an open batch
 
+FAT16 allocation keeps the lowest-free-cluster policy and scans each sector's
+entries after one read. It rejects invalid geometry and scan read errors before
+marking an entry, excludes reserved entries and tail padding, and retains the
+existing FAT-copy marking and HomeFS publication ordering. ADR 0425 records
+the bounded scan and its native/Cupid-built fault contracts.
+
 **Represented GNU x87 round-down memory assembly**:
 The exact volatile statement in `str_floor()` that loads one `double`, saves the x87 control word below ESP, selects round toward negative infinity, executes `frndint`, restores the saved word, and stores the result. It requires one modifiable `double` `=m` output, one addressable `double` `m` input, and the exact `ax` plus `memory` clobber set. Linear IR evaluates the output address before the input address. The emitter reuses the consumed input-address slot for the two control-word values without touching the pending output address. The checked seed emits the complete helper and the later double-to-`uint64_t` casts, so unchanged `kernel/core/string.cc` compiles completely and deterministically through its production recipe.
 _Avoid_: general AX clobber, arbitrary x87 control-word template, frame scratch that changes the active offsets

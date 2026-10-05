@@ -45201,13 +45201,13 @@
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
         "residual_c_sources": 17,
         "runtime_delivery_sources": 130,
-        "sha256": "3494d28ecfef764fe0f028a8875a355ec1229d31e35cf101d86b9f0112696f39",
-        "unreachable_cupid_c_sources": 21
+        "sha256": "0e946e21174c1e03c06586ba4ee5f7f3e4cfaeca153b05876b0d08fc615d429c",
+        "unreachable_cupid_c_sources": 22
       },
       "proven_cupidc_owned_tracked_cupid_c_sources": 418,
       "status": "pass",
       "tracked_c_sources": 17,
-      "tracked_cupid_c_sources": 439,
+      "tracked_cupid_c_sources": 440,
       "unreachable": [
         {
           "classification": "historical_copy",
@@ -45346,6 +45346,11 @@
         },
         {
           "classification": "not_reached",
+          "path": "toolchain/tests/fat16_allocation_contract.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
           "path": "toolchain/tests/native_utf8_argv_contract.cc",
           "policy": "source_suffix_policy"
         },
@@ -45386,7 +45391,7 @@
         }
       ],
       "unreachable_tracked_c_sources": 17,
-      "unreachable_tracked_cupid_c_sources": 21
+      "unreachable_tracked_cupid_c_sources": 22
     },
     "cupid_toolchain_fixed_point": {
       "checked_seed_publication": "complete-bundle",
@@ -50593,7 +50598,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4938
+      "occurrences": 4937
     },
     {
       "category": "control",
@@ -51068,7 +51073,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 44538
+      "occurrences": 44542
     },
     {
       "category": "control",
@@ -51453,7 +51458,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 27600
+      "occurrences": 27604
     },
     {
       "category": "control",
@@ -51854,7 +51859,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3057
+      "occurrences": 3059
     },
     {
       "category": "declaration",
@@ -60051,7 +60056,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "c5e987bd70e6439cbe8eb21fa81f1eaeb4ed8d1a5a1778509f458c55c1b37b1e",
+    "active_source_digest": "4fb3bb4e3c86be0047e0dfb650eea872d16fb4d6526e650802714388d264de1e",
     "control_files": [
       {
         "path": "Makefile",
@@ -60067,7 +60072,7 @@
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
-        "sha256": "3494d28ecfef764fe0f028a8875a355ec1229d31e35cf101d86b9f0112696f39"
+        "sha256": "0e946e21174c1e03c06586ba4ee5f7f3e4cfaeca153b05876b0d08fc615d429c"
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
@@ -77321,12 +77326,12 @@
         "kernel/fs/fat16_control.h"
       ],
       "language": "cupid_c",
-      "lines": 1886,
+      "lines": 1906,
       "origin": "tracked",
       "path": "kernel/fs/fat16.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "2cff149898dd0264cf9705e71cc61c9573b2036d841d56bdaafb76bd477f8ff3"
+      "sha256": "b4228076bc8f2cff35d23db413ca48b567ef698b5c04fba5418534f65af02f19"
     },
     {
       "build_owners": [
@@ -88784,7 +88789,7 @@
     "active_sources": 770,
     "features": 255,
     "transforms": 452,
-    "unreachable_sources": 43
+    "unreachable_sources": 44
   },
   "supplemental_builds": [
     {
@@ -89773,6 +89778,16 @@
       "reason": "optional host compiler input for ELF32 reader comparison",
       "relations": [],
       "sha256": "d20f21f4efac24a85450c02e62b43a79fbb84c8f2e2b47644e0d803fc0d98822"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 125,
+      "path": "toolchain/tests/fat16_allocation_contract.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "7f26dba05694d02a07503824cc792741672a09ef8b36ec6eef087809950bb2e7"
     },
     {
       "classification": "not_reached",

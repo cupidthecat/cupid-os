@@ -1,5 +1,62 @@
 # Freedoom runtime handoff
 
+## Four-CPU initialization sampling, 2026-10-05
+
+The exact accepted image and matching kernel ELF are copied into a private
+fixture and staged with the pinned 28,795,076-byte Phase 1 IWAD, SHA-256
+`7323bcc168c5a45ff10749b339960e98314740a734c30d4b9f3337001f9e703d`.
+The debugger enumerates every thread-info page and samples all four CPUs at
+30-second intervals for 180 seconds after the Doom command. This differs from
+the older probe's deadline phase and is retained as a separate observation.
+
+All six samples show game tics and renderer frame count at zero; the screen
+buffer is allocated. One CPU repeatedly reaches `DG_Init` through `vfs_mkdir`,
+HomeFS flush, reserved FAT replacement and cluster allocation. Other samples
+include timer writeback waiting for the big kernel lock and AP idle paths.
+Allocation advances between samples. The absent initialization completion
+marker does not mean that `DG_Init` was never entered.
+
+The run exits one after 267.090 seconds including startup. It proves neither
+a returned draw call nor a rendered gameplay frame. Source image, staged
+fixture and matching ELF remain unchanged. The initial probe enumerated only
+the first thread-info page; the separate paged retry retains complete CPU
+coverage. Both runs and their debugger transcripts remain in
+`cupid-doom-initialization-probe-20261005/`.
+
+A controlled extraction of the active allocator measures 2,284,936 reads for
+a 317-cluster replacement. Sector scanning reduces this to 9,708 reads with
+identical cluster order and both FAT copies. Thirteen native and thirteen
+Cupid-built methods pass per host. This supports the isolated FAT improvement
+in ADR 0425; it does not yet establish that the full initialization timeout is
+fixed. Fresh image, unchanged frame criteria and the existing 1,200-second
+timedemo remain required. Input, audio, save/load and reboot persistence stay
+open.
+
+The changed FAT source compiles through normal Make on both hosts to identical
+65,672-byte objects. Its freshly linked image passes independent source,
+artifact, FAT-preservation and strict four-CPU boot checks. Repeating the same
+paged 180-second observation reaches graphics setup. The first five samples
+remain at zero game tics and frames; the sixth reads five tics and renderer
+frame count one, with an active stack in `OPL3_Generate4Ch`. The run still exits
+one after 226.224 seconds because no draw-entry/return pair completes within
+the window. The source image, staged fixture and exact ELF remain unchanged.
+`cupid-fat-doom-initialization-20261005/initialization-independent.json` records
+that progress and failed frame boundary without converting it to gameplay
+acceptance. The base image is
+`3353849bd88f6015a0750498a21e017dc276e9238f306d20c3e63bda58befbaa`;
+the private IWAD fixture is
+`c6d45d2d49ab583a826c9cdec3a74edb018d975d0b918289a6638975faee11fc`.
+
+The separate full-audio `doom -iwad /disk/wads/freedo~1.wad -timedemo demo1`
+replay fails the existing 1,200-second command-completion deadline. It returns
+one after 1,290.333 seconds including startup. The serial log reaches graphics
+setup and later reports `ehci: could not quiesce async schedule before submit`.
+This is a retained error observation, not a diagnosis of the timeout. Source
+image, staged fixture and exact kernel remain unchanged. Evidence is
+`cupid-fat-doom-initialization-20261005/timedemo/independent.json`, with the real
+command, declared 64 MiB TCG cache and complete serial log. It proves no
+completed demo, input/audio quality, save/load or reboot-persistence acceptance.
+
 ## Absolute Windows staging correction, 2026-10-04
 
 The original drive-colon failure is reproduced by the minimal `C:/a:/b`

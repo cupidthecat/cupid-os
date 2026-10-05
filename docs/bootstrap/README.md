@@ -1,5 +1,27 @@
 # Cupid Toolchain bootstrap
 
+## FAT allocation during Doom initialization, 2026-10-05
+
+The active FAT allocator scans entries from one retained sector read at a time
+and keeps the lowest-free-cluster policy. A controlled 317-cluster replacement
+reduces sector-read calls from 2,284,936 to 9,708 with identical FAT bytes and
+cluster order. Thirteen native and thirteen Cupid-built cases pass on each
+host, including storage failures and invalid geometry. Complete FAT object
+bytes match between normal Make builds on both hosts. The new image passes
+sixteen artifact checks and strict four-CPU boot; the IWAD frame gate stays
+open. See
+[ADR 0425](../adr/0425-scan-fat16-free-clusters-by-sector.md).
+
+Four-CPU debugger sampling reaches `DG_Init` inside HomeFS container replacement;
+the 180-second observation still proves no rendered frame. The allocator
+measurement explains excess read work without establishing the full timeout
+cause. [The runtime record](FREEDOOM-RUNTIME.md) keeps that distinction.
+
+The updated image reaches five game tics and renderer frame count one in the
+final IWAD sample, with audio generation active. No completed draw call is
+observed within the unchanged 180-second window. The raw kernel measures
+9,590,484 bytes; the 200 MiB image and all 429 objects pass independent rereading.
+
 ## Reviewed seed behavior boundary, 2026-10-04
 
 The coordinator captures an explicitly selected release against independent
