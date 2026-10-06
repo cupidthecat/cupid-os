@@ -14,6 +14,45 @@ Verified against source on: 2026-09-27
 >rule
 >sprite /docs/image.bmp 64 64 | open:11CTXT.CTXT
 
+>h2 Native disk foundations
+>tree open Native disk foundations
+Private native and Cupid-built host contracts now exercise bounded FAT16
+staging, UTF-8 guest-name projection and preserved disk-image composition.
+The writer uses 512-byte sector callbacks, excludes reserved FAT16 cluster
+numbers and discards candidates after a failed write. Name requests select
+their captured Unicode profile. Complete image comparisons cover the active
+200 MiB extent and existing filesystem bytes.
+
+The hosted runtime supplies signed cupid_fseek64 and status-returning
+cupid_ftell64. Standard long APIs retain their existing implementation.
+Windows positioning handles a valid all-ones low word and append after seek;
+Linux uses the existing _llseek shim. Real sparse-file tests cover offsets
+above four GiB without claiming a complete four-GiB content hash.
+
+Streamed retained file observations deliver ordered blocks of at most
+65,536 bytes and record whole-file SHA-256. Failed callbacks clear the result
+and poison the observation; callers discard partial copies. Borrowed
+publication checks reread the complete digest. Source path bindings stay
+retained, while successful copies and their lifetime belong to the caller.
+
+Stream and borrowed-boundary contracts pass on both hosts through both
+callers. Complete 200 MiB captures match, restored-time edits are rejected,
+and both Linux callers revalidate them under a 32 MiB address-space limit.
+Arbitrary short-read partitions pass 912 independent digest comparisons.
+Guarded transaction snapshots now hash through fixed 64 KiB blocks when no
+payload copy is requested. Both Linux callers publish and reuse complete
+48 MiB outputs under a 32 MiB address-space limit. Requested payloads and
+ordinary transaction file limits retain their existing behavior.
+The candidate producer captures the three disk modules and Unicode table.
+Its Linux plan has 37 C sources and 38 objects. The SDK separately captures
+104 source/control inputs; bootstrap views retain 97 through 99 inputs.
+The native readers keep historical profiles and check exact disk inventories
+and raw object pairs. Paired producer qualification and installation remain open.
+Large transaction capture, final disk validation, flushing, complete producer
+qualification and seed carriage remain open. The normal disk publisher
+remains Python-owned.
+>endtree
+
 >h2 FAT16 allocation
 >tree open FAT16 allocation
 The active FAT16 allocator reads each examined FAT sector once per scan and

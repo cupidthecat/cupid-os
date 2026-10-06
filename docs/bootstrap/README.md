@@ -2,6 +2,23 @@
 
 ## Private disk foundation source plans, 2026-10-06
 
+Private commit `76914250` now has identical committed captures on both hosts.
+Its 99-input producer snapshot has SHA-256
+`3975f8d83f615d97e2179c12a2ebef484e1f8bc34eaa68da8893b93d2d0fc3be`.
+Both actual preparations pass with conventional host producers forbidden.
+Independent rereading checks 291 stage artifacts, 198 source copies and 97
+matching final-stage pairs. The release author selects all twelve exact tools.
+Behavior qualification and full SDK publication still require their own checks.
+
+Both normal OS derivatives also pass with the unchanged installed parent and
+conventional code producers forbidden. Independent comparison verifies all 429
+production objects, sixteen artifacts, six user products, the complete ABI and
+the 200 MiB image. Only the manual object changes; generated symbols remain
+identical. The 167,303-byte manual occurs once in each kernel output. All four
+strict four-CPU ls/SMP and feature 17 sessions pass. The policy records only the
+three measured kernel-size changes. This acceptance does not install new tools
+or transfer the disk-image action from Python.
+
 The candidate producer includes the bounded FAT16 writer, Unicode name module
 and disk composer. Its Linux plan has 37 C sources, 38 objects and 23 CupidBuild
 link members. Source capture explicitly retains the Unicode table. All thirteen

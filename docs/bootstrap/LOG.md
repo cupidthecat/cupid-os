@@ -1,5 +1,65 @@
 # Bootstrapping log
 
+## 2026-10-06: Embed the bounded-disk foundation manual
+
+Both normal OS derivatives pass their kernel, image and user targets with
+conventional code producers forbidden. The Windows kernel build takes 5,104
+seconds and Linux 3,260 seconds. Image builds take 51 and 35 seconds. All four
+strict private four-CPU max/e1000 sessions pass completed ls/SMP verification
+and feature 17 ISO checks within their original 150-second bounds.
+
+Independent comparison verifies 429 production objects, sixteen artifacts,
+six unchanged user products, the complete ABI and the preserved FAT suffix.
+Only the manual wrapper object changes. Generated symbol source and object
+remain byte-identical. The first checker had incorrectly required a symbol
+object change; its failed command remains retained. The corrected checker
+requires the actual single changed object and unchanged symbol source.
+All 156 earlier frontier objects match both complete production cohorts.
+Evidence is `disk-foundation-os1-paired-independent.json`.
+
+The embedded manual is 167,303 bytes, SHA-256
+`ff91bb48fac9ecf2f2cab18377176822d417c6c59e5a30e49922cefc0cb90b1f`.
+It occurs once in each kernel output. Raw, final ELF and pass-one ELF sizes are
+9,601,480, 9,830,844 and 9,699,772 bytes. Apply only those three measured kernel
+policy rows. Both complete 200 MiB images have SHA-256
+`74594e03bd5aea20a9d2b59c78549f94c8ef718676e0715f1fe3ee0b272c1ba0`.
+This acceptance uses the unchanged installed parent. The capture precedes the
+final Unicode include whitespace trim and later fixture corrections, which do
+not participate in the normal OS compilation. The final name-module contracts
+and committed producer captures verify those bytes separately.
+
+## 2026-10-06: Prepare the committed bounded-disk producer
+
+Private source commit `769142507c600af8e7edcb209de19fabab11aa2a` contains the
+bounded disk and file-observation foundations, their contracts and source-plan
+profiles. Both hosts capture the same 1,672 committed inputs, excluding
+TempleOS. The complete 99-input producer snapshot has SHA-256
+`3975f8d83f615d97e2179c12a2ebef484e1f8bc34eaa68da8893b93d2d0fc3be`.
+Independent source checking rereads every blob, Git mode and physical LFS asset
+in `disk-foundation-source2-76914250-paired-independent.json`.
+
+The first Windows freeze retained the two 133-byte LFS pointers instead of
+their assets. Native Linux Git also reported those physical assets as dirty
+because its checkout view lacked the Windows clean filter. Neither preliminary
+capture produced tools. The corrected capture checks each committed pointer's
+object hash and size, then retains the matching asset bytes. It records pointer
+and physical-object identities separately and changes no Git configuration.
+
+Both actual preparations finish with conventional host producers forbidden
+and their original deadlines. Windows takes 1,501 seconds and Linux 1,632
+seconds. Independent checks reread 159 Windows and 132 Linux stage artifacts,
+198 source copies and 97 matching final-stage object/tool pairs. The complete
+published preparations contain 259 and 232 files. Periodic private retention
+can miss fast final writes; the independently checked published inventories
+remain complete. Evidence is
+`disk-foundation-76914250-preparations-paired-independent.json`.
+
+The actual release author selects the committed snapshot and all twelve exact
+prepared tools. Its candidate is independently checked against the retained
+preparations. Full behavior qualification, SDK publication, seed installation
+and normal disk ownership remain separate work. Preparation equality alone
+does not authorize installation.
+
 ## 2026-10-06: Carry bounded disk foundations in candidate source plans
 
 The candidate plan now contains all three bounded disk modules, 37 Linux C

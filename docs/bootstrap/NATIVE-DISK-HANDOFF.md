@@ -1,5 +1,43 @@
 # Native disk-image handoff
 
+## Embedded manual acceptance, 2026-10-06
+
+Both normal OS derivatives pass with the installed parent unchanged and
+conventional code producers forbidden. Independent checking compares all 429
+objects, sixteen artifacts, six user products and the complete ABI. Only the
+manual wrapper object changes; generated symbol source and object remain
+identical. All 156 earlier frontier objects match both production cohorts.
+The initial checker's assumed symbol-object change remains a retained failure.
+
+The 167,303-byte manual occurs once in each kernel output. Raw kernel, final
+ELF and pass-one ELF sizes are 9,601,480, 9,830,844 and 9,699,772 bytes. Only
+those three measured policy rows change. Both 200 MiB images have SHA-256
+`74594e03bd5aea20a9d2b59c78549f94c8ef718676e0715f1fe3ee0b272c1ba0`.
+All four strict private four-CPU max/e1000 ls/SMP and feature 17 sessions pass
+within the original bounds. Evidence is `disk-foundation-os1-paired-independent.json`.
+The normal capture precedes the final table whitespace and fixture corrections;
+their separate final-module and committed-source checks remain authoritative.
+New-cohort installation and normal disk ownership are still separate work.
+
+## Committed producer preparation, 2026-10-06
+
+Private commit `76914250` has matching 1,672-file committed captures on both
+hosts. The 99-input producer snapshot is
+`3975f8d83f615d97e2179c12a2ebef484e1f8bc34eaa68da8893b93d2d0fc3be`.
+The captures materialize each Freedoom LFS asset only after matching its
+committed pointer's object hash and size. Preliminary pointer-only and native
+Git filter failures remain retained; they produced no tools.
+
+Actual Windows and Linux preparations pass under their original deadlines
+with conventional producers forbidden. Independent rereading verifies 291
+stage artifacts, 198 source copies and 97 equal final-stage pairs. The complete
+published preparations contain 259 Windows and 232 Linux files. The release
+author then selects the exact twelve prepared tools. Evidence is
+`disk-foundation-76914250-preparations-paired-independent.json` and
+`disk-foundation-76914250-release-author-independent.json`.
+Complete behavior qualification, SDK publication and installation remain open;
+the installed parent and normal disk-image ownership are unchanged.
+
 ## Bounded guarded transaction snapshots, 2026-10-06
 
 Every retained and named regular-file snapshot path now shares a bounded

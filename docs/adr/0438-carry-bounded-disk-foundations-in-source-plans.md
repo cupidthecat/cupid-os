@@ -44,6 +44,16 @@ Make build. The Unicode table is a name-module compilation prerequisite.
 
 ## Evidence and limitations
 
+Private source commit `76914250` has identical committed captures on both hosts.
+Independent rereading checks all 1,672 source inputs, Git modes and materialized
+LFS assets. Its complete 99-input producer snapshot is
+`3975f8d83f615d97e2179c12a2ebef484e1f8bc34eaa68da8893b93d2d0fc3be`.
+Both actual preparations pass with conventional host producers forbidden.
+Independent checking verifies 291 stage artifacts, 198 source copies and 97
+matching final-stage pairs. The actual release author selects the twelve exact
+prepared tools. These preparations remain unqualified until full behavior
+checks pass; SDK publication and installation remain separate obligations.
+
 All thirteen plan and source-capture methods pass on Windows and Linux.
 Independent rereading checks the 26 executions, retained source bytes, logs,
 37-source plan, 23-link order and unchanged installed paired parent.
