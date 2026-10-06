@@ -1,5 +1,43 @@
 # Cupid Toolchain bootstrap
 
+## FAT16 reserved cluster boundary, 2026-10-06
+
+The allocator stops before reserved cluster `0xfff0` and can still allocate
+`0xffef`. On a maximum FAT16 volume with every usable cluster occupied, the
+original allocator selects the reserved number. The corrected scan reports
+exhaustion after 256 reads and no writes. All fifteen methods pass through
+native and Cupid-built callers on Windows and Linux; the controlled HomeFS
+replacement retains its 9,708 reads, 634 writes and exact FAT identity.
+
+The complete frontier compiles all 156 sources twice within its original
+2,340-second deadline. Independent checking rereads 312 ELF32 objects and 474
+source controls. Only the FAT allocator object changes, growing by 48 bytes;
+all nineteen post-build assertions pass with the measured locks. All 156
+frontier objects match both normal Make production cohorts.
+
+Both host derivatives pass the normal kernel, image and user targets with
+conventional code producers forbidden. Independent comparison verifies all
+429 production objects, sixteen artifacts, six unchanged user products, the
+complete ABI and preserved FAT suffix. Only FAT, the manual wrapper and
+generated kernel symbols change. The 164,948-byte manual occurs once in each
+kernel output. The raw kernel is 9,599,128 bytes, 616 bytes larger; final and
+pass-one ELF sizes stay 9,826,748 and 9,695,676 bytes. Only the measured raw-size
+policy row changes. The complete 200 MiB image has SHA-256
+`cf5f4ded28e6c14fa3a6e896ff96c39eed00f7ad96ba48c13232fb3938248e3f`.
+All four strict private four-CPU max/e1000 sessions pass completed ls/SMP
+verification and feature 17 ISO checks. Audit generation and reproducibility
+checking pass with 780 active inputs, 255 features and the same 452 transforms:
+449 CupidBuild actions and three Python actions. The preprocessor cases remain
+byte-identical. This fix changes no installed tool or build ownership.
+
+Commit `51f3c9ee` already installs the qualified fifteen-file seed cohort and
+normal ISO and native ABI recipes. Independent installed checks on both hosts
+reread the exact committed source closures, seeds and complete ABI without
+creating an SDK cache. The remaining Python actions are disk-image publication,
+hosted contract publication and hosted contract verification.
+See [the FAT16 evidence](FAT16-RESERVED-CLUSTERS.md) and
+[the ISO handoff](NATIVE-ISO-HANDOFF.md). `TempleOS/` remains read-only and excluded.
+
 ## Qualified paired seeds and native recipe handoff, 2026-10-06
 
 The complete committed `344a9eee` producer passes qualification on Windows and
@@ -10,7 +48,7 @@ Linux retains 34 C sources, one startup object and six tools; Windows retains
 all original captures, parents, plans, tools and behavior products. It verifies
 50 final-stage artifact pairs on Windows and 41 on Linux.
 
-The private seed proposal copies those qualified tool bytes, projects manifest
+Commit `51f3c9ee` installs those qualified tool bytes, projects manifest
 provenance from the retained qualifications and preserves the native author's
 exact release bytes. Strict consumer checks pass 632 selections, with 616
 executions and sixteen declared platform skips. Historical reader fixtures keep
@@ -44,10 +82,10 @@ methods also check the ABI closure after removing an artificial release filename
 extension restriction. The selected regular release file still has to match
 the exact closure. All other code differences are excluded by AST comparisons.
 
-The draft normal graph has 449 CupidBuild and three Python actions across 452
+The normal graph has 449 CupidBuild and three Python actions across 452
 transforms. Python retains disk-image publication, hosted contract publication
-and hosted contract verification. Final OS and installed-seed acceptance remain
-separate from these private recipe checks.
+and hosted contract verification. The paired OS checks and installed-source
+acceptance close separately below.
 
 The SDK carries explicit reviewed behavior authority through capture, bootstrap,
 cache reuse and final publication. It captures 101 inputs, including the four
@@ -72,7 +110,8 @@ The preserved 200 MiB image has SHA-256
 All four strict private four-CPU max/e1000 sessions pass completed ls/SMP
 and feature 17 ISO checks. Independent comparison verifies identical objects,
 artifacts, user programs, ABI, manual locations and complete images on both
-hosts. Installed-seed acceptance remains open.
+hosts. Installed checks on both hosts verify all fifteen cohort files, exact
+committed source closures and the complete native ABI under `51f3c9ee`.
 
 The first final collector omitted objects outside five directories and reported
 265 instead of 429. A separate collector rereads the complete accepted object
@@ -90,7 +129,8 @@ qualification receipts, `iso-promoted-consumer-paired-independent.json`,
 `iso-native-user-abi-make-paired-independent.json`,
 `iso-sdk-real-publication-default-long-paired-independent.json` and
 `iso-final-handoff-graph-paired-independent.json` and
-`iso-seed-handoff-fresh-os-paired-independent.json`. `TempleOS/` remains
+`iso-seed-handoff-fresh-os-paired-independent.json` and
+`iso-sdk-handoff-installed-paired-independent.json`. `TempleOS/` remains
 read-only and excluded. See ADRs 0431 and 0432.
 
 ## Complete guarded ISO command, 2026-10-06

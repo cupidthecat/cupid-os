@@ -38,7 +38,7 @@ Independent graph evidence accepts 26 methods per host, including the complete
 SDK source-freeze mutation matrix. The failed stale inventory assertions remain
 retained alongside their corrected focused passes. A selected release is a
 regular file; the audit checks its exact membership without requiring a filename
-extension. The draft graph has 449 CupidBuild and three Python actions across
+extension. The normal graph has 449 CupidBuild and three Python actions across
 452 transforms. Canonical generation and reproducibility checks pass. Both
 default and long SDK publications and both fresh OS/user builds, complete object and
 artifact checks, strict ls/SMP and feature 17 sessions now pass independent
@@ -47,7 +47,10 @@ entry address remain retained failures; corrected readers use the complete
 object inventory and actual user-loader contract. Both hosts produce identical
 429 objects, sixteen artifacts, six user products and complete images. All
 four SDK publications retain 101 inputs, matching 74 stage-pair identities and
-22 ELF artifacts. Installed-seed acceptance remains separate.
+22 ELF artifacts. Commit `51f3c9ee` installs the complete cohort and recipe
+handoff. Independent checks on both installed host views verify all fifteen
+files, the committed source closures and complete native ABI without creating
+an SDK cache.
 
 The kernel frontier's input lock now records the complete 474-file closure,
 including the five ISO headers, changed hosted declaration and regenerated

@@ -125,3 +125,17 @@ per examined entry. The new image passes strict four-CPU boot. Gameplay,
 timedemo, audio, save/load and reboot persistence remain separate open work.
 The isolated proposal changes no installed seed or normal build ownership.
 `TempleOS/` remains read-only reference material and is excluded from the proof.
+
+## Reserved cluster follow-up, 2026-10-06
+
+The represented data extent can include reserved FAT16 cluster numbers near its
+upper limit. Cap the exclusive allocation scan at `0xfff0`, while retaining
+`0xffef` as the last allocatable number. A full maximum-size fixture previously
+selected `0xfff0`; the same fixture now returns exhaustion without either FAT
+copy write. Native and Cupid-built callers pass the complete fifteen-method
+matrix on both hosts. [The follow-up record](../bootstrap/FAT16-RESERVED-CLUSTERS.md)
+retains the red reproduction, exact source captures, positive boundary case,
+copy identities, completed paired production and full-frontier comparisons,
+preserved 200 MiB image, measured kernel/manual policy and four passing strict
+four-CPU runtime sessions. The normal graph retains 449 CupidBuild and three
+Python actions; the qualified seed cohort stays unchanged.

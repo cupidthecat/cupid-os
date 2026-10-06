@@ -8,7 +8,7 @@
 extern int printf(const char *, ...);
 
 static fat16_fs_t fs;
-static uint16_t tables[2][32768];
+static uint16_t tables[2][65536];
 static uint32_t reads, writes, failed_read, failed_write;
 static uint32_t outside_reads;
 static void print(const char *text) { (void)text; }
@@ -22,7 +22,8 @@ static int blockcache_read(uint32_t lba, void *buffer) {
     if (lba < fs.fat_start || lba >= fs.fat_start + (uint32_t)fs.num_fats * fs.sectors_per_fat) {
         outside_reads++; return -1;
     }
-    in = (const unsigned char *)tables + (lba - fs.fat_start) * 512u;
+    in = (const unsigned char *)tables[(lba - fs.fat_start) / fs.sectors_per_fat] +
+         ((lba - fs.fat_start) % fs.sectors_per_fat) * 512u;
     for (i = 0; i < 512u; i++) out[i] = in[i];
     return 0;
 }
@@ -33,7 +34,8 @@ static int blockcache_write(uint32_t lba, const void *buffer) {
     writes++;
     if (failed_write == writes) return -1;
     if (lba < fs.fat_start || lba >= fs.fat_start + (uint32_t)fs.num_fats * fs.sectors_per_fat) return -1;
-    out = (unsigned char *)tables + (lba - fs.fat_start) * 512u;
+    out = (unsigned char *)tables[(lba - fs.fat_start) / fs.sectors_per_fat] +
+          ((lba - fs.fat_start) % fs.sectors_per_fat) * 512u;
     for (i = 0; i < 512u; i++) out[i] = in[i];
     return 0;
 }
@@ -43,10 +45,14 @@ static int blockcache_write(uint32_t lba, const void *buffer) {
 static void prepare(uint32_t used, uint32_t clusters) {
     uint32_t i, copy;
     for (copy = 0; copy < 2u; copy++)
-        for (i = 0; i < 32768u; i++) tables[copy][i] = i < used ? FAT16_EOC_MAX : FAT16_FREE;
+        for (i = 0; i < 65536u; i++) tables[copy][i] = i < used ? FAT16_EOC_MAX : FAT16_FREE;
     fs.fat_start = 1u; fs.bytes_per_sector = 512u; fs.sectors_per_cluster = 8u;
     fs.reserved_sectors = 1u; fs.num_fats = 2u; fs.sectors_per_fat = 128u;
     fs.root_dir_entries = 512u; fs.total_sectors = 1u + 256u + 32u + clusters * 8u;
+    if (clusters > 32766u) {
+        fs.sectors_per_cluster = 1u; fs.sectors_per_fat = 256u;
+        fs.total_sectors = 1u + 512u + 32u + clusters;
+    }
     reads = writes = failed_read = failed_write = outside_reads = 0u;
 }
 static int allocated(uint16_t expected) {
@@ -71,10 +77,9 @@ static int rejected_geometry(uint32_t mode) {
     return fat16_alloc_cluster() == 0u && reads == 0u && writes == 0u;
 }
 int main(int argc, char **argv) {
-    uint32_t mode, i, hash = 2166136261u;
-    const unsigned char *bytes = (const unsigned char *)tables;
+    uint32_t mode, i, copy, hash = 2166136261u;
     int ok = 0;
-    if (argc != 2 || argv[1][0] < 'a' || argv[1][0] > 'm' || argv[1][1] != 0) return 1;
+    if (argc != 2 || argv[1][0] < 'a' || argv[1][0] > 'o' || argv[1][1] != 0) return 1;
     mode = (uint32_t)(argv[1][0] - 'a');
     prepare(7049u, 15000u);
     if (mode == 0u) {
@@ -118,8 +123,22 @@ int main(int argc, char **argv) {
         tables[0][257] = tables[1][257] = FAT16_FREE;
         ok = allocated(257u); tables[0][42] = tables[1][42] = FAT16_FREE;
         ok = ok && allocated(42u);
+    } else if (mode == 13u) {
+        prepare(0xffefu, 65524u);
+        ok = allocated(0xffefu) && reads <= 260u && writes == 2u;
+        for (i = 0xfff0u; i < 65536u; i++)
+            if (tables[0][i] != FAT16_FREE || tables[1][i] != FAT16_FREE) ok = 0;
+    } else if (mode == 14u) {
+        prepare(0xfff0u, 65524u);
+        ok = fat16_alloc_cluster() == 0u && writes == 0u && outside_reads == 0u;
+        for (i = 0xfff0u; i < 65536u; i++)
+            if (tables[0][i] != FAT16_FREE || tables[1][i] != FAT16_FREE) ok = 0;
     }
-    for (i = 0u; i < (uint32_t)sizeof(tables); i++) hash = (hash ^ bytes[i]) * 16777619u;
+    for (copy = 0u; copy < 2u; copy++) {
+        const unsigned char *bytes = (const unsigned char *)tables[copy];
+        for (i = 0u; i < (uint32_t)fs.sectors_per_fat * 512u; i++)
+            hash = (hash ^ bytes[i]) * 16777619u;
+    }
     (void)printf("mode=%u reads=%u writes=%u table_fnv=%u outside=%u\n", mode, reads, writes, hash, outside_reads);
     return ok ? 0 : 2;
 }

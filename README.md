@@ -1,5 +1,17 @@
 # cupid-os
 
+## FAT16 reserved cluster boundary, 2026-10-06
+
+FAT16 stops allocation before reserved cluster `0xfff0`, while retaining
+`0xffef` as usable. All fifteen allocator methods pass through native and
+Cupid-built callers on both hosts. The full 156-source frontier, paired normal
+builds, all 429 object comparisons, sixteen artifact checks and four strict
+four-CPU ls/SMP and feature 17 sessions pass. Both hosts produce the same
+200 MiB preserved image and 9,599,128-byte raw kernel with the 164,948-byte
+manual. The installed ISO and ABI handoff is `51f3c9ee`; the normal graph has
+449 CupidBuild actions and three Python actions. See
+[the FAT16 record](docs/bootstrap/FAT16-RESERVED-CLUSTERS.md).
+
 ## Qualified ISO and ABI recipe checks, 2026-10-06
 
 The committed `344a9eee` producer passes complete Windows and Linux qualification.
@@ -11,11 +23,13 @@ pairs. The user gate runs directly through CupidBuild with an absolute root.
 
 The SDK now carries explicitly reviewed release authority through its bootstrap,
 cache and final publication checks. Native and Cupid-built policy tests pass 244
-executions; coordinator and adapter checks pass 192. The draft graph measures
+executions; coordinator and adapter checks pass 192. The normal graph measures
 449 CupidBuild and three Python actions across 452 transforms. All four default
 and long SDK publications, paired fresh OS/user builds, strict ls/SMP and feature
 17 checks pass independent verification. The SDK's 74 stage-pair identities and
-22 ELF artifacts match across all four runs. Installation remains separate. See [the handoff record](docs/bootstrap/NATIVE-ISO-HANDOFF.md)
+22 ELF artifacts match across all four runs. Commit `51f3c9ee` installs the
+complete cohort; independent installed source and native ABI checks pass on
+both hosts. See [the handoff record](docs/bootstrap/NATIVE-ISO-HANDOFF.md)
 and [ADR 0432](docs/adr/0432-hand-off-qualified-iso-and-abi-recipes.md).
 
 ## Complete guarded ISO command, 2026-10-06

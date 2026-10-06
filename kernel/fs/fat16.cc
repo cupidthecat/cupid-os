@@ -806,6 +806,7 @@ static uint16_t fat16_alloc_cluster(void) {
     if (total_clusters > 65533u || total_clusters + 2u >
         (uint32_t)fs.sectors_per_fat * (512u / 2u)) return 0;
     uint32_t limit = total_clusters + 2u;
+    if (limit > FAT16_RESERVED_MIN) limit = FAT16_RESERVED_MIN;
     uint32_t cluster = 2u;
     uint8_t buffer[512];
 

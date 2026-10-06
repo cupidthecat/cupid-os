@@ -3,7 +3,7 @@
 ## Qualified complete ISO and native ABI commands, 2026-10-06
 
 Both complete `344a9eee` producer qualifications pass with the exact 92-input
-snapshot and their retained behavior matrices. The proposed qualified seed pair
+snapshot and their retained behavior matrices. The installed `51f3c9ee` pair
 passes 632 consumer selections, including sixteen declared platform skips.
 Ten real ISO Make commands and ten native user Make commands pass across both
 hosts. The complete ABI oracle report, six user product pairs, equal timestamps,
@@ -18,7 +18,8 @@ cache, output-validation and UTF-8 adapter regressions. All four default and lon
 publications and both fresh OS/user builds, full object and artifact checks,
 strict ls/SMP and feature 17 sessions pass independent paired verification.
 All 74 stage-pair identities and 22 ELF artifacts match across the four SDK
-runs. Installed-seed acceptance remains separate. See
+runs. Independent installed checks pass on both hosts for the complete
+fifteen-file cohort, committed source closures and complete native ABI. See
 [ADR 0431](../adr/0431-carry-reviewed-releases-through-sdk-publication.md) and
 [the handoff](NATIVE-ISO-HANDOFF.md).
 

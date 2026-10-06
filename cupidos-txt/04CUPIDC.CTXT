@@ -2817,6 +2817,19 @@ Invalid or changed authority preserves the prior publication. Ordinary calls
 without explicit authority retain the strict bootstrap path.
 >endtree
 
+
+>h2 FAT16 allocation boundary
+>tree
+The sector allocator stops before reserved cluster number 0xfff0. Cluster
+0xffef remains usable. If every usable data cluster is occupied, free reserved
+entries do not satisfy allocation and neither FAT copy is changed.
+
+The complete allocation contracts run the exact four active kernel bodies
+with real headers and controlled sector callbacks. Native and Cupid-built
+callers agree on both hosts, including the last usable cluster, exhaustion,
+copy errors, allocation holes and the original HomeFS replacement workload.
+>endtree
+
 >h2 See Also
 [03CUPIDSC.CTXT - CupidScript](open:03CUPIDSC.CTXT)
 [12HOLYC-CUPIDC.CTXT - HolyC comparison](open:12HOLYC-CUPIDC.CTXT)

@@ -44826,7 +44826,7 @@
               "text": "#pragma pack(pop)"
             },
             {
-              "line": 76,
+              "line": 77,
               "path": "kernel/fs/fat16.h",
               "text": "#pragma pack(pop)"
             }
@@ -44848,7 +44848,7 @@
               "text": "#pragma pack(push, 1)"
             },
             {
-              "line": 26,
+              "line": 27,
               "path": "kernel/fs/fat16.h",
               "text": "#pragma pack(push, 1)"
             }
@@ -51579,7 +51579,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 44799
+      "occurrences": 44800
     },
     {
       "category": "control",
@@ -54029,7 +54029,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3441
+      "occurrences": 3442
     },
     {
       "category": "preprocessor",
@@ -55704,7 +55704,7 @@
           "text": "#pragma pack(pop)"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "kernel/fs/fat16.h",
           "text": "#pragma pack(push, 1)"
         }
@@ -60666,7 +60666,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "f2eee5240ee25762d5479844c1b74ae479f8d62a4e21c106f822750a91245614",
+    "active_source_digest": "7cef5c5a24d39bfdc0351554767f5faed651cf70f03d6876db8fa6a8f06c13b4",
     "control_files": [
       {
         "path": "Makefile",
@@ -77925,12 +77925,12 @@
         "kernel/fs/fat16_control.h"
       ],
       "language": "cupid_c",
-      "lines": 1906,
+      "lines": 1907,
       "origin": "tracked",
       "path": "kernel/fs/fat16.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b4228076bc8f2cff35d23db413ca48b567ef698b5c04fba5418534f65af02f19"
+      "sha256": "d0bb9f5a92bbef519dbb115cdcf6e6ddc96d5782a92268ff95d4b6dd00cfc085"
     },
     {
       "build_owners": [
@@ -77962,12 +77962,12 @@
         "kernel/fs/blockdev.h"
       ],
       "language": "c_header",
-      "lines": 127,
+      "lines": 128,
       "origin": "tracked",
       "path": "kernel/fs/fat16.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "4a9ab8793783753b4b31ce0d586e3503f8398f1b7d51c3877f2a50544e0867fd"
+      "sha256": "e1f0f88591af68e74e474896969f7696a3d1b537a6a126e7a1e68d3d57f2b01d"
     },
     {
       "build_owners": [
@@ -90739,11 +90739,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 125,
+      "lines": 144,
       "path": "toolchain/tests/fat16_allocation_contract.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "7f26dba05694d02a07503824cc792741672a09ef8b36ec6eef087809950bb2e7"
+      "sha256": "e1fe893336023634b8834b05faae02f612640554829a336350e3f1ddcda2532c"
     },
     {
       "classification": "not_reached",

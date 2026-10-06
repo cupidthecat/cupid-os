@@ -45,7 +45,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_core` | 17 | 4213 |
 | `kernel_cpu` | 19 | 3347 |
 | `kernel_crypto` | 40 | 5149 |
-| `kernel_fs` | 27 | 7359 |
+| `kernel_fs` | 27 | 7361 |
 | `kernel_gfx` | 29 | 13670 |
 | `kernel_gui` | 28 | 12486 |
 | `kernel_lang` | 20 | 10518 |
@@ -100,13 +100,13 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1484 |
 | `asm.relocation` | 1 | 94 |
-| `c.control` | 12 | 95630 |
+| `c.control` | 12 | 95631 |
 | `c.declaration` | 1 | 28 |
 | `c.declarator` | 4 | 4155 |
 | `c.expression` | 2 | 7103 |
 | `c.extension` | 19 | 429 |
 | `c.initializer` | 1 | 690 |
-| `c.preprocessor` | 18 | 8429 |
+| `c.preprocessor` | 18 | 8430 |
 | `c.qualifier` | 2 | 18846 |
 | `c.storage` | 4 | 11594 |
 | `c.type` | 15 | 63328 |
@@ -220,7 +220,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `toolchain/tests/cupidbuild_user_elf_contract.cc` | `cupid_c` | `not_reached` | 162 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupiddis_kernel_adapter_contract.cc` | `cupid_c` | `host_oracle` | 224 | native public kernel-adapter contract outside production build roots |
 | `toolchain/tests/elf32_oracle.c` | `c` | `host_oracle` | 8 | optional host compiler input for ELF32 reader comparison |
-| `toolchain/tests/fat16_allocation_contract.cc` | `cupid_c` | `not_reached` | 125 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/fat16_allocation_contract.cc` | `cupid_c` | `not_reached` | 144 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/iso_fixture_bundle_contract.cc` | `cupid_c` | `not_reached` | 188 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/native_utf8_argv_contract.cc` | `cupid_c` | `not_reached` | 7 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/native_utf8_fault_contract.cc` | `cupid_c` | `not_reached` | 124 | not reachable from the supported Make target or include closure |

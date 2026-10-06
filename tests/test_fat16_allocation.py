@@ -85,6 +85,8 @@ class Fat16AllocationTests(unittest.TestCase):
     def test_invalid_geometry_fails_before_sector_access(self): self.check('k')
     def test_bad_and_end_of_chain_entries_are_preserved(self): self.check('l')
     def test_freed_earlier_cluster_is_reused(self): self.check('m')
+    def test_last_nonreserved_cluster_can_be_allocated(self): self.check('n')
+    def test_reserved_cluster_numbers_never_satisfy_exhaustion(self): self.check('o')
 
 if __name__ == '__main__':
     unittest.main()
