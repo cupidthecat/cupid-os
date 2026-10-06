@@ -2883,9 +2883,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 426)
+            self.assertEqual(contract["if_occurrences"], 427)
             self.assertEqual(contract["elif_occurrences"], 20)
-            self.assertEqual(contract["expression_occurrences"], 446)
+            self.assertEqual(contract["expression_occurrences"], 447)
             self.assertEqual(contract["unique_expressions"], 61)
             self.assertEqual(contract["directive_expression_pairs"], 64)
             executable_contract = CUPIDC_PP_CONTRACT.read_text(encoding="utf-8")

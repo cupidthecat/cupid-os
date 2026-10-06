@@ -1,5 +1,29 @@
 # cupid-os
 
+## Observer binding at publication, 2026-10-05
+
+CupidBuild can borrow a retained observer through its final publication checks,
+including the check after installing a candidate. Binding must precede the first
+publication attempt, and failed or repeated binding forbids publication. Ten
+new methods pass with native and Cupid-built callers on both hosts; injected
+rename-boundary drift also restores prior output or absence and permits recovery.
+Independent verification records 292 executions and ten platform skips. Complete
+ISO publication and seed carriage remain open. See
+[ADR 0428](docs/adr/0428-bind-retained-observers-to-publication-boundaries.md).
+
+The 161,127-byte observer-binding manual passes fresh installed-seed
+kernel/image and strict private four-CPU max/e1000 runtime checks with completed
+ls and SMP verification. Independent rereading checks 1,589 source controls,
+all 429 objects and sixteen artifacts. Only the manual wrapper changes, the
+accepted FAT16 object stays identical and FAT data from sector 20,480 remains
+intact. The raw kernel measures 9,595,256 bytes; final/pass-one ELF sizes stay
+9,822,652 and 9,691,580 bytes. Only the raw-kernel policy row changes. The 200 MiB
+image has SHA-256
+`4250559828b4a1553b1d32bcbe042c91ed20662a3a5287f7d571273d45a192f4`.
+Evidence is `manual-independent-windows.json` under
+`cupid-native-iso-bound-observer-manual-20261005`. This installed-seed manual
+acceptance does not qualify or install the new source cohort.
+
 ## FAT allocation scan, 2026-10-05
 
 FAT16 examines all candidate entries in a sector after one read and still

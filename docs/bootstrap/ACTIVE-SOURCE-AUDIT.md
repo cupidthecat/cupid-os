@@ -57,7 +57,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
 | `toolchain_contract` | 24 | 168312 |
-| `toolchain_core` | 76 | 120888 |
+| `toolchain_core` | 76 | 120964 |
 | `toolchain_host_adapter` | 2 | 270 |
 | `toolchain_kernel_adapter` | 2 | 577 |
 | `user_program` | 3 | 139 |
@@ -100,16 +100,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1484 |
 | `asm.relocation` | 1 | 94 |
-| `c.control` | 12 | 95169 |
+| `c.control` | 12 | 95193 |
 | `c.declaration` | 1 | 28 |
 | `c.declarator` | 4 | 4148 |
 | `c.expression` | 2 | 7079 |
 | `c.extension` | 19 | 429 |
 | `c.initializer` | 1 | 690 |
-| `c.preprocessor` | 18 | 8383 |
+| `c.preprocessor` | 18 | 8386 |
 | `c.qualifier` | 2 | 18718 |
-| `c.storage` | 4 | 11529 |
-| `c.type` | 15 | 62904 |
+| `c.storage` | 4 | 11531 |
+| `c.type` | 15 | 62910 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
@@ -240,7 +240,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | --- | --- | --- |
 | `assembly_source_ownership` | `pass` | 37 active assembly sources; 37 CupidASM-owned; 10 Toolchain startup; 0 other-owned; 0 ownerless; 0 explicit host-only classifications |
 | `bootstrap_artifact_coverage` | `pass` | 429 linked objects; 436 declared artifacts; 0 missing |
-| `c_preprocessor_conditionals` | `pass` | 446 conditional expressions (426 #if, 20 #elif); 61 normalized expressions; 64 directive/expression pairs |
+| `c_preprocessor_conditionals` | `pass` | 447 conditional expressions (427 #if, 20 #elif); 61 normalized expressions; 64 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |
 | `c_preprocessor_include_operands` | `pass` | 2584 C include operands (2262 quoted, 322 angle, 0 pp-token); 734 source files; max conditional depth 2 |
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 734 source files; max conditional depth 0 |

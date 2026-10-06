@@ -171,6 +171,74 @@ static int capacity_case(const char *root, const char *mode) {
   if (!cupidbuild_host_transaction_close(transaction)) return 93;
   return ok ? 0 : 3;
 }
+static int binding_case(const char *root, const char *mode) {
+  cupidbuild_host_transaction_t *transaction = NULL;
+  cupidbuild_host_observer_t *observer = NULL;
+  cupidbuild_host_snapshot_t snapshot;
+  unsigned char *bytes = NULL;
+  uint64_t size = 0u;
+  const char *frozen = NULL;
+  const char *arguments[3];
+  const char *members[2] = {"payload.dat", "empty"};
+  char writer[8192];
+  char observed_root[8192];
+  char resume;
+  int changed = 0;
+  int wrong_root = strcmp(mode, "binding-wrong-root") == 0;
+  int ok = cupidbuild_host_transaction_open(root, "source.cc", "nested/file.o", &transaction);
+  snprintf(writer, sizeof(writer), "%s/writer", root);
+  arguments[0] = "emit";
+  arguments[1] = cupidbuild_host_candidate(transaction);
+  arguments[2] = NULL;
+  if (ok) ok = cupidbuild_host_freeze_input(transaction, writer, "writer.exe", &frozen, NULL) &&
+               cupidbuild_host_make_input_executable(transaction, frozen) &&
+               cupidbuild_host_run(transaction, frozen, arguments, 10000) == 0 &&
+               cupidbuild_host_capture_candidate(transaction, &snapshot, &bytes);
+  if (ok) ok = snapshot.size == 3u && memcmp(bytes, "new", 3u) == 0;
+  free(bytes); bytes = NULL;
+  snprintf(observed_root, sizeof(observed_root), "%s/observed", root);
+  if (ok) ok = cupidbuild_host_observer_open(wrong_root ? observed_root : root, &observer) &&
+               cupidbuild_host_observer_file(observer, wrong_root ? "payload.dat" : "observed/payload.dat",
+                                             64u, &bytes, &size) && size == 4u &&
+               cupidbuild_host_observer_directory(observer, wrong_root ? "" : "observed", members, 2u) &&
+               cupidbuild_host_observer_directory(observer, wrong_root ? "empty" : "observed/empty", NULL, 0u);
+  free(bytes); bytes = NULL;
+  if (ok && strcmp(mode, "binding-poison") == 0)
+    ok = !cupidbuild_host_observer_file(observer, "absent", 1u, &bytes, &size);
+  free(bytes);
+  if (ok && strcmp(mode, "binding-after-publish") == 0) {
+    ok = cupidbuild_host_publish_if_changed(transaction, &changed) &&
+         !cupidbuild_host_transaction_borrow_observer(transaction, observer) &&
+         strcmp(cupidbuild_host_error(transaction), "transaction observer must bind before publication") == 0 &&
+         !cupidbuild_host_require_publication_boundary(transaction) &&
+         !cupidbuild_host_publish_if_changed(transaction, &changed);
+    if (!ok) fprintf(stderr, "%s\n", cupidbuild_host_error(transaction));
+    if (!cupidbuild_host_transaction_close(transaction)) ok = 0;
+    if (!cupidbuild_host_observer_close(observer)) return 93;
+    return ok ? 0 : 3;
+  }
+  if (ok) ok = cupidbuild_host_transaction_borrow_observer(transaction,
+               strcmp(mode, "binding-null") == 0 ? NULL : observer);
+  if (ok && strcmp(mode, "binding-repeat") == 0)
+    ok = cupidbuild_host_transaction_borrow_observer(transaction, observer);
+  if (!ok) {
+    fprintf(stderr, "%s\n", cupidbuild_host_error(transaction));
+    if (transaction && (cupidbuild_host_require_publication_boundary(transaction) ||
+                        cupidbuild_host_publish_if_changed(transaction, &changed))) return 94;
+    if (!cupidbuild_host_transaction_close(transaction)) return 93;
+    if (!cupidbuild_host_observer_close(observer)) return 93;
+    return 2;
+  }
+  printf("ready observer\n"); fflush(stdout);
+  if (fread(&resume, 1, 1, stdin) != 1) return 92;
+  ok = strcmp(mode, "binding-boundary") == 0
+      ? cupidbuild_host_require_publication_boundary(transaction)
+      : cupidbuild_host_publish_if_changed(transaction, &changed);
+  if (!ok) fprintf(stderr, "%s\n", cupidbuild_host_error(transaction));
+  if (!cupidbuild_host_transaction_close(transaction)) ok = 0;
+  if (!cupidbuild_host_observer_close(observer)) return 93;
+  return ok ? 0 : 3;
+}
 int main(int argc, char **argv) {
   cupidbuild_host_observer_t *observer = NULL;
   unsigned char *bytes = NULL;
@@ -204,6 +272,7 @@ int main(int argc, char **argv) {
   }
   if (argc != 4 || !decode(argv[1]) || !decode(argv[3])) return 90;
   if (strncmp(argv[2], "capacity-", 9) == 0) return capacity_case(argv[1], argv[2]);
+  if (strncmp(argv[2], "binding-", 8) == 0) return binding_case(argv[1], argv[2]);
   if (strncmp(argv[2], "parent", 6) == 0) return parent_case(argv[1], argv[2], argv[3]);
   if (strcmp(argv[2], "strcpy") == 0) {
     char destination[8];
@@ -695,6 +764,115 @@ class CupidBuildObserverTests(unittest.TestCase):
                 process.communicate(timeout=10)
             for stream in (process.stdin, process.stdout, process.stderr):
                 stream.close()
+
+    def prepare_binding(self):
+        (self.root / 'source.cc').write_bytes(b'int value;')
+        shutil.copyfile(self.program, self.root / 'writer')
+        (self.parent / 'file.o').write_bytes(b'old')
+        (self.root / 'observed/empty').mkdir(parents=True)
+        (self.root / 'observed/payload.dat').write_bytes(b'seed')
+
+    def binding(self, mode='binding-publish', mutate=None, expected=0):
+        output = self.parent / 'file.o'
+        before = (output.read_bytes(), output.stat().st_mtime_ns)
+        process = subprocess.Popen(
+            [str(self.program), str(self.root).encode('utf-8').hex(), mode, ''],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, encoding='utf-8')
+        try:
+            if mutate is not None:
+                ready = queue.Queue()
+                reader = threading.Thread(target=lambda: ready.put(process.stdout.readline()), daemon=True)
+                reader.start()
+                self.assertEqual(ready.get(timeout=20), 'ready observer\n')
+                reader.join(timeout=1)
+                mutate()
+            stdout, stderr = process.communicate('x', timeout=20)
+            self.assertEqual(process.returncode, expected, (stdout, stderr))
+            if expected:
+                self.assertTrue(stderr.strip())
+            else:
+                self.assertEqual(stderr, '')
+            if expected or mode == 'binding-boundary':
+                self.assertEqual((output.read_bytes(), output.stat().st_mtime_ns), before)
+            else:
+                self.assertEqual(output.read_bytes(), b'new')
+            self.assertFalse(list(self.root.rglob('.cupidbuild*')))
+            return stderr
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.communicate(timeout=10)
+            for stream in (process.stdin, process.stdout, process.stderr):
+                stream.close()
+
+    def test_bound_observer_publication_and_equal_timestamp_reuse(self):
+        self.prepare_binding()
+        self.binding()
+        before = (self.parent / 'file.o').stat().st_mtime_ns
+        self.binding()
+        self.assertEqual((self.parent / 'file.o').stat().st_mtime_ns, before)
+
+    def test_bound_observer_ignores_unobserved_namespace_writes(self):
+        self.prepare_binding()
+        self.binding(mutate=lambda: (self.root / 'sibling.dat').write_bytes(b'unrelated'))
+
+    def test_bound_observer_rejects_other_root_and_recovers(self):
+        self.prepare_binding()
+        self.assertIn('different root', self.binding('binding-wrong-root', expected=2))
+        self.binding()
+
+    def test_bound_observer_rejects_null_poison_and_repeat(self):
+        self.prepare_binding()
+        for mode in ('binding-null', 'binding-poison', 'binding-repeat'):
+            with self.subTest(mode=mode):
+                self.binding(mode, expected=2)
+                self.binding()
+
+    def test_bound_observer_rejects_binding_after_changed_publication(self):
+        self.prepare_binding()
+        self.binding('binding-after-publish')
+        self.binding()
+
+    def test_bound_observer_rejects_binding_after_equal_output_reuse(self):
+        self.prepare_binding()
+        output = self.parent / 'file.o'
+        output.write_bytes(b'new')
+        before = output.stat().st_mtime_ns
+        self.binding('binding-after-publish')
+        self.assertEqual(output.stat().st_mtime_ns, before)
+        self.binding()
+
+    def test_bound_observer_rejects_payload_drift_and_recovers(self):
+        self.prepare_binding()
+        payload = self.root / 'observed/payload.dat'
+        before = payload.stat()
+        def mutate():
+            payload.write_bytes(b'edit')
+            os.utime(payload, ns=(before.st_atime_ns, before.st_mtime_ns))
+        self.binding(mutate=mutate, expected=3)
+        self.binding()
+
+    def test_bound_observer_rejects_added_directory_member_and_recovers(self):
+        self.prepare_binding()
+        added = self.root / 'observed/extra'
+        self.binding(mutate=lambda: added.write_bytes(b'new'), expected=3)
+        added.unlink()
+        self.binding()
+
+    def test_bound_observer_rejects_empty_directory_drift_and_recovers(self):
+        self.prepare_binding()
+        added = self.root / 'observed/empty/extra'
+        self.binding(mutate=lambda: added.write_bytes(b'new'), expected=3)
+        added.unlink()
+        self.binding()
+
+    def test_bound_observer_explicit_boundary_rejects_membership_drift(self):
+        self.prepare_binding()
+        added = self.root / 'observed/extra'
+        self.binding('binding-boundary', mutate=lambda: added.write_bytes(b'new'), expected=3)
+        added.unlink()
+        self.binding('binding-boundary')
 
     def test_transaction_freezes_complete_528_input_request(self):
         self.prepare_capacity()

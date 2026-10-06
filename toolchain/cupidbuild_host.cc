@@ -134,6 +134,9 @@ typedef struct {
 
 struct cupidbuild_host_transaction {
   cupidbuild_host_output_parent_t *prepared_output_parent;
+  cupidbuild_host_observer_t *borrowed_observer;
+  int observer_binding_state;
+  int observer_publication_started;
   char repository_root[CUPIDBUILD_HOST_PATH_BYTES];
   char source_path[CUPIDBUILD_HOST_PATH_BYTES];
   char frozen_source[CUPIDBUILD_HOST_PATH_BYTES];
@@ -236,6 +239,8 @@ static int cupidbuild_host_windows_dispose_retained_at(
 static int cupidbuild_host_candidate_ready_for_publication(
     cupidbuild_host_transaction_t *transaction);
 static int cupidbuild_host_published_candidate_matches(
+    cupidbuild_host_transaction_t *transaction);
+static int cupidbuild_host_require_borrowed_observer(
     cupidbuild_host_transaction_t *transaction);
 static int cupidbuild_host_require_public_binding(
     cupidbuild_host_transaction_t *transaction,
@@ -12154,6 +12159,10 @@ static int cupidbuild_host_require_public_binding(
       !cupidbuild_host_require_inputs(transaction)) {
     return 0;
   }
+  if (require_discovery != 0 &&
+      !cupidbuild_host_require_borrowed_observer(transaction)) {
+    return 0;
+  }
   if (!cupidbuild_host_read_output(transaction, 1, &output,
                                    (unsigned char **)0) ||
       !cupidbuild_host_snapshot_equal(
@@ -12173,6 +12182,8 @@ int cupidbuild_host_require_publication_boundary(
 }
 
 int cupidbuild_host_publish(cupidbuild_host_transaction_t *transaction) {
+  if (transaction != (cupidbuild_host_transaction_t *)0)
+    transaction->observer_publication_started = 1;
   if (transaction == (cupidbuild_host_transaction_t *)0 ||
       transaction->candidate_captured == 0 ||
       !cupidbuild_host_require_inputs(transaction) ||
@@ -12196,6 +12207,8 @@ int cupidbuild_host_publish(cupidbuild_host_transaction_t *transaction) {
 
 int cupidbuild_host_publish_if_changed(
     cupidbuild_host_transaction_t *transaction, int *changed_out) {
+  if (transaction != (cupidbuild_host_transaction_t *)0)
+    transaction->observer_publication_started = 1;
   if (transaction == (cupidbuild_host_transaction_t *)0 ||
       changed_out == (int *)0 || transaction->candidate_captured == 0 ||
       !cupidbuild_host_require_inputs(transaction) ||
@@ -13049,6 +13062,55 @@ static int cupidbuild_observer_require_current(cupidbuild_host_observer_t *obser
 
 int cupidbuild_host_observer_require_unchanged(cupidbuild_host_observer_t *observer) {
   return cupidbuild_observer_require_current(observer, 0);
+}
+
+static int cupidbuild_host_require_borrowed_observer(
+    cupidbuild_host_transaction_t *transaction) {
+  if (transaction->observer_binding_state == 0) return 1;
+  if (transaction->observer_binding_state < 0) return 0;
+  if (!cupidbuild_observer_require_current(transaction->borrowed_observer, 1)) {
+    cupidbuild_host_set_error(transaction,
+        cupidbuild_host_observer_error(transaction->borrowed_observer));
+    return 0;
+  }
+  return 1;
+}
+
+int cupidbuild_host_transaction_borrow_observer(
+    cupidbuild_host_transaction_t *transaction,
+    cupidbuild_host_observer_t *observer) {
+  cupidbuild_observer_stat_t root;
+  if (transaction == (cupidbuild_host_transaction_t *)0) return 0;
+  if (transaction->observer_binding_state != 0) {
+    transaction->observer_binding_state = -1;
+    cupidbuild_host_set_error(transaction, "transaction observer may only be bound once");
+    return 0;
+  }
+  transaction->observer_binding_state = -1;
+  if (transaction->observer_publication_started != 0) {
+    cupidbuild_host_set_error(transaction, "transaction observer must bind before publication");
+    return 0;
+  }
+  if (observer == (cupidbuild_host_observer_t *)0 ||
+      observer->root == (cupidbuild_observer_entry_t *)0 ||
+      !cupidbuild_observer_require_current(observer, 1)) {
+    cupidbuild_host_set_error(transaction, "transaction observer is not valid");
+    return 0;
+  }
+  if (!cupidbuild_observer_stat(
+#if defined(_WIN32)
+          transaction->repository_root_handle,
+#else
+          transaction->repository_root_descriptor,
+#endif
+          1, &root) ||
+      !cupidbuild_observer_same(&observer->root->captured, &root, 1)) {
+    cupidbuild_host_set_error(transaction, "transaction observer has a different root");
+    return 0;
+  }
+  transaction->borrowed_observer = observer;
+  transaction->observer_binding_state = 1;
+  return 1;
 }
 
 const char *cupidbuild_host_observer_error(const cupidbuild_host_observer_t *observer) {

@@ -2292,6 +2292,17 @@ these observations; the new kind operation is a separate source capability.
 ADRs 0401, 0408 and 0421 record the contracts.
 _Avoid_: atomic filesystem snapshot, frozen execution transaction
 
+**Borrowed publication observer**:
+A retained observer bound once to a transaction with the same root identity,
+before any publication attempt. The caller keeps it alive through transaction
+close. Publication boundaries recheck payloads, metadata, ancestors and exact
+memberships, including after candidate installation. Root size/time are excluded
+because publication writes names there; its identity and explicit membership
+remain checked. Failed binding forbids publication. Recovery's source-independent
+checks can restore verified old output after observed-input drift. ADR 0428
+records the lifetime and failure rules.
+_Avoid_: transferred observer ownership, input freezing, seed authority
+
 **Normal build**:
 The supported path that builds Cupid OS with the Cupid Toolchain as its code-producing toolchain.
 _Avoid_: oracle build, host build

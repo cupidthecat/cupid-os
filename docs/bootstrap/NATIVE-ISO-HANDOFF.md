@@ -1,8 +1,42 @@
 # Native ISO fixture publication
 
+## Retained observer publication binding
+
+`cupidbuild_host_transaction_borrow_observer` binds one successful observer to
+the transaction's retained root identity before any publication attempt. The
+caller keeps it alive through transaction close. Each publication boundary,
+including the check after installation, validates captured payloads and metadata,
+ancestor bindings and exact memberships. Root size/time changes from publication
+are allowed; root identity and explicit memberships remain checked. Binding
+failure forbids publication. Source-only observation drift still allows verified
+old-output restoration through the existing recovery boundary.
+
+All ten binding methods pass with native and Cupid-built callers on both hosts.
+Two native race methods per host inject drift for old and absent output at
+before-mutation and after-install checkpoints. All eight fault cases preserve
+prior bytes and timestamp or absence, clean state and permit fresh recovery.
+Independent evidence records 302 selected methods, 292 executions and ten
+platform skips, with matching 27,788-byte caller objects. The receipt is
+`iso-bound-observer-lifecycle-paired-independent.json` under
+`cupid-native-iso-proof-20261005`. See ADR 0428.
+
 Status, 2026-10-05: inventory validation, retained kind observation, complete
-input capture, independent image checking and complete bundle transport
+input capture, independent image checking, complete bundle transport and
+retained-observer publication binding
 implemented and tested. Native publication and recipe handoff remain pending.
+
+The 161,127-byte observer-binding manual passes fresh installed-seed
+kernel/image and strict private four-CPU max/e1000 runtime checks with completed
+ls and SMP verification. Independent rereading checks 1,589 source controls,
+all 429 objects and sixteen artifacts. Only the manual wrapper changes, the
+accepted FAT16 object stays identical and FAT data from sector 20,480 remains
+intact. The raw kernel measures 9,595,256 bytes; final/pass-one ELF sizes stay
+9,822,652 and 9,691,580 bytes. Only the raw-kernel policy row changes. The 200 MiB
+image has SHA-256
+`4250559828b4a1553b1d32bcbe042c91ed20662a3a5287f7d571273d45a192f4`.
+Evidence is `manual-independent-windows.json` under
+`cupid-native-iso-bound-observer-manual-20261005`. This installed-seed manual
+acceptance does not qualify or install the new source cohort.
 
 The combined FAT16/native ISO manual is 160,376 bytes and passes installed-seed
 kernel/image and strict private four-CPU max/e1000 runtime acceptance with
@@ -281,8 +315,9 @@ Remaining work:
   transaction now admits 528 retained files, including the manifest and cohort
   beside all 512 file inputs. Integrate that tested capacity with the complete
   inventory contract; ADR 0427 records its separate caller qualification.
-- Bind the captured observer through every publication boundary, reject
-  output/input aliases and account for the transaction's own namespace changes.
+- Use the qualified observer-binding API through every publication boundary and
+  reject output/input aliases. It accounts for publication's root namespace
+  changes while retaining captured memberships and descendant metadata.
   The complete transaction must retain manifest, tool and output observations
   within their lifetimes and preserve the full request boundary during launch.
 - Run frozen checked CupidObj first, then pass its candidate and captured inputs
@@ -298,6 +333,8 @@ The ISO source capabilities are isolated from the SDK publication and
 ABI proposals already under qualification. The validator is not yet linked into
 normal tool images; installed seeds do not carry the new kind API. The preceding
 manual and capture paragraph have independent kernel/image/runtime acceptance.
-The bundle paragraph also has fresh installed-seed acceptance. Commit and branch
-adoption still await the qualified integration boundary. See ADR 0421 for the
+The bundle paragraph also has fresh installed-seed acceptance. Commit `13f19582`
+adopts the combined ISO capabilities and accepted FAT16 source. The observer
+binding has separate caller, rename-race, preprocessing and manual acceptance
+above. See ADR 0421 for the
 observer contract and its unchanged observation limits.

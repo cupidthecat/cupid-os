@@ -2674,6 +2674,16 @@ demand and rejects input 529. Late input/output aliases and same-size edits
 with restored timestamps still fail. Native and Cupid-built callers pass all
 eight capacity cases on each host, including complete publication, cleanup,
 recovery and timestamp-preserving reuse.
+The transaction can borrow one successful observer with the same retained
+root identity. It checks captured file bytes and metadata, ancestor bindings
+and exact directory membership at every publication boundary, including
+after candidate installation. The caller keeps the observer alive through
+transaction close. Binding must precede the first publication attempt,
+including equal-output reuse; failed or repeated binding forbids publication.
+Root directory size and time are excluded because publication writes names
+there, while its identity and captured memberships remain checked. Source
+observation drift can still restore verified prior output through the existing
+recovery checks. Binding does not replace frozen-input alias or seed checks.
 Guarded publication still needs integration. Normal ISO publication remains
 Python-coordinated, and installed seeds do not yet include these source modules.
 >endtree

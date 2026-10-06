@@ -41261,7 +41261,7 @@
     "c_preprocessor_conditionals": {
       "directive_expression_pairs": 64,
       "elif_occurrences": 20,
-      "expression_occurrences": 446,
+      "expression_occurrences": 447,
       "expressions": [
         {
           "elif_occurrences": 0,
@@ -41314,7 +41314,7 @@
             },
             {
               "directive": "if",
-              "line": 1803,
+              "line": 1808,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(CUPID_HOSTED_I386_LINUX_ABI_H)"
             },
@@ -41471,169 +41471,169 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 252,
+              "line": 257,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 6637,
+              "line": 6642,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7293,
+              "line": 7298,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7372,
+              "line": 7377,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7424,
+              "line": 7429,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7433,
+              "line": 7438,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7443,
+              "line": 7448,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7652,
+              "line": 7657,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7768,
+              "line": 7773,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7845,
+              "line": 7850,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7896,
+              "line": 7901,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8031,
+              "line": 8036,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8078,
+              "line": 8083,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8110,
+              "line": 8115,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8867,
+              "line": 8872,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9118,
+              "line": 9123,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9231,
+              "line": 9236,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9720,
+              "line": 9725,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9830,
+              "line": 9835,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10490,
+              "line": 10495,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10500,
+              "line": 10505,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10784,
+              "line": 10789,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10869,
+              "line": 10874,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11025,
+              "line": 11030,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11233,
+              "line": 11238,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11414,
+              "line": 11419,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11443,
+              "line": 11448,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11950,
+              "line": 11955,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             }
@@ -42322,253 +42322,253 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 2800,
+              "line": 2805,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 5690,
+              "line": 5695,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 6640,
+              "line": 6645,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 6658,
+              "line": 6663,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 6685,
+              "line": 6690,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 6708,
+              "line": 6713,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 6740,
+              "line": 6745,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 6841,
+              "line": 6846,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 6854,
+              "line": 6859,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 6902,
+              "line": 6907,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 6912,
+              "line": 6917,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 6968,
+              "line": 6973,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 7019,
+              "line": 7024,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 7041,
+              "line": 7046,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 7059,
+              "line": 7064,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 7080,
+              "line": 7085,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 7333,
+              "line": 7338,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 7473,
+              "line": 7478,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 7543,
+              "line": 7548,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 8400,
+              "line": 8405,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 8511,
+              "line": 8516,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 8806,
+              "line": 8811,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 8855,
+              "line": 8860,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 9052,
+              "line": 9057,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 9233,
+              "line": 9238,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 9352,
+              "line": 9357,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 9465,
+              "line": 9470,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 10117,
+              "line": 10122,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 10214,
+              "line": 10219,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 10262,
+              "line": 10267,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 11328,
+              "line": 11333,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 11448,
+              "line": 11453,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12338,
+              "line": 12351,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12363,
+              "line": 12376,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12403,
+              "line": 12416,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12477,
+              "line": 12490,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12542,
+              "line": 12555,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12731,
+              "line": 12744,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12746,
+              "line": 12759,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12914,
+              "line": 12927,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 13228,
+              "line": 13290,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 13240,
+              "line": 13302,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             }
@@ -42585,13 +42585,13 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 5514,
+              "line": 5519,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_HOST_CLOSE_FAILURE_TEST)"
             },
             {
               "directive": "if",
-              "line": 5528,
+              "line": 5533,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_HOST_CLOSE_FAILURE_TEST)"
             }
@@ -42608,7 +42608,7 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 285,
+              "line": 299,
               "path": "toolchain/cupidbuild_host.h",
               "text": "#if defined(CUPIDBUILD_HOST_CLOSE_FAILURE_TEST) && !defined(_WIN32)"
             }
@@ -42625,7 +42625,7 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 5230,
+              "line": 5235,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_HOST_LOW_FD_FAILURE_TEST)"
             }
@@ -42642,7 +42642,7 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 4264,
+              "line": 4269,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_HOST_NATIVE_EINTR_TEST)"
             }
@@ -42659,7 +42659,7 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 1730,
+              "line": 1735,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_HOST_WINDOWS_TERMINATION_TEST)"
             }
@@ -42676,7 +42676,7 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 6749,
+              "line": 6754,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_NOREPLACE_RACE_TEST)"
             }
@@ -42693,19 +42693,19 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 6732,
+              "line": 6737,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_NOREPLACE_RACE_TEST) &&     !defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 6774,
+              "line": 6779,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_NOREPLACE_RACE_TEST) &&     !defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 6784,
+              "line": 6789,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_NOREPLACE_RACE_TEST) &&     !defined(CUPIDBUILD_CUSTOM_LINUX)"
             }
@@ -42722,43 +42722,43 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 195,
+              "line": 198,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PROFILE_DIRECTORY_RACE_TEST) &&     !defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 1067,
+              "line": 1072,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PROFILE_DIRECTORY_RACE_TEST) &&     !defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 2352,
+              "line": 2357,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PROFILE_DIRECTORY_RACE_TEST) &&     !defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 2430,
+              "line": 2435,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PROFILE_DIRECTORY_RACE_TEST) &&     !defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 8339,
+              "line": 8344,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PROFILE_DIRECTORY_RACE_TEST) &&     !defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 8459,
+              "line": 8464,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PROFILE_DIRECTORY_RACE_TEST) &&     !defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 8477,
+              "line": 8482,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PROFILE_DIRECTORY_RACE_TEST) &&     !defined(CUPIDBUILD_CUSTOM_LINUX)"
             }
@@ -42775,43 +42775,43 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 5609,
+              "line": 5614,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PROFILE_PARENT_RACE_TEST)"
             },
             {
               "directive": "if",
-              "line": 5704,
+              "line": 5709,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PROFILE_PARENT_RACE_TEST)"
             },
             {
               "directive": "if",
-              "line": 5768,
+              "line": 5773,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PROFILE_PARENT_RACE_TEST)"
             },
             {
               "directive": "if",
-              "line": 5890,
+              "line": 5895,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PROFILE_PARENT_RACE_TEST)"
             },
             {
               "directive": "if",
-              "line": 5914,
+              "line": 5919,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PROFILE_PARENT_RACE_TEST)"
             },
             {
               "directive": "if",
-              "line": 5961,
+              "line": 5966,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PROFILE_PARENT_RACE_TEST)"
             },
             {
               "directive": "if",
-              "line": 5987,
+              "line": 5992,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PROFILE_PARENT_RACE_TEST)"
             }
@@ -42828,43 +42828,43 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 1721,
+              "line": 1726,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST)"
             },
             {
               "directive": "if",
-              "line": 2677,
+              "line": 2682,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST)"
             },
             {
               "directive": "if",
-              "line": 2709,
+              "line": 2714,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST)"
             },
             {
               "directive": "if",
-              "line": 2737,
+              "line": 2742,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST)"
             },
             {
               "directive": "if",
-              "line": 5441,
+              "line": 5446,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST)"
             },
             {
               "directive": "if",
-              "line": 6408,
+              "line": 6413,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST)"
             },
             {
               "directive": "if",
-              "line": 10962,
+              "line": 10967,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST)"
             }
@@ -42881,31 +42881,31 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 489,
+              "line": 494,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST) &&     !defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 6819,
+              "line": 6824,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST) &&     !defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 11549,
+              "line": 11554,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST) &&     !defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 11597,
+              "line": 11602,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST) &&     !defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 11716,
+              "line": 11721,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST) &&     !defined(CUPIDBUILD_CUSTOM_LINUX)"
             }
@@ -43427,793 +43427,787 @@
             },
             {
               "directive": "if",
-              "line": 198,
+              "line": 201,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 204,
+              "line": 207,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 228,
+              "line": 231,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 275,
+              "line": 280,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 517,
+              "line": 522,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 673,
+              "line": 678,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 708,
+              "line": 713,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 863,
+              "line": 868,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 5556,
+              "line": 5561,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 5563,
+              "line": 5568,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 5789,
+              "line": 5794,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 5798,
+              "line": 5803,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 5834,
+              "line": 5839,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 5860,
+              "line": 5865,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 5889,
+              "line": 5894,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 5933,
+              "line": 5938,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 5960,
+              "line": 5965,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 6006,
+              "line": 6011,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 6028,
+              "line": 6033,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 6036,
+              "line": 6041,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 6063,
+              "line": 6068,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 6137,
+              "line": 6142,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 6173,
+              "line": 6178,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7328,
+              "line": 7333,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7349,
+              "line": 7354,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7361,
+              "line": 7366,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7402,
+              "line": 7407,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7411,
+              "line": 7416,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7667,
+              "line": 7672,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7704,
+              "line": 7709,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7758,
+              "line": 7763,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7798,
+              "line": 7803,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7809,
+              "line": 7814,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7815,
+              "line": 7820,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7865,
+              "line": 7870,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7880,
+              "line": 7885,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7911,
+              "line": 7916,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7919,
+              "line": 7924,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7940,
+              "line": 7945,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7955,
+              "line": 7960,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7969,
+              "line": 7974,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 7981,
+              "line": 7986,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8000,
+              "line": 8005,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8051,
+              "line": 8056,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8066,
+              "line": 8071,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8086,
+              "line": 8091,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8100,
+              "line": 8105,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8122,
+              "line": 8127,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8359,
+              "line": 8364,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8379,
+              "line": 8384,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8494,
+              "line": 8499,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8506,
+              "line": 8511,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8526,
+              "line": 8531,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8642,
+              "line": 8647,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8685,
+              "line": 8690,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8749,
+              "line": 8754,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8795,
+              "line": 8800,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8850,
+              "line": 8855,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8896,
+              "line": 8901,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8945,
+              "line": 8950,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8962,
+              "line": 8967,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8984,
+              "line": 8989,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9030,
+              "line": 9035,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9082,
+              "line": 9087,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9106,
+              "line": 9111,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9165,
+              "line": 9170,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9286,
+              "line": 9291,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9334,
+              "line": 9339,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9422,
+              "line": 9427,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9506,
+              "line": 9511,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9609,
+              "line": 9614,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9676,
+              "line": 9681,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9706,
+              "line": 9711,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9780,
+              "line": 9785,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9798,
+              "line": 9803,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9863,
+              "line": 9868,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9907,
+              "line": 9912,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9916,
+              "line": 9921,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9931,
+              "line": 9936,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9951,
+              "line": 9956,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10036,
+              "line": 10041,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10099,
+              "line": 10104,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10140,
+              "line": 10145,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10255,
+              "line": 10260,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10293,
+              "line": 10298,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10380,
+              "line": 10385,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10437,
+              "line": 10442,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10543,
+              "line": 10548,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10566,
+              "line": 10571,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10599,
+              "line": 10604,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10700,
+              "line": 10705,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10722,
+              "line": 10727,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10741,
+              "line": 10746,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10747,
+              "line": 10752,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10755,
+              "line": 10760,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10768,
+              "line": 10773,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10822,
+              "line": 10827,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10905,
+              "line": 10910,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10993,
+              "line": 10998,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11011,
+              "line": 11016,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11017,
+              "line": 11022,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11032,
+              "line": 11037,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11041,
+              "line": 11046,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11053,
+              "line": 11058,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11073,
+              "line": 11078,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11081,
+              "line": 11086,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11135,
+              "line": 11140,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11193,
+              "line": 11198,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11199,
+              "line": 11204,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11206,
+              "line": 11211,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11223,
+              "line": 11228,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11248,
+              "line": 11253,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11263,
+              "line": 11268,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11271,
+              "line": 11276,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11315,
+              "line": 11320,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11373,
+              "line": 11378,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11842,
+              "line": 11847,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11901,
+              "line": 11906,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11973,
+              "line": 11978,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12033,
+              "line": 12038,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12055,
+              "line": 12060,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12111,
+              "line": 12116,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12128,
+              "line": 12133,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12243,
+              "line": 12256,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12336,
+              "line": 12349,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12350,
+              "line": 12363,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12397,
+              "line": 12410,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12430,
+              "line": 12443,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12520,
+              "line": 12533,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12671,
+              "line": 12684,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12678,
-              "path": "toolchain/cupidbuild_host.cc",
-              "text": "#if defined(_WIN32)"
-            },
-            {
-              "directive": "if",
-              "line": 12729,
+              "line": 12691,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -44225,37 +44219,49 @@
             },
             {
               "directive": "if",
-              "line": 12866,
+              "line": 12755,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13200,
+              "line": 12879,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13281,
+              "line": 13101,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13291,
+              "line": 13262,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13314,
+              "line": 13343,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13430,
+              "line": 13353,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 13376,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 13492,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -44470,15 +44476,15 @@
             "toolchain/cupidobj_main.cc",
             "toolchain/tests/cupidc_object_contract.cc"
           ],
-          "if_occurrences": 194,
-          "occurrences": 194
+          "if_occurrences": 195,
+          "occurrences": 195
         },
         {
           "elif_occurrences": 0,
           "evidence": [
             {
               "directive": "if",
-              "line": 10908,
+              "line": 10913,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32) && !defined(CUPID_HOSTED_I386_WINDOWS_H)"
             }
@@ -44553,13 +44559,13 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 1768,
+              "line": 1773,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN64)"
             },
             {
               "directive": "if",
-              "line": 1793,
+              "line": 1798,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN64)"
             }
@@ -44647,7 +44653,7 @@
           "occurrences": 1
         }
       ],
-      "if_occurrences": 426,
+      "if_occurrences": 427,
       "status": "pass",
       "unique_expressions": 61
     },
@@ -50703,7 +50709,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5628
+      "occurrences": 5629
     },
     {
       "category": "control",
@@ -51470,7 +51476,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 44595
+      "occurrences": 44607
     },
     {
       "category": "control",
@@ -51856,7 +51862,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 27647
+      "occurrences": 27658
     },
     {
       "category": "control",
@@ -53985,7 +53991,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.else",
-      "occurrences": 253
+      "occurrences": 254
     },
     {
       "category": "preprocessor",
@@ -54359,7 +54365,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 863
+      "occurrences": 864
     },
     {
       "category": "preprocessor",
@@ -54556,7 +54562,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.if",
-      "occurrences": 426
+      "occurrences": 427
     },
     {
       "category": "preprocessor",
@@ -56666,7 +56672,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10679
+      "occurrences": 10681
     },
     {
       "category": "type",
@@ -57938,7 +57944,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 25804
+      "occurrences": 25810
     },
     {
       "category": "type",
@@ -60500,7 +60506,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "81e0297403c9987f67e7a27a209583a28d6c60f827bcef301960640a50455157",
+    "active_source_digest": "aebe3a1438e59cfac7b0ddf35df53fe5dc51471e3504bc09e698bcd9ee07da9c",
     "control_files": [
       {
         "path": "Makefile",
@@ -85642,12 +85648,12 @@
         "toolchain/path_encoding.h"
       ],
       "language": "cupid_c",
-      "lines": 13469,
+      "lines": 13531,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_host.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9c2b440c8751d48e18b199c9784eec2c2b5fc2043af5af1f25bb6157c80390f7"
+      "sha256": "048ce4b4c6dbc0face5bfc401cc2f4d5e368825ab95785022935b136338345ad"
     },
     {
       "build_owners": [
@@ -85681,12 +85687,12 @@
         "kernel/doom/src/include_stubs/stdint.h"
       ],
       "language": "c_header",
-      "lines": 289,
+      "lines": 303,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_host.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "3961523b61edc6f75570c823ee10af12b5493f476ea5f57cc677733f5c56328c"
+      "sha256": "5f6625ed8190292f71ebe8e50c75acd6a371decde25f79c4ea4ce9e6dbba8433"
     },
     {
       "build_owners": [
@@ -88539,7 +88545,7 @@
       "path": "toolchain/tests/cupidc_pp_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "6487a90daaa031e617681328819ae140ade9948420c7cd1a4f40063e69ab4eae"
+      "sha256": "817d15d32006c4ff09e4acc11c7921ceb15b69834ee99512353cc124559d3539"
     },
     {
       "build_owners": [

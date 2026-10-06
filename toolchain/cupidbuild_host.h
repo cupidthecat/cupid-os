@@ -145,6 +145,20 @@ const char *cupidbuild_host_observer_error(
     const cupidbuild_host_observer_t *observer);
 int cupidbuild_host_observer_close(cupidbuild_host_observer_t *observer);
 
+/* Borrow one successful observer rooted at this transaction's retained root.
+ * The caller keeps it alive through transaction close. Every publication
+ * boundary rechecks captured file bytes/metadata, ancestor identities and exact
+ * directory memberships, including the check after candidate installation.
+ * Root directory size/time are excluded because publication owns namespace
+ * writes there; its original identity and all captured memberships stay checked.
+ * The ordinary read-only observer API keeps its complete root metadata check.
+ * Bind only once, before any publication attempt. A failed or repeated bind forbids
+ * publication for this transaction. No ownership transfers or files are made.
+ * Observed publication inputs still require normal freeze/alias validation. */
+int cupidbuild_host_transaction_borrow_observer(
+    cupidbuild_host_transaction_t *transaction,
+    cupidbuild_host_observer_t *observer);
+
 typedef struct {
   size_t size;
   unsigned char sha256[32];

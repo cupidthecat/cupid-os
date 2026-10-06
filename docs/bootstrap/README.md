@@ -1,5 +1,29 @@
 # Cupid Toolchain bootstrap
 
+## Retained observers at publication boundaries, 2026-10-05
+
+A transaction can borrow one observer with the same retained root identity.
+Captured payloads, metadata, ancestors and exact memberships remain checked
+through candidate installation. Binding after changed publication or equal-output
+reuse fails. Forty new caller executions and eight injected rename-boundary
+faults pass on Windows and Linux, including old-output and absent-output recovery.
+The complete observer and 528-input regressions also pass, for 292 executions and
+ten platform skips. Installed seeds and normal ISO ownership remain unchanged.
+See [ADR 0428](../adr/0428-bind-retained-observers-to-publication-boundaries.md).
+
+The 161,127-byte observer-binding manual passes fresh installed-seed
+kernel/image and strict private four-CPU max/e1000 runtime checks with completed
+ls and SMP verification. Independent rereading checks 1,589 source controls,
+all 429 objects and sixteen artifacts. Only the manual wrapper changes, the
+accepted FAT16 object stays identical and FAT data from sector 20,480 remains
+intact. The raw kernel measures 9,595,256 bytes; final/pass-one ELF sizes stay
+9,822,652 and 9,691,580 bytes. Only the raw-kernel policy row changes. The 200 MiB
+image has SHA-256
+`4250559828b4a1553b1d32bcbe042c91ed20662a3a5287f7d571273d45a192f4`.
+Evidence is `manual-independent-windows.json` under
+`cupid-native-iso-bound-observer-manual-20261005`. This installed-seed manual
+acceptance does not qualify or install the new source cohort.
+
 ## FAT allocation during Doom initialization, 2026-10-05
 
 The active FAT allocator scans entries from one retained sector read at a time
