@@ -85,6 +85,29 @@ int cupidbuild_host_observer_open(const char *repository_root,
 int cupidbuild_host_observer_file(cupidbuild_host_observer_t *observer,
                                  const char *logical, size_t limit,
                                  unsigned char **bytes_out, uint64_t *size_out);
+typedef struct {
+  uint64_t size;
+  unsigned char sha256[32];
+} cupidbuild_host_stream_observation_t;
+typedef int (*cupidbuild_host_stream_sink_t)(
+    void *context, uint64_t offset, const unsigned char *bytes, size_t count);
+/* Read a regular file through its retained handle using at most 65536 payload
+ * bytes at a time. limit is a full 64-bit byte limit; SHA-256 lengths must be
+ * below 2^61 bytes. A null sink hashes without copying. Otherwise callbacks are
+ * synchronous, ordered, nonempty and at most 65536 bytes; zero means failure.
+ * The buffer belongs to the operation and is valid only during the callback.
+ * Calls and callbacks must be serialized; a callback must not reenter this
+ * observer or modify its input bytes or result storage. result_out is required
+ * and cleared before any check. Success retains the whole-file SHA-256 for
+ * bounded rereading at require_unchanged and borrowed publication boundaries.
+ * Any failure poisons the observer and leaves the result cleared. A sink may
+ * already have copied bytes: its caller must discard that partial capture.
+ * The caller owns stable copies and their lifetime; this creates no files and
+ * does not flush, validate a candidate or authorize publication. */
+int cupidbuild_host_observer_file_stream(
+    cupidbuild_host_observer_t *observer, const char *logical, uint64_t limit,
+    cupidbuild_host_stream_sink_t sink, void *context,
+    cupidbuild_host_stream_observation_t *result_out);
 typedef enum {
   CUPIDBUILD_ENTRY_NONE = 0,
   CUPIDBUILD_ENTRY_FILE = 1,

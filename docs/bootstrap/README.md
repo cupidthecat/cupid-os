@@ -1,5 +1,104 @@
 # Cupid Toolchain bootstrap
 
+## Private disk foundation source plans, 2026-10-06
+
+The candidate producer includes the bounded FAT16 writer, Unicode name module
+and disk composer. Its Linux plan has 37 C sources, 38 objects and 23 CupidBuild
+link members. Source capture explicitly retains the Unicode table. All thirteen
+plan and capture methods pass on each host, and independent rereading verifies
+the 26 executions and unchanged installed paired parent.
+
+The SDK captures 104 source/control inputs. Its compiler bootstrap closure has
+97 through 99 inputs across the supported Windows selections. The C manifest
+reader and SDK author preserve historical profiles and add exact disk
+inventories and raw object comparisons. All 141 retained methods pass through
+native and Cupid-built readers on each host: 564 executions without skips.
+Independent rereading checks 369 source controls per run, original commands,
+linked products and nine matching common Cupid-built objects between hosts.
+Complete Python coordinator controls pass 318 selections, with 315 executions
+and three declared skips. Independent evidence retains 370 source inputs,
+eighteen Cupid commands and three actual checked verifier profiles per host.
+Release, behavior-authority, ISO fixture and bootstrap CLI consumers also pass
+366 selections, with 349 executions and seventeen declared skips; independent
+rereading checks 1,672 inputs per host and all original commands and products.
+Historical ISO profiles retain their exact tuples. The failed shared-root and
+incomplete-capture attempts remain recorded. Synthetic publications and mocked
+stages do not establish a complete SDK build or producer qualification.
+See [ADR 0438](../adr/0438-carry-bounded-disk-foundations-in-source-plans.md)
+and [the disk handoff](NATIVE-DISK-HANDOFF.md). New producer qualification,
+SDK publication, seed installation and normal disk ownership remain open.
+
+## Private bounded transaction snapshots, 2026-10-06
+
+All twelve guarded regular-file snapshot readers now hash through blocks of at
+most 65,536 bytes. Null payload outputs use bounded storage; requested payloads
+keep their complete allocation, ownership and trailing NUL. Existing retained
+handles, metadata, no-follow paths and extent limits remain checked.
+
+Native and Cupid-built callers on both hosts pass sixty new method selections:
+56 executions and four Windows skips for POSIX memory limits. Complete 48 MiB
+plus 65-byte candidates publish and reuse equal outputs. Both Linux callers
+pass candidate and previous-output checks under a fixed 32 MiB address-space
+limit. The retained former implementation passes without the limit and fails
+both bounded cases. The complete ordinary observer regression passes 300
+selections with 288 executions and twelve declared skips; forty borrowed
+streamed-observer boundary executions and 36 explicit private-capacity
+executions pass. Independent evidence rereads all 88 complete transaction
+fixture invocations and original source, command and linked component identities.
+The Windows whole-module timeout remains retained; all nine original methods
+pass separately with the identical caller and unchanged method bounds.
+
+See [ADR 0437](../adr/0437-hash-guarded-transaction-files-with-bounded-memory.md)
+and [the disk handoff](NATIVE-DISK-HANDOFF.md). Public snapshot layout and old
+file limits stay unchanged. Large disk transaction capture, independent disk
+validation, flushing, producer qualification and normal publication remain open.
+
+## Private streamed retained file capture, 2026-10-06
+
+The retained observer now supplies a serialized stream operation with ordered
+blocks of at most 65,536 bytes, full 64-bit size/limit handling and whole-file
+SHA-256. Failed callbacks clear the result and poison the observer; the caller
+discards partial copies. Unchanged checks and borrowed publication boundaries
+reread the digest through bounded storage. Existing no-follow paths and ancestor
+bindings remain enforced. The byte-returning observer keeps its 64 MiB limit.
+
+All 52 stream method executions and forty borrowed-boundary executions pass
+through native and Cupid-built callers on Windows and Linux. Independent rereading checks
+complete 200 MiB captures, original sources and commands, invalid requests,
+callback failure and restored-time drift. The complete ordinary observer suite
+passes 300 selections, 288 executions and twelve declared skips. Two Linux
+callers hash and revalidate 200 MiB files under a 32 MiB address-space limit.
+The first unsupported test call and Windows high-word rejection timeout remain
+retained; a complete identical-binary retry passes with unchanged bounds.
+See [ADR 0436](../adr/0436-stream-retained-file-observations-in-bounded-blocks.md)
+and [the disk handoff](NATIVE-DISK-HANDOFF.md). Large transaction capture,
+candidate handling, qualification and normal disk publication remain open.
+
+The actual pure hash implementation also passes 912 independent digest checks
+across all four callers, covering nineteen lengths and eleven arbitrary read
+partitions with valid zero-length updates. This checks partial-block updates
+separately from ordinary file-read behavior. The original Windows runtime/
+startup profile mismatch remains retained; the matching standalone runtime
+passes without a production source change.
+
+## Private hosted wide file positioning, 2026-10-06
+
+The hosted runtime supplies signed cupid_fseek64 and status-returning
+cupid_ftell64 without changing the standard long APIs. Linux uses O_LARGEFILE
+and the existing five-argument _llseek shim; Windows uses full high/low-word
+positioning and handles valid all-ones low results. Append writes use wide
+positioning after rewind. No startup or Windows import changes are required.
+
+Seventeen real sparse-file methods pass through native and Cupid-built callers
+on both hosts, for 68 combinations. Exact error values, preserved positions,
+marker writes, holes and append lengths pass independent rereading. Forty
+update-mode combinations and both existing runtime contracts also pass.
+Accepted fixtures represent four GiB plus 65 bytes with less than one MiB of
+allocated storage; this does not claim a complete four-GiB hash comparison.
+See [ADR 0435](../adr/0435-add-signed-wide-seeks-to-the-hosted-runtime.md) and
+[the disk handoff](NATIVE-DISK-HANDOFF.md). Complete producer qualification,
+seed carriage, retained capture and normal publisher ownership remain open.
+
 ## FAT16 reserved cluster boundary, 2026-10-06
 
 The allocator stops before reserved cluster `0xfff0` and can still allocate
@@ -132,6 +231,39 @@ qualification receipts, `iso-promoted-consumer-paired-independent.json`,
 `iso-seed-handoff-fresh-os-paired-independent.json` and
 `iso-sdk-handoff-installed-paired-independent.json`. `TempleOS/` remains
 read-only and excluded. See ADRs 0431 and 0432.
+
+## Private bounded FAT16 staging, 2026-10-06
+
+The new sector writer stages captured payload ranges into a caller-owned private
+FAT16 candidate. It preserves existing allocation, directory and padding
+behavior without retaining whole disk images in memory. The hosted runtime also
+supports update file modes. Both hosts pass 34 storage methods and ten mode
+methods through native and Cupid-built callers. Independent rereading verifies
+176 caller/method combinations, thirteen complete image scenarios and identical
+writer objects. The large synthetic image is 200 MiB.
+
+The separate guest-name projector preserves both captured Unicode 15 and 16
+profiles, including case expansion and filtering before 8.3 truncation. Its
+thirteen methods pass through both callers on both hosts. Independent rereading
+checks 45,914 interface requests and identical CupidC objects.
+
+The bounded image composer validates every checked-template byte before writing
+a candidate, preserves the FAT suffix on reuse and zeros the data area when
+formatting. Sixteen methods pass through both callers on each host. Independent
+rereading verifies 22 complete image scenarios and matching composer objects.
+
+One composed caller now projects destinations and stages payloads after image
+composition. Ten methods pass through native and Cupid-built callers on both
+hosts, with six complete image scenarios and four failure cases. The real-OS
+comparison stages the three accepted user executables and an 8 MiB synthetic
+WAD-shaped file; all six complete 200 MiB images match the Python oracle.
+Both paired comparisons pass independent rereading. These are private caller
+proofs; guarded publication and normal disk-recipe ownership remain open.
+
+Source capture, stage-request integration, guarded disk publication, producer-plan carriage,
+new paired tool qualification and production ownership remain open. See
+[native disk handoff](NATIVE-DISK-HANDOFF.md) and ADR 0433. This private capability
+does not change the installed seeds or the normal disk-image recipe.
 
 ## Complete guarded ISO command, 2026-10-06
 

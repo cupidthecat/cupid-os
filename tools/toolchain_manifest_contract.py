@@ -490,6 +490,8 @@ def _bootstrap_input_logical_paths(
                 source.lstrip("/"), "Toolchain bootstrap source path"
             )
         )
+        if source == "/toolchain/fat16_names.cc":
+            paths.append("toolchain/fat16_name_profiles.inc")
     paths.extend(
         (
             _require_logical_path(

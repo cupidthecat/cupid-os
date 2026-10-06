@@ -162,7 +162,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         _validate_build_plan(self._legacy_linux_manifest_fixture(manifest))
 
     def test_complete_iso_promoted_profiles_bind_each_plan_count_and_import_set(self):
-        plan = _candidate_build_plan(json.loads(SEED_MANIFEST.read_bytes())["build_plan"])
+        plan = json.loads(SEED_MANIFEST.read_bytes())["build_plan"]
         profiles = (
             ("0787562d0768485fa614c941fc79a7c6e329c64b6956261cca945a95c2ef9f56", 85, False, False, False),
             ("e3bb4c45bb7633d95b205dcbab6405bb569b4cc71965a2eb52b8dfc78e370e18", 90, True, False, False),
@@ -176,6 +176,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 self.assertEqual(_build_plan_sha256(actual_plan), digest)
                 snapshot = capture_source_snapshot(REPO_ROOT, plan, windows_utf8=utf8,
                     windows_long_paths=long_paths, windows_user_link_aliases=aliases)
+                historical_headers = {"toolchain/" + name + ".h" for name in ("fat16_stage", "fat16_names", "disk_image")}
+                snapshot = {name: row for name, row in snapshot.items() if name not in historical_headers}
                 self.assertEqual(len(snapshot), count)
                 for role in CANDIDATE_TOOL_NAMES:
                     expected = (_windows_utf8_imports(role, long_paths=long_paths, user_link_aliases=aliases)
@@ -212,9 +214,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     def test_promoted_profile_selection_preserves_same_count_distinct_members(self):
         plan = _candidate_build_plan(json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))["build_plan"])
         profiles = (
-            ("e9efefe58f1d105bbc30874cc8d627a96b2acc2de85a5205fddad99ab159ab11", 81, 91, True, False),
-            ("f3132b33a0945a6d15484a39c853716468dec96b4d158c4cc550161286092a16", 81, 91, False, True),
-            ("1a348ed367f047ac4a67dfc4e819155c0c96e66be19ff216b06d19db3efbe188", 82, 92, True, True),
+            ("e9efefe58f1d105bbc30874cc8d627a96b2acc2de85a5205fddad99ab159ab11", 81, 98, True, False),
+            ("f3132b33a0945a6d15484a39c853716468dec96b4d158c4cc550161286092a16", 81, 98, False, True),
+            ("1a348ed367f047ac4a67dfc4e819155c0c96e66be19ff216b06d19db3efbe188", 82, 99, True, True),
         )
         for digest, count, current_count, long_paths, aliases in profiles:
             with self.subTest(plan=digest, count=count):
@@ -297,7 +299,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 retargeted.manifest_sha256,
                 hashlib.sha256(retargeted.manifest_bytes).hexdigest(),
             )
-            self.assertEqual(retargeted.manifest["provenance"]["source_input_count"], 85)
+            self.assertEqual(retargeted.manifest["provenance"]["source_input_count"], 92)
             self.assertEqual(retargeted.manifest["provenance"]["linux_candidate_build_plan_sha256"],
                              _build_plan_sha256(candidate_plan))
             self.assertEqual(retargeted.manifest["provenance"]["source_snapshot_sha256"],
@@ -802,6 +804,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "iso_fixture_bundle",
             "cupidbuild_iso", "cupidbuild_iso_capture", "cupidbuild_iso_image",
             "cupidbuild_iso_publication",
+            "fat16_stage", "fat16_names", "disk_image",
         }
         checked_plan["sources"] = [
             source for source in checked_plan["sources"]
@@ -829,7 +832,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         )
         self.assertEqual(checked_plan, original_plan)
         self.assertEqual(
-            candidate_plan["sources"][-15:],
+            candidate_plan["sources"][-18:],
             [
                 {
                     "gnu_extensions": False,
@@ -870,6 +873,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                  "path": "/toolchain/cupidbuild_iso_image.cc"},
                 {"gnu_extensions": False, "name": "cupidbuild_iso_publication",
                  "path": "/toolchain/cupidbuild_iso_publication.cc"},
+                {"gnu_extensions": False, "name": "fat16_stage", "path": "/toolchain/fat16_stage.cc"},
+                {"gnu_extensions": False, "name": "fat16_names", "path": "/toolchain/fat16_names.cc"},
+                {"gnu_extensions": False, "name": "disk_image", "path": "/toolchain/disk_image.cc"},
             ],
         )
         self.assertEqual(
@@ -894,6 +900,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "cupidbuild_iso_capture",
                 "cupidbuild_iso_image",
                 "cupidbuild_iso_publication",
+                "fat16_stage", "fat16_names", "disk_image",
                 "runtime",
             ],
         )
@@ -905,7 +912,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             REPO_ROOT, candidate_plan, windows_utf8=True
         )
         self.assertEqual(
-            len(source_inventory), 90
+            len(source_inventory), 97
         )
         for path in (
             "toolchain/cupidbuild.cc",
@@ -925,7 +932,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         )
         self.assertEqual(
             _build_plan_sha256(candidate_plan),
-            "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3"
+            "808d9a566c3dd200252cb6ca974dfa19992a923867dc60f500797efd5169c73e"
         )
 
     def test_promoted_linux_seed_verifies_all_six_artifacts(self):
@@ -1852,6 +1859,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "cupidbuild_iso_capture",
                 "cupidbuild_iso_image",
                 "cupidbuild_iso_publication",
+                "fat16_stage", "fat16_names", "disk_image",
                 "publication_runtime",
                 "runtime",
             ],
@@ -5369,7 +5377,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             for plan in observed_plans:
                 self.assertEqual(set(plan["links"]), set(CANDIDATE_TOOL_NAMES))
-                self.assertEqual(len(plan["sources"]), 34)
+                self.assertEqual(len(plan["sources"]), 37)
             self.assertEqual(
                 report["build_plan_sha256"],
                 _build_plan_sha256(checked_plan),
@@ -5538,7 +5546,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["candidate_build_plan_sha256"],
-                "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3",
+                "808d9a566c3dd200252cb6ca974dfa19992a923867dc60f500797efd5169c73e",
             )
             self.assertEqual(
                 report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
@@ -5698,7 +5706,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             for plan in observed_plans:
                 self.assertEqual(set(plan["links"]), set(CANDIDATE_TOOL_NAMES))
-                self.assertEqual(len(plan["sources"]), 39)
+                self.assertEqual(len(plan["sources"]), 42)
                 self.assertEqual(len(plan["assembly_sources"]), 3)
             self.assertEqual(
                 report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
@@ -5919,7 +5927,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 source_head_windows_plan_sha256,
-                "e3bb4c45bb7633d95b205dcbab6405bb569b4cc71965a2eb52b8dfc78e370e18",
+                "b84cf24ca21c5024c0ccda5bc470a4c6f97f2bb1073b846381dceec6413239ba",
             )
             self.assertEqual(
                 report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
@@ -5929,7 +5937,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {
                     "all_equal": True,
                     "assembly_objects": 3,
-                    "c_objects": 39,
+                    "c_objects": 42,
                     "compared_generations": [
                         "stage-three",
                         "stage-four",

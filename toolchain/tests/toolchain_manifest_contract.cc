@@ -66,17 +66,23 @@ static const char manifest_report_schema[] =
 #define MANIFEST_COMPLETE_INPUT_COUNT 97u
 #define MANIFEST_RELEASE_INPUT_COUNT 96u
 #define MANIFEST_COMPLETE_RELEASE_INPUT_COUNT 101u
-#define MANIFEST_MAX_INPUT_COUNT 101u
+#define MANIFEST_DISK_INPUT_COUNT 100u
+#define MANIFEST_DISK_RELEASE_INPUT_COUNT 104u
+#define MANIFEST_MAX_INPUT_COUNT 104u
 #define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 80u
 #define MANIFEST_LONG_PATH_BOOTSTRAP_FILE_COUNT 81u
 #define MANIFEST_ALIAS_LONG_PATH_BOOTSTRAP_FILE_COUNT 82u
 #define MANIFEST_COMPLETE_BOOTSTRAP_FILE_COUNT 90u
 #define MANIFEST_COMPLETE_MAX_BOOTSTRAP_FILE_COUNT 92u
+#define MANIFEST_DISK_BOOTSTRAP_FILE_COUNT 97u
+#define MANIFEST_MAX_BOOTSTRAP_FILE_COUNT 99u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
 #define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 29u
 #define MANIFEST_COMPLETE_BOOTSTRAP_C_OBJECT_COUNT 34u
 #define MANIFEST_COMPLETE_BOOTSTRAP_OBJECT_COUNT 35u
+#define MANIFEST_DISK_BOOTSTRAP_C_OBJECT_COUNT 37u
+#define MANIFEST_MAX_BOOTSTRAP_OBJECT_COUNT 38u
 #define MANIFEST_BOOTSTRAP_STARTUP_OBJECT_COUNT 1u
 #define MANIFEST_BOOTSTRAP_OBJECT_COUNT                                      \
   (MANIFEST_BOOTSTRAP_C_OBJECT_COUNT +                                      \
@@ -89,6 +95,8 @@ static const char manifest_expected_build_plan_sha256[] =
     "48d6cc38b7a7362a83a911d2d3aaae8e79537c3f1744f3f5e7aac997728ed7f4";
 static const char manifest_complete_build_plan_sha256[] =
     "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3";
+static const char manifest_disk_build_plan_sha256[] =
+    "808d9a566c3dd200252cb6ca974dfa19992a923867dc60f500797efd5169c73e";
 static const char manifest_expected_seed_build_plan_sha256[] =
     "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5";
 static const char manifest_expected_seed_manifest_sha256[] =
@@ -197,10 +205,13 @@ static const char *const
     "tools/bootstrap_user_abi.py",
     "tools/bootstrap_stage_release.py",
     "tools/seed_release_identity.py",
+    "toolchain/fat16_stage.h",
+    "toolchain/fat16_names.h",
+    "toolchain/disk_image.h",
 };
 
 static const char *const manifest_expected_bootstrap_paths
-    [MANIFEST_COMPLETE_MAX_BOOTSTRAP_FILE_COUNT] = {
+    [MANIFEST_MAX_BOOTSTRAP_FILE_COUNT] = {
     "link.ld",
     "toolchain/artifact_size_policy.cc",
     "toolchain/artifact_size_policy.h",
@@ -293,6 +304,13 @@ static const char *const manifest_expected_bootstrap_paths
     "toolchain/cupidbuild_iso_image.h",
     "toolchain/cupidbuild_iso_publication.cc",
     "toolchain/cupidbuild_iso_publication.h",
+    "toolchain/fat16_stage.cc",
+    "toolchain/fat16_stage.h",
+    "toolchain/fat16_names.cc",
+    "toolchain/fat16_names.h",
+    "toolchain/disk_image.cc",
+    "toolchain/disk_image.h",
+    "toolchain/fat16_name_profiles.inc",
 };
 
 static int manifest_bootstrap_count_valid(size_t count) {
@@ -301,7 +319,10 @@ static int manifest_bootstrap_count_valid(size_t count) {
          count == MANIFEST_ALIAS_LONG_PATH_BOOTSTRAP_FILE_COUNT ||
          count == MANIFEST_COMPLETE_BOOTSTRAP_FILE_COUNT ||
          count == MANIFEST_COMPLETE_BOOTSTRAP_FILE_COUNT + 1u ||
-         count == MANIFEST_COMPLETE_MAX_BOOTSTRAP_FILE_COUNT;
+         count == MANIFEST_COMPLETE_MAX_BOOTSTRAP_FILE_COUNT ||
+         count == MANIFEST_DISK_BOOTSTRAP_FILE_COUNT ||
+         count == MANIFEST_DISK_BOOTSTRAP_FILE_COUNT + 1u ||
+         count == MANIFEST_MAX_BOOTSTRAP_FILE_COUNT;
 }
 
 static int manifest_parse_string_literal(error_context_t *context, json_reader_t *reader,
@@ -360,14 +381,22 @@ static int manifest_complete_bootstrap(const manifest_state_t *state) {
   return state->bootstrap_file_count >= MANIFEST_COMPLETE_BOOTSTRAP_FILE_COUNT;
 }
 
+static int manifest_disk_bootstrap(const manifest_state_t *state) {
+  return state->bootstrap_file_count >= MANIFEST_DISK_BOOTSTRAP_FILE_COUNT;
+}
+
 static size_t manifest_bootstrap_c_object_count(const manifest_state_t *state) {
-  return manifest_complete_bootstrap(state)
+  return manifest_disk_bootstrap(state)
+             ? MANIFEST_DISK_BOOTSTRAP_C_OBJECT_COUNT
+             : manifest_complete_bootstrap(state)
              ? MANIFEST_COMPLETE_BOOTSTRAP_C_OBJECT_COUNT
              : MANIFEST_BOOTSTRAP_C_OBJECT_COUNT;
 }
 
 static const char *manifest_bootstrap_plan(const manifest_state_t *state) {
-  return manifest_complete_bootstrap(state)
+  return manifest_disk_bootstrap(state)
+             ? manifest_disk_build_plan_sha256
+             : manifest_complete_bootstrap(state)
              ? manifest_complete_build_plan_sha256
              : manifest_expected_build_plan_sha256;
 }
@@ -441,7 +470,7 @@ static const char *const
 };
 
 static const char *const
-    manifest_bootstrap_object_names[MANIFEST_COMPLETE_BOOTSTRAP_OBJECT_COUNT] = {
+    manifest_bootstrap_object_names[MANIFEST_MAX_BOOTSTRAP_OBJECT_COUNT] = {
         "runtime",       "ctool",         "ctool_host",     "elf32",
         "x86",           "cupidasm",      "cupidasm_main",  "cupiddis",
         "cupiddis_main", "cupidobj",      "cupidobj_main",  "cupidld",
@@ -452,6 +481,7 @@ static const char *const
         "user_syscall_abi", "cupidbuild_user_abi", "start",
         "iso_fixture_bundle", "cupidbuild_iso", "cupidbuild_iso_capture",
         "cupidbuild_iso_image", "cupidbuild_iso_publication",
+        "fat16_stage", "fat16_names", "disk_image",
 };
 
 static const char *const
@@ -520,7 +550,9 @@ static int manifest_input_count_valid(size_t count) {
   return count == MANIFEST_EXPECTED_INPUT_COUNT ||
          count == MANIFEST_COMPLETE_INPUT_COUNT ||
          count == MANIFEST_RELEASE_INPUT_COUNT ||
-         count == MANIFEST_COMPLETE_RELEASE_INPUT_COUNT;
+         count == MANIFEST_COMPLETE_RELEASE_INPUT_COUNT ||
+         count == MANIFEST_DISK_INPUT_COUNT ||
+         count == MANIFEST_DISK_RELEASE_INPUT_COUNT;
 }
 
 static int manifest_expected_inventories_match(error_context_t *context,
@@ -528,12 +560,16 @@ static int manifest_expected_inventories_match(error_context_t *context,
   size_t expected_index;
   size_t actual_index;
   int complete = manifest_complete_bootstrap(state);
+  int disk = manifest_disk_bootstrap(state);
   int release_inputs = state->input_count == MANIFEST_RELEASE_INPUT_COUNT ||
-                       state->input_count == MANIFEST_COMPLETE_RELEASE_INPUT_COUNT;
+                       state->input_count == MANIFEST_COMPLETE_RELEASE_INPUT_COUNT ||
+                       state->input_count == MANIFEST_DISK_RELEASE_INPUT_COUNT;
   if ((complete || release_inputs) && !state->has_captured_seed) {
     return cupid_contract_set_error(context, "extended producer requires captured seed context");
   }
-  if (state->input_count != (complete
+  if (state->input_count != (disk
+          ? (release_inputs ? MANIFEST_DISK_RELEASE_INPUT_COUNT : MANIFEST_DISK_INPUT_COUNT)
+          : complete
           ? (release_inputs ? MANIFEST_COMPLETE_RELEASE_INPUT_COUNT : MANIFEST_COMPLETE_INPUT_COUNT)
           : (release_inputs ? MANIFEST_RELEASE_INPUT_COUNT : MANIFEST_EXPECTED_INPUT_COUNT))) {
     return cupid_contract_set_error(context, "manifest input count differs from its producer profile");
@@ -543,7 +579,9 @@ static int manifest_expected_inventories_match(error_context_t *context,
     int found = 0;
     if ((expected_index >= MANIFEST_EXPECTED_INPUT_COUNT &&
          expected_index < MANIFEST_COMPLETE_INPUT_COUNT && !complete) ||
-        (expected_index >= MANIFEST_COMPLETE_INPUT_COUNT && !release_inputs)) {
+        (expected_index >= MANIFEST_COMPLETE_INPUT_COUNT &&
+         expected_index < MANIFEST_COMPLETE_RELEASE_INPUT_COUNT && !release_inputs) ||
+        (expected_index >= MANIFEST_COMPLETE_RELEASE_INPUT_COUNT && !disk)) {
       continue;
     }
     for (actual_index = 0u; actual_index < state->input_count;
@@ -560,11 +598,13 @@ static int manifest_expected_inventories_match(error_context_t *context,
     }
   }
   for (expected_index = 0u;
-       expected_index < MANIFEST_COMPLETE_MAX_BOOTSTRAP_FILE_COUNT;
+       expected_index < MANIFEST_MAX_BOOTSTRAP_FILE_COUNT;
        expected_index++) {
     int found = 0;
-    if (expected_index >= MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT &&
-        (expected_index < MANIFEST_ALIAS_LONG_PATH_BOOTSTRAP_FILE_COUNT || !complete)) {
+    if ((expected_index >= MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT &&
+         expected_index < MANIFEST_COMPLETE_MAX_BOOTSTRAP_FILE_COUNT &&
+         (expected_index < MANIFEST_ALIAS_LONG_PATH_BOOTSTRAP_FILE_COUNT || !complete)) ||
+        (expected_index >= MANIFEST_COMPLETE_MAX_BOOTSTRAP_FILE_COUNT && !disk)) {
       continue;
     }
     for (actual_index = 0u; actual_index < state->bootstrap_file_count;
@@ -584,7 +624,8 @@ static int manifest_expected_inventories_match(error_context_t *context,
        actual_index++) {
     int found = 0;
     for (expected_index = 0u;
-         expected_index < (complete ? MANIFEST_COMPLETE_MAX_BOOTSTRAP_FILE_COUNT
+         expected_index < (disk ? MANIFEST_MAX_BOOTSTRAP_FILE_COUNT
+                                   : complete ? MANIFEST_COMPLETE_MAX_BOOTSTRAP_FILE_COUNT
                                    : MANIFEST_ALIAS_LONG_PATH_BOOTSTRAP_FILE_COUNT);
          expected_index++) {
       if (cupid_contract_text_equals_literal(
@@ -698,7 +739,9 @@ static int manifest_read_captured_seed(error_context_t *context,
        !manifest_slice_equals_literal(&plan_digest,
            manifest_expected_build_plan_sha256) &&
        !manifest_slice_equals_literal(&plan_digest,
-           manifest_complete_build_plan_sha256)) ||
+           manifest_complete_build_plan_sha256) &&
+       !manifest_slice_equals_literal(&plan_digest,
+           manifest_disk_build_plan_sha256)) ||
       !cupid_contract_binary_read_u32(context, reader, &count) ||
       count != SEED_ARTIFACT_COUNT) {
     return cupid_contract_set_error(context, "captured seed context differs");
@@ -2617,7 +2660,7 @@ static int manifest_author_read_inputs(error_context_t *context, binary_reader_t
 
 static int manifest_author_read_bootstrap_inputs(error_context_t *context,
     binary_reader_t *reader, manifest_state_t *state) {
-  int seen[MANIFEST_COMPLETE_MAX_BOOTSTRAP_FILE_COUNT];
+  int seen[MANIFEST_MAX_BOOTSTRAP_FILE_COUNT];
   byte_slice_t expected_snapshot;
   char actual_snapshot[65];
   uint32_t count;
@@ -2644,7 +2687,7 @@ static int manifest_author_read_bootstrap_inputs(error_context_t *context,
     }
     input_index = manifest_slice_literal_index(
         &path, manifest_expected_bootstrap_paths,
-        MANIFEST_COMPLETE_MAX_BOOTSTRAP_FILE_COUNT);
+        MANIFEST_MAX_BOOTSTRAP_FILE_COUNT);
     if (input_index < 0 || seen[(size_t)input_index] != 0) {
       return cupid_contract_set_error(context, "manifest author bootstrap inventory differs");
     }
@@ -2865,7 +2908,7 @@ static int manifest_author_read_executable_comparisons(error_context_t *context,
 static int manifest_author_read_fixed_pairs(error_context_t *context,
     binary_reader_t *reader, const char *const *names, size_t expected_count,
     const char *message) {
-  int seen[MANIFEST_COMPLETE_BOOTSTRAP_OBJECT_COUNT];
+  int seen[MANIFEST_MAX_BOOTSTRAP_OBJECT_COUNT];
   uint32_t count;
   size_t index;
   (void)memset(seen, 0, sizeof(seen));

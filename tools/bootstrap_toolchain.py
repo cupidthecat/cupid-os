@@ -467,7 +467,7 @@ EARLIER_PROMOTED_CUPIDBUILD_LINK = (
     'artifact_size_policy',
     'runtime',
 )
-CANDIDATE_SOURCES = (
+ISO_PUBLICATION_SOURCES = (
     ("cupidbuild", "/toolchain/cupidbuild.cc", False),
     ("cupidbuild_host", "/toolchain/cupidbuild_host.cc", False),
     ("cupidbuild_main", "/toolchain/cupidbuild_main.cc", False),
@@ -484,6 +484,12 @@ CANDIDATE_SOURCES = (
     ("cupidbuild_iso_image", "/toolchain/cupidbuild_iso_image.cc", False),
     ("cupidbuild_iso_publication", "/toolchain/cupidbuild_iso_publication.cc", False),
 )
+DISK_FOUNDATION_SOURCES = (
+    ("fat16_stage", "/toolchain/fat16_stage.cc", False),
+    ("fat16_names", "/toolchain/fat16_names.cc", False),
+    ("disk_image", "/toolchain/disk_image.cc", False),
+)
+CANDIDATE_SOURCES = (*ISO_PUBLICATION_SOURCES, *DISK_FOUNDATION_SOURCES)
 CANDIDATE_CUPIDOBJ_LINK = (
     "start", "cupidobj_main", "cupidobj", "iso_fixture_bundle",
     "ctool_host", "ctool", "elf32", "runtime",
@@ -505,7 +511,7 @@ ISO_BUNDLE_CUPIDBUILD_LINK = (
     "cupidbuild_user_abi",
     "runtime",
 )
-CANDIDATE_CUPIDBUILD_LINK = (
+ISO_PUBLICATION_CUPIDBUILD_LINK = (
     "start", "cupidbuild_main", "cupidbuild", "cupidbuild_host",
     "ctool_host", "ctool", "elf32", "seed_manifest", "seed_release",
     "contract_parse_internal", "cupidbuild_artifacts", "artifact_size_policy",
@@ -513,8 +519,12 @@ CANDIDATE_CUPIDBUILD_LINK = (
     "cupidbuild_iso", "cupidbuild_iso_capture", "cupidbuild_iso_image",
     "cupidbuild_iso_publication", "runtime",
 )
-PROMOTED_SOURCES = CANDIDATE_SOURCES
-PROMOTED_CUPIDBUILD_LINK = CANDIDATE_CUPIDBUILD_LINK
+CANDIDATE_CUPIDBUILD_LINK = (
+    *ISO_PUBLICATION_CUPIDBUILD_LINK[:-1],
+    "fat16_stage", "fat16_names", "disk_image", "runtime",
+)
+PROMOTED_SOURCES = ISO_PUBLICATION_SOURCES
+PROMOTED_CUPIDBUILD_LINK = ISO_PUBLICATION_CUPIDBUILD_LINK
 PROMOTED_CUPIDOBJ_LINK = CANDIDATE_CUPIDOBJ_LINK
 REPORT_SCHEMA = "cupid.bootstrap-report.v1"
 WINDOWS_REPORT_SCHEMA = "cupid.windows-bootstrap-report.v1"
@@ -860,7 +870,7 @@ def _candidate_build_plan(
         ]
         if tuple(cupidbuild_link) not in (
             EARLIER_PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK,
-            CANDIDATE_CUPIDBUILD_LINK
+            ISO_PUBLICATION_CUPIDBUILD_LINK, CANDIDATE_CUPIDBUILD_LINK
         ):
             raise BootstrapError(
                 "Linux build plan candidate link differs: cupidbuild"
@@ -909,6 +919,8 @@ def _source_input_paths(
         source = _require_object(raw_source, "build source")
         logical_path = str(source["path"])
         paths.append(source_root / logical_path.lstrip("/"))
+        if logical_path == "/toolchain/fat16_names.cc":
+            paths.append(source_root / "toolchain/fat16_name_profiles.inc")
 
     startup = str(plan["startup"])
     paths.append(source_root / startup.lstrip("/"))
@@ -2763,26 +2775,31 @@ def _promoted_windows_imports(
         raise BootstrapError("promoted Windows import profile differs")
     profile = (plan_sha256, source_input_count)
     if profile in (("70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9", 66),
-                   ("0787562d0768485fa614c941fc79a7c6e329c64b6956261cca945a95c2ef9f56", 85)):
+                   ("0787562d0768485fa614c941fc79a7c6e329c64b6956261cca945a95c2ef9f56", 85),
+                   ("5633a265a4076d8a544621735795dae2baf9b28653c6a5e4b6fa6d8ec37c3dc7", 92)):
         return _windows_imports(tool_name)
     if profile in (
         ("a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99", 73),
         ("6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748", 76),
         ("be18b62e78d8259d1586ca20450eadb4901d8a36f26fdc7982db0b3d1aba5224", 80),
         ("e3bb4c45bb7633d95b205dcbab6405bb569b4cc71965a2eb52b8dfc78e370e18", 90),
+        ("b84cf24ca21c5024c0ccda5bc470a4c6f97f2bb1073b846381dceec6413239ba", 97),
     ):
         return _windows_utf8_imports(tool_name)
     if profile in (("5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc", 77),
                    ("e9efefe58f1d105bbc30874cc8d627a96b2acc2de85a5205fddad99ab159ab11", 81),
-                   ("5f6a59e696fb7edafdc5dda0b0cc67aa06550556a39816f27081b5a41a81adfc", 91)):
+                   ("5f6a59e696fb7edafdc5dda0b0cc67aa06550556a39816f27081b5a41a81adfc", 91),
+                   ("4e05c478b4628fc71aadc9ab2d2ac564abdc537402f4b713fe6d02c746ed18d5", 98)):
         return _windows_utf8_imports(tool_name, long_paths=True)
     if profile in (("79241fcdd8784952cf9e1e74907ac817dc83e24429c5625d3424a889c2753d70", 77),
                    ("f3132b33a0945a6d15484a39c853716468dec96b4d158c4cc550161286092a16", 81),
-                   ("d04c045db6492070389894c81364d5a6eada0ee135373f9d2ea1954386aaeb88", 91)):
+                   ("d04c045db6492070389894c81364d5a6eada0ee135373f9d2ea1954386aaeb88", 91),
+                   ("6023235b95ec568a107b163b2e107dc5979d9dc0d8a811f2bf605baa26d79bf5", 98)):
         return _windows_utf8_imports(tool_name, user_link_aliases=True)
     if profile in (("2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff", 78),
                    ("1a348ed367f047ac4a67dfc4e819155c0c96e66be19ff216b06d19db3efbe188", 82),
-                   ("0dfd1982dc1cd7c9d625c4c0546fc20f13fe3c9ae4dc8cbcf8835ff2e6b4e12d", 92)):
+                   ("0dfd1982dc1cd7c9d625c4c0546fc20f13fe3c9ae4dc8cbcf8835ff2e6b4e12d", 92),
+                   ("754895566b00e6e53b045a1414e7b734872f04d4f0c84d62e3dfcf8dd9bc57ab", 99)):
         return _windows_utf8_imports(tool_name, long_paths=True, user_link_aliases=True)
     raise BootstrapError("promoted Windows import profile differs")
 

@@ -12,6 +12,7 @@
 #define CUPID_LINUX_SYS_CLOSE 6
 #define CUPID_LINUX_SYS_LSEEK 19
 #define CUPID_LINUX_SYS_BRK 45
+#define CUPID_LINUX_SYS_LLSEEK 140
 #define CUPID_LINUX_SYS_GETCWD 183
 #endif
 
@@ -24,9 +25,11 @@
 
 #define CUPID_LINUX_O_RDONLY 0
 #define CUPID_LINUX_O_WRONLY 1
+#define CUPID_LINUX_O_RDWR 2
 #define CUPID_LINUX_O_CREAT 64
 #define CUPID_LINUX_O_TRUNC 512
 #define CUPID_LINUX_O_APPEND 1024
+#define CUPID_LINUX_O_LARGEFILE 32768
 
 #define CUPID_LINUX_SEEK_SET 0
 #define CUPID_LINUX_SEEK_CUR 1
@@ -42,6 +45,8 @@
 #define CUPID_WINDOWS_ERROR_INVALID_HANDLE 6u
 #define CUPID_WINDOWS_ERROR_NOT_ENOUGH_MEMORY 8u
 #define CUPID_WINDOWS_ERROR_OUTOFMEMORY 14u
+#define CUPID_WINDOWS_ERROR_INVALID_PARAMETER 87u
+#define CUPID_WINDOWS_ERROR_NEGATIVE_SEEK 131u
 #define CUPID_WINDOWS_ERROR_BROKEN_PIPE 109u
 #define CUPID_WINDOWS_GENERIC_READ 0x80000000u
 #define CUPID_WINDOWS_GENERIC_WRITE 0x40000000u
@@ -98,6 +103,9 @@ int cupid_linux_syscall2(int number, unsigned int first,
                          unsigned int second);
 int cupid_linux_syscall3(int number, unsigned int first,
                          unsigned int second, unsigned int third);
+int cupid_linux_syscall5(int number, unsigned int first,
+                         unsigned int second, unsigned int third,
+                         unsigned int fourth, unsigned int fifth);
 #endif
 
 typedef __builtin_va_list cupid_va_list;
@@ -641,14 +649,49 @@ static int cupid_stdio_bad_stream(FILE *stream) {
   return 0;
 }
 
+#if defined(CUPID_RUNTIME_WINDOWS)
+static int cupid_windows_seek_position64(unsigned int handle,
+                                         long long offset,
+                                         unsigned int origin,
+                                         long long *position_out) {
+  unsigned long long bits = (unsigned long long)offset;
+  int high = (int)(bits >> 32);
+  unsigned int low = cupid_windows_set_file_pointer(
+      handle, (int)(unsigned int)bits, &high, origin);
+  if (low == CUPID_WINDOWS_INVALID_FILE_POINTER) {
+    unsigned int error = cupid_windows_get_last_error();
+    if (error != 0u) {
+      if (error == CUPID_WINDOWS_ERROR_INVALID_PARAMETER ||
+          error == CUPID_WINDOWS_ERROR_NEGATIVE_SEEK) {
+        errno = CUPID_LINUX_EINVAL;
+      } else {
+        (void)cupid_windows_error();
+      }
+      return -1;
+    }
+  }
+  if (((unsigned int)high & 0x80000000u) != 0u) {
+    errno = CUPID_LINUX_EOVERFLOW;
+    return -1;
+  }
+  if (position_out != (long long *)0) {
+    *position_out = (long long)(
+        ((unsigned long long)(unsigned int)high << 32) | low);
+  }
+  return 0;
+}
+#endif
+
 static FILE *cupid_stdio_open(const char *path, int flags) {
   int descriptor;
   FILE *stream;
 #if defined(CUPID_RUNTIME_WINDOWS)
   unsigned int access =
-      (flags & CUPID_LINUX_O_WRONLY) != 0
-          ? CUPID_WINDOWS_GENERIC_WRITE
-          : CUPID_WINDOWS_GENERIC_READ;
+      (flags & 3) == CUPID_LINUX_O_RDWR
+          ? (CUPID_WINDOWS_GENERIC_READ | CUPID_WINDOWS_GENERIC_WRITE)
+          : ((flags & 3) == CUPID_LINUX_O_WRONLY
+                 ? CUPID_WINDOWS_GENERIC_WRITE
+                 : CUPID_WINDOWS_GENERIC_READ);
   unsigned int share = CUPID_WINDOWS_FILE_SHARE_READ |
                        CUPID_WINDOWS_FILE_SHARE_WRITE |
                        CUPID_WINDOWS_FILE_SHARE_DELETE;
@@ -667,15 +710,14 @@ static FILE *cupid_stdio_open(const char *path, int flags) {
   }
   descriptor = (int)handle;
   if ((flags & CUPID_LINUX_O_APPEND) != 0 &&
-      cupid_windows_set_file_pointer(handle, 0, (int *)0, SEEK_END) ==
-          CUPID_WINDOWS_INVALID_FILE_POINTER) {
-    (void)cupid_windows_error();
+      cupid_windows_seek_position64(handle, 0, SEEK_END, (long long *)0) != 0) {
     (void)cupid_windows_close_handle(handle);
     return (FILE *)0;
   }
 #else
   descriptor = cupid_linux_syscall3(
-      CUPID_LINUX_SYS_OPEN, (unsigned int)path, (unsigned int)flags, 438u);
+      CUPID_LINUX_SYS_OPEN, (unsigned int)path,
+      (unsigned int)(flags | CUPID_LINUX_O_LARGEFILE), 438u);
   if (cupid_runtime_syscall_failed(descriptor)) {
     (void)cupid_runtime_syscall_error(descriptor);
     return (FILE *)0;
@@ -702,22 +744,39 @@ static FILE *cupid_stdio_open(const char *path, int flags) {
 
 FILE *fopen(const char *path, const char *mode) {
   int flags;
+  unsigned int cursor = 1u;
+  int binary = 0;
+  int update = 0;
   if (path == (const char *)0 || mode == (const char *)0) {
     errno = CUPID_LINUX_EINVAL;
     return (FILE *)0;
   }
-  if (strcmp(mode, "r") == 0 || strcmp(mode, "rb") == 0) {
+  if (mode[0] == 'r') {
     flags = CUPID_LINUX_O_RDONLY;
-  } else if (strcmp(mode, "w") == 0 || strcmp(mode, "wb") == 0) {
+  } else if (mode[0] == 'w') {
     flags = CUPID_LINUX_O_WRONLY | CUPID_LINUX_O_CREAT |
             CUPID_LINUX_O_TRUNC;
-  } else if (strcmp(mode, "a") == 0 || strcmp(mode, "ab") == 0) {
+  } else if (mode[0] == 'a') {
     flags = CUPID_LINUX_O_WRONLY | CUPID_LINUX_O_CREAT |
             CUPID_LINUX_O_APPEND;
   } else {
     errno = CUPID_LINUX_EINVAL;
     return (FILE *)0;
   }
+  if (mode[cursor] == 'b') {
+    binary = 1;
+    cursor++;
+  }
+  if (mode[cursor] == '+') {
+    update = 1;
+    cursor++;
+    if (mode[cursor] == 'b' && !binary) cursor++;
+  }
+  if (mode[cursor] != '\0') {
+    errno = CUPID_LINUX_EINVAL;
+    return (FILE *)0;
+  }
+  if (update) flags = (flags & ~3) | CUPID_LINUX_O_RDWR;
   return cupid_stdio_open(path, flags);
 }
 
@@ -863,10 +922,9 @@ size_t fwrite(const void *source, size_t width, size_t count, FILE *stream) {
     int result;
     unsigned int written = 0u;
     if (stream->append != 0 &&
-        cupid_windows_set_file_pointer(
-            (unsigned int)stream->descriptor, 0, (int *)0, SEEK_END) ==
-            CUPID_WINDOWS_INVALID_FILE_POINTER) {
-      (void)cupid_windows_error();
+        cupid_windows_seek_position64(
+            (unsigned int)stream->descriptor, 0, SEEK_END,
+            (long long *)0) != 0) {
       stream->error = 1;
       break;
     }
@@ -899,6 +957,60 @@ size_t fwrite(const void *source, size_t width, size_t count, FILE *stream) {
     total += (size_t)result;
   }
   return total / width;
+}
+
+static int cupid_stdio_position64(FILE *stream, long long offset, int origin,
+                                  long long *position_out) {
+  if (cupid_stdio_bad_stream(stream)) {
+    return -1;
+  }
+  if (origin < SEEK_SET || origin > SEEK_END ||
+      (origin == SEEK_SET && offset < 0)) {
+    errno = CUPID_LINUX_EINVAL;
+    stream->error = 1;
+    return -1;
+  }
+#if defined(CUPID_RUNTIME_WINDOWS)
+  if (cupid_windows_seek_position64((unsigned int)stream->descriptor,
+                                    offset, (unsigned int)origin,
+                                    position_out) != 0) {
+    stream->error = 1;
+    return -1;
+  }
+#else
+  {
+    unsigned long long bits = (unsigned long long)offset;
+    long long position = 0;
+    int result = cupid_linux_syscall5(
+        CUPID_LINUX_SYS_LLSEEK, (unsigned int)stream->descriptor,
+        (unsigned int)(bits >> 32), (unsigned int)bits,
+        (unsigned int)&position, (unsigned int)origin);
+    if (cupid_runtime_syscall_failed(result)) {
+      (void)cupid_runtime_syscall_error(result);
+      stream->error = 1;
+      return -1;
+    }
+    *position_out = position;
+  }
+#endif
+  return 0;
+}
+
+int cupid_fseek64(FILE *stream, long long offset, int origin) {
+  long long position = 0;
+  return cupid_stdio_position64(stream, offset, origin, &position);
+}
+
+int cupid_ftell64(FILE *stream, long long *position_out) {
+  if (position_out == (long long *)0) {
+    errno = CUPID_LINUX_EINVAL;
+    if (stream != (FILE *)0) {
+      stream->error = 1;
+    }
+    return -1;
+  }
+  *position_out = 0;
+  return cupid_stdio_position64(stream, 0, SEEK_CUR, position_out);
 }
 
 int fseek(FILE *stream, long offset, int origin) {

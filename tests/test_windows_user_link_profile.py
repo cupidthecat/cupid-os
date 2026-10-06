@@ -25,8 +25,8 @@ class WindowsUserLinkProfileTests(unittest.TestCase):
 
     def test_selected_plans_bind_one_bridge_and_one_exact_role_import(self):
         for long_paths, historical in ((False,
-                '6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748'),
-                (True, '5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc')):
+                'b84cf24ca21c5024c0ccda5bc470a4c6f97f2bb1073b846381dceec6413239ba'),
+                (True, '4e05c478b4628fc71aadc9ab2d2ac564abdc537402f4b713fe6d02c746ed18d5')):
             with self.subTest(long_paths=long_paths):
                 old = bootstrap._windows_build_plan(self.linux, utf8=True, long_paths=long_paths)
                 self.assertEqual(bootstrap._build_plan_sha256(old), historical)
@@ -81,7 +81,7 @@ class WindowsUserLinkProfileTests(unittest.TestCase):
             self.assertEqual(sum(API in row for row in selectors), int(name == 'cupidbuild'))
 
     def test_source_inventory_captures_the_selected_bridge_and_exact_count(self):
-        for long_paths, count in ((False, 77), (True, 78)):
+        for long_paths, count in ((False, 98), (True, 99)):
             with self.subTest(long_paths=long_paths):
                 old = bootstrap.capture_source_snapshot(ROOT, self.linux,
                     windows_utf8=True, windows_long_paths=long_paths)
@@ -150,9 +150,9 @@ class WindowsUserLinkProfileTests(unittest.TestCase):
                 bootstrap._windows_plan_profile(mutated)
 
     def test_promoted_profiles_pin_digest_count_and_exact_imports(self):
-        for long_paths, count, digest in ((False, 77,
-                '79241fcdd8784952cf9e1e74907ac817dc83e24429c5625d3424a889c2753d70'),
-                (True, 78, '2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff')):
+        for long_paths, count, digest in ((False, 98,
+                '6023235b95ec568a107b163b2e107dc5979d9dc0d8a811f2bf605baa26d79bf5'),
+                (True, 99, '754895566b00e6e53b045a1414e7b734872f04d4f0c84d62e3dfcf8dd9bc57ab')):
             self.assertEqual(bootstrap._build_plan_sha256(self.plan(long_paths)), digest)
             for name in bootstrap.CANDIDATE_TOOL_NAMES:
                 expected = bootstrap._windows_utf8_imports(name, long_paths=long_paths,

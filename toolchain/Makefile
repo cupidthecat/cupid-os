@@ -205,6 +205,8 @@ CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.cc artifact_size_policy.h con
                               cupidbuild_iso_publication.h \
                               cupidbuild_iso.cc cupidbuild_iso_capture.cc \
                               cupidbuild_iso_image.cc cupidbuild_iso_publication.cc \
+                              fat16_stage.cc fat16_stage.h fat16_names.cc fat16_names.h \
+                              fat16_name_profiles.inc disk_image.cc disk_image.h \
                               cupidbuild_main.cc \
                               cupidc_pp.cc cupidc_pp.h \
                               cupidc_type.cc cupidc_type.h \
@@ -245,6 +247,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS := \
 	cupidbuild_artifacts.h cupidbuild_user_abi.h user_syscall_abi.h \
 	cupidbuild_iso.h cupidbuild_iso_capture.h cupidbuild_iso_image.h \
 	cupidbuild_iso_publication.h \
+	fat16_stage.h fat16_names.h disk_image.h \
 	iso_fixture_bundle.h \
 	cupidc_emit.h \
 	cupidc_frontend.h cupidc_ir.h cupidc_pp.h cupidc_type.h \
@@ -388,6 +391,7 @@ CUPIDBUILD_OBJECTS := $(BUILD_DIR)/cupidbuild_artifacts.o $(BUILD_DIR)/artifact_
                       $(BUILD_DIR)/iso_fixture_bundle.o $(BUILD_DIR)/cupidbuild_iso.o \
                       $(BUILD_DIR)/cupidbuild_iso_capture.o $(BUILD_DIR)/cupidbuild_iso_image.o \
                       $(BUILD_DIR)/cupidbuild_iso_publication.o \
+                      $(BUILD_DIR)/fat16_stage.o $(BUILD_DIR)/fat16_names.o $(BUILD_DIR)/disk_image.o \
                       $(BUILD_DIR)/cupidbuild_main.o
 CUPIDBUILD_JPEG_CONTRACT_OBJECTS := $(SEED_MANIFEST_OBJECTS) \
 	$(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o $(BUILD_DIR)/elf32.o \
@@ -604,6 +608,15 @@ $(BUILD_DIR)/cupidbuild_iso_image.o: cupidbuild_iso_image.cc cupidbuild_iso_imag
 $(BUILD_DIR)/cupidbuild_iso_publication.o: cupidbuild_iso_publication.cc cupidbuild_iso_publication.h \
     cupidbuild_iso_capture.h cupidbuild_iso_image.h cupidbuild_iso.h cupidobj.h ctool.h \
     cupidbuild.h cupidbuild_host.h iso_fixture_bundle.h seed_manifest.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/fat16_stage.o: fat16_stage.cc fat16_stage.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/fat16_names.o: fat16_names.cc fat16_names.h fat16_name_profiles.inc | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/disk_image.o: disk_image.cc disk_image.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/as_elf.o: ../kernel/lang/as_elf.cc ../kernel/lang/as_elf.h cupidasm.h ctool.h elf32.h | $(BUILD_DIR)

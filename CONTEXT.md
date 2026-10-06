@@ -909,6 +909,19 @@ independently of the author. It establishes image parity; capture, live drift
 checks and guarded publication remain separate responsibilities.
 _Avoid_: producer self-validation, ISO publication ownership
 
+**Streamed retained file observation**:
+A whole-file content identity captured through bounded reads while the file and
+its original path bindings remain retained for final revalidation. Successful
+copies and their lifetime belong to the caller; the observation grants no
+candidate or publication authority.
+_Avoid_: immutable live file, frozen transaction input, published candidate
+
+**Digest-only transaction snapshot**:
+A complete file digest and metadata captured through bounded reads without
+allocating a returned payload. The transaction keeps its existing file ownership,
+extent rules and publication checks.
+_Avoid_: whole-file payload allocation, immutable live file
+
 **Retained ISO input capture**:
 Owned immutable manifest, path and payload views whose original file bindings,
 actual kinds and exact directory memberships remain held by a borrowed observer.

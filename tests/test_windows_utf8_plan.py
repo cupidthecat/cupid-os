@@ -6,7 +6,7 @@ import unittest
 from unittest import mock
 
 from tools import bootstrap_toolchain as bootstrap
-from tests.test_seed_manifest import pre_artifact_plan
+from tests.test_seed_manifest import pre_artifact_plan, artifact_manifest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,7 +44,7 @@ class WindowsUtf8PlanTests(unittest.TestCase):
     def test_long_source_capture_includes_the_complete_selected_plan(self):
         canonical = bootstrap._candidate_build_plan(json.loads(
             (ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"])
-        for linux, count in ((self.linux, 75), (canonical, 77)):
+        for linux, count in ((self.linux, 85), (canonical, 98)):
             wide = bootstrap.capture_source_snapshot(ROOT, linux, windows_utf8=True)
             long = bootstrap.capture_source_snapshot(ROOT, linux,
                 windows_utf8=True, windows_long_paths=True)
@@ -132,7 +132,8 @@ class WindowsUtf8PlanTests(unittest.TestCase):
             installed_plan, utf8=True, long_paths=long_paths, user_link_aliases=aliases)))
         snapshot = bootstrap.capture_source_snapshot(ROOT, installed_plan, windows_utf8=True,
             windows_long_paths=long_paths, windows_user_link_aliases=aliases)
-        self.assertEqual(len(snapshot), count)
+        extra_headers = 0 if any(row['name'] == 'fat16_names' for row in installed_plan['sources']) else 3
+        self.assertEqual(len(snapshot), count + extra_headers)
 
     def test_promoted_profiles_select_exact_imports_for_every_role(self):
         for utf8, count in ((False, 66), (True, 73)):
@@ -160,7 +161,7 @@ class WindowsUtf8PlanTests(unittest.TestCase):
 
     def test_artifact_verifier_promoted_profile_requires_exact_plan_and_count(self):
         plan = bootstrap._windows_build_plan(
-            bootstrap._candidate_build_plan(json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"]), utf8=True)
+            artifact_manifest(1)['build_plan'], utf8=True)
         digest = bootstrap._build_plan_sha256(plan)
         self.assertEqual(digest, "6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748")
         for tool in bootstrap.CANDIDATE_TOOL_NAMES:

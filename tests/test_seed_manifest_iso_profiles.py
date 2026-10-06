@@ -29,6 +29,15 @@ PUBLICATION_PROFILES = (
     (True, True, True, 92, 5),
 )
 
+DISK_FOUNDATION_PROFILES = (
+    (False, False, False, 92, 1),
+    (True, False, False, 97, 2),
+    (True, True, False, 98, 3),
+    (True, False, True, 98, 4),
+    (True, True, True, 99, 5),
+)
+DISK_OBJECTS = {'fat16_stage', 'fat16_names', 'disk_image'}
+
 
 def bundle_only_plan(plan):
     plan = copy.deepcopy(plan)
@@ -41,6 +50,7 @@ def bundle_only_plan(plan):
 class IsoSeedProfileTests(unittest.TestCase):
     profiles = PROFILES
     publication = False
+    disk_foundation = False
     unload = classmethod(historical.ManifestTests.unload.__func__)
 
     @classmethod
@@ -50,12 +60,18 @@ class IsoSeedProfileTests(unittest.TestCase):
         cls.windows = bootstrap.verify_seed_inputs(ROOT / 'bootstrap/seeds/i386-windows/manifest.json')
         bootstrap._require_seed_pair_identity(cls.windows, cls.linux)
         cls.plan = bootstrap._candidate_build_plan(cls.linux.manifest['build_plan'])
+        if not cls.disk_foundation:
+            cls.plan['sources'] = [r for r in cls.plan['sources'] if r['name'] not in DISK_OBJECTS]
+            cls.plan['links']['cupidbuild'] = list(bootstrap.ISO_PUBLICATION_CUPIDBUILD_LINK)
         if not cls.publication:
             cls.plan = bundle_only_plan(cls.plan)
         cls.fixtures = []
         for utf8, long_paths, aliases, expected_count, profile in cls.profiles:
             snapshot = bootstrap.capture_source_snapshot(ROOT, cls.plan, windows_utf8=utf8,
                 windows_long_paths=long_paths, windows_user_link_aliases=aliases)
+            if not cls.disk_foundation:
+                snapshot = {name: row for name, row in snapshot.items()
+                            if name not in {'toolchain/' + object_name + '.h' for object_name in DISK_OBJECTS}}
             if not cls.publication:
                 snapshot = {name: row for name, row in snapshot.items()
                             if name != 'toolchain/cupidbuild_iso_publication.h'}
@@ -180,7 +196,7 @@ class IsoSeedProfileTests(unittest.TestCase):
                     continue
                 changed = copy.deepcopy(windows)
                 changed['provenance']['native_build_plan_sha256'] = other['provenance']['native_build_plan_sha256']
-                # The two 86-input profiles are distinct valid contracts.
+                # Long-path and alias profiles share a count but have distinct plans.
                 accepted = profile in (3, 4) and other_profile in (3, 4)
                 self.check(changed, 2, other_profile if accepted else profile, accepted,
                     record=self.release(changed if accepted else windows, 2))
@@ -301,6 +317,46 @@ class IsoPublicationSeedProfileTests(IsoSeedProfileTests):
         for document, other in ((new, old), (old, new)):
             for field in ('native_build_plan_sha256', 'linux_candidate_build_plan_sha256'):
                 changed = copy.deepcopy(document)
+                changed['provenance'][field] = other['provenance'][field]
+                self.check(changed, 2, accepted=False, record=self.release(changed, 2))
+
+
+class DiskFoundationSeedProfileTests(IsoSeedProfileTests):
+    profiles = DISK_FOUNDATION_PROFILES
+    publication = True
+    disk_foundation = True
+
+    def test_disk_module_sources_and_links_are_exact(self):
+        linux = self.fixtures[0][0]
+        for name in sorted(DISK_OBJECTS):
+            index = next(i for i, row in enumerate(linux['build_plan']['sources']) if row['name'] == name)
+            for field in ('name', 'path', 'gnu_extensions'):
+                changed = copy.deepcopy(linux)
+                old = changed['build_plan']['sources'][index][field]
+                changed['build_plan']['sources'][index][field] = not old if isinstance(old, bool) else 'wrong'
+                self.check(changed, 1, accepted=False, record=self.release(changed, 1))
+            for action in ('remove', 'duplicate', 'reorder'):
+                changed = copy.deepcopy(linux)
+                sources = changed['build_plan']['sources']
+                if action == 'remove': sources.pop(index)
+                elif action == 'duplicate': sources.append(copy.deepcopy(sources[index]))
+                else: sources[index], sources[index - 1] = sources[index - 1], sources[index]
+                self.check(changed, 1, accepted=False, record=self.release(changed, 1))
+                changed = copy.deepcopy(linux)
+                link = changed['build_plan']['links']['cupidbuild']
+                position = link.index(name)
+                if action == 'remove': link.pop(position)
+                elif action == 'duplicate': link.append(name)
+                else: link[position], link[position - 1] = link[position - 1], link[position]
+                self.check(changed, 1, accepted=False, record=self.release(changed, 1))
+
+    def test_shared_count_cannot_exchange_installed_and_disk_plans(self):
+        disk = self.fixtures[0][1]
+        installed = copy.deepcopy(self.windows.manifest)
+        self.assertEqual(disk['provenance']['source_input_count'], installed['provenance']['source_input_count'])
+        for original, other in ((disk, installed), (installed, disk)):
+            for field in ('native_build_plan_sha256', 'linux_candidate_build_plan_sha256'):
+                changed = copy.deepcopy(original)
                 changed['provenance'][field] = other['provenance'][field]
                 self.check(changed, 2, accepted=False, record=self.release(changed, 2))
 

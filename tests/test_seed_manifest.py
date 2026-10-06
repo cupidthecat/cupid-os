@@ -198,7 +198,8 @@ def user_abi_plan():
     """Keep the earlier ABI-only profile independent of current plan upgrades."""
     plan = seed._candidate_build_plan(manifest(1)["build_plan"])
     removed = {"iso_fixture_bundle", "cupidbuild_iso", "cupidbuild_iso_capture",
-               "cupidbuild_iso_image", "cupidbuild_iso_publication"}
+               "cupidbuild_iso_image", "cupidbuild_iso_publication",
+               "fat16_stage", "fat16_names", "disk_image"}
     plan["sources"] = [row for row in plan["sources"] if row["name"] not in removed]
     plan["links"]["cupidobj"] = [name for name in plan["links"]["cupidobj"] if name != "iso_fixture_bundle"]
     plan["links"]["cupidbuild"] = [name for name in plan["links"]["cupidbuild"] if name not in removed]
@@ -297,13 +298,13 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(windows.manifest["provenance"]["source_input_count"], seed.PROMOTED_SOURCE_INPUT_COUNT)
         plan = copy.deepcopy(linux.manifest["build_plan"])
         snapshot = seed.capture_source_snapshot(ROOT, plan, windows_utf8=True, windows_user_link_aliases=True)
-        self.assertEqual(len(snapshot), 91)
+        self.assertEqual(len(snapshot), 94)
         digest = seed._build_plan_sha256(seed._windows_build_plan(plan, utf8=True, user_link_aliases=True))
         changed = seed._retarget_native_windows_behavior_seed(windows, digest, plan, snapshot,
             utf8=True, user_link_aliases=True, parent_plan_seed=linux)
         self.assertIsNot(changed, windows)
         provenance = changed.manifest["provenance"]
-        self.assertEqual(provenance["source_input_count"], 91)
+        self.assertEqual(provenance["source_input_count"], 94)
         self.assertEqual(provenance["native_build_plan_sha256"], digest)
         self.assertEqual(provenance["parent_execution_seed_manifest_sha256"], windows.manifest_sha256)
         self.assertEqual(provenance["parent_plan_seed_manifest_sha256"], linux.manifest_sha256)

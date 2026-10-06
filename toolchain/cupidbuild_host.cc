@@ -56,6 +56,8 @@ unsigned int cupidbuild_host_execution_format(void) {
 extern char **environ;
 #else
 #define CUPIDBUILD_CUSTOM_LINUX 1
+#define CUPIDBUILD_LINUX_SYS_PREAD64 180
+#define CUPIDBUILD_LINUX_EINTR 4
 int cupid_linux_syscall0(int number);
 int cupid_linux_syscall1(int number, unsigned int first);
 int cupid_linux_syscall2(int number, unsigned int first,
@@ -384,21 +386,57 @@ static void cupidbuild_sha_block(cupidbuild_sha_word_t state[8],
   state[7] += eighth;
 }
 
-static void cupidbuild_sha256(const unsigned char *contents, size_t size,
-                              unsigned char digest[32]) {
-  cupidbuild_sha_word_t state[8] = {
+typedef struct {
+  cupidbuild_sha_word_t state[8];
+  unsigned char partial[64];
+  size_t used;
+  uint64_t size;
+} cupidbuild_sha_context_t;
+
+static void cupidbuild_sha_initialize(cupidbuild_sha_context_t *context) {
+  static const cupidbuild_sha_word_t initial[8] = {
       0x6a09e667u, 0xbb67ae85u, 0x3c6ef372u, 0xa54ff53au,
       0x510e527fu, 0x9b05688cu, 0x1f83d9abu, 0x5be0cd19u};
-  unsigned char tail[128];
-  size_t complete = size & ~(size_t)63u;
-  size_t remaining = size - complete;
-  unsigned long long bit_count = (unsigned long long)size * 8u;
-  size_t index;
-  for (index = 0u; index < complete; index += 64u) {
-    cupidbuild_sha_block(state, contents + index);
+  (void)memcpy(context->state, initial, sizeof(initial));
+  context->used = 0u;
+  context->size = 0u;
+}
+
+static void cupidbuild_sha_update(cupidbuild_sha_context_t *context,
+                                  const unsigned char *contents, size_t size) {
+  context->size += (uint64_t)size;
+  if (context->used != 0u) {
+    size_t count = 64u - context->used;
+    if (count > size) count = size;
+    if (count != 0u)
+      (void)memcpy(context->partial + context->used, contents, count);
+    context->used += count;
+    contents += count;
+    size -= count;
+    if (context->used == 64u) {
+      cupidbuild_sha_block(context->state, context->partial);
+      context->used = 0u;
+    }
   }
+  while (size >= 64u) {
+    cupidbuild_sha_block(context->state, contents);
+    contents += 64u;
+    size -= 64u;
+  }
+  if (size != 0u) {
+    (void)memcpy(context->partial, contents, size);
+    context->used = size;
+  }
+}
+
+static void cupidbuild_sha_finish(cupidbuild_sha_context_t *context,
+                                  unsigned char digest[32]) {
+  unsigned char tail[128];
+  size_t remaining = context->used;
+  uint64_t bit_count = context->size * 8u;
+  size_t index;
   for (index = 0u; index < remaining; index++) {
-    tail[index] = contents[complete + index];
+    tail[index] = context->partial[index];
   }
   tail[remaining++] = 0x80u;
   while ((remaining & 63u) != 56u) {
@@ -409,16 +447,24 @@ static void cupidbuild_sha256(const unsigned char *contents, size_t size,
         (unsigned char)(bit_count >> ((7u - index) * 8u));
   }
   remaining += 8u;
-  cupidbuild_sha_block(state, tail);
+  cupidbuild_sha_block(context->state, tail);
   if (remaining == 128u) {
-    cupidbuild_sha_block(state, tail + 64u);
+    cupidbuild_sha_block(context->state, tail + 64u);
   }
   for (index = 0u; index < 8u; index++) {
-    digest[index * 4u] = (unsigned char)(state[index] >> 24u);
-    digest[index * 4u + 1u] = (unsigned char)(state[index] >> 16u);
-    digest[index * 4u + 2u] = (unsigned char)(state[index] >> 8u);
-    digest[index * 4u + 3u] = (unsigned char)state[index];
+    digest[index * 4u] = (unsigned char)(context->state[index] >> 24u);
+    digest[index * 4u + 1u] = (unsigned char)(context->state[index] >> 16u);
+    digest[index * 4u + 2u] = (unsigned char)(context->state[index] >> 8u);
+    digest[index * 4u + 3u] = (unsigned char)context->state[index];
   }
+}
+
+static void cupidbuild_sha256(const unsigned char *contents, size_t size,
+                              unsigned char digest[32]) {
+  cupidbuild_sha_context_t context;
+  cupidbuild_sha_initialize(&context);
+  cupidbuild_sha_update(&context, contents, size);
+  cupidbuild_sha_finish(&context, digest);
 }
 
 void cupidbuild_host_sha256_bytes(const unsigned char *contents, size_t size,
@@ -456,6 +502,75 @@ static int cupidbuild_host_join(char *destination, size_t capacity,
     destination[left_size++] = '/';
   }
   (void)memcpy(destination + left_size, right, right_size + 1u);
+  return 1;
+}
+
+/* Read the captured extent through a retained ordinary-file handle. Payload
+ * storage belongs to the caller only when requested; digest-only checks use a
+ * fixed block. Callers retain their existing metadata and extent checks. */
+static int cupidbuild_host_read_open_contents(
+#if defined(_WIN32)
+    HANDLE handle,
+#else
+    int descriptor,
+#endif
+    size_t size, unsigned char **bytes_out, unsigned char digest[32]) {
+  unsigned char block[65536];
+  unsigned char *bytes = (unsigned char *)0;
+  cupidbuild_sha_context_t context;
+  size_t offset = 0u;
+#if defined(_WIN32)
+  if (SetFilePointer(handle, 0, 0, FILE_BEGIN) != 0u) return 0;
+#endif
+  if (bytes_out != (unsigned char **)0) {
+    if (size == (size_t)-1) return 0;
+    bytes = (unsigned char *)malloc(size + 1u);
+    if (bytes == (unsigned char *)0) return 0;
+  }
+  cupidbuild_sha_initialize(&context);
+  while (offset < size) {
+    size_t chunk = size - offset;
+    size_t count;
+    unsigned char *destination = bytes != (unsigned char *)0
+                                     ? bytes + offset
+                                     : block;
+    if (chunk > sizeof(block)) chunk = sizeof(block);
+#if defined(_WIN32)
+    DWORD read_bytes = 0u;
+    if (!ReadFile(handle, destination, (DWORD)chunk, &read_bytes,
+                  (LPOVERLAPPED)0)) {
+      free(bytes);
+      return 0;
+    }
+    count = (size_t)read_bytes;
+#elif defined(CUPIDBUILD_CUSTOM_LINUX)
+    int read_bytes;
+    do {
+      read_bytes = cupid_linux_syscall5(
+          CUPIDBUILD_LINUX_SYS_PREAD64, (unsigned int)descriptor,
+          (unsigned int)destination, (unsigned int)chunk,
+          (unsigned int)offset, 0u);
+    } while (read_bytes == -CUPIDBUILD_LINUX_EINTR);
+    count = read_bytes > 0 ? (size_t)read_bytes : 0u;
+#else
+    ssize_t read_bytes;
+    do {
+      read_bytes = pread(descriptor, destination, chunk, (off_t)offset);
+    } while (read_bytes < 0 && errno == EINTR);
+    count = read_bytes > 0 ? (size_t)read_bytes : 0u;
+#endif
+    if (count == 0u || count > chunk) {
+      free(bytes);
+      return 0;
+    }
+    cupidbuild_sha_update(&context, destination, count);
+    offset += count;
+  }
+  cupidbuild_sha_finish(&context, digest);
+  if (bytes_out != (unsigned char **)0) {
+    bytes[size] = 0u;
+    *bytes_out = bytes;
+  }
   return 1;
 }
 
@@ -906,9 +1021,9 @@ static int cupidbuild_host_read_regular_limit(
     cupidbuild_host_snapshot_t *snapshot, unsigned char **bytes_out) {
   HANDLE handle;
   BY_HANDLE_FILE_INFORMATION information;
-  unsigned char *bytes;
+  unsigned char *bytes = (unsigned char *)0;
+  unsigned char digest[32];
   size_t size;
-  size_t offset = 0u;
   (void)memset(snapshot, 0, sizeof(*snapshot));
   if (optional != 0 && GetFileAttributesA(path) == INVALID_FILE_ATTRIBUTES &&
       (GetLastError() == ERROR_FILE_NOT_FOUND ||
@@ -947,24 +1062,13 @@ static int cupidbuild_host_read_regular_limit(
     return 0;
   }
   size = (size_t)information.nFileSizeLow;
-  bytes = (unsigned char *)malloc(size + 1u);
-  if (bytes == (unsigned char *)0) {
+  if (!cupidbuild_host_read_open_contents(
+          handle, size,
+          bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
+          digest)) {
     (void)CloseHandle(handle);
     return 0;
   }
-  while (offset < size) {
-    DWORD read_bytes = 0u;
-    DWORD chunk = (DWORD)(size - offset);
-    if (!ReadFile(handle, bytes + offset, chunk, &read_bytes,
-                  (LPOVERLAPPED)0) ||
-        read_bytes == 0u) {
-      free(bytes);
-      (void)CloseHandle(handle);
-      return 0;
-    }
-    offset += (size_t)read_bytes;
-  }
-  bytes[size] = 0u;
   snapshot->present = 1;
   snapshot->size = size;
   snapshot->identity[0] = information.dwVolumeSerialNumber;
@@ -972,7 +1076,7 @@ static int cupidbuild_host_read_regular_limit(
   snapshot->identity[2] = information.nFileIndexLow;
   snapshot->modified[0] = information.ftLastWriteTime.dwHighDateTime;
   snapshot->modified[1] = information.ftLastWriteTime.dwLowDateTime;
-  cupidbuild_sha256(bytes, size, snapshot->sha256);
+  (void)memcpy(snapshot->sha256, digest, sizeof(digest));
   (void)CloseHandle(handle);
   if (bytes_out != (unsigned char **)0) {
     *bytes_out = bytes;
@@ -2076,9 +2180,9 @@ static int cupidbuild_host_windows_read_repository_regular(
   HANDLE handle = cupidbuild_host_windows_open_relative_path(
       repository, logical, 0, 1);
   BY_HANDLE_FILE_INFORMATION information;
-  unsigned char *bytes;
+  unsigned char *bytes = (unsigned char *)0;
+  unsigned char digest[32];
   size_t size;
-  size_t offset = 0u;
   (void)memset(snapshot, 0, sizeof(*snapshot));
   if (handle == INVALID_HANDLE_VALUE ||
       !GetFileInformationByHandle(handle, &information) ||
@@ -2092,24 +2196,13 @@ static int cupidbuild_host_windows_read_repository_regular(
     return 0;
   }
   size = (size_t)information.nFileSizeLow;
-  bytes = (unsigned char *)malloc(size + 1u);
-  if (bytes == (unsigned char *)0) {
+  if (!cupidbuild_host_read_open_contents(
+          handle, size,
+          bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
+          digest)) {
     (void)CloseHandle(handle);
     return 0;
   }
-  while (offset < size) {
-    DWORD read_bytes = 0u;
-    DWORD chunk = (DWORD)(size - offset);
-    if (!ReadFile(handle, bytes + offset, chunk, &read_bytes,
-                  (LPOVERLAPPED)0) ||
-        read_bytes == 0u) {
-      free(bytes);
-      (void)CloseHandle(handle);
-      return 0;
-    }
-    offset += (size_t)read_bytes;
-  }
-  bytes[size] = 0u;
   snapshot->present = 1;
   snapshot->size = size;
   snapshot->identity[0] = information.dwVolumeSerialNumber;
@@ -2117,7 +2210,7 @@ static int cupidbuild_host_windows_read_repository_regular(
   snapshot->identity[2] = information.nFileIndexLow;
   snapshot->modified[0] = information.ftLastWriteTime.dwHighDateTime;
   snapshot->modified[1] = information.ftLastWriteTime.dwLowDateTime;
-  cupidbuild_sha256(bytes, size, snapshot->sha256);
+  (void)memcpy(snapshot->sha256, digest, sizeof(digest));
   if (!CloseHandle(handle)) {
     free(bytes);
     return 0;
@@ -2137,9 +2230,9 @@ static int cupidbuild_host_windows_read_relative_regular(
   HANDLE handle = cupidbuild_host_windows_open_relative_access_status(
       parent, name, 0, 1, 0u, &open_status);
   BY_HANDLE_FILE_INFORMATION information;
-  unsigned char *bytes;
+  unsigned char *bytes = (unsigned char *)0;
+  unsigned char digest[32];
   size_t size;
-  size_t offset = 0u;
   (void)memset(snapshot, 0, sizeof(*snapshot));
   if (handle == INVALID_HANDLE_VALUE) {
     unsigned long status = (unsigned long)open_status;
@@ -2162,24 +2255,13 @@ static int cupidbuild_host_windows_read_relative_regular(
     return 0;
   }
   size = (size_t)information.nFileSizeLow;
-  bytes = (unsigned char *)malloc(size + 1u);
-  if (bytes == (unsigned char *)0) {
+  if (!cupidbuild_host_read_open_contents(
+          handle, size,
+          bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
+          digest)) {
     (void)CloseHandle(handle);
     return 0;
   }
-  while (offset < size) {
-    DWORD read_bytes = 0u;
-    DWORD chunk = (DWORD)(size - offset);
-    if (!ReadFile(handle, bytes + offset, chunk, &read_bytes,
-                  (LPOVERLAPPED)0) ||
-        read_bytes == 0u) {
-      free(bytes);
-      (void)CloseHandle(handle);
-      return 0;
-    }
-    offset += (size_t)read_bytes;
-  }
-  bytes[size] = 0u;
   snapshot->present = 1;
   snapshot->size = size;
   snapshot->identity[0] = information.dwVolumeSerialNumber;
@@ -2187,7 +2269,7 @@ static int cupidbuild_host_windows_read_relative_regular(
   snapshot->identity[2] = information.nFileIndexLow;
   snapshot->modified[0] = information.ftLastWriteTime.dwHighDateTime;
   snapshot->modified[1] = information.ftLastWriteTime.dwLowDateTime;
-  cupidbuild_sha256(bytes, size, snapshot->sha256);
+  (void)memcpy(snapshot->sha256, digest, sizeof(digest));
   if (!CloseHandle(handle)) {
     free(bytes);
     return 0;
@@ -2828,7 +2910,6 @@ static int cupidbuild_host_atomic_replace(
 #define CUPIDBUILD_LINUX_SYS_FSYNC 118
 #define CUPIDBUILD_LINUX_SYS_FCHDIR 133
 #define CUPIDBUILD_LINUX_SYS_NANOSLEEP 162
-#define CUPIDBUILD_LINUX_SYS_PREAD64 180
 #define CUPIDBUILD_LINUX_SYS_LSTAT64 196
 #define CUPIDBUILD_LINUX_SYS_FSTAT64 197
 #define CUPIDBUILD_LINUX_SYS_GETDENTS64 220
@@ -2860,7 +2941,6 @@ static int cupidbuild_host_atomic_replace(
 #define CUPIDBUILD_LINUX_AT_SYMLINK_NOFOLLOW 256u
 #define CUPIDBUILD_LINUX_AT_EMPTY_PATH 4096u
 #define CUPIDBUILD_LINUX_SIGKILL 9u
-#define CUPIDBUILD_LINUX_EINTR 4
 #define CUPIDBUILD_LINUX_EBUSY 16
 #define CUPIDBUILD_LINUX_MFD_CLOEXEC 1u
 #define CUPIDBUILD_LINUX_MFD_ALLOW_SEALING 2u
@@ -3058,8 +3138,8 @@ static int cupidbuild_linux_read_repository_regular(
   int descriptor = cupidbuild_linux_open_relative_path(
       repository, logical, 0);
   unsigned int size;
-  unsigned char *bytes;
-  unsigned int offset = 0u;
+  unsigned char *bytes = (unsigned char *)0;
+  unsigned char digest[32];
   (void)memset(snapshot, 0, sizeof(*snapshot));
   if (descriptor < 0 ||
       cupid_linux_syscall2(CUPIDBUILD_LINUX_SYS_FSTAT64,
@@ -3080,30 +3160,19 @@ static int cupidbuild_linux_read_repository_regular(
                                (unsigned int)descriptor);
     return 0;
   }
-  bytes = (unsigned char *)malloc((size_t)size + 1u);
-  if (bytes == (unsigned char *)0) {
+  if (!cupidbuild_host_read_open_contents(
+          descriptor, (size_t)size,
+          bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
+          digest)) {
     (void)cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE,
                                (unsigned int)descriptor);
     return 0;
-  }
-  while (offset < size) {
-    int count = cupid_linux_syscall3(
-        CUPIDBUILD_LINUX_SYS_READ, (unsigned int)descriptor,
-        (unsigned int)(bytes + offset), size - offset);
-    if (count <= 0) {
-      free(bytes);
-      (void)cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE,
-                                 (unsigned int)descriptor);
-      return 0;
-    }
-    offset += (unsigned int)count;
   }
   if (cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE,
                            (unsigned int)descriptor) < 0) {
     free(bytes);
     return 0;
   }
-  bytes[size] = 0u;
   snapshot->present = 1;
   snapshot->size = size;
   snapshot->identity[0] = cupidbuild_linux_u32(information);
@@ -3112,7 +3181,7 @@ static int cupidbuild_linux_read_repository_regular(
   snapshot->identity[3] = cupidbuild_linux_u32(information + 92u);
   snapshot->modified[0] = cupidbuild_linux_u32(information + 72u);
   snapshot->modified[1] = cupidbuild_linux_u32(information + 76u);
-  cupidbuild_sha256(bytes, size, snapshot->sha256);
+  (void)memcpy(snapshot->sha256, digest, sizeof(digest));
   if (bytes_out != (unsigned char **)0) {
     *bytes_out = bytes;
   } else {
@@ -3127,8 +3196,8 @@ static int cupidbuild_linux_read_relative_regular(
   unsigned char information[96];
   int descriptor = cupidbuild_linux_open_relative(parent, name, 0);
   unsigned int size;
-  unsigned char *bytes;
-  unsigned int offset = 0u;
+  unsigned char *bytes = (unsigned char *)0;
+  unsigned char digest[32];
   (void)memset(snapshot, 0, sizeof(*snapshot));
   if (descriptor < 0) {
     if (optional != 0 && descriptor == -CUPIDBUILD_LINUX_ENOENT) {
@@ -3155,30 +3224,19 @@ static int cupidbuild_linux_read_relative_regular(
                                (unsigned int)descriptor);
     return 0;
   }
-  bytes = (unsigned char *)malloc((size_t)size + 1u);
-  if (bytes == (unsigned char *)0) {
+  if (!cupidbuild_host_read_open_contents(
+          descriptor, (size_t)size,
+          bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
+          digest)) {
     (void)cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE,
                                (unsigned int)descriptor);
     return 0;
-  }
-  while (offset < size) {
-    int count = cupid_linux_syscall3(
-        CUPIDBUILD_LINUX_SYS_READ, (unsigned int)descriptor,
-        (unsigned int)(bytes + offset), size - offset);
-    if (count <= 0) {
-      free(bytes);
-      (void)cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE,
-                                 (unsigned int)descriptor);
-      return 0;
-    }
-    offset += (unsigned int)count;
   }
   if (cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE,
                            (unsigned int)descriptor) < 0) {
     free(bytes);
     return 0;
   }
-  bytes[size] = 0u;
   snapshot->present = 1;
   snapshot->size = size;
   snapshot->identity[0] = cupidbuild_linux_u32(information);
@@ -3187,7 +3245,7 @@ static int cupidbuild_linux_read_relative_regular(
   snapshot->identity[3] = cupidbuild_linux_u32(information + 92u);
   snapshot->modified[0] = cupidbuild_linux_u32(information + 72u);
   snapshot->modified[1] = cupidbuild_linux_u32(information + 76u);
-  cupidbuild_sha256(bytes, size, snapshot->sha256);
+  (void)memcpy(snapshot->sha256, digest, sizeof(digest));
   if (bytes_out != (unsigned char **)0) {
     *bytes_out = bytes;
   } else {
@@ -3227,8 +3285,8 @@ static int cupidbuild_host_read_regular(
   unsigned char information[96];
   int descriptor;
   unsigned int size;
-  unsigned char *bytes;
-  unsigned int offset = 0u;
+  unsigned char *bytes = (unsigned char *)0;
+  unsigned char digest[32];
   int stat_result = cupidbuild_linux_stat(path, information);
   (void)memset(snapshot, 0, sizeof(*snapshot));
   if (optional != 0 && stat_result == -CUPIDBUILD_LINUX_ENOENT) {
@@ -3264,27 +3322,16 @@ static int cupidbuild_host_read_regular(
                                (unsigned int)descriptor);
     return 0;
   }
-  bytes = (unsigned char *)malloc((size_t)size + 1u);
-  if (bytes == (unsigned char *)0) {
+  if (!cupidbuild_host_read_open_contents(
+          descriptor, (size_t)size,
+          bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
+          digest)) {
     (void)cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE,
                                (unsigned int)descriptor);
     return 0;
   }
-  while (offset < size) {
-    int count = cupid_linux_syscall3(
-        CUPIDBUILD_LINUX_SYS_READ, (unsigned int)descriptor,
-        (unsigned int)(bytes + offset), size - offset);
-    if (count <= 0) {
-      free(bytes);
-      (void)cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE,
-                                 (unsigned int)descriptor);
-      return 0;
-    }
-    offset += (unsigned int)count;
-  }
   (void)cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE,
                              (unsigned int)descriptor);
-  bytes[size] = 0u;
   snapshot->present = 1;
   snapshot->size = size;
   snapshot->identity[0] = cupidbuild_linux_u32(information);
@@ -3293,7 +3340,7 @@ static int cupidbuild_host_read_regular(
   snapshot->identity[3] = cupidbuild_linux_u32(information + 92u);
   snapshot->modified[0] = cupidbuild_linux_u32(information + 72u);
   snapshot->modified[1] = cupidbuild_linux_u32(information + 76u);
-  cupidbuild_sha256(bytes, size, snapshot->sha256);
+  (void)memcpy(snapshot->sha256, digest, sizeof(digest));
   if (bytes_out != (unsigned char **)0) {
     *bytes_out = bytes;
   } else {
@@ -3844,29 +3891,19 @@ static int cupidbuild_host_read_open_file(
     int descriptor, size_t limit, cupidbuild_host_snapshot_t *snapshot,
     unsigned char **bytes_out) {
   cupidbuild_host_snapshot_t current;
-  unsigned char *bytes;
-  size_t offset = 0u;
+  unsigned char *bytes = (unsigned char *)0;
+  unsigned char digest[32];
   if (!cupidbuild_host_linux_open_snapshot(descriptor, &current) ||
       current.size > limit) {
     return 0;
   }
-  bytes = (unsigned char *)malloc(current.size + 1u);
-  if (bytes == (unsigned char *)0) {
+  if (!cupidbuild_host_read_open_contents(
+          descriptor, current.size,
+          bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
+          digest)) {
     return 0;
   }
-  while (offset < current.size) {
-    int count = cupid_linux_syscall5(
-        CUPIDBUILD_LINUX_SYS_PREAD64, (unsigned int)descriptor,
-        (unsigned int)(bytes + offset),
-        (unsigned int)(current.size - offset), (unsigned int)offset, 0u);
-    if (count <= 0) {
-      free(bytes);
-      return 0;
-    }
-    offset += (size_t)count;
-  }
-  bytes[current.size] = 0u;
-  cupidbuild_sha256(bytes, current.size, current.sha256);
+  (void)memcpy(current.sha256, digest, sizeof(digest));
   if (snapshot != (cupidbuild_host_snapshot_t *)0) {
     *snapshot = current;
   }
@@ -4402,7 +4439,8 @@ static int cupidbuild_host_read_regular(
     unsigned char **bytes_out) {
   int descriptor;
   struct stat information;
-  unsigned char *bytes;
+  unsigned char *bytes = (unsigned char *)0;
+  unsigned char digest[32];
   size_t offset = 0u;
   (void)memset(snapshot, 0, sizeof(*snapshot));
   if (optional != 0 && lstat(path, &information) != 0 && errno == ENOENT) {
@@ -4432,22 +4470,14 @@ static int cupidbuild_host_read_regular(
     (void)close(descriptor);
     return 0;
   }
-  bytes = (unsigned char *)malloc((size_t)information.st_size + 1u);
-  if (bytes == (unsigned char *)0) {
+  if (!cupidbuild_host_read_open_contents(
+          descriptor, (size_t)information.st_size,
+          bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
+          digest)) {
     (void)close(descriptor);
     return 0;
   }
-  while (offset < (size_t)information.st_size) {
-    ssize_t count = read(descriptor, bytes + offset,
-                         (size_t)information.st_size - offset);
-    if (count <= 0) {
-      free(bytes);
-      (void)close(descriptor);
-      return 0;
-    }
-    offset += (size_t)count;
-  }
-  bytes[offset] = 0u;
+  offset = (size_t)information.st_size;
   snapshot->present = 1;
   snapshot->size = offset;
   snapshot->identity[0] =
@@ -4459,7 +4489,7 @@ static int cupidbuild_host_read_regular(
   snapshot->identity[3] =
       (unsigned int)((unsigned long long)information.st_ino >> 32u);
   snapshot->modified[0] = (unsigned int)information.st_mtime;
-  cupidbuild_sha256(bytes, offset, snapshot->sha256);
+  (void)memcpy(snapshot->sha256, digest, sizeof(digest));
   (void)close(descriptor);
   if (bytes_out != (unsigned char **)0) {
     *bytes_out = bytes;
@@ -4625,8 +4655,8 @@ static int cupidbuild_native_read_repository_regular(
   int descriptor = cupidbuild_native_open_relative_path(repository, logical,
                                                           0);
   size_t size;
-  unsigned char *bytes;
-  size_t offset = 0u;
+  unsigned char *bytes = (unsigned char *)0;
+  unsigned char digest[32];
   (void)memset(snapshot, 0, sizeof(*snapshot));
   if (descriptor < 0 || fstat(descriptor, &information) != 0 ||
       !S_ISREG(information.st_mode) || information.st_size < 0) {
@@ -4641,25 +4671,17 @@ static int cupidbuild_native_read_repository_regular(
     return 0;
   }
   size = (size_t)information.st_size;
-  bytes = (unsigned char *)malloc(size + 1u);
-  if (bytes == (unsigned char *)0) {
+  if (!cupidbuild_host_read_open_contents(
+          descriptor, size,
+          bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
+          digest)) {
     (void)close(descriptor);
     return 0;
-  }
-  while (offset < size) {
-    ssize_t count = read(descriptor, bytes + offset, size - offset);
-    if (count <= 0) {
-      free(bytes);
-      (void)close(descriptor);
-      return 0;
-    }
-    offset += (size_t)count;
   }
   if (close(descriptor) != 0) {
     free(bytes);
     return 0;
   }
-  bytes[size] = 0u;
   snapshot->present = 1;
   snapshot->size = size;
   snapshot->identity[0] =
@@ -4671,7 +4693,7 @@ static int cupidbuild_native_read_repository_regular(
   snapshot->identity[3] =
       (unsigned int)((unsigned long long)information.st_ino >> 32u);
   snapshot->modified[0] = (unsigned int)information.st_mtime;
-  cupidbuild_sha256(bytes, size, snapshot->sha256);
+  (void)memcpy(snapshot->sha256, digest, sizeof(digest));
   if (bytes_out != (unsigned char **)0) {
     *bytes_out = bytes;
   } else {
@@ -4686,8 +4708,8 @@ static int cupidbuild_native_read_relative_regular(
   struct stat information;
   int descriptor = cupidbuild_native_open_relative(parent, name, 0);
   size_t size;
-  unsigned char *bytes;
-  size_t offset = 0u;
+  unsigned char *bytes = (unsigned char *)0;
+  unsigned char digest[32];
   (void)memset(snapshot, 0, sizeof(*snapshot));
   if (descriptor < 0) {
     if (optional != 0 && errno == ENOENT) {
@@ -4706,25 +4728,17 @@ static int cupidbuild_native_read_relative_regular(
     return 0;
   }
   size = (size_t)information.st_size;
-  bytes = (unsigned char *)malloc(size + 1u);
-  if (bytes == (unsigned char *)0) {
+  if (!cupidbuild_host_read_open_contents(
+          descriptor, size,
+          bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
+          digest)) {
     (void)close(descriptor);
     return 0;
-  }
-  while (offset < size) {
-    ssize_t count = read(descriptor, bytes + offset, size - offset);
-    if (count <= 0) {
-      free(bytes);
-      (void)close(descriptor);
-      return 0;
-    }
-    offset += (size_t)count;
   }
   if (close(descriptor) != 0) {
     free(bytes);
     return 0;
   }
-  bytes[size] = 0u;
   snapshot->present = 1;
   snapshot->size = size;
   snapshot->identity[0] =
@@ -4736,7 +4750,7 @@ static int cupidbuild_native_read_relative_regular(
   snapshot->identity[3] =
       (unsigned int)((unsigned long long)information.st_ino >> 32u);
   snapshot->modified[0] = (unsigned int)information.st_mtime;
-  cupidbuild_sha256(bytes, size, snapshot->sha256);
+  (void)memcpy(snapshot->sha256, digest, sizeof(digest));
   if (bytes_out != (unsigned char **)0) {
     *bytes_out = bytes;
   } else {
@@ -5151,27 +5165,19 @@ static int cupidbuild_host_read_open_file(
     int descriptor, size_t limit, cupidbuild_host_snapshot_t *snapshot,
     unsigned char **bytes_out) {
   cupidbuild_host_snapshot_t current;
-  unsigned char *bytes;
-  size_t offset = 0u;
+  unsigned char *bytes = (unsigned char *)0;
+  unsigned char digest[32];
   if (!cupidbuild_host_posix_open_snapshot(descriptor, &current) ||
       current.size > limit) {
     return 0;
   }
-  bytes = (unsigned char *)malloc(current.size + 1u);
-  if (bytes == (unsigned char *)0) {
+  if (!cupidbuild_host_read_open_contents(
+          descriptor, current.size,
+          bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
+          digest)) {
     return 0;
   }
-  while (offset < current.size) {
-    ssize_t count = pread(descriptor, bytes + offset,
-                          current.size - offset, (off_t)offset);
-    if (count <= 0) {
-      free(bytes);
-      return 0;
-    }
-    offset += (size_t)count;
-  }
-  bytes[current.size] = 0u;
-  cupidbuild_sha256(bytes, current.size, current.sha256);
+  (void)memcpy(current.sha256, digest, sizeof(digest));
   if (snapshot != (cupidbuild_host_snapshot_t *)0) {
     *snapshot = current;
   }
@@ -6304,9 +6310,9 @@ static int cupidbuild_host_windows_read_open_regular(
     HANDLE handle, size_t limit, cupidbuild_host_snapshot_t *snapshot,
     unsigned char **bytes_out) {
   BY_HANDLE_FILE_INFORMATION information;
-  unsigned char *bytes;
+  unsigned char *bytes = (unsigned char *)0;
+  unsigned char digest[32];
   size_t size;
-  size_t offset = 0u;
   if (handle == INVALID_HANDLE_VALUE ||
       SetFilePointer(handle, 0, 0, FILE_BEGIN) != 0u ||
       !GetFileInformationByHandle(handle, &information) ||
@@ -6318,22 +6324,12 @@ static int cupidbuild_host_windows_read_open_regular(
     return 0;
   }
   size = (size_t)information.nFileSizeLow;
-  bytes = (unsigned char *)malloc(size + 1u);
-  if (bytes == (unsigned char *)0) {
+  if (!cupidbuild_host_read_open_contents(
+          handle, size,
+          bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
+          digest)) {
     return 0;
   }
-  while (offset < size) {
-    DWORD read_bytes = 0u;
-    DWORD chunk = (DWORD)(size - offset);
-    if (!ReadFile(handle, bytes + offset, chunk, &read_bytes,
-                  (LPOVERLAPPED)0) ||
-        read_bytes == 0u) {
-      free(bytes);
-      return 0;
-    }
-    offset += (size_t)read_bytes;
-  }
-  bytes[size] = 0u;
   (void)memset(snapshot, 0, sizeof(*snapshot));
   snapshot->present = 1;
   snapshot->size = size;
@@ -6342,7 +6338,7 @@ static int cupidbuild_host_windows_read_open_regular(
   snapshot->identity[2] = information.nFileIndexLow;
   snapshot->modified[0] = information.ftLastWriteTime.dwHighDateTime;
   snapshot->modified[1] = information.ftLastWriteTime.dwLowDateTime;
-  cupidbuild_sha256(bytes, size, snapshot->sha256);
+  (void)memcpy(snapshot->sha256, digest, sizeof(digest));
   if (bytes_out != (unsigned char **)0) {
     *bytes_out = bytes;
   } else {
@@ -12811,6 +12807,79 @@ static int cupidbuild_observer_read(cupidbuild_observer_entry_t *entry,
   return 1;
 }
 
+static int cupidbuild_observer_stream_read(
+    cupidbuild_observer_entry_t *entry, uint64_t limit,
+    cupidbuild_host_stream_sink_t sink, void *context,
+    unsigned char digest[32]) {
+  cupidbuild_observer_stat_t before;
+  cupidbuild_observer_stat_t after;
+  cupidbuild_sha_context_t hash;
+  unsigned char bytes[65536];
+  uint64_t offset = 0u;
+  if (!cupidbuild_observer_stat(entry->handle, 0, &before) ||
+      !cupidbuild_observer_same(&entry->captured, &before, 0) ||
+      before.size > limit || before.size > (((uint64_t)-1) >> 3u)) return 0;
+#if defined(_WIN32)
+  if (SetFilePointer(entry->handle, 0, 0, FILE_BEGIN) != 0u) return 0;
+#elif defined(CUPIDBUILD_CUSTOM_LINUX)
+  if (cupid_linux_syscall3(19u, (unsigned int)entry->handle, 0u, 0u) != 0) return 0;
+#else
+  if (lseek(entry->handle, 0, SEEK_SET) != 0) return 0;
+#endif
+  cupidbuild_sha_initialize(&hash);
+  while (offset < before.size) {
+    size_t chunk = sizeof(bytes);
+    int count;
+    if (before.size - offset < (uint64_t)chunk)
+      chunk = (size_t)(before.size - offset);
+#if defined(_WIN32)
+    DWORD received = 0u;
+    count = ReadFile(entry->handle, bytes, (DWORD)chunk, &received,
+                     (LPOVERLAPPED)0) ? (int)received : -1;
+#elif defined(CUPIDBUILD_CUSTOM_LINUX)
+    count = cupid_linux_syscall3(CUPIDBUILD_LINUX_SYS_READ,
+        (unsigned int)entry->handle, (unsigned int)bytes, (unsigned int)chunk);
+    if (count == -4) continue;
+#else
+    count = (int)read(entry->handle, bytes, chunk);
+    if (count < 0 && errno == EINTR) continue;
+#endif
+    if (count <= 0 || (size_t)count > chunk) return 0;
+    cupidbuild_sha_update(&hash, bytes, (size_t)count);
+    if (sink != (cupidbuild_host_stream_sink_t)0 &&
+        !sink(context, offset, bytes, (size_t)count)) return 0;
+    offset += (uint64_t)count;
+  }
+  if (!cupidbuild_observer_stat(entry->handle, 0, &after) ||
+      !cupidbuild_observer_same(&before, &after, 0)) return 0;
+  cupidbuild_sha_finish(&hash, digest);
+  return 1;
+}
+
+int cupidbuild_host_observer_file_stream(
+    cupidbuild_host_observer_t *observer, const char *logical, uint64_t limit,
+    cupidbuild_host_stream_sink_t sink, void *context,
+    cupidbuild_host_stream_observation_t *result_out) {
+  cupidbuild_observer_entry_t *entry;
+  unsigned char digest[32];
+  if (result_out != (cupidbuild_host_stream_observation_t *)0)
+    (void)memset(result_out, 0, sizeof(*result_out));
+  if (observer == (cupidbuild_host_observer_t *)0 || observer->error[0] != 0) return 0;
+  if (result_out == (cupidbuild_host_stream_observation_t *)0 ||
+      logical == (const char *)0 || logical[0] == 0)
+    return cupidbuild_observer_fail(observer, "invalid streamed file observation arguments");
+  entry = cupidbuild_observer_walk(observer, observer->root, logical, 0, 1);
+  if (entry == (cupidbuild_observer_entry_t *)0)
+    return cupidbuild_observer_fail(observer, "unsafe or unavailable streamed file observation");
+  if (!cupidbuild_observer_stream_read(entry, limit, sink, context, digest))
+    return cupidbuild_observer_fail(observer, "streamed payload exceeded limit, changed or failed");
+  (void)memcpy(entry->digest, digest, sizeof(digest));
+  entry->payload = 2;
+  result_out->size = entry->captured.size;
+  (void)memcpy(result_out->sha256, digest, sizeof(digest));
+  return 1;
+}
+
 int cupidbuild_host_observer_file(cupidbuild_host_observer_t *observer,
                                  const char *logical, size_t limit,
                                  unsigned char **bytes_out, uint64_t *size_out) {
@@ -13080,7 +13149,14 @@ static int cupidbuild_observer_require_current(cupidbuild_host_observer_t *obser
       if (!cupidbuild_observer_close_handle(fresh)) valid = 0;
       if (!valid) return cupidbuild_observer_fail(observer, "observed path was replaced or changed");
     }
-    if (entry->payload) {
+    if (entry->payload == 2) {
+      unsigned char digest[32];
+      if (!cupidbuild_observer_stream_read(entry, entry->captured.size,
+              (cupidbuild_host_stream_sink_t)0, (void *)0, digest))
+        return cupidbuild_observer_fail(observer, "streamed payload cannot be reread unchanged");
+      if (memcmp(digest, entry->digest, sizeof(digest)) != 0)
+        return cupidbuild_observer_fail(observer, "streamed payload changed");
+    } else if (entry->payload) {
       unsigned char *bytes;
       unsigned char digest[32];
       if (!cupidbuild_observer_read(entry, (size_t)entry->captured.size, &bytes))

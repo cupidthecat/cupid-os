@@ -649,6 +649,9 @@ def _complete_context_fixture(*, long_paths=False, user_link_aliases=False):
     payload, seed_observations = _captured_seed_fixture()
     document = json.loads(payload)
     document["build_plan"] = seed._candidate_build_plan(document["build_plan"])
+    document["build_plan"]["sources"] = [row for row in document["build_plan"]["sources"]
+        if row["name"] not in {"fat16_stage", "fat16_names", "disk_image"}]
+    document["build_plan"]["links"]["cupidbuild"] = list(seed.ISO_PUBLICATION_CUPIDBUILD_LINK)
     document["build_plan_sha256"] = seed._build_plan_sha256(document["build_plan"])
     document["provenance"]["source_input_count"] = 92
     seed_bytes = _json_bytes(document)
@@ -684,6 +687,59 @@ def _complete_context_request(mode, *, long_paths=False, user_link_aliases=False
             _matching_bootstrap_pairs((*BOOTSTRAP_OBJECT_NAMES, *COMPLETE_ISO_OBJECTS), "bootstrap-object"))
     classic = builder(manifest=manifest, observations=observations, seed_manifest_bytes=seed_bytes,
                       seed_observations=seed_observations, **kwargs)
+    return (b"CUPMAN5\0" if mode == "author" else b"CUPMAN6\0") + _seed_context_bytes(seed_bytes) + classic[8:]
+
+
+DISK_FOUNDATION_OBJECTS = ("fat16_stage", "fat16_names", "disk_image")
+
+
+def _disk_context_fixture(*, long_paths=False, user_link_aliases=False, release_inputs=True):
+    from tools import bootstrap_toolchain as seed
+    manifest, observations, seed_bytes, seed_observations = _complete_context_fixture(
+        long_paths=long_paths, user_link_aliases=user_link_aliases)
+    document = json.loads(seed_bytes)
+    document["build_plan"] = seed._candidate_build_plan(document["build_plan"])
+    document["build_plan_sha256"] = seed._build_plan_sha256(document["build_plan"])
+    document["provenance"]["source_input_count"] = 99
+    seed_bytes = _json_bytes(document)
+    inputs = manifest["bootstrap"]["source_inputs"]
+    paths = ["toolchain/" + name + suffix for name in DISK_FOUNDATION_OBJECTS for suffix in (".cc", ".h")]
+    paths.append("toolchain/fat16_name_profiles.inc")
+    for path in paths:
+        payload = (REPO_ROOT / path).read_bytes()
+        row = {"size": len(payload), "sha256": _digest(payload)}
+        inputs["files"][path] = row
+        if path.endswith(".h"):
+            manifest["inputs"][path] = row.copy()
+    if release_inputs:
+        for path in ("tools/__init__.py", "tools/bootstrap_user_abi.py",
+                     "tools/bootstrap_stage_release.py", "tools/seed_release_identity.py"):
+            payload = (REPO_ROOT / path).read_bytes()
+            manifest["inputs"][path] = {"size": len(payload), "sha256": _digest(payload)}
+    manifest["input_count"] = len(manifest["inputs"])
+    inputs["count"] = len(inputs["files"])
+    inputs["sha256"] = _digest(_json_bytes(inputs["files"]))
+    manifest["bootstrap"]["build_plan_sha256"] = document["build_plan_sha256"]
+    manifest["bootstrap"]["seed_manifest"]["sha256"] = _digest(seed_bytes)
+    manifest["tool_fixed_point"]["c_objects"] = 37
+    return manifest, observations, seed_bytes, seed_observations
+
+
+def _disk_context_request(mode, *, long_paths=False, user_link_aliases=False,
+                          release_inputs=True, manifest=None, bootstrap_object_pairs=None,
+                          captured=True, **kwargs):
+    fixture, observations, seed_bytes, seed_observations = _disk_context_fixture(
+        long_paths=long_paths, user_link_aliases=user_link_aliases, release_inputs=release_inputs)
+    builder = _author_request if mode == "author" else _request
+    if mode == "author":
+        kwargs["bootstrap_object_pairs"] = (bootstrap_object_pairs if bootstrap_object_pairs is not None else
+            _matching_bootstrap_pairs((*BOOTSTRAP_OBJECT_NAMES, *COMPLETE_ISO_OBJECTS,
+                                       *DISK_FOUNDATION_OBJECTS), "bootstrap-object"))
+    classic = builder(manifest=fixture if manifest is None else manifest,
+        observations=observations, seed_manifest_bytes=seed_bytes,
+        seed_observations=seed_observations, **kwargs)
+    if not captured:
+        return classic
     return (b"CUPMAN5\0" if mode == "author" else b"CUPMAN6\0") + _seed_context_bytes(seed_bytes) + classic[8:]
 
 
@@ -940,6 +996,102 @@ class ToolchainManifestContractTests(unittest.TestCase):
                         result = run(_complete_context_request(mode, manifest=manifest))
                         self.assertEqual(result.returncode, 1, result.stderr)
                         self.assertEqual(result.stdout, "")
+
+    def test_disk_producer_author_and_verifier_bind_all_profiles_and_inventories(self):
+        for long_paths, aliases, count in ((False, False, 97), (True, False, 98),
+                                          (False, True, 98), (True, True, 99)):
+            for release_inputs in (False, True):
+                profile = dict(long_paths=long_paths, user_link_aliases=aliases,
+                               release_inputs=release_inputs)
+                with self.subTest(**profile):
+                    manifest, _observations, _seed, _facts = _disk_context_fixture(**profile)
+                    self.assertEqual(manifest["input_count"], 104 if release_inputs else 100)
+                    self.assertEqual(manifest["bootstrap"]["source_inputs"]["count"], count)
+                    authored = self.run_author_request(_disk_context_request("author", **profile))
+                    self.assertEqual((authored.returncode, authored.stderr), (0, ""))
+                    self.assertEqual(authored.stdout, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+                    reversed_inputs = [(path, 1, row["size"], row["sha256"])
+                        for path, row in reversed(sorted(manifest["inputs"].items()))]
+                    shuffled = self.run_author_request(_disk_context_request("author", **profile,
+                        input_observations=reversed_inputs))
+                    self.assertEqual((shuffled.returncode, shuffled.stdout, shuffled.stderr), (0, authored.stdout, ""))
+                    verified = self.run_request(_disk_context_request("check", **profile))
+                    self.assertEqual((verified.returncode, verified.stderr), (0, ""))
+                    report = json.loads(verified.stdout)
+                    self.assertEqual((report["input_count"], report["bootstrap_source_input_count"]),
+                        (manifest["input_count"], count))
+
+    def test_disk_producer_requires_every_source_header_and_unicode_table(self):
+        original, _observations, _seed, _facts = _disk_context_fixture()
+        bootstrap_paths = ["toolchain/" + name + suffix for name in DISK_FOUNDATION_OBJECTS
+                           for suffix in (".cc", ".h")] + ["toolchain/fat16_name_profiles.inc"]
+        for inventory, paths in (("bootstrap", bootstrap_paths),
+                                 ("inputs", [path for path in bootstrap_paths if path.endswith(".h")])):
+            for path in paths:
+                for replacement in (None, "toolchain/unreviewed" + Path(path).suffix):
+                    changed = copy.deepcopy(original)
+                    rows = changed["bootstrap"]["source_inputs"]["files"] if inventory == "bootstrap" else changed["inputs"]
+                    row = rows.pop(path)
+                    if replacement is not None:
+                        rows[replacement] = row
+                    if inventory == "bootstrap":
+                        inputs = changed["bootstrap"]["source_inputs"]
+                        inputs["count"] = len(rows)
+                        inputs["sha256"] = _digest(_json_bytes(rows))
+                    else:
+                        changed["input_count"] = len(rows)
+                    for mode in ("author", "check"):
+                        with self.subTest(inventory=inventory, path=path, replacement=replacement, mode=mode):
+                            run = self.run_author_request if mode == "author" else self.run_request
+                            result = run(_disk_context_request(mode, manifest=changed))
+                            self.assertEqual(result.returncode, 1, result.stderr)
+                            self.assertEqual(result.stdout, "")
+
+    def test_disk_producer_compares_every_new_raw_object_pair(self):
+        original = _matching_bootstrap_pairs((*BOOTSTRAP_OBJECT_NAMES, *COMPLETE_ISO_OBJECTS,
+                                              *DISK_FOUNDATION_OBJECTS), "bootstrap-object")
+        for name in DISK_FOUNDATION_OBJECTS:
+            position = next(index for index, row in enumerate(original) if row[0] == name)
+            row = original[position]
+            absent = original[:position] + original[position + 1:]
+            changed = list(original)
+            changed[position] = (*row[:4], row[4] + b"drift")
+            duplicate = list(original)
+            duplicate[position] = original[0]
+            for pairs in (absent, changed, duplicate):
+                with self.subTest(name=name, count=len(pairs)):
+                    self.assert_author_failure(_disk_context_request("author", bootstrap_object_pairs=pairs))
+        self.assertEqual(self.run_author_request(_disk_context_request("author")).returncode, 0)
+
+    def test_disk_producer_rejects_mixed_plan_counts_and_classic_envelopes(self):
+        original, _observations, _seed, _facts = _disk_context_fixture()
+        for target, field, values in (("bootstrap", "build_plan_sha256", (BUILD_PLAN_SHA256,
+                  "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3")),
+                ("tool_fixed_point", "c_objects", (29, 34, 36, 38))):
+            for value in values:
+                changed = copy.deepcopy(original)
+                changed[target][field] = value
+                self.assert_contract_failure(_disk_context_request("check", manifest=changed))
+        for mode in ("author", "check"):
+            run = self.run_author_request if mode == "author" else self.run_request
+            self.assertEqual(run(_disk_context_request(mode, captured=False)).returncode, 1)
+            for profile in ({"release_inputs": False}, {"release_inputs": True}):
+                fixture, _observations, _seed, _facts = _disk_context_fixture(**profile)
+                fixture["bootstrap"]["source_inputs"] = _complete_context_fixture()[0]["bootstrap"]["source_inputs"]
+                self.assertEqual(run(_disk_context_request(mode, manifest=fixture, **profile)).returncode, 1)
+
+    def test_disk_verifier_binds_changed_header_and_table_observations(self):
+        original, observations, seed_bytes, seed_observations = _disk_context_fixture()
+        for inventory, paths in (("input_observations", ["toolchain/" + name + ".h" for name in DISK_FOUNDATION_OBJECTS]),
+                                ("bootstrap_observations", ["toolchain/fat16_name_profiles.inc"])):
+            rows = original["inputs"] if inventory == "input_observations" else original["bootstrap"]["source_inputs"]["files"]
+            for path in paths:
+                for field in ("size", "sha256"):
+                    observed = [(name, 1, row["size"] + int(name == path and field == "size"),
+                                 "0" * 64 if name == path and field == "sha256" else row["sha256"])
+                                for name, row in sorted(rows.items())]
+                    with self.subTest(inventory=inventory, path=path, field=field):
+                        self.assert_contract_failure(_disk_context_request("check", **{inventory: observed}))
 
     def test_complete_iso_producer_rejects_mixed_plan_count_and_classic_envelopes(self):
         original, observations, seed_bytes, seed_observations = _complete_context_fixture()
@@ -2128,9 +2280,10 @@ class ToolchainManifestContractTests(unittest.TestCase):
             for path in cupidc_toolchain_contracts._contract_input_paths(REPO_ROOT)
         }
         self.assertEqual({*INPUT_PATHS, *["toolchain/" + name + ".h" for name in COMPLETE_ISO_OBJECTS],
+                          *["toolchain/" + name + ".h" for name in DISK_FOUNDATION_OBJECTS],
                           "tools/__init__.py", "tools/bootstrap_user_abi.py",
                           "tools/bootstrap_stage_release.py", "tools/seed_release_identity.py"}, actual)
-        self.assertEqual(len(actual), 101)
+        self.assertEqual(len(actual), 104)
 
     def _complete_release_inventory_fixture(self, **profile):
         manifest, observations, seed_bytes, seed_observations = _complete_context_fixture(**profile)

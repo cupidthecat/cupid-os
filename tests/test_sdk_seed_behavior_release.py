@@ -92,7 +92,8 @@ class SDKSeedBehaviorReleaseTests(unittest.TestCase):
 
     def test_authority_implementations_belong_to_the_captured_inventory(self):
         paths = {path.relative_to(ROOT).as_posix() for path in sdk._contract_input_paths(ROOT)}
-        self.assertEqual(len(paths), 101)
+        self.assertEqual(len(paths), 104)
+        self.assertTrue({"toolchain/fat16_stage.h", "toolchain/fat16_names.h", "toolchain/disk_image.h"} <= paths)
         self.assertTrue({"tools/__init__.py", "tools/bootstrap_user_abi.py",
                          "tools/bootstrap_stage_release.py", "tools/seed_release_identity.py"} <= paths)
 

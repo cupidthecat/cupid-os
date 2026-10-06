@@ -149,6 +149,9 @@ BOOTSTRAP_OBJECT_NAMES = (
     "artifact_size_policy",
     "user_syscall_abi",
     "cupidbuild_user_abi",
+    "fat16_stage",
+    "fat16_names",
+    "disk_image",
     "start",
 )
 WINDOWS_RUNTIME_INPUTS = (
