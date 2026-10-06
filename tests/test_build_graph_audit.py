@@ -708,16 +708,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
 
         self.assertEqual(transform["output"], "user/test-syscall-abi")
-        self.assertEqual(
-            transform["tools"],
-            [
-                "cupid_assembler",
-                "cupid_c_compiler",
-                "cupid_c_contract",
-                "cupid_linker",
-                "host_python",
-            ],
-        )
+        self.assertEqual(transform["tools"], ["cupid_builder"])
         self.assertEqual(transform["operation"], "verify_user_syscall_abi")
         self.assertEqual(len(module.USER_SYSCALL_ABI_NATIVE_BUILD_INPUTS), 29)
         self.assertEqual(len(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS), 8)
@@ -745,9 +736,85 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertEqual(
             transform["inputs"],
-            [*module.USER_SYSCALL_ABI_AUDIT_INPUTS, "user/Makefile"],
+            [*sorted({*module.USER_SYSCALL_ABI_SOURCE_INPUTS,
+                      *module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS}), "user/Makefile"],
         )
         module._validate_user_syscall_abi_transform("user", transform)
+
+    def test_native_user_abi_delivery_rejects_closure_and_recipe_drift(self):
+        module = _load_audit_module()
+        for suffix in ("elf", "exe"):
+            directory = "bootstrap/seeds/i386-" + ("linux" if suffix == "elf" else "windows")
+            seeds = [directory + "/manifest.json", "bootstrap/seeds/release.json", *(
+                directory + "/" + role + "." + suffix
+                for role in ("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj", "cupidbuild")
+            )]
+            inputs = sorted({*seeds, *module.USER_SYSCALL_ABI_SOURCE_INPUTS, "user/Makefile"})
+            transform = {
+                "output": "user/test-syscall-abi", "operation": "verify_user_syscall_abi",
+                "inputs": inputs, "tools": ["cupid_builder"],
+                "recipe": ["$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) "
+                           'verify-user-abi --root "$(abspath ..)"'],
+            }
+            module._validate_cupidbuild_user_abi_delivery([transform], seed_inputs=seeds)
+            module._validate_user_syscall_abi_transform("user", transform)
+            alternate_release = "reviewed/cohort.release"
+            alternate_seeds = [alternate_release if path == "bootstrap/seeds/release.json" else path
+                               for path in seeds]
+            alternate = {**transform, "inputs": sorted({*alternate_seeds,
+                         *module.USER_SYSCALL_ABI_SOURCE_INPUTS, "user/Makefile"})}
+            module._validate_cupidbuild_user_abi_delivery([alternate], seed_inputs=alternate_seeds)
+            with self.assertRaises(module.AuditError):
+                module._validate_cupidbuild_user_abi_delivery([alternate], seed_inputs=seeds)
+            changes = [
+                ("missing " + path, {**transform, "inputs": [row for row in inputs if row != path]})
+                for path in inputs
+            ] + [
+                ("duplicate input", {**transform, "inputs": inputs + [inputs[0]]}),
+                ("unexpected input", {**transform, "inputs": inputs + ["user/unchecked.h"]}),
+                ("Python coordinator", {**transform, "tools": ["host_python"]}),
+                ("wrong operation", {**transform, "operation": "generate_toolchain_manifest"}),
+                ("wrong target", {**transform, "output": "user/unchecked-abi"}),
+                ("unchecked recipe", {**transform, "recipe": ["$(USER_SYSCALL_ABI)"]}),
+                ("wrong source root", {**transform, "recipe": [transform["recipe"][0].replace('"$(abspath ..)"', "..")] }),
+                ("order-only input", {**transform, "order_only_inputs": [inputs[0]]}),
+            ]
+            for name, changed in changes:
+                with self.subTest(suffix=suffix, name=name), self.assertRaises(module.AuditError):
+                    module._validate_cupidbuild_user_abi_delivery([changed], seed_inputs=seeds)
+            for rejected in ([transform, transform], []):
+                with self.assertRaises(module.AuditError):
+                    module._validate_cupidbuild_user_abi_delivery(rejected, seed_inputs=seeds)
+            for path in seeds:
+                with self.subTest(suffix=suffix, omitted_seed=path), self.assertRaises(module.AuditError):
+                    module._validate_cupidbuild_user_abi_delivery(
+                        [transform], seed_inputs=[row for row in seeds if row != path])
+
+    def test_native_user_abi_make_binding_requires_the_six_declarations_and_seed(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        source = (REPO_ROOT / "user/Makefile").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory(prefix="cupid-native-abi-binding-") as temporary:
+            root = Path(temporary)
+            target = root / "user/Makefile"
+            target.parent.mkdir()
+            target.write_text(source, encoding="utf-8")
+            self.assertEqual(
+                module._validate_cupidbuild_user_make_binding(root, make),
+                list(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS),
+            )
+            for path in ("../kernel/core/types.h", "../kernel/core/syscall.h", "../kernel/core/syscall.cc",
+                         "../kernel/fs/vfs.h", "../kernel/network/socket.h", "cupid.h", "$(CHECKED_SEED_INPUTS)"):
+                start = source.index("override USER_SYSCALL_ABI_INPUTS :=")
+                end = source.index("\nUSER_FRONTIER_INPUTS", start)
+                declaration = source[start:end]
+                self.assertEqual(declaration.count(path), 1)
+                changed = source[:start] + declaration.replace(path, "", 1) + source[end:]
+                target.write_text(changed, encoding="utf-8")
+                with self.subTest(omitted=path), self.assertRaisesRegex(module.AuditError, "user Make binding differs"):
+                    module._validate_cupidbuild_user_make_binding(root, make)
 
     def test_syscall_abi_oracle_input_does_not_relabel_contract_publication(
         self,
@@ -6687,13 +6754,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["windows_help_cases"], 7)
         self.assertEqual(contract["windows_success_behavior_cases"], 60)
         self.assertEqual(contract["windows_failure_behavior_cases"], 54)
-        self.assertEqual(contract["contract_manifest_inputs"], 97)
-        self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 97)
+        self.assertEqual(contract["contract_manifest_inputs"], 101)
+        self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 101)
         self.assertIn(
             "toolchain/x86.cc",
             module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
         )
-        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 138)
+        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 142)
         self.assertTrue(
             set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS).issubset(
                 module.TOOLCHAIN_CONTRACT_LINUX_INPUTS
@@ -7840,7 +7907,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "candidate helper accepts a conflicting candidate link": (
                 "bootstrap",
                 "        if tuple(cupidbuild_link) not in (\n"
-                "            PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK,\n"
+                "            EARLIER_PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK,\n"
                 "            CANDIDATE_CUPIDBUILD_LINK\n"
                 "        ):\n",
                 "        if False:\n",
@@ -8000,6 +8067,81 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 '    paths.add(root / "kernel/lang/as_elf.h")\n'
                 '    paths.add(root / "link.ld")\n',
                 r"fixed-point publication input closure differs",
+            ),
+            "SDK release capture leaves the publication inventory": (
+                "contract_publisher",
+                '    "tools/bootstrap_stage_release.py",\n',
+                "",
+                r"fixed-point source freeze differs",
+            ),
+            "SDK release pins leave the publication inventory": (
+                "contract_publisher",
+                '    "tools/seed_release_identity.py",\n',
+                "",
+                r"fixed-point source freeze differs",
+            ),
+            "SDK release ABI capture leaves the publication inventory": (
+                "contract_publisher",
+                '    "tools/bootstrap_user_abi.py",\n',
+                "",
+                r"fixed-point source freeze differs",
+            ),
+            "SDK authority package leaves the publication inventory": (
+                "contract_publisher",
+                '    "tools/__init__.py",\n',
+                "",
+                r"fixed-point source freeze differs",
+            ),
+            "SDK skips release capture before bootstrap": (
+                "contract_publisher",
+                "    behavior_request = _capture_behavior_request(root, manifest, behavior_release)\n",
+                "    behavior_request = None\n",
+                r"manifest author decision order differs",
+            ),
+            "SDK bootstrap loses its captured release": (
+                "contract_publisher",
+                '**({"release_request": behavior_request} if behavior_request is not None else {}),',
+                '**({"release_request": None} if behavior_request is not None else {}),',
+                r"manifest author decision order differs",
+            ),
+            "SDK loses the live check after bootstrap": (
+                "contract_publisher",
+                '        _announce("checked-seed bootstrap completed")\n'
+                "        _require_behavior_request_live(behavior_request)\n",
+                '        _announce("checked-seed bootstrap completed")\n',
+                r"manifest author decision order differs",
+            ),
+            "SDK publication loses its captured release": (
+                "contract_publisher",
+                '**({"behavior_request": behavior_request} if behavior_request is not None else {}),',
+                '**({"behavior_request": None} if behavior_request is not None else {}),',
+                r"manifest author decision order differs",
+            ),
+            "SDK replacement skips the final live release check": (
+                "contract_publisher",
+                "    _require_behavior_request_live(behavior_request)\n"
+                "    moved_old = False\n",
+                "    moved_old = False\n",
+                r"manifest author decision order differs",
+            ),
+            "SDK cache skips the live release check": (
+                "contract_publisher",
+                '            _require_behavior_request_live(behavior_request)\n'
+                '            _announce("the published cohort is current")\n',
+                '            _announce("the published cohort is current")\n',
+                r"manifest author decision order differs",
+            ),
+            "SDK authority capture accepts an unchecked seed": (
+                "contract_publisher",
+                "return capture_seed_behavior_release(path, verify_seed_inputs(manifest))",
+                "return capture_seed_behavior_release(path, manifest)",
+                r"manifest author decision order differs",
+            ),
+            "SDK lifetime helper hides its check in dead code": (
+                "contract_publisher",
+                "            request.require_live()\n",
+                "            if False:\n                request.require_live()\n",
+                r"manifest author decision order differs",
             ),
             "contract publisher restores the bootstrap precomparison": (
                 "contract_publisher",
@@ -10130,7 +10272,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 self.assertEqual(unreachable[fixture], "host_fixture")
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (7062, 189),
+                "c.expression.sizeof": (7061, 189),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -10184,7 +10326,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             iso_transform = root_transform_by_output["test_iso/hello.iso"]
             self.assertEqual(
                 iso_transform["tools"],
-                ["cupid_object", "host_python"],
+                ["cupid_builder", "cupid_object"],
             )
             self.assertEqual(
                 iso_transform["operation"],
@@ -10195,8 +10337,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "Makefile",
                     *WINDOWS_PRODUCTION_SEED_INPUTS,
-                    "tools/bootstrap_toolchain.py",
-                    "tools/hostbuild.py",
+                    *LINUX_BOOTSTRAP_SEED_INPUTS,
                     "test_iso/fixtures",
                     "test_iso/fixtures.manifest",
                     "test_iso/fixtures/big.bin",
@@ -10698,15 +10839,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 249,
-                    "cupid_assembler": 8,
-                    "cupid_builder": 447,
+                    "cupid_c_compiler": 248,
+                    "cupid_assembler": 7,
+                    "cupid_builder": 449,
                     "cupid_object": 192,
-                    "cupid_linker": 8,
+                    "cupid_linker": 7,
                     "cupid_disassembler": 10,
-                    "cupid_c_contract": 3,
+                    "cupid_c_contract": 2,
                     "host_c_compiler": 0,
-                    "host_python": 5,
+                    "host_python": 3,
                 },
             )
             self.assertFalse(
@@ -11650,7 +11791,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         expected_counts = {
             "cupid_assembler": 5,
-            "cupid_builder": 441,
+            "cupid_builder": 442,
             "cupid_object": 192,
             "cupid_linker": 2,
             "cupid_disassembler": 7,
@@ -12341,6 +12482,99 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     self.assertNotIn("custom-python", recipe)
                     self.assertNotIn("tools/hostbuild.py", recipe)
 
+    def test_guarded_iso_image_retains_both_complete_seed_cohorts(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        fixtures = {
+            "test_iso/fixtures",
+            "test_iso/fixtures.manifest",
+            *{
+                "test_iso/fixtures/" + name
+                for name in (REPO_ROOT / "test_iso/fixtures.manifest")
+                .read_text(encoding="ascii").splitlines()
+            },
+        }
+        def check(host):
+            with mock.patch.object(module, "CANONICAL_MAKE_VARIABLES", (f"OS={host}",)):
+                rules = module._parse_make_rules(
+                    module._run_make_database(REPO_ROOT, make, "test_iso/hello.iso")
+                )
+            rule = rules["test_iso/hello.iso"]
+            self.assertEqual(set(rule.prerequisites), {
+                "Makefile", *fixtures, "bootstrap/seeds/release.json",
+                *LINUX_BOOTSTRAP_SEED_INPUTS, *WINDOWS_EXECUTION_SEED_INPUTS,
+            })
+            self.assertEqual(rule.order_only_prerequisites, [])
+            recipe = "\n".join(rule.recipe)
+            self.assertIn(
+                "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+                "$(PRODUCTION_SEED_SUFFIX) publish-iso-fixture", recipe,
+            )
+            for context in (
+                '--root "$(CURDIR)"',
+                "--manifest $(ISO_FIXTURE_MANIFEST)",
+                "--fixtures test_iso/fixtures",
+                "--output $@",
+                "--linux-manifest $(BOOTSTRAP_SEED_MANIFEST)",
+                "--windows-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)",
+                "--seed-release $(PRODUCTION_SEED_RELEASE)",
+            ):
+                self.assertIn(context, recipe)
+            self.assertNotIn("$(PYTHON)", recipe)
+            self.assertNotIn("tools/hostbuild.py", recipe)
+
+        for host in ("Windows_NT", "Linux"):
+            with self.subTest(host=host):
+                check(host)
+
+    def test_guarded_iso_image_preserves_pair_under_tool_and_closure_overrides(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        expected = {
+            "Makefile", "test_iso/fixtures", "test_iso/fixtures.manifest",
+            "bootstrap/seeds/release.json",
+            *LINUX_BOOTSTRAP_SEED_INPUTS, *WINDOWS_EXECUTION_SEED_INPUTS,
+            *{
+                "test_iso/fixtures/" + name
+                for name in (REPO_ROOT / "test_iso/fixtures.manifest")
+                .read_text(encoding="ascii").splitlines()
+            },
+        }
+        def check(host):
+            variables = (
+                f"OS={host}", "PYTHON=missing-python", "CUPIDOBJ=missing-object-author",
+                "CUPIDOBJ_INPUTS=README.md",
+                "CHECKED_SEED_RUN=missing-runner", "CHECKED_SEED_INPUTS=README.md",
+                "PRODUCTION_SEED_DIRECTORY=missing-production-directory/",
+                "PRODUCTION_SEED_SUFFIX=missing-suffix",
+                "PRODUCTION_SEED_INPUTS=README.md",
+                "ISO_PUBLICATION_SEED_INPUTS=README.md",
+                "ISO_LINUX_SEED_DIRECTORY=missing-linux-directory/",
+                "ISO_WINDOWS_SEED_DIRECTORY=missing-windows-directory/",
+            )
+            with mock.patch.object(module, "CANONICAL_MAKE_VARIABLES", variables):
+                rules = module._parse_make_rules(
+                    module._run_make_database(REPO_ROOT, make, "test_iso/hello.iso")
+                )
+            rule = rules["test_iso/hello.iso"]
+            self.assertEqual(set(rule.prerequisites), expected)
+            self.assertEqual(rule.order_only_prerequisites, [])
+            recipe = "\n".join(rule.recipe)
+            self.assertIn(
+                "$(PRODUCTION_SEED_SUFFIX) publish-iso-fixture", recipe,
+            )
+            self.assertNotIn("missing-", recipe)
+            self.assertNotIn("$(PYTHON)", recipe)
+            self.assertNotIn("tools/hostbuild.py", recipe)
+
+        for host in ("Windows_NT", "Linux"):
+            with self.subTest(host=host):
+                check(host)
+
     def test_guarded_iso_lane_ignores_standalone_assembler_overrides(self):
         make = shutil.which("make")
         if make is None:
@@ -12391,6 +12625,168 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn('--root "$(CURDIR)"', recipe)
             self.assertNotIn("custom-cupidasm", recipe)
             self.assertNotIn("tools/hostbuild.py", recipe)
+
+    def test_guarded_iso_image_is_classified_as_native_complete_image_publication(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        for host in ("Windows_NT", "Linux"):
+            with self.subTest(host=host):
+                with mock.patch.object(module, "CANONICAL_MAKE_VARIABLES", (f"OS={host}",)):
+                    rules = module._parse_make_rules(
+                        module._run_make_database(REPO_ROOT, make, "test_iso/hello.iso")
+                    )
+                rule = rules["test_iso/hello.iso"]
+                tools = module._tools_for_recipe(rule.recipe)
+                self.assertEqual(tools, ["cupid_builder", "cupid_object"])
+                self.assertEqual(module._operation_for_recipe(
+                    rule.recipe, tools, "test_iso/hello.iso",
+                    "compile_elf32_relocatable", rule.prerequisites,
+                ), "package_iso9660_image")
+
+    def test_guarded_iso_image_contract_rejects_missing_or_redirected_authority(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        rules = module._parse_make_rules(
+            module._run_make_database(REPO_ROOT, make, "test_iso/hello.iso")
+        )
+        rule = rules["test_iso/hello.iso"]
+        pair_inputs = [
+            *LINUX_BOOTSTRAP_SEED_INPUTS, *WINDOWS_EXECUTION_SEED_INPUTS,
+            "bootstrap/seeds/release.json",
+        ]
+        fixture_inputs = [
+            "test_iso/fixtures", "test_iso/fixtures.manifest",
+            *[
+                "test_iso/fixtures/" + name
+                for name in (REPO_ROOT / "test_iso/fixtures.manifest")
+                .read_text(encoding="ascii").splitlines()
+            ],
+        ]
+        valid = {"output": "test_iso/hello.iso", "operation": "package_iso9660_image",
+                 "tools": ["cupid_builder", "cupid_object"], "recipe": rule.recipe,
+                 "inputs": rule.prerequisites, "order_only_inputs": []}
+
+        def validate(transform):
+            module._validate_iso_image_delivery([transform], pair_inputs=pair_inputs,
+                                                fixture_inputs=fixture_inputs)
+
+        validate(valid)
+        for path in valid["inputs"]:
+            with self.subTest(missing=path), self.assertRaises(module.AuditError):
+                validate({**valid, "inputs": [name for name in valid["inputs"] if name != path]})
+            with self.subTest(scheduling_only=path), self.assertRaises(module.AuditError):
+                validate({**valid, "inputs": [name for name in valid["inputs"] if name != path],
+                          "order_only_inputs": [path]})
+        tokens = module._recipe_tokens(rule.recipe)
+        for option in ("--root", "--manifest", "--fixtures", "--output",
+                       "--linux-manifest", "--windows-manifest", "--seed-release"):
+            offset = tokens.index(option)
+            changed = [*tokens[:offset + 1], "redirected", *tokens[offset + 2:]]
+            for label, arguments in (
+                ("redirected", changed),
+                ("missing", [*tokens[:offset], *tokens[offset + 2:]]),
+                ("duplicate", [*tokens, option, tokens[offset + 1]]),
+            ):
+                with self.subTest(option=option, mutation=label), self.assertRaises(module.AuditError):
+                    validate({**valid, "recipe": [" ".join(arguments)]})
+        for mutation in (
+            {"recipe": [*rule.recipe, "--unexpected"]},
+            {"tools": ["cupid_builder", "cupid_object", "host_python"]},
+            {"operation": "package_disk_image"},
+            {"inputs": [*valid["inputs"], "README.md"]},
+            {"inputs": [*valid["inputs"], valid["inputs"][0]]},
+        ):
+            with self.subTest(mutation=mutation), self.assertRaises(module.AuditError):
+                validate({**valid, **mutation})
+        with self.assertRaises(module.AuditError):
+            module._validate_iso_image_delivery([], pair_inputs=pair_inputs, fixture_inputs=fixture_inputs)
+        with self.assertRaises(module.AuditError):
+            module._validate_iso_image_delivery([valid, valid], pair_inputs=pair_inputs,
+                                                fixture_inputs=fixture_inputs)
+
+    def test_guarded_iso_image_uses_paired_context_in_root_release_validation(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        for host, seed_inputs in (("Windows_NT", WINDOWS_PRODUCTION_SEED_INPUTS),
+                                  ("Linux", LINUX_PRODUCTION_SEED_INPUTS)):
+            with self.subTest(host=host):
+                with mock.patch.object(module, "CANONICAL_MAKE_VARIABLES", (f"OS={host}",)):
+                    rule = module._parse_make_rules(module._run_make_database(
+                        REPO_ROOT, make, "test_iso/hello.iso",
+                    ))["test_iso/hello.iso"]
+                transform = {"output": "test_iso/hello.iso", "recipe": rule.recipe,
+                             "tools": ["cupid_builder", "cupid_object"],
+                             "inputs": rule.prerequisites, "order_only_inputs": []}
+                module._validate_cupidbuild_root_release_context(
+                    [transform], seed_inputs=list(seed_inputs),
+                )
+
+    def test_guarded_iso_image_binds_evaluated_pair_and_manifest_inventory(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        for host in ("Windows_NT", "Linux"):
+            with self.subTest(host=host):
+                with mock.patch.object(module, "CANONICAL_MAKE_VARIABLES", (f"OS={host}",)):
+                    pair, fixtures = module._validate_iso_image_make_binding(REPO_ROOT, make)
+                    rule = module._parse_make_rules(module._run_make_database(
+                        REPO_ROOT, make, "test_iso/hello.iso",
+                    ))["test_iso/hello.iso"]
+                self.assertEqual(pair, sorted([
+                    *LINUX_BOOTSTRAP_SEED_INPUTS, *WINDOWS_EXECUTION_SEED_INPUTS,
+                    "bootstrap/seeds/release.json",
+                ]))
+                module._validate_iso_image_delivery([{
+                    "output": "test_iso/hello.iso", "operation": "package_iso9660_image",
+                    "tools": ["cupid_builder", "cupid_object"], "recipe": rule.recipe,
+                    "inputs": rule.prerequisites, "order_only_inputs": [],
+                }], pair_inputs=pair, fixture_inputs=fixtures)
+
+    def test_guarded_iso_image_make_binding_rejects_incomplete_or_mixed_context(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        variables = (
+            "BOOTSTRAP_SEED_MANIFEST", "BOOTSTRAP_WINDOWS_SEED_MANIFEST",
+            "PRODUCTION_SEED_MANIFEST", "PRODUCTION_SEED_SUFFIX", "PRODUCTION_SEED_RELEASE",
+            "ISO_LINUX_SEED_DIRECTORY", "ISO_WINDOWS_SEED_DIRECTORY", "ISO_PUBLICATION_SEED_INPUTS",
+            "ISO_FIXTURE_MANIFEST", "ISO_FIXTURE_RELATIVE", "TEST_ISO_FIXTURES",
+        )
+        values = module._read_evaluated_make_variables(REPO_ROOT, make, variables)
+        cases = {
+            "BOOTSTRAP_SEED_MANIFEST": "redirected/manifest.json",
+            "BOOTSTRAP_WINDOWS_SEED_MANIFEST": values["BOOTSTRAP_SEED_MANIFEST"],
+            "PRODUCTION_SEED_MANIFEST": "third-cohort/manifest.json",
+            "PRODUCTION_SEED_SUFFIX": "unknown",
+            "PRODUCTION_SEED_RELEASE": "different-release.json",
+            "ISO_LINUX_SEED_DIRECTORY": "redirected/",
+            "ISO_WINDOWS_SEED_DIRECTORY": "redirected/",
+            "ISO_PUBLICATION_SEED_INPUTS": " ".join(values["ISO_PUBLICATION_SEED_INPUTS"].split()[:-1]),
+            "ISO_FIXTURE_MANIFEST": "other.manifest",
+            "ISO_FIXTURE_RELATIVE": "unlisted.txt",
+            "TEST_ISO_FIXTURES": " ".join(values["TEST_ISO_FIXTURES"].split()[:-1]),
+        }
+        for variable, value in cases.items():
+            with self.subTest(variable=variable):
+                with mock.patch.object(module, "_read_evaluated_make_variables",
+                                       return_value={**values, variable: value}):
+                    with self.assertRaises(module.AuditError):
+                        module._validate_iso_image_make_binding(REPO_ROOT, make)
+        for variable in ("ISO_PUBLICATION_SEED_INPUTS", "TEST_ISO_FIXTURES"):
+            with self.subTest(duplicate=variable):
+                repeated = values[variable] + " " + values[variable].split()[0]
+                with mock.patch.object(module, "_read_evaluated_make_variables",
+                                       return_value={**values, variable: repeated}):
+                    with self.assertRaises(module.AuditError):
+                        module._validate_iso_image_make_binding(REPO_ROOT, make)
 
     def test_raw_assembly_keeps_seed_closure_under_tool_overrides(self):
         make = shutil.which("make")

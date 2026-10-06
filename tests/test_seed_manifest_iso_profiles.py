@@ -236,10 +236,10 @@ class IsoSeedProfileTests(unittest.TestCase):
         self.check(changed, 1, accepted=False)
 
     def test_legacy_manifest_still_uses_its_own_contract(self):
-        self.check(self.linux.manifest, 1, strict=True)
-        self.check(self.windows.manifest, 2, 5, strict=True)
+        self.check(historical.manifest(1), 1, strict=True)
+        self.check(historical.manifest(2), 2, 5, strict=True)
         changed = copy.deepcopy(self.fixtures[0][0])
-        changed['build_plan_sha256'] = self.linux.manifest['build_plan_sha256']
+        changed['build_plan_sha256'] = historical.manifest(1)['build_plan_sha256']
         self.check(changed, 1, accepted=False)
 
     def test_failure_clears_result_and_recovers_with_bounded_diagnostics(self):

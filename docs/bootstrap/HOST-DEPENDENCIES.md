@@ -1,5 +1,22 @@
 # Host dependency inventory
 
+## Draft native ISO and ABI recipes, 2026-10-06
+
+The proposed qualified pair carries the complete retained ISO operation and
+read-only ABI command. Both normal recipes run directly through CupidBuild;
+paired real Make checks pass with conventional code-producing tools forbidden.
+The user commands also forbid Python and create no SDK cache. Make and host
+filesystem, process and synchronization services remain required.
+
+The draft supported graph measures 449 CupidBuild and three Python actions
+across 452 transforms. Python still coordinates disk-image publication, hosted
+contract publication and hosted contract verification. SDK authority integration
+keeps its complete 101-input capture and 74 native stage comparisons; its
+coordinator remains Python. All four default and long SDK publications and
+paired fresh OS/user plus strict ls/SMP and feature 17 checks pass. Installed-seed
+handoff remains separate. QEMU remains a runtime test dependency.
+See [the handoff](NATIVE-ISO-HANDOFF.md).
+
 ## Reviewed seed behavior authority, 2026-10-04
 
 The release coordinator adds a bounded capture and authorization boundary for

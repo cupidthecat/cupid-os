@@ -1,5 +1,98 @@
 # Cupid Toolchain bootstrap
 
+## Qualified paired seeds and native recipe handoff, 2026-10-06
+
+The complete committed `344a9eee` producer passes qualification on Windows and
+Linux under unchanged stage deadlines. Its 92-input source snapshot is
+`829f923bdfefcfab5d1d9b2caacb466853a1c21ca1537a6517ddf83e1a6f7d4d`.
+Linux retains 34 C sources, one startup object and six tools; Windows retains
+39 C sources, five startup objects and six tools. Independent rereading checks
+all original captures, parents, plans, tools and behavior products. It verifies
+50 final-stage artifact pairs on Windows and 41 on Linux.
+
+The private seed proposal copies those qualified tool bytes, projects manifest
+provenance from the retained qualifications and preserves the native author's
+exact release bytes. Strict consumer checks pass 632 selections, with 616
+executions and sixteen declared platform skips. Historical reader fixtures keep
+their original plans while production pins require the exact qualified cohort.
+The release is 2,736 bytes with SHA-256
+`8101abf7aa4f6e088eb9140cc5a3ac11b781e1777f90b56765a1e1ff3e591af4`.
+
+Ten real private ISO Make commands pass across both hosts. They cover ordinary
+and forced publication, absent-output regeneration, same-size opposite-cohort
+corruption with restored timestamps, rejection and recovery. The 61,440-byte
+image has SHA-256
+`40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6`.
+Both complete seed directories and every fixture member remain content inputs.
+The native ABI recipe now supplies an absolute repository root to the selected
+CupidBuild. Its six declarations and complete seed trust unit remain content
+prerequisites. The first Linux recipe's parent-component root was rejected;
+the recipe correction preserves the command's existing root rules.
+
+Ten native user Make commands also pass across both hosts. The complete ABI
+report agrees with the independent oracle. Three objects and three programs
+match across Windows and Linux, forced equal rebuilds preserve timestamps,
+and a same-size ABI version edit with its timestamp restored fails before
+publication. Restoring the declaration permits recovery. Python and conventional
+code-producing host tools are forbidden in these normal user commands; no SDK
+cache is created.
+
+Independent graph checks compose 26 passing methods per host with the retained
+failed inventory runs. The measured `sizeof` count is 7,061 in 189 files. Its
+initial 7,062 assertion is corrected, along with ownership counts. Two focused
+methods also check the ABI closure after removing an artificial release filename
+extension restriction. The selected regular release file still has to match
+the exact closure. All other code differences are excluded by AST comparisons.
+
+The draft normal graph has 449 CupidBuild and three Python actions across 452
+transforms. Python retains disk-image publication, hosted contract publication
+and hosted contract verification. Final OS and installed-seed acceptance remain
+separate from these private recipe checks.
+
+The SDK carries explicit reviewed behavior authority through capture, bootstrap,
+cache reuse and final publication. It captures 101 inputs, including the four
+authority dependencies, and retains all 74 native stage comparisons. Both hosts
+pass 61 policy methods with native and Cupid-built programs, for 244 executions
+without skips. Independent rereading also verifies 192 SDK coordinator, cache,
+drift/recovery and UTF-8 adapter executions. All four actual default and long
+SDK publications now pass independent rereading on both hosts. Each retains
+101 publication inputs, all 74 raw stage pairs, 22 ELF artifacts and its
+native-authored manifest. Every stage-pair identity and ELF artifact matches
+across all four runs; each profile's manifests match between hosts. Compilation
+deadlines and the complete fixture selections remain unchanged.
+
+Fresh OS and user builds pass on both hosts with conventional producers forbidden.
+Independent checking verifies 1,637 source controls, all 429 objects, sixteen
+artifacts, the complete ABI and six user products. Only the embedded manual
+object changes. The 164,380-byte manual occurs once in each kernel output.
+The raw kernel grows to 9,598,512 bytes; both ELF sizes remain unchanged. The old
+policy rejects the measured raw-size change, and the corrected policy passes.
+The preserved 200 MiB image has SHA-256
+`eb9c8531022cd5fdb3dd5450aabd7c5bb86968205f05ecca53049339133ccde9`.
+All four strict private four-CPU max/e1000 sessions pass completed ls/SMP
+and feature 17 ISO checks. Independent comparison verifies identical objects,
+artifacts, user programs, ABI, manual locations and complete images on both
+hosts. Installed-seed acceptance remains open.
+
+The first final collector omitted objects outside five directories and reported
+265 instead of 429. A separate collector rereads the complete accepted object
+inventory and rejects unexpected objects. Its original passing build, image,
+user and runtime commands remain retained. The first user-image verifier also
+confused the text base with the resolved entry point; the corrected verifier
+uses the actual user-loader contract. Neither correction reruns or relaxes a
+production command. Canonical audit generation and reproducibility check pass.
+
+Evidence lives under `cupid-native-iso-proof-20261005`: the two committed
+qualification receipts, `iso-promoted-consumer-paired-independent.json`,
+`iso-handoff-qualified-make-paired-independent.json`,
+`sdk-complete-iso-policy-v3-paired-independent.json` and
+`iso-sdk-authority-regressions-paired-independent.json`,
+`iso-native-user-abi-make-paired-independent.json`,
+`iso-sdk-real-publication-default-long-paired-independent.json` and
+`iso-final-handoff-graph-paired-independent.json` and
+`iso-seed-handoff-fresh-os-paired-independent.json`. `TempleOS/` remains
+read-only and excluded. See ADRs 0431 and 0432.
+
 ## Complete guarded ISO command, 2026-10-06
 
 The source CupidBuild command `publish-iso-fixture` retains complete fixture

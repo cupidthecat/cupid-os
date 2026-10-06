@@ -797,7 +797,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 97)
+        self.assertEqual(len(inputs), 101)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)
@@ -1548,356 +1548,8 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             self.assertFalse(output.exists())
 
     def test_build_publishes_the_declared_converged_generation(self):
-        with tempfile.TemporaryDirectory(
-            prefix="cupid-contract-publication-generation-"
-        ) as temporary:
-            root = Path(temporary).resolve()
-            (root / "toolchain").mkdir()
-            manifest = root / "manifest.json"
-            manifest.write_text("{}\n", encoding="ascii")
-            output = root / "toolchain/build/cupidc-contracts"
-            built_generations: list[str] = []
-            runtime_generations: list[str] = []
-            decision_events: list[str] = []
-            candidate_plan_fields = [{"candidate_build_plan_sha256": "2" * 64}]
+        self._exercise_publication()
 
-            bootstrap_files = {
-                "toolchain/ctool.cc": {
-                    "sha256": "4" * 64,
-                    "size": 1,
-                }
-            }
-
-            def bootstrap(
-                seed_manifest: Path,
-                source_root: Path,
-                bootstrap_output: Path,
-                *, windows_user_link_aliases: bool,
-            ) -> dict[str, object]:
-                self.assertTrue(windows_user_link_aliases)
-                del seed_manifest, source_root
-                for generation in (
-                    "stage-two",
-                    "stage-three",
-                    "stage-four",
-                ):
-                    stage = bootstrap_output / generation
-                    stage.mkdir(parents=True)
-                    for object_name in (
-                        cupidc_toolchain_contracts.BOOTSTRAP_OBJECT_NAMES
-                    ):
-                        (stage / f"{object_name}.o").write_bytes(
-                            f"{generation}:object:{object_name}".encode(
-                                "ascii"
-                            )
-                        )
-                    for tool_name in cupidc_toolchain_contracts.TOOL_NAMES:
-                        (stage / f"{tool_name}.elf").write_bytes(
-                            f"{generation}:{tool_name}".encode("ascii")
-                        )
-                return {
-                    "build_plan_sha256": "1" * 64,
-                    **candidate_plan_fields[0],
-                    "status": "pending-fixed-point-author",
-                    "seed_manifest_sha256": (
-                        cupidc_toolchain_contracts._sha256(manifest)
-                    ),
-                    "source_inputs": {
-                        "count": len(bootstrap_files),
-                        "files": bootstrap_files,
-                        "sha256": (
-                            cupidc_toolchain_contracts._snapshot_sha256(
-                                bootstrap_files
-                            )
-                        ),
-                    },
-                }
-
-            def build_stage(
-                source_root: Path,
-                bootstrap_stage: Path,
-                stage_output: Path,
-                stage_name: str,
-                workers: int,
-            ) -> tuple[dict[str, Path], dict[str, Path]]:
-                del source_root, stage_name, workers
-                generation = bootstrap_stage.name
-                built_generations.append(generation)
-                stage_output.mkdir(parents=True)
-                objects: dict[str, Path] = {}
-                executables: dict[str, Path] = {}
-                for name in EXPECTED_CONTRACTS | {"as_elf", "runtime"}:
-                    path = stage_output / f"{name}.o"
-                    path.write_bytes(
-                        f"{generation}:object:{name}".encode("ascii")
-                    )
-                    objects[name] = path
-                for name in EXPECTED_CONTRACTS | {"runtime"}:
-                    path = stage_output / f"{name}.elf"
-                    path.write_bytes(
-                        f"{generation}:executable:{name}".encode("ascii")
-                    )
-                    executables[name] = path
-                return objects, executables
-
-            def compare_second_stage(
-                first: dict[str, Path],
-                second: dict[str, Path],
-                artifact_kind: str,
-            ) -> dict[str, str]:
-                decision_events.append(f"compare:{artifact_kind}")
-                self.assertEqual(set(first), set(second))
-                self.assertTrue(
-                    all(
-                        first[name].read_bytes()
-                        != second[name].read_bytes()
-                        for name in first
-                    )
-                )
-                return {
-                    name: hashlib.sha256(
-                        second[name].read_bytes()
-                    ).hexdigest()
-                    for name in second
-                }
-
-            def run_runtime(
-                source_root: Path,
-                executable: Path,
-                workspace: Path,
-            ) -> None:
-                del source_root, workspace
-                runtime_generations.append(
-                    executable.read_bytes().decode("ascii").split(":", 1)[0]
-                )
-
-            author_generations: list[str] = []
-            author_output_valid = [True]
-            author_failure = [False]
-
-            def author_bytes(
-                source_root: Path,
-                bootstrap_stage_three: Path,
-                bootstrap_stage_four: Path,
-                workspace: Path,
-                seed_manifest: Path,
-                manifest_relative: str,
-                report: dict[str, object],
-                artifacts: list[Path],
-                stage_three_objects: dict[str, Path],
-                stage_four_objects: dict[str, Path],
-                stage_three_executables: dict[str, Path],
-                stage_four_executables: dict[str, Path],
-            ) -> bytes:
-                del (
-                    source_root,
-                    bootstrap_stage_three,
-                    workspace,
-                    seed_manifest,
-                    manifest_relative,
-                    artifacts,
-                    stage_three_objects,
-                    stage_four_objects,
-                    stage_three_executables,
-                    stage_four_executables,
-                )
-                decision_events.append("author")
-                author_generations.append(bootstrap_stage_four.name)
-                self.assertNotIn("tool_fixed_point", report)
-                if author_failure[0]:
-                    raise cupidc_toolchain_contracts.ContractError(
-                        "injected paired-stage mismatch"
-                    )
-                if not author_output_valid[0]:
-                    return b"not the independently checked manifest\n"
-                authored_report = {
-                    **report,
-                    "bootstrap": {
-                        **report["bootstrap"],
-                        "build_plan_sha256": "2" * 64,
-                    },
-                    "tool_fixed_point": (
-                        cupidc_toolchain_contracts._tool_fixed_point_record()
-                    ),
-                }
-                return (
-                    json.dumps(authored_report, indent=2, sort_keys=True)
-                    + "\n"
-                ).encode("ascii")
-
-            with (
-                mock.patch.object(
-                    cupidc_toolchain_contracts,
-                    "_contract_input_paths",
-                    return_value=(),
-                ),
-                mock.patch.object(
-                    cupidc_toolchain_contracts,
-                    "_snapshot_contract_inputs",
-                    return_value={},
-                ),
-                mock.patch.object(
-                    cupidc_toolchain_contracts,
-                    "_freeze_contract_inputs",
-                ),
-                mock.patch.object(
-                    cupidc_toolchain_contracts,
-                    "_bootstrap_for_manifest_author",
-                    side_effect=bootstrap,
-                ),
-                mock.patch.object(
-                    cupidc_toolchain_contracts,
-                    "_build_contract_stage",
-                    side_effect=build_stage,
-                ),
-                mock.patch.object(
-                    cupidc_toolchain_contracts,
-                    "_compare_stage_files",
-                    side_effect=compare_second_stage,
-                ),
-                mock.patch.object(
-                    cupidc_toolchain_contracts,
-                    "_run_runtime_contract",
-                    side_effect=run_runtime,
-                ),
-                mock.patch.object(
-                    cupidc_toolchain_contracts,
-                    "_checked_manifest_author_bytes",
-                    side_effect=author_bytes,
-                ),
-                mock.patch.object(
-                    cupidc_toolchain_contracts,
-                    "_require_inputs_unchanged",
-                ),
-                mock.patch.object(
-                    cupidc_toolchain_contracts,
-                    "verify_publication",
-                ),
-                mock.patch.object(
-                    cupidc_toolchain_contracts,
-                    "verify_publication_inputs",
-                ),
-            ):
-                report = cupidc_toolchain_contracts.build_contracts(
-                    root, manifest, output, workers=8
-                )
-                self.assertEqual(report["bootstrap"]["build_plan_sha256"], "2" * 64)
-                published_manifest = (output / "manifest.json").read_bytes()
-                author_output_valid[0] = False
-                with self.assertRaisesRegex(
-                    cupidc_toolchain_contracts.ContractError,
-                    "author output differs from the independent Python oracle",
-                ):
-                    cupidc_toolchain_contracts.build_contracts(
-                        root, manifest, output, workers=8
-                    )
-                self.assertEqual(
-                    (output / "manifest.json").read_bytes(),
-                    published_manifest,
-                )
-                self.assertEqual(
-                    list(
-                        output.parent.glob(
-                            f".{output.name}-build-*"
-                        )
-                    ),
-                    [],
-                )
-                author_output_valid[0] = True
-                author_failure[0] = True
-                event_count = len(decision_events)
-                with self.assertRaisesRegex(
-                    cupidc_toolchain_contracts.ContractError,
-                    "injected paired-stage mismatch",
-                ):
-                    cupidc_toolchain_contracts.build_contracts(
-                        root, manifest, output, workers=8
-                    )
-                self.assertEqual(
-                    decision_events[event_count:], ["author"]
-                )
-                self.assertEqual(
-                    (output / "manifest.json").read_bytes(),
-                    published_manifest,
-                )
-                self.assertEqual(
-                    list(
-                        output.parent.glob(
-                            f".{output.name}-build-*"
-                        )
-                    ),
-                    [],
-                )
-                author_failure[0] = False
-                recovered_report = (
-                    cupidc_toolchain_contracts.build_contracts(
-                        root, manifest, output, workers=8
-                    )
-                )
-                self.assertEqual(recovered_report, report)
-                for fields in ({}, {"candidate_build_plan_sha256": "malformed"}):
-                    candidate_plan_fields[0] = fields
-                    with self.assertRaisesRegex(
-                        cupidc_toolchain_contracts.ContractError,
-                        "published bootstrap build plan differs",
-                    ):
-                        cupidc_toolchain_contracts.build_contracts(
-                            root, manifest, output, workers=8
-                        )
-                    self.assertEqual(
-                        (output / "manifest.json").read_bytes(), published_manifest
-                    )
-                self.assertEqual(
-                    list(
-                        output.parent.glob(
-                            f".{output.name}-build-*"
-                        )
-                    ),
-                    [],
-                )
-
-            self.assertEqual(
-                built_generations,
-                ["stage-three", "stage-four"] * 4,
-            )
-            self.assertEqual(runtime_generations, ["stage-four"] * 4)
-            self.assertEqual(author_generations, ["stage-four"] * 4)
-            successful_decision = [
-                "author",
-                "compare:contract object",
-                "compare:contract executable",
-                "compare:bootstrap object",
-                "compare:bootstrap tool",
-            ]
-            self.assertEqual(
-                decision_events,
-                successful_decision * 2
-                + ["author"]
-                + successful_decision,
-            )
-            self.assertEqual(
-                report["tool_fixed_point"]["compared_generations"],
-                ["stage-three", "stage-four"],
-            )
-            for plan in cupidc_toolchain_contracts.CONTRACT_PLANS:
-                self.assertEqual(
-                    (output / plan.artifact).read_bytes(),
-                    f"stage-four:executable:{plan.name}".encode("ascii"),
-                )
-            self.assertEqual(
-                (output / "cupidc-runtime-contract.elf").read_bytes(),
-                b"stage-four:executable:runtime",
-            )
-            for tool_name in cupidc_toolchain_contracts.TOOL_NAMES:
-                self.assertEqual(
-                    (
-                        output
-                        / cupidc_toolchain_contracts.TOOL_PUBLIC_NAMES[
-                            tool_name
-                        ]
-                    ).read_bytes(),
-                    f"stage-four:{tool_name}".encode("ascii"),
-                )
 
     def test_manifest_author_pair_capture_rejects_symlinks(self):
         with tempfile.TemporaryDirectory(
@@ -2961,6 +2613,14 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
         self.assertIn(
             "USER_SYSCALL_ABI_PLATFORM_ARGUMENTS := --windows-long-paths", linux,
         )
+        self.assertIn(
+            '$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) '
+            'verify-user-abi --root "$(abspath ..)"', text,
+        )
+        self.assertEqual(text.count("override USER_SYSCALL_ABI_INPUTS :="), 1)
+        gate = text.split("test-syscall-abi: $(USER_SYSCALL_ABI_INPUTS) Makefile\n", 1)[1].split("\n\n", 1)[0]
+        self.assertNotIn("$(USER_SYSCALL_ABI)", gate)
+        self.assertNotIn("$(PYTHON)", gate)
 
     def _write_current_user_abi_publication(self, root, *, windows_long_paths=False):
         repository = Path(__file__).resolve().parents[1]
@@ -3046,7 +2706,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             expected = cupidc_toolchain_contracts.check_syscall_abi(root)
             before = (output / "manifest.json").read_bytes()
             publication = cupidc_toolchain_contracts.verify_publication(output)
-            self.assertEqual(publication["input_count"], 97)
+            self.assertEqual(publication["input_count"], 101)
             self.assertEqual(publication["bootstrap"]["source_inputs"]["count"], 92)
             completed = subprocess.CompletedProcess(
                 ["user-syscall-abi-contract.elf"], 0,
@@ -3763,6 +3423,424 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     cupidc_toolchain_contracts.run_published_contract(
                         root, executable, (), 45
                     )
+
+    def _exercise_publication(self, *, authority_cases=False, late_authority_drift=False):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-contract-publication-generation-"
+        ) as temporary:
+            root = Path(temporary).resolve()
+            (root / "toolchain").mkdir()
+            manifest = root / "manifest.json"
+            manifest.write_text("{}\n", encoding="ascii")
+            output = root / "toolchain/build/cupidc-contracts"
+            built_generations: list[str] = []
+            runtime_generations: list[str] = []
+            decision_events: list[str] = []
+            candidate_plan_fields = [{"candidate_build_plan_sha256": "2" * 64}]
+            selected_request = [None]
+            drift_release = [False]
+            release_path = root / "reviewed-release.json"
+            release_bytes = b"retained authority fixture"
+            release_path.write_bytes(release_bytes)
+
+            def capture_request(_root, _manifest, path):
+                if path is None:
+                    return None
+                self.assertEqual(path, release_path)
+                return selected_request[0]
+
+            bootstrap_files = {
+                "toolchain/ctool.cc": {
+                    "sha256": "4" * 64,
+                    "size": 1,
+                }
+            }
+
+            def bootstrap(
+                seed_manifest: Path,
+                source_root: Path,
+                bootstrap_output: Path,
+                *, windows_user_link_aliases: bool, release_request=None,
+            ) -> dict[str, object]:
+                self.assertTrue(windows_user_link_aliases)
+                self.assertIs(release_request, selected_request[0])
+                del seed_manifest, source_root
+                for generation in (
+                    "stage-two",
+                    "stage-three",
+                    "stage-four",
+                ):
+                    stage = bootstrap_output / generation
+                    stage.mkdir(parents=True)
+                    for object_name in (
+                        cupidc_toolchain_contracts.BOOTSTRAP_OBJECT_NAMES
+                    ):
+                        (stage / f"{object_name}.o").write_bytes(
+                            f"{generation}:object:{object_name}".encode(
+                                "ascii"
+                            )
+                        )
+                    for tool_name in cupidc_toolchain_contracts.TOOL_NAMES:
+                        (stage / f"{tool_name}.elf").write_bytes(
+                            f"{generation}:{tool_name}".encode("ascii")
+                        )
+                return {
+                    "build_plan_sha256": "1" * 64,
+                    **candidate_plan_fields[0],
+                    "status": "pending-fixed-point-author",
+                    "seed_manifest_sha256": (
+                        cupidc_toolchain_contracts._sha256(manifest)
+                    ),
+                    "source_inputs": {
+                        "count": len(bootstrap_files),
+                        "files": bootstrap_files,
+                        "sha256": (
+                            cupidc_toolchain_contracts._snapshot_sha256(
+                                bootstrap_files
+                            )
+                        ),
+                    },
+                }
+
+            def build_stage(
+                source_root: Path,
+                bootstrap_stage: Path,
+                stage_output: Path,
+                stage_name: str,
+                workers: int,
+            ) -> tuple[dict[str, Path], dict[str, Path]]:
+                del source_root, stage_name, workers
+                generation = bootstrap_stage.name
+                built_generations.append(generation)
+                stage_output.mkdir(parents=True)
+                objects: dict[str, Path] = {}
+                executables: dict[str, Path] = {}
+                for name in EXPECTED_CONTRACTS | {"as_elf", "runtime"}:
+                    path = stage_output / f"{name}.o"
+                    path.write_bytes(
+                        f"{generation}:object:{name}".encode("ascii")
+                    )
+                    objects[name] = path
+                for name in EXPECTED_CONTRACTS | {"runtime"}:
+                    path = stage_output / f"{name}.elf"
+                    path.write_bytes(
+                        f"{generation}:executable:{name}".encode("ascii")
+                    )
+                    executables[name] = path
+                return objects, executables
+
+            def compare_second_stage(
+                first: dict[str, Path],
+                second: dict[str, Path],
+                artifact_kind: str,
+            ) -> dict[str, str]:
+                decision_events.append(f"compare:{artifact_kind}")
+                self.assertEqual(set(first), set(second))
+                self.assertTrue(
+                    all(
+                        first[name].read_bytes()
+                        != second[name].read_bytes()
+                        for name in first
+                    )
+                )
+                return {
+                    name: hashlib.sha256(
+                        second[name].read_bytes()
+                    ).hexdigest()
+                    for name in second
+                }
+
+            def run_runtime(
+                source_root: Path,
+                executable: Path,
+                workspace: Path,
+            ) -> None:
+                del source_root, workspace
+                runtime_generations.append(
+                    executable.read_bytes().decode("ascii").split(":", 1)[0]
+                )
+
+            author_generations: list[str] = []
+            author_output_valid = [True]
+            author_failure = [False]
+
+            def author_bytes(
+                source_root: Path,
+                bootstrap_stage_three: Path,
+                bootstrap_stage_four: Path,
+                workspace: Path,
+                seed_manifest: Path,
+                manifest_relative: str,
+                report: dict[str, object],
+                artifacts: list[Path],
+                stage_three_objects: dict[str, Path],
+                stage_four_objects: dict[str, Path],
+                stage_three_executables: dict[str, Path],
+                stage_four_executables: dict[str, Path],
+            ) -> bytes:
+                del (
+                    source_root,
+                    bootstrap_stage_three,
+                    workspace,
+                    seed_manifest,
+                    manifest_relative,
+                    artifacts,
+                    stage_three_objects,
+                    stage_four_objects,
+                    stage_three_executables,
+                    stage_four_executables,
+                )
+                decision_events.append("author")
+                author_generations.append(bootstrap_stage_four.name)
+                self.assertNotIn("tool_fixed_point", report)
+                if author_failure[0]:
+                    raise cupidc_toolchain_contracts.ContractError(
+                        "injected paired-stage mismatch"
+                    )
+                if not author_output_valid[0]:
+                    return b"not the independently checked manifest\n"
+                authored_report = {
+                    **report,
+                    "bootstrap": {
+                        **report["bootstrap"],
+                        "build_plan_sha256": "2" * 64,
+                    },
+                    "tool_fixed_point": (
+                        cupidc_toolchain_contracts._tool_fixed_point_record()
+                    ),
+                }
+                if drift_release[0]:
+                    release_path.write_bytes(release_bytes + b" \n")
+                return (
+                    json.dumps(authored_report, indent=2, sort_keys=True)
+                    + "\n"
+                ).encode("ascii")
+
+            with (
+                mock.patch.object(cupidc_toolchain_contracts, "_capture_behavior_request",
+                                  side_effect=capture_request),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_contract_input_paths",
+                    return_value=(),
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_snapshot_contract_inputs",
+                    return_value={},
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_freeze_contract_inputs",
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_bootstrap_for_manifest_author",
+                    side_effect=bootstrap,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_build_contract_stage",
+                    side_effect=build_stage,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_compare_stage_files",
+                    side_effect=compare_second_stage,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_run_runtime_contract",
+                    side_effect=run_runtime,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_checked_manifest_author_bytes",
+                    side_effect=author_bytes,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_require_inputs_unchanged",
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "verify_publication",
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "verify_publication_inputs",
+                ),
+            ):
+                report = cupidc_toolchain_contracts.build_contracts(
+                    root, manifest, output, workers=8
+                )
+                self.assertEqual(report["bootstrap"]["build_plan_sha256"], "2" * 64)
+                published_manifest = (output / "manifest.json").read_bytes()
+                author_output_valid[0] = False
+                with self.assertRaisesRegex(
+                    cupidc_toolchain_contracts.ContractError,
+                    "author output differs from the independent Python oracle",
+                ):
+                    cupidc_toolchain_contracts.build_contracts(
+                        root, manifest, output, workers=8
+                    )
+                self.assertEqual(
+                    (output / "manifest.json").read_bytes(),
+                    published_manifest,
+                )
+                self.assertEqual(
+                    list(
+                        output.parent.glob(
+                            f".{output.name}-build-*"
+                        )
+                    ),
+                    [],
+                )
+
+                author_output_valid[0] = True
+                author_failure[0] = True
+                event_count = len(decision_events)
+                with self.assertRaisesRegex(
+                    cupidc_toolchain_contracts.ContractError,
+                    "injected paired-stage mismatch",
+                ):
+                    cupidc_toolchain_contracts.build_contracts(
+                        root, manifest, output, workers=8
+                    )
+                self.assertEqual(
+                    decision_events[event_count:], ["author"]
+                )
+                self.assertEqual(
+                    (output / "manifest.json").read_bytes(),
+                    published_manifest,
+                )
+                self.assertEqual(
+                    list(
+                        output.parent.glob(
+                            f".{output.name}-build-*"
+                        )
+                    ),
+                    [],
+                )
+                author_failure[0] = False
+                recovered_report = (
+                    cupidc_toolchain_contracts.build_contracts(
+                        root, manifest, output, workers=8
+                    )
+                )
+                self.assertEqual(recovered_report, report)
+                for fields in ({}, {"candidate_build_plan_sha256": "malformed"}):
+                    candidate_plan_fields[0] = fields
+                    with self.assertRaisesRegex(
+                        cupidc_toolchain_contracts.ContractError,
+                        "published bootstrap build plan differs",
+                    ):
+                        cupidc_toolchain_contracts.build_contracts(
+                            root, manifest, output, workers=8
+                        )
+                    self.assertEqual(
+                        (output / "manifest.json").read_bytes(), published_manifest
+                    )
+                self.assertEqual(
+                    list(
+                        output.parent.glob(
+                            f".{output.name}-build-*"
+                        )
+                    ),
+                    [],
+                )
+
+                if authority_cases:
+                    candidate_plan_fields[0] = {"candidate_build_plan_sha256": "2" * 64}
+                    request = mock.Mock()
+                    request.linux_seed.artifact_bytes = tuple(
+                        (name, f"stage-four:{name}".encode("ascii"))
+                        for name in cupidc_toolchain_contracts.TOOL_NAMES)
+
+                    def require_live():
+                        if release_path.read_bytes() != release_bytes:
+                            raise cupidc_toolchain_contracts.BootstrapError("caller seed release changed during behavior")
+
+                    request.require_live.side_effect = require_live
+                    selected_request[0] = request
+                    self.assertEqual(cupidc_toolchain_contracts.build_contracts(
+                        root, manifest, output, workers=8, behavior_release=release_path), report)
+                    drift_release[0] = not late_authority_drift
+                    validate_output = cupidc_toolchain_contracts._validate_output_target
+                    validation_count = [0]
+
+                    def validate_with_drift(*args):
+                        result = validate_output(*args)
+                        validation_count[0] += 1
+                        if late_authority_drift and validation_count[0] == 2:
+                            release_path.write_bytes(release_bytes + b" ")
+                        return result
+
+                    with mock.patch.object(cupidc_toolchain_contracts, "_validate_output_target",
+                                           side_effect=validate_with_drift), \
+                            self.assertRaisesRegex(cupidc_toolchain_contracts.ContractError,
+                                                   "behavior release changed before publication"):
+                        cupidc_toolchain_contracts.build_contracts(
+                            root, manifest, output, workers=8, behavior_release=release_path)
+                    self.assertEqual((output / "manifest.json").read_bytes(), published_manifest)
+                    self.assertEqual(list(output.parent.glob(f".{output.name}-build-*")), [])
+                    drift_release[0] = False
+                    release_path.write_bytes(release_bytes)
+                    self.assertEqual(cupidc_toolchain_contracts.build_contracts(
+                        root, manifest, output, workers=8, behavior_release=release_path), report)
+
+            self.assertEqual(
+                built_generations,
+                ["stage-three", "stage-four"] * (7 if authority_cases else 4),
+            )
+            self.assertEqual(runtime_generations, ["stage-four"] * (7 if authority_cases else 4))
+            self.assertEqual(author_generations, ["stage-four"] * (7 if authority_cases else 4))
+            successful_decision = [
+                "author",
+                "compare:contract object",
+                "compare:contract executable",
+                "compare:bootstrap object",
+                "compare:bootstrap tool",
+            ]
+            self.assertEqual(
+                decision_events,
+                successful_decision * 2
+                + ["author"]
+                + successful_decision
+                + (successful_decision * 3 if authority_cases else []),
+            )
+            self.assertEqual(
+                report["tool_fixed_point"]["compared_generations"],
+                ["stage-three", "stage-four"],
+            )
+            for plan in cupidc_toolchain_contracts.CONTRACT_PLANS:
+                self.assertEqual(
+                    (output / plan.artifact).read_bytes(),
+                    f"stage-four:executable:{plan.name}".encode("ascii"),
+                )
+            self.assertEqual(
+                (output / "cupidc-runtime-contract.elf").read_bytes(),
+                b"stage-four:executable:runtime",
+            )
+            for tool_name in cupidc_toolchain_contracts.TOOL_NAMES:
+                self.assertEqual(
+                    (
+                        output
+                        / cupidc_toolchain_contracts.TOOL_PUBLIC_NAMES[
+                            tool_name
+                        ]
+                    ).read_bytes(),
+                    f"stage-four:{tool_name}".encode("ascii"),
+                )
+
+
+    def test_behavior_release_drift_after_author_preserves_publication_and_recovers(self):
+        self._exercise_publication(authority_cases=True)
+
+
+    def test_behavior_release_drift_during_output_validation_preserves_publication_and_recovers(self):
+        self._exercise_publication(authority_cases=True, late_authority_drift=True)
+
 
 
 class ManifestSeedContextTests(unittest.TestCase):

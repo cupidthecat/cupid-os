@@ -1,5 +1,23 @@
 # cupid-os
 
+## Qualified ISO and ABI recipe checks, 2026-10-06
+
+The committed `344a9eee` producer passes complete Windows and Linux qualification.
+Its qualified tools and exact native-authored release pass private normal Make
+checks for ISO publication and the shared user syscall ABI. Ten ISO commands and
+ten user commands verify regeneration, equal timestamp reuse, same-size drift
+rejection and recovery. Both hosts produce the same ISO and six user product
+pairs. The user gate runs directly through CupidBuild with an absolute root.
+
+The SDK now carries explicitly reviewed release authority through its bootstrap,
+cache and final publication checks. Native and Cupid-built policy tests pass 244
+executions; coordinator and adapter checks pass 192. The draft graph measures
+449 CupidBuild and three Python actions across 452 transforms. All four default
+and long SDK publications, paired fresh OS/user builds, strict ls/SMP and feature
+17 checks pass independent verification. The SDK's 74 stage-pair identities and
+22 ELF artifacts match across all four runs. Installation remains separate. See [the handoff record](docs/bootstrap/NATIVE-ISO-HANDOFF.md)
+and [ADR 0432](docs/adr/0432-hand-off-qualified-iso-and-abi-recipes.md).
+
 ## Complete guarded ISO command, 2026-10-06
 
 The source CupidBuild command `publish-iso-fixture` captures complete fixture

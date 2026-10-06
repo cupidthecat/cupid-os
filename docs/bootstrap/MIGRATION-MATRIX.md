@@ -1,5 +1,21 @@
 # Toolchain ownership migration matrix
 
+## Private qualified ISO and ABI handoff, 2026-10-06
+
+The draft normal graph transfers ISO publication and the shared syscall ABI
+gate to the qualified CupidBuild pair. It measures 449 CupidBuild and three
+Python actions across 452 transforms. The three remaining actions are disk-image
+publication, hosted contract publication and hosted contract verification.
+
+Independent paired real Make checks accept ten ISO and ten user commands.
+The complete ABI report and six user product pairs agree, rejection preserves
+the previous output, and recovery succeeds. Both graph branches keep the exact
+selected seed trust unit and source closures. All 26 affected graph methods
+pass per host after the retained stale inventory failure is corrected. Canonical
+audit generation and checking, all four default and long SDK publications, and paired fresh
+OS/user and strict ls/SMP plus feature 17 acceptance pass. Active installation
+remains separate. See [the handoff](NATIVE-ISO-HANDOFF.md).
+
 ## Toolchain publication seed context, 2026-10-04
 
 The hosted publisher and verifier use captured seed facts after shared-reader

@@ -29,6 +29,7 @@ endif
 BUILD_DIR ?= build
 CONTRACT_DIR := $(BUILD_DIR)/cupidc-contracts
 CONTRACT_MANIFEST := $(CONTRACT_DIR)/manifest.json
+TOOLCHAIN_MANIFEST_BEHAVIOR_RELEASE ?= ../bootstrap/seeds/release.json
 CONTRACT_RUN := $(PYTHON) ../tools/cupidc_toolchain_contracts.py run \
 	--root .. --executable
 TOOLCHAIN_MANIFEST_EXECUTION_DIRECTORY := \
@@ -253,7 +254,9 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS := \
 	tests/hosted_i386_runtime_contract.cc \
 	tests/toolchain_manifest_contract.cc \
 	../tools/bootstrap_toolchain.py \
-	../tools/cupidc_toolchain_contracts.py Makefile
+	../tools/cupidc_toolchain_contracts.py \
+	../tools/__init__.py ../tools/bootstrap_user_abi.py \
+	../tools/bootstrap_stage_release.py ../tools/seed_release_identity.py Makefile
 TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS := ../link.ld \
 	$(filter-out tests/hosted_i386_runtime_contract.cc, \
 		$(CUPIDC_HOSTED_I386_CLOSURE)) \
@@ -726,10 +729,12 @@ $(CUPIDC): $(CUPIDC_OBJECTS)
 
 $(CONTRACT_MANIFEST): $(TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS) \
 	$(TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS) \
-	$(TOOLCHAIN_MANIFEST_PUBLICATION_SEED_INPUTS)
+	$(TOOLCHAIN_MANIFEST_PUBLICATION_SEED_INPUTS) \
+	$(TOOLCHAIN_MANIFEST_BEHAVIOR_RELEASE)
 	$(PYTHON) ../tools/cupidc_toolchain_contracts.py build \
 		--root .. --manifest ../bootstrap/seeds/i386-linux/manifest.json \
-		--output $(CONTRACT_DIR)
+		--output $(CONTRACT_DIR) \
+		--behavior-release "$(TOOLCHAIN_MANIFEST_BEHAVIOR_RELEASE)"
 
 $(CUPIDC_CONTRACT_ARTIFACTS) $(CUPIDC_HOSTED_I386_ARTIFACTS): \
 	$(CONTRACT_MANIFEST)

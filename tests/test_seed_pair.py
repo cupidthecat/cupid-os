@@ -105,6 +105,7 @@ class PairTests(unittest.TestCase):
             item["source_input_count"] = 73
             item["source_revision"] = "f" * 40
         record.update(parent_source_revision=revision,
+                      source_snapshot_sha256=linux["provenance"]["source_snapshot_sha256"],
                       parent_linux_manifest_sha256=linux_parent,
                       parent_windows_manifest_sha256=windows_parent)
         linux["provenance"].update(parent_seed_source_revision=revision,

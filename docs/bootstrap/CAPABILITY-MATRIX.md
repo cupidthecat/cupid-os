@@ -1,5 +1,27 @@
 # Cupid Toolchain capability matrix
 
+## Qualified complete ISO and native ABI commands, 2026-10-06
+
+Both complete `344a9eee` producer qualifications pass with the exact 92-input
+snapshot and their retained behavior matrices. The proposed qualified seed pair
+passes 632 consumer selections, including sixteen declared platform skips.
+Ten real ISO Make commands and ten native user Make commands pass across both
+hosts. The complete ABI oracle report, six user product pairs, equal timestamps,
+same-size declaration and opposite-cohort drift rejection, and recovery are
+independently verified.
+
+The native SDK author keeps all 74 stage comparisons with 101 publication
+inputs. CUPMAN5/CUPMAN6 requests bind their captured seed context to the exact
+supported plan; historical classic requests retain their own rules. Both hosts
+pass the complete native and Cupid-built policy selection, plus release lifetime,
+cache, output-validation and UTF-8 adapter regressions. All four default and long SDK
+publications and both fresh OS/user builds, full object and artifact checks,
+strict ls/SMP and feature 17 sessions pass independent paired verification.
+All 74 stage-pair identities and 22 ELF artifacts match across the four SDK
+runs. Installed-seed acceptance remains separate. See
+[ADR 0431](../adr/0431-carry-reviewed-releases-through-sdk-publication.md) and
+[the handoff](NATIVE-ISO-HANDOFF.md).
+
 ## Toolchain publication from captured seed facts, 2026-10-04
 
 The native publication policy accepts CUPMAN5 author and CUPMAN6 verification

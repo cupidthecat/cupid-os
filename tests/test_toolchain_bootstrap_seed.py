@@ -18,6 +18,8 @@ from tools import hostbuild
 from tools.bootstrap_toolchain import (
     BootstrapError,
     CANDIDATE_TOOL_NAMES,
+    PROMOTED_CUPIDOBJ_LINK,
+    EXPECTED_LINKS,
     PROMOTED_LINUX_MANIFEST_SHA256,
     PROMOTED_LINUX_PLAN_SHA256,
     PROMOTED_SOURCE_INPUT_COUNT,
@@ -78,6 +80,7 @@ from tools.bootstrap_toolchain import (
     _windows_utf8_imports,
     _promoted_windows_imports,
     _validate_static_i386_pe32,
+    _validate_build_plan,
     bootstrap_from_seed,
     bootstrap_windows_from_seed,
     capture_source_snapshot,
@@ -132,6 +135,73 @@ def _promoted_windows_profile_flags(plan_sha256, source_input_count):
 
 
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
+    def test_promoted_complete_iso_plan_retains_the_closed_source_and_link_contract(self):
+        manifest = json.loads(SEED_MANIFEST.read_bytes())
+        _validate_build_plan(manifest, promoted=True)
+        plan = manifest["build_plan"]
+        self.assertEqual(len(plan["sources"]), 34)
+        self.assertEqual(len(plan["links"]["cupidbuild"]), 20)
+        self.assertIn("iso_fixture_bundle", plan["links"]["cupidobj"])
+        new_roles = ("iso_fixture_bundle", "cupidbuild_iso", "cupidbuild_iso_capture",
+                     "cupidbuild_iso_image", "cupidbuild_iso_publication")
+        for role in new_roles:
+            for edge in ("source", "cupidbuild"):
+                altered = json.loads(json.dumps(manifest))
+                if edge == "source":
+                    altered["build_plan"]["sources"] = [row for row in plan["sources"]
+                                                         if row["name"] != role]
+                else:
+                    altered["build_plan"]["links"][edge].remove(role)
+                with self.subTest(role=role, edge=edge):
+                    with self.assertRaises(BootstrapError):
+                        _validate_build_plan(altered, promoted=True)
+        altered = json.loads(json.dumps(manifest))
+        altered["build_plan"]["links"]["cupidobj"].remove("iso_fixture_bundle")
+        with self.assertRaisesRegex(BootstrapError, "link order differs: cupidobj"):
+            _validate_build_plan(altered, promoted=True)
+        _validate_build_plan(self._legacy_linux_manifest_fixture(manifest))
+
+    def test_complete_iso_promoted_profiles_bind_each_plan_count_and_import_set(self):
+        plan = _candidate_build_plan(json.loads(SEED_MANIFEST.read_bytes())["build_plan"])
+        profiles = (
+            ("0787562d0768485fa614c941fc79a7c6e329c64b6956261cca945a95c2ef9f56", 85, False, False, False),
+            ("e3bb4c45bb7633d95b205dcbab6405bb569b4cc71965a2eb52b8dfc78e370e18", 90, True, False, False),
+            ("5f6a59e696fb7edafdc5dda0b0cc67aa06550556a39816f27081b5a41a81adfc", 91, True, True, False),
+            ("d04c045db6492070389894c81364d5a6eada0ee135373f9d2ea1954386aaeb88", 91, True, False, True),
+            ("0dfd1982dc1cd7c9d625c4c0546fc20f13fe3c9ae4dc8cbcf8835ff2e6b4e12d", 92, True, True, True),
+        )
+        for digest, count, utf8, long_paths, aliases in profiles:
+            with self.subTest(plan=digest, count=count):
+                actual_plan = _windows_build_plan(plan, utf8=utf8, long_paths=long_paths, user_link_aliases=aliases)
+                self.assertEqual(_build_plan_sha256(actual_plan), digest)
+                snapshot = capture_source_snapshot(REPO_ROOT, plan, windows_utf8=utf8,
+                    windows_long_paths=long_paths, windows_user_link_aliases=aliases)
+                self.assertEqual(len(snapshot), count)
+                for role in CANDIDATE_TOOL_NAMES:
+                    expected = (_windows_utf8_imports(role, long_paths=long_paths, user_link_aliases=aliases)
+                                if utf8 else _windows_imports(role))
+                    self.assertEqual(_promoted_windows_imports(role, digest, count), expected)
+
+    def test_complete_iso_promoted_profiles_reject_crossed_counts_and_unknown_members(self):
+        profiles = (
+            ("0787562d0768485fa614c941fc79a7c6e329c64b6956261cca945a95c2ef9f56", 85),
+            ("e3bb4c45bb7633d95b205dcbab6405bb569b4cc71965a2eb52b8dfc78e370e18", 90),
+            ("5f6a59e696fb7edafdc5dda0b0cc67aa06550556a39816f27081b5a41a81adfc", 91),
+            ("d04c045db6492070389894c81364d5a6eada0ee135373f9d2ea1954386aaeb88", 91),
+            ("0dfd1982dc1cd7c9d625c4c0546fc20f13fe3c9ae4dc8cbcf8835ff2e6b4e12d", 92),
+        )
+        for digest, selected_count in profiles:
+            for count in (75, 78, 80, 81, 82, 85, 90, 91, 92, True, float(selected_count)):
+                if type(count) is int and count == selected_count:
+                    continue
+                with self.subTest(plan=digest, count=count):
+                    with self.assertRaises(BootstrapError):
+                        _promoted_windows_imports("cupidbuild", digest, count)
+        for role, digest, count in (("unknown", profiles[-1][0], 92), ("cupidbuild", "0" * 64, 92)):
+            with self.subTest(role=role, digest=digest):
+                with self.assertRaises(BootstrapError):
+                    _promoted_windows_imports(role, digest, count)
+
     def _assert_file_artifact_identity(self, reported, path):
         payload = path.read_bytes()
         self.assertEqual(
@@ -594,6 +664,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             if source["name"] not in promoted_names
         ]
         del plan["links"]["cupidbuild"]
+        plan["links"]["cupidobj"] = list(EXPECTED_LINKS["cupidobj"])
         manifest["build_plan_sha256"] = _build_plan_sha256(plan)
         manifest["provenance"] = {
             "fixed_point_command": "make bootstrap-from-seed",
@@ -667,6 +738,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     for name, path, gnu in PROMOTED_SOURCES
                 )
                 plan["links"]["cupidbuild"] = list(PROMOTED_CUPIDBUILD_LINK)
+                plan["links"]["cupidobj"] = list(
+                    PROMOTED_CUPIDOBJ_LINK
+                )
             manifest["schema"] = PROMOTED_SEED_SCHEMA
             manifest["build_plan"] = plan
             manifest["build_plan_sha256"] = _build_plan_sha256(plan)
@@ -1501,6 +1575,20 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     )
                     output = profile_root / "output.o"
                     output.write_bytes(b"last known good object")
+                    release_arguments = []
+                    if plan == PROMOTED_WINDOWS_PLAN_SHA256:
+                        from tools import seed_release_identity
+
+                        record = seed_release_identity.current_release_identity()
+                        images = {row["name"]: row for row in manifest["artifacts"]}
+                        for row in record["artifacts"]:
+                            if row["format"] == "pe32":
+                                row["size"] = images[row["name"]]["size"]
+                                row["sha256"] = images[row["name"]]["sha256"]
+                        release_path = profile_root / "profile-release.json"
+                        release_path.write_text(json.dumps(record, sort_keys=True) + "\n",
+                                                encoding="utf-8", newline="\n")
+                        release_arguments = ["--seed-release", str(release_path)]
                     result = subprocess.run(
                         [
                             str(cli),
@@ -1513,6 +1601,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                             source.relative_to(REPO_ROOT).as_posix(),
                             "--output",
                             output.relative_to(REPO_ROOT).as_posix(),
+                            *release_arguments,
                         ],
                         cwd=REPO_ROOT,
                         text=True,
@@ -11944,6 +12033,33 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 self.assertEqual(
                     stage_four.read_bytes(), stage_three.read_bytes()
                 )
+
+    def test_wsl_path_preserves_utf8_with_a_non_utf8_host_default(self):
+        expected = "/mnt/c/caf\u00e9-\u65e5\u672c\u8a9e-\U0001f600"
+
+        def translate(command, **options):
+            payload = (expected + "\n").encode("utf-8")
+            return subprocess.CompletedProcess(
+                command, 0, payload.decode(options.get("encoding", "cp1252")), ""
+            )
+
+        with mock.patch.object(ToolRunner, "_wsl_command", return_value="wsl"), \
+                mock.patch.object(subprocess, "run", side_effect=translate):
+            self.assertEqual(
+                ToolRunner(REPO_ROOT)._wsl_argument(Path("caf\u00e9-\u65e5\u672c\u8a9e-\U0001f600")),
+                expected,
+            )
+
+
+    def test_wsl_path_rejects_translation_failure_and_empty_success(self):
+        for status, output in ((1, "/mnt/c/unused\n"), (0, "\n")):
+            with self.subTest(status=status), \
+                    mock.patch.object(ToolRunner, "_wsl_command", return_value="wsl"), \
+                    mock.patch.object(subprocess, "run", return_value=
+                                      subprocess.CompletedProcess([], status, output, "translation failed")), \
+                    self.assertRaisesRegex(BootstrapError, "WSL could not translate"):
+                ToolRunner(REPO_ROOT)._wsl_path(REPO_ROOT)
+
 
 
 if __name__ == "__main__":

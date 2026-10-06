@@ -2710,12 +2710,16 @@ empty files and empty directories retain their existing contracts.
 The source CupidBuild command publish-iso-fixture requires --root, --manifest,
 --fixtures, --output, --linux-manifest, --windows-manifest and --seed-release.
 Its producer plans compile all four ISO modules and the shared bundle codec into
-CupidBuild. A complete source cohort still needs qualification and installation.
-Normal ISO publication remains
-Python-coordinated until real regeneration and feature 17 qualify the handoff.
+CupidBuild. The qualified 344a9eee Linux and Windows cohort contains the complete
+command. The Make recipe supplies both manifests, all twelve images, the selected
+release and every fixture member as content prerequisites. Real Make checks on
+both hosts cover absent-output regeneration, equal-byte timestamp reuse,
+opposite-cohort corruption rejection and recovery. Each produces the same
+61,440-byte active fixture image. Feature 17 and normal OS acceptance remain
+separate runtime checks.
 >endtree
 
->h2 Native ABI validation at toolchain head
+>h2 Native ABI validation
 >tree
 Source-head CupidBuild provides:
 
@@ -2733,10 +2737,15 @@ working directory. POSIX roots accept dot and repeated slash components and
 reject parent components so missing or linked ancestors cannot be hidden.
 Sequential rechecks detect drift; they are not an atomic filesystem snapshot.
 
-This command is not yet in the checked seeds. Normal Make retains the
-Python-coordinated ABI gate. Across 452 audited transforms, CupidBuild owns
-447 actions and Python owns five. Seed qualification and the ABI recipe
-handoff remain separate work.
+The qualified Linux and Windows cohort includes this command. The user Make
+recipe invokes the selected CupidBuild directly with an absolute repository
+root. Its content prerequisites retain all six declarations and the complete
+selected seed trust unit. The standalone contract and optional Python coordinator
+remain available for independent checks. The read-only command itself takes no
+seed or release option; qualification establishes its executable behavior.
+The audited recipes have 452 transforms: 449 owned by CupidBuild and three
+owned by Python. Full self-hosting still requires the remaining coordinators
+and complete Doom runtime acceptance.
 >endtree
 
 >h2 Artifact policy observations at toolchain head
@@ -2752,20 +2761,17 @@ checks all sixteen artifact paths, owners and exact sizes plus six Windows
 image observations. It reads no files. CupidBuild retains and rechecks source,
 image and directory observations, then closes them before reporting success.
 
-The original CUPSIZE2 API keeps its historical manifest checks. The new
+The original CUPSIZE2 API keeps its historical manifest checks. The captured
 observation API clears results on failure, bounds diagnostics and retains no
-input pointers or mutable global state. The checked seeds still use the earlier
-implementation; paired release qualification and installation remain separate.
+input pointers or mutable global state. Both qualified host cohorts carry it.
 
-Release-qualified Linux behavior fixtures carry the authorized candidate build
-plan and its digest. The parent plan remains lineage, rather than describing
-the staged tools under test. Windows fixtures keep their execution-manifest
-layout. Prepared compiler artifacts remain unqualified until complete behavior
-and release consumption pass. A separate Windows working-source qualification
-passes seven help, sixty success and fifty-four failure groups in both final
-stages. Independent rereading checks 138 stage artifacts and 100 matching
-behavior product pairs. Committed-source qualification, the later 528-input
-change and seed installation remain separate.
+Release-qualified Linux behavior fixtures retain the authorized candidate build
+plan and its digest. Parent plans describe lineage. Windows fixtures retain
+their execution-manifest layout. The committed 344a9eee producer uses 92 captured
+inputs and a 34-source C plan. Both host qualifications pass with unchanged
+production deadlines. Independent rereading checks 50 final-stage artifact pairs
+on Windows and 41 on Linux, along with complete source and behavior captures.
+Installation and normal consumer acceptance retain their own checks.
 >endtree
 
 >h2 Toolchain publication seed observations
@@ -2773,9 +2779,11 @@ change and seed installation remain separate.
 Toolchain publication validates the selected Linux seed through the shared
 reader, then passes its captured manifest, plan and six image identities to
 the Cupid-built policy. CUPMAN5 authors the publication; CUPMAN6 verifies it.
-The policy retains its complete artifact and source inventories and all
-sixty-nine raw stage-pair comparisons. The caller retains and rechecks the
-original file observations through publication.
+The complete policy retains 101 publication inputs and all 74 raw stage-pair
+comparisons: seventeen contract objects, sixteen contract programs, 35 bootstrap
+objects and six tools. The caller retains and rechecks the original file
+observations through publication. Historical producer profiles preserve their
+own complete inventories and comparison counts.
 
 The classic CUPMAN4 and CUPMAN2 formats keep their historical seed checks.
 Captured facts describe the selected bytes; release authority and filesystem
@@ -2793,9 +2801,20 @@ release bytes fail before fixture publication.
 
 The fixtures describe the reviewed cohort. The SDK keeps its actual source
 inventory, and the native publication author keeps its stage comparisons.
-Release and selected seed observations are rechecked through the existing
-runner boundary. SDK integration, ordinary publication and seed installation
-remain separate acceptance steps.
+Release and selected seed observations remain checked through the existing
+runner boundary. SDK build and ensure accept --behavior-release explicitly.
+Make selects the reviewed release and declares it as a publication prerequisite.
+The SDK captures the package initializer, release coordinator, ABI behavior
+module and pin validator along with its original inputs. Complete inventories
+of 97 or 101 inputs require captured seed context; historical inventories retain
+their earlier contracts.
+
+The coordinator rechecks authority after bootstrap, after behavior and before
+publication. Published tools must match the reviewed six-tool cohort exactly.
+Cache reuse checks those identities and retained authority. Output validation
+precedes the last authority check, which precedes the first replacement.
+Invalid or changed authority preserves the prior publication. Ordinary calls
+without explicit authority retain the strict bootstrap path.
 >endtree
 
 >h2 See Also

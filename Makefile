@@ -2120,6 +2120,14 @@ ISO_FIXTURE_RELATIVE := \
 	sub/nested.txt
 TEST_ISO_FIXTURES := $(sort test_iso/fixtures $(ISO_FIXTURE_MANIFEST) \
 	$(addprefix test_iso/fixtures/,$(ISO_FIXTURE_RELATIVE)))
+override ISO_LINUX_SEED_DIRECTORY := $(dir $(BOOTSTRAP_SEED_MANIFEST))
+override ISO_WINDOWS_SEED_DIRECTORY := $(dir $(BOOTSTRAP_WINDOWS_SEED_MANIFEST))
+override ISO_PUBLICATION_SEED_INPUTS := $(sort $(PRODUCTION_SEED_INPUTS) \
+	$(BOOTSTRAP_SEED_MANIFEST) $(BOOTSTRAP_WINDOWS_SEED_MANIFEST) \
+	$(addprefix $(ISO_LINUX_SEED_DIRECTORY), \
+		cupidasm.elf cupidc.elf cupiddis.elf cupidld.elf cupidobj.elf cupidbuild.elf) \
+	$(addprefix $(ISO_WINDOWS_SEED_DIRECTORY), \
+		cupidasm.exe cupidc.exe cupiddis.exe cupidld.exe cupidobj.exe cupidbuild.exe))
 
 test_iso/fixtures/big.bin: $(ISO_BIG_FIXTURE_SOURCE) Makefile \
 	$(PRODUCTION_SEED_INPUTS)
@@ -2128,12 +2136,13 @@ test_iso/fixtures/big.bin: $(ISO_BIG_FIXTURE_SOURCE) Makefile \
 		--seed-release $(PRODUCTION_SEED_RELEASE) \
 		--source $< --output $@
 
-test_iso/hello.iso: $(TEST_ISO_FIXTURES) tools/hostbuild.py \
-	$(CHECKED_SEED_INPUTS)
-	$(PYTHON) tools/hostbuild.py build-iso \
-	  --seed-manifest $(PRODUCTION_SEED_MANIFEST) \
-	  --fixtures test_iso/fixtures --manifest $(ISO_FIXTURE_MANIFEST) \
-	  --out test_iso/hello.iso
+test_iso/hello.iso: $(TEST_ISO_FIXTURES) Makefile $(ISO_PUBLICATION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) publish-iso-fixture \
+		--root "$(CURDIR)" --manifest $(ISO_FIXTURE_MANIFEST) \
+		--fixtures test_iso/fixtures --output $@ \
+		--linux-manifest $(BOOTSTRAP_SEED_MANIFEST) \
+		--windows-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST) \
+		--seed-release $(PRODUCTION_SEED_RELEASE)
 
 sync-iso: $(OS_IMAGE) test_iso/hello.iso
 	$(PYTHON) tools/hostbuild.py stage --image $(OS_IMAGE) --fat-start-lba $(FAT_START_LBA) test_iso/hello.iso:/hello.iso

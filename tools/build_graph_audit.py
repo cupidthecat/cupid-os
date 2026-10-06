@@ -237,8 +237,12 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/user_syscall_abi.h",
     "toolchain/x86.cc",
     "toolchain/x86.h",
+    "tools/__init__.py",
+    "tools/bootstrap_stage_release.py",
     "tools/bootstrap_toolchain.py",
+    "tools/bootstrap_user_abi.py",
     "tools/cupidc_toolchain_contracts.py",
+    "tools/seed_release_identity.py",
     "tools/user_syscall_abi.py",
     "user/cupid.h",
 )
@@ -374,6 +378,7 @@ TOOL_MARKERS = (
         "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX)",
         "cupid_builder",
     ),
+    ("publish-iso-fixture --root", "cupid_object"),
     ("compile-kernel --seed-manifest", "cupid_c_compiler"),
     ("compile-doom --seed-manifest", "cupid_c_compiler"),
     ("compile-production --seed-manifest", "cupid_c_compiler"),
@@ -558,8 +563,12 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/user_syscall_abi.h",
     "toolchain/x86.cc",
     "toolchain/x86.h",
+    "tools/__init__.py",
+    "tools/bootstrap_stage_release.py",
     "tools/bootstrap_toolchain.py",
+    "tools/bootstrap_user_abi.py",
     "tools/cupidc_toolchain_contracts.py",
+    "tools/seed_release_identity.py",
     "tools/user_syscall_abi.py",
     "user/cupid.h",
 )
@@ -3824,7 +3833,7 @@ def _validate_cupidbuild_root_release_context(
             "assemble-cupidasm-object", "assemble-iso-pattern", "embed-jpeg",
             "generate-ksyms", "flatten-kernel", "generate-profile-manifest",
             "compile-kernel", "compile-doom", "compile-production", "compile-user",
-            "link-user", "validate-code", "verify-artifact-sizes",
+            "link-user", "validate-code", "verify-artifact-sizes", "publish-iso-fixture",
         }
         inferred_builder = "cupid_builder" in transform.get("tools", [])
         literal_dispatcher = bool(tokens) and re.search(
@@ -3839,11 +3848,16 @@ def _validate_cupidbuild_root_release_context(
             # its unchanged API. Its existing complete trust-unit gate applies.
             if tokens[1] == "verify-artifact-sizes":
                 continue
-            for option, selected in (
+            context_options = (
                 ("--seed-manifest", "$(PRODUCTION_SEED_MANIFEST)"),
                 ("--seed-release", "$(PRODUCTION_SEED_RELEASE)"),
                 ("--root", '"$(CURDIR)"'),
-            ):
+            )
+            if tokens[1] == "publish-iso-fixture":
+                if tokens != _recipe_tokens(_ISO_IMAGE_RECIPE):
+                    raise AuditError("CupidBuild ISO root recipe differs from its selected paired context")
+                context_options = ()
+            for option, selected in context_options:
                 positions = [index for index, token in enumerate(tokens) if token == option]
                 if (len(positions) != 1 or positions[0] + 1 >= len(tokens)
                         or tokens[positions[0] + 1] != selected
@@ -3891,6 +3905,7 @@ def _validate_cupidbuild_user_make_binding(root: Path, make: str) -> list[str]:
         "PRODUCTION_SEED_MANIFEST", "PRODUCTION_SEED_RELEASE", "PRODUCTION_SEED_DIRECTORY",
         "PRODUCTION_SEED_SUFFIX", "CHECKED_SEED_INPUTS", "CUPIDBUILD_USER_COMPILE_INPUTS",
         "CUPIDBUILD_USER_SEED_MANIFEST", "CUPIDBUILD_USER_SEED_RELEASE",
+        "USER_SYSCALL_ABI_INPUTS",
     ))
     manifest = values["PRODUCTION_SEED_MANIFEST"]
     release = values["PRODUCTION_SEED_RELEASE"]
@@ -3903,7 +3918,11 @@ def _validate_cupidbuild_user_make_binding(root: Path, make: str) -> list[str]:
             or values["CUPIDBUILD_USER_SEED_MANIFEST"] != posixpath.normpath("user/" + manifest)
             or values["CUPIDBUILD_USER_SEED_RELEASE"] != posixpath.normpath("user/" + release)
             or values["CHECKED_SEED_INPUTS"].split() != expected
-            or values["CUPIDBUILD_USER_COMPILE_INPUTS"].split() != expected):
+            or values["CUPIDBUILD_USER_COMPILE_INPUTS"].split() != expected
+            or values["USER_SYSCALL_ABI_INPUTS"].split() != sorted({
+                *expected,
+                *(posixpath.relpath(path, "user") for path in USER_SYSCALL_ABI_SOURCE_INPUTS),
+            })):
         raise AuditError("CupidBuild user Make binding differs from the checked release cohort")
     return [posixpath.normpath("user/" + path) for path in expected]
 
@@ -4408,6 +4427,8 @@ def _operation_for_recipe(
         return "generate_profile_manifest"
     if "hostbuild.py build-iso " in joined:
         return "package_iso9660_image"
+    if "publish-iso-fixture" in tokens and tools == ["cupid_builder", "cupid_object"]:
+        return "package_iso9660_image"
     if "hostbuild.py image " in joined:
         return "package_disk_image"
     if (
@@ -4460,11 +4481,14 @@ def _operation_for_recipe(
         return "generate_ksyms_source"
     if posixpath.basename(
         output.replace("\\", "/")
-    ) == "test-syscall-abi" and any(
-        posixpath.normpath(path.replace("\\", "/")).endswith(
-            "tools/user_syscall_abi.py"
+    ) == "test-syscall-abi" and (
+        ("verify-user-abi" in tokens and tools == ["cupid_builder"])
+        or any(
+            posixpath.normpath(path.replace("\\", "/")).endswith(
+                "tools/user_syscall_abi.py"
+            )
+            for path in inputs
         )
-        for path in inputs
     ):
         return "verify_user_syscall_abi"
     if "host_c_compiler" in tools or "cupid_c_compiler" in tools:
@@ -8830,12 +8854,18 @@ def build_audit(
                 _validate_cupidbuild_user_link_delivery(
                     model.transforms, seed_inputs=user_seed_inputs,
                 )
+                _validate_cupidbuild_user_abi_delivery(
+                    model.transforms, seed_inputs=user_seed_inputs,
+                )
         _validate_iso_pattern_delivery(
             root_model.transforms,
             seed_inputs=_read_evaluated_make_variables(
                 root, make, ("PRODUCTION_SEED_INPUTS",)
             )["PRODUCTION_SEED_INPUTS"].split(),
         )
+        iso_pair_inputs, iso_fixture_inputs = _validate_iso_image_make_binding(root, make)
+        _validate_iso_image_delivery(root_model.transforms, pair_inputs=iso_pair_inputs,
+                                     fixture_inputs=iso_fixture_inputs)
     _validate_cupidobj_profile_manifest_delivery(
         root,
         root_model.transforms,
@@ -15658,7 +15688,7 @@ def _cupid_toolchain_fixed_point_contract(
             "            raw_cupidbuild, 'build_plan.links.cupidbuild'\n"
             "        )\n"
             "    ]\n"
-            "    if tuple(cupidbuild_link) not in (PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK, CANDIDATE_CUPIDBUILD_LINK):\n"
+            "    if tuple(cupidbuild_link) not in (EARLIER_PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK, CANDIDATE_CUPIDBUILD_LINK):\n"
             "        raise BootstrapError(\n"
             "            'Linux build plan candidate link differs: cupidbuild'\n"
             "        )\n"
@@ -16432,6 +16462,10 @@ def _cupid_toolchain_fixed_point_contract(
         *required_windows_source_inputs,
     )
     required_contract_control_inputs = (
+        "tools/__init__.py",
+        "tools/bootstrap_stage_release.py",
+        "tools/bootstrap_user_abi.py",
+        "tools/seed_release_identity.py",
         "toolchain/Makefile",
         "toolchain/contract_parse_internal.cc",
         "toolchain/contract_parse_internal.h",
@@ -16584,6 +16618,10 @@ return tuple(
             "_stage_file_identity",
             "build_contracts",
             "verify_publication_inputs",
+            "publish_directory",
+            "ensure_contracts",
+            "_capture_behavior_request",
+            "_require_behavior_request_live",
         )
     }
     if any(len(functions) != 1 for functions in publisher_functions.values()):
@@ -16615,6 +16653,155 @@ return tuple(
         if len(bootstrap_calls) != 1 or public_bootstrap_calls:
             publisher_protocol_errors.append(
                 "publisher must use the private pending bootstrap"
+            )
+
+        def live_function_calls(
+            function: ast.FunctionDef | ast.AsyncFunctionDef, name: str
+        ) -> list[ast.Call]:
+            parents = {
+                child: parent
+                for parent in ast.walk(function)
+                for child in ast.iter_child_nodes(parent)
+            }
+            return [
+                node for node in ast.walk(function)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == name
+                and not _ast_node_is_statically_dead(node, function, parents)
+            ]
+
+        def has_request_forward(call: ast.Call, keyword: str) -> bool:
+            expected = ast.parse(
+                '{"' + keyword + '": behavior_request} '
+                'if behavior_request is not None else {}', mode="eval"
+            ).body
+            return any(
+                argument.arg is None
+                and ast.dump(argument.value, include_attributes=False)
+                == ast.dump(expected, include_attributes=False)
+                for argument in call.keywords
+            )
+
+        capture_calls = live_build_calls("_capture_behavior_request")
+        live_release_calls = sorted(
+            live_build_calls("_require_behavior_request_live"),
+            key=lambda call: call.lineno,
+        )
+        publication_calls = live_build_calls("publish_directory")
+        publication_tool_calls = live_build_calls(
+            "_require_behavior_publication_tools"
+        )
+        release_author_calls = live_build_calls("_checked_manifest_author_bytes")
+        capture_values = live_name_assignment_values(
+            build_function, "behavior_request"
+        )
+        expected_capture = ast.parse(
+            "_capture_behavior_request(root, manifest, behavior_release)",
+            mode="eval",
+        ).body
+        if not (
+            len(capture_calls) == len(capture_values) == len(bootstrap_calls) == 1
+            and ast.dump(capture_values[0], include_attributes=False)
+            == ast.dump(expected_capture, include_attributes=False)
+            and len(live_release_calls) == 3
+            and all(
+                ast.unparse(call) == "_require_behavior_request_live(behavior_request)"
+                for call in live_release_calls
+            )
+            and len(publication_calls) == len(publication_tool_calls)
+            == len(release_author_calls) == 1
+            and ast.unparse(publication_tool_calls[0])
+            == "_require_behavior_publication_tools(report, behavior_request)"
+            and capture_calls[0].lineno < bootstrap_calls[0].lineno
+            < live_release_calls[0].lineno < live_release_calls[1].lineno
+            < release_author_calls[0].lineno < publication_tool_calls[0].lineno
+            < live_release_calls[2].lineno < publication_calls[0].lineno
+            and has_request_forward(bootstrap_calls[0], "release_request")
+            and has_request_forward(publication_calls[0], "behavior_request")
+        ):
+            publisher_protocol_errors.append(
+                "reviewed behavior release must remain captured and live "
+                "through bootstrap, authoring and publication"
+            )
+
+        publish_function = publisher_functions["publish_directory"][0]
+        publish_guards = live_function_calls(
+            publish_function, "_require_behavior_request_live"
+        )
+        output_checks = live_function_calls(
+            publish_function, "_validate_output_target"
+        )
+        replace_calls = [
+            node for node in ast.walk(publish_function)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "replace"
+        ]
+        if not (
+            len(publish_guards) == len(output_checks) == 1
+            and ast.unparse(publish_guards[0])
+            == "_require_behavior_request_live(behavior_request)"
+            and replace_calls
+            and output_checks[0].lineno < publish_guards[0].lineno
+            < min(call.lineno for call in replace_calls)
+        ):
+            publisher_protocol_errors.append(
+                "reviewed behavior release must be rechecked after output "
+                "validation and before the first replacement"
+            )
+
+        ensure_function = publisher_functions["ensure_contracts"][0]
+        ensure_captures = live_function_calls(
+            ensure_function, "_capture_behavior_request"
+        )
+        ensure_guards = live_function_calls(
+            ensure_function, "_require_behavior_request_live"
+        )
+        ensure_tools = live_function_calls(
+            ensure_function, "_require_behavior_publication_tools"
+        )
+        ensure_builds = live_function_calls(ensure_function, "build_contracts")
+        if not (
+            len(ensure_captures) == len(ensure_tools) == len(ensure_builds) == 1
+            and len(ensure_guards) == 2
+            and ensure_captures[0].lineno < ensure_tools[0].lineno
+            < min(call.lineno for call in ensure_guards)
+            and max(call.lineno for call in ensure_guards)
+            < ensure_builds[0].lineno
+        ):
+            publisher_protocol_errors.append(
+                "cached publication must retain reviewed behavior authority "
+                "and exact tool identity checks"
+            )
+
+        capture_function = publisher_functions["_capture_behavior_request"][0]
+        checked_captures = live_function_calls(
+            capture_function, "capture_seed_behavior_release"
+        )
+        if not (
+            len(checked_captures) == 1
+            and ast.unparse(checked_captures[0])
+            == "capture_seed_behavior_release(path, verify_seed_inputs(manifest))"
+        ):
+            publisher_protocol_errors.append(
+                "reviewed behavior authority must capture the selected "
+                "release and checked Linux seed"
+            )
+        live_function = publisher_functions["_require_behavior_request_live"][0]
+        live_parents = {
+            child: parent
+            for parent in ast.walk(live_function)
+            for child in ast.iter_child_nodes(parent)
+        }
+        live_checks = [
+            node for node in ast.walk(live_function)
+            if isinstance(node, ast.Call)
+            and ast.unparse(node) == "request.require_live()"
+            and not _ast_node_is_statically_dead(node, live_function, live_parents)
+        ]
+        if len(live_checks) != 1:
+            publisher_protocol_errors.append(
+                "reviewed behavior lifetime helper must recheck the request"
             )
 
         verify_inputs_function = publisher_functions[
@@ -17237,6 +17424,16 @@ def _validate_user_syscall_abi_transform(
     directory: str,
     transform: dict[str, object],
 ) -> None:
+    if transform.get("tools") == ["cupid_builder"]:
+        inputs = transform.get("inputs", [])
+        seed_inputs = [
+            path for path in inputs
+            if path not in {*USER_SYSCALL_ABI_SOURCE_INPUTS, "user/Makefile"}
+        ] if isinstance(inputs, list) else []
+        _validate_cupidbuild_user_abi_delivery([transform], seed_inputs=seed_inputs)
+        if directory != "user":
+            raise AuditError("CupidBuild user syscall ABI verifier directory differs")
+        return
     expected_inputs = [
         *USER_SYSCALL_ABI_AUDIT_INPUTS,
         "user/Makefile",
@@ -17286,6 +17483,54 @@ def _validate_user_syscall_abi_transform(
     if markers != collections.Counter({"USER_SYSCALL_ABI": 1}):
         raise AuditError(
             f"user syscall ABI verifier recipe marker changed; actual={dict(markers)!r}"
+        )
+
+
+def _validate_cupidbuild_user_abi_delivery(
+    transforms: list[dict[str, object]], *, seed_inputs: list[str],
+) -> None:
+    deliveries = [
+        row for row in transforms
+        if row.get("output") == "user/test-syscall-abi"
+        or row.get("operation") == "verify_user_syscall_abi"
+    ]
+    if len(deliveries) != 1:
+        raise AuditError("CupidBuild user syscall ABI verifier must appear exactly once")
+    manifest_paths = [path for path in seed_inputs if path.endswith("/manifest.json")]
+    if len(manifest_paths) != 1 or len(seed_inputs) != 8 or len(set(seed_inputs)) != 8:
+        raise AuditError("CupidBuild user syscall ABI verifier seed closure differs")
+    manifest = manifest_paths[0]
+    parent = posixpath.dirname(manifest) + "/"
+    suffixes = [suffix for suffix in ("elf", "exe")
+                if parent + "cupidbuild." + suffix in seed_inputs]
+    if len(suffixes) != 1:
+        raise AuditError("CupidBuild user syscall ABI verifier execution cohort differs")
+    cohort = {manifest, *(
+        parent + role + "." + suffixes[0]
+        for role in ("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj", "cupidbuild")
+    )}
+    releases = set(seed_inputs) - cohort
+    if len(cohort) != 7 or not cohort.issubset(seed_inputs) or len(releases) != 1:
+        raise AuditError("CupidBuild user syscall ABI verifier complete cohort differs")
+    expected = {*USER_SYSCALL_ABI_SOURCE_INPUTS, *seed_inputs, "user/Makefile"}
+    transform = deliveries[0]
+    inputs = transform.get("inputs", [])
+    recipe = [
+        "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) "
+        'verify-user-abi --root "$(abspath ..)"'
+    ]
+    if (
+        transform.get("output") != "user/test-syscall-abi"
+        or transform.get("operation") != "verify_user_syscall_abi"
+        or transform.get("tools") != ["cupid_builder"]
+        or transform.get("recipe") != recipe
+        or not isinstance(inputs, list) or set(inputs) != expected
+        or len(inputs) != len(expected)
+        or transform.get("order_only_inputs", [])
+    ):
+        raise AuditError(
+            "CupidBuild user syscall ABI verifier requires six declarations, "
+            "the selected complete seed cohort, Makefile and the native recipe"
         )
 
 
@@ -17609,6 +17854,82 @@ def _validate_iso_pattern_delivery(
             "ISO pattern delivery differs from its checked operation, tools, "
             "recipe, content inputs, or independent scheduling contract"
         )
+
+
+_ISO_IMAGE_RECIPE = [
+    "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+    "$(PRODUCTION_SEED_SUFFIX) publish-iso-fixture \\",
+    '--root "$(CURDIR)" --manifest $(ISO_FIXTURE_MANIFEST) \\',
+    '--fixtures test_iso/fixtures --output $@ \\',
+    '--linux-manifest $(BOOTSTRAP_SEED_MANIFEST) \\',
+    '--windows-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST) \\',
+    '--seed-release $(PRODUCTION_SEED_RELEASE)',
+]
+
+
+def _validate_iso_image_delivery(
+    transforms: list[dict[str, object]], *, pair_inputs: list[str], fixture_inputs: list[str],
+) -> None:
+    if (len(pair_inputs) != 15 or len(set(pair_inputs)) != 15
+            or len(fixture_inputs) != len(set(fixture_inputs))):
+        raise AuditError("ISO image context requires a complete distinct pair and fixture inventory")
+    deliveries = [transform for transform in transforms
+                  if transform.get("output") == "test_iso/hello.iso"]
+    if len(deliveries) != 1:
+        raise AuditError("ISO image delivery must appear exactly once")
+    delivery = deliveries[0]
+    inputs = delivery.get("inputs")
+    recipe = delivery.get("recipe")
+    expected = {"Makefile", *pair_inputs, *fixture_inputs}
+    if (delivery.get("operation") != "package_iso9660_image"
+            or delivery.get("tools") != ["cupid_builder", "cupid_object"]
+            or not isinstance(recipe, list) or any(not isinstance(row, str) for row in recipe)
+            or _recipe_tokens(recipe) != _recipe_tokens(_ISO_IMAGE_RECIPE)
+            or not isinstance(inputs, list) or len(inputs) != len(expected)
+            or set(inputs) != expected or delivery.get("order_only_inputs")):
+        raise AuditError("ISO image delivery differs from its retained command, complete content inputs or release context")
+
+
+def _validate_iso_image_make_binding(root: Path, make: str) -> tuple[list[str], list[str]]:
+    values = _read_evaluated_make_variables(root, make, (
+        "BOOTSTRAP_SEED_MANIFEST", "BOOTSTRAP_WINDOWS_SEED_MANIFEST",
+        "PRODUCTION_SEED_MANIFEST", "PRODUCTION_SEED_SUFFIX", "PRODUCTION_SEED_RELEASE",
+        "ISO_LINUX_SEED_DIRECTORY", "ISO_WINDOWS_SEED_DIRECTORY", "ISO_PUBLICATION_SEED_INPUTS",
+        "ISO_FIXTURE_MANIFEST", "ISO_FIXTURE_RELATIVE", "TEST_ISO_FIXTURES",
+    ))
+    linux = values["BOOTSTRAP_SEED_MANIFEST"]
+    windows = values["BOOTSTRAP_WINDOWS_SEED_MANIFEST"]
+    release = values["PRODUCTION_SEED_RELEASE"]
+    suffix = values["PRODUCTION_SEED_SUFFIX"]
+    tools = ("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj", "cupidbuild")
+    directories = {"elf": (posixpath.dirname(linux) or ".") + "/",
+                   "exe": (posixpath.dirname(windows) or ".") + "/"}
+    pair = [linux, windows, release,
+            *[directories["elf"] + tool + ".elf" for tool in tools],
+            *[directories["exe"] + tool + ".exe" for tool in tools]]
+    if (not linux or not windows or not release or suffix not in ("elf", "exe")
+            or len(set(pair)) != 15
+            or values["PRODUCTION_SEED_MANIFEST"] != (windows if suffix == "exe" else linux)
+            or values["ISO_LINUX_SEED_DIRECTORY"] != directories["elf"]
+            or values["ISO_WINDOWS_SEED_DIRECTORY"] != directories["exe"]
+            or values["ISO_PUBLICATION_SEED_INPUTS"].split() != sorted(pair)
+            or values["ISO_FIXTURE_MANIFEST"] != "test_iso/fixtures.manifest"):
+        raise AuditError("ISO image Make binding differs from the complete selected execution and paired release context")
+    try:
+        names = (root / "test_iso/fixtures.manifest").read_text(encoding="ascii").splitlines()
+    except (OSError, UnicodeError) as error:
+        raise AuditError(f"ISO fixture manifest cannot supply its content inventory: {error}") from error
+    if (not names or len(names) > 512 or len(set(names)) != len(names)
+            or any(not re.fullmatch(r"[A-Za-z0-9._/-]+", name)
+                   or name.startswith("/") or name.endswith("/")
+                   or any(part in ("", ".", "..") for part in name.split("/")) for name in names)
+            or values["ISO_FIXTURE_RELATIVE"].split() != names):
+        raise AuditError("ISO fixture Make inventory differs from its portable manifest paths")
+    fixtures = ["test_iso/fixtures", "test_iso/fixtures.manifest",
+                *["test_iso/fixtures/" + name for name in names]]
+    if values["TEST_ISO_FIXTURES"].split() != sorted(fixtures):
+        raise AuditError("ISO fixture Make content closure differs from its manifest and retained tree")
+    return sorted(pair), sorted(fixtures)
 
 
 _KERNEL_FLATTEN_RECIPE = [
@@ -18629,6 +18950,11 @@ def _c_preprocessor_active_cases_manifest(
                     "toolchain/Makefile",
                     "tools/bootstrap_toolchain.py",
                     "tools/cupidc_toolchain_contracts.py",
+                    "tools/__init__.py",
+                    "tools/bootstrap_user_abi.py",
+                    "tools/bootstrap_stage_release.py",
+                    "tools/seed_release_identity.py",
+                    "bootstrap/seeds/release.json",
                 }
                 missing_inputs = sorted(required_inputs - set(inputs))
                 if missing_inputs:
@@ -18648,7 +18974,8 @@ def _c_preprocessor_active_cases_manifest(
                     "$(PYTHON) ../tools/cupidc_toolchain_contracts.py build "
                     "--root .. --manifest "
                     "../bootstrap/seeds/i386-linux/manifest.json "
-                    "--output $(CONTRACT_DIR)"
+                    '--output $(CONTRACT_DIR) '
+                    '--behavior-release "$(TOOLCHAIN_MANIFEST_BEHAVIOR_RELEASE)"'
                 )
                 if (
                     not isinstance(recipe, list)

@@ -41067,29 +41067,36 @@
           "test_iso/fixtures/readme.txt",
           "test_iso/fixtures/sub",
           "test_iso/fixtures/sub/nested.txt",
-          "tools/hostbuild.py",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
-          "bootstrap/seeds/i386-windows/manifest.json",
-          "bootstrap/seeds/release.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidbuild.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf",
+          "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
+          "bootstrap/seeds/i386-windows/cupidbuild.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
           "bootstrap/seeds/i386-windows/cupiddis.exe",
           "bootstrap/seeds/i386-windows/cupidld.exe",
           "bootstrap/seeds/i386-windows/cupidobj.exe",
-          "bootstrap/seeds/i386-windows/cupidbuild.exe"
+          "bootstrap/seeds/i386-windows/manifest.json",
+          "bootstrap/seeds/release.json"
         ],
         "operation": "package_iso9660_image",
         "output": "test_iso/hello.iso",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py build-iso \\",
-          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) \\",
-          "--fixtures test_iso/fixtures --manifest $(ISO_FIXTURE_MANIFEST) \\",
-          "--out test_iso/hello.iso"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) publish-iso-fixture \\",
+          "--root \"$(CURDIR)\" --manifest $(ISO_FIXTURE_MANIFEST) \\",
+          "--fixtures test_iso/fixtures --output $@ \\",
+          "--linux-manifest $(BOOTSTRAP_SEED_MANIFEST) \\",
+          "--windows-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST) \\",
+          "--seed-release $(PRODUCTION_SEED_RELEASE)"
         ],
         "tools": [
-          "cupid_object",
-          "host_python"
+          "cupid_builder",
+          "cupid_object"
         ]
       },
       {
@@ -45630,8 +45637,8 @@
       "active_tracked_c_sources": 0,
       "active_tracked_cupid_c_sources": 423,
       "cupid_c_ownership_evidence": {
-        "checked_cupidc_compile": 249,
-        "checked_cupidc_contract": 44,
+        "checked_cupidc_compile": 246,
+        "checked_cupidc_contract": 47,
         "explicit_runtime_delivery_policy": 130
       },
       "cupidc_owned_tracked_c_sources": 0,
@@ -45874,7 +45881,7 @@
       "compared_startup_objects": 1,
       "compared_tool_images": 6,
       "compiler_c_sources": 11,
-      "contract_manifest_inputs": 97,
+      "contract_manifest_inputs": 101,
       "executed_tools": [
         "cupidasm",
         "cupiddis",
@@ -50305,11 +50312,12 @@
         "toolchain/tests/cupidc_object_contract.cc",
         "toolchain/tests/cupidc_pp_contract.cc",
         "toolchain/tests/cupidld_contract.cc",
+        "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/user_syscall_abi.cc",
         "toolchain/x86.cc"
       ],
       "id": "c.control.continue",
-      "occurrences": 1323
+      "occurrences": 1325
     },
     {
       "category": "control",
@@ -51087,7 +51095,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4987
+      "occurrences": 4988
     },
     {
       "category": "control",
@@ -51571,7 +51579,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 44794
+      "occurrences": 44799
     },
     {
       "category": "control",
@@ -51961,7 +51969,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 27764
+      "occurrences": 27771
     },
     {
       "category": "control",
@@ -52367,7 +52375,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3079
+      "occurrences": 3080
     },
     {
       "category": "declaration",
@@ -52656,7 +52664,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 3066
+      "occurrences": 3067
     },
     {
       "category": "declarator",
@@ -52947,7 +52955,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 7062
+      "occurrences": 7061
     },
     {
       "category": "extension",
@@ -54021,7 +54029,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3433
+      "occurrences": 3441
     },
     {
       "category": "preprocessor",
@@ -56241,7 +56249,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 18579
+      "occurrences": 18584
     },
     {
       "category": "qualifier",
@@ -56801,7 +56809,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10738
+      "occurrences": 10744
     },
     {
       "category": "type",
@@ -57277,7 +57285,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 12106
+      "occurrences": 12108
     },
     {
       "category": "type",
@@ -58083,7 +58091,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 25873
+      "occurrences": 25877
     },
     {
       "category": "type",
@@ -59744,7 +59752,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 16164
+      "occurrences": 16165
     },
     {
       "category": "declaration",
@@ -60658,19 +60666,19 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "3e85b6a841887d223af33b37be5058beeb9f014918a26b01859ed8242a7b9512",
+    "active_source_digest": "f2eee5240ee25762d5479844c1b74ae479f8d62a4e21c106f822750a91245614",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "0346900f77165da6062289e46beb1d1b797bad8c56632d99160027a9e752ab4e"
+        "sha256": "b3390983677661adae4b3407d66496b24d29e67dcc5bb9fc96f13be7e6b9d783"
       },
       {
         "path": "user/Makefile",
-        "sha256": "546ba7d3e5b99fbb16f5fddd2e3e7d9c0567ae84c6016d96d333a7555f890508"
+        "sha256": "75f44ec34ac401a6338dd6f4ca1178ddb2c462dc1a364640dd4de44c8e534a08"
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "ad9f256ea39d1cb591b9e03dbdfd08fe0076b75e28a7702a6e678bafb85a591b"
+        "sha256": "cb34c428327a4af4d6b95dda7c9acb293143c2d15f016b473bbe24c8e30c59e2"
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
@@ -60686,16 +60694,16 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "3e8a6e1e113ef73178fc9041262d911e5b0cf4072fc2d0d2af5e38efb1e25d41"
+        "sha256": "52991ad284c82dc913efc4faa8a4be6ddcbda4bbf3e748a20ced66380028733c"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
-        "sha256": "1966c1c82f250bf6b8fcaf881d703750eed9fbbe957251b2cd978c179add30ea"
+        "sha256": "4e283de89c289f1e9c0c86d02456817cd954a31330f685bc45ece536d56bff31"
       }
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "14bd358e429c36aad98239b61154892f6490196e7e9940b5598f579d06820797"
+      "sha256": "c0e78b5ae9bfe8827fff16c4c896256e8ebe594bd6d2cd48725bfe43c1bf8e82"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -68128,12 +68136,9 @@
     },
     {
       "build_owners": [
-        "cupid_assembler",
         "cupid_builder",
         "cupid_c_compiler",
-        "cupid_c_contract",
-        "cupid_linker",
-        "host_python"
+        "cupid_c_contract"
       ],
       "builds": [
         ".",
@@ -68198,13 +68203,9 @@
     },
     {
       "build_owners": [
-        "cupid_assembler",
         "cupid_builder",
         "cupid_c_compiler",
-        "cupid_c_contract",
-        "cupid_linker",
-        "cupid_object",
-        "host_python"
+        "cupid_object"
       ],
       "builds": [
         ".",
@@ -68239,13 +68240,9 @@
     },
     {
       "build_owners": [
-        "cupid_assembler",
         "cupid_builder",
         "cupid_c_compiler",
-        "cupid_c_contract",
-        "cupid_linker",
-        "cupid_object",
-        "host_python"
+        "cupid_object"
       ],
       "builds": [
         ".",
@@ -78576,13 +78573,9 @@
     },
     {
       "build_owners": [
-        "cupid_assembler",
         "cupid_builder",
         "cupid_c_compiler",
-        "cupid_c_contract",
-        "cupid_linker",
-        "cupid_object",
-        "host_python"
+        "cupid_object"
       ],
       "builds": [
         ".",
@@ -83269,13 +83262,9 @@
     },
     {
       "build_owners": [
-        "cupid_assembler",
         "cupid_builder",
         "cupid_c_compiler",
-        "cupid_c_contract",
-        "cupid_linker",
-        "cupid_object",
-        "host_python"
+        "cupid_object"
       ],
       "builds": [
         ".",
@@ -85273,17 +85262,13 @@
     },
     {
       "build_owners": [
-        "cupid_assembler",
         "cupid_builder",
         "cupid_c_compiler",
-        "cupid_c_contract",
-        "cupid_linker",
-        "host_python"
+        "cupid_c_contract"
       ],
       "builds": [
         ".",
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -85330,18 +85315,13 @@
     },
     {
       "build_owners": [
-        "cupid_assembler",
         "cupid_builder",
         "cupid_c_compiler",
-        "cupid_c_contract",
-        "cupid_linker",
-        "cupid_object",
-        "host_python"
+        "cupid_object"
       ],
       "builds": [
         ".",
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -85372,15 +85352,10 @@
     },
     {
       "build_owners": [
-        "cupid_assembler",
-        "cupid_c_compiler",
-        "cupid_c_contract",
-        "cupid_linker",
-        "host_python"
+        "cupid_c_contract"
       ],
       "builds": [
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_host_adapter",
       "features": [
@@ -85416,18 +85391,13 @@
     },
     {
       "build_owners": [
-        "cupid_assembler",
         "cupid_builder",
         "cupid_c_compiler",
-        "cupid_c_contract",
-        "cupid_linker",
-        "cupid_object",
-        "host_python"
+        "cupid_object"
       ],
       "builds": [
         ".",
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_host_adapter",
       "features": [
@@ -87159,8 +87129,7 @@
       ],
       "builds": [
         ".",
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -87196,8 +87165,7 @@
       ],
       "builds": [
         ".",
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -87230,8 +87198,7 @@
       ],
       "builds": [
         ".",
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -87263,8 +87230,7 @@
       ],
       "builds": [
         ".",
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -87305,8 +87271,7 @@
       ],
       "builds": [
         ".",
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -87346,8 +87311,7 @@
       ],
       "builds": [
         ".",
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -87386,8 +87350,7 @@
       ],
       "builds": [
         ".",
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -87418,8 +87381,7 @@
       ],
       "builds": [
         ".",
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -87453,8 +87415,7 @@
       ],
       "builds": [
         ".",
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -87485,8 +87446,7 @@
       ],
       "builds": [
         ".",
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -87522,8 +87482,7 @@
         "host_python"
       ],
       "builds": [
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -87757,8 +87716,7 @@
         "host_python"
       ],
       "builds": [
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -87829,8 +87787,7 @@
         "host_python"
       ],
       "builds": [
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -89318,6 +89275,7 @@
       "cohort": "toolchain_contract",
       "features": [
         "c.control.break",
+        "c.control.continue",
         "c.control.else",
         "c.control.for",
         "c.control.if",
@@ -89343,24 +89301,19 @@
         "toolchain/contract_parse_internal.h"
       ],
       "language": "cupid_c",
-      "lines": 3021,
+      "lines": 3123,
       "origin": "tracked",
       "path": "toolchain/tests/toolchain_manifest_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b2582e894e3c88400df6ff5418c26884eeed9925e92085bb4a0a927a44625290"
+      "sha256": "7e9be43b0daf03c0c27fac3f271eb857a3f4725957a986075e701a18c795ea45"
     },
     {
       "build_owners": [
-        "cupid_assembler",
-        "cupid_c_compiler",
-        "cupid_c_contract",
-        "cupid_linker",
-        "host_python"
+        "cupid_c_contract"
       ],
       "builds": [
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_contract",
       "features": [
@@ -89446,15 +89399,10 @@
     },
     {
       "build_owners": [
-        "cupid_assembler",
-        "cupid_c_compiler",
-        "cupid_c_contract",
-        "cupid_linker",
-        "host_python"
+        "cupid_c_contract"
       ],
       "builds": [
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -89497,18 +89445,13 @@
     },
     {
       "build_owners": [
-        "cupid_assembler",
         "cupid_builder",
         "cupid_c_compiler",
-        "cupid_c_contract",
-        "cupid_linker",
-        "cupid_object",
-        "host_python"
+        "cupid_object"
       ],
       "builds": [
         ".",
-        "toolchain",
-        "user"
+        "toolchain"
       ],
       "cohort": "toolchain_core",
       "features": [
@@ -89620,12 +89563,8 @@
     },
     {
       "build_owners": [
-        "cupid_assembler",
         "cupid_builder",
-        "cupid_c_compiler",
-        "cupid_c_contract",
-        "cupid_linker",
-        "host_python"
+        "cupid_c_compiler"
       ],
       "builds": [
         "toolchain",
@@ -89948,43 +89887,16 @@
             "kernel/core/types.h",
             "kernel/fs/vfs.h",
             "kernel/network/socket.h",
-            "toolchain/ctool.cc",
-            "toolchain/ctool.h",
-            "toolchain/ctool_host.cc",
-            "toolchain/ctool_host.h",
-            "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
-            "toolchain/hosted/i386-linux/include/direct.h",
-            "toolchain/hosted/i386-linux/include/errno.h",
-            "toolchain/hosted/i386-linux/include/stddef.h",
-            "toolchain/hosted/i386-linux/include/stdint.h",
-            "toolchain/hosted/i386-linux/include/stdio.h",
-            "toolchain/hosted/i386-linux/include/stdlib.h",
-            "toolchain/hosted/i386-linux/include/string.h",
-            "toolchain/hosted/i386-linux/include/unistd.h",
-            "toolchain/hosted/i386-linux/include/windows.h",
-            "toolchain/hosted/i386-linux/runtime.cc",
-            "toolchain/hosted/i386-windows/runtime.cc",
-            "toolchain/hosted/i386-windows/tool_start.asm",
-            "toolchain/tests/user_syscall_abi_contract.cc",
-            "toolchain/user_syscall_abi.cc",
-            "toolchain/user_syscall_abi.h",
-            "tools/bootstrap_toolchain.py",
-            "tools/cupidc_toolchain_contracts.py",
-            "tools/user_syscall_abi.py",
             "user/cupid.h",
             "user/Makefile"
           ],
           "operation": "verify_user_syscall_abi",
           "output": "user/test-syscall-abi",
           "recipe": [
-            "$(USER_SYSCALL_ABI)"
+            "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) verify-user-abi --root \"$(abspath ..)\""
           ],
           "tools": [
-            "cupid_assembler",
-            "cupid_c_compiler",
-            "cupid_c_contract",
-            "cupid_linker",
-            "host_python"
+            "cupid_builder"
           ]
         }
       ]
@@ -90134,6 +90046,10 @@
             "toolchain/x86.h",
             "toolchain/x86.cc",
             "toolchain/tests/hosted_i386_runtime_contract.cc",
+            "tools/__init__.py",
+            "tools/bootstrap_user_abi.py",
+            "tools/bootstrap_stage_release.py",
+            "tools/seed_release_identity.py",
             "link.ld",
             "toolchain/artifact_size_policy.cc",
             "toolchain/seed_manifest.cc",
@@ -90285,6 +90201,10 @@
             "toolchain/tests/toolchain_manifest_contract.cc",
             "tools/bootstrap_toolchain.py",
             "tools/cupidc_toolchain_contracts.py",
+            "tools/__init__.py",
+            "tools/bootstrap_user_abi.py",
+            "tools/bootstrap_stage_release.py",
+            "tools/seed_release_identity.py",
             "toolchain/Makefile",
             "link.ld",
             "toolchain/artifact_size_policy.cc",
@@ -90326,14 +90246,16 @@
             "bootstrap/seeds/i386-linux/cupiddis.elf",
             "bootstrap/seeds/i386-linux/cupidld.elf",
             "bootstrap/seeds/i386-linux/cupidobj.elf",
-            "bootstrap/seeds/i386-linux/cupidbuild.elf"
+            "bootstrap/seeds/i386-linux/cupidbuild.elf",
+            "bootstrap/seeds/release.json"
           ],
           "operation": "generate_toolchain_manifest",
           "output": "toolchain/build/cupidc-contracts/manifest.json",
           "recipe": [
             "$(PYTHON) ../tools/cupidc_toolchain_contracts.py build \\",
             "--root .. --manifest ../bootstrap/seeds/i386-linux/manifest.json \\",
-            "--output $(CONTRACT_DIR)"
+            "--output $(CONTRACT_DIR) \\",
+            "--behavior-release \"$(TOOLCHAIN_MANIFEST_BEHAVIOR_RELEASE)\""
           ],
           "tools": [
             "cupid_assembler",

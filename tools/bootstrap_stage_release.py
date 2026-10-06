@@ -14,9 +14,16 @@ import json
 import os
 from pathlib import Path
 import stat
+import sys
 import tempfile
 
-from tools import bootstrap_toolchain as seed
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+try:
+    from tools import bootstrap_toolchain as seed
+except ModuleNotFoundError:
+    import bootstrap_toolchain as seed
 
 
 SCHEMA = "cupid.bootstrap-stage-preparation.v1"
@@ -374,9 +381,14 @@ class SeedBehaviorRequest:
     linux_plan_bytes: bytes
 
     def _identity(self):
-        from tools.seed_release_identity import (
-            ReleaseIdentityError, verify_release_identity_bytes,
-        )
+        try:
+            from tools.seed_release_identity import (
+                ReleaseIdentityError, verify_release_identity_bytes,
+            )
+        except ModuleNotFoundError:
+            from seed_release_identity import (
+                ReleaseIdentityError, verify_release_identity_bytes,
+            )
         try:
             return verify_release_identity_bytes(self.payload)
         except ReleaseIdentityError as error:
@@ -416,6 +428,7 @@ class SeedBehaviorRequest:
             if actual != expected:
                 raise seed.BootstrapError("behavior stage tools differ from reviewed seed cohort")
         return BehaviorRelease(self.payload, identity, "elf32", self.linux_plan_bytes)
+
 
 
 def capture_seed_behavior_release(path, linux_seed):

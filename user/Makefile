@@ -239,6 +239,9 @@ USER_SYSCALL_ABI_INPUTS := $(sort \
 	$(USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS) \
 	$(BOOTSTRAP_SEED_INPUTS))
 endif
+override USER_SYSCALL_ABI_INPUTS := $(sort \
+	../kernel/core/types.h ../kernel/core/syscall.h ../kernel/core/syscall.cc \
+	../kernel/fs/vfs.h ../kernel/network/socket.h cupid.h $(CHECKED_SEED_INPUTS))
 USER_FRONTIER_INPUTS := ../tools/cupidc_production_frontier.py \
 	$(CUPIDC_PRODUCTION_COMPILE_INPUTS) $(CUPIDLD_USER_LINK_INPUTS) \
 	$(USER_SYSCALL_ABI_INPUTS)
@@ -286,7 +289,7 @@ $(BUILD)/%.o: examples/%.cc cupid.h $(CUPIDBUILD_USER_COMPILE_INPUTS) Makefile |
 		--source user/$< --output user/$@
 
 test-syscall-abi: $(USER_SYSCALL_ABI_INPUTS) Makefile
-	$(USER_SYSCALL_ABI)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) verify-user-abi --root "$(abspath ..)"
 
 test-cupidc-frontier: all test-syscall-abi $(USER_SOURCES) cupid.h $(USER_FRONTIER_INPUTS) Makefile
 	$(PYTHON) ../tools/cupidc_production_frontier.py \

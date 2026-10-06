@@ -109,33 +109,31 @@ WINDOWS_SEED_PARENT_SOURCE_REVISION = (
     "a17c9465911da41d59b7ada71733d36c39faa5ea"
 )
 PROMOTION_PARENT_LINUX_MANIFEST_SHA256 = (
-    "b6f247af2034d7432333eed74230452fede2198ba744c30a5c410ce19c4b79b4"
-)
-PROMOTION_PARENT_WINDOWS_MANIFEST_SHA256 = (
-    "1d40ec6e03bdd736e5993f8a204588f0e376541f4019b83bd00650469b9531bd"
-)
-PROMOTION_PARENT_SOURCE_REVISION = (
-    "78e71bd6137042720c378d2c596aa40b153dad11"
-)
-PROMOTED_SOURCE_INPUT_COUNT = 78
-PROMOTED_SOURCE_REVISION = "cfd9f140fd295284372beaee48b85c9320f7d144"
-PROMOTED_SOURCE_SNAPSHOT_SHA256 = (
-    "83108f0340f8fb1922743ada44c4f5154b06f49c6b7ffa05034b32e98f2096a6"
-)
-PROMOTED_LINUX_MANIFEST_SHA256 = (
     "59c5c33672ee5839efd5a27cc1b90c090984fcf0be74d3fcb7418f68215aa2f7"
 )
-PROMOTED_WINDOWS_MANIFEST_SHA256 = (
+PROMOTION_PARENT_WINDOWS_MANIFEST_SHA256 = (
     "1966c1c82f250bf6b8fcaf881d703750eed9fbbe957251b2cd978c179add30ea"
+)
+PROMOTION_PARENT_SOURCE_REVISION = (
+    "cfd9f140fd295284372beaee48b85c9320f7d144"
+)
+PROMOTED_SOURCE_INPUT_COUNT = 92
+PROMOTED_SOURCE_REVISION = (
+    "344a9eeec2bbdf2fdc28e4d425139ff77f08a792"
+)
+PROMOTED_SOURCE_SNAPSHOT_SHA256 = (
+    "829f923bdfefcfab5d1d9b2caacb466853a1c21ca1537a6517ddf83e1a6f7d4d"
+)
+PROMOTED_LINUX_MANIFEST_SHA256 = (
+    "a6d47be27b6251c14558bce043fd984b69d03e811c52e22bc4babd2e100240e4"
+)
+PROMOTED_WINDOWS_MANIFEST_SHA256 = (
+    "4e283de89c289f1e9c0c86d02456817cd954a31330f685bc45ece536d56bff31"
 )
 PROMOTED_LINUX_ARTIFACT_IDENTITIES = {
     "cupidasm": (
         513496,
         "5b52f88bda316e81e875f7f9cf8dabcce071b06641895bacd082f28b22787b19",
-    ),
-    "cupidc": (
-        2700308,
-        "6ed09ebdad145732b70a9ea59c22c20849ec139d4b00d9cc48d1be684adaff87",
     ),
     "cupiddis": (
         538624,
@@ -146,22 +144,22 @@ PROMOTED_LINUX_ARTIFACT_IDENTITIES = {
         "139b346a8c8b5fba52a8eda7397ab124e0f0284a9e9fa7d7c1e30e0a2dc9dfeb",
     ),
     "cupidobj": (
-        397112,
-        "71bd0b8d0c651fa37efd311c84bfbd63919b32f01fedf352fda0aee4c5cb59ea",
+        413720,
+        "abc24e070af42645e0dde4c4c187ceffeda93dc8910446729b921e33d8f85c02",
+    ),
+    "cupidc": (
+        2700308,
+        "cf13865f22d3ea2a88181826bf75017f296b0cbe5d1a13791993e836e948b574",
     ),
     "cupidbuild": (
-        930188,
-        "ea85e0d709f5e83506043b1c9f75bba8d0ef281ea722d893b778acd82a3c74d7",
+        1106552,
+        "b58413e32b2f09baad0e2a93a60640137928b0f01a4fa6c40262e92c8240332f",
     ),
 }
 PROMOTED_WINDOWS_ARTIFACT_IDENTITIES = {
     "cupidasm": (
         509952,
         "22694b7eb0762f9dcbeda0b076bd7c3133bcb2a283732b38b440e7c7207db537",
-    ),
-    "cupidc": (
-        2643968,
-        "f9735ea8d6e95de100a3756fed67f2b0c6613c11c80f26aeffd460ce0ec693b3",
     ),
     "cupiddis": (
         533504,
@@ -172,19 +170,23 @@ PROMOTED_WINDOWS_ARTIFACT_IDENTITIES = {
         "dc56bf4348ec127cd4aa674273c1c04f451dae665622e64c30500cf4fe8fe69d",
     ),
     "cupidobj": (
-        394240,
-        "89400fd6133890e2a19f0a536820f54ee0c2077b096dacab30388869ccc38ddd",
+        407040,
+        "4f51c701909ebb0c272077570f21f538015e599dc7730767390aa2c07e912f3c",
+    ),
+    "cupidc": (
+        2643968,
+        "046c6ce64cda3c7d4440e1a628cb21c69fa10b102b766f87308e41ba0e1c15a0",
     ),
     "cupidbuild": (
-        924672,
-        "bfbe6d18537e594e948d19b76cd6e9c321f5c67cf729aad65fa0a3a53dd680e1",
+        1097216,
+        "25582acefe6547bbe0888192cd3a4692e6df894312d38c546e10498c8f1590f4",
     ),
 }
 PROMOTED_LINUX_PLAN_SHA256 = (
-    "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5"
+    "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3"
 )
 PROMOTED_WINDOWS_PLAN_SHA256 = (
-    "2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff"
+    "0dfd1982dc1cd7c9d625c4c0546fc20f13fe3c9ae4dc8cbcf8835ff2e6b4e12d"
 )
 WINDOWS_TOOL_SEED_IMPORTS = (
     (
@@ -440,7 +442,7 @@ EXPECTED_LINKS = {
         "runtime",
     ),
 }
-PROMOTED_SOURCES = (
+EARLIER_PROMOTED_SOURCES = (
     ('cupidbuild', '/toolchain/cupidbuild.cc', False),
     ('cupidbuild_host', '/toolchain/cupidbuild_host.cc', False),
     ('cupidbuild_main', '/toolchain/cupidbuild_main.cc', False),
@@ -450,7 +452,7 @@ PROMOTED_SOURCES = (
     ('cupidbuild_artifacts', '/toolchain/cupidbuild_artifacts.cc', False),
     ('artifact_size_policy', '/toolchain/artifact_size_policy.cc', False),
 )
-PROMOTED_CUPIDBUILD_LINK = (
+EARLIER_PROMOTED_CUPIDBUILD_LINK = (
     'start',
     'cupidbuild_main',
     'cupidbuild',
@@ -511,6 +513,9 @@ CANDIDATE_CUPIDBUILD_LINK = (
     "cupidbuild_iso", "cupidbuild_iso_capture", "cupidbuild_iso_image",
     "cupidbuild_iso_publication", "runtime",
 )
+PROMOTED_SOURCES = CANDIDATE_SOURCES
+PROMOTED_CUPIDBUILD_LINK = CANDIDATE_CUPIDBUILD_LINK
+PROMOTED_CUPIDOBJ_LINK = CANDIDATE_CUPIDOBJ_LINK
 REPORT_SCHEMA = "cupid.bootstrap-report.v1"
 WINDOWS_REPORT_SCHEMA = "cupid.windows-bootstrap-report.v1"
 BOOTSTRAP_PUBLICATION_NAMES = (
@@ -610,6 +615,7 @@ class ToolRunner:
                 str(path.resolve()),
             ],
             text=True,
+            encoding="utf-8",
             capture_output=True,
         )
         if result.returncode != 0 or not result.stdout.strip():
@@ -728,6 +734,7 @@ class ToolRunner:
                     operation_error.add_note(
                         f"private checked-tool cleanup also failed: {cleanup_error}"
                     )
+
 
 
 class BootstrapError(RuntimeError):
@@ -852,7 +859,7 @@ def _candidate_build_plan(
             )
         ]
         if tuple(cupidbuild_link) not in (
-            PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK,
+            EARLIER_PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK,
             CANDIDATE_CUPIDBUILD_LINK
         ):
             raise BootstrapError(
@@ -1926,6 +1933,7 @@ def _validate_build_plan(
     expected_links = dict(EXPECTED_LINKS)
     if promoted:
         expected_links["cupidbuild"] = PROMOTED_CUPIDBUILD_LINK
+        expected_links["cupidobj"] = PROMOTED_CUPIDOBJ_LINK
     if set(links) != set(expected_links):
         raise BootstrapError("build plan tool links differ")
     for name, expected in expected_links.items():
@@ -2754,22 +2762,27 @@ def _promoted_windows_imports(
     if type(source_input_count) is not int:
         raise BootstrapError("promoted Windows import profile differs")
     profile = (plan_sha256, source_input_count)
-    if profile == ("70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9", 66):
+    if profile in (("70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9", 66),
+                   ("0787562d0768485fa614c941fc79a7c6e329c64b6956261cca945a95c2ef9f56", 85)):
         return _windows_imports(tool_name)
     if profile in (
         ("a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99", 73),
         ("6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748", 76),
         ("be18b62e78d8259d1586ca20450eadb4901d8a36f26fdc7982db0b3d1aba5224", 80),
+        ("e3bb4c45bb7633d95b205dcbab6405bb569b4cc71965a2eb52b8dfc78e370e18", 90),
     ):
         return _windows_utf8_imports(tool_name)
     if profile in (("5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc", 77),
-                   ("e9efefe58f1d105bbc30874cc8d627a96b2acc2de85a5205fddad99ab159ab11", 81)):
+                   ("e9efefe58f1d105bbc30874cc8d627a96b2acc2de85a5205fddad99ab159ab11", 81),
+                   ("5f6a59e696fb7edafdc5dda0b0cc67aa06550556a39816f27081b5a41a81adfc", 91)):
         return _windows_utf8_imports(tool_name, long_paths=True)
     if profile in (("79241fcdd8784952cf9e1e74907ac817dc83e24429c5625d3424a889c2753d70", 77),
-                   ("f3132b33a0945a6d15484a39c853716468dec96b4d158c4cc550161286092a16", 81)):
+                   ("f3132b33a0945a6d15484a39c853716468dec96b4d158c4cc550161286092a16", 81),
+                   ("d04c045db6492070389894c81364d5a6eada0ee135373f9d2ea1954386aaeb88", 91)):
         return _windows_utf8_imports(tool_name, user_link_aliases=True)
     if profile in (("2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff", 78),
-                   ("1a348ed367f047ac4a67dfc4e819155c0c96e66be19ff216b06d19db3efbe188", 82)):
+                   ("1a348ed367f047ac4a67dfc4e819155c0c96e66be19ff216b06d19db3efbe188", 82),
+                   ("0dfd1982dc1cd7c9d625c4c0546fc20f13fe3c9ae4dc8cbcf8835ff2e6b4e12d", 92)):
         return _windows_utf8_imports(tool_name, long_paths=True, user_link_aliases=True)
     raise BootstrapError("promoted Windows import profile differs")
 
@@ -10120,6 +10133,7 @@ def _bootstrap_from_seed_with_policy(
     compare_fixed_point: bool,
     windows_long_paths: bool = False,
     windows_user_link_aliases: bool = True,
+    release_request: object | None = None,
 ) -> dict[str, object]:
     if type(windows_user_link_aliases) is not bool:
         raise BootstrapError("Windows user-link alias selection must be Boolean")
@@ -10146,7 +10160,9 @@ def _bootstrap_from_seed_with_policy(
             compare_fixed_point=compare_fixed_point,
             windows_long_paths=windows_long_paths,
             windows_user_link_aliases=windows_user_link_aliases,
+            **({"release_request": release_request} if release_request is not None else {}),
         )
+
 
 
 def bootstrap_from_seed(
@@ -10178,6 +10194,7 @@ def _bootstrap_for_manifest_author(
     *,
     windows_long_paths: bool = False,
     windows_user_link_aliases: bool = True,
+    release_request: object | None = None,
 ) -> dict[str, object]:
     if type(windows_user_link_aliases) is not bool:
         raise BootstrapError("Windows user-link alias selection must be Boolean")
@@ -10190,7 +10207,9 @@ def _bootstrap_for_manifest_author(
         windows_long_paths=windows_long_paths,
         windows_user_link_aliases=windows_user_link_aliases,
         compare_fixed_point=False,
+        **({"release_request": release_request} if release_request is not None else {}),
     )
+
 
 
 def _build_parser() -> argparse.ArgumentParser:

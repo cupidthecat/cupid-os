@@ -630,16 +630,61 @@ def _author_request(
 
 
 def _captured_seed_fixture():
-    """Candidate metadata with real installed identities, not a producer proof."""
-    from tools import bootstrap_toolchain as seed
-    document = json.loads((REPO_ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())
-    document["build_plan"] = seed._candidate_build_plan(document["build_plan"])
-    document["build_plan_sha256"] = seed._build_plan_sha256(document["build_plan"])
-    document["provenance"]["source_input_count"] = 82
-    payload = _json_bytes(document)
+    """Frozen historical candidate metadata, not a producer proof."""
+    payload = (REPO_ROOT / "tests/fixtures/toolchain-manifest-abi-candidate-linux-seed.json").read_bytes()
+    document = json.loads(payload)
     observations = [(row["file"], 1, row["size"], row["sha256"])
                     for row in sorted(document["artifacts"], key=lambda row: row["file"])]
     return payload, observations
+
+
+COMPLETE_ISO_OBJECTS = (
+    "iso_fixture_bundle", "cupidbuild_iso", "cupidbuild_iso_capture",
+    "cupidbuild_iso_image", "cupidbuild_iso_publication",
+)
+
+
+def _complete_context_fixture(*, long_paths=False, user_link_aliases=False):
+    from tools import bootstrap_toolchain as seed
+    payload, seed_observations = _captured_seed_fixture()
+    document = json.loads(payload)
+    document["build_plan"] = seed._candidate_build_plan(document["build_plan"])
+    document["build_plan_sha256"] = seed._build_plan_sha256(document["build_plan"])
+    document["provenance"]["source_input_count"] = 92
+    seed_bytes = _json_bytes(document)
+    manifest, observations = _profile_fixture(long_paths=long_paths, user_link_aliases=user_link_aliases)
+    inputs = manifest["bootstrap"]["source_inputs"]
+    for name in COMPLETE_ISO_OBJECTS:
+        for suffix in (".cc", ".h"):
+            path = "toolchain/" + name + suffix
+            actual = (REPO_ROOT / path).read_bytes()
+            inputs["files"][path] = {"size": len(actual), "sha256": _digest(actual)}
+            if suffix == ".h":
+                manifest["inputs"][path] = {"size": len(actual), "sha256": _digest(actual)}
+    manifest["input_count"] = len(manifest["inputs"])
+    inputs["count"] = len(inputs["files"])
+    inputs["sha256"] = _digest(_json_bytes(inputs["files"]))
+    manifest["bootstrap"]["build_plan_sha256"] = document["build_plan_sha256"]
+    manifest["bootstrap"]["seed_manifest"]["sha256"] = _digest(seed_bytes)
+    manifest["tool_fixed_point"]["c_objects"] = 34
+    _matching_object_pairs(manifest)
+    _matching_executable_pairs(manifest)
+    return manifest, observations, seed_bytes, seed_observations
+
+
+def _complete_context_request(mode, *, long_paths=False, user_link_aliases=False,
+                              manifest=None, bootstrap_object_pairs=None, **kwargs):
+    fixture, observations, seed_bytes, seed_observations = _complete_context_fixture(
+        long_paths=long_paths, user_link_aliases=user_link_aliases)
+    if manifest is None:
+        manifest = fixture
+    builder = _author_request if mode == "author" else _request
+    if mode == "author":
+        kwargs["bootstrap_object_pairs"] = (bootstrap_object_pairs if bootstrap_object_pairs is not None else
+            _matching_bootstrap_pairs((*BOOTSTRAP_OBJECT_NAMES, *COMPLETE_ISO_OBJECTS), "bootstrap-object"))
+    classic = builder(manifest=manifest, observations=observations, seed_manifest_bytes=seed_bytes,
+                      seed_observations=seed_observations, **kwargs)
+    return (b"CUPMAN5\0" if mode == "author" else b"CUPMAN6\0") + _seed_context_bytes(seed_bytes) + classic[8:]
 
 
 def _seed_context_bytes(seed_bytes, *, manifest_digest=None, plan_digest=None, facts=None):
@@ -658,12 +703,16 @@ def _seed_context_bytes(seed_bytes, *, manifest_digest=None, plan_digest=None, f
     return bytes(result)
 
 
-def _context_request(mode, *, seed_bytes=None, observations=None, context=None):
+def _context_request(mode, *, seed_bytes=None, observations=None, context=None,
+                     manifest=None, artifact_observations=None):
     if seed_bytes is None or observations is None:
         captured_bytes, captured_observations = _captured_seed_fixture()
         seed_bytes = captured_bytes if seed_bytes is None else seed_bytes
         observations = captured_observations if observations is None else observations
-    manifest, artifact_observations = _fixture()
+    if manifest is None or artifact_observations is None:
+        fixture_manifest, fixture_artifacts = _fixture()
+        manifest = fixture_manifest if manifest is None else manifest
+        artifact_observations = fixture_artifacts if artifact_observations is None else artifact_observations
     manifest["bootstrap"]["seed_manifest"]["sha256"] = _digest(seed_bytes)
     builder = _author_request if mode == "author" else _request
     classic = builder(manifest=manifest, observations=artifact_observations,
@@ -814,6 +863,99 @@ class ToolchainManifestContractTests(unittest.TestCase):
         result = self.run_request(_context_request("check"))
         self.assertEqual((result.returncode, result.stderr), (0, ""))
         self.assertEqual(json.loads(result.stdout)["artifact_count"], 22)
+
+    def test_complete_iso_producer_author_and_verifier_bind_every_profile(self):
+        for long_paths, aliases, count in ((False, False, 90), (True, False, 91),
+                                          (False, True, 91), (True, True, 92)):
+            with self.subTest(long_paths=long_paths, aliases=aliases):
+                manifest, _observations, _seed, _facts = _complete_context_fixture(
+                    long_paths=long_paths, user_link_aliases=aliases)
+                result = self.run_author_request(_complete_context_request(
+                    "author", long_paths=long_paths, user_link_aliases=aliases))
+                self.assertEqual((result.returncode, result.stderr), (0, ""))
+                self.assertEqual(result.stdout.encode("ascii"),
+                    (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode("ascii"))
+                reversed_inputs = [(path, 1, row["size"], row["sha256"])
+                    for path, row in reversed(sorted(manifest["inputs"].items()))]
+                shuffled = self.run_author_request(_complete_context_request("author",
+                    long_paths=long_paths, user_link_aliases=aliases, input_observations=reversed_inputs))
+                self.assertEqual((shuffled.returncode, shuffled.stdout, shuffled.stderr), (0, result.stdout, ""))
+                result = self.run_request(_complete_context_request(
+                    "check", long_paths=long_paths, user_link_aliases=aliases))
+                self.assertEqual((result.returncode, result.stderr), (0, ""))
+                self.assertEqual(json.loads(result.stdout)["bootstrap_source_input_count"], count)
+                reversed_manifest = dict(reversed(list(manifest.items())))
+                result = self.run_request(_complete_context_request("check", long_paths=long_paths,
+                    user_link_aliases=aliases, manifest_bytes=json.dumps(reversed_manifest).encode("ascii")))
+                self.assertEqual((result.returncode, result.stderr), (0, ""))
+
+    def test_complete_iso_producer_rejects_each_missing_or_replaced_input(self):
+        original, _observations, _seed, _facts = _complete_context_fixture()
+        for name in COMPLETE_ISO_OBJECTS:
+            for suffix in (".cc", ".h"):
+                path = "toolchain/" + name + suffix
+                for replacement in (None, "toolchain/unreviewed" + suffix):
+                    manifest = copy.deepcopy(original)
+                    inputs = manifest["bootstrap"]["source_inputs"]
+                    row = inputs["files"].pop(path)
+                    if replacement is not None:
+                        inputs["files"][replacement] = row
+                    inputs["count"] = len(inputs["files"])
+                    inputs["sha256"] = _digest(_json_bytes(inputs["files"]))
+                    for mode in ("author", "check"):
+                        with self.subTest(path=path, replacement=replacement, mode=mode):
+                            run = self.run_author_request if mode == "author" else self.run_request
+                            result = run(_complete_context_request(mode, manifest=manifest))
+                            self.assertEqual(result.returncode, 1, result.stderr)
+                            self.assertEqual(result.stdout, "")
+
+    def test_complete_iso_producer_rejects_each_absent_or_changed_raw_object_pair(self):
+        original = _matching_bootstrap_pairs((*BOOTSTRAP_OBJECT_NAMES, *COMPLETE_ISO_OBJECTS), "bootstrap-object")
+        for name in COMPLETE_ISO_OBJECTS:
+            position = next(index for index, row in enumerate(original) if row[0] == name)
+            row = original[position]
+            missing = original[:position] + original[position + 1:]
+            changed = list(original)
+            changed[position] = (*row[:4], row[4] + b"drift")
+            duplicate = list(original)
+            duplicate[position] = original[0]
+            for pairs in (missing, changed, duplicate):
+                with self.subTest(object=name, pairs=len(pairs), last=pairs[position - 1][0]):
+                    self.assert_author_failure(_complete_context_request("author", bootstrap_object_pairs=pairs))
+        self.assertEqual(self.run_author_request(_complete_context_request("author")).returncode, 0)
+
+    def test_complete_iso_publication_retains_each_new_header_input(self):
+        original, _observations, _seed, _facts = _complete_context_fixture()
+        for name in COMPLETE_ISO_OBJECTS:
+            path = "toolchain/" + name + ".h"
+            for replacement in (None, "toolchain/unreviewed.h"):
+                manifest = copy.deepcopy(original)
+                row = manifest["inputs"].pop(path)
+                if replacement is not None:
+                    manifest["inputs"][replacement] = row
+                manifest["input_count"] = len(manifest["inputs"])
+                for mode in ("author", "check"):
+                    with self.subTest(path=path, replacement=replacement, mode=mode):
+                        run = self.run_author_request if mode == "author" else self.run_request
+                        result = run(_complete_context_request(mode, manifest=manifest))
+                        self.assertEqual(result.returncode, 1, result.stderr)
+                        self.assertEqual(result.stdout, "")
+
+    def test_complete_iso_producer_rejects_mixed_plan_count_and_classic_envelopes(self):
+        original, observations, seed_bytes, seed_observations = _complete_context_fixture()
+        for field, value in (("plan", BUILD_PLAN_SHA256), ("count", 29), ("count", 33), ("count", 35)):
+            manifest = copy.deepcopy(original)
+            if field == "plan":
+                manifest["bootstrap"]["build_plan_sha256"] = value
+            else:
+                manifest["tool_fixed_point"]["c_objects"] = value
+            with self.subTest(field=field, value=value):
+                self.assert_contract_failure(_complete_context_request("check", manifest=manifest))
+        self.assert_author_failure(_author_request(manifest=original, observations=observations,
+            seed_manifest_bytes=seed_bytes, seed_observations=seed_observations,
+            bootstrap_object_pairs=_matching_bootstrap_pairs((*BOOTSTRAP_OBJECT_NAMES, *COMPLETE_ISO_OBJECTS), "bootstrap-object")))
+        self.assert_contract_failure(_request(manifest=original, observations=observations,
+            seed_manifest_bytes=seed_bytes, seed_observations=seed_observations))
 
     def test_captured_seed_context_still_binds_raw_manifest_and_each_tool_fact(self):
         seed_bytes, observations = _captured_seed_fixture()
@@ -1925,12 +2067,122 @@ class ToolchainManifestContractTests(unittest.TestCase):
                         _author_request(manifest=manifest, observations=observations)
                     )
 
+    def _release_inventory_fixture(self):
+        manifest, observations = _fixture()
+        for name in ("tools/__init__.py", "tools/bootstrap_user_abi.py",
+                     "tools/bootstrap_stage_release.py", "tools/seed_release_identity.py"):
+            manifest["inputs"][name] = _digest_size("input:" + name, 37)
+        manifest["input_count"] = len(manifest["inputs"])
+        return manifest, observations
+
+
+    def test_captured_author_and_verifier_bind_complete_release_inventory(self):
+        manifest, observations = self._release_inventory_fixture()
+        authored = self.run_author_request(_context_request("author", manifest=manifest,
+                                                             artifact_observations=observations))
+        self.assertEqual(authored.returncode, 0, authored.stderr)
+        self.assertEqual(authored.stdout, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+        verified = self.run_request(_context_request("check", manifest=manifest,
+                                                     artifact_observations=observations))
+        self.assertEqual(verified.returncode, 0, verified.stderr)
+        self.assertEqual(json.loads(verified.stdout)["input_count"], 96)
+        seed_bytes, seed_observations = _captured_seed_fixture()
+        for field in ("size", "sha256"):
+            changed = copy.deepcopy(manifest)
+            row = changed["inputs"]["tools/bootstrap_stage_release.py"]
+            row[field] = row[field] + 1 if field == "size" else "0" * 64
+            # Independent live observations must describe the original input.
+            classic = _request(manifest=changed, observations=observations,
+                input_observations=[(name, 1, record["size"], record["sha256"])
+                                    for name, record in sorted(manifest["inputs"].items())],
+                seed_manifest_bytes=seed_bytes, seed_observations=seed_observations)
+            payload = b"CUPMAN6\0" + _seed_context_bytes(seed_bytes) + classic[8:]
+            with self.subTest(field=field):
+                self.assert_contract_failure(payload)
+
+
+    def test_release_inventory_requires_captured_context_and_exact_membership(self):
+        manifest, observations = self._release_inventory_fixture()
+        self.assert_author_failure(_author_request(manifest=manifest, observations=observations))
+        self.assert_contract_failure(_request(manifest=manifest, observations=observations))
+        for mutation in ("missing", "extra", "substitute"):
+            changed = copy.deepcopy(manifest)
+            if mutation != "extra":
+                changed["inputs"].pop("tools/bootstrap_stage_release.py")
+            if mutation != "missing":
+                changed["inputs"]["tools/unreviewed_behavior.py"] = _digest_size("unknown", 7)
+            changed["input_count"] = len(changed["inputs"])
+            with self.subTest(mutation=mutation):
+                self.assert_author_failure(_context_request("author", manifest=changed,
+                                                            artifact_observations=observations))
+                self.assert_contract_failure(_context_request("check", manifest=changed,
+                                                               artifact_observations=observations))
+        good = self.run_author_request(_context_request("author", manifest=manifest,
+                                                         artifact_observations=observations))
+        self.assertEqual(good.returncode, 0, good.stderr)
+
+
     def test_publication_inventory_matches_real_contract_inputs(self):
         actual = {
             path.relative_to(REPO_ROOT).as_posix()
             for path in cupidc_toolchain_contracts._contract_input_paths(REPO_ROOT)
         }
-        self.assertEqual(set(INPUT_PATHS), actual)
+        self.assertEqual({*INPUT_PATHS, *["toolchain/" + name + ".h" for name in COMPLETE_ISO_OBJECTS],
+                          "tools/__init__.py", "tools/bootstrap_user_abi.py",
+                          "tools/bootstrap_stage_release.py", "tools/seed_release_identity.py"}, actual)
+        self.assertEqual(len(actual), 101)
+
+    def _complete_release_inventory_fixture(self, **profile):
+        manifest, observations, seed_bytes, seed_observations = _complete_context_fixture(**profile)
+        for name in ("tools/__init__.py", "tools/bootstrap_user_abi.py",
+                     "tools/bootstrap_stage_release.py", "tools/seed_release_identity.py"):
+            payload = (REPO_ROOT / name).read_bytes()
+            manifest["inputs"][name] = {"size": len(payload), "sha256": _digest(payload)}
+        manifest["input_count"] = len(manifest["inputs"])
+        return manifest, observations, seed_bytes, seed_observations
+
+    def test_complete_iso_authority_inventory_binds_every_profile(self):
+        for long_paths, aliases in ((False, False), (True, False), (False, True), (True, True)):
+            profile = {"long_paths": long_paths, "user_link_aliases": aliases}
+            manifest, _observations, _seed, _facts = self._complete_release_inventory_fixture(**profile)
+            with self.subTest(**profile):
+                self.assertEqual(manifest["input_count"], 101)
+                authored = self.run_author_request(_complete_context_request("author", manifest=manifest, **profile))
+                self.assertEqual(authored.returncode, 0, authored.stderr)
+                self.assertEqual(authored.stdout, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+                reordered = dict(reversed(list(manifest.items())))
+                verified = self.run_request(_complete_context_request("check", manifest=reordered, **profile))
+                self.assertEqual(verified.returncode, 0, verified.stderr)
+                self.assertEqual(json.loads(verified.stdout)["input_count"], 101)
+
+    def test_complete_iso_authority_inventory_rejects_each_missing_replaced_or_changed_dependency(self):
+        original, observations, seed_bytes, seed_observations = self._complete_release_inventory_fixture()
+        paths = ("tools/__init__.py", "tools/bootstrap_user_abi.py",
+                 "tools/bootstrap_stage_release.py", "tools/seed_release_identity.py")
+        for name in paths:
+            for replacement in (None, "tools/unreviewed_authority.py"):
+                changed = copy.deepcopy(original)
+                row = changed["inputs"].pop(name)
+                if replacement is not None:
+                    changed["inputs"][replacement] = row
+                changed["input_count"] = len(changed["inputs"])
+                for mode in ("author", "check"):
+                    with self.subTest(path=name, replacement=replacement, mode=mode):
+                        run = self.run_author_request if mode == "author" else self.run_request
+                        result = run(_complete_context_request(mode, manifest=changed))
+                        self.assertEqual(result.returncode, 1, result.stderr)
+                        self.assertEqual(result.stdout, "")
+            for field in ("size", "sha256"):
+                changed = copy.deepcopy(original)
+                row = changed["inputs"][name]
+                row[field] = row[field] + 1 if field == "size" else "0" * 64
+                classic = _request(manifest=changed, observations=observations,
+                    input_observations=[(path, 1, record["size"], record["sha256"])
+                                        for path, record in sorted(original["inputs"].items())],
+                    seed_manifest_bytes=seed_bytes, seed_observations=seed_observations)
+                with self.subTest(path=name, field=field):
+                    self.assert_contract_failure(b"CUPMAN6\0" + _seed_context_bytes(seed_bytes) + classic[8:])
+        self.assertEqual(self.run_author_request(_complete_context_request("author", manifest=original)).returncode, 0)
 
     def test_user_link_bridge_cannot_be_substituted(self):
         manifest, observations = _fixture()

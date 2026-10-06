@@ -25,22 +25,22 @@
       "file": "cupidobj.elf",
       "name": "cupidobj",
       "producer": false,
-      "sha256": "abc24e070af42645e0dde4c4c187ceffeda93dc8910446729b921e33d8f85c02",
-      "size": 413720
+      "sha256": "71bd0b8d0c651fa37efd311c84bfbd63919b32f01fedf352fda0aee4c5cb59ea",
+      "size": 397112
     },
     {
       "file": "cupidc.elf",
       "name": "cupidc",
       "producer": true,
-      "sha256": "cf13865f22d3ea2a88181826bf75017f296b0cbe5d1a13791993e836e948b574",
+      "sha256": "6ed09ebdad145732b70a9ea59c22c20849ec139d4b00d9cc48d1be684adaff87",
       "size": 2700308
     },
     {
       "file": "cupidbuild.elf",
       "name": "cupidbuild",
       "producer": false,
-      "sha256": "b58413e32b2f09baad0e2a93a60640137928b0f01a4fa6c40262e92c8240332f",
-      "size": 1106552
+      "sha256": "ea85e0d709f5e83506043b1c9f75bba8d0ef281ea722d893b778acd82a3c74d7",
+      "size": 930188
     }
   ],
   "build_plan": {
@@ -74,13 +74,6 @@
         "contract_parse_internal",
         "cupidbuild_artifacts",
         "artifact_size_policy",
-        "user_syscall_abi",
-        "cupidbuild_user_abi",
-        "iso_fixture_bundle",
-        "cupidbuild_iso",
-        "cupidbuild_iso_capture",
-        "cupidbuild_iso_image",
-        "cupidbuild_iso_publication",
         "runtime"
       ],
       "cupidc": [
@@ -120,7 +113,6 @@
         "start",
         "cupidobj_main",
         "cupidobj",
-        "iso_fixture_bundle",
         "ctool_host",
         "ctool",
         "elf32",
@@ -267,62 +259,27 @@
         "gnu_extensions": false,
         "name": "artifact_size_policy",
         "path": "/toolchain/artifact_size_policy.cc"
-      },
-      {
-        "gnu_extensions": false,
-        "name": "user_syscall_abi",
-        "path": "/toolchain/user_syscall_abi.cc"
-      },
-      {
-        "gnu_extensions": false,
-        "name": "cupidbuild_user_abi",
-        "path": "/toolchain/cupidbuild_user_abi.cc"
-      },
-      {
-        "gnu_extensions": false,
-        "name": "iso_fixture_bundle",
-        "path": "/toolchain/iso_fixture_bundle.cc"
-      },
-      {
-        "gnu_extensions": false,
-        "name": "cupidbuild_iso",
-        "path": "/toolchain/cupidbuild_iso.cc"
-      },
-      {
-        "gnu_extensions": false,
-        "name": "cupidbuild_iso_capture",
-        "path": "/toolchain/cupidbuild_iso_capture.cc"
-      },
-      {
-        "gnu_extensions": false,
-        "name": "cupidbuild_iso_image",
-        "path": "/toolchain/cupidbuild_iso_image.cc"
-      },
-      {
-        "gnu_extensions": false,
-        "name": "cupidbuild_iso_publication",
-        "path": "/toolchain/cupidbuild_iso_publication.cc"
       }
     ],
     "startup": "/toolchain/hosted/i386-linux/start.asm",
     "workers": 2
   },
-  "build_plan_sha256": "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3",
+  "build_plan_sha256": "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5",
   "provenance": {
     "artifact_generation": "paired-stage-four-six-tool",
     "fixed_point_command": "make bootstrap-from-seed",
     "fixed_point_result": "pass",
-    "parent_seed_manifest_sha256": "59c5c33672ee5839efd5a27cc1b90c090984fcf0be74d3fcb7418f68215aa2f7",
-    "parent_seed_source_revision": "cfd9f140fd295284372beaee48b85c9320f7d144",
+    "parent_seed_manifest_sha256": "b6f247af2034d7432333eed74230452fede2198ba744c30a5c410ce19c4b79b4",
+    "parent_seed_source_revision": "78e71bd6137042720c378d2c596aa40b153dad11",
     "producer_lineage": {
       "assembly": "stage-three CupidASM from the checked-seed bootstrap",
       "c": "stage-three CupidC from the checked-seed bootstrap",
       "link": "stage-three CupidLD from the checked-seed bootstrap"
     },
     "seed_generation": "stage-four",
-    "source_input_count": 92,
-    "source_revision": "344a9eeec2bbdf2fdc28e4d425139ff77f08a792",
-    "source_snapshot_sha256": "829f923bdfefcfab5d1d9b2caacb466853a1c21ca1537a6517ddf83e1a6f7d4d"
+    "source_input_count": 78,
+    "source_revision": "cfd9f140fd295284372beaee48b85c9320f7d144",
+    "source_snapshot_sha256": "83108f0340f8fb1922743ada44c4f5154b06f49c6b7ffa05034b32e98f2096a6"
   },
   "schema": "cupid.bootstrap-seed.v2",
   "target": {

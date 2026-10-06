@@ -18,6 +18,9 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Sequence
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 try:
     from tools.bootstrap_toolchain import (
         BootstrapError,
@@ -95,6 +98,10 @@ CONTRACT_QUOTED_INCLUDE_ROOTS = {
     "toolchain/tests/x86_contract.cc": ("/toolchain/tests",),
 }
 CONTRACT_CONTROL_INPUTS = (
+    "tools/__init__.py",
+    "tools/bootstrap_stage_release.py",
+    "tools/bootstrap_user_abi.py",
+    "tools/seed_release_identity.py",
     "toolchain/Makefile",
     "toolchain/contract_parse_internal.cc",
     "toolchain/contract_parse_internal.h",
@@ -103,6 +110,7 @@ CONTRACT_CONTROL_INPUTS = (
     "tools/cupidc_toolchain_contracts.py",
     "tools/user_syscall_abi.py",
 )
+
 MANIFEST_AUTHOR_SOURCE = "toolchain/tests/toolchain_manifest_contract.cc"
 MANIFEST_AUTHOR_MAGIC = b"CUPMAN4\0"
 MANIFEST_CAPTURED_AUTHOR_MAGIC = b"CUPMAN5\0"
@@ -2041,6 +2049,8 @@ def publish_directory(
     output: Path,
     required_names: Sequence[str],
     source_root: Path,
+    *,
+    behavior_request: object | None = None,
 ) -> None:
     required = set(required_names)
     if staging.is_symlink() or not staging.is_dir():
@@ -2060,6 +2070,7 @@ def publish_directory(
     )
     if backup.exists() or backup.is_symlink():
         raise ContractError("contract publication backup already exists")
+    _require_behavior_request_live(behavior_request)
     moved_old = False
     try:
         if output.exists():
@@ -2099,6 +2110,42 @@ def publish_directory(
             )
 
 
+
+def _capture_behavior_request(root, manifest, behavior_release):
+    if behavior_release is None:
+        return None
+    try:
+        try:
+            from tools.bootstrap_stage_release import capture_seed_behavior_release
+        except ModuleNotFoundError:
+            from bootstrap_stage_release import capture_seed_behavior_release
+        path, _relative = _resolve_manifest(root, behavior_release)
+        return capture_seed_behavior_release(path, verify_seed_inputs(manifest))
+    except (BootstrapError, ContractError, OSError) as error:
+        raise ContractError(f"behavior release is invalid: {error}") from error
+
+
+
+def _require_behavior_publication_tools(report, request):
+    if request is None:
+        return
+    expected = {TOOL_PUBLIC_NAMES[role]: {"size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+                for role, data in request.linux_seed.artifact_bytes}
+    actual = {row["path"]: {"size": row["size"], "sha256": row["sha256"]}
+              for row in report["artifacts"] if row["path"] in expected}
+    if actual != expected:
+        raise ContractError("published behavior tools differ from reviewed seed cohort")
+
+
+
+def _require_behavior_request_live(request):
+    if request is not None:
+        try:
+            request.require_live()
+        except (BootstrapError, OSError) as error:
+            raise ContractError(f"behavior release changed before publication: {error}") from error
+
+
 def build_contracts(
     root: Path,
     manifest: Path,
@@ -2107,6 +2154,7 @@ def build_contracts(
     *,
     windows_long_paths: bool = False,
     windows_user_link_aliases: bool = True,
+    behavior_release: Path | None = None,
 ) -> dict[str, object]:
     if type(windows_user_link_aliases) is not bool:
         raise ContractError("Windows user-link alias selection must be Boolean")
@@ -2120,6 +2168,7 @@ def build_contracts(
     if not (root / "toolchain").is_dir():
         raise ContractError(f"source root has no toolchain: {root}")
     output = _validate_output_target(root, output)
+    behavior_request = _capture_behavior_request(root, manifest, behavior_release)
 
     inputs = _contract_input_paths(root)
     snapshot = _snapshot_contract_inputs(root, inputs)
@@ -2137,12 +2186,14 @@ def build_contracts(
                 bootstrap_output,
                 **({"windows_long_paths": True} if windows_long_paths else {}),
                 windows_user_link_aliases=windows_user_link_aliases,
+                **({"release_request": behavior_request} if behavior_request is not None else {}),
             )
         except BootstrapError as error:
             raise ContractError(
                 f"checked bootstrap failed: {error}"
             ) from error
         _announce("checked-seed bootstrap completed")
+        _require_behavior_request_live(behavior_request)
 
         bootstrap_inputs = bootstrap_report.get("source_inputs")
         if (
@@ -2205,6 +2256,7 @@ def build_contracts(
         _announce("hosted runtime contract passed")
         _require_inputs_unchanged(root, snapshot)
         _announce("live inputs still match the frozen build")
+        _require_behavior_request_live(behavior_request)
 
         publication = workspace / "publication"
         publication.mkdir()
@@ -2328,12 +2380,16 @@ def build_contracts(
         report_path.write_bytes(authored_report)
         verify_publication(publication)
         verify_publication_inputs(root, report)
+        _require_behavior_publication_tools(report, behavior_request)
+        _require_behavior_request_live(behavior_request)
         required_names = _expected_artifact_names() + ("manifest.json",)
         publish_directory(
-            publication, output, required_names, root
+            publication, output, required_names, root,
+            **({"behavior_request": behavior_request} if behavior_request is not None else {}),
         )
         _announce("published the complete contract cohort")
         return report
+
 
 
 def ensure_contracts(
@@ -2344,6 +2400,7 @@ def ensure_contracts(
     *,
     windows_long_paths: bool = False,
     windows_user_link_aliases: bool = True,
+    behavior_release: Path | None = None,
 ) -> dict[str, object]:
     if type(windows_user_link_aliases) is not bool:
         raise ContractError("Windows user-link alias selection must be Boolean")
@@ -2356,11 +2413,13 @@ def ensure_contracts(
         raise ContractError(f"source root has no toolchain: {root}")
     manifest, manifest_relative = _resolve_manifest(root, manifest)
     output = _validate_output_target(root, output)
+    behavior_request = _capture_behavior_request(root, manifest, behavior_release)
     if output.exists() or output.is_symlink():
         try:
             report = verify_publication(output)
             verify_publication_inputs(root, report)
             _require_report_manifest(report, manifest, manifest_relative)
+            _require_behavior_publication_tools(report, behavior_request)
             if ("toolchain/hosted/i386-windows/utf8_long_path_start.asm"
                     in report["bootstrap"]["source_inputs"]["files"]) != windows_long_paths:
                 raise ContractError("published Windows long-path profile differs")
@@ -2370,11 +2429,15 @@ def ensure_contracts(
         except ContractError:
             _announce("the published cohort is stale and will be rebuilt")
         else:
+            _require_behavior_request_live(behavior_request)
             _announce("the published cohort is current")
             return report
+    _require_behavior_request_live(behavior_request)
     return build_contracts(root, manifest, output, workers,
         **({"windows_long_paths": True} if windows_long_paths else {}),
-        windows_user_link_aliases=windows_user_link_aliases)
+        windows_user_link_aliases=windows_user_link_aliases,
+        **({"behavior_release": behavior_release} if behavior_release is not None else {}))
+
 
 
 def run_published_contract(
@@ -2803,6 +2866,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     build.add_argument("--root", required=True, type=Path)
     build.add_argument("--manifest", required=True, type=Path)
+    build.add_argument("--behavior-release", type=Path,
+                       help="reuse an explicitly reviewed, byte-identical seed cohort for behavior")
     build.add_argument("--output", required=True, type=Path)
     build.add_argument("--workers", type=int, default=2)
     build.add_argument("--windows-long-paths", action="store_true")
@@ -2812,6 +2877,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     ensure.add_argument("--root", required=True, type=Path)
     ensure.add_argument("--manifest", required=True, type=Path)
+    ensure.add_argument("--behavior-release", type=Path,
+                        help="reuse an explicitly reviewed, byte-identical seed cohort for behavior")
     ensure.add_argument("--output", required=True, type=Path)
     ensure.add_argument("--workers", type=int, default=2)
     ensure.add_argument("--windows-long-paths", action="store_true")
@@ -2843,6 +2910,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+
 def main(argv: list[str] | None = None) -> int:
     arguments = _build_parser().parse_args(argv)
     try:
@@ -2859,6 +2927,7 @@ def main(argv: list[str] | None = None) -> int:
                 arguments.workers,
                 windows_long_paths=arguments.windows_long_paths,
                 windows_user_link_aliases=arguments.windows_user_link_aliases,
+                **({"behavior_release": arguments.behavior_release} if arguments.behavior_release is not None else {}),
             )
             print(
                 "CupidC toolchain contracts: ok "
@@ -2873,6 +2942,7 @@ def main(argv: list[str] | None = None) -> int:
                 arguments.workers,
                 windows_long_paths=arguments.windows_long_paths,
                 windows_user_link_aliases=arguments.windows_user_link_aliases,
+                **({"behavior_release": arguments.behavior_release} if arguments.behavior_release is not None else {}),
             )
             print(
                 "CupidC toolchain contracts: ready "
@@ -2915,6 +2985,7 @@ def main(argv: list[str] | None = None) -> int:
     except (BootstrapError, ContractError, OSError) as error:
         print(f"CupidC toolchain contracts failed: {error}", file=sys.stderr)
         return 1
+
 
 
 if __name__ == "__main__":

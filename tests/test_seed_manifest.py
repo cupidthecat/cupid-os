@@ -10,10 +10,36 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from tests.test_seed_release import DRAFT, ROOT, encode, _host_compiler, release
-from tests.test_seed_release_match import manifest
+from tests.test_seed_release import DRAFT, ROOT, encode, _host_compiler, release as installed_release
+from tests.test_seed_release_match import manifest as installed_manifest
 from tools import bootstrap_toolchain as seed
 
+
+
+
+def manifest(fmt):
+    """Retain the historical plan and provenance with current image facts."""
+    host = "linux" if fmt == 1 else "windows"
+    fixture = ROOT / ("tests/fixtures/seed-manifest-pre-iso-" + host + ".json")
+    value = json.loads(fixture.read_bytes())
+    value["artifacts"] = installed_manifest(fmt)["artifacts"]
+    return value
+
+
+def release():
+    """Describe that historical contract without changing installed release pins."""
+    record = installed_release()
+    linux, windows = manifest(1), manifest(2)
+    provenance = linux["provenance"]
+    record.update(source_revision=provenance["source_revision"],
+                  source_snapshot_sha256=provenance["source_snapshot_sha256"],
+                  source_input_count=provenance["source_input_count"],
+                  parent_source_revision=provenance["parent_seed_source_revision"],
+                  parent_linux_manifest_sha256=provenance["parent_seed_manifest_sha256"],
+                  parent_windows_manifest_sha256=windows["provenance"]["parent_execution_seed_manifest_sha256"],
+                  linux_plan_sha256=linux["build_plan_sha256"],
+                  windows_plan_sha256=windows["provenance"]["native_build_plan_sha256"])
+    return record
 
 
 def pre_artifact_plan():
@@ -268,25 +294,22 @@ class ManifestTests(unittest.TestCase):
     def test_installed_long_default_retarget_records_actual_parents_and_is_strictly_rejected(self):
         windows = seed.verify_seed_inputs(ROOT / "bootstrap/seeds/i386-windows/manifest.json")
         linux = seed.verify_seed_inputs(ROOT / "bootstrap/seeds/i386-linux/manifest.json")
-        self.assertEqual(windows.manifest["provenance"]["source_input_count"], 78)
+        self.assertEqual(windows.manifest["provenance"]["source_input_count"], seed.PROMOTED_SOURCE_INPUT_COUNT)
         plan = copy.deepcopy(linux.manifest["build_plan"])
         snapshot = seed.capture_source_snapshot(ROOT, plan, windows_utf8=True, windows_user_link_aliases=True)
-        snapshot = {path: row for path, row in snapshot.items()
-                    if path not in ("toolchain/user_syscall_abi.h", "toolchain/cupidbuild_user_abi.h",
-                                    "toolchain/cupidbuild_iso_publication.h")}
-        self.assertEqual(len(snapshot), 81)
+        self.assertEqual(len(snapshot), 91)
         digest = seed._build_plan_sha256(seed._windows_build_plan(plan, utf8=True, user_link_aliases=True))
         changed = seed._retarget_native_windows_behavior_seed(windows, digest, plan, snapshot,
             utf8=True, user_link_aliases=True, parent_plan_seed=linux)
         self.assertIsNot(changed, windows)
         provenance = changed.manifest["provenance"]
-        self.assertEqual(provenance["source_input_count"], 81)
+        self.assertEqual(provenance["source_input_count"], 91)
         self.assertEqual(provenance["native_build_plan_sha256"], digest)
         self.assertEqual(provenance["parent_execution_seed_manifest_sha256"], windows.manifest_sha256)
         self.assertEqual(provenance["parent_plan_seed_manifest_sha256"], linux.manifest_sha256)
         self.assertEqual(provenance["parent_execution_seed_source_revision"], windows.manifest["provenance"]["source_revision"])
         self.assertEqual(provenance["parent_plan_seed_source_revision"], linux.manifest["provenance"]["source_revision"])
-        self.check(windows.manifest, 2)
+        self.check_release(installed_release(), windows.manifest, 2, expected=(6, 5))
         self.check(changed.manifest, 2, False)
         data = encode(changed.manifest)
         incoming = ctypes.create_string_buffer(data)
@@ -294,7 +317,7 @@ class ManifestTests(unittest.TestCase):
         result = Result()
         self.assertEqual(self.api(incoming, len(data), 2, ctypes.byref(result), error, len(error)), 0)
         self.assertIn(b"fixed-point provenance differs", error.value)
-        self.check(windows.manifest, 2)
+        self.check_release(installed_release(), windows.manifest, 2, expected=(6, 5))
 
     def test_explicit_release_retains_strict_historical_reader(self):
         from tests.test_seed_pair import released_alias_pair
