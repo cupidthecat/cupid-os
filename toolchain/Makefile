@@ -199,6 +199,8 @@ CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.cc artifact_size_policy.h con
                               cupidbuild_user_abi.cc cupidbuild_user_abi.h \
                               user_syscall_abi.cc user_syscall_abi.h \
                               cupidbuild_host.cc cupidbuild_host.h \
+                              cupidbuild_iso.h cupidbuild_iso_capture.h \
+                              cupidbuild_iso_image.h \
                               cupidbuild_main.cc \
                               cupidc_pp.cc cupidc_pp.h \
                               cupidc_type.cc cupidc_type.h \
@@ -209,6 +211,7 @@ CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.cc artifact_size_policy.h con
                               cupiddis.cc cupiddis.h cupiddis_main.cc \
                               cupidld.cc cupidld.h cupidld_main.cc \
                               cupidobj.cc cupidobj.h cupidobj_main.cc \
+                              iso_fixture_bundle.cc iso_fixture_bundle.h \
                               $(CUPIDC_HOSTED_I386_HEADERS) \
                               $(CUPIDC_HOSTED_I386_RUNTIME)
 CUPIDC_CONTRACT_SOURCES := tests/core_contract.cc \
@@ -236,6 +239,8 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS := \
 	seed_manifest.h seed_release.h \
 	ctool.h ctool_host.h cupidasm.h cupidbuild.h cupidbuild_host.h \
 	cupidbuild_artifacts.h cupidbuild_user_abi.h user_syscall_abi.h \
+	cupidbuild_iso.h cupidbuild_iso_capture.h cupidbuild_iso_image.h \
+	iso_fixture_bundle.h \
 	cupidc_emit.h \
 	cupidc_frontend.h cupidc_ir.h cupidc_pp.h cupidc_type.h \
 	cupiddis.h cupidld.h cupidobj.h elf32.h pe32.h pe32_impl.h x86.h \
@@ -359,7 +364,7 @@ CUPIDOBJ_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                             $(BUILD_DIR)/cupidobj_contract.o
 CUPIDOBJ_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                     $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidobj.o \
-                    $(BUILD_DIR)/cupidobj_main.o
+                    $(BUILD_DIR)/iso_fixture_bundle.o $(BUILD_DIR)/cupidobj_main.o
 CUPIDLD_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                            $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidld.o \
                            $(BUILD_DIR)/cupidld_contract.o
@@ -522,7 +527,10 @@ $(BUILD_DIR)/cupidasm_main.o: cupidasm_main.cc cupidasm.h ctool_host.h ctool.h e
 $(BUILD_DIR)/cupidobj.o: cupidobj.cc cupidobj.h elf32.h ctool.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidobj_main.o: cupidobj_main.cc cupidobj.h ctool_host.h ctool.h elf32.h | $(BUILD_DIR)
+$(BUILD_DIR)/iso_fixture_bundle.o: iso_fixture_bundle.cc iso_fixture_bundle.h cupidobj.h ctool.h elf32.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/cupidobj_main.o: cupidobj_main.cc cupidobj.h iso_fixture_bundle.h ctool_host.h ctool.h elf32.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidld.o: cupidld.cc cupidld.h elf32.h ctool.h | $(BUILD_DIR)

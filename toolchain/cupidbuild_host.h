@@ -68,6 +68,8 @@ int cupidbuild_host_absolute_root(const char *root, char *output, size_t capacit
  * require_unchanged cannot subsequently succeed. Close accepts NULL and reports
  * handle-close failures. Root identity, link count, size and modification time
  * are retained at open and rechecked; other directories retain identity only.
+ * Repeated ancestor directories are reused only after a fresh binding and
+ * original-handle identity check; explicit leaves remain separate observations.
  * Limits: 4096 retained handles, 4096 expected names in
  * total, 8191 path bytes, and 1023 bytes per UTF-8 component.
  */
@@ -83,6 +85,20 @@ int cupidbuild_host_observer_open(const char *repository_root,
 int cupidbuild_host_observer_file(cupidbuild_host_observer_t *observer,
                                  const char *logical, size_t limit,
                                  unsigned char **bytes_out, uint64_t *size_out);
+typedef enum {
+  CUPIDBUILD_ENTRY_NONE = 0,
+  CUPIDBUILD_ENTRY_FILE = 1,
+  CUPIDBUILD_ENTRY_DIRECTORY = 2
+} cupidbuild_host_entry_kind_t;
+/* Retain a regular file or directory without reading payload or membership.
+ * An empty logical path selects the retained repository root. kind_out is
+ * required and is cleared on failure. Links and special files fail and poison
+ * the observer. Final validation retains the same metadata and parent-binding
+ * checks as explicit file/directory observations. Capture file bytes or exact
+ * directory membership separately when those facts are required. */
+int cupidbuild_host_observer_kind(cupidbuild_host_observer_t *observer,
+                                 const char *logical,
+                                 cupidbuild_host_entry_kind_t *kind_out);
 typedef enum {
   CUPIDBUILD_OBSERVATION_OK = 0,
   CUPIDBUILD_OBSERVATION_UNAVAILABLE = 1,

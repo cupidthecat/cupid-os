@@ -161,6 +161,9 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/cupidbuild.h",
     "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.h",
+    "toolchain/cupidbuild_iso.h",
+    "toolchain/cupidbuild_iso_capture.h",
+    "toolchain/cupidbuild_iso_image.h",
     "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
@@ -193,6 +196,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-windows/utf8_publication_start.asm",
     "toolchain/hosted/i386-windows/utf8_tool_start.asm",
     "toolchain/hosted/i386-windows/windows_utf8.cc",
+    "toolchain/iso_fixture_bundle.h",
     "toolchain/native_utf8.h",
     "toolchain/path_encoding.cc",
     "toolchain/path_encoding.h",
@@ -256,6 +260,9 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.cc",
     "toolchain/cupidbuild_host.h",
+    "toolchain/cupidbuild_iso.h",
+    "toolchain/cupidbuild_iso_capture.h",
+    "toolchain/cupidbuild_iso_image.h",
     "toolchain/cupidbuild_main.cc",
     "toolchain/cupidbuild_user_abi.cc",
     "toolchain/cupidbuild_user_abi.h",
@@ -304,6 +311,8 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/hosted/i386-windows/utf8_publication_start.asm",
     "toolchain/hosted/i386-windows/utf8_tool_start.asm",
     "toolchain/hosted/i386-windows/windows_utf8.cc",
+    "toolchain/iso_fixture_bundle.cc",
+    "toolchain/iso_fixture_bundle.h",
     "toolchain/native_utf8.h",
     "toolchain/path_encoding.cc",
     "toolchain/path_encoding.h",
@@ -467,6 +476,9 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/cupidbuild.h",
     "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.h",
+    "toolchain/cupidbuild_iso.h",
+    "toolchain/cupidbuild_iso_capture.h",
+    "toolchain/cupidbuild_iso_image.h",
     "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
@@ -499,6 +511,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-windows/utf8_publication_start.asm",
     "toolchain/hosted/i386-windows/utf8_tool_start.asm",
     "toolchain/hosted/i386-windows/windows_utf8.cc",
+    "toolchain/iso_fixture_bundle.h",
     "toolchain/native_utf8.h",
     "toolchain/path_encoding.cc",
     "toolchain/path_encoding.h",
@@ -562,6 +575,9 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.cc",
     "toolchain/cupidbuild_host.h",
+    "toolchain/cupidbuild_iso.h",
+    "toolchain/cupidbuild_iso_capture.h",
+    "toolchain/cupidbuild_iso_image.h",
     "toolchain/cupidbuild_main.cc",
     "toolchain/cupidbuild_user_abi.cc",
     "toolchain/cupidbuild_user_abi.h",
@@ -610,6 +626,8 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/hosted/i386-windows/utf8_publication_start.asm",
     "toolchain/hosted/i386-windows/utf8_tool_start.asm",
     "toolchain/hosted/i386-windows/windows_utf8.cc",
+    "toolchain/iso_fixture_bundle.cc",
+    "toolchain/iso_fixture_bundle.h",
     "toolchain/native_utf8.h",
     "toolchain/path_encoding.cc",
     "toolchain/path_encoding.h",
@@ -1014,7 +1032,7 @@ _C_PP_ACTIVE_COUNTS = {
     "CUPID_RUNTIME": 108,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
-    "HOSTED_I386_LINUX": 45,
+    "HOSTED_I386_LINUX": 46,
     "HOSTED_I386_WINDOWS": 9,
     "HOSTED_I386_KERNEL_BRIDGE": 2,
     "HOSTED_I386_LINUX_GNU": 3,
@@ -1048,6 +1066,7 @@ _C_PP_HOSTED_I386_STRICT_CASES = (
     "/toolchain/cupidld_main.cc",
     "/toolchain/cupidobj.cc",
     "/toolchain/cupidobj_main.cc",
+    "/toolchain/iso_fixture_bundle.cc",
     "/toolchain/elf32.cc",
     "/toolchain/seed_manifest.cc",
     "/toolchain/seed_release.cc",
@@ -11708,6 +11727,7 @@ def _cupid_toolchain_fixed_point_contract(
         ("cupiddis_main", "/toolchain/cupiddis_main.cc", False),
         ("cupidobj", "/toolchain/cupidobj.cc", False),
         ("cupidobj_main", "/toolchain/cupidobj_main.cc", False),
+        ("iso_fixture_bundle", "/toolchain/iso_fixture_bundle.cc", False),
         ("cupidld", "/toolchain/cupidld.cc", False),
         ("cupidld_main", "/toolchain/cupidld_main.cc", False),
         ("cupidc_pp", "/toolchain/cupidc_pp.cc", False),
@@ -11782,6 +11802,7 @@ def _cupid_toolchain_fixed_point_contract(
                 "start",
                 "cupidobj_main",
                 "cupidobj",
+                "iso_fixture_bundle",
                 "ctool_host",
                 "ctool",
                 "elf32",
@@ -14199,6 +14220,7 @@ def _cupid_toolchain_fixed_point_contract(
         "cupidobj": (
             "cupidobj_main",
             "cupidobj",
+            "iso_fixture_bundle",
             "ctool_host",
             "ctool",
             "elf32",
@@ -15279,7 +15301,7 @@ def _cupid_toolchain_fixed_point_contract(
         )
     if bootstrap_assignment("CANDIDATE_SOURCES") != tuple(
         candidate_toolchain_sources[-10:]
-    ):
+    ) + (("iso_fixture_bundle", "/toolchain/iso_fixture_bundle.cc", False),):
         missing_bootstrap_fragments.append(
             "candidate source constants must match the audited inventory"
         )
@@ -15590,6 +15612,9 @@ def _cupid_toolchain_fixed_point_contract(
             "    ]\n"
             "    for name in TOOL_NAMES\n"
             "}\n"
+            "if tuple(links['cupidobj']) not in (EXPECTED_LINKS['cupidobj'], CANDIDATE_CUPIDOBJ_LINK):\n"
+            "    raise BootstrapError('Linux build plan candidate link differs: cupidobj')\n"
+            "links['cupidobj'] = list(CANDIDATE_CUPIDOBJ_LINK)\n"
             "raw_cupidbuild = raw_links.get('cupidbuild')\n"
             "if raw_cupidbuild is None:\n"
             "    links['cupidbuild'] = list(CANDIDATE_CUPIDBUILD_LINK)\n"

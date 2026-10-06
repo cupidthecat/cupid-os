@@ -34173,6 +34173,8 @@ static int run_self_host_link_tools(const char *host_root,
       {"/toolchain/user_syscall_abi.cc", "/toolchain/user_syscall_abi.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
       {"/toolchain/cupidbuild_user_abi.cc", "/toolchain/cupidbuild_user_abi.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/iso_fixture_bundle.cc", "/toolchain/iso_fixture_bundle.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE}};
   static const ctool_u32 cupidasm_objects[] = {
       0u, 7u, 6u, 3u, 2u, 4u, 5u, 1u};
@@ -34181,7 +34183,7 @@ static int run_self_host_link_tools(const char *host_root,
   static const ctool_u32 cupidld_objects[] = {
       0u, 13u, 12u, 3u, 2u, 4u, 1u};
   static const ctool_u32 cupidobj_objects[] = {
-      0u, 11u, 10u, 3u, 2u, 4u, 1u};
+      0u, 11u, 10u, 34u, 3u, 2u, 4u, 1u};
   static const ctool_u32 cupidc_objects[] = {
       0u, 20u, 19u, 18u, 17u, 16u, 15u, 3u, 2u, 4u, 5u, 1u};
   static const ctool_u32 cupidbuild_objects[] = {

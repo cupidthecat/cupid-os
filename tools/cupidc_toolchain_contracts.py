@@ -118,6 +118,7 @@ BOOTSTRAP_OBJECT_NAMES = (
     "cupiddis_main",
     "cupidobj",
     "cupidobj_main",
+    "iso_fixture_bundle",
     "cupidld",
     "cupidld_main",
     "cupidc_pp",

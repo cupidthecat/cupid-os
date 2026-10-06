@@ -77,7 +77,7 @@ int cupid_linux_syscall5(int number, unsigned int first,
 
 #define CUPIDBUILD_HOST_PATH_BYTES 8192u
 #define CUPIDBUILD_HOST_ERROR_BYTES 512u
-#define CUPIDBUILD_HOST_INPUTS 512u
+#define CUPIDBUILD_HOST_INPUTS 528u
 #if !defined(CUPIDBUILD_HOST_FILE_LIMIT)
 #define CUPIDBUILD_HOST_FILE_LIMIT 67108864u
 #endif
@@ -12390,6 +12390,31 @@ static int cupidbuild_observer_stat(cupidbuild_observer_handle_t handle,
   return 1;
 }
 
+/* The held leaf may select either ordinary kind. Ancestors and all later stat
+ * checks still require their selected kind. Never discover through a pathname
+ * stat that could refer to a different object from the retained handle. */
+static int cupidbuild_observer_kind(cupidbuild_observer_handle_t handle) {
+#if defined(_WIN32)
+  BY_HANDLE_FILE_INFORMATION info;
+  if (!GetFileInformationByHandle(handle, &info) ||
+      (info.dwFileAttributes & (FILE_ATTRIBUTE_REPARSE_POINT |
+                               FILE_ATTRIBUTE_DEVICE)) != 0u) return -1;
+  return (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0u ? 1 : 0;
+#elif defined(CUPIDBUILD_CUSTOM_LINUX)
+  unsigned char info[96];
+  unsigned int mode;
+  if (cupid_linux_syscall2(CUPIDBUILD_LINUX_SYS_FSTAT64, (unsigned int)handle,
+                          (unsigned int)info) < 0) return -1;
+  mode = cupidbuild_linux_mode(info) & CUPIDBUILD_LINUX_S_IFMT;
+  return mode == CUPIDBUILD_LINUX_S_IFDIR ? 1 :
+         mode == CUPIDBUILD_LINUX_S_IFREG ? 0 : -1;
+#else
+  struct stat info;
+  if (fstat(handle, &info) != 0) return -1;
+  return S_ISDIR(info.st_mode) ? 1 : S_ISREG(info.st_mode) ? 0 : -1;
+#endif
+}
+
 static int cupidbuild_observer_same(const cupidbuild_observer_stat_t *a,
                                     const cupidbuild_observer_stat_t *b,
                                     int directory) {
@@ -12460,7 +12485,7 @@ static cupidbuild_observer_handle_t cupidbuild_observer_open_child_mode(
         (unsigned int)parent, (unsigned int)name, 0777u);
     if (created < 0 && created != -17 /* EEXIST */) return CUPIDBUILD_OBSERVER_INVALID;
   }
-  flags |= directory ? CUPIDBUILD_LINUX_O_DIRECTORY : CUPIDBUILD_LINUX_O_NONBLOCK;
+  flags |= directory > 0 ? CUPIDBUILD_LINUX_O_DIRECTORY : CUPIDBUILD_LINUX_O_NONBLOCK;
   handle = cupid_linux_syscall4(CUPIDBUILD_LINUX_SYS_OPENAT, (unsigned int)parent,
                                 (unsigned int)name, flags, 0u);
   return handle < 0 ? CUPIDBUILD_OBSERVER_INVALID : handle;
@@ -12469,7 +12494,7 @@ static cupidbuild_observer_handle_t cupidbuild_observer_open_child_mode(
   (void)status_out;
   if (create_directory && mkdirat(parent, name, 0777) != 0 && errno != EEXIST)
     return CUPIDBUILD_OBSERVER_INVALID;
-  return cupidbuild_native_open_relative(parent, name, directory);
+  return cupidbuild_native_open_relative(parent, name, directory > 0);
 #endif
 }
 
@@ -12579,6 +12604,7 @@ static cupidbuild_observer_entry_t *cupidbuild_observer_walk(
   while (*cursor != 0) {
     size_t length = 0u;
     int kind;
+    cupidbuild_observer_handle_t handle;
     cupidbuild_observer_entry_t *entry;
     while (*cursor != 0 && *cursor != '/') {
       if (length + 1u >= sizeof(name)) return (cupidbuild_observer_entry_t *)0;
@@ -12587,8 +12613,41 @@ static cupidbuild_observer_entry_t *cupidbuild_observer_walk(
     name[length] = 0;
     if (!cupidbuild_observer_name_valid(name)) return (cupidbuild_observer_entry_t *)0;
     kind = *cursor != 0 ? 1 : directory;
-    entry = cupidbuild_observer_add(observer, parent, name,
-        cupidbuild_observer_open_child(parent->handle, name, kind, payload), kind);
+    handle = cupidbuild_observer_open_child(parent->handle, name, kind, payload);
+    if (kind < 0 && handle != CUPIDBUILD_OBSERVER_INVALID) {
+      kind = cupidbuild_observer_kind(handle);
+      if (kind < 0) {
+        int closed = cupidbuild_observer_close_handle(handle);
+        cupidbuild_observer_fail(observer, closed ? "observation is not a regular file or directory" :
+                                                   "observation kind check and handle close failed");
+        return (cupidbuild_observer_entry_t *)0;
+      }
+    }
+    entry = (cupidbuild_observer_entry_t *)0;
+    /* Explicit leaves remain distinct observations. Repeated ancestor walks
+     * may reuse a retained directory only after checking both its original
+     * handle and the freshly opened parent binding. A poisoned batch keeps
+     * its original independent-capture behavior. */
+    if (*cursor != 0 && handle != CUPIDBUILD_OBSERVER_INVALID &&
+        observer->error[0] == 0) {
+      for (entry = observer->entries; entry != (cupidbuild_observer_entry_t *)0;
+           entry = entry->next) {
+        if (entry->directory && entry->parent == parent &&
+            strcmp(entry->name, name) == 0) break;
+      }
+    }
+    if (entry != (cupidbuild_observer_entry_t *)0) {
+      cupidbuild_observer_stat_t current;
+      int valid = cupidbuild_observer_stat(entry->handle, 1, &current) &&
+          cupidbuild_observer_same(&entry->captured, &current, 1) &&
+          cupidbuild_observer_stat(handle, 1, &current) &&
+          cupidbuild_observer_same(&entry->captured, &current, 1);
+      if (!cupidbuild_observer_close_handle(handle)) valid = 0;
+      if (!valid) {
+        cupidbuild_observer_fail(observer, "retained ancestor changed during observation");
+        return (cupidbuild_observer_entry_t *)0;
+      }
+    } else entry = cupidbuild_observer_add(observer, parent, name, handle, kind);
     if (entry == (cupidbuild_observer_entry_t *)0) {
       observer->last_issue = cupidbuild_observer_issue(parent->handle, name, kind);
       return entry;
@@ -12725,6 +12784,21 @@ int cupidbuild_host_observer_file(cupidbuild_host_observer_t *observer,
     *bytes_out = bytes;
   }
   *size_out = entry->captured.size;
+  return 1;
+}
+
+int cupidbuild_host_observer_kind(cupidbuild_host_observer_t *observer,
+                                 const char *logical,
+                                 cupidbuild_host_entry_kind_t *kind_out) {
+  cupidbuild_observer_entry_t *entry;
+  if (kind_out != (cupidbuild_host_entry_kind_t *)0) *kind_out = CUPIDBUILD_ENTRY_NONE;
+  if (observer == (cupidbuild_host_observer_t *)0 || observer->error[0] != 0) return 0;
+  if (logical == (const char *)0 || kind_out == (cupidbuild_host_entry_kind_t *)0)
+    return cupidbuild_observer_fail(observer, "invalid kind observation arguments");
+  entry = cupidbuild_observer_walk(observer, observer->root, logical, -1, 0);
+  if (entry == (cupidbuild_observer_entry_t *)0)
+    return cupidbuild_observer_fail(observer, "unsafe or unavailable kind observation");
+  *kind_out = entry->directory ? CUPIDBUILD_ENTRY_DIRECTORY : CUPIDBUILD_ENTRY_FILE;
   return 1;
 }
 

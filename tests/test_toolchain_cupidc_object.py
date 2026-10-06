@@ -60,6 +60,7 @@ CUPID_TOOLCHAIN_FIXED_POINT_SOURCES = (
     ("cupiddis_main", "/toolchain/cupiddis_main.cc", False),
     ("cupidobj", "/toolchain/cupidobj.cc", False),
     ("cupidobj_main", "/toolchain/cupidobj_main.cc", False),
+    ("iso_fixture_bundle", "/toolchain/iso_fixture_bundle.cc", False),
     ("cupidld", "/toolchain/cupidld.cc", False),
     ("cupidld_main", "/toolchain/cupidld_main.cc", False),
     ("cupidc_pp", "/toolchain/cupidc_pp.cc", False),
@@ -114,6 +115,7 @@ CUPID_TOOLCHAIN_FIXED_POINT_LINKS = (
             "start",
             "cupidobj_main",
             "cupidobj",
+            "iso_fixture_bundle",
             "ctool_host",
             "ctool",
             "elf32",
@@ -4519,7 +4521,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         linked = self.build_cupid_tools()
         self.assertEqual(linked.returncode, 0, linked.stderr)
         self.assertEqual(len(CUPIDC_FIXED_POINT_SOURCES), 11)
-        self.assertEqual(len(CUPID_TOOLCHAIN_FIXED_POINT_SOURCES), 19)
+        self.assertEqual(len(CUPID_TOOLCHAIN_FIXED_POINT_SOURCES), 20)
         self.assertEqual(
             [
                 name

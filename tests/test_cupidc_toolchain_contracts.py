@@ -311,7 +311,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             },
             "tool_fixed_point": {
                 "all_equal": True,
-                "c_objects": 29,
+                "c_objects": 30,
                 "compared_generations": list(
                     cupidc_toolchain_contracts.CONVERGED_GENERATIONS
                 ),
@@ -400,6 +400,8 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             "toolchain/user_syscall_abi.h": "int user_syscall_abi_header;\n",
             "toolchain/cupidbuild_user_abi.cc": "int cupidbuild_user_abi;\n",
             "toolchain/cupidbuild_user_abi.h": "int cupidbuild_user_abi_header;\n",
+            "toolchain/iso_fixture_bundle.cc": "int iso_fixture_bundle;\n",
+            "toolchain/iso_fixture_bundle.h": "int iso_fixture_bundle_header;\n",
             "toolchain/cupidc_emit.cc": "int emit;\n",
             "toolchain/hosted/i386-linux/include/stdio.h": "int stdio;\n",
             "toolchain/hosted/i386-linux/runtime.cc": "int runtime;\n",
@@ -434,6 +436,9 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 )
             },
         }
+        build_plan["links"]["cupidobj"] = [
+            "start", "cupidobj_main", "cupidobj", "ctool_host", "ctool", "elf32", "runtime"
+        ]
         build_plan_sha256 = _build_plan_sha256(build_plan)
         seed_data = {
             "build_plan": build_plan,
@@ -773,7 +778,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._tool_fixed_point_record(),
             {
                 "all_equal": True,
-                "c_objects": 29,
+                "c_objects": 30,
                 "compared_generations": ["stage-three", "stage-four"],
                 "startup_objects": 1,
                 "tool_images": 6,
@@ -787,7 +792,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 92)
+        self.assertEqual(len(inputs), 96)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)
@@ -3036,8 +3041,8 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             expected = cupidc_toolchain_contracts.check_syscall_abi(root)
             before = (output / "manifest.json").read_bytes()
             publication = cupidc_toolchain_contracts.verify_publication(output)
-            self.assertEqual(publication["input_count"], 92)
-            self.assertEqual(publication["bootstrap"]["source_inputs"]["count"], 82)
+            self.assertEqual(publication["input_count"], 96)
+            self.assertEqual(publication["bootstrap"]["source_inputs"]["count"], 87)
             completed = subprocess.CompletedProcess(
                 ["user-syscall-abi-contract.elf"], 0,
                 json.dumps(expected) + "\n", "",

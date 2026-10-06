@@ -3406,6 +3406,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -3426,6 +3429,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -6841,6 +6845,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -6861,6 +6868,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -7181,6 +7189,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -7201,6 +7212,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -7521,6 +7533,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -7541,6 +7556,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -7861,6 +7877,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -7881,6 +7900,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -8201,6 +8221,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -8221,6 +8244,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -8541,6 +8565,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -8561,6 +8588,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -8881,6 +8909,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -8901,6 +8932,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -9221,6 +9253,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -9241,6 +9276,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -9561,6 +9597,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -9581,6 +9620,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -9901,6 +9941,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -9921,6 +9964,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -10241,6 +10285,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -10261,6 +10308,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -10581,6 +10629,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -10601,6 +10652,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -10921,6 +10973,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -10941,6 +10996,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -11261,6 +11317,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -11281,6 +11340,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -11601,6 +11661,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -11621,6 +11684,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -11941,6 +12005,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -11961,6 +12028,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -12281,6 +12349,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -12301,6 +12372,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -12621,6 +12693,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -12641,6 +12716,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -12961,6 +13037,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -12981,6 +13060,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -13301,6 +13381,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -13321,6 +13404,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -13641,6 +13725,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -13661,6 +13748,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -13981,6 +14069,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -14001,6 +14092,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -14321,6 +14413,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -14341,6 +14436,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -14661,6 +14757,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -14681,6 +14780,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -15001,6 +15101,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -15021,6 +15124,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -15341,6 +15445,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -15361,6 +15468,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -15681,6 +15789,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -15701,6 +15812,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -16021,6 +16133,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -16041,6 +16156,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -16361,6 +16477,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -16381,6 +16500,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -16701,6 +16821,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -16721,6 +16844,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -17041,6 +17165,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -17061,6 +17188,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -17381,6 +17509,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -17401,6 +17532,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -17721,6 +17853,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -17741,6 +17876,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -18061,6 +18197,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -18081,6 +18220,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -18401,6 +18541,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -18421,6 +18564,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -18741,6 +18885,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -18761,6 +18908,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -19081,6 +19229,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -19101,6 +19252,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -19421,6 +19573,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -19441,6 +19596,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -19761,6 +19917,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -19781,6 +19940,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -20101,6 +20261,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -20121,6 +20284,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -20441,6 +20605,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -20461,6 +20628,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -20781,6 +20949,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -20801,6 +20972,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -21121,6 +21293,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -21141,6 +21316,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -21461,6 +21637,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -21481,6 +21660,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -21801,6 +21981,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -21821,6 +22004,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -22141,6 +22325,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -22161,6 +22348,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -22481,6 +22669,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -22501,6 +22692,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -22821,6 +23013,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -22841,6 +23036,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -23161,6 +23357,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -23181,6 +23380,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -23501,6 +23701,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -23521,6 +23724,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -23841,6 +24045,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -23861,6 +24068,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -24181,6 +24389,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -24201,6 +24412,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -24521,6 +24733,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -24541,6 +24756,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -24861,6 +25077,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -24881,6 +25100,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -25201,6 +25421,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -25221,6 +25444,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -25541,6 +25765,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -25561,6 +25788,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -25881,6 +26109,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -25901,6 +26132,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -26221,6 +26453,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -26241,6 +26476,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -26561,6 +26797,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -26581,6 +26820,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -26901,6 +27141,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -26921,6 +27164,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -27241,6 +27485,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -27261,6 +27508,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -27581,6 +27829,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -27601,6 +27852,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -27921,6 +28173,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -27941,6 +28196,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -28261,6 +28517,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -28281,6 +28540,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -28601,6 +28861,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -28621,6 +28884,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -28941,6 +29205,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -28961,6 +29228,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -29281,6 +29549,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -29301,6 +29572,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -29621,6 +29893,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -29641,6 +29916,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -29961,6 +30237,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -29981,6 +30260,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -30301,6 +30581,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -30321,6 +30604,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -30641,6 +30925,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -30661,6 +30948,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -30981,6 +31269,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -31001,6 +31292,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -31321,6 +31613,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -31341,6 +31636,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -31661,6 +31957,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -31681,6 +31980,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -32001,6 +32301,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -32021,6 +32324,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -32341,6 +32645,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -32361,6 +32668,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -32681,6 +32989,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -32701,6 +33012,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -33021,6 +33333,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -33041,6 +33356,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -33361,6 +33677,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -33381,6 +33700,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -33701,6 +34021,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -33721,6 +34044,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -34041,6 +34365,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -34061,6 +34388,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -34381,6 +34709,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -34401,6 +34732,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -34721,6 +35053,9 @@
           "toolchain/cupidbuild.h",
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_host.h",
+          "toolchain/cupidbuild_iso.h",
+          "toolchain/cupidbuild_iso_capture.h",
+          "toolchain/cupidbuild_iso_image.h",
           "toolchain/cupidbuild_user_abi.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
@@ -34741,6 +35076,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/iso_fixture_bundle.h",
           "toolchain/native_utf8.h",
           "toolchain/path_encoding.h",
           "toolchain/pe32.h",
@@ -40924,8 +41260,8 @@
     },
     "c_preprocessor_conditionals": {
       "directive_expression_pairs": 64,
-      "elif_occurrences": 19,
-      "expression_occurrences": 444,
+      "elif_occurrences": 20,
+      "expression_occurrences": 446,
       "expressions": [
         {
           "elif_occurrences": 0,
@@ -41982,7 +42318,7 @@
           "occurrences": 6
         },
         {
-          "elif_occurrences": 7,
+          "elif_occurrences": 8,
           "evidence": [
             {
               "directive": "if",
@@ -42190,43 +42526,49 @@
             },
             {
               "directive": "elif",
-              "line": 12452,
+              "line": 12403,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12517,
+              "line": 12477,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12672,
+              "line": 12542,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12687,
+              "line": 12731,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12840,
+              "line": 12746,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
+            },
+            {
+              "directive": "elif",
+              "line": 12914,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 13154,
+              "line": 13228,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 13166,
+              "line": 13240,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             }
@@ -42236,7 +42578,7 @@
             "toolchain/cupidbuild_host.cc"
           ],
           "if_occurrences": 34,
-          "occurrences": 41
+          "occurrences": 42
         },
         {
           "elif_occurrences": 0,
@@ -42266,7 +42608,7 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 269,
+              "line": 285,
               "path": "toolchain/cupidbuild_host.h",
               "text": "#if defined(CUPIDBUILD_HOST_CLOSE_FAILURE_TEST) && !defined(_WIN32)"
             }
@@ -43841,73 +44183,79 @@
             },
             {
               "directive": "if",
-              "line": 12405,
+              "line": 12397,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12495,
+              "line": 12430,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12612,
+              "line": 12520,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12619,
+              "line": 12671,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12670,
+              "line": 12678,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12683,
+              "line": 12729,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12792,
+              "line": 12742,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13126,
+              "line": 12866,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13207,
+              "line": 13200,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13217,
+              "line": 13281,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13240,
+              "line": 13291,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13356,
+              "line": 13314,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 13430,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -44057,49 +44405,49 @@
             },
             {
               "directive": "if",
-              "line": 10,
+              "line": 11,
               "path": "toolchain/cupidobj_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 474,
+              "line": 482,
               "path": "toolchain/cupidobj_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 507,
+              "line": 515,
               "path": "toolchain/cupidobj_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 529,
+              "line": 537,
               "path": "toolchain/cupidobj_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 559,
+              "line": 567,
               "path": "toolchain/cupidobj_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 585,
+              "line": 593,
               "path": "toolchain/cupidobj_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 616,
+              "line": 624,
               "path": "toolchain/cupidobj_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 912,
+              "line": 935,
               "path": "toolchain/cupidobj_main.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -44122,8 +44470,8 @@
             "toolchain/cupidobj_main.cc",
             "toolchain/tests/cupidc_object_contract.cc"
           ],
-          "if_occurrences": 193,
-          "occurrences": 193
+          "if_occurrences": 194,
+          "occurrences": 194
         },
         {
           "elif_occurrences": 0,
@@ -44299,7 +44647,7 @@
           "occurrences": 1
         }
       ],
-      "if_occurrences": 425,
+      "if_occurrences": 426,
       "status": "pass",
       "unique_expressions": 61
     },
@@ -44331,13 +44679,13 @@
     },
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
-      "direct_angle_occurrences": 321,
-      "direct_quoted_occurrences": 2255,
-      "include_occurrences": 2576,
+      "direct_angle_occurrences": 322,
+      "direct_quoted_occurrences": 2262,
+      "include_occurrences": 2584,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2576,
+      "ordinary_marker_occurrences": 2584,
       "pp_token_operand_occurrences": 0,
-      "source_files": 729,
+      "source_files": 734,
       "status": "pass"
     },
     "c_preprocessor_line_directives": {
@@ -44350,7 +44698,7 @@
       "numeric_marker_occurrences": 0,
       "ordinary_marker_occurrences": 0,
       "pp_token_line_occurrences": 0,
-      "source_files": 729,
+      "source_files": 734,
       "status": "pass"
     },
     "c_preprocessor_pragmas": {
@@ -44959,7 +45307,7 @@
           ],
           "mode": "CTOOL_C_PP_MODE_C11",
           "name": "HOSTED_I386_LINUX",
-          "tracked_translation_units": 45
+          "tracked_translation_units": 46
         },
         {
           "compatibility_pointer_conversions": false,
@@ -45184,16 +45532,16 @@
         }
       ],
       "status": "pass",
-      "total_translation_units": 418,
-      "tracked_translation_units": 414
+      "total_translation_units": 419,
+      "tracked_translation_units": 415
     },
     "c_source_ownership": {
       "active": [],
       "active_tracked_c_sources": 0,
-      "active_tracked_cupid_c_sources": 418,
+      "active_tracked_cupid_c_sources": 419,
       "cupid_c_ownership_evidence": {
         "checked_cupidc_compile": 249,
-        "checked_cupidc_contract": 39,
+        "checked_cupidc_contract": 40,
         "explicit_runtime_delivery_policy": 130
       },
       "cupidc_owned_tracked_c_sources": 0,
@@ -45201,13 +45549,13 @@
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
         "residual_c_sources": 17,
         "runtime_delivery_sources": 130,
-        "sha256": "0e946e21174c1e03c06586ba4ee5f7f3e4cfaeca153b05876b0d08fc615d429c",
-        "unreachable_cupid_c_sources": 22
+        "sha256": "6727e5c7a317eea7e20ebd998a487b6aa7e44f56eabf579132f78cbef02a17e2",
+        "unreachable_cupid_c_sources": 31
       },
-      "proven_cupidc_owned_tracked_cupid_c_sources": 418,
+      "proven_cupidc_owned_tracked_cupid_c_sources": 419,
       "status": "pass",
       "tracked_c_sources": 17,
-      "tracked_cupid_c_sources": 440,
+      "tracked_cupid_c_sources": 450,
       "unreachable": [
         {
           "classification": "historical_copy",
@@ -45296,6 +45644,21 @@
         },
         {
           "classification": "not_reached",
+          "path": "toolchain/cupidbuild_iso.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
+          "path": "toolchain/cupidbuild_iso_capture.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
+          "path": "toolchain/cupidbuild_iso_image.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
           "path": "toolchain/native_utf8.cc",
           "policy": "source_suffix_policy"
         },
@@ -45326,12 +45689,32 @@
         },
         {
           "classification": "not_reached",
+          "path": "toolchain/tests/cupidbuild_iso_capture_contract.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
+          "path": "toolchain/tests/cupidbuild_iso_image_contract.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
+          "path": "toolchain/tests/cupidbuild_iso_inventory_contract.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
           "path": "toolchain/tests/cupidbuild_jpeg_contract.cc",
           "policy": "source_suffix_policy"
         },
         {
           "classification": "not_reached",
           "path": "toolchain/tests/cupidbuild_observer_batch_contract.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
+          "path": "toolchain/tests/cupidbuild_observer_kind_contract.cc",
           "policy": "source_suffix_policy"
         },
         {
@@ -45351,6 +45734,11 @@
         },
         {
           "classification": "not_reached",
+          "path": "toolchain/tests/iso_fixture_bundle_contract.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
           "path": "toolchain/tests/native_utf8_argv_contract.cc",
           "policy": "source_suffix_policy"
         },
@@ -45362,6 +45750,11 @@
         {
           "classification": "not_reached",
           "path": "toolchain/tests/path_encoding_contract.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
+          "path": "toolchain/tests/seed_manifest_iso_profile_contract.cc",
           "policy": "source_suffix_policy"
         },
         {
@@ -45391,17 +45784,17 @@
         }
       ],
       "unreachable_tracked_c_sources": 17,
-      "unreachable_tracked_cupid_c_sources": 22
+      "unreachable_tracked_cupid_c_sources": 31
     },
     "cupid_toolchain_fixed_point": {
       "checked_seed_publication": "complete-bundle",
       "checked_seed_source_boundary_checks": 5,
       "checked_seed_source_root": "private-captured",
-      "compared_c_objects": 29,
+      "compared_c_objects": 30,
       "compared_startup_objects": 1,
       "compared_tool_images": 6,
       "compiler_c_sources": 11,
-      "contract_manifest_inputs": 92,
+      "contract_manifest_inputs": 96,
       "executed_tools": [
         "cupidasm",
         "cupiddis",
@@ -45442,7 +45835,7 @@
           "tool": "cupidld"
         },
         {
-          "objects": 7,
+          "objects": 8,
           "tool": "cupidobj"
         },
         {
@@ -45488,9 +45881,9 @@
         "stage-four"
       ],
       "status": "pass",
-      "strict_c_sources": 28,
+      "strict_c_sources": 29,
       "success_behavior_cases": 73,
-      "tool_c_sources": 29,
+      "tool_c_sources": 30,
       "tool_images": 6,
       "user_abi_behavior_inputs": 6,
       "user_abi_behavior_sha256": "bb2738353eb0dea16b047808d9fde2c26c41d950754b6ae92e9ea0cb9c157ee1",
@@ -49558,7 +49951,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 2209
+      "occurrences": 2210
     },
     {
       "category": "control",
@@ -50286,6 +50679,7 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/iso_fixture_bundle.cc",
         "toolchain/path_encoding.cc",
         "toolchain/pe32_impl.h",
         "toolchain/seed_manifest.cc",
@@ -50309,7 +50703,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5621
+      "occurrences": 5628
     },
     {
       "category": "control",
@@ -50572,6 +50966,7 @@
         "toolchain/elf32.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/iso_fixture_bundle.cc",
         "toolchain/path_encoding.cc",
         "toolchain/pe32_impl.h",
         "toolchain/seed_manifest.cc",
@@ -50598,7 +50993,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4937
+      "occurrences": 4943
     },
     {
       "category": "control",
@@ -50648,6 +51043,7 @@
         "toolchain/elf32.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/iso_fixture_bundle.cc",
         "toolchain/tests/cupidasm_kernel_elf_contract.cc",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
@@ -50658,7 +51054,7 @@
         "toolchain/user_syscall_abi.cc"
       ],
       "id": "c.control.goto",
-      "occurrences": 3452
+      "occurrences": 3453
     },
     {
       "category": "control",
@@ -51045,6 +51441,7 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/iso_fixture_bundle.cc",
         "toolchain/path_encoding.cc",
         "toolchain/pe32_impl.h",
         "toolchain/seed_manifest.cc",
@@ -51073,7 +51470,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 44542
+      "occurrences": 44595
     },
     {
       "category": "control",
@@ -51430,6 +51827,7 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/iso_fixture_bundle.cc",
         "toolchain/path_encoding.cc",
         "toolchain/pe32_impl.h",
         "toolchain/seed_manifest.cc",
@@ -51458,7 +51856,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 27604
+      "occurrences": 27647
     },
     {
       "category": "control",
@@ -51839,6 +52237,7 @@
         "toolchain/elf32.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/iso_fixture_bundle.cc",
         "toolchain/path_encoding.cc",
         "toolchain/pe32_impl.h",
         "toolchain/seed_manifest.cc",
@@ -51859,7 +52258,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3059
+      "occurrences": 3060
     },
     {
       "category": "declaration",
@@ -52146,7 +52545,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 3057
+      "occurrences": 3060
     },
     {
       "category": "declarator",
@@ -52406,6 +52805,7 @@
         "toolchain/elf32.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/iso_fixture_bundle.cc",
         "toolchain/pe32_impl.h",
         "toolchain/seed_manifest.cc",
         "toolchain/seed_release.cc",
@@ -52433,7 +52833,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 7029
+      "occurrences": 7037
     },
     {
       "category": "extension",
@@ -53432,6 +53832,9 @@
         "toolchain/cupidbuild_artifacts.h",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_iso.h",
+        "toolchain/cupidbuild_iso_capture.h",
+        "toolchain/cupidbuild_iso_image.h",
         "toolchain/cupidbuild_user_abi.h",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_emit.h",
@@ -53468,6 +53871,7 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/runtime.cc",
+        "toolchain/iso_fixture_bundle.h",
         "toolchain/native_utf8.h",
         "toolchain/path_encoding.h",
         "toolchain/pe32.h",
@@ -53498,7 +53902,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3409
+      "occurrences": 3417
     },
     {
       "category": "preprocessor",
@@ -53528,7 +53932,7 @@
         "toolchain/cupidld_main.cc"
       ],
       "id": "c.preprocessor.elif",
-      "occurrences": 19
+      "occurrences": 20
     },
     {
       "category": "preprocessor",
@@ -53581,7 +53985,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.else",
-      "occurrences": 252
+      "occurrences": 253
     },
     {
       "category": "preprocessor",
@@ -53909,6 +54313,9 @@
         "toolchain/cupidbuild_artifacts.h",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_iso.h",
+        "toolchain/cupidbuild_iso_capture.h",
+        "toolchain/cupidbuild_iso_image.h",
         "toolchain/cupidbuild_main.cc",
         "toolchain/cupidbuild_user_abi.h",
         "toolchain/cupidc_emit.h",
@@ -53936,6 +54343,7 @@
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/iso_fixture_bundle.h",
         "toolchain/native_utf8.h",
         "toolchain/path_encoding.h",
         "toolchain/pe32.h",
@@ -53951,7 +54359,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 858
+      "occurrences": 863
     },
     {
       "category": "preprocessor",
@@ -54148,7 +54556,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.if",
-      "occurrences": 425
+      "occurrences": 426
     },
     {
       "category": "preprocessor",
@@ -54499,6 +54907,9 @@
         "toolchain/cupidbuild.h",
         "toolchain/cupidbuild_artifacts.h",
         "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_iso.h",
+        "toolchain/cupidbuild_iso_capture.h",
+        "toolchain/cupidbuild_iso_image.h",
         "toolchain/cupidbuild_user_abi.h",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.h",
@@ -54519,6 +54930,7 @@
         "toolchain/hosted/i386-linux/include/string.h",
         "toolchain/hosted/i386-linux/include/unistd.h",
         "toolchain/hosted/i386-linux/include/windows.h",
+        "toolchain/iso_fixture_bundle.h",
         "toolchain/native_utf8.h",
         "toolchain/path_encoding.h",
         "toolchain/pe32.h",
@@ -54533,7 +54945,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.ifndef",
-      "occurrences": 322
+      "occurrences": 326
     },
     {
       "category": "preprocessor",
@@ -55018,6 +55430,9 @@
         "toolchain/cupidbuild_artifacts.h",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_iso.h",
+        "toolchain/cupidbuild_iso_capture.h",
+        "toolchain/cupidbuild_iso_image.h",
         "toolchain/cupidbuild_main.cc",
         "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidbuild_user_abi.h",
@@ -55056,6 +55471,8 @@
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/runtime.cc",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/iso_fixture_bundle.cc",
+        "toolchain/iso_fixture_bundle.h",
         "toolchain/native_utf8.h",
         "toolchain/path_encoding.cc",
         "toolchain/path_encoding.h",
@@ -55095,7 +55512,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2576
+      "occurrences": 2584
     },
     {
       "category": "preprocessor",
@@ -55614,6 +56031,9 @@
         "toolchain/cupidbuild_artifacts.h",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_iso.h",
+        "toolchain/cupidbuild_iso_capture.h",
+        "toolchain/cupidbuild_iso_image.h",
         "toolchain/cupidbuild_main.cc",
         "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidbuild_user_abi.h",
@@ -55646,6 +56066,8 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/iso_fixture_bundle.cc",
+        "toolchain/iso_fixture_bundle.h",
         "toolchain/native_utf8.h",
         "toolchain/path_encoding.cc",
         "toolchain/path_encoding.h",
@@ -55688,7 +56110,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 18402
+      "occurrences": 18456
     },
     {
       "category": "qualifier",
@@ -56210,6 +56632,7 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/iso_fixture_bundle.cc",
         "toolchain/path_encoding.cc",
         "toolchain/pe32_impl.h",
         "toolchain/seed_manifest.cc",
@@ -56243,7 +56666,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10668
+      "occurrences": 10679
     },
     {
       "category": "type",
@@ -56645,6 +57068,9 @@
         "toolchain/cupidbuild_artifacts.h",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_iso.h",
+        "toolchain/cupidbuild_iso_capture.h",
+        "toolchain/cupidbuild_iso_image.h",
         "toolchain/cupidbuild_main.cc",
         "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidbuild_user_abi.h",
@@ -56670,6 +57096,8 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/iso_fixture_bundle.cc",
+        "toolchain/iso_fixture_bundle.h",
         "toolchain/native_utf8.h",
         "toolchain/path_encoding.cc",
         "toolchain/path_encoding.h",
@@ -56709,7 +57137,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 11873
+      "occurrences": 11916
     },
     {
       "category": "type",
@@ -56892,7 +57320,7 @@
         "toolchain/x86.h"
       ],
       "id": "c.type.enum",
-      "occurrences": 271
+      "occurrences": 272
     },
     {
       "category": "type",
@@ -57452,6 +57880,9 @@
         "toolchain/cupidbuild_artifacts.h",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_iso.h",
+        "toolchain/cupidbuild_iso_capture.h",
+        "toolchain/cupidbuild_iso_image.h",
         "toolchain/cupidbuild_main.cc",
         "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidbuild_user_abi.h",
@@ -57470,6 +57901,8 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/iso_fixture_bundle.cc",
+        "toolchain/iso_fixture_bundle.h",
         "toolchain/native_utf8.h",
         "toolchain/path_encoding.cc",
         "toolchain/path_encoding.h",
@@ -57505,7 +57938,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 25780
+      "occurrences": 25804
     },
     {
       "category": "type",
@@ -57941,6 +58374,9 @@
         "toolchain/cupidbuild_artifacts.h",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_iso.h",
+        "toolchain/cupidbuild_iso_capture.h",
+        "toolchain/cupidbuild_iso_image.h",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_frontend.h",
@@ -57965,6 +58401,7 @@
         "toolchain/hosted/i386-linux/include/stdio.h",
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
+        "toolchain/iso_fixture_bundle.h",
         "toolchain/pe32.h",
         "toolchain/pe32_impl.h",
         "toolchain/seed_manifest.cc",
@@ -57996,7 +58433,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 1094
+      "occurrences": 1100
     },
     {
       "category": "type",
@@ -58235,6 +58672,9 @@
         "toolchain/cupidbuild_artifacts.h",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_iso.h",
+        "toolchain/cupidbuild_iso_capture.h",
+        "toolchain/cupidbuild_iso_image.h",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.cc",
@@ -58263,6 +58703,7 @@
         "toolchain/hosted/i386-linux/include/stdio.h",
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
+        "toolchain/iso_fixture_bundle.h",
         "toolchain/pe32.h",
         "toolchain/pe32_impl.h",
         "toolchain/seed_manifest.cc",
@@ -58295,7 +58736,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 1160
+      "occurrences": 1166
     },
     {
       "category": "type",
@@ -58492,6 +58933,7 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/iso_fixture_bundle.cc",
         "toolchain/path_encoding.cc",
         "toolchain/path_encoding.h",
         "toolchain/seed_manifest.cc",
@@ -58519,7 +58961,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 4340
+      "occurrences": 4357
     },
     {
       "category": "type",
@@ -59085,6 +59527,7 @@
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_iso_capture.h",
         "toolchain/cupidbuild_main.cc",
         "toolchain/cupidbuild_user_abi.cc",
         "toolchain/cupidc_emit.cc",
@@ -59110,6 +59553,7 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/iso_fixture_bundle.cc",
         "toolchain/native_utf8.h",
         "toolchain/pe32_impl.h",
         "toolchain/seed_manifest.cc",
@@ -59142,7 +59586,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 16087
+      "occurrences": 16100
     },
     {
       "category": "declaration",
@@ -60056,7 +60500,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "4fb3bb4e3c86be0047e0dfb650eea872d16fb4d6526e650802714388d264de1e",
+    "active_source_digest": "81e0297403c9987f67e7a27a209583a28d6c60f827bcef301960640a50455157",
     "control_files": [
       {
         "path": "Makefile",
@@ -60068,11 +60512,11 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "5ee66541f6f111a50304a97e51851dd2b56de9ebeb51174fed86e6cddf53fdd0"
+        "sha256": "4383106ba59b887a18cbd20b35ba391b38da1f4399218bb2f54bfa0d85520d88"
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
-        "sha256": "0e946e21174c1e03c06586ba4ee5f7f3e4cfaeca153b05876b0d08fc615d429c"
+        "sha256": "6727e5c7a317eea7e20ebd998a487b6aa7e44f56eabf579132f78cbef02a17e2"
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
@@ -60084,7 +60528,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "8e3f49010a566af8223a7a53f38ac973689b0a2bfdf1c51be2709d45841a0ce3"
+        "sha256": "9e7dc91fff8db43e8cf6e4aaf76ab1c12b35f913e6f3e13fffd28a7cc3ed8867"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
@@ -60093,7 +60537,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "3af0038ee1e8f4181be2e6411e030fbef9adfc4ed8adc506493e2856be81f33d"
+      "sha256": "f2e20d27fb521d472f8be7540e9a3088c6c2eb9076e2b65301ccebf11c48dd30"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -60127,7 +60571,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 119,
+        "source_count": 124,
         "title": "Establish a host-runnable shared Cupid Toolchain core"
       },
       {
@@ -60489,7 +60933,7 @@
           "bin/godspeak.cc",
           "bin/notepad.cc"
         ],
-        "source_count": 587,
+        "source_count": 592,
         "title": "Implement the active C and Cupid C preprocessing contract"
       },
       {
@@ -60535,7 +60979,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 693,
+        "source_count": 698,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -60678,7 +61122,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 119
+        "source_count": 124
       },
       {
         "cohorts": [
@@ -85198,12 +85642,12 @@
         "toolchain/path_encoding.h"
       ],
       "language": "cupid_c",
-      "lines": 13395,
+      "lines": 13469,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_host.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "7ff82c62b3878eb0cdbe1ab19cebb700256078424db134ca0e2170ddf861a147"
+      "sha256": "9c2b440c8751d48e18b199c9784eec2c2b5fc2043af5af1f25bb6157c80390f7"
     },
     {
       "build_owners": [
@@ -85237,12 +85681,113 @@
         "kernel/doom/src/include_stubs/stdint.h"
       ],
       "language": "c_header",
-      "lines": 273,
+      "lines": 289,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_host.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e70c72ebfee43f0460e3005063daf32cca747240518b05454862e88dd97485f4"
+      "sha256": "3961523b61edc6f75570c823ee10af12b5493f476ea5f57cc677733f5c56328c"
+    },
+    {
+      "build_owners": [
+        "cupid_builder",
+        "cupid_c_compiler",
+        "cupid_object"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.type.char",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef"
+      ],
+      "includes": [
+        "toolchain/cupidobj.h"
+      ],
+      "language": "c_header",
+      "lines": 36,
+      "origin": "tracked",
+      "path": "toolchain/cupidbuild_iso.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "c58460234df8cd65af9f3ba60ebb28893777008277b2297e808610e283b51744"
+    },
+    {
+      "build_owners": [
+        "cupid_builder",
+        "cupid_c_compiler",
+        "cupid_object"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.type.char",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.void"
+      ],
+      "includes": [
+        "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_iso.h"
+      ],
+      "language": "c_header",
+      "lines": 40,
+      "origin": "tracked",
+      "path": "toolchain/cupidbuild_iso_capture.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "a46fdf723d711cb2c7cf2c59103243da3dded15b67a166a4b18b75382fbf7a11"
+    },
+    {
+      "build_owners": [
+        "cupid_builder",
+        "cupid_c_compiler",
+        "cupid_object"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.type.char",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef"
+      ],
+      "includes": [
+        "toolchain/cupidbuild_iso.h"
+      ],
+      "language": "c_header",
+      "lines": 31,
+      "origin": "tracked",
+      "path": "toolchain/cupidbuild_iso_image.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "a5cbe7752551842f3badddd3c09cd3d9855b390917c7cfcba16d9b24b4ddd399"
     },
     {
       "build_owners": [
@@ -86167,15 +86712,16 @@
         "toolchain/ctool.h",
         "toolchain/ctool_host.h",
         "toolchain/cupidobj.h",
+        "toolchain/iso_fixture_bundle.h",
         "toolchain/native_utf8.h"
       ],
       "language": "cupid_c",
-      "lines": 1094,
+      "lines": 1120,
       "origin": "tracked",
       "path": "toolchain/cupidobj_main.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "a0b5cb16d834052b3e28ce8fc1e8ee466c007e6fdb6bfb71cc51d0dc876d749c"
+      "sha256": "690e30ee3174a4aaeb6f298c724a207375893ae87165a5f6b6c095a1e216a117"
     },
     {
       "build_owners": [
@@ -87153,6 +87699,74 @@
     },
     {
       "build_owners": [
+        "cupid_c_contract"
+      ],
+      "builds": [
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.control.else",
+        "c.control.for",
+        "c.control.goto",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.expression.sizeof",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.int",
+        "c.type.unsigned",
+        "c.type.void"
+      ],
+      "includes": [
+        "toolchain/iso_fixture_bundle.h"
+      ],
+      "language": "cupid_c",
+      "lines": 170,
+      "origin": "tracked",
+      "path": "toolchain/iso_fixture_bundle.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "f574feacd91af1dd245a2dc38c1d1833e7d432b9858fafb5035fd5a96c3a409e"
+    },
+    {
+      "build_owners": [
+        "cupid_builder",
+        "cupid_c_compiler",
+        "cupid_object"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.type.char",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef"
+      ],
+      "includes": [
+        "toolchain/cupidobj.h"
+      ],
+      "language": "c_header",
+      "lines": 44,
+      "origin": "tracked",
+      "path": "toolchain/iso_fixture_bundle.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "ae23c127d553ba49ea6d53b60d6f1dfa167bfeb0e3cf568143a200535c58a3b5"
+    },
+    {
+      "build_owners": [
         "cupid_builder",
         "cupid_c_compiler",
         "cupid_object"
@@ -87357,12 +87971,12 @@
         "toolchain/seed_release.h"
       ],
       "language": "cupid_c",
-      "lines": 1512,
+      "lines": 1599,
       "origin": "tracked",
       "path": "toolchain/seed_manifest.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "cda0312366419778ffab8d722f729b734cedb496b93c063eceac07b1867c027e"
+      "sha256": "bf63fd40ab10a4d8d281ccaff005864ea6c93e02d5721eecfbbcebc2c735334a"
     },
     {
       "build_owners": [
@@ -87873,12 +88487,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 52843,
+      "lines": 52845,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_object_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "2c98e612d6a6c6d41ac6a914135665d862c6105009fbba58747b35acace930fe"
+      "sha256": "e9b062d7af7cefc6d8aaa1a2b5240987019b07ca1a6da64e0af5390bc4a9f8a7"
     },
     {
       "build_owners": [
@@ -87925,7 +88539,7 @@
       "path": "toolchain/tests/cupidc_pp_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "8821e08720f19b6a00a67795377c37c9319345a8a57e3044a252f49cbae5871c"
+      "sha256": "6487a90daaa031e617681328819ae140ade9948420c7cd1a4f40063e69ab4eae"
     },
     {
       "build_owners": [
@@ -88786,10 +89400,10 @@
     }
   ],
   "summary": {
-    "active_sources": 770,
+    "active_sources": 775,
     "features": 255,
     "transforms": 452,
-    "unreachable_sources": 44
+    "unreachable_sources": 53
   },
   "supplemental_builds": [
     {
@@ -89151,6 +89765,10 @@
             "toolchain/cupidbuild_artifacts.h",
             "toolchain/cupidbuild_user_abi.h",
             "toolchain/user_syscall_abi.h",
+            "toolchain/cupidbuild_iso.h",
+            "toolchain/cupidbuild_iso_capture.h",
+            "toolchain/cupidbuild_iso_image.h",
+            "toolchain/iso_fixture_bundle.h",
             "toolchain/cupidc_emit.h",
             "toolchain/cupidc_frontend.h",
             "toolchain/cupidc_ir.h",
@@ -89192,6 +89810,7 @@
             "toolchain/cupidld_main.cc",
             "toolchain/cupidobj.cc",
             "toolchain/cupidobj_main.cc",
+            "toolchain/iso_fixture_bundle.cc",
             "bootstrap/seeds/i386-linux/manifest.json",
             "bootstrap/seeds/i386-linux/cupidasm.elf",
             "bootstrap/seeds/i386-linux/cupidc.elf",
@@ -89287,6 +89906,10 @@
             "toolchain/cupidbuild_artifacts.h",
             "toolchain/cupidbuild_user_abi.h",
             "toolchain/user_syscall_abi.h",
+            "toolchain/cupidbuild_iso.h",
+            "toolchain/cupidbuild_iso_capture.h",
+            "toolchain/cupidbuild_iso_image.h",
+            "toolchain/iso_fixture_bundle.h",
             "toolchain/cupidc_emit.h",
             "toolchain/cupidc_frontend.h",
             "toolchain/cupidc_ir.h",
@@ -89334,6 +89957,7 @@
             "toolchain/cupidld_main.cc",
             "toolchain/cupidobj.cc",
             "toolchain/cupidobj_main.cc",
+            "toolchain/iso_fixture_bundle.cc",
             "toolchain/hosted/i386-linux/runtime.cc",
             "toolchain/hosted/i386-linux/start.asm",
             "bootstrap/seeds/i386-linux/manifest.json",
@@ -89673,6 +90297,36 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
+      "lines": 176,
+      "path": "toolchain/cupidbuild_iso.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "278a7df8c444bbe0fd4a0e2c597a7df970053c93d6e80126aa82e1b57ae3235b"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 247,
+      "path": "toolchain/cupidbuild_iso_capture.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "36dbdcaa816bbe1bcf43c9791bc27ec5c07ed2701bdefc47979a8dd3eb06a734"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 466,
+      "path": "toolchain/cupidbuild_iso_image.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "d86f76a19ff4735b3e14a7a4bd7903fc5871e7a36d99ad1bef174a2dcedcde37"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
       "lines": 170,
       "path": "toolchain/native_utf8.cc",
       "reason": "not reachable from the supported Make target or include closure",
@@ -89733,6 +90387,36 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
+      "lines": 162,
+      "path": "toolchain/tests/cupidbuild_iso_capture_contract.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "8fa411ebdf84625999c55d28c142eb5dc1815f14b1ed08b5f3ce2fcedbe5d7ab"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 139,
+      "path": "toolchain/tests/cupidbuild_iso_image_contract.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "e8af63b0497eeedc64fbe39dbd11bb372c720d41cba4404db053e361e66d677e"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 70,
+      "path": "toolchain/tests/cupidbuild_iso_inventory_contract.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "427f59e951b9b96a5eeec58b4af6e6ee81e2b15b5e3bb076df85e52473b4b493"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
       "lines": 535,
       "path": "toolchain/tests/cupidbuild_jpeg_contract.cc",
       "reason": "not reachable from the supported Make target or include closure",
@@ -89748,6 +90432,16 @@
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
       "sha256": "413649f03496c016f79d5f31c471834958c27f579e9f95a4f5d946d8c13de2cc"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 141,
+      "path": "toolchain/tests/cupidbuild_observer_kind_contract.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "80f49491e11ce945d0909df68685b9a83616d322da5f78e311ab3ccf4bcd3563"
     },
     {
       "classification": "not_reached",
@@ -89793,6 +90487,16 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
+      "lines": 188,
+      "path": "toolchain/tests/iso_fixture_bundle_contract.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "55119b462dfaf0655acf11a47fd00f4c23ea40f70ac26fcbe4af2257ebf778ab"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
       "lines": 7,
       "path": "toolchain/tests/native_utf8_argv_contract.cc",
       "reason": "not reachable from the supported Make target or include closure",
@@ -89818,6 +90522,16 @@
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
       "sha256": "639b159f176a5f135fb55c26f924dae5c5b64f1acf2a590724a4af18b829819c"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 117,
+      "path": "toolchain/tests/seed_manifest_iso_profile_contract.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "0a12cbb07180d0e9f7f3edbea061fbd27f2de5fdd92a68e01e2881221e5c89dd"
     },
     {
       "classification": "host_fixture",

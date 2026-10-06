@@ -19,6 +19,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 
 SEED_SCHEMA = "cupid.bootstrap-seed.v1"
 WINDOWS_SEED_SCHEMA = "cupid.execution-seed.v1"
@@ -473,6 +476,11 @@ CANDIDATE_SOURCES = (
     ("artifact_size_policy", "/toolchain/artifact_size_policy.cc", False),
     ("user_syscall_abi", "/toolchain/user_syscall_abi.cc", False),
     ("cupidbuild_user_abi", "/toolchain/cupidbuild_user_abi.cc", False),
+    ("iso_fixture_bundle", "/toolchain/iso_fixture_bundle.cc", False),
+)
+CANDIDATE_CUPIDOBJ_LINK = (
+    "start", "cupidobj_main", "cupidobj", "iso_fixture_bundle",
+    "ctool_host", "ctool", "elf32", "runtime",
 )
 CANDIDATE_CUPIDBUILD_LINK = (
     "start",
@@ -816,6 +824,11 @@ def _candidate_build_plan(
         ]
         for name in TOOL_NAMES
     }
+    if tuple(links["cupidobj"]) not in (
+        EXPECTED_LINKS["cupidobj"], CANDIDATE_CUPIDOBJ_LINK
+    ):
+        raise BootstrapError("Linux build plan candidate link differs: cupidobj")
+    links["cupidobj"] = list(CANDIDATE_CUPIDOBJ_LINK)
     raw_cupidbuild = raw_links.get("cupidbuild")
     if raw_cupidbuild is None:
         links["cupidbuild"] = list(CANDIDATE_CUPIDBUILD_LINK)
@@ -8229,6 +8242,7 @@ def _run_behavior_checks(
         "cupidobj": (
             "cupidobj_main",
             "cupidobj",
+            "iso_fixture_bundle",
             "ctool_host",
             "ctool",
             "elf32",

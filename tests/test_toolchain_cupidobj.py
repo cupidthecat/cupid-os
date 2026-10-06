@@ -234,7 +234,7 @@ class CupidObjHostedCliTests(unittest.TestCase):
         cls.cli = _build_cli(
             Path(cls._build_directory.name),
             "cupidobj",
-            ["ctool.cc", "ctool_host.cc", "elf32.cc", "cupidobj.cc", "cupidobj_main.cc"],
+            ["ctool.cc", "ctool_host.cc", "elf32.cc", "cupidobj.cc", "iso_fixture_bundle.cc", "cupidobj_main.cc"],
         )
         cls.asm_cli = _build_cli(
             Path(cls._build_directory.name),

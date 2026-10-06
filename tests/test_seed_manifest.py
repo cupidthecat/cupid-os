@@ -168,9 +168,18 @@ def user_link_alias_manifest(fmt, *, long_paths):
     return value
 
 
+def user_abi_plan():
+    """Keep the earlier ABI-only profile independent of current plan upgrades."""
+    plan = seed._candidate_build_plan(manifest(1)["build_plan"])
+    plan["sources"] = [row for row in plan["sources"] if row["name"] != "iso_fixture_bundle"]
+    plan["links"]["cupidobj"] = [name for name in plan["links"]["cupidobj"] if name != "iso_fixture_bundle"]
+    assert seed._build_plan_sha256(plan) == "48d6cc38b7a7362a83a911d2d3aaae8e79537c3f1744f3f5e7aac997728ed7f4"
+    return plan
+
+
 def user_abi_manifest(fmt, *, long_paths=False, aliases=False):
     value = user_compile_parent_manifest(fmt, long_paths=long_paths)
-    plan = seed._candidate_build_plan(manifest(1)["build_plan"])
+    plan = user_abi_plan()
     value["provenance"]["source_input_count"] = 80 + int(long_paths) + int(aliases)
     if fmt == 1:
         value["build_plan"] = plan
@@ -214,7 +223,7 @@ class ManifestTests(unittest.TestCase):
     pair_records = []
     release_records = []
 
-    def check_release(self, record, value, fmt, accepted=True, capacity=128):
+    def check_release(self, record, value, fmt, accepted=True, capacity=128, expected=None):
         payloads = [encode(item) if isinstance(item, dict) else item for item in (record, value)]
         buffers = [ctypes.create_string_buffer(item) for item in payloads]
         before = [bytes(item) for item in buffers]
@@ -230,6 +239,7 @@ class ManifestTests(unittest.TestCase):
             document = json.loads(payloads[1])
             self.assertEqual(result.artifact_count, 6)
             self.assertEqual(result.current_windows_plan,
+                             expected[1] if expected is not None else
                              5 if fmt == 2 and document["provenance"]["source_input_count"] == 78
                              else 4 if fmt == 2 else 0)
             for index, role in enumerate(("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj", "cupidbuild")):
@@ -260,13 +270,13 @@ class ManifestTests(unittest.TestCase):
         snapshot = seed.capture_source_snapshot(ROOT, plan, windows_utf8=True, windows_user_link_aliases=True)
         snapshot = {path: row for path, row in snapshot.items()
                     if path not in ("toolchain/user_syscall_abi.h", "toolchain/cupidbuild_user_abi.h")}
-        self.assertEqual(len(snapshot), 77)
+        self.assertEqual(len(snapshot), 81)
         digest = seed._build_plan_sha256(seed._windows_build_plan(plan, utf8=True, user_link_aliases=True))
         changed = seed._retarget_native_windows_behavior_seed(windows, digest, plan, snapshot,
             utf8=True, user_link_aliases=True, parent_plan_seed=linux)
         self.assertIsNot(changed, windows)
         provenance = changed.manifest["provenance"]
-        self.assertEqual(provenance["source_input_count"], 77)
+        self.assertEqual(provenance["source_input_count"], 81)
         self.assertEqual(provenance["native_build_plan_sha256"], digest)
         self.assertEqual(provenance["parent_execution_seed_manifest_sha256"], windows.manifest_sha256)
         self.assertEqual(provenance["parent_plan_seed_manifest_sha256"], linux.manifest_sha256)
@@ -714,11 +724,22 @@ class ManifestTests(unittest.TestCase):
             snapshot = seed.capture_source_snapshot(ROOT, plan, windows_utf8=True)
             retargeted = seed._retarget_native_windows_behavior_seed(
                 frozen, digest, plan, snapshot, utf8=True)
-            self.check(retargeted.manifest, 2, expected=(6, 2))
+            self.check(retargeted.manifest, 2, False)
+            provenance = retargeted.manifest['provenance']
+            record = release()
+            record.update(source_revision=provenance['source_revision'],
+                source_snapshot_sha256=provenance['source_snapshot_sha256'],
+                source_input_count=provenance['source_input_count'],
+                parent_source_revision=provenance['parent_execution_seed_source_revision'],
+                parent_linux_manifest_sha256=provenance['parent_plan_seed_manifest_sha256'],
+                parent_windows_manifest_sha256=provenance['parent_execution_seed_manifest_sha256'],
+                linux_plan_sha256=provenance['linux_candidate_build_plan_sha256'],
+                windows_plan_sha256=provenance['native_build_plan_sha256'])
+            self.check_release(record, retargeted.manifest, 2, expected=(6, 2))
             for field in ("source_input_count", "linux_candidate_build_plan_sha256"):
                 altered = copy.deepcopy(retargeted.manifest)
                 altered["provenance"][field] = historical_manifest(2)["provenance"][field]
-                self.check(altered, 2, False)
+                self.check_release(record, altered, 2, False)
 
     def test_candidate_plan_keeps_its_source_count_and_complete_closure(self):
         for fmt in (1, 2):

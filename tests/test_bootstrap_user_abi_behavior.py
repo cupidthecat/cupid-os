@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -15,6 +16,46 @@ from tools import user_syscall_abi as oracle
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class StandaloneBootstrapImportTests(unittest.TestCase):
+    def run_gate_import(self, local_helper):
+        with tempfile.TemporaryDirectory(prefix="cupid-bootstrap-import-") as temporary:
+            directory = Path(temporary)
+            root = directory / "local"
+            foreign = directory / "foreign"
+            for parent in (root, foreign):
+                (parent / "tools").mkdir(parents=True)
+                (parent / "tools/__init__.py").write_bytes(b"")
+            shutil.copyfile(ROOT / "tools/bootstrap_toolchain.py",
+                            root / "tools/bootstrap_toolchain.py")
+            (foreign / "tools/bootstrap_user_abi.py").write_text(
+                "def check_behavior(*args):\n    print('foreign-helper')\n", encoding="utf-8")
+            (foreign / "tools/bootstrap_toolchain.py").write_text(
+                "class BootstrapError(Exception):\n    pass\n", encoding="utf-8")
+            if local_helper:
+                (root / "tools/bootstrap_user_abi.py").write_text(
+                    "def check_behavior(*args):\n    print('local-helper')\n", encoding="utf-8")
+            code = (
+                "import runpy, sys; sys.path.insert(0, sys.argv[2]); "
+                "driver = runpy.run_path(sys.argv[1]); "
+                "driver['_check_cupidbuild_user_abi_behavior'](None, None, None, None, None, 'probe ')"
+            )
+            return subprocess.run([sys.executable, "-I", "-c", code,
+                str(root / "tools/bootstrap_toolchain.py"), str(foreign)],
+                cwd=directory, capture_output=True, text=True, timeout=30)
+
+    def test_standalone_bootstrap_resolves_its_local_gate_from_unrelated_cwd(self):
+        result = self.run_gate_import(True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "local-helper\n")
+        self.assertEqual(result.stderr, "")
+
+    def test_missing_local_gate_cannot_fall_back_to_foreign_package(self):
+        result = self.run_gate_import(False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("No module named 'tools.bootstrap_user_abi'", result.stderr)
 
 
 class AbiRunner:

@@ -902,6 +902,33 @@ _Avoid_: ISO image author, production ownership from source support alone
 Checked CupidASM authors the 4,096-byte spanning lane from `test_iso/big_pattern.asm`; CupidBuild's typed `assemble-iso-pattern` transaction checks the exact bytes and data-only map, runs checked CupidDis, and publishes atomically. Both checked seeds carry this command, and the direct Make recipe owns fixture publication under ADR 0386. Checked-seed CupidObj authors the complete production ECMA-119 and `RRIP_1991A` image through `iso-fixture`. It consumes a frozen ASCII manifest and a typed inventory of loaded files and logical directories, then must match an independent Python render byte for byte. `test_iso/fixtures.manifest` fixes the repository fixture membership before hostbuild freezes the regular-file tree. Make declares the same seven portable paths explicitly, and a checked test prevents that safe prerequisite list from drifting away from the manifest. CupidObj emits a primary volume descriptor, both path-table byte orders, identifier-sorted block-bounded directories, a forward SUSP continuation, fixed UTC metadata, and contiguous file extents. Rock Ridge `NM` records retain guest names drawn from the portable letter, digit, dot, underscore, and dash alphabet, capped at 127 bytes. `PX` and `TF` records carry fixed read-only metadata for other readers; Cupid OS ignores them. CupidObj rejects missing or undeclared logical entries, unsafe names, case-only collisions, bad parent graphs, and more than eight directory levels. Hostbuild remains responsible for native-path safety, private ordinal file snapshots, aliases, special files, live drift, the independent renderer, the per-output publication lock, and atomic replacement. A checked failure, unsafe candidate, parity mismatch, concurrent publisher, or changed input preserves the old image. The tracked 61,440-byte fixture rebuilds without `mkisofs`, `genisoimage`, or `xorrisofs` and has SHA-256 `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6`. The separate 209,715,200-byte disk image from the ADR 0241 production handoff has SHA-256 `3f8c84cea61e5e8bfc4e6a5fc09a030a4d6451d258a4ca2ea6486a923d1d08e3`; its private four-vCPU e1000 frontier reaches the exact six-name ISO listing, `PASS feature17_iso`, and CupidC JIT completion. ADR 0191 records the image boundary, ADR 0227 records the lane fixture boundary, ADR 0239 records the CupidObj source capability, ADR 0240 records seed carriage, and ADR 0241 records the production handoff.
 _Avoid_: general optical-disc mastering, bootable ISO, Joliet author, guest ISO reader
 
+**Independent ISO image check**:
+A complete byte comparison between an authored deterministic ISO and the layout,
+metadata, payloads and padding required by its captured fixture inputs, derived
+independently of the author. It establishes image parity; capture, live drift
+checks and guarded publication remain separate responsibilities.
+_Avoid_: producer self-validation, ISO publication ownership
+
+**Retained ISO input capture**:
+Owned immutable manifest, path and payload views whose original file bindings,
+actual kinds and exact directory memberships remain held by a borrowed observer.
+The observer outlives capture and publication; capture alone grants no output or
+release authority.
+_Avoid_: directory-kind inference, filesystem snapshot, guarded ISO publication
+
+**ISO request bundle**:
+An immutable `CUPISO1` transport containing the exact manifest, ordered kinds,
+logical names and payload bytes for a complete CupidObj fixture request.
+It contains no native source paths; the producer still owns semantic inventory
+validation and image layout, while publication and release authority remain
+separate.
+The hosted transaction accepts 528 frozen inputs. A complete 512-file fixture,
+its manifest and fifteen cohort files fit without reducing the inventory.
+The original source occupies one slot. Input aliases and live drift remain
+checked through final publication. ADR 0427 records this source capability;
+seed carriage and normal ISO publication ownership remain separate.
+_Avoid_: ISO image, native file fallback, publication authority
+
 **Production external-program cohort**:
 The current checked publication path compiles `hello.cc`, `ls.cc`, and
 `cat.cc` with CupidC, links private ELF candidates with CupidLD, then runs
@@ -2258,8 +2285,11 @@ observations also recheck captured SHA-256 identities. Directory observations
 require exact membership but do not imply member kinds. Windows denies deletion
 while handles are open; POSIX revalidation detects replacement. Failed operations
 poison the lifetime. Root identity, link count, size and modification time are
-checked across the lifetime. ADR 0401 records the implementation under validation;
-production artifact verification still uses Python.
+checked across the lifetime. Kind discovery retains ordinary files and
+directories without implying payload or membership capture. Repeated ancestors
+remain bound to their original identities. Native artifact verification uses
+these observations; the new kind operation is a separate source capability.
+ADRs 0401, 0408 and 0421 record the contracts.
 _Avoid_: atomic filesystem snapshot, frozen execution transaction
 
 **Normal build**:
@@ -2294,6 +2324,12 @@ CupidBuild validates the structural source identity so its own binary does not
 create a self-reference. That non-producer lineage role is separate from
 CupidBuild's 437 normal-build participations.
 _Avoid_: self-referential seed, provisional promotion
+
+**Release-aware seed profile**:
+A supported Cupid Toolchain plan shape whose new parent lineage is supplied
+by a separately selected release record. Recognizing the profile establishes
+neither review of that record nor completed bootstrap qualification.
+_Avoid_: trusted parent from source count, automatically promoted seed
 
 ## Long-file bootstrap checkpoint, 2026-09-30
 

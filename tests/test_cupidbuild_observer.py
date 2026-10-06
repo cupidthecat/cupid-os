@@ -99,6 +99,78 @@ static int parent_case(const char *root, const char *mode, const char *output) {
   if (!cupidbuild_host_output_parent_close(parent)) return 93;
   return ok ? 0 : 3;
 }
+static int capacity_case(const char *root, const char *mode) {
+  cupidbuild_host_transaction_t *transaction = NULL;
+  cupidbuild_host_snapshot_t snapshot;
+  const char *frozen = NULL;
+  unsigned int index = 1u;
+  unsigned int last = strcmp(mode, "capacity-overflow") == 0 ? 528u : 527u;
+  int ok = cupidbuild_host_transaction_open(root, "source.cc", "nested/file.o",
+                                           &transaction);
+  int publish = strcmp(mode, "capacity-publish") == 0;
+  char resume;
+  if (ok && strcmp(mode, "capacity-reserve") == 0)
+    ok = cupidbuild_host_reserve_inputs(transaction, 528u);
+  if (ok && strcmp(mode, "capacity-reserve-overflow") == 0)
+    ok = cupidbuild_host_reserve_inputs(transaction, 529u);
+  for (index = 1u; ok && index <= last; index++) {
+    char live[8192];
+    char name[64];
+    char expected[64];
+    unsigned char *bytes;
+    size_t size = 0u;
+    unsigned char digest[32];
+    snprintf(live, sizeof(live), "%s/input-%03u.dat", root, index);
+    snprintf(name, sizeof(name), "frozen-%03u.dat", index);
+    snprintf(expected, sizeof(expected), "payload-%03u", index);
+    ok = cupidbuild_host_freeze_input(transaction, live, name, &frozen, &snapshot);
+    if (!ok) break;
+    bytes = cupidbuild_host_read_frozen_input(transaction, frozen, snapshot.size, &size);
+    ok = bytes != NULL && size == snapshot.size;
+    if (ok) {
+      cupidbuild_host_sha256_bytes(bytes, size, digest);
+      ok = memcmp(digest, snapshot.sha256, 32u) == 0;
+      if (index != 527u)
+        ok = ok && size == strlen(expected) && memcmp(bytes, expected, size) == 0;
+    }
+    free(bytes);
+  }
+  if (ok) ok = cupidbuild_host_require_inputs(transaction) &&
+               cupidbuild_host_require_frozen_inputs(transaction) &&
+               cupidbuild_host_require_publication_boundary(transaction);
+  if (ok && publish) {
+    const char *arguments[3];
+    unsigned char *candidate = NULL;
+    arguments[0] = "emit";
+    arguments[1] = cupidbuild_host_candidate(transaction);
+    arguments[2] = NULL;
+    ok = cupidbuild_host_make_input_executable(transaction, frozen) &&
+         cupidbuild_host_run(transaction, frozen, arguments, 10000) == 0 &&
+         cupidbuild_host_capture_candidate(transaction, &snapshot, &candidate);
+    if (ok) ok = snapshot.size == 3u && memcmp(candidate, "new", 3u) == 0;
+    free(candidate);
+  }
+  if (!ok) {
+    fprintf(stderr, "input %u: %s\n", index, cupidbuild_host_error(transaction));
+    if (!cupidbuild_host_transaction_close(transaction)) return 93;
+    return 2;
+  }
+  printf("ready 528\n"); fflush(stdout);
+  if (fread(&resume, 1, 1, stdin) != 1) {
+    cupidbuild_host_transaction_close(transaction);
+    return 92;
+  }
+  ok = cupidbuild_host_require_inputs(transaction) &&
+       cupidbuild_host_require_frozen_inputs(transaction) &&
+       cupidbuild_host_require_publication_boundary(transaction);
+  if (ok && publish) {
+    int changed = 0;
+    ok = cupidbuild_host_publish_if_changed(transaction, &changed);
+  }
+  if (!ok) fprintf(stderr, "%s\n", cupidbuild_host_error(transaction));
+  if (!cupidbuild_host_transaction_close(transaction)) return 93;
+  return ok ? 0 : 3;
+}
 int main(int argc, char **argv) {
   cupidbuild_host_observer_t *observer = NULL;
   unsigned char *bytes = NULL;
@@ -131,6 +203,7 @@ int main(int argc, char **argv) {
 #endif
   }
   if (argc != 4 || !decode(argv[1]) || !decode(argv[3])) return 90;
+  if (strncmp(argv[2], "capacity-", 9) == 0) return capacity_case(argv[1], argv[2]);
   if (strncmp(argv[2], "parent", 6) == 0) return parent_case(argv[1], argv[2], argv[3]);
   if (strcmp(argv[2], "strcpy") == 0) {
     char destination[8];
@@ -572,6 +645,116 @@ class CupidBuildObserverTests(unittest.TestCase):
         self.prepare_parent('nested/file.o', 'parent-existing-publish')
         self.assertEqual(output.stat().st_mtime_ns, stamp)
         self.assertFalse(list(self.root.rglob('.cupidbuild*')))
+
+    def prepare_capacity(self):
+        # One manifest, 512 fixture files, and fifteen retained cohort files.
+        (self.root / 'source.cc').write_bytes(b''.join(
+            f'input-{index:03d}.dat\n'.encode('ascii') for index in range(1, 513)))
+        for index in range(1, 529):
+            (self.root / f'input-{index:03d}.dat').write_bytes(
+                f'payload-{index:03d}'.encode('ascii'))
+        shutil.copyfile(self.program, self.root / 'input-527.dat')
+        (self.parent / 'file.o').write_bytes(b'old')
+
+    def capacity(self, mode='capacity-full', mutate=None, expected=0):
+        output = self.parent / 'file.o'
+        before = (output.read_bytes(), output.stat().st_mtime_ns)
+        members = sorted(path.relative_to(self.root).as_posix()
+                         for path in self.root.rglob('*'))
+        process = subprocess.Popen(
+            [str(self.program), str(self.root).encode('utf-8').hex(), mode, ''],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, encoding='utf-8')
+        try:
+            if mutate is not None:
+                ready = queue.Queue()
+                reader = threading.Thread(target=lambda: ready.put(process.stdout.readline()),
+                                          daemon=True)
+                reader.start()
+                self.assertEqual(ready.get(timeout=60), 'ready 528\n')
+                reader.join(timeout=1)
+                mutate()
+            stdout, stderr = process.communicate('x', timeout=60)
+            self.assertEqual(process.returncode, expected, (stdout, stderr))
+            if expected:
+                self.assertTrue(stderr.strip())
+            else:
+                self.assertEqual(stderr, '')
+                self.assertEqual(stdout, '' if mutate is not None else 'ready 528\n')
+            if expected or mode != 'capacity-publish':
+                self.assertEqual((output.read_bytes(), output.stat().st_mtime_ns), before)
+            else:
+                self.assertEqual(output.read_bytes(), b'new')
+            self.assertEqual(sorted(path.relative_to(self.root).as_posix()
+                                    for path in self.root.rglob('*')), members)
+            self.assertFalse(list(self.root.rglob('.cupidbuild*')))
+            return stderr
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.communicate(timeout=10)
+            for stream in (process.stdin, process.stdout, process.stderr):
+                stream.close()
+
+    def test_transaction_freezes_complete_528_input_request(self):
+        self.prepare_capacity()
+        self.capacity()
+
+    def test_transaction_reserves_complete_528_input_request(self):
+        self.prepare_capacity()
+        self.capacity('capacity-reserve')
+
+    def test_transaction_529th_input_rejection_preserves_output_and_recovers(self):
+        self.prepare_capacity()
+        stderr = self.capacity('capacity-overflow', expected=2)
+        self.assertIn('input 528: too many frozen transaction inputs', stderr)
+        self.capacity()
+
+    def test_transaction_529_input_reservation_rejection_recovers(self):
+        self.prepare_capacity()
+        self.assertIn('too many frozen transaction inputs',
+                      self.capacity('capacity-reserve-overflow', expected=2))
+        self.capacity('capacity-reserve')
+
+    def test_transaction_late_input_identity_alias_rejection_recovers(self):
+        self.prepare_capacity()
+        late = self.root / 'input-513.dat'
+        late.unlink()
+        os.link(self.root / 'input-512.dat', late)
+        self.assertIn('inputs may not share a file identity', self.capacity(expected=2))
+        late.unlink()
+        late.write_bytes(b'payload-513')
+        self.capacity()
+
+    def test_transaction_late_output_alias_rejection_recovers(self):
+        self.prepare_capacity()
+        late = self.root / 'input-526.dat'
+        late.unlink()
+        os.link(self.parent / 'file.o', late)
+        self.assertIn('output may not replace an input', self.capacity(expected=2))
+        late.unlink()
+        late.write_bytes(b'payload-526')
+        self.capacity()
+
+    def test_transaction_late_same_size_input_drift_with_restored_mtime_recovers(self):
+        self.prepare_capacity()
+        late = self.root / 'input-526.dat'
+        stamp = late.stat().st_mtime_ns
+        def mutate():
+            late.write_bytes(b'changed-526')
+            os.utime(late, ns=(stamp, stamp))
+        self.capacity(mutate=mutate, expected=3)
+        late.write_bytes(b'payload-526')
+        self.capacity()
+
+    def test_transaction_full_capacity_publication_preserves_equal_timestamp(self):
+        self.prepare_capacity()
+        self.capacity('capacity-publish')
+        output = self.parent / 'file.o'
+        os.utime(output, ns=(1_600_000_000_000_000_000,) * 2)
+        stamp = output.stat().st_mtime_ns
+        self.capacity('capacity-publish')
+        self.assertEqual(output.stat().st_mtime_ns, stamp)
 
     def test_standard_input_pipe_and_eof(self):
         result = subprocess.run([str(self.program), "2f", "stdin", ""],

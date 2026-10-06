@@ -22,6 +22,110 @@ final IWAD sample, with audio generation active. No completed draw call is
 observed within the unchanged 180-second window. The raw kernel measures
 9,590,484 bytes; the 200 MiB image and all 429 objects pass independent rereading.
 
+## Combined native ISO source acceptance, 2026-10-05
+
+The isolated source adoption preserves the accepted FAT16 implementation while
+combining inventory validation, retained kind observation, image checking,
+complete capture, bounded bundles, explicit seed profiles and 528-input
+transactions. The canonical audit and stale-output check pass with 775 active
+sources, 53 sources outside supported roots and the same 452 transforms.
+
+The 160,376-byte combined manual passes installed-seed kernel/image and strict
+private four-CPU max/e1000 boot with completed ls and SMP checks. Independent
+rereading checks all 1,589 source controls, 429 objects and sixteen artifacts,
+finds only its wrapper changed and preserves FAT data. The raw kernel measures
+9,594,508 bytes; final/pass-one ELFs measure 9,822,652 and 9,691,580 bytes.
+The 200 MiB image has SHA-256
+`2c59acf0467a97dcf99d5fe9a3f7636a8df1d23153e1060294f4402fe858479d`.
+Evidence is `manual-independent-windows.json` under
+`cupid-native-iso-adoption-manual-20261005`.
+
+Windows rebuilt working-source qualification passes. Linux retry four completes
+stages two and three before a stage-four frontend timeout under the unchanged
+360-second bound. Independent proof rereads 87 source copies and all 92 retained
+artifacts. Committed-source qualification, seed installation and the normal ISO
+handoff remain open. See [the handoff](NATIVE-ISO-HANDOFF.md).
+
+## Complete ISO transaction capacity, 2026-10-05
+
+The retained transaction accepts 528 inputs: one fixture manifest, all 512
+file payloads and fifteen cohort files. The table still grows on demand;
+input 529 and reservations beyond the bound fail. Directory-discovery and
+profile limits keep their existing values.
+
+Both hosts pass the eight new cases with native and Cupid-built callers,
+including full publication, equal-byte timestamp reuse, late aliases and
+same-size drift with restored timestamps. Across new and existing observer
+contracts, 248 methods execute and ten platform cases skip. Independent proof
+rereads both closed suites, source copies, object formats, the matching
+21,352-byte caller-object pair and unchanged installed parents. Guarded ISO
+publication and seed carriage remain open. See [ADR 0427](../adr/0427-retain-complete-iso-transaction-inputs.md).
+
+## ISO bundle seed profiles, 2026-10-05
+
+The shared native reader now recognizes all five current Windows bundle
+profiles and the complete 30-source Linux plan through an explicitly selected
+release. It checks the exact codec source/link, both plans, source counts and
+Windows imports; the historical entry point keeps its original rejection.
+Both hosts pass 69 native manifest/release methods and twelve methods with
+Cupid-built callers, with identical reader/caller objects and no skips.
+Independent evidence qualifies this source capability and both complete
+87-input stage preparations. Separate release authoring passes against all
+twelve tools. Windows rebuilt qualification passes seven help, sixty success
+and fifty-four failure groups in each final stage, with 100 matching behavior
+product pairs. The original preparations keep their unqualified status; Linux
+qualification remains incomplete. See [ADR 0426](../adr/0426-admit-iso-bundle-seed-plans-through-explicit-releases.md).
+
+The 158,896-byte profile manual passes its installed-seed kernel, image and
+strict private four-CPU runtime checks. Independent verification rereads all
+429 objects and sixteen artifacts, with only its wrapper changed and FAT
+bytes preserved. The raw kernel is 9,591,684 bytes; final and pass-one ELF
+sizes remain 9,818,556 and 9,687,484. Earlier evidence below remains specific
+to each checkpoint's captured manual.
+
+## Native ISO validation, 2026-10-05
+
+The next ISO publication module validates immutable manifest and typed fixture
+views independently of CupidObj's producer. It retains the full 512-entry,
+portable-name and directory-depth contracts, exact case/membership, empty files
+and directories, and represented parents. Fourteen host methods pass on each
+platform. Both checked CupidC images compile the validator and its contract;
+CupidASM/CupidLD produce four identical artifact pairs, and the Linux ELF
+contract runs successfully natively and through WSL. A retained kind observation
+now distinguishes ordinary files and directories, including empty directories,
+while preserving the existing payload and exact-membership interfaces. The
+74-method observer suite passes with native and Cupid-built callers on each
+host, with expected platform/runtime skips. Retained ancestor reuse checks both
+the original handle and fresh binding; full flat and maximum-depth 512-entry
+inventories fit the unchanged 4,096-handle limit. A separate arena-backed checker
+now compares the complete deterministic image with captured inputs independently
+of CupidObj. Seventeen methods pass with native and checked CupidC callers on
+each host, including native ELF32/PE32 execution. Its four compiled object pairs
+are identical. Complete retained input capture now owns the immutable manifest,
+names and payloads while borrowing the observer through final revalidation.
+Twenty methods pass with native and checked callers per host, including all
+512-entry layouts, exact empty-directory membership and restored-time drift.
+CupidObj now accepts a `CUPISO1` request bundle carrying the exact manifest,
+ordered kinds, logical names and payload bytes. The decoder creates borrowed
+views and calls the existing producer; it opens no native fixture file. Twenty
+methods pass with native and Cupid-built callers per host. The persistent full
+512-file request with 127-byte names now launches on Windows using 310 UTF-16
+units, replacing the rejected 182,582-unit command. Both hosts produce the same
+1,224,704-byte independently checked image. Current plans carry the codec while
+installed seed plans still verify unchanged.
+Guarded publication still needs integration.
+The earlier 158,252-byte bundle manual passes installed-seed kernel/image and strict
+four-CPU runtime acceptance. Independent verification checks all 429 objects
+and sixteen artifacts, with only its wrapper changed and existing FAT data
+preserved. The raw kernel is 9,591,040 bytes; the final and pass-one ELF sizes
+remain 9,818,556 and 9,687,484 bytes.
+Normal build ownership and installed seeds are unchanged. See
+[the handoff](NATIVE-ISO-HANDOFF.md) and
+[ADR 0420](../adr/0420-validate-captured-iso-inventories-before-native-publication.md)
+and [ADR 0422](../adr/0422-check-complete-captured-iso-images-independently.md),
+plus [ADR 0423](../adr/0423-capture-complete-iso-inputs-through-retained-observers.md)
+and [ADR 0424](../adr/0424-transport-complete-iso-requests-in-bounded-bundles.md).
+
 ## Reviewed seed behavior boundary, 2026-10-04
 
 The coordinator captures an explicitly selected release against independent

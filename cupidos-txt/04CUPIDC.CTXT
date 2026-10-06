@@ -2626,6 +2626,58 @@ revision, and both Windows parent roles must select the same generation.
 That historical seed named the kernel-flatten pair as its parent.
 >endtree
 
+>h2 Native ISO validation at toolchain head
+>tree
+The source tree also contains a standalone native ISO inventory validator.
+It checks captured manifest membership, exact case, source kinds, directory
+parents, portable names and all 512 supported entries. Empty files and
+directories remain valid. Its fourteen methods pass on both hosts, and
+Cupid-built ELF contracts run with matching artifacts. The retained host
+observer can report an ordinary file or directory kind, including an empty
+directory, without reading payloads or membership. The existing explicit
+observations still capture those facts. Native and Cupid-built ELF/PE callers
+pass the complete observer suite on both hosts. Reused directory ancestors
+receive original-handle and fresh-binding identity checks; complete flat and
+maximum-depth ISO inventories fit the existing handle limit. A separate native
+image checker derives the deterministic layout from captured inputs and compares
+every byte, including both path tables, directory records, Rock Ridge metadata,
+payloads and padding. It uses bounded temporary arena storage and rewinds it on
+every exit. Seventeen methods pass with native and Cupid-built ELF32/PE32 callers
+on both hosts; four compiled object pairs are identical. A retained native capture
+now owns immutable manifest, names and payload bytes while borrowing the observer
+through final revalidation. It discovers actual kinds and captures exact membership
+of the fixture root and every directory, including empty directories. Its twenty
+methods pass with native and Cupid-built ELF32/PE32 callers on each host, covering
+full 512-entry layouts, UTF-8 host paths and restored-time payload/manifest drift.
+Closing the capture frees its storage without closing the borrowed observer.
+CupidObj also accepts a complete CUPISO1 request bundle containing the exact
+manifest, ordered kinds, logical names and payload bytes. The decoder creates
+borrowed views and calls the existing ISO producer; bundle mode opens no native
+fixture file and rejects per-entry file or directory arguments. Framing failures
+clear results and restore the arena, while the producer retains portable-name,
+parent, membership and image-layout validation. Twenty methods pass with native
+and Cupid-built callers on both hosts. The complete 512-file fixture with
+127-byte names now uses a 310-unit Windows command instead of the rejected
+182,582-unit command. Both hosts emit the same independently checked image.
+The shared manifest reader recognizes the current codec-bearing Linux plan
+and five Windows profiles: ANSI, UTF-8, long paths, directory aliases and
+long paths with aliases. Each binds exact plans, source count, codec source
+and link, and Windows imports. New parent lineage requires an explicitly
+selected release record; the historical reader retains its existing rules.
+Both hosts pass the 69-method native selection and twelve methods with
+Cupid-built ELF32/PE32 callers. Reader and caller object pairs match. These
+checks establish source capability; fresh staged behavior qualification
+and seed installation remain separate requirements.
+The hosted transaction accepts 528 frozen inputs, enough for all 512 fixture
+files, their manifest and fifteen retained cohort files. The table grows on
+demand and rejects input 529. Late input/output aliases and same-size edits
+with restored timestamps still fail. Native and Cupid-built callers pass all
+eight capacity cases on each host, including complete publication, cleanup,
+recovery and timestamp-preserving reuse.
+Guarded publication still needs integration. Normal ISO publication remains
+Python-coordinated, and installed seeds do not yet include these source modules.
+>endtree
+
 >h2 Native ABI validation at toolchain head
 >tree
 Source-head CupidBuild provides:
@@ -2672,7 +2724,11 @@ Release-qualified Linux behavior fixtures carry the authorized candidate build
 plan and its digest. The parent plan remains lineage, rather than describing
 the staged tools under test. Windows fixtures keep their execution-manifest
 layout. Prepared compiler artifacts remain unqualified until complete behavior
-and release consumption pass.
+and release consumption pass. A separate Windows working-source qualification
+passes seven help, sixty success and fifty-four failure groups in both final
+stages. Independent rereading checks 138 stage artifacts and 100 matching
+behavior product pairs. Committed-source qualification, the later 528-input
+change and seed installation remain separate.
 >endtree
 
 >h2 Toolchain publication seed observations

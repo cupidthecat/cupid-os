@@ -43654,3 +43654,730 @@ fat-tracked-canonical-audit-closed-windows.json, manual-independent-windows.json
 initialization-independent.json. Installed seeds and normal ownership remain
 447 CupidBuild and five Python actions across 452 transforms. TempleOS is
 read-only reference material and is excluded from the proof.
+## 2026-10-05: Native ISO inventory source capability
+
+The remaining ISO action already uses CupidObj as its byte author. Python owns
+tree capture, independent image rendering, drift checks, locking and publication.
+ADRs 0191, 0239 and 0241 define its current format and transaction. The native
+handoff begins in a separate ed8eed3b worktree so the SDK and ABI proposals under
+qualification remain unchanged.
+
+The new cupidbuild_iso module validates borrowed immutable manifest and typed
+CupidObj inventory views independently of the producer. It preserves the full
+512-entry limit, 127-byte portable components, eight directory levels including
+the implicit root, exact case and membership, represented parents and source
+kinds. Empty files and directories remain valid. Input order, CRLF and a missing
+final newline do not affect acceptance. The report contains directory/file
+counts, maximum directory depth and a 64-bit observed file-size sum. It performs
+no allocation or filesystem access and does not read payloads or validate a
+complete image. The caller still owns capture, identity and lifetime.
+
+Both strict native C11 host suites pass fourteen methods without skips. The
+active-fixture case runs the existing checked author and compares its full output
+with the independent Python rendering. Additional cases exercise limits,
+malformed paths and requests, missing/substituted/duplicate/case-drifted manifest
+members, parent and source-kind errors, bounded diagnostics, recovery and
+concurrent calls. The first Windows attempt passes thirteen cases and fails a
+mutation-test restoration because a ctypes pointer aliases the field changed to
+NULL. Retaining its source view fixes the harness; both complete suites pass.
+
+The first direct CupidC calls reject the harness's physical output path under
+--root. Those closed failures and exact logs remain retained. Corrected logical
+source/include/output paths compile the module and C contract with both checked
+CupidC images. CupidASM and CupidLD build a Linux ELF executable, which returns
+zero on native Linux and through WSL after native Windows construction. This is
+an ELF runtime check, not native Windows PE acceptance. All four artifact pairs
+match: inventory.o is 11,180 bytes, contract.o 5,076, start.o 432 and contract.elf
+25,148. The executable has SHA-256
+21e120f76a7342f23bedc315e9e11c73bff7e218d21f65ba389026e929b248e6.
+
+Independent verification rereads all sources, closed logs, four output pairs,
+relocatable/static image formats and the unchanged checked seed pair. Evidence
+is inventory-paired-independent-v2.json in cupid-native-iso-proof-20261005.
+Existing toolchain sources, active recipes and ownership counts stay unchanged.
+Native host capture, full independent ISO image checking, guarded publication,
+staged seed carriage and feature-17 runtime qualification remain pending.
+The new manual text will require kernel/image acceptance before commit. See
+NATIVE-ISO-HANDOFF.md and ADR 0420 for the interface and remaining work.
+
+## 2026-10-05: Retained file-or-directory kind observation
+
+Native ISO capture needs to preserve empty directories even though its manifest
+does not encode kinds. The host observer now opens an unknown ordinary leaf,
+reads its kind through the retained handle, and captures it through the existing
+strict metadata check. Ancestors remain directories. Final revalidation keeps
+the original kind, identity, metadata and parent bindings. An empty logical path
+selects the root; failures clear the output and poison the lifetime. POSIX opens
+use nonblocking flags before rejecting special files; Windows reparse and device
+checks remain in place. No payload or directory membership is read implicitly.
+ADRs 0401 and 0421 define those separate observations and the unchanged bounds.
+
+The thirteen-method kind selection passes on each host with one platform skip.
+The first native Windows run fails its Unicode case because the test caller's
+CRT argv conversion changes the path. The existing observer suite transports
+UTF-8 as ASCII hex; applying the same convention fixes that harness. Both full
+native 72-method observer selections pass, with six Windows and three Linux
+platform/runtime skips.
+
+Actual checked CupidC compiles the changed host adapter on both platforms.
+CupidASM assembles the represented hosted entry points, and CupidLD links the
+kind, batch and original observer callers. All three run natively as ELF32 on
+Linux and PE32 on Windows. The unchanged and new tests pass together: 72 selected
+per host, with five Windows and two Linux skips. Across native and checked runs,
+288 methods are selected, 272 execute and sixteen skip for named platform/runtime
+conditions. This includes useful failures for missing paths, invalid parents,
+strict typed operations, invalid UTF-8, links, junctions, FIFOs, poisoned
+lifetimes, metadata/binding drift and later explicit payload/membership capture.
+
+The first external checked controllers fail after successful linking because
+the static validators require an expected entry argument. The Windows resume
+then selects the default no-import profile for a five-section imported PE.
+Those failed controllers remain recorded. Correct entry/import profiles accept
+the original checked images; no implementation changed for either correction.
+Resume rereads original sources and objects before reusing the completed commands.
+
+Independent observer verification rereads every retained source and command,
+all relocatable objects and six checked callers, raw suite logs, and unchanged
+installed seed files. It also checks diff formatting and an empty staging index.
+Evidence is observer-kind-paired-independent.json in
+cupid-native-iso-proof-20261005. The earlier ISO inventory proof remains a
+separate accepted source capability.
+
+No seed, normal recipe or ownership change is claimed. Native ISO capture,
+independent byte validation and guarded publication remain pending. The
+4,096-handle limit is unchanged; repeated ancestor walks require a measured
+budget check before accepting a full maximum-depth ISO tree. The SDK controls
+under qualification retain their original 82-source producer cohort. Updated
+manual text remains unsmoked and uncommitted.
+
+## 2026-10-05: Reuse checked directory ancestors within the observer bound
+
+The complete ISO capture probe establishes a real resource failure: flat 512-file
+capture succeeds, but seven directories and 505 files at maximum supported depth
+fail at file row 252 on both hosts. It captures kinds, payloads and exact directory
+membership in one lifetime. Every repeated path walk formerly retained another
+ancestor chain until the 4,096-handle budget was exhausted.
+
+Healthy walks now reuse an existing directory ancestor only after checking both
+its original handle and the fresh open through its retained parent against the
+captured identity. Explicit leaves remain separate observations, the handle
+bound remains 4,096, and poisoned batch observations retain their independent
+capture behavior. A changed ancestor fails before a new leaf can be recaptured.
+
+The checked host adapter compiles successfully on both platforms. Relinking the
+exact red probe with only that host object changed makes flat and maximum-depth
+full 512-entry captures succeed. The probe object, hosted support, fixture trees
+and checked linker remain unchanged. Both original red callers and receipts are
+retained. The first external probe compile used an undeclared hosted strcat;
+the represented snprintf composes its fixture paths in the corrected harness.
+Its original source and failed compile receipts remain separate evidence.
+
+The final native and checked observer suites each select 74 methods per host.
+All four pass: 296 selected, 280 executed and sixteen expected platform/runtime
+skips. Two added methods capture full flat/deep inventories and require a changed
+ancestor to fail before recapture, with Windows replacement denial also checked.
+Checked support objects are rehashed before reuse; changed caller sources are
+compiled and linked again. Independent verification rereads current source,
+both command generations, objects, native ELF32/PE32 images, raw test logs,
+original failed probes and passing recovery, fixture contents and unchanged
+installed seeds. Evidence is observer-kind-paired-independent-v2.json in
+cupid-native-iso-proof-20261005.
+
+This removes the measured tree-capture budget failure. Manifest/tool/output
+lifetime integration, independent ISO byte checking, guarded publication,
+staged seed carriage, normal recipe ownership and updated-manual OS acceptance
+remain pending. The frozen SDK producer controls remain unchanged.
+
+## 2026-10-05: Check complete captured ISO images independently
+
+The separate cupidbuild_iso_image module derives the deterministic ISO layout
+from the captured manifest and typed inventory, then compares every candidate
+byte independently of CupidObj's producer. It covers the system area, primary
+descriptor, terminator, both path tables, directory records, Rock Ridge
+continuation, payloads and zero padding. Bounded Toolchain arena storage holds
+nodes and index arrays; every exit rewinds it. Whole-image overflow fails before
+payload reads, and failure clears the report with a bounded diagnostic.
+
+The 17-method suite passes on Windows and Linux with native compilation and
+checked CupidC callers: 68 selected, 68 executed and no skips. Checked callers
+execute as native PE32 and ELF32; core, inventory, checker and caller objects
+form four byte-identical pairs. The active fixture and a mixed collision fixture
+match both checked CupidObj and the Python oracle. Full file/directory capacity,
+maximum depth and name length, empty members, request/manifest ordering, block
+boundaries and corruption throughout each image region are covered. Null
+arguments, allocation failure, repeated success/failure with preserved arena
+storage, overflow before payload access and independent concurrent jobs pass.
+
+The first native compile missed the arena API's explicit alignment parameter.
+The initial harness also used unsupported punctuation and then omitted sorting
+from an in-memory fixture oracle. Those corrections retain the producer's
+portable-name and source-order contract, now checked with a real collision
+fixture author run. Windows native compilation uses the standard CRT compatibility
+define for fopen. The first isolated checked source omitted an included header;
+a later test adapter rejected entry 513 before the validator could exercise its
+limit. Both errors are fixed in the external capture or test adapter. Original
+failed commands and suites remain retained.
+
+Evidence is iso-image-paired-independent.json under
+cupid-native-iso-proof-20261005. It rereads current/captured source, actual terminal
+command receipts, native image formats, objects, suite logs and unchanged seeds.
+ADR 0422 records the API and size/storage limits. Retained tree capture, guarded
+publication, producer/release carriage, normal recipe handoff and updated-manual
+kernel/image acceptance remain pending. Public ownership remains 447 CupidBuild
+and five Python actions; frozen SDK qualification inputs remain unchanged.
+
+## 2026-10-05: Qualify ISO checker test imports and updated manual
+
+The package-style command python -m unittest tests.test_cupidbuild_iso_image
+exposes an unqualified sibling import on both hosts. Changing only the import
+to its tests package path restores both package and discovery invocations.
+The compiled checker, core, inventory and caller sources remain unchanged;
+their objects and native PE32/ELF32 images are rehashed before reuse. The final
+paired selection executes all 68 methods without skips. Independent evidence
+is iso-image-paired-independent-v2.json; the original import failures and earlier
+successful discovery receipts remain separate records.
+
+The updated 157,059-byte manual passes an isolated installed-seed kernel/image
+build and strict private four-CPU runtime. Its SHA-256 is
+498b9f814ba24ec0c4cc94c07c75c8b05bd940c57d1efac4cc54b89d876d2069.
+The external control copies the exact accepted 1,589-file baseline with original
+timestamps and replaces only the manual. Its dry run predicts zero ordinary
+source compilations and two generated-source compilations. Kernel Make returns
+zero in 578.185 seconds. The old policy returns one as expected for the three
+changed kernel rows. With their measured values, image Make returns zero in
+7.848 seconds and runtime returns zero in 60.690 seconds. Both builds forbid all
+seven ordinary compiler/assembler/linker variables.
+
+The raw kernel measures 9,589,844 bytes, the final ELF 9,818,556 and the pass-one
+ELF 9,687,484. Only these three proposal policy rows change. Independent rereading
+checks all sixteen artifacts, all 429 objects, compiler/seed inputs, exact manual
+embedding and unchanged FAT data from sector 20,480. Only cupidos-txt/04CUPIDC.o
+differs from the accepted object cohort. The 200 MiB image has SHA-256
+209f3248b3fedc9295eca82f4fa6b419be9c17f97d379eb966c41aaba9265d0f.
+
+The strict runtime retains 512 MiB guest RAM, four max CPUs, e1000, required ls
+completion and SMP checks. Its external wrapper changes only the previously
+qualified host TCG cache to 64 MiB and records the actual QEMU arguments. The
+repository driver and source image remain unchanged during that private boot.
+Evidence is manual-independent-windows.json under
+cupid-native-iso-manual-retry2-20261005.
+
+Initial external preparation assumed the SDK proposal's 1,591 source files;
+two proposal-only paths are absent from the accepted baseline. The corrected
+Git inventory contains 1,589 files. A later preparation reused the SDK manual's
+four-generated-source prediction, but this manual needs two. The actual dry run
+and copied input timestamps establish the corrected control. Failed preparations
+remain retained. No source was removed or weakened.
+
+These results qualify the source capabilities and manual packaging. Tree capture,
+guarded ISO publication, staged/release carriage and recipe ownership remain
+pending. The public branch, installed seeds, wiki and frozen SDK controls are
+unchanged; coherent branch adoption follows the integration qualification.
+
+## 2026-10-05: Capture complete retained ISO inputs
+
+The new opaque capture owns copied manifest, names and payloads while borrowing
+the caller's observer. It discovers every actual kind before validating the typed
+graph, observes file sizes before copying payloads, validates the populated
+inventory, captures exact root/directory membership and rechecks the observer
+before success. Empty directories survive because kind comes from a retained
+handle rather than inferred children. Closing or failed construction frees
+capture storage without closing the borrowed observer.
+
+All twenty methods pass with native and checked callers on both hosts: 80 selected,
+76 executed and four expected platform skips. Checked CupidC compiles the capture
+and caller; checked CupidLD links native PE32/ELF32 images. The capture object is
+14,440 bytes with SHA-256
+61217828eb5b62b1cd70a213803f0aa3373f458882452e45a21bc59083329715.
+The caller object is 11,544 bytes with SHA-256
+6437abc3dc8d9e08a23a86ad3b1d1810f3ff5598c1455c0caab6dcf6a870527b.
+Both pairs are identical. Prior core/inventory/checker/host/runtime support is
+rehashed against its captured inputs and successful receipts before reuse.
+
+The active fixture passes checked CupidObj, the Python renderer and the native
+independent image check through captured views. Full 512-file, 512-directory and
+seven-directory/505-file trees pass. Cases also cover line endings, order, empty
+members, maximum components/depth, UTF-8 host paths, hardlinks, malformed graphs,
+missing/extra members, wrong kinds, links/junctions/FIFOs, null arguments, bounded
+diagnostics, borrowed observer lifetime, repeated construction and concurrent
+jobs. Retained digests stay fixed after mutation; restored-time file/manifest
+edits and exact-membership or binding drift reject final revalidation.
+
+The first native suites failed on a reused fixture-directory name and an incorrect
+expectation that changing observer-root membership preserved its strict metadata.
+Unique fixture roots and editing an existing unobserved file fix those harness
+cases. Original failures remain retained. The external verifier initially used
+a nonexistent SeedInputs.manifest_path field; its corrected explicit manifest
+path passes. The capture implementation passes its first strict native compile
+and requires no subsequent implementation fix.
+
+Independent evidence is iso-capture-paired-independent.json under
+cupid-native-iso-proof-20261005. It rereads 40 captured inputs per host, actual
+closed commands, native formats, object pairs, all suite logs, original failures
+and unchanged installed seeds. ADR 0423 records the immutable/borrowed lifetime.
+The existing 64 MiB per-file observer bound is checked before copying oversized
+payloads; it covers the active fixture and must grow with active requirements.
+
+Capture has no output-alias or publication authority. Binding its observer through
+guarded publication, checked-author argument capture, candidate validation,
+staged carriage and recipe handoff remain pending. Normal ownership is still
+447 CupidBuild and five Python actions. The new manual paragraph needs fresh
+installed-seed kernel/image/runtime qualification; the preceding 157,059-byte
+manual receipt remains specific to its original bytes. Frozen SDK controls,
+public branch, installed seeds and wiki are unchanged.
+
+The full author-launch probe captures 512 files with 127-byte components through
+the checked native capture on both hosts. Linux CupidObj returns zero and the
+independent captured-image check accepts its 1,224,704-byte output, SHA-256
+6f7fa236f8d2b34b1a9ff7d9048cb93a0a4a8877baa2e3293304db940a2dccea.
+The Windows command contains 182,582 UTF-16 units including the terminator and
+receives launch error 206. There is no CupidObj exit status; the previous 36-byte
+image remains intact. Actual receipts are iso-full-inventory-launch-windows.json
+and iso-full-inventory-launch-linux.json beside the capture evidence.
+
+Guarded publication needs a complete bounded request transport rather than one
+command argument group per entry. The current transaction's 512-input bound also
+cannot hold 512 files plus manifest and checked cohort. These are implementation
+requirements for the next publication step; no fixture or producer limit is
+reduced. The accepted capture/image modules and frozen SDK controls are unchanged.
+
+## 2026-10-05: Qualify the retained-capture manual
+
+The current manual is 157,552 bytes, SHA-256
+060103c18cf7d37364e6eec1748acfe2a885daaa54d65cc95abd951bafdaf92f.
+A fresh installed-seed control copies the exact accepted 1,589-file baseline with
+its timestamps, retains accepted ordinary outputs and replaces only this manual.
+Its dry run predicts zero ordinary compilations and two generated compilations.
+
+Actual kernel Make passes in 571.287 seconds with all seven ordinary tool
+variables forbidden. The old artifact policy rejects the three changed kernel
+rows as expected. After measuring only those rows, image Make passes in 9.246
+seconds and the strict private four-CPU max/e1000 runtime passes in 67.885
+seconds. The previously qualified 64 MiB host TCG cache retains 512 MiB guest RAM,
+required ls completion and every SMP check. The repository runtime driver and
+source image remain unchanged during boot.
+
+The raw kernel is 9,590,340 bytes, the final ELF 9,818,556 and pass-one ELF
+9,687,484. Only these three proposal policy rows differ from the accepted policy.
+The 200 MiB image has SHA-256
+6670ba51aaa9c062f04d463bfbae67612038efe4efedd0bf156670429b01465c.
+Independent verification rereads all source controls, the unchanged installed
+seed/compiler inputs, all 429 relocatable objects and sixteen artifact rows.
+Only cupidos-txt/04CUPIDC.o differs, each kernel artifact contains one exact manual
+copy, and FAT contents from sector 20,480 remain byte-identical.
+
+Evidence is manual-independent-windows.json under
+cupid-native-iso-capture-manual-20261005, with actual closed command and runtime
+receipts. The proposal policy projection checks the prior manual's measured rows
+before replacing them with this independently accepted measurement. Earlier
+manual receipts remain retained and specific to their own bytes. Guarded ISO
+publication, producer carriage, recipe adoption and SDK fresh paired OS acceptance
+remain separate unfinished gates; no installed seed or public branch changes.
+
+The final read-only checkpoint accepts both ordinary SDK publications and their
+independent verification, the current capture/image/observer evidence, complete
+launch probe and fresh manual control. It rereads frozen SDK inputs, current
+compiler inputs, original interrupted candidate files and all eleven preserved
+user paths. Fresh paired OS controls have 429 new objects per host and no reused
+ordinary objects. Their terminal acceptance remains pending.
+
+The full-launch verifier first treated a Linux /mnt/c program name as a Windows
+path; explicit namespace conversion fixes that external reader. The combined
+checkpoint's first Path/string composition fails before writing a result. Its
+corrected v2 reader passes with actual closed log/command evidence, while the
+original reader remains retained. Neither correction changes source capability,
+tool images, existing receipts or frozen OS controls. Evidence is
+paired-sdk-capture-checkpoint-v2-closed.json in cupid-sdk-publication-v2-20261004.
+
+## 2026-10-05: Complete ISO request bundle transport
+
+CupidObj now accepts `iso-fixture-bundle BUNDLE -o OUTPUT`. The portable
+`CUPISO1` codec carries the exact manifest, ordered kinds, logical names and
+payload bytes without native file paths. It validates complete framing before
+creating borrowed views, rejects reserved words, bad kinds, truncated fields
+and trailing data, and restores arena storage on failure. Encoding preflights
+every source view and the complete 64-bit size before allocation or copying.
+The existing producer retains portable-name, parent, membership and layout
+validation. Bundle mode rejects mixed native file/directory options.
+
+The full request retains 512 entries, 1,023-byte logical paths and up to
+524,800 manifest bytes. Bundle input adds the maximum 1,056,784-byte metadata
+overhead to the existing 64 MiB source allowance; image output remains 64 MiB.
+Native Make, current candidate plans, Windows behavior links and SDK bootstrap
+comparisons carry the codec. Installed seed plans and artifacts remain unchanged.
+
+The new twenty-method suite passes with native and checked Cupid-built callers
+on both hosts: 80 selected, 78 executed and two expected Windows descriptor
+skips. The older CupidObj commands and current plan cases pass in the paired
+44-method regression selection: 88 selected, 86 executed, two expected skips.
+Tests cover exact round trips, all truncated prefixes, maximum framing/counts,
+empty files/directories, allocation rollback and recovery, bounded diagnostics,
+null and invalid views, overflow preflight, borrowed lifetimes, concurrency,
+real producer output, semantic rejection and output preservation.
+
+Both checked compilers build the codec, caller and real producer. CupidLD links
+native PE32 and ELF32 images. All actual compile/link steps return zero, and
+four newly checked object pairs match. The codec is 12,904 bytes with SHA-256
+2ac34f458038ca30057f6da556237a1bea5ed6b2ce287df04216758d2340c676;
+the caller is 13,616 bytes with SHA-256
+424a741c35a5311ff0ea0d8b187b6fa08adc736741e4a73e3c04a4fe3d82528d.
+Support reuse requires matching retained source and artifact observations.
+
+The persistent 512-file/127-byte-name request uses a 139,280-byte bundle with
+SHA-256 27903d1aa75cc0d53a72e77ca1cfa66b8848c6db46553c5c9186427ae2fecdb7.
+The Windows command is now 310 UTF-16 units, replacing the actual rejected
+182,582-unit launch. Both checked producers return zero and emit identical
+1,224,704-byte images with SHA-256
+6f7fa236f8d2b34b1a9ff7d9048cb93a0a4a8877baa2e3293304db940a2dccea.
+The complete retained capture/image checker and independent Python renderer
+both accept them. `iso-bundle-paired-independent.json` rereads 43 source/test
+inputs per host, actual terminal receipts, suite logs, object/image profiles,
+the complete 513-input fixture, framing, outputs and unchanged installed seeds.
+
+The first command retained the old requirement for explicit entries and failed
+before invocation. The corrected guard applies that requirement only to ordinary
+`iso-fixture` mode. The first fixture path and ctypes NUL-string adapter were
+also wrong; corrected fixture and length-bearing views pass. A Windows suite
+with all method bodies passing failed during temporary executable cleanup; the
+unchanged next run returns zero. The external checked builder initially read
+path-encoding support from the wrong retained tree and failed before compiling.
+The corrected receipt-backed lookup passes. Initial regression runs expose old
+candidate plan locks and WSL's unusable `python` path. Updated current plan locks
+and a private interpreter oracle path make both selections pass. All failed
+logs and receipts remain retained.
+
+ADR 0424 records the framing and ownership boundary. README, domain vocabulary,
+handoff and the embedded manual now describe the source capability. The fresh
+installed-seed kernel/image/runtime qualification is recorded below.
+Guarded native publication, staged producer/seed qualification, recipe adoption
+and SDK fresh paired OS acceptance remain unfinished. The 447 CupidBuild/five
+Python production counts stay unchanged. New C files use `.cc`; `TempleOS/`
+remains untouched reference material and is excluded from the evidence.
+
+The 82 SDK model contracts now pass on both hosts without skips. Their current
+fixed-point count includes the codec, and synthetic bootstrap fixtures declare
+the new source/header and approved CupidObj link. Remaining source-inventory
+locks were updated from observed current plans; historical seed identities
+remain unchanged. The first full model run rejected empty synthetic CupidObj
+links and exposed old count locks. Corrected fixtures then expose one remaining
+long-profile count, 87 rather than 82; the corrected final selections pass.
+Actual closed evidence is iso-bundle-sdk-contracts-retry2-closed-{host}.json.
+
+The fresh bundle-manual control now passes. It copies all 1,589 accepted tracked
+sources, unchanged compiler/installed-seed inputs, 429 accepted objects and
+sixteen artifacts with their timestamps, then replaces only 04CUPIDC.CTXT.
+Its 158,252 bytes have SHA-256
+83f5c8545153e0402c6494136f41c4324c9d1bc8ef83571d3e38fc78576ffc51.
+The plan predicts no ordinary compilation and two generated-source compiles.
+Actual kernel, expected old-policy rejection, image and runtime terminals are
+[0,1,0,0], taking 766.065, 5.396, 12.563 and 98.395 seconds respectively.
+All seven host compiler/assembler/link variables remain forbidden during Make.
+The runtime uses the existing strict private max/e1000 four-CPU driver, completed
+ls and SMP checks, and the already qualified external 64 MiB host TCG cache.
+
+Independent verification rereads all source controls, unchanged seed/compiler
+inputs, all 429 relocatable objects and sixteen exact artifact rows. Only the
+manual wrapper differs. Each kernel artifact contains one exact manual copy,
+and FAT bytes from sector 20,480 remain unchanged. The raw kernel is 9,591,040
+bytes; final/pass-one ELF sizes stay 9,818,556 and 9,687,484. The 200 MiB image
+has SHA-256 e2a684819f1699d5ada9da129b1b1a7f46fe736be63b772d28967d8e8b9f1502.
+The isolated proposal policy updates only the three independently measured
+kernel rows after checking the prior capture-manual policy. Evidence is
+manual-independent-windows.json under cupid-native-iso-bundle-manual-20261005
+and iso-bundle-manual-policy-projection.json in the ISO proof directory.
+The actual serial controller and independent verifier return zero. Earlier
+manual receipts remain specific to their original bytes. Staged producer
+qualification, guarded publication, recipe adoption and fresh paired SDK OS
+acceptance remain separate unfinished gates.
+
+## 2026-10-05: Release-aware ISO bundle seed profiles
+
+The native manifest reader admits the complete codec-bearing Linux plan and
+five Windows profiles through an explicitly selected release. Counts
+80/85/86/86/87 bind exact Windows plans and import profiles; the two 86-input
+shapes remain distinct. The reader requires the exact codec source and ordered
+CupidObj link while retaining every other source/link check. New parent tuples
+come from the external record. Historical strict validation remains unchanged.
+ADR 0426 records this boundary and the failed private parent-embedding probe.
+
+On each host, the actual 69-method native manifest/release selection passes,
+as does the twelve-method profile suite with Cupid-built PE32/ELF32 callers.
+These selections execute 162 methods with no skips. The retained old reader
+fails nine of the twelve new methods on each host. Positive and negative cases
+cover complete profiles, exact plan/count/parent bindings, codec source/link
+and unrelated link changes, unknown profiles with matching records, field
+order, bounded diagnostics, cleared results, immutable inputs and recovery.
+Strict calls reject the new profiles before and after release-aware calls.
+
+Checked CupidC produces identical reader and caller object pairs: 96,832 bytes
+with SHA-256 b857af3faebf4cf279a0cb3771b9be7f9fdaf023ee5d89ae5cc2e94f6f1d6f1d
+and 6,380 bytes with SHA-256
+c94d85bfe988ee36e7606f92b1ea6385dfe0a9151aa4d2729f0be4be149e2bfc.
+CupidDis certifies the objects and CupidLD links both native hosted callers.
+Windows' checked suite closes in 5.714 seconds and Linux's in 6.152 seconds.
+`checked-iso-seed-profiles-paired-independent.json` rereads current sources,
+retained support, actual tool bytes, commands, full method logs, object pairs
+and unchanged installed seeds. This is capability evidence; it does not
+authorize a new release or establish a complete staged producer proof.
+
+Private count/plan probes still reject the retained strict Windows request.
+Adding the current parent tuple in the final private probe admits it, but that
+approach conflicts with ADR 0411 and is retained only for diagnosis. Production
+uses the separate release-aware API. Both original Linux frontend timeout and
+Windows strict provenance rejection remain failures. The first checked caller
+also fails because `atoi` is outside the checked interface; bounded decimal
+control parsing fixes the caller without changing runtime or compiler code.
+An initial parent-mutation fixture made no change and was corrected to mutate
+an actual tuple member. Original failed logs and artifacts remain retained.
+
+Fresh paired preparations select long paths and aliases and capture the same
+87 inputs with source digest
+80eb6121cbb31053a338fdd0062fdc2b06c0a4eb273abd822772016326f39445.
+Both commands are running. Linux materializes a private native-filesystem root.
+Their outputs remain unqualified pending independent rereading, separate
+release authoring and full rebuilt behavior qualification. The initial external
+collector selected output outside the source root; both coordinators rejected
+it before building. Corrected output paths preserve the production boundary.
+
+The suffix policy names the three ISO helper sources and six checked callers
+as outside the current supported Make graph. The codec is part of the current
+native/candidate plan. Canonical audit regeneration and the updated embedded
+manual's installed-seed kernel/image/runtime acceptance remain pending.
+Guarded native ISO publication, seed promotion, SDK integration and recipe
+adoption remain open. Production ownership stays 447 CupidBuild/five Python
+actions across 452 transforms. TempleOS remains read-only and excluded.
+
+The focused real-Make audit tests expose two incomplete dependency declarations:
+the audited bootstrap list omitted the codec source, and Make's publication
+list omitted its header and the three captured ISO helper headers. The exact
+verifier command and tool roles match. Adding only the codec leaves the header
+failure red; declaring the full header closure makes both existing contracts
+pass on both hosts. Actual transform membership is 165 inputs, without missing
+or unexpected members. Original red and green commands/logs remain retained in
+`iso-audit-closure-{red,green}-closed-{host}.json`.
+
+Full audit regeneration then rejects the unlisted codec preprocessing case.
+The real hosted compiler contract now compiles the codec as ordinary C and
+includes its object in the CupidObj link. Its Linux preprocessing profile grows
+from 45 to 46 translation units. Missing codec source and an incorrect GNU-mode
+flag are useful negative cases at that C contract seam. These are completed
+source changes; full canonical audit regeneration and hosted contract execution
+remain separate checks.
+
+The profile manual now passes independent installed-seed OS acceptance. Its
+158,896 bytes have SHA-256
+a67e25e2431c5ea90bb1fcc7ecf8b06c1226ecec1d98dbfae06bdfb95639436e.
+Actual kernel, old-policy rejection, image and runtime commands close [0,1,0,0]
+in 608.250, 3.032, 7.759 and 59.166 seconds. Make forbids all seven ordinary
+host code-producing launchers. The strict private four-CPU max/e1000 boot
+completes ls and SMP checks with the qualified external 64 MiB host TCG cache.
+Independent rereading checks 1,589 source controls, unchanged compiler/seeds,
+all 429 objects and sixteen artifacts. Only 04CUPIDC.o changes. Each kernel
+contains exactly one manual copy, and FAT data from sector 20,480 stays intact.
+
+The measured raw kernel is 9,591,684 bytes; final/pass-one ELF sizes remain
+9,818,556 and 9,687,484. The 200 MiB image has SHA-256
+0130e79495a78fde15849931ab49e48efd4c1b646282b65466046d25dd714ddb.
+Only the three measured kernel policy rows are projected into the isolated
+proposal. Evidence is `manual-independent-windows.json` under
+`cupid-native-iso-profile-manual-20261005` and
+`iso-profile-manual-policy-projection.json` in the ISO proof directory.
+
+The separate Linux SDK OS retry passes kernel, expected old-policy rejection
+and image commands, then fails the ordinary user target after 1,379.891 seconds.
+Its stale-publication rebuild reaches the strict checked-runner provenance
+rejection. The failure remains `os-retry2-user-closed-linux.json` in the SDK
+proof directory. SDK user/runtime acceptance is still open; this profile
+manual proof neither replaces nor reclassifies that failed control.
+
+Both actual preparations now close successfully: Windows in 1,404.737 seconds
+and Linux in 1,438.129 seconds. `iso-preparations-paired-independent.json`
+rereads 174 retained source copies, 249 stage artifacts and both live parent
+manifests. It checks every relocatable object, static ELF/PE image, exact
+Windows import profile and all 83 stage-three/stage-four pairs. The retained
+Linux preparation has a complete independently checked 199-file copy.
+Separate authoring closes zero and matches all twelve actual tools. Its
+2,736-byte release candidate has SHA-256
+66f714e0cf43c4d82ca97b93bd6ed3c070a6d1d5488f81a5333ca51a2247df1d.
+The source revision remains the captured working-source baseline; this is no
+committed-source or promotion claim. Both preparations remain unqualified.
+
+Linux's first qualification and graph-suite process are interrupted during a
+WSL restart. Neither has a closed command receipt. The original temporary
+source path is absent; the complete verified preparation copy remains intact.
+`iso-linux-interruption-independent.json` records the new host observations
+without assigning a bootstrap failure or claiming a restart cause. A new
+native Linux control contains 1,617 captured source files and the exact
+199-file preparation. Rebuilt qualification starts against that control.
+Windows qualification continues against the separately authored candidate.
+
+The canonical audit initially generates and checks successfully. Broader
+regression checks then expose stale exact totals: 415 rather than 414 active
+cases, 426 if and 20 elif occurrences, and 734 include-source files with
+2,584 include directives. The additional conditional occurrences are the
+existing _WIN32 and CUPIDBUILD_CUSTOM_LINUX expressions; all 61 expressions
+and 64 directive/expression probes remain. The checked C caller, conditional
+manifest and Python locks now declare those exact totals. The source-cohort
+test changes from red to green without changing parsing or negative cases.
+The original full Windows selection is stopped after exposing these failures;
+its receipt and partial log remain failed evidence, not a complete suite.
+The standalone fixture-drift regression passes. Full fresh regression and
+canonical regeneration remain separate checks.
+
+The real hosted C compiler plan now passes its static-tool and runtime-parity
+tests on both hosts: two methods each, no skips, 66.238 seconds on Windows and
+75.507 on Linux. This executes codec compilation and its CupidObj link rather
+than only inspecting source text. All seven Cupid-built static products and
+the private native oracle products are retained before routine cleanup.
+
+The Linux SDK user's earlier failure has a confirmed profile mismatch. Its
+qualified publication contains the default alias profile, while the ordinary
+legacy ABI target requests long paths. The rebuild then rejects the selected
+strict parent. All 23 original publication files and their live inputs remain
+valid. The failed original command is retained unchanged.
+
+A fresh paired control overlays the already qualified native ABI recipe onto
+1,593 captured source files per host. It reuses 446 kernel/artifact/image files
+only after complete cross-host comparison to the accepted SDK OS proof. New
+user Make commands pass in 64.028 and 40.028 seconds with Python and all seven
+host code producers forbidden. All six outputs match the accepted user bytes.
+Strict private 512 MiB, four-max-CPU, e1000, completed-ls and SMP runtime passes
+in 75.565 and 96.492 seconds with the qualified 64 MiB TCG cache. Independent
+checks reread every source and reused output, validate all 429 object formats,
+kernel/user images and exact embedded manual copies, and retain the unchanged
+23-file SDK publication and its 96 inputs. Evidence is
+`native-abi-os-paired-independent.json` under
+`cupid-sdk-native-abi-os-20261005`. This qualifies fresh native ABI user/runtime
+behavior over explicitly reused OS bytes. It does not turn the earlier legacy
+failure into success or claim a new kernel build, installation or adoption.
+
+The complete native C preprocessor selection now passes on both hosts:
+39 methods each, no skips, 9.678 seconds on Windows and 9.489 on Linux.
+It covers all 415 tracked active roots, the 46-case hosted Linux profile,
+all 61 conditional expressions and the existing error/recovery cases.
+The native active-corpus check first catches one further stale C profile
+lock, 45 rather than 46; updating that exact lock makes the full selection
+green. Original rejected and corrected results remain distinct.
+
+Canonical generation and check pass after those C locks change. The final
+active audit has SHA-256
+83a95a7b5fcd52b1328b8afcc984ab81819a838fb08bfdd0f25b871ec271d748.
+`iso-native-cohort-regressions-paired-independent-v2.json` rereads the
+actual inputs, complete method logs, retained native contracts and all
+seven identical Cupid-built static product pairs at entry 0x08048000.
+It verifies 82 executed methods across preprocessing and hosted linking,
+with no skips. The broader graph selections are running serially against
+separate native controls; they are not yet complete.
+
+Linux release qualification retry two closes as a failure after a
+stage-two cupidc_frontend.cc compile reaches the 360-second bound.
+The retained archive has 105 observed private paths. A separate exact
+compile uses the same selected producer, all 87 unchanged source inputs,
+flags and time bound. It passes in 308.092 seconds, uses about 98,400 KiB
+maximum resident memory and emits the exact prepared 1,084,736-byte object
+with SHA-256
+b5a952ff8f26dc7e3b95c7ee52a0f2a9995c95057992b4a151b61d8431fe1918.
+The bound remains unchanged. The temporary recovery tree is absent after
+the closed failure while the boot ID is unchanged; its removal cause is
+unproven. A fresh persistent native control and complete checked preparation
+start retry three. Windows has reached release-authorized behavior checks.
+Neither running command establishes a qualified publication.
+
+The actual installed Windows CupidBuild rejects verify-user-abi with usage
+and exit two. `installed-abi-handoff-independent.json` under the paired
+native ABI OS proof retains the unchanged executable and command streams.
+The paired private user/runtime proof therefore does not authorize adopting
+that native recipe against the installed cohort. A qualified seed containing
+the command must be installed first. Production ownership stays 447/five.
+
+## 2026-10-05: Complete retained ISO transaction capacity
+
+The generic host input bound moves from 512 to 528 so the complete fixture,
+manifest and paired cohort fit together. The initial source counts toward
+the total. Allocation still grows on demand; unrelated directory and profile
+bounds keep their existing values.
+
+Both hosts retain the original two-test failure and pass eight new methods
+with native and Cupid-built callers. Full-table reads, live/frozen rechecks,
+actual publication and equal-byte timestamp reuse pass. Input 529, excessive
+reservation, aliases at slots beyond 512 and restored-time byte drift fail,
+preserve the old output and permit recovery after complete cleanup.
+
+All existing observer methods also pass. The combined independent receipt
+covers 258 selected methods, 248 executions and ten platform skips, including
+32 executed capacity cases without skips. The 21,352-byte caller-object pair
+has SHA-256 `9d353582db3bcb053841ab01d27b4c87bee2358edf7df7599b18e025ae40cb59`.
+Actual source copies, closed logs, images, relocatable objects and installed
+parents are reread. The first collector's wrong seed-record attribute and
+unavailable direct Windows Git execution in WSL remain harness failures;
+declared tool fields and a Windows-captured inventory correct them.
+
+The earlier release qualification remains separate from this new proposal.
+Linux retry three closes with exit one after 682.012 seconds: its stage-two
+frontend compile reaches the unchanged 360-second limit. Independent evidence
+checks all 87 archived sources and eighteen completed i386 objects against
+the preparation. The persistent root and boot ID remain present. No Linux
+behavior result or installation is claimed, and the timeout cause is unproven.
+Evidence is `iso-linux-qualification-retry3-independent.json`.
+
+Guarded ISO publication, new seed carriage and normal recipe ownership remain
+open. Counts remain 447 CupidBuild/five Python across 452 transforms. ADR 0427
+records the capacity decision and its tests. The updated manual needs its own
+fresh kernel, image and runtime acceptance before adoption.
+
+
+## ISO source adoption and Windows qualification, 2026-10-05
+
+The isolated adoption preserves the accepted FAT16 source and merges the
+complete native ISO capture, codec, profile-reader and 528-input capabilities.
+Both independent documentation additions survive the README merge. The
+combined manual requires a fresh FAT-preserving installed-seed acceptance.
+
+Windows rebuilt working-source qualification closes successfully in
+4,774.6308235 seconds. Independent rereading checks all 87 source copies,
+138 stage artifacts, 46 final-stage artifact pairs, 13,776 retained
+observations and 100 equal behavior product pairs. Both final stages pass
+seven help, sixty success and fifty-four failure groups. Installed parents
+and the separately authored release remain unchanged. This proof precedes
+the 528-input change and does not authorize installation. Linux retry three
+retains its stage-two frontend timeout and eighteen matching completed
+objects; retry four uses the unchanged 360-second bound.
+
+
+## Combined FAT16/native ISO manual acceptance, 2026-10-05
+
+The combined 160,376-byte manual passes the fresh installed-seed kernel,
+image and strict private four-CPU max/e1000 runtime commands. Independent
+rereading checks all 1,589 source controls, 429 objects and sixteen artifacts.
+Only the manual wrapper changes from the accepted FAT16 control; the FAT
+source, object and image suffix after sector 20,480 remain intact. Raw, final
+and pass-one kernels measure 9,594,508, 9,822,652 and 9,691,580 bytes. Only
+those three measured policy rows change. The image is 209,715,200 bytes with
+SHA-256 2c59acf0467a97dcf99d5fe9a3f7636a8df1d23153e1060294f4402fe858479d.
+
+The first combined graph assertion assigned the accepted FAT16 fixture to
+host_fixture. Its declared policy is not_reached, so the assertion moves to
+the existing not_reached list. The unchanged actual audit still records
+775 active sources and 53 outside supported roots. The complete focused
+stale-source and negative-gate rerun passes in 521.1039763 seconds.
+
+Linux qualification retry four finishes complete stages two and three,
+then times out on the stage-four frontend under the unchanged 360-second
+bound. Independent checking retains all 87 source copies and 92 completed
+artifacts, each matching preparation. Its closed elapsed time is
+1,601.058548812 seconds. There is no Linux behavior acceptance. The source
+root and boot identity remain present; the timeout cause is unproven.
+The first independent ELF collector omitted the required entry argument;
+passing the declared Linux target entry fixes that collector only.
+
+
+## Complete paired ISO graph regression closure, 2026-10-05
+
+Both complete 129-method graph suites pass with the same nine measured
+source/count locks: Windows in 1,809.7018843 seconds and native Linux in
+1,493.214145598 seconds. Independent checking rereads every method result,
+closed command, full log and declared source input against guard version
+three. The combined FAT16/native ISO stale-source and negative-gate check
+also passes. Together these selections execute 259 methods without skips.
+The final generated audit is byte-identical before and after projecting
+the three independently measured kernel policy rows.

@@ -1,6 +1,7 @@
 #include "ctool.h"
 #include "ctool_host.h"
 #include "cupidobj.h"
+#include "iso_fixture_bundle.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -53,6 +54,7 @@ typedef struct {
   ctool_obj_install_source_kind_t install_kind;
   cupidobj_cli_iso_fixture_entry_t iso_entries[CUPIDOBJ_HOST_ISO_ENTRIES];
   ctool_u32 iso_entry_count;
+  ctool_bool iso_bundle;
   ctool_u32 image_sectors;
   ctool_u32 fat_start_lba;
   ctool_bool readonly;
@@ -81,6 +83,7 @@ static void cupidobj_usage(FILE *stream) {
       "--image-sectors SECTORS --fat-start-lba LBA -o OUTPUT\n"
       "       cupidobj iso-fixture MANIFEST [--directory LOGICAL]... "
       "[--file LOGICAL NATIVE]... -o OUTPUT\n"
+      "       cupidobj iso-fixture-bundle BUNDLE -o OUTPUT\n"
       "       cupidobj profile-manifest SNAPSHOT -o OUTPUT\n"
       "       cupidobj install-source bin [--bin PATH...] "
       "[--headers PATH...] [--browser PATH...] -o OUTPUT\n"
@@ -165,6 +168,9 @@ static int cupidobj_parse_cli(int argc, char **argv, cupidobj_cli_t *cli) {
     cli->operation = CTOOL_OBJ_BUILD_DISK_TEMPLATE;
   } else if (strcmp(argv[1], "iso-fixture") == 0) {
     cli->operation = CTOOL_OBJ_BUILD_ISO_FIXTURE;
+  } else if (strcmp(argv[1], "iso-fixture-bundle") == 0) {
+    cli->operation = CTOOL_OBJ_BUILD_ISO_FIXTURE;
+    cli->iso_bundle = CTOOL_TRUE;
   } else if (strcmp(argv[1], "profile-manifest") == 0) {
     cli->operation = CTOOL_OBJ_GENERATE_PROFILE_MANIFEST;
   } else if (strcmp(argv[1], "install-source") == 0) {
@@ -287,6 +293,7 @@ static int cupidobj_parse_cli(int argc, char **argv, cupidobj_cli_t *cli) {
     if (strcmp(argument, "--directory") == 0) {
       cupidobj_cli_iso_fixture_entry_t *entry;
       if (cli->operation != CTOOL_OBJ_BUILD_ISO_FIXTURE ||
+          cli->iso_bundle == CTOOL_TRUE ||
           cli->iso_entry_count >= CUPIDOBJ_HOST_ISO_ENTRIES ||
           index + 1 >= argc || argv[index + 1][0] == '\0') {
         return 0;
@@ -299,6 +306,7 @@ static int cupidobj_parse_cli(int argc, char **argv, cupidobj_cli_t *cli) {
     if (strcmp(argument, "--file") == 0) {
       cupidobj_cli_iso_fixture_entry_t *entry;
       if (cli->operation != CTOOL_OBJ_BUILD_ISO_FIXTURE ||
+          cli->iso_bundle == CTOOL_TRUE ||
           cli->iso_entry_count >= CUPIDOBJ_HOST_ISO_ENTRIES ||
           index + 2 >= argc || argv[index + 1][0] == '\0' ||
           argv[index + 2][0] == '\0') {
@@ -434,7 +442,7 @@ static int cupidobj_parse_cli(int argc, char **argv, cupidobj_cli_t *cli) {
     return 0;
   }
   if (cli->operation == CTOOL_OBJ_BUILD_ISO_FIXTURE &&
-      cli->iso_entry_count == 0u) {
+      cli->iso_bundle == CTOOL_FALSE && cli->iso_entry_count == 0u) {
     return 0;
   }
   if (cli->operation == CTOOL_OBJ_GENERATE_INSTALL_SOURCE) {
@@ -718,6 +726,9 @@ typedef struct {
   const cupidobj_cli_iso_fixture_entry_t *iso_cli_entries;
   ctool_u32 iso_entry_count;
   const char *iso_failed_source;
+  ctool_bool iso_bundle;
+  ctool_iso_fixture_bundle_request_t iso_bundle_request;
+  char iso_bundle_error[256];
   const char *inherited_output_path;
   ctool_bool body_started;
   ctool_bool kernel_loaded;
@@ -754,6 +765,15 @@ static ctool_status_t cupidobj_invoke_body(ctool_invocation_t *invocation,
     }
     context->kernel_loaded = CTOOL_TRUE;
     context->request.as.disk_template.kernel = &context->kernel;
+  } else if (context->request.operation == CTOOL_OBJ_BUILD_ISO_FIXTURE &&
+             context->iso_bundle == CTOOL_TRUE) {
+    if (!ctool_iso_fixture_bundle_decode(ctool_job_arena(invocation->job),
+        invocation->input, &context->iso_bundle_request,
+        context->iso_bundle_error, (ctool_u32)sizeof(context->iso_bundle_error))) {
+      return CTOOL_ERR_INPUT;
+    }
+    context->request.input = &context->iso_bundle_request.manifest;
+    context->request.as.iso_fixture = context->iso_bundle_request.inventory;
   } else if (context->request.operation == CTOOL_OBJ_BUILD_ISO_FIXTURE) {
     ctool_path_t root;
     const ctool_limits_t *limits = ctool_job_limits(invocation->job);
@@ -907,6 +927,9 @@ int main(int argc, char **argv) {
     }
   }
   limits.source_bytes = CUPIDOBJ_HOST_SOURCE_BYTES;
+  if (cli.iso_bundle == CTOOL_TRUE) {
+    limits.source_bytes += CTOOL_ISO_BUNDLE_METADATA_BYTES;
+  }
   limits.output_bytes = CUPIDOBJ_HOST_OUTPUT_BYTES;
   limits.arena_bytes = CUPIDOBJ_HOST_ARENA_BYTES;
 #if defined(_WIN32)
@@ -930,6 +953,7 @@ int main(int argc, char **argv) {
     context.request.as.disk_template.image_sectors = cli.image_sectors;
     context.request.as.disk_template.fat_start_lba = cli.fat_start_lba;
   } else if (cli.operation == CTOOL_OBJ_BUILD_ISO_FIXTURE) {
+    context.iso_bundle = cli.iso_bundle;
     context.iso_source_paths = iso_source_paths;
     context.iso_sources = iso_sources;
     context.iso_cli_entries = cli.iso_entries;
@@ -1051,6 +1075,8 @@ int main(int argc, char **argv) {
       (void)fprintf(stderr, "cupidobj: cannot load %s (%s)\n",
                     context.iso_failed_source,
                     ctool_status_name(invocation_result.body_status));
+    } else if (context.iso_bundle_error[0] != 0) {
+      (void)fprintf(stderr, "cupidobj: %s\n", context.iso_bundle_error);
     } else if (invocation_result.body_status == CTOOL_ERR_NOT_FOUND) {
       (void)fprintf(stderr, "cupidobj: cannot load %s (%s)\n", cli.input,
                     ctool_status_name(invocation_result.body_status));
