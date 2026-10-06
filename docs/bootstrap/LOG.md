@@ -44518,3 +44518,78 @@ final stale-output check passes in 134.939 seconds after the measured policy
 update. Source ownership remains 775 active sources, 255 feature kinds and
 447 CupidBuild/five Python actions across 452 transforms. No C or assembly
 ownership changes, seed installation or normal ISO handoff occurs in this step.
+
+## Complete guarded ISO publication, 2026-10-06
+
+`cupidbuild_iso_publish` and the source command `publish-iso-fixture` retain the
+complete fixture, selected release, both manifests and all twelve role images
+through one output transaction. They reserve 528 inputs before borrowing frozen
+paths, compare captured and frozen bytes, check exact cohort memberships and
+actual profiles, and launch only the host's frozen CupidObj. Every candidate byte
+must match the independent image layout. The observer remains borrowed through
+transaction close. Equal output retains its timestamp, and ordinary rejection
+restores verified prior bytes or absence. The sixty-second author deadline and
+64 MiB output bound remain unchanged.
+
+Native Make and both source plans now link the codec and all four ISO modules.
+Linux has 34 C sources and twenty CupidBuild link inputs. Five new shared-reader
+profiles bind both plan digests to counts 85, 90, 91, 91 and 92; historical plans
+remain supported. Capture owns its mutable allocations separately from borrowed
+const views, preserving strict native compiler checks without const-discard casts.
+
+Nineteen native API methods pass on each host, including seven real interruption
+cases that preserve bytes/timestamps or restore absence and permit recovery.
+Fourteen portable checked API methods pass per host. Four current eight-method
+command runs and all paired profile cases pass. Independent rereading records
+343 executions and three platform skips in the composed matrix. It preserves
+the earlier Linux command failures and replaces only those command results with
+the corrected final command receipts. All four retained 512-entry requests
+produce the same 66,342,912-byte image from 67,176,834 input bytes. Checked calls
+take 679.246 seconds on Windows and 523.121 on Linux. The outer test allowance is
+1,200 seconds; the production author deadline remains sixty seconds.
+
+The first operation probe inverted the host runner's zero-success convention.
+Initial tests then assumed empty-manifest support, used a nonexistent path slot
+and treated a valid file-to-directory change before capture as invalid. The
+corrected cases preserve the existing nonempty-manifest and discovered-kind
+contracts. Root spelling tests exposed a POSIX terminal dot and Windows trailing
+separators. The command normalizes POSIX dot/repeated separators and trims a
+Windows trailing separator while retaining drive roots. Parent components still
+reach the observer's rejection rules. All original failed receipts remain.
+
+The seven-tool source-link test initially rejected CupidBuild's twenty-object
+link at its sixteen-object helper bound. Its five unresolved-symbol diagnostics
+were expected missing-runtime negative tests after successful tool links. The
+helper now has 32 entries and derives its bound from the array; both complete
+link and runtime parity checks pass. Both 39-method preprocessing suites pass
+with 419 tracked and four generated roots, fifty hosted Linux cases and 61
+conditional expressions. Eleven graph checks pass, including unknown-token and
+manifest-drift rejection. Canonical generation and stale-output checks pass with
+780 active inputs, 255 feature kinds, 7,062 `sizeof` occurrences in 189 files and
+51 unreachable sources. The fixed-point audit's omission/reorder negatives and
+the corrected 147-method bootstrap/direct-tool selection also pass. The initial
+broad run with obsolete source-count fixtures remains a failed exploratory run;
+complete staged qualification is still required.
+
+Seven checked object pairs are identical. The publisher is 22,200 bytes,
+SHA-256 `94695810e4e385bfb78724a34307455cc215cbd93e202595560846d61e44761c`.
+The paired independent receipt is `iso-publication-paired-independent.json`
+under `cupid-native-iso-proof-20261005`. Its explicit test release is synthetic
+operation authority and does not qualify a new seed publication.
+
+The 162,971-byte current manual has SHA-256
+`1089d4ef4557cbdeb5be27c3cf0c986bf33f67745b0838d2add459fef1700cb2`.
+Installed-seed kernel/image commands and strict private four-CPU max/e1000 boot
+pass with completed `ls` and SMP checks. Independent rereading verifies all
+1,589 inputs, 429 objects and sixteen artifacts. The raw kernel is 9,597,100
+bytes, pass-one ELF 9,695,676 and final ELF 9,826,748. Only those exact three
+policy rows change. The 200 MiB image has SHA-256
+`f30afc3b7e591146e1457d5aa65e7447454df5f1a5eeee98915080b258d150e5`.
+Evidence is `manual-independent-windows.json` under
+`cupid-native-iso-publication-cli-manual-20261006`.
+
+ADR 0430 records the operation, source plans, retained failures and qualification.
+Complete committed-source bootstrap qualification, seed installation, normal ISO
+regeneration and feature 17 remain open. Normal ownership remains 447 CupidBuild
+and five Python actions across 452 transforms. No installed tool cohort or
+existing C/assembly ownership changes. `TempleOS/` remains read-only and excluded.

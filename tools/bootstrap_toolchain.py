@@ -477,12 +477,16 @@ CANDIDATE_SOURCES = (
     ("user_syscall_abi", "/toolchain/user_syscall_abi.cc", False),
     ("cupidbuild_user_abi", "/toolchain/cupidbuild_user_abi.cc", False),
     ("iso_fixture_bundle", "/toolchain/iso_fixture_bundle.cc", False),
+    ("cupidbuild_iso", "/toolchain/cupidbuild_iso.cc", False),
+    ("cupidbuild_iso_capture", "/toolchain/cupidbuild_iso_capture.cc", False),
+    ("cupidbuild_iso_image", "/toolchain/cupidbuild_iso_image.cc", False),
+    ("cupidbuild_iso_publication", "/toolchain/cupidbuild_iso_publication.cc", False),
 )
 CANDIDATE_CUPIDOBJ_LINK = (
     "start", "cupidobj_main", "cupidobj", "iso_fixture_bundle",
     "ctool_host", "ctool", "elf32", "runtime",
 )
-CANDIDATE_CUPIDBUILD_LINK = (
+ISO_BUNDLE_CUPIDBUILD_LINK = (
     "start",
     "cupidbuild_main",
     "cupidbuild",
@@ -498,6 +502,14 @@ CANDIDATE_CUPIDBUILD_LINK = (
     "user_syscall_abi",
     "cupidbuild_user_abi",
     "runtime",
+)
+CANDIDATE_CUPIDBUILD_LINK = (
+    "start", "cupidbuild_main", "cupidbuild", "cupidbuild_host",
+    "ctool_host", "ctool", "elf32", "seed_manifest", "seed_release",
+    "contract_parse_internal", "cupidbuild_artifacts", "artifact_size_policy",
+    "user_syscall_abi", "cupidbuild_user_abi", "iso_fixture_bundle",
+    "cupidbuild_iso", "cupidbuild_iso_capture", "cupidbuild_iso_image",
+    "cupidbuild_iso_publication", "runtime",
 )
 REPORT_SCHEMA = "cupid.bootstrap-report.v1"
 WINDOWS_REPORT_SCHEMA = "cupid.windows-bootstrap-report.v1"
@@ -840,7 +852,8 @@ def _candidate_build_plan(
             )
         ]
         if tuple(cupidbuild_link) not in (
-            PROMOTED_CUPIDBUILD_LINK, CANDIDATE_CUPIDBUILD_LINK
+            PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK,
+            CANDIDATE_CUPIDBUILD_LINK
         ):
             raise BootstrapError(
                 "Linux build plan candidate link differs: cupidbuild"

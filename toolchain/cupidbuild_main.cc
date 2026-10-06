@@ -1,6 +1,8 @@
 #include "cupidbuild.h"
 #include "cupidbuild_artifacts.h"
 #include "cupidbuild_user_abi.h"
+#include "cupidbuild_iso_publication.h"
+#include "cupidbuild_host.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,6 +47,9 @@ static void cupidbuild_usage(FILE *stream) {
       "--seed-manifest LINUX_MANIFEST "
       "[--checked-manifest WINDOWS_MANIFEST --execution-manifest MANIFEST]\n"
       "       cupidbuild verify-user-abi --root ROOT\n"
+      "       cupidbuild publish-iso-fixture --root ROOT --manifest MANIFEST "
+      "--fixtures DIRECTORY --output OUTPUT --linux-manifest MANIFEST "
+      "--windows-manifest MANIFEST --seed-release RELEASE\n"
       "usage: cupidbuild run --seed-manifest MANIFEST "
       "--root ROOT --tool {cupidc|cupidobj|cupidld} [--timeout SECONDS] "
       "[--seed-release RELEASE] -- "
@@ -69,6 +74,57 @@ static int cupidbuild_take_value(int argc, char **argv, int *index,
   *index = *index + 1;
   *value_out = argv[*index];
   return 1;
+}
+
+static int cupidbuild_iso_command(int argc, char **argv) {
+  cupidbuild_iso_publication_request_t request;
+  cupidbuild_iso_publication_result_t result;
+  char root[8192];
+  char error[256];
+  int index;
+  memset(&request, 0, sizeof(request));
+  for (index = 2; index < argc; index++) {
+    int found = cupidbuild_take_value(argc, argv, &index, "--root", &request.repository_root);
+    if (!found) found = cupidbuild_take_value(argc, argv, &index, "--manifest", &request.manifest_path);
+    if (!found) found = cupidbuild_take_value(argc, argv, &index, "--fixtures", &request.fixtures_path);
+    if (!found) found = cupidbuild_take_value(argc, argv, &index, "--output", &request.output_path);
+    if (!found) found = cupidbuild_take_value(argc, argv, &index, "--linux-manifest", &request.linux_manifest_path);
+    if (!found) found = cupidbuild_take_value(argc, argv, &index, "--windows-manifest", &request.windows_manifest_path);
+    if (!found) found = cupidbuild_take_value(argc, argv, &index, "--seed-release", &request.seed_release_path);
+    if (found != 1) { cupidbuild_usage(stderr); return 2; }
+  }
+  if (!request.repository_root || !request.manifest_path || !request.fixtures_path ||
+      !request.output_path || !request.linux_manifest_path || !request.windows_manifest_path ||
+      !request.seed_release_path || !cupidbuild_host_absolute_root(request.repository_root, root, sizeof(root))) {
+    cupidbuild_usage(stderr); return 2;
+  }
+  /* POSIX absolute-root conversion preserves dot components. Remove those
+   * lexically; leave parent components for the retained observer to reject. */
+  if (root[0] == '/') {
+    size_t read_offset = 1u, write_offset = 1u;
+    while (root[read_offset] != '\0') {
+      size_t start = read_offset, length;
+      while (root[read_offset] != '\0' && root[read_offset] != '/') read_offset++;
+      length = read_offset - start;
+      if (length != 0u && !(length == 1u && root[start] == '.')) {
+        if (write_offset != 1u) root[write_offset++] = '/';
+        memmove(root + write_offset, root + start, length);
+        write_offset += length;
+      }
+      if (root[read_offset] == '/') read_offset++;
+    }
+    root[write_offset] = '\0';
+  } else if (root[1] == ':') {
+    size_t length = strlen(root);
+    while (length > 3u && (root[length - 1u] == '/' || root[length - 1u] == '\\'))
+      root[--length] = '\0';
+  }
+  request.repository_root = root;
+  if (!cupidbuild_iso_publish(&request, &result, error, sizeof(error))) {
+    (void)fprintf(stderr, "cupidbuild: %s\n", error);
+    return 1;
+  }
+  return 0;
 }
 
 static int cupidbuild_artifact_command(int argc, char **argv) {
@@ -187,6 +243,8 @@ int main(int argc, char **argv) {
     return cupidbuild_artifact_command(argc, argv);
   if (argc >= 2 && strcmp(argv[1], "verify-user-abi") == 0)
     return cupidbuild_user_abi_command(argc, argv);
+  if (argc >= 2 && strcmp(argv[1], "publish-iso-fixture") == 0)
+    return cupidbuild_iso_command(argc, argv);
   (void)memset(&request, 0, sizeof(request));
   (void)memset(&kernel_request, 0, sizeof(kernel_request));
   (void)memset(&profile_request, 0, sizeof(profile_request));

@@ -2693,8 +2693,26 @@ published image retain their existing bounds. Invalid capacities preserve the
 prior input; a successful rewrite or private-output launch starts a new input
 lifetime. This source capability does not install a new seed or transfer normal
 ISO recipe ownership.
-Guarded publication still needs integration. Normal ISO publication remains
-Python-coordinated, and installed seeds do not yet include these source modules.
+The complete source API now captures and freezes the fixture manifest, every
+file, both six-tool seed cohorts and an explicitly selected release. All twelve
+images must match their declared digests and actual execution profiles. The
+selected Windows manifest binds the captured Linux manifest bytes, and each
+cohort directory retains exact membership. The caller owns release authority.
+
+CupidBuild writes the full bounded request bundle, runs only the host's frozen
+CupidObj with the existing sixty-second deadline, and independently checks every
+candidate image byte before publication. The borrowed observer stays alive
+through the final rename checks. Equal images retain their timestamp; source,
+directory or seed drift restores verified prior bytes or absence. Outputs inside
+fixture or seed directories fail. All 512 entries, maximum names and depth,
+empty files and empty directories retain their existing contracts.
+
+The source CupidBuild command publish-iso-fixture requires --root, --manifest,
+--fixtures, --output, --linux-manifest, --windows-manifest and --seed-release.
+Its producer plans compile all four ISO modules and the shared bundle codec into
+CupidBuild. A complete source cohort still needs qualification and installation.
+Normal ISO publication remains
+Python-coordinated until real regeneration and feature 17 qualify the handoff.
 >endtree
 
 >h2 Native ABI validation at toolchain head

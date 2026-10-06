@@ -142,9 +142,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     def test_promoted_profile_selection_preserves_same_count_distinct_members(self):
         plan = _candidate_build_plan(json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))["build_plan"])
         profiles = (
-            ("e9efefe58f1d105bbc30874cc8d627a96b2acc2de85a5205fddad99ab159ab11", 81, 86, True, False),
-            ("f3132b33a0945a6d15484a39c853716468dec96b4d158c4cc550161286092a16", 81, 86, False, True),
-            ("1a348ed367f047ac4a67dfc4e819155c0c96e66be19ff216b06d19db3efbe188", 82, 87, True, True),
+            ("e9efefe58f1d105bbc30874cc8d627a96b2acc2de85a5205fddad99ab159ab11", 81, 91, True, False),
+            ("f3132b33a0945a6d15484a39c853716468dec96b4d158c4cc550161286092a16", 81, 91, False, True),
+            ("1a348ed367f047ac4a67dfc4e819155c0c96e66be19ff216b06d19db3efbe188", 82, 92, True, True),
         )
         for digest, count, current_count, long_paths, aliases in profiles:
             with self.subTest(plan=digest, count=count):
@@ -227,7 +227,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 retargeted.manifest_sha256,
                 hashlib.sha256(retargeted.manifest_bytes).hexdigest(),
             )
-            self.assertEqual(retargeted.manifest["provenance"]["source_input_count"], 80)
+            self.assertEqual(retargeted.manifest["provenance"]["source_input_count"], 85)
             self.assertEqual(retargeted.manifest["provenance"]["linux_candidate_build_plan_sha256"],
                              _build_plan_sha256(candidate_plan))
             self.assertEqual(retargeted.manifest["provenance"]["source_snapshot_sha256"],
@@ -726,6 +726,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "cupidbuild_artifacts", "artifact_size_policy",
             "user_syscall_abi", "cupidbuild_user_abi",
             "iso_fixture_bundle",
+            "cupidbuild_iso", "cupidbuild_iso_capture", "cupidbuild_iso_image",
+            "cupidbuild_iso_publication",
         }
         checked_plan["sources"] = [
             source for source in checked_plan["sources"]
@@ -753,7 +755,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         )
         self.assertEqual(checked_plan, original_plan)
         self.assertEqual(
-            candidate_plan["sources"][-11:],
+            candidate_plan["sources"][-15:],
             [
                 {
                     "gnu_extensions": False,
@@ -786,6 +788,14 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                  "path": "/toolchain/cupidbuild_user_abi.cc"},
                 {"gnu_extensions": False, "name": "iso_fixture_bundle",
                  "path": "/toolchain/iso_fixture_bundle.cc"},
+                {"gnu_extensions": False, "name": "cupidbuild_iso",
+                 "path": "/toolchain/cupidbuild_iso.cc"},
+                {"gnu_extensions": False, "name": "cupidbuild_iso_capture",
+                 "path": "/toolchain/cupidbuild_iso_capture.cc"},
+                {"gnu_extensions": False, "name": "cupidbuild_iso_image",
+                 "path": "/toolchain/cupidbuild_iso_image.cc"},
+                {"gnu_extensions": False, "name": "cupidbuild_iso_publication",
+                 "path": "/toolchain/cupidbuild_iso_publication.cc"},
             ],
         )
         self.assertEqual(
@@ -805,6 +815,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "artifact_size_policy",
                 "user_syscall_abi",
                 "cupidbuild_user_abi",
+                "iso_fixture_bundle",
+                "cupidbuild_iso",
+                "cupidbuild_iso_capture",
+                "cupidbuild_iso_image",
+                "cupidbuild_iso_publication",
                 "runtime",
             ],
         )
@@ -816,7 +831,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             REPO_ROOT, candidate_plan, windows_utf8=True
         )
         self.assertEqual(
-            len(source_inventory), 85
+            len(source_inventory), 90
         )
         for path in (
             "toolchain/cupidbuild.cc",
@@ -836,7 +851,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         )
         self.assertEqual(
             _build_plan_sha256(candidate_plan),
-            "b42d1522b1e4a34753fcf4c0ed3506336c66c62ca8dce998de7f066492bdc46e"
+            "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3"
         )
 
     def test_promoted_linux_seed_verifies_all_six_artifacts(self):
@@ -1743,6 +1758,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "artifact_size_policy",
                 "user_syscall_abi",
                 "cupidbuild_user_abi",
+                "iso_fixture_bundle",
+                "cupidbuild_iso",
+                "cupidbuild_iso_capture",
+                "cupidbuild_iso_image",
+                "cupidbuild_iso_publication",
                 "publication_runtime",
                 "runtime",
             ],
@@ -5260,7 +5280,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             for plan in observed_plans:
                 self.assertEqual(set(plan["links"]), set(CANDIDATE_TOOL_NAMES))
-                self.assertEqual(len(plan["sources"]), 30)
+                self.assertEqual(len(plan["sources"]), 34)
             self.assertEqual(
                 report["build_plan_sha256"],
                 _build_plan_sha256(checked_plan),
@@ -5429,7 +5449,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["candidate_build_plan_sha256"],
-                "b42d1522b1e4a34753fcf4c0ed3506336c66c62ca8dce998de7f066492bdc46e",
+                "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3",
             )
             self.assertEqual(
                 report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
@@ -5589,7 +5609,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             for plan in observed_plans:
                 self.assertEqual(set(plan["links"]), set(CANDIDATE_TOOL_NAMES))
-                self.assertEqual(len(plan["sources"]), 35)
+                self.assertEqual(len(plan["sources"]), 39)
                 self.assertEqual(len(plan["assembly_sources"]), 3)
             self.assertEqual(
                 report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
@@ -5810,7 +5830,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 source_head_windows_plan_sha256,
-                "fac6966af84cd362d43c3f8b5beb3b55c37a8d5c7184cc4c1d221e64b12b4627",
+                "e3bb4c45bb7633d95b205dcbab6405bb569b4cc71965a2eb52b8dfc78e370e18",
             )
             self.assertEqual(
                 report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
@@ -5820,7 +5840,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {
                     "all_equal": True,
                     "assembly_objects": 3,
-                    "c_objects": 35,
+                    "c_objects": 39,
                     "compared_generations": [
                         "stage-three",
                         "stage-four",
@@ -7135,11 +7155,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(record["schema"], "cupid.bootstrap-stage-preparation.v1")
             self.assertEqual((record["status"], record["format"]),
                              ("unqualified", "pe32"))
-            self.assertEqual(len(record["source_inputs"]), 87)
+            self.assertEqual(len(record["source_inputs"]), 92)
             self.assertEqual(_build_plan_sha256(record["linux_plan"]),
-                             "b42d1522b1e4a34753fcf4c0ed3506336c66c62ca8dce998de7f066492bdc46e")
+                             "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3")
             self.assertEqual(_build_plan_sha256(record["windows_plan"]),
-                             "60abd0675912a5b5c5eba25ecc15ea71a1b00d8acb1b9a275267fb1804edc84f")
+                             "0dfd1982dc1cd7c9d625c4c0546fc20f13fe3c9ae4dc8cbcf8835ff2e6b4e12d")
             snapshot = capture_source_snapshot(REPO_ROOT, record["linux_plan"],
                 windows_utf8=True, windows_long_paths=True, windows_user_link_aliases=True)
             self.assertEqual(record["source_inputs"], snapshot)
@@ -7147,7 +7167,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 self._assert_file_artifact_identity(identity, output / "source" / name)
             for stage_name in ("stage-two", "stage-three", "stage-four"):
                 stage = record["stages"][stage_name]
-                self.assertEqual(len(stage["objects"]), 40)
+                self.assertEqual(len(stage["objects"]), 44)
                 self.assertEqual(set(stage["tools"]), set(CANDIDATE_TOOL_NAMES))
                 for kind in ("objects", "tools"):
                     for role, identity in stage[kind].items():
@@ -11520,13 +11540,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["candidate_build_plan_sha256"],
-                "b42d1522b1e4a34753fcf4c0ed3506336c66c62ca8dce998de7f066492bdc46e",
+                "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3",
             )
             self.assertEqual(
                 report["comparisons"],
                 {
                     "all_equal": True,
-                    "c_objects": 30,
+                    "c_objects": 34,
                     "compared_generations": [
                         "stage-three",
                         "stage-four",

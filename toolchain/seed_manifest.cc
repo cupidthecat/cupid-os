@@ -573,33 +573,41 @@ typedef struct {
   uint32_t source_input_count;
   const char *windows_plan_sha256;
   uint32_t windows_import_profile;
+  const char *linux_plan_sha256;
 } cupidbuild_current_seed_profile_t;
 
 static const char cupidbuild_iso_linux_plan_sha256[] =
     "b42d1522b1e4a34753fcf4c0ed3506336c66c62ca8dce998de7f066492bdc46e";
+static const char cupidbuild_iso_publication_linux_plan_sha256[] =
+    "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3";
 static const cupidbuild_current_seed_profile_t cupidbuild_iso_seed_profiles[] = {
-    {80u, "9e316adc7804aa619b2ad9b0199b2e1d5e19dfa433bf696d735a1cd159636741", 1u},
-    {85u, "fac6966af84cd362d43c3f8b5beb3b55c37a8d5c7184cc4c1d221e64b12b4627", 2u},
-    {86u, "5c95c9a425a3b29ed3f6aa3ca65606009323a20eece1fb35185d4c0735d0cc01", 3u},
-    {86u, "561302a92293b0818baefc8aad0691d7db85929f03a8a7774359a43c866785f4", 4u},
-    {87u, "60abd0675912a5b5c5eba25ecc15ea71a1b00d8acb1b9a275267fb1804edc84f", 5u}};
+    {80u, "9e316adc7804aa619b2ad9b0199b2e1d5e19dfa433bf696d735a1cd159636741", 1u, cupidbuild_iso_linux_plan_sha256},
+    {85u, "fac6966af84cd362d43c3f8b5beb3b55c37a8d5c7184cc4c1d221e64b12b4627", 2u, cupidbuild_iso_linux_plan_sha256},
+    {86u, "5c95c9a425a3b29ed3f6aa3ca65606009323a20eece1fb35185d4c0735d0cc01", 3u, cupidbuild_iso_linux_plan_sha256},
+    {86u, "561302a92293b0818baefc8aad0691d7db85929f03a8a7774359a43c866785f4", 4u, cupidbuild_iso_linux_plan_sha256},
+    {87u, "60abd0675912a5b5c5eba25ecc15ea71a1b00d8acb1b9a275267fb1804edc84f", 5u, cupidbuild_iso_linux_plan_sha256},
+    {85u, "0787562d0768485fa614c941fc79a7c6e329c64b6956261cca945a95c2ef9f56", 1u, cupidbuild_iso_publication_linux_plan_sha256},
+    {90u, "e3bb4c45bb7633d95b205dcbab6405bb569b4cc71965a2eb52b8dfc78e370e18", 2u, cupidbuild_iso_publication_linux_plan_sha256},
+    {91u, "5f6a59e696fb7edafdc5dda0b0cc67aa06550556a39816f27081b5a41a81adfc", 3u, cupidbuild_iso_publication_linux_plan_sha256},
+    {91u, "d04c045db6492070389894c81364d5a6eada0ee135373f9d2ea1954386aaeb88", 4u, cupidbuild_iso_publication_linux_plan_sha256},
+    {92u, "0dfd1982dc1cd7c9d625c4c0546fc20f13fe3c9ae4dc8cbcf8835ff2e6b4e12d", 5u, cupidbuild_iso_publication_linux_plan_sha256}};
 
 static int cupidbuild_json_iso_seed_profile(const unsigned char *bytes,
     const cupidbuild_json_token_t *tokens, size_t count, size_t provenance,
     int windows) {
   size_t index;
-  if (!cupidbuild_json_string_field(bytes, tokens, count,
-          windows ? provenance : 0u,
-          windows ? "linux_candidate_build_plan_sha256" : "build_plan_sha256",
-          cupidbuild_iso_linux_plan_sha256)) return 0;
   for (index = 0u; index < sizeof(cupidbuild_iso_seed_profiles) /
       sizeof(cupidbuild_iso_seed_profiles[0]); index++) {
     const cupidbuild_current_seed_profile_t *profile = &cupidbuild_iso_seed_profiles[index];
-    if (cupidbuild_json_number_field(bytes, tokens, count, provenance,
+    if (cupidbuild_json_string_field(bytes, tokens, count,
+            windows ? provenance : 0u,
+            windows ? "linux_candidate_build_plan_sha256" : "build_plan_sha256",
+            profile->linux_plan_sha256) &&
+        cupidbuild_json_number_field(bytes, tokens, count, provenance,
             "source_input_count", profile->source_input_count) &&
         (!windows || cupidbuild_json_string_field(bytes, tokens, count, provenance,
             "native_build_plan_sha256", profile->windows_plan_sha256))) {
-      return windows ? (int)index + 11 : 11;
+      return windows ? (int)index + 11 : index >= 5u ? 16 : 11;
     }
   }
   return 0;
@@ -798,7 +806,7 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
     }
     if (candidate >= 11) {
       return cupidbuild_json_string_field(bytes, tokens, count, object,
-          "linux_candidate_build_plan_sha256", cupidbuild_iso_linux_plan_sha256) &&
+          "linux_candidate_build_plan_sha256", cupidbuild_iso_seed_profiles[candidate - 11].linux_plan_sha256) &&
           cupidbuild_json_string_field(bytes, tokens, count, object,
           "native_build_plan_sha256", cupidbuild_iso_seed_profiles[candidate - 11].windows_plan_sha256) &&
           cupidbuild_json_lower_hex_field(bytes, tokens, count, object,
@@ -1109,10 +1117,14 @@ static int cupidbuild_json_sources(const unsigned char *bytes,
       {"artifact_size_policy", "/toolchain/artifact_size_policy.cc", 0},
       {"user_syscall_abi", "/toolchain/user_syscall_abi.cc", 0},
       {"cupidbuild_user_abi", "/toolchain/cupidbuild_user_abi.cc", 0},
-      {"iso_fixture_bundle", "/toolchain/iso_fixture_bundle.cc", 0}};
+      {"iso_fixture_bundle", "/toolchain/iso_fixture_bundle.cc", 0},
+      {"cupidbuild_iso", "/toolchain/cupidbuild_iso.cc", 0},
+      {"cupidbuild_iso_capture", "/toolchain/cupidbuild_iso_capture.cc", 0},
+      {"cupidbuild_iso_image", "/toolchain/cupidbuild_iso_image.cc", 0},
+      {"cupidbuild_iso_publication", "/toolchain/cupidbuild_iso_publication.cc", 0}};
   size_t cursor;
   size_t index;
-   size_t expected_count = promoted ? (candidate >= 11 ? 30u : candidate >= 7 ? 29u : candidate >= 3 ? 27u : candidate ? 25u : 22u) : 19u;
+   size_t expected_count = promoted ? (candidate >= 16 ? 34u : candidate >= 11 ? 30u : candidate >= 7 ? 29u : candidate >= 3 ? 27u : candidate ? 25u : 22u) : 19u;
   if (array >= count || tokens[array].type != CUPIDBUILD_JSON_ARRAY ||
       tokens[array].count != expected_count) {
     return 0;
@@ -1183,6 +1195,12 @@ static int cupidbuild_json_links(const unsigned char *bytes,
       "ctool_host", "ctool", "elf32", "seed_manifest", "seed_release",
       "contract_parse_internal", "cupidbuild_artifacts", "artifact_size_policy",
       "user_syscall_abi", "cupidbuild_user_abi", "runtime"};
+  static const char *const iso_publication_cupidbuild[] = {
+      "start", "cupidbuild_main", "cupidbuild", "cupidbuild_host",
+      "ctool_host", "ctool", "elf32", "seed_manifest", "seed_release",
+      "contract_parse_internal", "cupidbuild_artifacts", "artifact_size_policy",
+      "user_syscall_abi", "cupidbuild_user_abi", "iso_fixture_bundle", "cupidbuild_iso",
+      "cupidbuild_iso_capture", "cupidbuild_iso_image", "cupidbuild_iso_publication", "runtime"};
   size_t value;
   if (object >= count ||
       !cupidbuild_json_exact(bytes, tokens, count, object, names,
@@ -1219,8 +1237,8 @@ static int cupidbuild_json_links(const unsigned char *bytes,
   }
   value = cupidbuild_json_required(bytes, tokens, count, object, "cupidbuild");
   return cupidbuild_json_string_array(bytes, tokens, count, value,
-                                      candidate >= 7 ? user_abi_cupidbuild : candidate >= 3 ? artifact_cupidbuild : candidate ? candidate_cupidbuild : cupidbuild,
-                                      candidate >= 7 ? 15u : candidate >= 3 ? 13u : candidate ? 11u : 8u);
+                                      candidate >= 16 ? iso_publication_cupidbuild : candidate >= 7 ? user_abi_cupidbuild : candidate >= 3 ? artifact_cupidbuild : candidate ? candidate_cupidbuild : cupidbuild,
+                                      candidate >= 16 ? 20u : candidate >= 7 ? 15u : candidate >= 3 ? 13u : candidate ? 11u : 8u);
 }
 
 static int cupidbuild_json_build_plan(const unsigned char *bytes,
@@ -1465,7 +1483,7 @@ static int cupidbuild_json_manifest(const unsigned char *manifest,
   }
   if (windows && promoted) {
     current_windows_plan = candidate >= 11 ?
-        cupidbuild_iso_seed_profiles[candidate - 11].windows_import_profile :
+        (int)cupidbuild_iso_seed_profiles[candidate - 11].windows_import_profile :
         candidate == 10 ? 4 : candidate == 9 ? 5 :
         candidate == 8 ? 3 : candidate == 7 ? 2 : candidate >= 5 ? candidate - 1 :
         candidate == 4 ? 3 : candidate >= 2 ? 2 : candidate != 0 ? candidate : cupidbuild_json_string_field(
@@ -1481,7 +1499,7 @@ static int cupidbuild_json_manifest(const unsigned char *manifest,
     size_t plan =
         cupidbuild_json_required(manifest, tokens, count, 0u, "build_plan");
     const char *expected_plan_sha256 =
-        candidate >= 11 ? cupidbuild_iso_linux_plan_sha256 : candidate >= 7
+        candidate >= 11 ? cupidbuild_iso_seed_profiles[candidate - 11].linux_plan_sha256 : candidate >= 7
             ? "48d6cc38b7a7362a83a911d2d3aaae8e79537c3f1744f3f5e7aac997728ed7f4"
             : candidate >= 3
             ? "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5"

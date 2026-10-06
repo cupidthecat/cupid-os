@@ -33961,7 +33961,7 @@ static int link_host_tool(
     const ctool_u32 *object_indices, ctool_u32 object_count,
     const char *image_name, const char *tool_symbol,
     const char *output_path) {
-  ctool_source_t objects[16];
+  ctool_source_t objects[32];
   ctool_buffer_t *first_image = NULL;
   ctool_buffer_t *repeat_image = NULL;
   ctool_buffer_t *recovery_image = NULL;
@@ -33979,7 +33979,8 @@ static int link_host_tool(
   ctool_status_t status;
   int passed = 0;
   if (job == NULL || source_cases == NULL || compiled_objects == NULL ||
-      object_indices == NULL || object_count < 2u || object_count > 16u ||
+      object_indices == NULL || object_count < 2u ||
+      object_count > (ctool_u32)(sizeof(objects) / sizeof(objects[0])) ||
       image_name == NULL || tool_symbol == NULL || output_path == NULL) {
     return 0;
   }
@@ -34175,6 +34176,14 @@ static int run_self_host_link_tools(const char *host_root,
       {"/toolchain/cupidbuild_user_abi.cc", "/toolchain/cupidbuild_user_abi.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
       {"/toolchain/iso_fixture_bundle.cc", "/toolchain/iso_fixture_bundle.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidbuild_iso.cc", "/toolchain/cupidbuild_iso.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidbuild_iso_capture.cc", "/toolchain/cupidbuild_iso_capture.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidbuild_iso_image.cc", "/toolchain/cupidbuild_iso_image.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidbuild_iso_publication.cc", "/toolchain/cupidbuild_iso_publication.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE}};
   static const ctool_u32 cupidasm_objects[] = {
       0u, 7u, 6u, 3u, 2u, 4u, 5u, 1u};
@@ -34187,7 +34196,8 @@ static int run_self_host_link_tools(const char *host_root,
   static const ctool_u32 cupidc_objects[] = {
       0u, 20u, 19u, 18u, 17u, 16u, 15u, 3u, 2u, 4u, 5u, 1u};
   static const ctool_u32 cupidbuild_objects[] = {
-      0u, 23u, 21u, 22u, 3u, 2u, 4u, 26u, 27u, 28u, 30u, 31u, 32u, 33u, 1u};
+      0u, 23u, 21u, 22u, 3u, 2u, 4u, 26u, 27u, 28u, 30u, 31u, 32u, 33u,
+      34u, 35u, 36u, 37u, 38u, 1u};
   static const ctool_u32 runtime_objects[] = {0u, 14u, 1u};
   ctool_host_adapter_t adapter;
   ctool_limits_t limits = ctool_default_limits();

@@ -19,6 +19,9 @@ struct cupidbuild_iso_capture {
   char *names[ISO_CAPTURE_ENTRIES];
   char *logical[ISO_CAPTURE_ENTRIES];
   uint64_t sizes[ISO_CAPTURE_ENTRIES];
+  char *manifest_name;
+  unsigned char *manifest_bytes;
+  unsigned char *payloads[ISO_CAPTURE_ENTRIES];
 };
 
 static int iso_capture_error(char *error, ctool_u32 capacity, const char *message) {
@@ -134,9 +137,9 @@ void cupidbuild_iso_capture_close(cupidbuild_iso_capture_t *capture) {
   if (capture == (cupidbuild_iso_capture_t *)0) return;
   for (index = 0u; index < ISO_CAPTURE_ENTRIES; index++) {
     free(capture->names[index]); free(capture->logical[index]);
-    free((void *)capture->sources[index].contents.data);
+    free(capture->payloads[index]);
   }
-  free((void *)capture->manifest.contents.data); free((void *)capture->manifest.path.text.data);
+  free(capture->manifest_bytes); free(capture->manifest_name);
   free(capture->fixtures); free(capture);
 }
 
@@ -164,7 +167,8 @@ int cupidbuild_iso_capture_open(cupidbuild_host_observer_t *observer,
   if (capture == (cupidbuild_iso_capture_t *)0)
     return iso_capture_error(error, error_capacity, "ISO capture allocation failed");
   capture->observer = observer; capture->inventory.entries = capture->entries;
-  capture->manifest.path.text.data = iso_capture_copy(manifest_logical, manifest_length);
+  capture->manifest_name = iso_capture_copy(manifest_logical, manifest_length);
+  capture->manifest.path.text.data = capture->manifest_name;
   capture->manifest.path.text.size = manifest_length;
   capture->fixtures = iso_capture_copy(fixtures_logical, fixtures_length);
   if (capture->manifest.path.text.data == (const char *)0 || capture->fixtures == (char *)0) {
@@ -173,6 +177,7 @@ int cupidbuild_iso_capture_open(cupidbuild_host_observer_t *observer,
   if (!cupidbuild_host_observer_file(observer, manifest_logical, ISO_CAPTURE_MANIFEST, &bytes, &size)) {
     failure = cupidbuild_host_observer_error(observer); goto failed;
   }
+  capture->manifest_bytes = bytes;
   capture->manifest.contents = ctool_bytes(bytes, (ctool_u32)size);
   if (!iso_capture_parse(capture, fixtures_length, error, error_capacity)) goto parsed_failure;
   if (!cupidbuild_host_observer_kind(observer, fixtures_logical, &kind)) {
@@ -209,6 +214,7 @@ int cupidbuild_iso_capture_open(cupidbuild_host_observer_t *observer,
     if (!cupidbuild_host_observer_file(observer, capture->logical[index], ISO_CAPTURE_PAYLOAD, &bytes, &size)) {
       failure = cupidbuild_host_observer_error(observer); goto failed;
     }
+    capture->payloads[index] = bytes;
     capture->sources[index].contents = ctool_bytes(bytes, (ctool_u32)size);
     if (size != capture->sizes[index]) { failure = "ISO fixture file changed during capture"; goto failed; }
   }

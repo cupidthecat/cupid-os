@@ -311,7 +311,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             },
             "tool_fixed_point": {
                 "all_equal": True,
-                "c_objects": 30,
+                "c_objects": 34,
                 "compared_generations": list(
                     cupidc_toolchain_contracts.CONVERGED_GENERATIONS
                 ),
@@ -402,6 +402,11 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             "toolchain/cupidbuild_user_abi.h": "int cupidbuild_user_abi_header;\n",
             "toolchain/iso_fixture_bundle.cc": "int iso_fixture_bundle;\n",
             "toolchain/iso_fixture_bundle.h": "int iso_fixture_bundle_header;\n",
+            "toolchain/cupidbuild_iso.cc": "int cupidbuild_iso;\n",
+            "toolchain/cupidbuild_iso_capture.cc": "int cupidbuild_iso_capture;\n",
+            "toolchain/cupidbuild_iso_image.cc": "int cupidbuild_iso_image;\n",
+            "toolchain/cupidbuild_iso_publication.cc": "int cupidbuild_iso_publication;\n",
+            "toolchain/cupidbuild_iso_publication.h": "int cupidbuild_iso_publication_header;\n",
             "toolchain/cupidc_emit.cc": "int emit;\n",
             "toolchain/hosted/i386-linux/include/stdio.h": "int stdio;\n",
             "toolchain/hosted/i386-linux/runtime.cc": "int runtime;\n",
@@ -778,7 +783,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._tool_fixed_point_record(),
             {
                 "all_equal": True,
-                "c_objects": 30,
+                "c_objects": 34,
                 "compared_generations": ["stage-three", "stage-four"],
                 "startup_objects": 1,
                 "tool_images": 6,
@@ -792,7 +797,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 96)
+        self.assertEqual(len(inputs), 97)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)
@@ -3041,8 +3046,8 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             expected = cupidc_toolchain_contracts.check_syscall_abi(root)
             before = (output / "manifest.json").read_bytes()
             publication = cupidc_toolchain_contracts.verify_publication(output)
-            self.assertEqual(publication["input_count"], 96)
-            self.assertEqual(publication["bootstrap"]["source_inputs"]["count"], 87)
+            self.assertEqual(publication["input_count"], 97)
+            self.assertEqual(publication["bootstrap"]["source_inputs"]["count"], 92)
             completed = subprocess.CompletedProcess(
                 ["user-syscall-abi-contract.elf"], 0,
                 json.dumps(expected) + "\n", "",

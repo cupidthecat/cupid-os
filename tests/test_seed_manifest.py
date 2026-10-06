@@ -171,8 +171,11 @@ def user_link_alias_manifest(fmt, *, long_paths):
 def user_abi_plan():
     """Keep the earlier ABI-only profile independent of current plan upgrades."""
     plan = seed._candidate_build_plan(manifest(1)["build_plan"])
-    plan["sources"] = [row for row in plan["sources"] if row["name"] != "iso_fixture_bundle"]
+    removed = {"iso_fixture_bundle", "cupidbuild_iso", "cupidbuild_iso_capture",
+               "cupidbuild_iso_image", "cupidbuild_iso_publication"}
+    plan["sources"] = [row for row in plan["sources"] if row["name"] not in removed]
     plan["links"]["cupidobj"] = [name for name in plan["links"]["cupidobj"] if name != "iso_fixture_bundle"]
+    plan["links"]["cupidbuild"] = [name for name in plan["links"]["cupidbuild"] if name not in removed]
     assert seed._build_plan_sha256(plan) == "48d6cc38b7a7362a83a911d2d3aaae8e79537c3f1744f3f5e7aac997728ed7f4"
     return plan
 
@@ -269,7 +272,8 @@ class ManifestTests(unittest.TestCase):
         plan = copy.deepcopy(linux.manifest["build_plan"])
         snapshot = seed.capture_source_snapshot(ROOT, plan, windows_utf8=True, windows_user_link_aliases=True)
         snapshot = {path: row for path, row in snapshot.items()
-                    if path not in ("toolchain/user_syscall_abi.h", "toolchain/cupidbuild_user_abi.h")}
+                    if path not in ("toolchain/user_syscall_abi.h", "toolchain/cupidbuild_user_abi.h",
+                                    "toolchain/cupidbuild_iso_publication.h")}
         self.assertEqual(len(snapshot), 81)
         digest = seed._build_plan_sha256(seed._windows_build_plan(plan, utf8=True, user_link_aliases=True))
         changed = seed._retarget_native_windows_behavior_seed(windows, digest, plan, snapshot,

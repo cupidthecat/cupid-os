@@ -21,8 +21,26 @@ PROFILES = (
     (True, True, True, 87, 5),
 )
 
+PUBLICATION_PROFILES = (
+    (False, False, False, 85, 1),
+    (True, False, False, 90, 2),
+    (True, True, False, 91, 3),
+    (True, False, True, 91, 4),
+    (True, True, True, 92, 5),
+)
+
+
+def bundle_only_plan(plan):
+    plan = copy.deepcopy(plan)
+    removed = {'cupidbuild_iso', 'cupidbuild_iso_capture', 'cupidbuild_iso_image', 'cupidbuild_iso_publication'}
+    plan['sources'] = [r for r in plan['sources'] if r['name'] not in removed]
+    plan['links']['cupidbuild'] = list(bootstrap.ISO_BUNDLE_CUPIDBUILD_LINK)
+    return plan
+
 
 class IsoSeedProfileTests(unittest.TestCase):
+    profiles = PROFILES
+    publication = False
     unload = classmethod(historical.ManifestTests.unload.__func__)
 
     @classmethod
@@ -32,10 +50,15 @@ class IsoSeedProfileTests(unittest.TestCase):
         cls.windows = bootstrap.verify_seed_inputs(ROOT / 'bootstrap/seeds/i386-windows/manifest.json')
         bootstrap._require_seed_pair_identity(cls.windows, cls.linux)
         cls.plan = bootstrap._candidate_build_plan(cls.linux.manifest['build_plan'])
+        if not cls.publication:
+            cls.plan = bundle_only_plan(cls.plan)
         cls.fixtures = []
-        for utf8, long_paths, aliases, expected_count, profile in PROFILES:
+        for utf8, long_paths, aliases, expected_count, profile in cls.profiles:
             snapshot = bootstrap.capture_source_snapshot(ROOT, cls.plan, windows_utf8=utf8,
                 windows_long_paths=long_paths, windows_user_link_aliases=aliases)
+            if not cls.publication:
+                snapshot = {name: row for name, row in snapshot.items()
+                            if name != 'toolchain/cupidbuild_iso_publication.h'}
             if len(snapshot) != expected_count:
                 raise AssertionError((profile, len(snapshot), expected_count))
             native = bootstrap._windows_build_plan(cls.plan, utf8=utf8, long_paths=long_paths,
@@ -240,6 +263,46 @@ class IsoSeedProfileTests(unittest.TestCase):
                     old = target[key]
                     target[key] = old + 10 if isinstance(old, int) else '0' * 64
                     self.check(changed, fmt, profile, False, record=self.release(changed, fmt))
+
+
+class IsoPublicationSeedProfileTests(IsoSeedProfileTests):
+    profiles = PUBLICATION_PROFILES
+    publication = True
+
+    def test_guarded_modules_and_build_link_are_exact(self):
+        linux = self.fixtures[0][0]
+        for name in ('cupidbuild_iso', 'cupidbuild_iso_capture', 'cupidbuild_iso_image', 'cupidbuild_iso_publication'):
+            index = next(i for i, row in enumerate(linux['build_plan']['sources']) if row['name'] == name)
+            for field in ('name', 'path', 'gnu_extensions'):
+                changed = copy.deepcopy(linux)
+                value = changed['build_plan']['sources'][index][field]
+                changed['build_plan']['sources'][index][field] = not value if isinstance(value, bool) else 'wrong'
+                self.check(changed, 1, accepted=False)
+            for action in ('remove', 'duplicate'):
+                changed = copy.deepcopy(linux)
+                source_rows = changed['build_plan']['sources']
+                if action == 'remove': source_rows.pop(index)
+                else: source_rows.append(copy.deepcopy(source_rows[index]))
+                self.check(changed, 1, accepted=False)
+                changed = copy.deepcopy(linux)
+                link = changed['build_plan']['links']['cupidbuild']
+                if action == 'remove': link.remove(name)
+                else: link.append(name)
+                self.check(changed, 1, accepted=False)
+
+    def test_shared_count_does_not_exchange_generation_plans(self):
+        new = self.fixtures[0][1]
+        old = copy.deepcopy(new)
+        old['provenance']['linux_candidate_build_plan_sha256'] = 'b42d1522b1e4a34753fcf4c0ed3506336c66c62ca8dce998de7f066492bdc46e'
+        old['provenance']['native_build_plan_sha256'] = 'fac6966af84cd362d43c3f8b5beb3b55c37a8d5c7184cc4c1d221e64b12b4627'
+        self.assertEqual(old['provenance']['source_input_count'], 85)
+        self.check(old, 2, 2, record=self.release(old, 2))
+        self.check(new, 2, 1, record=self.release(new, 2))
+        for document, other in ((new, old), (old, new)):
+            for field in ('native_build_plan_sha256', 'linux_candidate_build_plan_sha256'):
+                changed = copy.deepcopy(document)
+                changed['provenance'][field] = other['provenance'][field]
+                self.check(changed, 2, accepted=False, record=self.release(changed, 2))
 
 
 if __name__ == '__main__':

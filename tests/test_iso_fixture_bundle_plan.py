@@ -55,3 +55,36 @@ class IsoFixtureBundlePlanTests(unittest.TestCase):
             seed = bootstrap.verify_seed_inputs(directory / "manifest.json")
             bootstrap.require_live_seed_inputs(seed)
             self.assertEqual(tuple(seed.tools), bootstrap.CANDIDATE_TOOL_NAMES)
+
+    def test_guarded_publication_modules_reach_both_build_links(self):
+        plan = bootstrap._candidate_build_plan(self.installed['build_plan'])
+        self.assertEqual(len(plan['sources']), 34)
+        self.assertEqual(plan['links']['cupidbuild'], list(bootstrap.CANDIDATE_CUPIDBUILD_LINK))
+        windows = bootstrap._windows_build_plan(plan, utf8=True, long_paths=True, user_link_aliases=True)
+        for name in ('iso_fixture_bundle', 'cupidbuild_iso', 'cupidbuild_iso_capture',
+                     'cupidbuild_iso_image', 'cupidbuild_iso_publication'):
+            self.assertEqual(windows['links']['cupidbuild'].count(name), 1)
+            self.assertIn(name, contracts.BOOTSTRAP_OBJECT_NAMES)
+        before = copy.deepcopy(plan)
+        bootstrap._windows_build_plan(plan, utf8=True, long_paths=True, user_link_aliases=True)
+        self.assertEqual(plan, before)
+        previous = copy.deepcopy(plan)
+        removed = {'cupidbuild_iso', 'cupidbuild_iso_capture', 'cupidbuild_iso_image', 'cupidbuild_iso_publication'}
+        previous['sources'] = [r for r in previous['sources'] if r['name'] not in removed]
+        previous['links']['cupidbuild'] = list(bootstrap.ISO_BUNDLE_CUPIDBUILD_LINK)
+        self.assertEqual(bootstrap._candidate_build_plan(previous), plan)
+
+    def test_guarded_reserved_sources_and_build_link_corruption_fail(self):
+        for name in ('cupidbuild_iso', 'cupidbuild_iso_capture', 'cupidbuild_iso_image', 'cupidbuild_iso_publication'):
+            plan = copy.deepcopy(self.installed['build_plan'])
+            plan['sources'].append({'name': name, 'path': '/toolchain/wrong.cc', 'gnu_extensions': False})
+            with self.assertRaisesRegex(bootstrap.BootstrapError, 'reserved candidate source'):
+                bootstrap._candidate_build_plan(plan)
+        for mutation in ('missing', 'duplicate', 'order'):
+            plan = bootstrap._candidate_build_plan(self.installed['build_plan'])
+            link = plan['links']['cupidbuild']
+            if mutation == 'missing': link.remove('cupidbuild_iso_publication')
+            elif mutation == 'duplicate': link.append('cupidbuild_iso_publication')
+            else: link.reverse()
+            with self.assertRaisesRegex(bootstrap.BootstrapError, 'candidate link differs: cupidbuild'):
+                bootstrap._candidate_build_plan(plan)

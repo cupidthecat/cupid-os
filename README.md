@@ -1,5 +1,22 @@
 # cupid-os
 
+## Complete guarded ISO command, 2026-10-06
+
+The source CupidBuild command `publish-iso-fixture` captures complete fixture
+inputs and both selected seed cohorts, runs frozen CupidObj, independently checks
+every image byte and publishes through retained transaction boundaries. Native
+and Cupid-built callers pass on Windows and Linux. All four full 512-entry
+requests produce the same 66,342,912-byte image; the composed regression matrix
+has 343 executions and three platform skips.
+
+Native Make and both producer plans carry the complete operation. The shared
+reader preserves older supported plans and checks the new 34-source Linux plan
+with five paired Windows profiles. The updated 162,971-byte manual passes an
+installed-seed OS build, artifact checks and strict four-CPU boot. Complete new
+source-cohort qualification, seed installation and the normal ISO recipe handoff
+remain open. See [ADR 0430](docs/adr/0430-publish-complete-iso-images-through-retained-transactions.md)
+and [the source handoff](docs/bootstrap/NATIVE-ISO-HANDOFF.md).
+
 ## Observer binding at publication, 2026-10-05
 
 CupidBuild can borrow a retained observer through its final publication checks,

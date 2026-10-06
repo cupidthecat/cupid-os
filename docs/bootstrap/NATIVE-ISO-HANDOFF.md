@@ -1,5 +1,54 @@
 # Native ISO fixture publication
 
+## Complete guarded ISO command, 2026-10-06
+
+The source CupidBuild command `publish-iso-fixture` retains complete fixture
+capture, space for 528 frozen inputs, both six-tool seed cohorts and an explicitly
+selected release through one publication transaction. It checks exact cohort
+membership, paired manifest authority and every actual image profile and digest.
+The complete CUPISO1 request keeps its 68,165,648-byte capacity through the frozen
+CupidObj launch. The author's sixty-second production deadline remains unchanged.
+Independent validation checks every candidate byte before replacement, and the
+observer remains borrowed through the final rename checks.
+
+Native and Cupid-built command checks pass on Windows and Linux. Independent
+rereading verifies 343 executions and three declared platform skips in the
+composed API, command, profile and supporting regression matrix. Earlier Linux
+root-spelling failures remain retained; four current eight-method command runs
+supersede those command results. All four retained 512-entry requests produce
+the same 66,342,912-byte image from 67,176,834 input bytes. Windows and Linux
+Cupid-built calls take 679.246 and 523.121 seconds under the 1,200-second outer
+test allowance. Seven checked object pairs are identical, including the
+22,200-byte publisher, SHA-256
+`94695810e4e385bfb78724a34307455cc215cbd93e202595560846d61e44761c`.
+Evidence is `iso-publication-paired-independent.json` under
+`cupid-native-iso-proof-20261005`.
+
+Native Make and both current producer plans link the codec and all four ISO
+modules. Linux has 34 C sources and CupidBuild has twenty link inputs. The shared
+reader preserves historical plans and adds five profiles with 85, 90, 91, 91 and
+92 source inputs, binding each count to both plan digests. These are qualified
+source contracts; the explicit test release does not authorize seed promotion.
+The complete native preprocessing suite passes on both hosts with 419 tracked
+and four generated roots, fifty hosted Linux cases and 61 conditional expressions.
+The seven-tool source link and runtime parity checks also pass on both hosts.
+
+The 162,971-byte embedded manual passes installed-seed kernel/image checks and a
+strict private four-CPU max/e1000 boot with completed `ls` and SMP verification.
+Independent rereading checks 1,589 inputs, all 429 objects and sixteen artifacts.
+Its 200 MiB image has SHA-256
+`f30afc3b7e591146e1457d5aa65e7447454df5f1a5eeee98915080b258d150e5`.
+Only the measured raw-kernel and two ELF policy rows change. Evidence is
+`manual-independent-windows.json` under
+`cupid-native-iso-publication-cli-manual-20261006`.
+
+See [ADR 0430](../adr/0430-publish-complete-iso-images-through-retained-transactions.md).
+Complete committed-source bootstrap qualification, seed installation, real normal
+ISO regeneration and feature 17 remain open. The audit has 780 active inputs,
+255 feature kinds and 51 unreachable sources. Normal ownership remains 447
+CupidBuild and five Python actions across 452 transforms. `TempleOS/` remains
+read-only and excluded.
+
 ## Complete private-input transport
 
 The private transaction can retain a checked input's explicit capacity through
@@ -57,10 +106,11 @@ platform skips, with matching 27,788-byte caller objects. The receipt is
 `iso-bound-observer-lifecycle-paired-independent.json` under
 `cupid-native-iso-proof-20261005`. See ADR 0428.
 
-Status, 2026-10-05: inventory validation, retained kind observation, complete
-input capture, independent image checking, complete bundle transport and
-retained-observer publication binding
-implemented and tested. Native publication and recipe handoff remain pending.
+Status, 2026-10-06: inventory validation, retained kind observation, complete
+capture, independent image checking, bundle transport, observer binding and
+complete guarded publication pass source API and direct-command qualification.
+The current plans carry these capabilities. Complete staged source-cohort
+qualification, installation and normal recipe handoff remain pending.
 
 The 161,127-byte observer-binding manual passes fresh installed-seed
 kernel/image and strict private four-CPU max/e1000 runtime checks with completed
@@ -348,32 +398,17 @@ The preceding 157,059-byte manual receipt remains specific to its original bytes
 
 Remaining work:
 
-- Use the qualified complete request bundle in the guarded transaction. Its
-  transaction now admits 528 retained files, including the manifest and cohort
-  beside all 512 file inputs. Integrate that tested capacity with the complete
-  inventory contract; ADR 0427 records its separate caller qualification.
-  Encode the whole request into the bounded private writer with a 68,165,648-byte
-  capacity and require its captured identity before and after the author launch.
-  ADR 0429 records the transport allowance; the existing producer output still
-  fits the unchanged 64 MiB candidate bound.
-- Use the qualified observer-binding API through every publication boundary and
-  reject output/input aliases. It accounts for publication's root namespace
-  changes while retaining captured memberships and descendant metadata.
-  The complete transaction must retain manifest, tool and output observations
-  within their lifetimes and preserve the full request boundary during launch.
-- Run frozen checked CupidObj first, then pass its candidate and captured inputs
-  to the independent native image checker.
-- Reuse CupidBuild's output-parent, owner-lock, candidate, drift and recovery
-  rules through final publication. Equal images must retain their timestamp.
-- Carry the operation through both producer matrices and release consumption,
-  then qualify real normal ISO regeneration and feature 17 before recipe handoff.
+- Qualify the complete committed 34-source Linux plan and paired Windows
+  producer matrices through all staged tools and release consumption, then
+  install the accepted complete cohorts.
+- Qualify real normal ISO regeneration and feature 17 before recipe handoff.
 - Update the supported build graph only when the direct native recipe owns that
   production action. The current 447 CupidBuild/five Python counts stay unchanged.
 
-The ISO source capabilities are isolated from the SDK publication and
-ABI proposals already under qualification. The validator is not yet linked into
-normal tool images; installed seeds do not carry the new kind API. The preceding
-manual and capture paragraph have independent kernel/image/runtime acceptance.
+The current source producer plans link the complete publication API into
+CupidBuild. Installed seeds retain their accepted source cohorts until complete
+committed-source qualification and installation pass. The preceding manual and
+capture paragraphs have independent kernel/image/runtime acceptance.
 The bundle paragraph also has fresh installed-seed acceptance. Commit `13f19582`
 adopts the combined ISO capabilities and accepted FAT16 source. The observer
 binding has separate caller, rename-race, preprocessing and manual acceptance

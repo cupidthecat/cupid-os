@@ -164,6 +164,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/cupidbuild_iso.h",
     "toolchain/cupidbuild_iso_capture.h",
     "toolchain/cupidbuild_iso_image.h",
+    "toolchain/cupidbuild_iso_publication.h",
     "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
@@ -263,6 +264,11 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/cupidbuild_iso.h",
     "toolchain/cupidbuild_iso_capture.h",
     "toolchain/cupidbuild_iso_image.h",
+    "toolchain/cupidbuild_iso_publication.h",
+    "toolchain/cupidbuild_iso.cc",
+    "toolchain/cupidbuild_iso_capture.cc",
+    "toolchain/cupidbuild_iso_image.cc",
+    "toolchain/cupidbuild_iso_publication.cc",
     "toolchain/cupidbuild_main.cc",
     "toolchain/cupidbuild_user_abi.cc",
     "toolchain/cupidbuild_user_abi.h",
@@ -479,6 +485,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/cupidbuild_iso.h",
     "toolchain/cupidbuild_iso_capture.h",
     "toolchain/cupidbuild_iso_image.h",
+    "toolchain/cupidbuild_iso_publication.h",
     "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
@@ -578,6 +585,11 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/cupidbuild_iso.h",
     "toolchain/cupidbuild_iso_capture.h",
     "toolchain/cupidbuild_iso_image.h",
+    "toolchain/cupidbuild_iso_publication.h",
+    "toolchain/cupidbuild_iso.cc",
+    "toolchain/cupidbuild_iso_capture.cc",
+    "toolchain/cupidbuild_iso_image.cc",
+    "toolchain/cupidbuild_iso_publication.cc",
     "toolchain/cupidbuild_main.cc",
     "toolchain/cupidbuild_user_abi.cc",
     "toolchain/cupidbuild_user_abi.h",
@@ -1032,7 +1044,7 @@ _C_PP_ACTIVE_COUNTS = {
     "CUPID_RUNTIME": 108,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
-    "HOSTED_I386_LINUX": 46,
+    "HOSTED_I386_LINUX": 50,
     "HOSTED_I386_WINDOWS": 9,
     "HOSTED_I386_KERNEL_BRIDGE": 2,
     "HOSTED_I386_LINUX_GNU": 3,
@@ -1050,6 +1062,10 @@ _C_PP_HOSTED_I386_STRICT_CASES = (
     "/toolchain/cupidbuild.cc",
     "/toolchain/cupidbuild_host.cc",
     "/toolchain/cupidbuild_main.cc",
+    "/toolchain/cupidbuild_iso.cc",
+    "/toolchain/cupidbuild_iso_capture.cc",
+    "/toolchain/cupidbuild_iso_image.cc",
+    "/toolchain/cupidbuild_iso_publication.cc",
     "/toolchain/user_syscall_abi.cc",
     "/toolchain/cupidbuild_user_abi.cc",
     "/toolchain/cupidasm.cc",
@@ -11835,6 +11851,10 @@ def _cupid_toolchain_fixed_point_contract(
         ("artifact_size_policy", "/toolchain/artifact_size_policy.cc", False),
         ("user_syscall_abi", "/toolchain/user_syscall_abi.cc", False),
         ("cupidbuild_user_abi", "/toolchain/cupidbuild_user_abi.cc", False),
+        ("cupidbuild_iso", "/toolchain/cupidbuild_iso.cc", False),
+        ("cupidbuild_iso_capture", "/toolchain/cupidbuild_iso_capture.cc", False),
+        ("cupidbuild_iso_image", "/toolchain/cupidbuild_iso_image.cc", False),
+        ("cupidbuild_iso_publication", "/toolchain/cupidbuild_iso_publication.cc", False),
     )
     candidate_toolchain_links = expected_toolchain_links + (
         (
@@ -11854,6 +11874,11 @@ def _cupid_toolchain_fixed_point_contract(
                 "artifact_size_policy",
                 "user_syscall_abi",
                 "cupidbuild_user_abi",
+                "iso_fixture_bundle",
+                "cupidbuild_iso",
+                "cupidbuild_iso_capture",
+                "cupidbuild_iso_image",
+                "cupidbuild_iso_publication",
                 "runtime",
             ),
         ),
@@ -15300,8 +15325,10 @@ def _cupid_toolchain_fixed_point_contract(
             "publication must carry stages two through four"
         )
     if bootstrap_assignment("CANDIDATE_SOURCES") != tuple(
-        candidate_toolchain_sources[-10:]
-    ) + (("iso_fixture_bundle", "/toolchain/iso_fixture_bundle.cc", False),):
+        candidate_toolchain_sources[-14:-4]
+    ) + (("iso_fixture_bundle", "/toolchain/iso_fixture_bundle.cc", False),) + tuple(
+        candidate_toolchain_sources[-4:]
+    ):
         missing_bootstrap_fragments.append(
             "candidate source constants must match the audited inventory"
         )
@@ -15311,6 +15338,12 @@ def _cupid_toolchain_fixed_point_contract(
     ):
         missing_bootstrap_fragments.append(
             "CupidBuild link constants must match the audited plan"
+        )
+    if bootstrap_assignment("ISO_BUNDLE_CUPIDBUILD_LINK") != (
+        *candidate_toolchain_links[-1][1][:-6], "runtime"
+    ):
+        missing_bootstrap_fragments.append(
+            "earlier bundle CupidBuild link constants must match the audited plan"
         )
     if bootstrap_assignment("WINDOWS_COMPILE_DEFINES") != frozenset(
         {
@@ -15625,7 +15658,7 @@ def _cupid_toolchain_fixed_point_contract(
             "            raw_cupidbuild, 'build_plan.links.cupidbuild'\n"
             "        )\n"
             "    ]\n"
-            "    if tuple(cupidbuild_link) not in (PROMOTED_CUPIDBUILD_LINK, CANDIDATE_CUPIDBUILD_LINK):\n"
+            "    if tuple(cupidbuild_link) not in (PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK, CANDIDATE_CUPIDBUILD_LINK):\n"
             "        raise BootstrapError(\n"
             "            'Linux build plan candidate link differs: cupidbuild'\n"
             "        )\n"

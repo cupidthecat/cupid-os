@@ -5052,7 +5052,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "CUPID_RUNTIME": 108,
                 "HOSTED_TOOLCHAIN_64": 0,
                 "HOSTED_KERNEL_BRIDGE_64": 0,
-                "HOSTED_I386_LINUX": 46,
+                "HOSTED_I386_LINUX": 50,
                 "HOSTED_I386_WINDOWS": 9,
                 "HOSTED_I386_KERNEL_BRIDGE": 2,
                 "HOSTED_I386_LINUX_GNU": 3,
@@ -5062,7 +5062,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "HOSTED_I386_WINDOWS_UTF8_GNU": 1,
             },
         )
-        self.assertEqual(len(active), 415)
+        self.assertEqual(len(active), 419)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.cc"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
@@ -6680,20 +6680,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["help_cases"], 7)
         self.assertEqual(contract["success_behavior_cases"], 73)
         self.assertEqual(contract["failure_behavior_cases"], 66)
-        self.assertEqual(contract["tool_c_sources"], 30)
+        self.assertEqual(contract["tool_c_sources"], 34)
         self.assertEqual(contract["tool_images"], 6)
-        self.assertEqual(contract["compared_c_objects"], 30)
+        self.assertEqual(contract["compared_c_objects"], 34)
         self.assertEqual(contract["compared_tool_images"], 6)
         self.assertEqual(contract["windows_help_cases"], 7)
         self.assertEqual(contract["windows_success_behavior_cases"], 60)
         self.assertEqual(contract["windows_failure_behavior_cases"], 54)
-        self.assertEqual(contract["contract_manifest_inputs"], 96)
-        self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 96)
+        self.assertEqual(contract["contract_manifest_inputs"], 97)
+        self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 97)
         self.assertIn(
             "toolchain/x86.cc",
             module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
         )
-        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 133)
+        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 138)
         self.assertTrue(
             set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS).issubset(
                 module.TOOLCHAIN_CONTRACT_LINUX_INPUTS
@@ -7840,7 +7840,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "candidate helper accepts a conflicting candidate link": (
                 "bootstrap",
                 "        if tuple(cupidbuild_link) not in (\n"
-                "            PROMOTED_CUPIDBUILD_LINK, CANDIDATE_CUPIDBUILD_LINK\n"
+                "            PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK,\n"
+                "            CANDIDATE_CUPIDBUILD_LINK\n"
                 "        ):\n",
                 "        if False:\n",
                 r"fixed-point source freeze differs",
@@ -7938,6 +7939,30 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "candidate source constant omits cupidbuild_user_abi": (
                 "bootstrap",
                 '    ("cupidbuild_user_abi", "/toolchain/cupidbuild_user_abi.cc", False),\n',
+                "",
+                r"fixed-point source freeze differs",
+            ),
+            "candidate source constant omits guarded ISO inventory": (
+                "bootstrap",
+                '    ("cupidbuild_iso", "/toolchain/cupidbuild_iso.cc", False),\n',
+                "",
+                r"fixed-point source freeze differs",
+            ),
+            "candidate source constant omits guarded ISO capture": (
+                "bootstrap",
+                '    ("cupidbuild_iso_capture", "/toolchain/cupidbuild_iso_capture.cc", False),\n',
+                "",
+                r"fixed-point source freeze differs",
+            ),
+            "candidate source constant omits guarded ISO image checker": (
+                "bootstrap",
+                '    ("cupidbuild_iso_image", "/toolchain/cupidbuild_iso_image.cc", False),\n',
+                "",
+                r"fixed-point source freeze differs",
+            ),
+            "candidate source constant omits guarded ISO publication": (
+                "bootstrap",
+                '    ("cupidbuild_iso_publication", "/toolchain/cupidbuild_iso_publication.cc", False),\n',
                 "",
                 r"fixed-point source freeze differs",
             ),
@@ -9986,9 +10011,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 415,
+                    "tracked_translation_units": 419,
                     "generated_translation_units": 4,
-                    "total_translation_units": 419,
+                    "total_translation_units": 423,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
                     "deferred_hosted_translation_units": 0,
@@ -10014,7 +10039,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("CUPID_RUNTIME", 108, 0),
                     ("HOSTED_TOOLCHAIN_64", 0, 0),
                     ("HOSTED_KERNEL_BRIDGE_64", 0, 0),
-                    ("HOSTED_I386_LINUX", 46, 0),
+                    ("HOSTED_I386_LINUX", 50, 0),
                     ("HOSTED_I386_WINDOWS", 9, 0),
                     ("HOSTED_I386_KERNEL_BRIDGE", 2, 0),
                     ("HOSTED_I386_LINUX_GNU", 3, 0),
@@ -10077,10 +10102,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 775,
+                    "active_sources": 780,
                     "features": 255,
                     "transforms": 452,
-                    "unreachable_sources": 53,
+                    "unreachable_sources": 51,
                 },
             )
             features = {
@@ -10105,7 +10130,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 self.assertEqual(unreachable[fixture], "host_fixture")
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (7037, 186),
+                "c.expression.sizeof": (7062, 189),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -10704,7 +10729,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 124)
+            self.assertEqual(toolchain_cohort["source_count"], 129)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -10745,6 +10770,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "CupidC",
             )
             frontend_sources = {
+                "toolchain/cupidbuild_iso.cc": ("toolchain_core", "CupidC"),
+                "toolchain/cupidbuild_iso_capture.cc": ("toolchain_core", "CupidC"),
+                "toolchain/cupidbuild_iso_image.cc": ("toolchain_core", "CupidC"),
+                "toolchain/cupidbuild_iso_publication.cc": ("toolchain_core", "CupidC"),
+                "toolchain/cupidbuild_iso_publication.h": ("toolchain_core", "CupidC"),
                 "toolchain/cupidbuild_artifacts.cc": ("toolchain_core", "CupidC"),
                 "toolchain/cupidbuild_artifacts.h": ("toolchain_core", "CupidC"),
                 "toolchain/artifact_size_policy.cc": ("toolchain_core", "CupidC"),
@@ -10963,7 +10993,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "415 tracked + 4 generated",
+                "419 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(

@@ -201,6 +201,9 @@ CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.cc artifact_size_policy.h con
                               cupidbuild_host.cc cupidbuild_host.h \
                               cupidbuild_iso.h cupidbuild_iso_capture.h \
                               cupidbuild_iso_image.h \
+                              cupidbuild_iso_publication.h \
+                              cupidbuild_iso.cc cupidbuild_iso_capture.cc \
+                              cupidbuild_iso_image.cc cupidbuild_iso_publication.cc \
                               cupidbuild_main.cc \
                               cupidc_pp.cc cupidc_pp.h \
                               cupidc_type.cc cupidc_type.h \
@@ -240,6 +243,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS := \
 	ctool.h ctool_host.h cupidasm.h cupidbuild.h cupidbuild_host.h \
 	cupidbuild_artifacts.h cupidbuild_user_abi.h user_syscall_abi.h \
 	cupidbuild_iso.h cupidbuild_iso_capture.h cupidbuild_iso_image.h \
+	cupidbuild_iso_publication.h \
 	iso_fixture_bundle.h \
 	cupidc_emit.h \
 	cupidc_frontend.h cupidc_ir.h cupidc_pp.h cupidc_type.h \
@@ -378,6 +382,9 @@ CUPIDBUILD_OBJECTS := $(BUILD_DIR)/cupidbuild_artifacts.o $(BUILD_DIR)/artifact_
                       $(SEED_MANIFEST_OBJECTS) $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                       $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidbuild_host.o \
                       $(BUILD_DIR)/cupidbuild.o \
+                      $(BUILD_DIR)/iso_fixture_bundle.o $(BUILD_DIR)/cupidbuild_iso.o \
+                      $(BUILD_DIR)/cupidbuild_iso_capture.o $(BUILD_DIR)/cupidbuild_iso_image.o \
+                      $(BUILD_DIR)/cupidbuild_iso_publication.o \
                       $(BUILD_DIR)/cupidbuild_main.o
 CUPIDBUILD_JPEG_CONTRACT_OBJECTS := $(SEED_MANIFEST_OBJECTS) \
 	$(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o $(BUILD_DIR)/elf32.o \
@@ -576,7 +583,24 @@ $(BUILD_DIR)/cupidbuild_user_abi.o: cupidbuild_user_abi.cc cupidbuild_user_abi.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidbuild_main.o: cupidbuild_main.cc cupidbuild.h cupidbuild_artifacts.h \
-    artifact_size_policy.h cupidbuild_user_abi.h user_syscall_abi.h | $(BUILD_DIR)
+    artifact_size_policy.h cupidbuild_user_abi.h user_syscall_abi.h \
+    cupidbuild_iso_publication.h cupidbuild_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/cupidbuild_iso.o: cupidbuild_iso.cc cupidbuild_iso.h cupidobj.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/cupidbuild_iso_capture.o: cupidbuild_iso_capture.cc cupidbuild_iso_capture.h \
+    cupidbuild_iso.h cupidbuild_host.h cupidobj.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/cupidbuild_iso_image.o: cupidbuild_iso_image.cc cupidbuild_iso_image.h \
+    cupidbuild_iso.h cupidobj.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/cupidbuild_iso_publication.o: cupidbuild_iso_publication.cc cupidbuild_iso_publication.h \
+    cupidbuild_iso_capture.h cupidbuild_iso_image.h cupidbuild_iso.h cupidobj.h ctool.h \
+    cupidbuild.h cupidbuild_host.h iso_fixture_bundle.h seed_manifest.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/as_elf.o: ../kernel/lang/as_elf.cc ../kernel/lang/as_elf.h cupidasm.h ctool.h elf32.h | $(BUILD_DIR)

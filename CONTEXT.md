@@ -2309,6 +2309,15 @@ own capacity, including complete ISO bundle metadata. Its capacity belongs to
 the private input lifetime and does not grant a larger published artifact.
 _Avoid_: enlarged output limit, unbounded bundle
 
+**Guarded ISO publication**:
+A complete ISO publication that retains fixture observations and frozen file
+inputs, both seed cohorts and selected release authority through checked
+authoring, independent image validation and the final output boundary. Equal
+images retain their timestamp; rejected ordinary replacement restores verified
+prior bytes or absence. Release authority and normal recipe ownership remain
+separate from successful operation execution.
+_Avoid_: input capture alone, seed promotion, Python recipe handoff
+
 **Normal build**:
 The supported path that builds Cupid OS with the Cupid Toolchain as its code-producing toolchain.
 _Avoid_: oracle build, host build
