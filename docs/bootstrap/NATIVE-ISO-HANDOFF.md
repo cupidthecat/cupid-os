@@ -1,5 +1,42 @@
 # Native ISO fixture publication
 
+## Complete private-input transport
+
+The private transaction can retain a checked input's explicit capacity through
+capture, revalidation and ordinary tool launches. Its complete ISO bundle can
+use 68,165,648 bytes, matching the existing producer's 64 MiB payload allowance
+plus bounded metadata. The measured 512-entry, eight-level request is
+67,176,834 bytes while its image is 66,342,912 bytes. Both native and Cupid-built
+producers on each host emit that exact image; the independent Python oracle and
+native image checker agree. Existing candidate and public-output bounds remain
+64 MiB. See [ADR 0429](../adr/0429-retain-explicit-private-input-capacity.md).
+
+All nine new methods pass with native and Cupid-built callers on Windows and
+Linux. They cover the complete larger input, frozen real-author execution,
+publication and timestamp reuse, legacy bounds, cleanup after rewrite, invalid
+capacity and null arguments, empty input, snapshot rejection and private-output
+capacity reset. Full observer and 528-input regressions and all eight injected
+rename-boundary faults also pass. Independent evidence verifies 338 selected
+methods, 328 executions and ten platform skips. Conditional-inventory and
+unknown-token checks add four executions without skips. The two Cupid-built
+caller objects are identical: 40,128 bytes, SHA-256
+`469c1c782d4a1141ff28d9ea24c89e03032d905e60b2cc2b91d52944a03add88`.
+Evidence is `iso-private-input-capacity-paired-independent.json` under
+`cupid-native-iso-proof-20261005`. Installed parents and normal ISO ownership
+remain unchanged.
+
+The 161,772-byte capacity manual passes fresh installed-seed kernel/image and
+strict private four-CPU max/e1000 runtime checks with completed ls and SMP
+verification. Independent rereading checks 1,589 source controls, all 429 objects
+and sixteen artifacts. Only its manual wrapper changes; the accepted FAT16
+object and FAT data from sector 20,480 remain intact. The raw kernel measures
+9,595,904 bytes, while final/pass-one ELF sizes remain 9,822,652 and 9,691,580
+bytes. Only the raw-kernel policy row changes. The 200 MiB image has SHA-256
+`89b1fe8694fd8fa99a53b5b29fea6977743237baed895a1de22285980552e25a`.
+Evidence is `manual-independent-windows.json` under
+`cupid-native-iso-private-bounds-manual-20261005`. This installed-seed manual
+acceptance does not qualify or install the new source cohort.
+
 ## Retained observer publication binding
 
 `cupidbuild_host_transaction_borrow_observer` binds one successful observer to
@@ -315,6 +352,10 @@ Remaining work:
   transaction now admits 528 retained files, including the manifest and cohort
   beside all 512 file inputs. Integrate that tested capacity with the complete
   inventory contract; ADR 0427 records its separate caller qualification.
+  Encode the whole request into the bounded private writer with a 68,165,648-byte
+  capacity and require its captured identity before and after the author launch.
+  ADR 0429 records the transport allowance; the existing producer output still
+  fits the unchanged 64 MiB candidate bound.
 - Use the qualified observer-binding API through every publication boundary and
   reject output/input aliases. It accounts for publication's root namespace
   changes while retaining captured memberships and descendant metadata.

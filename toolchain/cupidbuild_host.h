@@ -283,6 +283,15 @@ int cupidbuild_host_require_private_output(
 int cupidbuild_host_write_private_output(
     cupidbuild_host_transaction_t *transaction, const unsigned char *bytes,
     size_t size);
+/* Write a private checked input with an explicit 1..2147483647-byte capacity.
+ * Capture and revalidation retain that capacity until the next successful write
+ * or private-output tool launch. The original writer and tool-produced private
+ * outputs keep their existing bound. Candidate, public output, frozen-input and
+ * tool-stream bounds are unchanged. Failure before replacement keeps the prior
+ * private input; close the transaction after a failed physical write. */
+int cupidbuild_host_write_private_output_bounded(
+    cupidbuild_host_transaction_t *transaction, const unsigned char *bytes,
+    size_t size, size_t capacity);
 int cupidbuild_host_require_inputs(
     cupidbuild_host_transaction_t *transaction);
 int cupidbuild_host_require_frozen_inputs(

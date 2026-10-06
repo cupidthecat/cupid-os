@@ -170,6 +170,7 @@ struct cupidbuild_host_transaction {
   cupidbuild_host_snapshot_t candidate_snapshot;
   cupidbuild_host_snapshot_t candidate_publish_snapshot;
   cupidbuild_host_snapshot_t private_output_snapshot;
+  size_t private_output_limit;
   cupidbuild_host_snapshot_t lock_snapshot;
   cupidbuild_host_snapshot_t private_root_snapshot;
   cupidbuild_host_snapshot_t private_reservation_snapshot;
@@ -6506,10 +6507,10 @@ static int cupidbuild_host_windows_dispose_read_retained_at(
   return 1;
 }
 
-static int cupidbuild_host_windows_transition_retained_at(
+static int cupidbuild_host_windows_transition_retained_at_limit(
     HANDLE parent, const char *name, cupidbuild_host_snapshot_t *expected,
     HANDLE *retained_handle, int seal, int require_unchanged,
-    int retain_delete_access) {
+    int retain_delete_access, size_t limit) {
   cupidbuild_host_snapshot_t current;
   cupidbuild_host_snapshot_t transition_snapshot;
   cupidbuild_host_snapshot_t final_snapshot;
@@ -6526,7 +6527,7 @@ static int cupidbuild_host_windows_transition_retained_at(
       retained_handle == (HANDLE *)0 ||
       *retained_handle == INVALID_HANDLE_VALUE || expected->present == 0 ||
       !cupidbuild_host_windows_read_open_regular(
-          *retained_handle, CUPIDBUILD_HOST_FILE_LIMIT, &current,
+          *retained_handle, limit, &current,
           (unsigned char **)0) ||
       !cupidbuild_host_snapshot_identity_equal(&current, expected) ||
       (require_unchanged != 0 &&
@@ -6539,7 +6540,7 @@ static int cupidbuild_host_windows_transition_retained_at(
       (long *)0);
   if (transition_handle == INVALID_HANDLE_VALUE ||
       !cupidbuild_host_windows_read_open_regular(
-          transition_handle, CUPIDBUILD_HOST_FILE_LIMIT,
+          transition_handle, limit,
           &transition_snapshot, (unsigned char **)0) ||
       !cupidbuild_host_snapshot_equal(&current, &transition_snapshot)) {
     if (transition_handle != INVALID_HANDLE_VALUE) {
@@ -6573,10 +6574,10 @@ static int cupidbuild_host_windows_transition_retained_at(
   }
   if (final_handle == INVALID_HANDLE_VALUE ||
       !cupidbuild_host_windows_read_open_regular(
-          final_handle, CUPIDBUILD_HOST_FILE_LIMIT, &final_snapshot,
+          final_handle, limit, &final_snapshot,
           (unsigned char **)0) ||
       !cupidbuild_host_windows_read_relative_regular(
-          parent, name, 0, CUPIDBUILD_HOST_FILE_LIMIT, &named_snapshot,
+          parent, name, 0, limit, &named_snapshot,
           (unsigned char **)0) ||
       !cupidbuild_host_snapshot_equal(&current, &final_snapshot) ||
       !cupidbuild_host_snapshot_equal(&current, &named_snapshot)) {
@@ -6593,6 +6594,15 @@ static int cupidbuild_host_windows_transition_retained_at(
   *retained_handle = final_handle;
   *expected = final_snapshot;
   return requested_profile_opened != 0;
+}
+
+static int cupidbuild_host_windows_transition_retained_at(
+    HANDLE parent, const char *name, cupidbuild_host_snapshot_t *expected,
+    HANDLE *retained_handle, int seal, int require_unchanged,
+    int retain_delete_access) {
+  return cupidbuild_host_windows_transition_retained_at_limit(
+      parent, name, expected, retained_handle, seal, require_unchanged,
+      retain_delete_access, CUPIDBUILD_HOST_FILE_LIMIT);
 }
 
 static int cupidbuild_host_windows_reclaim_lock(
@@ -8099,15 +8109,23 @@ static int cupidbuild_host_prepare_private_output_path(
              sizeof(transaction->private_output), "candidate.map");
 }
 
+static size_t cupidbuild_host_private_output_read_limit(
+    const cupidbuild_host_transaction_t *transaction) {
+  return transaction->private_output_limit != 0u
+             ? transaction->private_output_limit
+             : CUPIDBUILD_HOST_FILE_LIMIT;
+}
+
 static int cupidbuild_host_capture_retained_private_output(
     cupidbuild_host_transaction_t *transaction) {
   cupidbuild_host_snapshot_t output;
 #if defined(_WIN32)
   if (transaction->private_output_sealed == 0 &&
-      !cupidbuild_host_windows_transition_retained_at(
+      !cupidbuild_host_windows_transition_retained_at_limit(
           transaction->private_handle, "candidate.map",
           &transaction->private_output_snapshot,
-          &transaction->private_output_handle, 1, 0, 1)) {
+          &transaction->private_output_handle, 1, 0, 1,
+          cupidbuild_host_private_output_read_limit(transaction))) {
     return 0;
   }
   transaction->private_output_sealed = 1;
@@ -8123,7 +8141,10 @@ static int cupidbuild_host_capture_retained_private_output(
   }
 #endif
   if (!cupidbuild_host_read_retained_private_regular(
-          transaction, "candidate.map", CUPIDBUILD_HOST_STREAM_LIMIT,
+          transaction, "candidate.map",
+          transaction->private_output_limit != 0u
+              ? transaction->private_output_limit
+              : CUPIDBUILD_HOST_STREAM_LIMIT,
 #if defined(_WIN32)
           transaction->private_output_handle,
 #else
@@ -11000,10 +11021,11 @@ static int cupidbuild_host_run_at(
            transaction->private_handle, "candidate.o",
            &transaction->candidate_snapshot,
            &transaction->candidate_handle, 0, 1, 1) ||
-      !cupidbuild_host_windows_transition_retained_at(
+      !cupidbuild_host_windows_transition_retained_at_limit(
            transaction->private_handle, "candidate.map",
            &transaction->private_output_snapshot,
-           &transaction->private_output_handle, 0, 1, 1)) {
+           &transaction->private_output_handle, 0, 1, 1,
+           cupidbuild_host_private_output_read_limit(transaction))) {
     cupidbuild_host_set_error(
         transaction, "private checked-tool entries cannot be reopened");
     return -1;
@@ -11193,6 +11215,7 @@ int cupidbuild_host_run_to_private_output(
     return -1;
   }
   transaction->private_output_captured = 0;
+  transaction->private_output_limit = CUPIDBUILD_HOST_FILE_LIMIT;
   result = cupidbuild_host_run_process(
       tool, &tool_input->frozen_snapshot,
 #if defined(_WIN32)
@@ -11830,12 +11853,14 @@ int cupidbuild_host_require_candidate(
   return 1;
 }
 
+
 int cupidbuild_host_capture_private_output(
     cupidbuild_host_transaction_t *transaction,
     cupidbuild_host_snapshot_t *snapshot_out, unsigned char **bytes_out) {
   cupidbuild_host_snapshot_t captured;
   unsigned char *bytes = (unsigned char *)0;
   int read_captured;
+  size_t limit;
   if (bytes_out != (unsigned char **)0) {
     *bytes_out = (unsigned char *)0;
   }
@@ -11844,18 +11869,19 @@ int cupidbuild_host_capture_private_output(
                               "checked private output cannot be pinned");
     return 0;
   }
+  limit = cupidbuild_host_private_output_read_limit(transaction);
 #if defined(_WIN32)
   read_captured = transaction->private_output_handle != INVALID_HANDLE_VALUE
                       ? cupidbuild_host_read_retained_private_regular(
                             transaction, "candidate.map",
-                            CUPIDBUILD_HOST_FILE_LIMIT,
+                            limit,
                             transaction->private_output_handle, &captured,
                             bytes_out != (unsigned char **)0
                                 ? &bytes
                                 : (unsigned char **)0)
                       : cupidbuild_host_read_private_regular(
                             transaction, "candidate.map", 0,
-                            CUPIDBUILD_HOST_FILE_LIMIT, &captured,
+                            limit, &captured,
                             bytes_out != (unsigned char **)0
                                 ? &bytes
                                 : (unsigned char **)0);
@@ -11863,14 +11889,14 @@ int cupidbuild_host_capture_private_output(
   read_captured = transaction->private_output_descriptor >= 0
                       ? cupidbuild_host_read_retained_private_regular(
                             transaction, "candidate.map",
-                            CUPIDBUILD_HOST_FILE_LIMIT,
+                            limit,
                             transaction->private_output_descriptor, &captured,
                             bytes_out != (unsigned char **)0
                                 ? &bytes
                                 : (unsigned char **)0)
                       : cupidbuild_host_read_private_regular(
                             transaction, "candidate.map", 0,
-                            CUPIDBUILD_HOST_FILE_LIMIT, &captured,
+                            limit, &captured,
                             bytes_out != (unsigned char **)0
                                 ? &bytes
                                 : (unsigned char **)0);
@@ -11903,27 +11929,28 @@ int cupidbuild_host_require_private_output(
   if (transaction != (cupidbuild_host_transaction_t *)0 &&
       transaction->private_output_captured != 0 &&
       expected != (const cupidbuild_host_snapshot_t *)0) {
+    size_t limit = cupidbuild_host_private_output_read_limit(transaction);
 #if defined(_WIN32)
     read_current = transaction->private_output_handle != INVALID_HANDLE_VALUE
                        ? cupidbuild_host_read_retained_private_regular(
                              transaction, "candidate.map",
-                             CUPIDBUILD_HOST_FILE_LIMIT,
+                             limit,
                              transaction->private_output_handle, &current,
                              (unsigned char **)0)
                        : cupidbuild_host_read_private_regular(
                              transaction, "candidate.map", 0,
-                             CUPIDBUILD_HOST_FILE_LIMIT, &current,
+                             limit, &current,
                              (unsigned char **)0);
 #else
     read_current = transaction->private_output_descriptor >= 0
                        ? cupidbuild_host_read_retained_private_regular(
                              transaction, "candidate.map",
-                             CUPIDBUILD_HOST_FILE_LIMIT,
+                             limit,
                              transaction->private_output_descriptor, &current,
                              (unsigned char **)0)
                        : cupidbuild_host_read_private_regular(
                              transaction, "candidate.map", 0,
-                             CUPIDBUILD_HOST_FILE_LIMIT, &current,
+                             limit, &current,
                              (unsigned char **)0);
 #endif
   }
@@ -11940,9 +11967,17 @@ int cupidbuild_host_require_private_output(
 int cupidbuild_host_write_private_output(
     cupidbuild_host_transaction_t *transaction, const unsigned char *bytes,
     size_t size) {
+  return cupidbuild_host_write_private_output_bounded(
+      transaction, bytes, size, CUPIDBUILD_HOST_FILE_LIMIT);
+}
+
+int cupidbuild_host_write_private_output_bounded(
+    cupidbuild_host_transaction_t *transaction, const unsigned char *bytes,
+    size_t size, size_t capacity) {
   cupidbuild_host_snapshot_t snapshot;
   if (transaction == (cupidbuild_host_transaction_t *)0 ||
-      bytes == (const unsigned char *)0 || size > CUPIDBUILD_HOST_FILE_LIMIT ||
+      bytes == (const unsigned char *)0 || capacity == 0u ||
+      capacity > 2147483647u || size > capacity ||
       !cupidbuild_host_require_frozen_inputs(transaction) ||
       !cupidbuild_host_close_private_output_handle(transaction) ||
       !cupidbuild_host_delete_owned_private_name(
@@ -11989,6 +12024,7 @@ int cupidbuild_host_write_private_output(
     return 0;
   }
   transaction->private_output_snapshot = snapshot;
+  transaction->private_output_limit = capacity;
   transaction->private_output_captured = 0;
   return 1;
 }

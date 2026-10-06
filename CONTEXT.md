@@ -2303,6 +2303,12 @@ checks can restore verified old output after observed-input drift. ADR 0428
 records the lifetime and failure rules.
 _Avoid_: transferred observer ownership, input freezing, seed authority
 
+**Bounded private transaction input**:
+A checked input retained inside a CupidBuild publication transaction with its
+own capacity, including complete ISO bundle metadata. Its capacity belongs to
+the private input lifetime and does not grant a larger published artifact.
+_Avoid_: enlarged output limit, unbounded bundle
+
 **Normal build**:
 The supported path that builds Cupid OS with the Cupid Toolchain as its code-producing toolchain.
 _Avoid_: oracle build, host build

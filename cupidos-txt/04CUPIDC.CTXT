@@ -2684,6 +2684,15 @@ Root directory size and time are excluded because publication writes names
 there, while its identity and captured memberships remain checked. Source
 observation drift can still restore verified prior output through the existing
 recovery checks. Binding does not replace frozen-input alias or seed checks.
+Private checked inputs can retain an explicit capacity through capture,
+revalidation and ordinary checked-tool launches. The complete ISO bundle can
+use the producer's 64 MiB payload allowance plus its bounded manifest and entry
+metadata. One valid 512-entry request measures 67,176,834 bytes while its image
+is 66,342,912 bytes. The original private writer, tool streams, candidate and
+published image retain their existing bounds. Invalid capacities preserve the
+prior input; a successful rewrite or private-output launch starts a new input
+lifetime. This source capability does not install a new seed or transfer normal
+ISO recipe ownership.
 Guarded publication still needs integration. Normal ISO publication remains
 Python-coordinated, and installed seeds do not yet include these source modules.
 >endtree
