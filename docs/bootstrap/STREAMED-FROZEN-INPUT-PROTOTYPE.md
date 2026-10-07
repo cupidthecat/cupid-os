@@ -4,9 +4,10 @@
 
 The separate 1,695-input prototype can freeze a complete 200 MiB input without
 allocating its whole payload. It adds `cupidbuild_host_freeze_input_bounded` to
-CupidBuild's host API. The private integration worktree has not adopted this
-API yet. Normal recipes, installed seeds and the public snapshot layout retain
-their current contracts.
+CupidBuild's host API. The reviewed API is now applied to the private
+integration source together with its tests and explicit fixture ownership.
+Normal recipes, installed seeds and the public snapshot layout retain their
+current contracts. Evidence is `result-integration-applied1/closed.json`.
 
 The explicit unsigned 64-bit capacity must be between one and 2,147,483,647
 bytes. Invalid capacities and runner transactions fail before creating a new
@@ -88,9 +89,14 @@ roots and 53 strict hosted roots. Evidence is
 `stack-frozen-input-regression3-six-producer-independent.json`. API, header and
 C caller bytes match the preceding accepted prototype.
 
-Apply the complete change to the integration worktree, refresh its audit and
-rerun the affected ordinary publication controls. Then carry it through
-committed preparations, paired release authoring and complete qualification.
+The integrated 1,704-input candidate passes twenty strict audit contracts,
+26 ownership methods and all 46 native capability methods. Its complete new
+stage-four cohort passes the frozen-input runtime again: 31 cases, nineteen
+complete copies and the Linux 200 MiB control under 32 MiB. Every original
+600-second bound remains. Evidence is
+`result-fullcohort-api1-frozen-runtime-paired-independent.json`. Committed source
+identity, paired release authoring, complete qualification and normal OS/runtime
+acceptance remain required.
 
 The preserved public disk image still needs a separate previous-output role.
 Ordinary input freezing must keep rejecting aliases of the transaction's
@@ -99,3 +105,13 @@ authority and checked at publication boundaries without treating the replaced
 public pathname as an ordinary live input. Full-range snapshots, independent
 disk validation, durable publication and the normal disk recipe handoff remain
 open.
+
+## Source-step OS acceptance, 2026-10-07
+
+The reviewed source passes both cold normal OS builds through the installed
+`2d04ff25` seeds. Paired independent checks cover all 1,704 source controls,
+429 objects, sixteen artifacts, six user products, the complete ABI and preserved
+FAT data. The 175,777-byte manual is reconstructed in full. All four original
+strict four-CPU boots pass. Evidence is `result-source-os1-paired-independent.json`.
+This is a source/manual consumer gate. Qualification, adoption and normal
+OS/runtime acceptance through the further result-transfer compiler remain required.

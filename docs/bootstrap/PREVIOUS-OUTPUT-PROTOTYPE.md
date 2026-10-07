@@ -4,8 +4,10 @@ Date: 2026-10-07
 
 The separate prototype gives a guarded transaction one retained previous-output
 input. It copies the complete file through fixed 64 KiB blocks and records its
-whole SHA-256, within the transaction's explicitly selected capacity. The API
-and its further emitter work remain outside the private integration source.
+whole SHA-256, within the transaction's explicitly selected capacity. The
+reviewed API and further emitter work are now applied to the private integration
+source through thirteen exact implementation, test and ownership paths. Evidence
+is `result-integration-applied1/closed.json`.
 The installed `2d04ff25` cohort has its own qualification and acceptance record.
 
 ## Request and lifetime
@@ -169,7 +171,8 @@ All sixteen build phases, complete components, commands, streams and executable
 formats pass independent rereading in
 `result-fullcohort-api-build1-paired-independent.json`. Every caller retains its
 original compile, strict-certification and link bounds. Both retained-copy APIs now pass the complete runtime described below. Full
-new-cohort object callers remain under verification. These results do not qualify
+new-cohort object callers and their actual linked runtimes now pass. These
+results do not qualify
 or install replacement seeds.
 
 Both retained-copy APIs now pass complete runtime through the entire new
@@ -190,9 +193,30 @@ per-host predicate and verifies both exact host-specific outcomes. No runtime
 case, executable, source byte or deadline changes. Evidence is
 `result-fullcohort-api-previous-checker1-observed-failure.json`.
 
-Complete new-cohort object callers remain under verification. Committed paired
-producer qualification, normal OS/runtime acceptance, seed installation and
-production recipe adoption remain open.
+Both complete new-cohort Cupid callers now pass all 62 original ordinary and
+self-host modes per host. Independent rereading checks all 138 build/mode phases,
+every command, original deadline, source and complete linked component. All eight
+linked products agree with the accepted native products and each other. The final
+seven-tool mode takes 1,748.247 seconds on Windows and 1,751.607 seconds on Linux,
+within the original 1,800-second limit. Evidence is
+`result-fullcohort-controls2-paired-independent.json`.
+
+Both actual i386 adapters and complete hosted runtime products also execute
+successfully. The four executions retain the original ten- and sixty-second
+bounds, exact streams and expected file bytes. Evidence is
+`result-cupid-linked-runtime-fullcohort2-paired-independent.json`. The earlier
+Linux derivative timeout stays failed; this complete cohort has separate records.
+
+The first independent checker incorrectly requires a copied host API object in
+the object caller's link set. That original plan does not link this component;
+the separate API runtime proofs do. The corrected checker checks the exact
+linked inventory and original retained stage input. Every remaining source,
+command, stream, profile and deadline check stays intact. The original checker
+and failure remain in `result-fullcohort-checker1-observed-failure.json`.
+
+Committed producer qualification, replacement seed adoption, normal OS/runtime
+acceptance and native recipe ownership remain open.
+
 
 
 The derivative caller passes all 62 original modes on Windows. Linux passes
@@ -231,9 +255,19 @@ execution. Its receipt does not retain the earlier stat tuple, so independent
 rereading cannot repeat that metadata assertion. It does reread the complete
 unchanged output and retained previous copy.
 
-The corrected result-transfer emitter still needs complete actual Cupid-built
-self-host acceptance, committed paired producer qualification and normal
-OS/runtime acceptance. The API then needs production recipe adoption. Complete
+The corrected result-transfer emitter passes complete actual Cupid-built
+self-host and linked-runtime acceptance. Committed paired producer qualification
+and normal OS/runtime acceptance remain required. The API then needs production recipe adoption. Complete
 disk validation, flushing, SDK publication and removal of the Python disk
 publisher remain separate ownership work. No TempleOS source participates in
 these counts or builds.
+
+## Source-step OS acceptance, 2026-10-07
+
+The reviewed source passes both cold normal OS builds through the installed
+`2d04ff25` seeds. Paired independent checks cover all 1,704 source controls,
+429 objects, sixteen artifacts, six user products, the complete ABI and preserved
+FAT data. The 175,777-byte manual is reconstructed in full. All four original
+strict four-CPU boots pass. Evidence is `result-source-os1-paired-independent.json`.
+This is a source/manual consumer gate. Qualification, adoption and normal
+OS/runtime acceptance through the further result-transfer compiler remain required.

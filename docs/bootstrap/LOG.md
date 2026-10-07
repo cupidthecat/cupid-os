@@ -1,5 +1,136 @@
 # Bootstrapping log
 
+## 2026-10-07: Close the reviewed source-step controls
+
+The complete public-context, stage-release, seed-manifest, retained-API and
+kernel-frontier modules select 139 methods per host. All 272 executions pass,
+with six declared platform skips. Both full kernel gates compile all 156
+sources twice and preserve the sixty installed-seed object locks. Windows
+takes 1,893.764 seconds and Linux 1,618.012, within the original 2,340-second
+deadline. Independent rereading checks all 1,704 source files per host, every
+method and original log in `result-source-commit-controls1-paired-independent.json`.
+
+The fresh native API runs retain 112 invocations and 84 complete exported copies.
+The first log-preparation guard rejects an incorrect 86-copy total before writing;
+the retained host records total 84. Both Linux complete 200 MiB memory controls
+keep the 32 MiB limit. The canonical
+LF frozen-input fixture also compiles through both complete prepared Cupid
+compilers: its whole 11,688-byte object and each linked program match the prior
+accepted CRLF caller exactly. No new runtime execution is inferred from that
+byte comparison. Evidence is `result-canonical-frozen1-windows/closed.json`
+and `result-canonical-frozen1-linux/closed.json`.
+
+Both staged-worktree audits pass all twenty strict contracts and 26 existing
+ownership methods, including useful negative cases. CPP ownership stays at
+422 tracked roots, four generated roots and 53 hosted Linux roots. Standards
+and Spec review against `1328cc18` report zero findings. The final log addition
+changes documentation only; all 99 producer inputs, the 478 kernel inputs,
+installed seeds and accepted 175,777-byte manual remain exact.
+
+The complete unqualified preparation pair is retained as 259 Windows files and
+232 Linux files, with its fifteen actual `76914250` parent files. Those original
+parents remain distinct from the installed `2d04ff25` consumer seeds. An actual
+committed source identity, new-cohort qualification, adoption and subsequent
+OS/runtime acceptance remain required before those prepared tools are installed.
+
+## 2026-10-07: Verify the reviewed source with installed seeds
+
+Both cold normal OS builds start from all 1,704 reviewed inputs and zero copied
+objects. All twelve conventional code producers are blocked. The kernel steps
+take 2,610.942 seconds on Windows and 1,777.815 seconds on Linux. All 429 objects,
+sixteen artifacts, six user products, complete ABI and complete images agree
+between hosts. The revised 175,777-byte manual is reconstructed in full and
+occurs once in each kernel output. Every other object, including independently
+reconstructed symbol data, matches the accepted installed-seed baseline.
+
+Windows ls/SMP and feature 17 checks take 45.562 and 53.022 seconds; Linux takes
+56.422 and 63.825 seconds. All four retain the original 150-second limits, four
+max CPUs, e1000 and strict completion/SMP predicates. The entire FAT suffix is
+preserved. Both 200 MiB images have SHA-256
+`b018117c0cb21a677ce55a341dd1cdde5092a51ec73537988e1e0c9465015db8`.
+Only the three measured kernel policy rows change: 9,293,908 raw bytes,
+9,523,644 final ELF bytes and 9,392,572 pass-one ELF bytes. Evidence is
+`result-source-os1-paired-independent.json`.
+
+The current 478-input kernel snapshot matches all four accepted full frontier
+captures exactly. Only `cupidbuild_host.h` changes from the earlier snapshot;
+all 156 kernel source files remain byte-identical. Its SHA-256 is
+`d3b96db6b47e6618d4faeaae621149f0f30a64695451fe62be2f3b500b599608`.
+The public fingerprint changes from this measured comparison; every object lock
+is preserved. Evidence is `result-source-kernel-snapshot1-independent.json`.
+
+Two checker mistakes remain recorded: the preparation checker treated verified
+SeedInputs as a dictionary, and the snapshot checker compared an outer runner
+record with the accepted independent receipt. Corrected checks use the documented
+members and complete original receipt bindings. No production command, bound,
+negative predicate or source byte changes to resolve either mistake.
+
+The installed tools remain the separately qualified `2d04ff25` pair. The further
+emitter and retained-copy producer snapshot remains distinct. Committed producer
+qualification, replacement adoption, OS/runtime acceptance through those tools,
+native disk/SDK recipe ownership, the original EHCI failure and full Doom
+gameplay/timedemo acceptance remain open.
+
+## 2026-10-07: Accept the complete new-cohort callers and linked runtime
+
+Both complete new-cohort Cupid callers now pass all 62 original ordinary and
+self-host modes per host. Independent rereading checks all 138 build/mode phases,
+every command, original deadline, source and complete linked component. All eight
+linked products agree with the accepted native products and each other. The final
+seven-tool mode takes 1,748.247 seconds on Windows and 1,751.607 seconds on Linux,
+within the original 1,800-second limit. Evidence is
+`result-fullcohort-controls2-paired-independent.json`.
+
+Both actual i386 adapters and complete hosted runtime products also execute
+successfully. The four executions retain the original ten- and sixty-second
+bounds, exact streams and expected file bytes. Evidence is
+`result-cupid-linked-runtime-fullcohort2-paired-independent.json`. The earlier
+Linux derivative timeout stays failed; this complete cohort has separate records.
+
+The first independent checker incorrectly requires a copied host API object in
+the object caller's link set. That original plan does not link this component;
+the separate API runtime proofs do. The corrected checker checks the exact
+linked inventory and original retained stage input. Every remaining source,
+command, stream, profile and deadline check stays intact. The original checker
+and failure remain in `result-fullcohort-checker1-observed-failure.json`.
+
+Committed producer qualification, replacement seed adoption, normal OS/runtime
+acceptance and native recipe ownership remain open.
+
+
+## 2026-10-07: Integrate reviewed retained-copy and result-transfer source
+
+The reviewed integration source carries the bounded frozen-input
+and retained previous-output APIs together with the further scalar result-transfer
+emitter. Exactly thirteen implementation, test and ownership paths are applied.
+All current public bootstrap controls, installed seeds, policy and earlier manual
+bytes are preserved during that application. Its 99 producer inputs match the
+complete independently checked preparations; the full source has 1,704 controls.
+Evidence is `result-integration-applied1/closed.json`.
+
+The integration candidate passes 46 native capability methods, twenty strict
+audit contracts and 26 ownership methods. The complete new stage-four cohort
+also passes sixteen retained-copy build phases and 88 runtime cases, with 68
+complete exported copies and both Linux 200 MiB controls under 32 MiB. Earlier
+timeouts and the rejected cross-host checker remain recorded. Every original
+process bound and useful negative predicate stays in force.
+
+The revised 175,777-byte manual passes paired cold normal OS builds through
+the installed `2d04ff25` seeds. Independent checks cover all 429 objects,
+sixteen artifacts, six user products, complete ABI and preserved FAT data.
+All four original strict four-CPU boots pass. This validates the source/manual
+consumer step; qualification, adoption and OS acceptance through the new
+producer cohort remain separate. Evidence is
+`result-source-os1-paired-independent.json`.
+
+Both complete Cupid callers pass all 124 paired ordinary/self-host modes,
+and all four actual linked adapter/runtime executions pass. Independent
+checks preserve all original commands, bounds and complete artifacts.
+Committed producer qualification, replacement seed adoption, OS/runtime acceptance
+through the new tools and native recipe ownership remain open. The installed `2d04ff25` tools keep their separate earlier
+acceptance; they do not establish carriage of these newly integrated APIs.
+
+
 
 ## 2026-10-07: Accept complete new-cohort retained-copy runtime
 

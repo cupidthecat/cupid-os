@@ -236,3 +236,41 @@ worktree. Final actual Cupid-built self-host callers and full paired producer
 qualification remain required
 before adoption. Normal OS and strict runtime acceptance must use the resulting
 qualified compiler.
+
+## Further scalar result transfers, 2026-10-07
+
+The private integration now admits four-byte integer results from LOAD, BINARY
+and UNARY producers into validated BINARY, UNARY, STORE, STORE_VALUE and
+RETURN_VALUE consumers. It may cross a validated zero-byte integer conversion
+only when that conversion preserves the word representation and has no branch
+entry. Both the consumer and every crossed conversion retain their entry guards.
+Naked functions and kernel stack-reset functions keep their existing protocol.
+Ordinary handler validation still precedes the equal-size register move.
+
+The complete instruction review checks 1,325 moves in the 307-object ordinary
+corpus, 15,303 moves in the complete kernel cohort and 32,357 moves in the
+115-object self-host corpus. Branch targets, symbol extents, data, relocations
+and addends retain their reviewed meaning. All 23 capability methods pass
+through four producers; the conversion-entry mutant remains rejected by both
+strict disassemblers. The current-control integration candidate adds no source
+rewrite or public IR field. Evidence is `result-integration-applied1/closed.json`
+and the complete reviews linked from `PREVIOUS-OUTPUT-PROTOTYPE.md`.
+
+The installed `2d04ff25` cohort retains its earlier separate acceptance. Both
+complete new-cohort callers now pass all 62 modes per host under the original
+bounds; all eight products agree with the reviewed native corpus. Both actual
+adapters and complete hosted runtimes also pass. Evidence is
+`result-fullcohort-controls2-paired-independent.json` and
+`result-cupid-linked-runtime-fullcohort2-paired-independent.json`. Committed
+qualification, replacement seed adoption and normal OS/runtime acceptance
+remain required.
+
+## Source-step OS acceptance, 2026-10-07
+
+The reviewed source passes both cold normal OS builds through the installed
+`2d04ff25` seeds. Paired independent checks cover all 1,704 source controls,
+429 objects, sixteen artifacts, six user products, the complete ABI and preserved
+FAT data. The 175,777-byte manual is reconstructed in full. All four original
+strict four-CPU boots pass. Evidence is `result-source-os1-paired-independent.json`.
+This is a source/manual consumer gate. Qualification, adoption and normal
+OS/runtime acceptance through the further result-transfer compiler remain required.

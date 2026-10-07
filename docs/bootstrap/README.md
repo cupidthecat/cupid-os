@@ -1,5 +1,38 @@
 # Cupid Toolchain bootstrap
 
+## Reviewed retained-copy source integration, 2026-10-07
+
+The reviewed integration source carries the bounded frozen-input
+and retained previous-output APIs together with the further scalar result-transfer
+emitter. Exactly thirteen implementation, test and ownership paths are applied.
+All current public bootstrap controls, installed seeds, policy and earlier manual
+bytes are preserved during that application. Its 99 producer inputs match the
+complete independently checked preparations; the full source has 1,704 controls.
+Evidence is `result-integration-applied1/closed.json`.
+
+The integration candidate passes 46 native capability methods, twenty strict
+audit contracts and 26 ownership methods. The complete new stage-four cohort
+also passes sixteen retained-copy build phases and 88 runtime cases, with 68
+complete exported copies and both Linux 200 MiB controls under 32 MiB. Earlier
+timeouts and the rejected cross-host checker remain recorded. Every original
+process bound and useful negative predicate stays in force.
+
+The revised 175,777-byte manual passes paired cold normal OS builds through
+the installed `2d04ff25` seeds. Independent checks cover all 429 objects,
+sixteen artifacts, six user products, complete ABI and preserved FAT data.
+All four original strict four-CPU boots pass. This validates the source/manual
+consumer step; qualification, adoption and OS acceptance through the new
+producer cohort remain separate. Evidence is
+`result-source-os1-paired-independent.json`.
+
+Both complete Cupid callers pass all 124 paired ordinary/self-host modes,
+and all four actual linked adapter/runtime executions pass. Independent
+checks preserve all original commands, bounds and complete artifacts.
+Committed producer qualification, replacement seed adoption, OS/runtime acceptance
+through the new tools and native recipe ownership remain open. The installed `2d04ff25` tools keep their separate earlier
+acceptance; they do not establish carriage of these newly integrated APIs.
+
+
 ## Separate previous-output prototype, 2026-10-07
 
 Four actual i386 producers pass 114 complete previous-output runtime cases.
@@ -9,8 +42,8 @@ capacity rejections per producer. Fresh ordinary publication regressions pass
 382 executions with fourteen expected skips. All twenty strict audit contracts
 and 26 existing ownership controls pass.
 
-The API and further result-transfer emitter remain in a separate retained
-prototype. Earlier 600-second runtime timeouts stay failed; unchanged native
+The reviewed API and further result-transfer emitter are now integrated
+privately from their retained candidate. Earlier 600-second runtime timeouts stay failed; unchanged native
 storage and short Windows replays supply the accepted results. The corrected
 emitter passes all 23 capability methods through each of four producers. Both
 actual Cupid-built callers pass all 58 ordinary modes. The complete corrected
@@ -24,8 +57,9 @@ same 99 prepared producer inputs. Both strict audits, ownership controls and
 native capability modules pass. Its two retained-copy callers also build and
 pass strict disassembly on each host. Both retained-copy APIs pass 88 complete runtime cases and 68 exported copies,
 including both Linux 200 MiB controls under 32 MiB. All original bounds and
-useful negative predicates remain. Fresh complete Cupid object callers,
-committed qualification, normal OS acceptance and production adoption remain
+useful negative predicates remain. Both complete Cupid object callers and
+their actual linked runtimes pass independently. Committed qualification,
+normal OS acceptance and production adoption remain
 open. See [the previous-output record](PREVIOUS-OUTPUT-PROTOTYPE.md).
 
 ## Public bootstrap context and committed qualification, 2026-10-07
@@ -96,8 +130,8 @@ timestamps while preserving the payload; the corrected fixture checks every
 byte and retains the original metadata rejection. API and runtime objects are
 unchanged from that failed attempt.
 
-The API remains outside the integration worktree. Ordinary regression checks,
-committed qualification and normal recipe adoption remain open. The later source
+The API is now integrated privately with its ordinary regression evidence.
+Committed qualification and normal recipe adoption remain open. The later source
 copy adds the normal test module and fixture ownership; all 75 executed methods,
 twenty strict audit contracts and 26 existing ownership controls pass. See
 [the streamed-input prototype](STREAMED-FROZEN-INPUT-PROTOTYPE.md).

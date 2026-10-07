@@ -244,6 +244,25 @@ int cupidbuild_host_freeze_input(cupidbuild_host_transaction_t *transaction,
                                  const char *private_name,
                                  const char **frozen_path_out,
                                  cupidbuild_host_snapshot_t *snapshot_out);
+/* Copy one repository input with fixed 64 KiB storage and an explicit
+ * 1..2147483647-byte extent. Its accepted capacity remains attached to the
+ * input through every live and frozen revalidation. Runner transactions and
+ * requested payloads retain their ordinary limits. Results clear on failure. */
+int cupidbuild_host_freeze_input_bounded(
+    cupidbuild_host_transaction_t *transaction, const char *live_path,
+    const char *private_name, unsigned long long capacity,
+    const char **frozen_path_out, cupidbuild_host_snapshot_t *snapshot_out);
+/* Capture the initial output once through its retained publication authority.
+ * The transaction's candidate capacity bounds the fixed-block copy. An absent
+ * initial output succeeds with cleared results and creates no copy. Existing
+ * output bytes become a sealed private input; original output binding remains
+ * subject to the publication and recovery guards. After replacement, input
+ * checks validate this private copy rather than rereading the public pathname.
+ * Ordinary input/output aliases still fail. Runner, unsafe-name, repeated or
+ * post-publication requests fail, clear results and forbid publication. */
+int cupidbuild_host_freeze_previous_output(
+    cupidbuild_host_transaction_t *transaction, const char *private_name,
+    const char **frozen_path_out, cupidbuild_host_snapshot_t *snapshot_out);
 int cupidbuild_host_reserve_inputs(
     cupidbuild_host_transaction_t *transaction, size_t capacity);
 unsigned char *cupidbuild_host_read_frozen_input(

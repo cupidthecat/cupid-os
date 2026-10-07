@@ -2206,8 +2206,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["input_snapshot"]["count"], 478)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "e39082d4f570325c2627cb8e7919d878"
-                "91fa2416c78c0151132aadbdf5b238d3",
+                "d3b96db6b47e6618d4faeaae621149f0"
+                "f30a64695451fe62be2f3b500b599608",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

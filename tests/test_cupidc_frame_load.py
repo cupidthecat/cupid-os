@@ -110,7 +110,7 @@ class FrameToolCase(unittest.TestCase):
 
 class CupidCFrameLoadTests(FrameToolCase):
     def test_word_parameters_select_one_frame_read(self):
-        expected = bytes.fromhex("5589e58b85080000005058c9c3")
+        expected = bytes.fromhex("5589e58b850800000089c0c9c3")
         for name in ("signed_parameter", "unsigned_parameter", "volatile_parameter"):
             with self.subTest(name=name):
                 self.assertEqual(self.code[name], expected)
@@ -124,7 +124,7 @@ class CupidCFrameLoadTests(FrameToolCase):
         self.assertIn(bytes.fromhex("580fbe0050"), self.code["narrow_signed"])
         self.assertIn(bytes.fromhex("580fb60050"), self.code["narrow_unsigned"])
         self.assertGreater(len(self.code["wide_parameter"]), 13)
-        self.assertIn(bytes.fromhex("588b0050"), self.code["pointer_parameter"])
+        self.assertIn(bytes.fromhex("588b0089c0"), self.code["pointer_parameter"])
 
     def test_aliases_branches_and_full_value_width_execute(self):
         self.execute_runtime()

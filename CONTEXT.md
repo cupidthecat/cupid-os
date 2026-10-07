@@ -2527,5 +2527,9 @@ A validated literal count and selected local rotate call whose combined stack ef
 _Avoid_: general constant folding, source intrinsic
 
 **Proven scalar stack transfer**:
-A recorded one-byte PUSH EAX followed by a validated word unary or binary consumer, with no branch entering that consumer. The emitter can replace the adjacent PUSH and POP with an equal-size register MOV after ordinary validation finishes.
+A scalar producer and consumer whose value representation and control-flow entry permit a direct register transfer with the same stack effect. A representation-preserving conversion can belong to that transfer only when it introduces no separate control-flow entry.
 _Avoid_: general peephole optimization, byte-pattern matching, qualified compiler
+
+**Retained previous-output snapshot**:
+A transaction-owned immutable copy of the initially observed output, retained separately from the public output name while publication can replace that name. Its authority comes from the transaction's initial output observation.
+_Avoid_: ordinary live input, replaced output pathname

@@ -1,5 +1,27 @@
 # Native disk-image handoff
 
+## Current source-step acceptance and remaining I/O extent, 2026-10-07
+
+Both cold source-step builds and all four strict boots pass as recorded in
+`result-source-os1-paired-independent.json`. All 429 objects, sixteen artifacts,
+six user products, complete ABI, manual and complete 200 MiB images agree.
+The installed `2d04ff25` seeds supply this consumer gate; the new producer
+snapshot still requires its own committed qualification and adoption.
+
+The existing geometry chooser also accepts 2,048 and 2,050 MiB images with
+FAT start LBA 20,480, and a 4,096 MiB image with FAT start LBA 7,979,008.
+Those extents exceed the native bounded transaction's 2,147,483,647-byte limit.
+Both host audits record the same four accepted geometry cases without allocating
+images. This proves geometry rather than complete large-image publication.
+Evidence is `result-disk-extent-audit1-windows.json` and
+`result-disk-extent-audit1-linux.json`.
+
+Before native recipe ownership changes, provide owned source/candidate I/O with
+explicit 64-bit offsets, extent reporting and complete identity/flush checks.
+Keep the existing bounded APIs and their useful rejection tests. A wider snapshot
+must retain extents beyond i386 size_t without truncation. The native handoff must
+preserve accepted existing ranges as well as the normal 200 MiB build.
+
 ## Earlier-seed source checkpoint acceptance, 2026-10-07
 
 Both normal kernel, image and user builds pass with conventional code producers

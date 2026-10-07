@@ -1,13 +1,46 @@
 # cupid-os
 
+## Reviewed retained-copy source integration, 2026-10-07
+
+The reviewed integration source carries the bounded frozen-input
+and retained previous-output APIs together with the further scalar result-transfer
+emitter. Exactly thirteen implementation, test and ownership paths are applied.
+All current public bootstrap controls, installed seeds, policy and earlier manual
+bytes are preserved during that application. Its 99 producer inputs match the
+complete independently checked preparations; the full source has 1,704 controls.
+Evidence is `result-integration-applied1/closed.json`.
+
+The integration candidate passes 46 native capability methods, twenty strict
+audit contracts and 26 ownership methods. The complete new stage-four cohort
+also passes sixteen retained-copy build phases and 88 runtime cases, with 68
+complete exported copies and both Linux 200 MiB controls under 32 MiB. Earlier
+timeouts and the rejected cross-host checker remain recorded. Every original
+process bound and useful negative predicate stays in force.
+
+The revised 175,777-byte manual passes paired cold normal OS builds through
+the installed `2d04ff25` seeds. Independent checks cover all 429 objects,
+sixteen artifacts, six user products, complete ABI and preserved FAT data.
+All four original strict four-CPU boots pass. This validates the source/manual
+consumer step; qualification, adoption and OS acceptance through the new
+producer cohort remain separate. Evidence is
+`result-source-os1-paired-independent.json`.
+
+Both complete Cupid callers pass all 124 paired ordinary/self-host modes,
+and all four actual linked adapter/runtime executions pass. Independent
+checks preserve all original commands, bounds and complete artifacts.
+Committed producer qualification, replacement seed adoption, OS/runtime acceptance
+through the new tools and native recipe ownership remain open. The installed `2d04ff25` tools keep their separate earlier
+acceptance; they do not establish carriage of these newly integrated APIs.
+
+
 ## Qualified scalar emitter cohort, 2026-10-07
 
 The committed `2d04ff25` producer passes complete Linux and native Windows
 qualification with conventional host producers forbidden. Paired independent
-review checks all 291 staged products and 7,761 published files. The private
-worktree carries the fifteen exact replacement seed files, reviewed Python
-pins and fifteen measured seed and kernel policy rows; its 99 compiler producer
-inputs remain unchanged.
+review checks all 291 staged products and 7,761 published files. The earlier private
+seed-adoption checkpoint carried the fifteen exact replacement seed files,
+reviewed Python pins and fifteen measured seed and kernel policy rows. Its
+99 compiler producer inputs remained unchanged at that checkpoint.
 
 Public bootstrap commands now accept an explicitly reviewed behavior release.
 Both final tool sets must match that cohort exactly. Both actual Make recipes,
@@ -42,7 +75,8 @@ controls. The normal small cases, fresh ordinary publication regressions,
 twenty strict audit contracts and 26 ownership controls also pass. Earlier
 600-second timeouts remain retained and rejected.
 
-The API and further result-transfer emitter remain in a separate prototype.
+The reviewed API and result-transfer source is now integrated privately.
+Its earlier prototype evidence and pending qualification remain separate.
 The corrected emitter passes 23 capability methods through all four producers.
 Both actual Cupid-built callers pass all 58 ordinary modes. All 156 kernel
 sources compile twice through each of four producers, with matching complete
@@ -52,9 +86,10 @@ and full hosted-runtime execution pass on both hosts. Both complete preparations
 artifacts and 97 fixed-point pairs. The current-control integration candidate
 also passes both strict audits, ownership controls and native capability tests.
 Both retained-copy APIs pass 88 independently checked runtime cases, including
-complete 200 MiB copies and publications under 32 MiB on Linux. Fresh complete
-Cupid object callers remain under verification. Committed qualification,
-normal OS acceptance and recipe adoption remain open. See
+complete 200 MiB copies and publications under 32 MiB on Linux. Both complete
+Cupid object callers and their linked runtime products pass independently.
+Committed qualification, OS acceptance using the new seeds
+and recipe adoption remain open. See
 [the previous-output record](docs/bootstrap/PREVIOUS-OUTPUT-PROTOTYPE.md).
 
 ## Private publisher and emitter verification, 2026-10-06

@@ -2978,8 +2978,34 @@ The original failure remains open. A separate Windows cat case passes independen
 fixture and PID-bound runtime checks. Ordinary Linux SDK publication passes
 independent review of all 104 inputs, 77 stage pairs, 22 ELF artifacts and its
 manifest. Ordinary Windows and both explicit long-path profiles retain separate
-acceptance checks. The streamed previous-output API and further result-transfer
-emitter remain separate prototypes.
+acceptance checks. The streamed input, previous-output and further result-transfer
+source is now integrated privately; replacement qualification remains separate.
+>endtree
+
+>h2 Retained-copy APIs and scalar results
+>tree
+The private source now provides bounded frozen-input and retained previous-output
+copies. Both use ordered blocks of at most 65,536 bytes and retain a complete
+SHA-256 digest. Ordinary input/output aliases remain rejected. A previous-output
+copy borrows the initial publication authority and stays valid after the public
+name is replaced; every retained copy keeps its own validation and close rules.
+
+The result-transfer emitter admits proven word loads, unary results and binary
+results into validated unary, binary, store and return consumers. Zero-byte word
+conversions can participate only without a separate branch entry. Consumer and
+conversion entries retain the ordinary stack protocol; wide values, naked
+functions and kernel stack resets keep their original paths.
+
+The complete prepared cohort passes 88 retained-copy runtime cases and 68 whole
+exported copies. Both Linux complete 200 MiB controls pass under a 32 MiB address
+space limit. Original process bounds, useful rejection checks and all complete
+file digests remain. Both complete Cupid callers also pass all 62 original
+ordinary and self-host modes per host. Their eight linked products agree with
+the independently reviewed native products; both actual adapters and hosted
+runtimes execute within their original limits. The installed seeds keep the
+earlier qualified emitter.
+New producer qualification, seed carriage, normal OS/runtime acceptance and
+native disk recipe ownership retain their own gates.
 >endtree
 
 >h2 See Also

@@ -16926,16 +16926,45 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
     if (naked == CTOOL_FALSE && kernel_entry_stack_reset == CTOOL_FALSE &&
         index != 0u && branch_targets[index] == 0u &&
         (instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY ||
-         instruction->kind == CTOOL_C_IR_INSTRUCTION_UNARY) &&
-        cemit_ir_type_is_i32_integer(context, instruction->type) == CTOOL_TRUE &&
-        (instruction - 1)->kind == CTOOL_C_IR_INSTRUCTION_LOAD &&
-        cemit_ir_type_is_i32_integer(context, (instruction - 1)->type) == CTOOL_TRUE &&
-        context->last_push_eax == CTOOL_TRUE &&
-        context->last_push_text == context->active_text &&
-        context->last_push_offset >= function_start + instruction_offsets[index - 1u] &&
-        context->last_push_offset < function_start + instruction_offsets[index] &&
-        function_start + instruction_offsets[index] - context->last_push_offset == 1u) {
-      previous_push = context->last_push_offset;
+         instruction->kind == CTOOL_C_IR_INSTRUCTION_UNARY ||
+         instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE ||
+         instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+         instruction->kind == CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) &&
+        cemit_ir_type_is_i32_integer(context, instruction->type) == CTOOL_TRUE) {
+      ctool_u32 previous_index = index;
+      const ctool_c_ir_instruction_t *previous;
+      /* A validated word conversion can retain the value without emitting
+       * bytes. Its branch entry still owns the ordinary stack protocol. */
+      while (previous_index != 0u) {
+        previous = &context->ir.instructions[
+            function->first_instruction + previous_index - 1u];
+        if (previous->kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+            branch_targets[previous_index - 1u] != 0u ||
+            instruction_offsets[previous_index - 1u] !=
+                instruction_offsets[index] ||
+            cemit_ir_type_is_i32_integer(context, previous->type) ==
+                CTOOL_FALSE ||
+            cemit_ir_type_is_i32_integer(context, previous->input_type) ==
+                CTOOL_FALSE) break;
+        previous_index--;
+      }
+      previous = previous_index != 0u
+          ? &context->ir.instructions[
+                function->first_instruction + previous_index - 1u]
+          : (const ctool_c_ir_instruction_t *)0;
+      if (previous != (const ctool_c_ir_instruction_t *)0 &&
+          (previous->kind == CTOOL_C_IR_INSTRUCTION_LOAD ||
+           previous->kind == CTOOL_C_IR_INSTRUCTION_BINARY ||
+           previous->kind == CTOOL_C_IR_INSTRUCTION_UNARY) &&
+          cemit_ir_type_is_i32_integer(context, previous->type) == CTOOL_TRUE &&
+          context->last_push_eax == CTOOL_TRUE &&
+          context->last_push_text == context->active_text &&
+          context->last_push_offset >=
+              function_start + instruction_offsets[previous_index - 1u] &&
+          context->last_push_offset < function_start + instruction_offsets[index] &&
+          function_start + instruction_offsets[index] - context->last_push_offset == 1u) {
+        previous_push = context->last_push_offset;
+      }
     }
     if (naked == CTOOL_TRUE &&
         index + 1u == function->instruction_count) {
