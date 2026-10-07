@@ -5119,7 +5119,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "CUPID_RUNTIME": 108,
                 "HOSTED_TOOLCHAIN_64": 0,
                 "HOSTED_KERNEL_BRIDGE_64": 0,
-                "HOSTED_I386_LINUX": 50,
+                "HOSTED_I386_LINUX": 53,
                 "HOSTED_I386_WINDOWS": 9,
                 "HOSTED_I386_KERNEL_BRIDGE": 2,
                 "HOSTED_I386_LINUX_GNU": 3,
@@ -5129,7 +5129,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "HOSTED_I386_WINDOWS_UTF8_GNU": 1,
             },
         )
-        self.assertEqual(len(active), 419)
+        self.assertEqual(len(active), 422)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.cc"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
@@ -5239,6 +5239,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(delivery["operation"], "generate_profile_manifest")
         self.assertEqual(delivery["tools"], ["cupid_builder", "cupid_object"])
         self.assertEqual(delivery["inputs"], expected_inputs)
+        self.assertIn("toolchain/fat16_name_profiles.inc", delivery["inputs"])
         module._validate_cupidobj_profile_manifest_delivery(
             REPO_ROOT,
             [delivery],
@@ -5299,6 +5300,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ],
                 }
             ],
+            "missing Unicode name table": [
+                {
+                    **delivery,
+                    "inputs": [
+                        path for path in delivery["inputs"]
+                        if path != "toolchain/fat16_name_profiles.inc"
+                    ],
+                }
+            ],
             "unexpected input": [
                 {
                     **delivery,
@@ -5338,6 +5348,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertEqual(near_match["operation"], "host_orchestration")
         self.assertEqual(near_match["tools"], ["host_python"])
+
+    def test_real_profile_make_rule_captures_the_unicode_name_table(self):
+        module = _load_audit_module()
+        make = shutil.which("make")
+        self.assertIsNotNone(make)
+        rules = module._parse_make_rules(module._run_make_database(REPO_ROOT, make, "all"))
+        target = module._CUPIDOBJ_PROFILE_MANIFEST_OUTPUT
+        expected = module._cupidobj_profile_manifest_expected_inputs(REPO_ROOT)
+        delivery = module._build_transforms(".", {target}, rules)[0]
+        self.assertEqual(delivery["inputs"], expected)
+        self.assertIn("toolchain/fat16_name_profiles.inc", delivery["inputs"])
+        module._validate_cupidobj_profile_manifest_delivery(REPO_ROOT, [delivery])
 
     def test_cupidobj_profile_manifest_tracks_nested_profile_headers(self):
         module = _load_audit_module()
@@ -6728,6 +6750,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 r"compile loop does not consume each checked source profile",
             ),
         }
+        for module_name in ("fat16_stage", "fat16_names", "disk_image"):
+            row = (f'      {{"/toolchain/{module_name}.cc", '
+                   f'"/toolchain/{module_name}.o",\n'
+                   "       HOST_TOOL_SOURCE_C, CTOOL_FALSE}")
+            self.assertEqual(contract.count(row), 1)
+            mutations[f"{module_name} source removed"] = (
+                row, row.replace(module_name + ".cc", "unknown_disk.cc", 1),
+                "source-profile rows differ.*" + module_name,
+            )
+            mutations[f"{module_name} gains GNU mode"] = (
+                row, row.replace("CTOOL_FALSE", "CTOOL_TRUE", 1),
+                "source-profile rows differ.*" + module_name,
+            )
+        self.assertIn("34u, 35u, 36u, 37u, 38u, 39u, 40u, 41u, 1u};", contract)
         for name, (old, new, message) in mutations.items():
             with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
                 root = Path(td)
@@ -6741,26 +6777,106 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 with self.assertRaisesRegex(module.AuditError, message):
                     module._validate_hosted_i386_contract_profiles(root)
 
+    def test_disk_foundations_keep_the_strict_hosted_preprocessing_profile(self):
+        module = _load_audit_module()
+        audit = json.loads(ACTIVE_BUILD_MANIFEST.read_bytes())
+        manifest = module._c_preprocessor_active_cases_manifest(audit)
+        sources = {"/toolchain/fat16_stage.cc", "/toolchain/fat16_names.cc",
+                   "/toolchain/disk_image.cc"}
+        for source in sources:
+            self.assertIn(("HOSTED_I386_LINUX", source), manifest.active_cases)
+            self.assertEqual([profile for profile, path in manifest.active_cases if path == source],
+                             ["HOSTED_I386_LINUX"])
+        for source in sources:
+            with self.subTest(source=source):
+                changed = json.loads(json.dumps(audit))
+                build = next(row for row in changed["supplemental_builds"] if row["directory"] == "toolchain")
+                transform = next(row for row in build["transforms"]
+                                 if row["output"] == "toolchain/build/cupidc-contracts/manifest.json")
+                transform["inputs"].remove(source.lstrip("/"))
+                with self.assertRaisesRegex(module.AuditError, "toolchain contract closure changed"):
+                    module._c_preprocessor_active_cases_manifest(changed)
+
+    def test_disk_foundation_fixed_point_inventory_and_capture_fail_closed(self):
+        module = _load_audit_module()
+        contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
+        self.assertEqual(contract["tool_c_sources"], 37)
+        self.assertEqual(contract["compared_c_objects"], 37)
+        self.assertEqual(contract["contract_manifest_inputs"], 104)
+        names = (
+            "tests/test_toolchain_cupidc_object.py", "toolchain/cupidc_main.cc",
+            "toolchain/cupidld.h", "toolchain/cupidld_main.cc", "toolchain/cupidld.cc",
+            "tools/bootstrap_toolchain.py", "tools/cupidc_toolchain_contracts.py",
+            "tools/bootstrap_user_abi.py",
+            "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
+            "toolchain/hosted/i386-linux/include/windows.h",
+            "toolchain/hosted/i386-windows/publication_runtime.cc",
+            "toolchain/hosted/i386-windows/publication_start.asm",
+        )
+        inputs = {name: (REPO_ROOT / name).read_text(encoding="utf-8") for name in names}
+        bootstrap = inputs["tools/bootstrap_toolchain.py"]
+        rows = {
+            name: f'    ("{name}", "/toolchain/{name}.cc", False),\n'
+            for name in ("fat16_stage", "fat16_names", "disk_image")
+        }
+        mutations = {"omit " + name: bootstrap.replace(row, "", 1)
+                     for name, row in rows.items()}
+        ordered = "".join(rows.values())
+        self.assertEqual(bootstrap.count(ordered), 1)
+        mutations["reordered disk sources"] = bootstrap.replace(
+            ordered, rows["disk_image"] + rows["fat16_names"] + rows["fat16_stage"], 1
+        )
+        candidate = "CANDIDATE_SOURCES = (*ISO_PUBLICATION_SOURCES, *DISK_FOUNDATION_SOURCES)"
+        self.assertEqual(bootstrap.count(candidate), 1)
+        mutations["cyclic source constant"] = bootstrap.replace(
+            candidate, "CANDIDATE_SOURCES = CANDIDATE_SOURCES", 1
+        )
+        mutations["second live source binding"] = bootstrap.replace(
+            candidate, candidate + "\nDISK_FOUNDATION_SOURCES = ()", 1
+        )
+        mutations["mutable disk source expansion"] = bootstrap.replace(
+            "DISK_FOUNDATION_SOURCES = (", "DISK_FOUNDATION_SOURCES = [", 1
+        ).replace(
+            ")\n" + candidate, "]\n" + candidate, 1
+        )
+        table = 'paths.append(source_root / "toolchain/fat16_name_profiles.inc")'
+        self.assertEqual(bootstrap.count(table), 1)
+        mutations["substituted Unicode capture"] = bootstrap.replace(
+            table, 'paths.append(source_root / "toolchain/other.inc")', 1
+        )
+        for label, changed in mutations.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                self.assertNotEqual(changed, bootstrap)
+                ast.parse(changed)
+                for name, text in inputs.items():
+                    path = root / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(changed if name == "tools/bootstrap_toolchain.py" else text,
+                                    encoding="utf-8")
+                with self.assertRaisesRegex(module.AuditError, "fixed-point source freeze differs"):
+                    module._cupid_toolchain_fixed_point_contract(root)
+
     def test_cupid_toolchain_fixed_point_contract_fails_closed(self):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 7)
         self.assertEqual(contract["success_behavior_cases"], 73)
         self.assertEqual(contract["failure_behavior_cases"], 66)
-        self.assertEqual(contract["tool_c_sources"], 34)
+        self.assertEqual(contract["tool_c_sources"], 37)
         self.assertEqual(contract["tool_images"], 6)
-        self.assertEqual(contract["compared_c_objects"], 34)
+        self.assertEqual(contract["compared_c_objects"], 37)
         self.assertEqual(contract["compared_tool_images"], 6)
         self.assertEqual(contract["windows_help_cases"], 7)
         self.assertEqual(contract["windows_success_behavior_cases"], 60)
         self.assertEqual(contract["windows_failure_behavior_cases"], 54)
-        self.assertEqual(contract["contract_manifest_inputs"], 101)
-        self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 101)
+        self.assertEqual(contract["contract_manifest_inputs"], 104)
+        self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 104)
         self.assertIn(
             "toolchain/x86.cc",
             module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
         )
-        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 142)
+        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 149)
         self.assertTrue(
             set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS).issubset(
                 module.TOOLCHAIN_CONTRACT_LINUX_INPUTS
@@ -7908,7 +8024,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "bootstrap",
                 "        if tuple(cupidbuild_link) not in (\n"
                 "            EARLIER_PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK,\n"
-                "            CANDIDATE_CUPIDBUILD_LINK\n"
+                "            ISO_PUBLICATION_CUPIDBUILD_LINK, CANDIDATE_CUPIDBUILD_LINK\n"
                 "        ):\n",
                 "        if False:\n",
                 r"fixed-point source freeze differs",
@@ -10153,9 +10269,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 419,
+                    "tracked_translation_units": 422,
                     "generated_translation_units": 4,
-                    "total_translation_units": 423,
+                    "total_translation_units": 426,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
                     "deferred_hosted_translation_units": 0,
@@ -10181,7 +10297,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("CUPID_RUNTIME", 108, 0),
                     ("HOSTED_TOOLCHAIN_64", 0, 0),
                     ("HOSTED_KERNEL_BRIDGE_64", 0, 0),
-                    ("HOSTED_I386_LINUX", 50, 0),
+                    ("HOSTED_I386_LINUX", 53, 0),
                     ("HOSTED_I386_WINDOWS", 9, 0),
                     ("HOSTED_I386_KERNEL_BRIDGE", 2, 0),
                     ("HOSTED_I386_LINUX_GNU", 3, 0),
@@ -10244,10 +10360,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 780,
+                    "active_sources": 786,
                     "features": 255,
                     "transforms": 452,
-                    "unreachable_sources": 51,
+                    "unreachable_sources": 59,
                 },
             )
             features = {
@@ -10272,7 +10388,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 self.assertEqual(unreachable[fixture], "host_fixture")
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (7061, 189),
+                "c.expression.sizeof": (7088, 191),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -10870,7 +10986,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 129)
+            self.assertEqual(toolchain_cohort["source_count"], 135)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -11134,7 +11250,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "419 tracked + 4 generated",
+                "422 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(

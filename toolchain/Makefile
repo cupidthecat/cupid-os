@@ -134,6 +134,8 @@ NATIVE_CUPIDC_FRONTEND_CONTRACT := \
 NATIVE_CUPIDC_IR_CONTRACT := $(BUILD_DIR)/cupidc-ir-contract$(EXE)
 NATIVE_CUPIDC_OBJECT_CONTRACT := \
 	$(BUILD_DIR)/cupidc-object-contract$(EXE)
+NATIVE_CUPIDC_STACK_ENTRY_CONTRACT := \
+	$(BUILD_DIR)/cupidc-stack-entry-contract$(EXE)
 NATIVE_ELF32_CONTRACT := $(BUILD_DIR)/elf32-contract$(EXE)
 NATIVE_X86_CONTRACT := $(BUILD_DIR)/x86-contract$(EXE)
 NATIVE_CUPIDDIS_CONTRACT := $(BUILD_DIR)/cupiddis-contract$(EXE)
@@ -329,6 +331,9 @@ CUPIDC_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                   $(BUILD_DIR)/cupidc_frontend.o $(BUILD_DIR)/cupidc_ir.o \
                   $(BUILD_DIR)/cupidc_emit.o $(BUILD_DIR)/elf32.o \
                   $(BUILD_DIR)/x86.o $(BUILD_DIR)/cupidc_main.o
+CUPIDC_STACK_ENTRY_CONTRACT_OBJECTS := \
+    $(filter-out $(BUILD_DIR)/cupidc_emit.o $(BUILD_DIR)/cupidc_main.o,$(CUPIDC_OBJECTS)) \
+    $(BUILD_DIR)/cupidc_stack_transfer_entry_contract.o
 ELF32_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                  $(BUILD_DIR)/elf32.o $(BUILD_DIR)/elf32_contract.o
 X86_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
@@ -668,6 +673,12 @@ $(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.cc \
 $(BUILD_DIR)/elf32_contract.o: tests/elf32_contract.cc elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
+$(BUILD_DIR)/cupidc_stack_transfer_entry_contract.o: \
+    tests/cupidc_stack_transfer_entry_contract.cc cupidc_emit.cc cupidc_emit.h \
+    cupidc_ir.h cupidc_frontend.h cupidc_type.h cupidc_pp.h \
+    elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
 $(BUILD_DIR)/x86_contract.o: tests/x86_contract.cc \
     $(X86_CONTRACT_SUPPORT) x86.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
@@ -736,6 +747,9 @@ $(NATIVE_CUPIDC_IR_CONTRACT): $(CUPIDC_IR_CONTRACT_OBJECTS)
 
 $(NATIVE_CUPIDC_OBJECT_CONTRACT): $(CUPIDC_OBJECT_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_OBJECT_CONTRACT_OBJECTS) -o $@
+
+$(NATIVE_CUPIDC_STACK_ENTRY_CONTRACT): $(CUPIDC_STACK_ENTRY_CONTRACT_OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_STACK_ENTRY_CONTRACT_OBJECTS) -o $@
 
 $(CUPIDC): $(CUPIDC_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_OBJECTS) -o $@
@@ -991,6 +1005,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDC_IR_CONTRACT) wide-objects ..
 	$(CUPIDC_IR_CONTRACT) wide-mutations ..
 	$(CUPIDC_IR_CONTRACT) self-host-frontier ..
+	$(CUPIDC_OBJECT_CONTRACT) unsigned-rotate-leaves ..
 	$(CUPIDC_OBJECT_CONTRACT) static-data ..
 	$(CUPIDC_OBJECT_CONTRACT) section-attributes ..
 	$(CUPIDC_OBJECT_CONTRACT) unused-attributes ..

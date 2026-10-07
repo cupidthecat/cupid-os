@@ -174,7 +174,10 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/cupiddis.h",
     "toolchain/cupidld.h",
     "toolchain/cupidobj.h",
+    "toolchain/disk_image.h",
     "toolchain/elf32.h",
+    "toolchain/fat16_names.h",
+    "toolchain/fat16_stage.h",
     "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
     "toolchain/hosted/i386-linux/include/direct.h",
     "toolchain/hosted/i386-linux/include/errno.h",
@@ -265,14 +268,14 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.cc",
     "toolchain/cupidbuild_host.h",
-    "toolchain/cupidbuild_iso.h",
-    "toolchain/cupidbuild_iso_capture.h",
-    "toolchain/cupidbuild_iso_image.h",
-    "toolchain/cupidbuild_iso_publication.h",
     "toolchain/cupidbuild_iso.cc",
+    "toolchain/cupidbuild_iso.h",
     "toolchain/cupidbuild_iso_capture.cc",
+    "toolchain/cupidbuild_iso_capture.h",
     "toolchain/cupidbuild_iso_image.cc",
+    "toolchain/cupidbuild_iso_image.h",
     "toolchain/cupidbuild_iso_publication.cc",
+    "toolchain/cupidbuild_iso_publication.h",
     "toolchain/cupidbuild_main.cc",
     "toolchain/cupidbuild_user_abi.cc",
     "toolchain/cupidbuild_user_abi.h",
@@ -296,8 +299,15 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/cupidobj.cc",
     "toolchain/cupidobj.h",
     "toolchain/cupidobj_main.cc",
+    "toolchain/disk_image.cc",
+    "toolchain/disk_image.h",
     "toolchain/elf32.cc",
     "toolchain/elf32.h",
+    "toolchain/fat16_name_profiles.inc",
+    "toolchain/fat16_names.cc",
+    "toolchain/fat16_names.h",
+    "toolchain/fat16_stage.cc",
+    "toolchain/fat16_stage.h",
     "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
     "toolchain/hosted/i386-linux/include/direct.h",
     "toolchain/hosted/i386-linux/include/errno.h",
@@ -500,7 +510,10 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/cupiddis.h",
     "toolchain/cupidld.h",
     "toolchain/cupidobj.h",
+    "toolchain/disk_image.h",
     "toolchain/elf32.h",
+    "toolchain/fat16_names.h",
+    "toolchain/fat16_stage.h",
     "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
     "toolchain/hosted/i386-linux/include/direct.h",
     "toolchain/hosted/i386-linux/include/errno.h",
@@ -591,14 +604,14 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/cupidbuild_artifacts.h",
     "toolchain/cupidbuild_host.cc",
     "toolchain/cupidbuild_host.h",
-    "toolchain/cupidbuild_iso.h",
-    "toolchain/cupidbuild_iso_capture.h",
-    "toolchain/cupidbuild_iso_image.h",
-    "toolchain/cupidbuild_iso_publication.h",
     "toolchain/cupidbuild_iso.cc",
+    "toolchain/cupidbuild_iso.h",
     "toolchain/cupidbuild_iso_capture.cc",
+    "toolchain/cupidbuild_iso_capture.h",
     "toolchain/cupidbuild_iso_image.cc",
+    "toolchain/cupidbuild_iso_image.h",
     "toolchain/cupidbuild_iso_publication.cc",
+    "toolchain/cupidbuild_iso_publication.h",
     "toolchain/cupidbuild_main.cc",
     "toolchain/cupidbuild_user_abi.cc",
     "toolchain/cupidbuild_user_abi.h",
@@ -622,8 +635,15 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/cupidobj.cc",
     "toolchain/cupidobj.h",
     "toolchain/cupidobj_main.cc",
+    "toolchain/disk_image.cc",
+    "toolchain/disk_image.h",
     "toolchain/elf32.cc",
     "toolchain/elf32.h",
+    "toolchain/fat16_name_profiles.inc",
+    "toolchain/fat16_names.cc",
+    "toolchain/fat16_names.h",
+    "toolchain/fat16_stage.cc",
+    "toolchain/fat16_stage.h",
     "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
     "toolchain/hosted/i386-linux/include/direct.h",
     "toolchain/hosted/i386-linux/include/errno.h",
@@ -1053,7 +1073,7 @@ _C_PP_ACTIVE_COUNTS = {
     "CUPID_RUNTIME": 108,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
-    "HOSTED_I386_LINUX": 50,
+    "HOSTED_I386_LINUX": 53,
     "HOSTED_I386_WINDOWS": 9,
     "HOSTED_I386_KERNEL_BRIDGE": 2,
     "HOSTED_I386_LINUX_GNU": 3,
@@ -1098,6 +1118,9 @@ _C_PP_HOSTED_I386_STRICT_CASES = (
     "/toolchain/tests/hosted_i386_windows_runtime_contract.cc",
     "/toolchain/x86.cc",
     "/toolchain/path_encoding.cc",
+    "/toolchain/fat16_stage.cc",
+    "/toolchain/fat16_names.cc",
+    "/toolchain/disk_image.cc",
 )
 _C_PP_HOSTED_I386_GNU_CASES = (
     "/toolchain/hosted/i386-linux/runtime.cc",
@@ -11870,7 +11893,7 @@ def _cupid_toolchain_fixed_point_contract(
                 f"Cupid Toolchain fixed-point manifest differs: {name}"
             )
 
-    candidate_toolchain_sources = expected_toolchain_sources + (
+    iso_publication_toolchain_sources = expected_toolchain_sources + (
         ("cupidbuild", "/toolchain/cupidbuild.cc", False),
         ("cupidbuild_host", "/toolchain/cupidbuild_host.cc", False),
         ("cupidbuild_main", "/toolchain/cupidbuild_main.cc", False),
@@ -11886,7 +11909,15 @@ def _cupid_toolchain_fixed_point_contract(
         ("cupidbuild_iso_image", "/toolchain/cupidbuild_iso_image.cc", False),
         ("cupidbuild_iso_publication", "/toolchain/cupidbuild_iso_publication.cc", False),
     )
-    candidate_toolchain_links = expected_toolchain_links + (
+    disk_foundation_sources = (
+        ("fat16_stage", "/toolchain/fat16_stage.cc", False),
+        ("fat16_names", "/toolchain/fat16_names.cc", False),
+        ("disk_image", "/toolchain/disk_image.cc", False),
+    )
+    candidate_toolchain_sources = (
+        iso_publication_toolchain_sources + disk_foundation_sources
+    )
+    iso_publication_toolchain_links = expected_toolchain_links + (
         (
             "cupidbuild",
             (
@@ -11911,6 +11942,14 @@ def _cupid_toolchain_fixed_point_contract(
                 "cupidbuild_iso_publication",
                 "runtime",
             ),
+        ),
+    )
+    iso_publication_cupidbuild_link = iso_publication_toolchain_links[-1][1]
+    candidate_toolchain_links = expected_toolchain_links + (
+        (
+            "cupidbuild",
+            (*iso_publication_cupidbuild_link[:-1],
+             "fat16_stage", "fat16_names", "disk_image", "runtime"),
         ),
     )
 
@@ -15300,7 +15339,11 @@ def _cupid_toolchain_fixed_point_contract(
             node, bootstrap_tree, bootstrap_parents
         )
 
-    def bootstrap_assignment(name: str) -> object | None:
+    def bootstrap_assignment(
+        name: str, evaluating: frozenset[str] = frozenset()
+    ) -> object | None:
+        if name in evaluating:
+            return None
         live_nodes = [
             node
             for node in ast.walk(bootstrap_tree)
@@ -15331,6 +15374,42 @@ def _cupid_toolchain_fixed_point_contract(
         if len(writes) != 1 or len(matches) != 1:
             return None
         value = matches[0]
+
+        def static_value(expression: ast.expr) -> object:
+            try:
+                return ast.literal_eval(expression)
+            except (TypeError, ValueError):
+                pass
+            if isinstance(expression, ast.Name):
+                return bootstrap_assignment(
+                    expression.id, evaluating | {name}
+                )
+            if isinstance(expression, ast.Tuple):
+                members = []
+                for member in expression.elts:
+                    if isinstance(member, ast.Starred):
+                        expanded = static_value(member.value)
+                        if not isinstance(expanded, tuple):
+                            raise ValueError("bootstrap expansion is not a tuple")
+                        members.extend(expanded)
+                    else:
+                        members.append(static_value(member))
+                return tuple(members)
+            if (
+                isinstance(expression, ast.Subscript)
+                and isinstance(expression.slice, ast.Slice)
+                and expression.slice.lower is None
+                and expression.slice.step is None
+                and expression.slice.upper is not None
+                and ast.dump(expression.slice.upper, include_attributes=False)
+                == ast.dump(ast.parse("-1", mode="eval").body,
+                            include_attributes=False)
+            ):
+                sequence = static_value(expression.value)
+                if isinstance(sequence, tuple):
+                    return sequence[:-1]
+            raise ValueError("bootstrap constant expression is not supported")
+
         try:
             if (
                 isinstance(value, ast.Call)
@@ -15340,7 +15419,7 @@ def _cupid_toolchain_fixed_point_contract(
                 and not value.keywords
             ):
                 return frozenset(ast.literal_eval(value.args[0]))
-            return ast.literal_eval(value)
+            return static_value(value)
         except (TypeError, ValueError):
             return None
 
@@ -15354,23 +15433,31 @@ def _cupid_toolchain_fixed_point_contract(
         missing_bootstrap_fragments.append(
             "publication must carry stages two through four"
         )
-    if bootstrap_assignment("CANDIDATE_SOURCES") != tuple(
-        candidate_toolchain_sources[-14:-4]
+    iso_publication_sources = tuple(
+        iso_publication_toolchain_sources[-14:-4]
     ) + (("iso_fixture_bundle", "/toolchain/iso_fixture_bundle.cc", False),) + tuple(
-        candidate_toolchain_sources[-4:]
+        iso_publication_toolchain_sources[-4:]
+    )
+    if (
+        bootstrap_assignment("ISO_PUBLICATION_SOURCES") != iso_publication_sources
+        or bootstrap_assignment("DISK_FOUNDATION_SOURCES") != disk_foundation_sources
+        or bootstrap_assignment("CANDIDATE_SOURCES")
+        != iso_publication_sources + disk_foundation_sources
     ):
         missing_bootstrap_fragments.append(
             "candidate source constants must match the audited inventory"
         )
     if (
-        bootstrap_assignment("CANDIDATE_CUPIDBUILD_LINK")
+        bootstrap_assignment("ISO_PUBLICATION_CUPIDBUILD_LINK")
+        != iso_publication_cupidbuild_link
+        or bootstrap_assignment("CANDIDATE_CUPIDBUILD_LINK")
         != (candidate_toolchain_links[-1][1])
     ):
         missing_bootstrap_fragments.append(
             "CupidBuild link constants must match the audited plan"
         )
     if bootstrap_assignment("ISO_BUNDLE_CUPIDBUILD_LINK") != (
-        *candidate_toolchain_links[-1][1][:-6], "runtime"
+        *iso_publication_cupidbuild_link[:-6], "runtime"
     ):
         missing_bootstrap_fragments.append(
             "earlier bundle CupidBuild link constants must match the audited plan"
@@ -15688,7 +15775,7 @@ def _cupid_toolchain_fixed_point_contract(
             "            raw_cupidbuild, 'build_plan.links.cupidbuild'\n"
             "        )\n"
             "    ]\n"
-            "    if tuple(cupidbuild_link) not in (EARLIER_PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK, CANDIDATE_CUPIDBUILD_LINK):\n"
+            "    if tuple(cupidbuild_link) not in (EARLIER_PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK, ISO_PUBLICATION_CUPIDBUILD_LINK, CANDIDATE_CUPIDBUILD_LINK):\n"
             "        raise BootstrapError(\n"
             "            'Linux build plan candidate link differs: cupidbuild'\n"
             "        )\n"
@@ -15712,6 +15799,29 @@ def _cupid_toolchain_fixed_point_contract(
                 "candidate-plan helper must defensively upgrade or preserve "
                 "the audited plan"
             )
+    source_input_helpers = [
+        node for node in bootstrap_tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_source_input_paths"
+    ]
+    expected_table_capture = ast.parse(
+        'if logical_path == "/toolchain/fat16_names.cc":\n'
+        '    paths.append(source_root / "toolchain/fat16_name_profiles.inc")\n'
+    ).body[0]
+    table_captures = []
+    if len(source_input_helpers) == 1:
+        nodes, parents = live_function_nodes(source_input_helpers[0])
+        table_captures = [
+            node for node in nodes if isinstance(node, ast.If)
+            and ast.dump(node, include_attributes=False)
+            == ast.dump(expected_table_capture, include_attributes=False)
+            and isinstance(parents.get(node), ast.For)
+            and ast.unparse(parents[node].target) == "raw_source"
+            and ast.unparse(parents[node].iter) == "raw_sources"
+        ]
+    if len(table_captures) != 1:
+        missing_bootstrap_fragments.append(
+            "disk name source must explicitly capture its Unicode table"
+        )
     required_linux_bootstrap_fragments = (
         "plan = _candidate_build_plan(checked_plan)",
         "windows_utf8=True,",

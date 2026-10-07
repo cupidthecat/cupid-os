@@ -3,83 +3,83 @@
     {
       "format": "elf32",
       "name": "cupidasm",
-      "sha256": "5b52f88bda316e81e875f7f9cf8dabcce071b06641895bacd082f28b22787b19",
-      "size": 513496
+      "sha256": "34b963b607ace2dca9f1c542b2e82b55da9efbdd1316088bc7bbb0f89c7b7a15",
+      "size": 517692
     },
     {
       "format": "elf32",
       "name": "cupiddis",
-      "sha256": "cb55c951a6f08b5eaf4f1ae5c1f4333797196dd107a51a36d51bb0c05b5891dd",
-      "size": 538624
+      "sha256": "ec7797ccb802c6efd75394380501b985d957a8596f52094d1137503a49afdbd2",
+      "size": 538724
     },
     {
       "format": "elf32",
       "name": "cupidld",
-      "sha256": "139b346a8c8b5fba52a8eda7397ab124e0f0284a9e9fa7d7c1e30e0a2dc9dfeb",
-      "size": 317140
+      "sha256": "cac06a8804ca28c0f8201d729f80eb51b520989cd59b3c434c2f5cef70d07d54",
+      "size": 317240
     },
     {
       "format": "elf32",
       "name": "cupidobj",
-      "sha256": "abc24e070af42645e0dde4c4c187ceffeda93dc8910446729b921e33d8f85c02",
-      "size": 413720
+      "sha256": "fb685251f09a7174c2477c28d815f8c57a4bb39d7b2784e860ae98c7771d4e71",
+      "size": 413820
     },
     {
       "format": "elf32",
       "name": "cupidc",
-      "sha256": "cf13865f22d3ea2a88181826bf75017f296b0cbe5d1a13791993e836e948b574",
-      "size": 2700308
+      "sha256": "9d89d13dd02afbc593ecea984b4cf5b3d7702c68e80cf166bc9d17e028a7e181",
+      "size": 2704504
     },
     {
       "format": "elf32",
       "name": "cupidbuild",
-      "sha256": "b58413e32b2f09baad0e2a93a60640137928b0f01a4fa6c40262e92c8240332f",
-      "size": 1106552
+      "sha256": "c3bd26ac2af75787aafc39537e3a3f597fc353a545d9ecb5f9c2381ef0acb90c",
+      "size": 1186140
     },
     {
       "format": "pe32",
       "name": "cupidasm",
-      "sha256": "22694b7eb0762f9dcbeda0b076bd7c3133bcb2a283732b38b440e7c7207db537",
-      "size": 509952
+      "sha256": "5efcc4503b01f90e80575cff59573216859c2eaee73128e93d6f0f631d905f24",
+      "size": 512512
     },
     {
       "format": "pe32",
       "name": "cupiddis",
-      "sha256": "4cd8b8695309b7576f328638da206857d4effe58893adabc3048d2dc96c74cd6",
-      "size": 533504
+      "sha256": "f45cdb3ea1c2426698162245dd4eb53005229775be2305d11ef7f67bacdccee4",
+      "size": 536064
     },
     {
       "format": "pe32",
       "name": "cupidld",
-      "sha256": "dc56bf4348ec127cd4aa674273c1c04f451dae665622e64c30500cf4fe8fe69d",
-      "size": 316416
+      "sha256": "6dfa692ae2994e05f192d26a0e40d1c79838a19e90a5aee6510ab369af01795c",
+      "size": 318464
     },
     {
       "format": "pe32",
       "name": "cupidobj",
-      "sha256": "4f51c701909ebb0c272077570f21f538015e599dc7730767390aa2c07e912f3c",
-      "size": 407040
+      "sha256": "da26911eeb57d497cd18b573bc364870d4d75d6e6337463e7a7155adfae28014",
+      "size": 409088
     },
     {
       "format": "pe32",
       "name": "cupidc",
-      "sha256": "046c6ce64cda3c7d4440e1a628cb21c69fa10b102b766f87308e41ba0e1c15a0",
-      "size": 2643968
+      "sha256": "039d888a79bf08867fe66ba473e83850e453b36c210bac29c301664abfe0c9a3",
+      "size": 2646528
     },
     {
       "format": "pe32",
       "name": "cupidbuild",
-      "sha256": "25582acefe6547bbe0888192cd3a4692e6df894312d38c546e10498c8f1590f4",
-      "size": 1097216
+      "sha256": "2130c5a41e3f05cdad40c50421a8455963c577f9c66591faf14a663a6fc80539",
+      "size": 1172992
     }
   ],
-  "linux_plan_sha256": "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3",
-  "parent_linux_manifest_sha256": "59c5c33672ee5839efd5a27cc1b90c090984fcf0be74d3fcb7418f68215aa2f7",
-  "parent_source_revision": "cfd9f140fd295284372beaee48b85c9320f7d144",
-  "parent_windows_manifest_sha256": "1966c1c82f250bf6b8fcaf881d703750eed9fbbe957251b2cd978c179add30ea",
+  "linux_plan_sha256": "808d9a566c3dd200252cb6ca974dfa19992a923867dc60f500797efd5169c73e",
+  "parent_linux_manifest_sha256": "a6d47be27b6251c14558bce043fd984b69d03e811c52e22bc4babd2e100240e4",
+  "parent_source_revision": "344a9eeec2bbdf2fdc28e4d425139ff77f08a792",
+  "parent_windows_manifest_sha256": "4e283de89c289f1e9c0c86d02456817cd954a31330f685bc45ece536d56bff31",
   "schema": "cupid.seed-release.v1",
-  "source_input_count": 92,
-  "source_revision": "344a9eeec2bbdf2fdc28e4d425139ff77f08a792",
-  "source_snapshot_sha256": "829f923bdfefcfab5d1d9b2caacb466853a1c21ca1537a6517ddf83e1a6f7d4d",
-  "windows_plan_sha256": "0dfd1982dc1cd7c9d625c4c0546fc20f13fe3c9ae4dc8cbcf8835ff2e6b4e12d"
+  "source_input_count": 99,
+  "source_revision": "769142507c600af8e7edcb209de19fabab11aa2a",
+  "source_snapshot_sha256": "3975f8d83f615d97e2179c12a2ebef484e1f8bc34eaa68da8893b93d2d0fc3be",
+  "windows_plan_sha256": "754895566b00e6e53b045a1414e7b734872f04d4f0c84d62e3dfcf8dd9bc57ab"
 }

@@ -137,6 +137,9 @@ typedef struct {
   ctool_u32 literal_count;
   ctool_bool failure_reported;
   ctool_status_t relation_status;
+  ctool_buffer_t *last_push_text;
+  ctool_u32 last_push_offset;
+  ctool_bool last_push_eax;
 } cemit_context_t;
 
 static ctool_bool cemit_ir_function_types_match(
@@ -3240,6 +3243,13 @@ static ctool_status_t cemit_x86_encode(
   if (status != CTOOL_OK) {
     return status;
   }
+  context->last_push_eax =
+      instruction->mnemonic == CTOOL_X86_MN_PUSH &&
+              instruction->operand_bits == 32u && encoding.size == 1u &&
+              encoding.bytes[0] == 0x50u
+          ? CTOOL_TRUE : CTOOL_FALSE;
+  context->last_push_text = context->active_text;
+  context->last_push_offset = offset;
   if (encoding_out != (ctool_x86_encoding_t *)0) {
     *encoding_out = encoding;
   }
@@ -8161,6 +8171,12 @@ static ctool_status_t cemit_emit_outgoing_area_call(
   return status;
 }
 
+static ctool_status_t cemit_emit_unsigned_rotate_call(
+    cemit_context_t *context, const ctool_c_binding_t *binding,
+    const ctool_c_type_node_t *function_type,
+    const ctool_c_ir_instruction_t *instruction, ctool_u32 stack_depth,
+    ctool_bool *folded);
+
 static ctool_status_t cemit_emit_direct_call(
     cemit_context_t *context,
     const ctool_c_ir_instruction_t *instruction,
@@ -8170,6 +8186,7 @@ static ctool_status_t cemit_emit_direct_call(
   const ctool_c_binding_t *binding;
   const ctool_c_type_node_t *function_type;
   ctool_bool uses_outgoing_area;
+  ctool_bool rotate_folded = CTOOL_FALSE;
   ctool_bool returns_twice;
   ctool_u32 argument;
   ctool_u32 argument_bytes;
@@ -8233,6 +8250,10 @@ static ctool_status_t cemit_emit_direct_call(
         temporary_offset, stack_base_residue, frame_size,
         stack_depth);
   }
+  status = cemit_emit_unsigned_rotate_call(
+      context, binding, function_type, instruction, stack_depth,
+      &rotate_folded);
+  if (status != CTOOL_OK || rotate_folded == CTOOL_TRUE) return status;
   if (returns_twice == CTOOL_TRUE) {
     ctool_u32 live_count;
     ctool_u32 live_index;
@@ -16400,6 +16421,327 @@ static ctool_status_t cemit_emit_kernel_entry_terminal(
   return status;
 }
 
+/* Match a complete pure unsigned rotate leaf, independently of its name.
+ * Every semantic field is checked before replacing the original stack code. */
+static ctool_bool cemit_unsigned_rotate_leaf(
+    const cemit_context_t *context, const ctool_c_ir_function_t *function,
+    const ctool_c_type_node_t *function_type, ctool_u32 frame_size,
+    ctool_u32 *value_parameter, ctool_u32 *count_parameter,
+    ctool_x86_mnemonic_t *mnemonic) {
+  static const ctool_c_ir_instruction_kind_t kinds[14] = {
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_BINARY,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_INTEGER,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_BINARY,
+      CTOOL_C_IR_INSTRUCTION_BINARY,
+      CTOOL_C_IR_INSTRUCTION_BINARY,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE};
+  const ctool_c_ir_instruction_t *instructions;
+  const ctool_c_type_node_t *node;
+  ctool_u32 qualifiers;
+  ctool_u32 type;
+  ctool_u32 value;
+  ctool_u32 count;
+  ctool_u32 index;
+  ctool_c_expression_operator_t first_shift;
+  ctool_c_expression_operator_t second_shift;
+  if (function->instruction_count != 14u || frame_size != 0u ||
+      function->maximum_stack_depth != 4u ||
+      function->function_codegen_attributes != 0u ||
+      function_type->has_prototype != CTOOL_TRUE ||
+      function_type->variadic != CTOOL_FALSE ||
+      function_type->parameter_count != 2u ||
+      function_type->first_parameter > context->unit->parameter_count ||
+      2u > context->unit->parameter_count - function_type->first_parameter ||
+      function_type->first_parameter >
+          context->unit->graph.parameter_type_count ||
+      2u > context->unit->graph.parameter_type_count -
+               function_type->first_parameter) return CTOOL_FALSE;
+  type = function_type->referenced_type;
+  if (cemit_underlying_type(context, type, &qualifiers, &node) == CTOOL_FALSE ||
+      qualifiers != 0u ||
+      (node->kind != CTOOL_C_TYPE_UNSIGNED_INT &&
+       node->kind != CTOOL_C_TYPE_UNSIGNED_LONG) ||
+      context->unit->layout.types[type].size != 4u ||
+      context->unit->layout.types[type].is_signed != CTOOL_FALSE)
+    return CTOOL_FALSE;
+  for (index = 0u; index < 2u; index++) {
+    ctool_u32 parameter = function_type->first_parameter + index;
+    if (context->unit->parameters[parameter].type != type ||
+        context->unit->graph.parameter_types[parameter] != type)
+      return CTOOL_FALSE;
+  }
+  instructions = &context->ir.instructions[function->first_instruction];
+  value = instructions[0].reference;
+  count = instructions[2].reference;
+  if (value == count || value < function_type->first_parameter ||
+      value - function_type->first_parameter >= 2u ||
+      count < function_type->first_parameter ||
+      count - function_type->first_parameter >= 2u) return CTOOL_FALSE;
+  first_shift = instructions[4].operation;
+  second_shift = instructions[11].operation;
+  if (first_shift == CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT &&
+      second_shift == CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT)
+    *mnemonic = CTOOL_X86_MN_ROR;
+  else if (first_shift == CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT &&
+           second_shift == CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT)
+    *mnemonic = CTOOL_X86_MN_ROL;
+  else return CTOOL_FALSE;
+  for (index = 0u; index < 14u; index++) {
+    const ctool_c_ir_instruction_t *instruction = &instructions[index];
+    ctool_bool address = kinds[index] == CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS
+                             ? CTOOL_TRUE : CTOOL_FALSE;
+    ctool_bool load = kinds[index] == CTOOL_C_IR_INSTRUCTION_LOAD
+                          ? CTOOL_TRUE : CTOOL_FALSE;
+    ctool_u32 reference = index == 0u || index == 5u ? value :
+                          index == 2u || index == 8u ? count : CTOOL_C_AST_NONE;
+    ctool_c_expression_operator_t operation =
+        index == 4u ? first_shift : index == 11u ? second_shift :
+        index == 10u ? CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT :
+        index == 12u ? CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR :
+                      CTOOL_C_EXPRESSION_OPERATOR_NONE;
+    if (instruction->kind != kinds[index] || instruction->type != type ||
+        instruction->input_type !=
+            (address == CTOOL_TRUE || index == 7u ? CTOOL_C_TYPE_NONE : type) ||
+        instruction->operation != operation ||
+        instruction->conversion !=
+            (load == CTOOL_TRUE ? CTOOL_C_CONVERSION_LVALUE_TO_VALUE :
+                                 CTOOL_C_CONVERSION_NONE) ||
+        instruction->reference != reference ||
+        instruction->argument_count != 0u ||
+        instruction->first_argument_type != CTOOL_C_AST_NONE ||
+        instruction->integer_bits != (index == 7u ? 32u : 0u) ||
+        instruction->floating_high_bits != 0u) return CTOOL_FALSE;
+  }
+  *value_parameter = value - function_type->first_parameter;
+  *count_parameter = count - function_type->first_parameter;
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t cemit_emit_unsigned_rotate_leaf(
+    cemit_context_t *context, const ctool_c_type_node_t *function_type,
+    ctool_u32 value_parameter, ctool_u32 count_parameter,
+    ctool_x86_mnemonic_t mnemonic) {
+  ctool_u32 value_offset;
+  ctool_u32 count_offset;
+  ctool_x86_instruction_t instruction = cemit_x86_instruction(mnemonic, 32u);
+  ctool_status_t status = cemit_ir_parameter_offset(
+      context, function_type, value_parameter, &value_offset);
+  if (status == CTOOL_OK)
+    status = cemit_ir_parameter_offset(
+        context, function_type, count_parameter, &count_offset);
+  if (status == CTOOL_OK) status = cemit_x86_load_frame(context, 0u, value_offset);
+  if (status == CTOOL_OK) status = cemit_x86_load_frame(context, 1u, count_offset);
+  instruction.operand_count = 2u;
+  instruction.operands[0] = cemit_x86_register_operand(CTOOL_X86_REG_GPR32, 0u);
+  instruction.operands[1] = cemit_x86_register_operand(CTOOL_X86_REG_GPR8, 1u);
+  if (status == CTOOL_OK)
+    status = cemit_x86_encode(context, &instruction,
+                              (ctool_x86_encoding_t *)0, (ctool_u32 *)0);
+  if (status == CTOOL_OK) status = cemit_x86_no_operand(context, CTOOL_X86_MN_LEAVE);
+  if (status == CTOOL_OK) status = cemit_x86_no_operand(context, CTOOL_X86_MN_RET);
+  return status;
+}
+
+/* Argument expressions and the ordinary call transport have already been
+ * validated. A local pure rotate needs no cdecl call or argument reshuffle. */
+static ctool_status_t cemit_emit_unsigned_rotate_call(
+    cemit_context_t *context, const ctool_c_binding_t *binding,
+    const ctool_c_type_node_t *function_type,
+    const ctool_c_ir_instruction_t *instruction, ctool_u32 stack_depth,
+    ctool_bool *folded) {
+  ctool_u32 index;
+  ctool_u32 value_parameter = 0u;
+  ctool_u32 count_parameter = 0u;
+  ctool_x86_mnemonic_t mnemonic = CTOOL_X86_MN_ROR;
+  ctool_x86_instruction_t rotate;
+  ctool_status_t status;
+  *folded = CTOOL_FALSE;
+  if (binding->linkage != CTOOL_C_LINKAGE_INTERNAL ||
+      binding->attributes != 0u || instruction->argument_count != 2u ||
+      stack_depth < 2u ||
+      instruction->floating_high_bits != 0u ||
+      instruction->first_argument_type > context->ir.argument_type_count ||
+      2u > context->ir.argument_type_count - instruction->first_argument_type ||
+      context->ir.argument_types == (const ctool_u32 *)0 ||
+      context->ir.argument_types[instruction->first_argument_type] !=
+          function_type->referenced_type ||
+      context->ir.argument_types[instruction->first_argument_type + 1u] !=
+          function_type->referenced_type)
+    return CTOOL_OK;
+  for (index = 0u; index < context->ir.function_count; index++) {
+    const ctool_c_ir_function_t *function = &context->ir.functions[index];
+    if (function->binding != instruction->reference) continue;
+    if (index >= context->unit->function_definition_count ||
+        context->unit->function_definitions[index].binding !=
+            instruction->reference ||
+        context->unit->function_definitions[index].block_binding_count != 0u ||
+        context->unit->function_definitions[index].label_count != 0u ||
+        function->first_instruction > context->ir.instruction_count ||
+        function->instruction_count >
+            context->ir.instruction_count - function->first_instruction ||
+        cemit_ir_function_types_match(
+            context, function->declared_type, instruction->input_type) ==
+            CTOOL_FALSE ||
+        cemit_unsigned_rotate_leaf(
+            context, function,
+            cemit_unwrapped_type(context, function->declared_type), 0u,
+            &value_parameter, &count_parameter, &mnemonic) == CTOOL_FALSE)
+      return CTOOL_OK;
+    /* The abstract stack keeps argument zero below argument one. Reversed
+     * rotate declarations therefore select the opposite first POP register. */
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32,
+        (ctool_u8)(value_parameter == 1u ? 0u : 1u), 32u);
+    if (status == CTOOL_OK)
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32,
+          (ctool_u8)(value_parameter == 0u ? 0u : 1u), 32u);
+    rotate = cemit_x86_instruction(mnemonic, 32u);
+    rotate.operand_count = 2u;
+    rotate.operands[0] = cemit_x86_register_operand(CTOOL_X86_REG_GPR32, 0u);
+    rotate.operands[1] = cemit_x86_register_operand(CTOOL_X86_REG_GPR8, 1u);
+    if (status == CTOOL_OK)
+      status = cemit_x86_encode(context, &rotate,
+                                (ctool_x86_encoding_t *)0, (ctool_u32 *)0);
+    if (status == CTOOL_OK)
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+    if (status == CTOOL_OK) *folded = CTOOL_TRUE;
+    return status;
+  }
+  return CTOOL_OK;
+}
+
+/* The preceding scalar LOAD ends with a recorded, encoded PUSH EAX.
+ * The current integer handler has already validated and emitted its POP.
+ * Keep both byte positions so its remaining patches and relocations stay put. */
+static ctool_status_t cemit_fold_stack_transfer(
+    cemit_context_t *context, ctool_u32 push_offset,
+    ctool_u32 consumer_offset, ctool_bool *folded) {
+  ctool_bytes_t text = ctool_buffer_view(context->active_text);
+  ctool_x86_instruction_t move;
+  ctool_x86_encoding_t encoding;
+  ctool_u8 destination;
+  ctool_status_t status;
+  *folded = CTOOL_FALSE;
+  if (push_offset >= text.size || consumer_offset >= text.size ||
+      consumer_offset - push_offset != 1u || text.data[push_offset] != 0x50u)
+    return CTOOL_OK;
+  if (text.data[consumer_offset] != 0x58u &&
+      text.data[consumer_offset] != 0x59u) return CTOOL_OK;
+  destination = (ctool_u8)(text.data[consumer_offset] - 0x58u);
+  move = cemit_x86_instruction(CTOOL_X86_MN_MOV, 32u);
+  move.operand_count = 2u;
+  move.operands[0] = cemit_x86_register_operand(CTOOL_X86_REG_GPR32, destination);
+  move.operands[1] = cemit_x86_register_operand(CTOOL_X86_REG_GPR32, 0u);
+  status = ctool_x86_encode(context->job, CTOOL_X86_MODE_32, &move,
+                           CTOOL_X86_FORM_AUTO, &encoding);
+  if (status != CTOOL_OK) return status;
+  if (encoding.size != 2u || encoding.field_count != 0u)
+    return CTOOL_ERR_INTERNAL;
+  status = ctool_buffer_patch_u8(context->active_text, push_offset, encoding.bytes[0]);
+  if (status == CTOOL_OK)
+    status = ctool_buffer_patch_u8(context->active_text, consumer_offset, encoding.bytes[1]);
+  if (status == CTOOL_OK) *folded = CTOOL_TRUE;
+  return status;
+}
+
+/* Both the literal and the proven local call have already been validated.
+ * Remove their complete count-push/CL-rotate span only without a second entry. */
+static ctool_status_t cemit_fold_immediate_rotate_call(
+    cemit_context_t *context, ctool_u32 start, ctool_bool *folded) {
+  ctool_bytes_t text = ctool_buffer_view(context->active_text);
+  const ctool_u8 *code;
+  ctool_u32 count;
+  ctool_x86_instruction_t rotate;
+  ctool_status_t status;
+  *folded = CTOOL_FALSE;
+  if (start > text.size) return CTOOL_ERR_INTERNAL;
+  if (text.size - start != 10u) return CTOOL_OK;
+  code = text.data + start;
+  if (code[0] != 0x68u || code[5] != 0x59u ||
+      code[6] != 0x58u || code[7] != 0xd3u ||
+      (code[8] != 0xc8u && code[8] != 0xc0u) || code[9] != 0x50u)
+    return CTOOL_OK;
+  count = (ctool_u32)code[1] | ((ctool_u32)code[2] << 8u) |
+          ((ctool_u32)code[3] << 16u) | ((ctool_u32)code[4] << 24u);
+  if (count == 0u || count >= 32u) return CTOOL_OK;
+  rotate = cemit_x86_instruction(
+      code[8] == 0xc8u ? CTOOL_X86_MN_ROR : CTOOL_X86_MN_ROL, 32u);
+  rotate.operand_count = 2u;
+  rotate.operands[0] = cemit_x86_register_operand(CTOOL_X86_REG_GPR32, 0u);
+  rotate.operands[1] = cemit_x86_value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 8u, 8u, count);
+  status = ctool_buffer_rewind(context->active_text, start);
+  if (status == CTOOL_OK)
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  if (status == CTOOL_OK)
+    status = cemit_x86_encode(context, &rotate,
+                              (ctool_x86_encoding_t *)0, (ctool_u32 *)0);
+  if (status == CTOOL_OK)
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  if (status == CTOOL_OK) *folded = CTOOL_TRUE;
+  return status;
+}
+
+/* The ordinary handlers validate and emit both IR instructions first.
+ * Replace only their complete frame-address/load span, with no entry to the
+ * second instruction. Preserve its single memory read and final stack value. */
+static ctool_status_t cemit_fold_frame_load(
+    cemit_context_t *context, ctool_u32 start, ctool_bool *folded) {
+  ctool_bytes_t text = ctool_buffer_view(context->active_text);
+  const ctool_u8 *code;
+  ctool_u32 length;
+  ctool_i32 displacement;
+  ctool_u8 displacement_bits;
+  ctool_x86_instruction_t instruction;
+  ctool_status_t status;
+  *folded = CTOOL_FALSE;
+  if (start > text.size) return CTOOL_ERR_INTERNAL;
+  length = text.size - start;
+  code = text.data + start;
+  if (length == 8u && code[0] == 0x8du && code[1] == 0x45u &&
+      code[3] == 0x50u && code[4] == 0x58u && code[5] == 0x8bu &&
+      code[6] == 0x00u && code[7] == 0x50u) {
+    displacement = code[2] < 128u ? (ctool_i32)code[2] :
+                                    (ctool_i32)code[2] - 256;
+    displacement_bits = 8u;
+  } else if (length == 11u && code[0] == 0x8du && code[1] == 0x85u &&
+             code[6] == 0x50u && code[7] == 0x58u && code[8] == 0x8bu &&
+             code[9] == 0x00u && code[10] == 0x50u) {
+    ctool_u32 bits = (ctool_u32)code[2] | ((ctool_u32)code[3] << 8u) |
+                     ((ctool_u32)code[4] << 16u) |
+                     ((ctool_u32)code[5] << 24u);
+    displacement = (ctool_i32)bits;
+    displacement_bits = 32u;
+  } else return CTOOL_OK;
+  instruction = cemit_x86_instruction(CTOOL_X86_MN_MOV, 32u);
+  instruction.operand_count = 2u;
+  instruction.operands[0] = cemit_x86_register_operand(CTOOL_X86_REG_GPR32, 0u);
+  instruction.operands[1] = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_GPR32, 5u), displacement,
+      displacement_bits);
+  status = ctool_buffer_rewind(context->active_text, start);
+  if (status == CTOOL_OK)
+    status = cemit_x86_encode(context, &instruction,
+                              (ctool_x86_encoding_t *)0, (ctool_u32 *)0);
+  if (status == CTOOL_OK)
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  if (status == CTOOL_OK) *folded = CTOOL_TRUE;
+  return status;
+}
+
 static ctool_status_t cemit_place_function(cemit_context_t *context,
                                            ctool_u32 function_index) {
   const ctool_c_function_definition_t *definition =
@@ -16425,8 +16767,13 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
   ctool_u32 *branch_patches = (ctool_u32 *)0;
   ctool_u32 *branch_afters = (ctool_u32 *)0;
   ctool_u32 *stack_depths = (ctool_u32 *)0;
+  ctool_u8 *branch_targets = (ctool_u8 *)0;
   ctool_u32 stack_base_residue = 8u;
   ctool_bool kernel_entry_stack_reset = CTOOL_FALSE;
+  ctool_bool rotate_leaf = CTOOL_FALSE;
+  ctool_u32 rotate_value = 0u;
+  ctool_u32 rotate_count = 0u;
+  ctool_x86_mnemonic_t rotate_mnemonic = CTOOL_X86_MN_ROR;
   ctool_bool naked =
       (function->function_codegen_attributes &
        CTOOL_C_DECL_ATTR_NAKED) != 0u
@@ -16526,12 +16873,26 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
         context, function->instruction_count,
         (ctool_u32)sizeof(ctool_u32), (void **)&branch_afters);
   }
+  if (status == CTOOL_OK) {
+    status = cemit_alloc_array(
+        context, function->instruction_count, (ctool_u32)sizeof(ctool_u8),
+        (void **)&branch_targets);
+  }
   if (status != CTOOL_OK) {
     return status;
   }
   for (index = 0u; index < function->instruction_count; index++) {
     branch_patches[index] = CTOOL_C_AST_NONE;
     branch_afters[index] = CTOOL_C_AST_NONE;
+    branch_targets[index] = 0u;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &context->ir.instructions[function->first_instruction + index];
+    if ((instruction->kind == CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+         instruction->kind == CTOOL_C_IR_INSTRUCTION_JUMP) &&
+        instruction->reference < function->instruction_count)
+      branch_targets[instruction->reference] = 1u;
   }
   if (naked == CTOOL_FALSE) {
     status = cemit_x86_one_register(
@@ -16547,13 +16908,35 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
   } else {
     status = CTOOL_OK;
   }
+  rotate_leaf = cemit_unsigned_rotate_leaf(
+      context, function, function_type, frame_size, &rotate_value,
+      &rotate_count, &rotate_mnemonic);
+  if (status == CTOOL_OK && rotate_leaf == CTOOL_TRUE)
+    status = cemit_emit_unsigned_rotate_leaf(
+        context, function_type, rotate_value, rotate_count, rotate_mnemonic);
   for (index = 0u; status == CTOOL_OK &&
+                    rotate_leaf == CTOOL_FALSE &&
                     index < function->instruction_count;
        index++) {
     const ctool_c_ir_instruction_t *instruction =
         &context->ir.instructions[function->first_instruction + index];
+    ctool_u32 previous_push = CTOOL_C_AST_NONE;
     instruction_offsets[index] =
         ctool_buffer_view(context->active_text).size - function_start;
+    if (naked == CTOOL_FALSE && kernel_entry_stack_reset == CTOOL_FALSE &&
+        index != 0u && branch_targets[index] == 0u &&
+        (instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY ||
+         instruction->kind == CTOOL_C_IR_INSTRUCTION_UNARY) &&
+        cemit_ir_type_is_i32_integer(context, instruction->type) == CTOOL_TRUE &&
+        (instruction - 1)->kind == CTOOL_C_IR_INSTRUCTION_LOAD &&
+        cemit_ir_type_is_i32_integer(context, (instruction - 1)->type) == CTOOL_TRUE &&
+        context->last_push_eax == CTOOL_TRUE &&
+        context->last_push_text == context->active_text &&
+        context->last_push_offset >= function_start + instruction_offsets[index - 1u] &&
+        context->last_push_offset < function_start + instruction_offsets[index] &&
+        function_start + instruction_offsets[index] - context->last_push_offset == 1u) {
+      previous_push = context->last_push_offset;
+    }
     if (naked == CTOOL_TRUE &&
         index + 1u == function->instruction_count) {
       status = CTOOL_OK;
@@ -16572,6 +16955,39 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
               [function->first_instruction + index],
           stack_base_residue, frame_size, stack_depths[index],
           branch_patches, branch_afters);
+      if (status == CTOOL_OK && naked == CTOOL_FALSE && index != 0u &&
+          instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD &&
+          branch_targets[index] == 0u) {
+        const ctool_c_ir_instruction_t *previous = instruction - 1;
+        if (previous->kind == CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+            previous->kind == CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS) {
+          ctool_bool folded;
+          status = cemit_fold_frame_load(
+              context, function_start + instruction_offsets[index - 1u],
+              &folded);
+          if (status == CTOOL_OK && folded == CTOOL_TRUE)
+            instruction_offsets[index] = instruction_offsets[index - 1u];
+        }
+      }
+      if (status == CTOOL_OK && naked == CTOOL_FALSE && index != 0u &&
+          instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT &&
+          branch_targets[index] == 0u &&
+          (instruction - 1)->kind == CTOOL_C_IR_INSTRUCTION_INTEGER) {
+        ctool_bool folded;
+        status = cemit_fold_immediate_rotate_call(
+            context, function_start + instruction_offsets[index - 1u],
+            &folded);
+        if (status == CTOOL_OK && folded == CTOOL_TRUE)
+          instruction_offsets[index] = instruction_offsets[index - 1u];
+      }
+      if (status == CTOOL_OK && previous_push != CTOOL_C_AST_NONE) {
+        ctool_bool folded;
+        status = cemit_fold_stack_transfer(
+            context, previous_push, function_start + instruction_offsets[index],
+            &folded);
+        if (status == CTOOL_OK && folded == CTOOL_TRUE)
+          instruction_offsets[index] = previous_push - function_start;
+      }
       if (status == CTOOL_OK &&
           kernel_entry_stack_reset == CTOOL_TRUE &&
           index == 0u) {

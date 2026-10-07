@@ -27,6 +27,7 @@ from tools.bootstrap_toolchain import (
     PROMOTED_SOURCE_SNAPSHOT_SHA256,
     PROMOTED_SOURCES,
     PROMOTED_CUPIDBUILD_LINK,
+    ISO_PUBLICATION_CUPIDBUILD_LINK,
     PROMOTED_SEED_SCHEMA,
     PRODUCER_NAMES,
     PROMOTED_WINDOWS_PLAN_SHA256,
@@ -135,15 +136,16 @@ def _promoted_windows_profile_flags(plan_sha256, source_input_count):
 
 
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
-    def test_promoted_complete_iso_plan_retains_the_closed_source_and_link_contract(self):
+    def test_promoted_complete_disk_plan_retains_the_closed_source_and_link_contract(self):
         manifest = json.loads(SEED_MANIFEST.read_bytes())
         _validate_build_plan(manifest, promoted=True)
         plan = manifest["build_plan"]
-        self.assertEqual(len(plan["sources"]), 34)
-        self.assertEqual(len(plan["links"]["cupidbuild"]), 20)
+        self.assertEqual(len(plan["sources"]), 37)
+        self.assertEqual(len(plan["links"]["cupidbuild"]), 23)
         self.assertIn("iso_fixture_bundle", plan["links"]["cupidobj"])
         new_roles = ("iso_fixture_bundle", "cupidbuild_iso", "cupidbuild_iso_capture",
-                     "cupidbuild_iso_image", "cupidbuild_iso_publication")
+                     "cupidbuild_iso_image", "cupidbuild_iso_publication",
+                     "fat16_stage", "fat16_names", "disk_image")
         for role in new_roles:
             for edge in ("source", "cupidbuild"):
                 altered = json.loads(json.dumps(manifest))
@@ -163,6 +165,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
 
     def test_complete_iso_promoted_profiles_bind_each_plan_count_and_import_set(self):
         plan = json.loads(SEED_MANIFEST.read_bytes())["build_plan"]
+        plan['sources'] = [row for row in plan['sources']
+                           if row['name'] not in {'fat16_stage', 'fat16_names', 'disk_image'}]
+        plan['links']['cupidbuild'] = list(ISO_PUBLICATION_CUPIDBUILD_LINK)
         profiles = (
             ("0787562d0768485fa614c941fc79a7c6e329c64b6956261cca945a95c2ef9f56", 85, False, False, False),
             ("e3bb4c45bb7633d95b205dcbab6405bb569b4cc71965a2eb52b8dfc78e370e18", 90, True, False, False),
@@ -7252,11 +7257,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(record["schema"], "cupid.bootstrap-stage-preparation.v1")
             self.assertEqual((record["status"], record["format"]),
                              ("unqualified", "pe32"))
-            self.assertEqual(len(record["source_inputs"]), 92)
+            self.assertEqual(len(record["source_inputs"]), 99)
             self.assertEqual(_build_plan_sha256(record["linux_plan"]),
-                             "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3")
+                             "808d9a566c3dd200252cb6ca974dfa19992a923867dc60f500797efd5169c73e")
             self.assertEqual(_build_plan_sha256(record["windows_plan"]),
-                             "0dfd1982dc1cd7c9d625c4c0546fc20f13fe3c9ae4dc8cbcf8835ff2e6b4e12d")
+                             "754895566b00e6e53b045a1414e7b734872f04d4f0c84d62e3dfcf8dd9bc57ab")
             snapshot = capture_source_snapshot(REPO_ROOT, record["linux_plan"],
                 windows_utf8=True, windows_long_paths=True, windows_user_link_aliases=True)
             self.assertEqual(record["source_inputs"], snapshot)
@@ -7264,7 +7269,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 self._assert_file_artifact_identity(identity, output / "source" / name)
             for stage_name in ("stage-two", "stage-three", "stage-four"):
                 stage = record["stages"][stage_name]
-                self.assertEqual(len(stage["objects"]), 44)
+                self.assertEqual(len(stage["objects"]), 47)
                 self.assertEqual(set(stage["tools"]), set(CANDIDATE_TOOL_NAMES))
                 for kind in ("objects", "tools"):
                     for role, identity in stage[kind].items():
@@ -11637,13 +11642,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["candidate_build_plan_sha256"],
-                "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3",
+                "808d9a566c3dd200252cb6ca974dfa19992a923867dc60f500797efd5169c73e",
             )
             self.assertEqual(
                 report["comparisons"],
                 {
                     "all_equal": True,
-                    "c_objects": 34,
+                    "c_objects": 37,
                     "compared_generations": [
                         "stage-three",
                         "stage-four",

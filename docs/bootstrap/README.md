@@ -1,5 +1,129 @@
 # Cupid Toolchain bootstrap
 
+## Separate streamed-input prototype, 2026-10-07
+
+The retained prototype freezes complete 200 MiB inputs with bounded memory.
+All twenty actual i386 build phases and 62 runtime cases pass through native
+and complete prepared CupidC producers on both hosts. Native diagnostic callers
+pass another 31 cases. Independent rereading checks 57 complete copies and all
+three Linux fixed-memory controls. A rejected sealed write can change its
+timestamps while preserving the payload; the corrected fixture checks every
+byte and retains the original metadata rejection. API and runtime objects are
+unchanged from that failed attempt.
+
+The API remains outside the integration worktree. Ordinary regression checks,
+committed qualification and normal recipe adoption remain open. The later source
+copy adds the normal test module and fixture ownership; all 75 executed methods,
+twenty strict audit contracts and 26 existing ownership controls pass. See
+[the streamed-input prototype](STREAMED-FROZEN-INPUT-PROTOTYPE.md).
+
+## Earlier-seed source checkpoint acceptance, 2026-10-07
+
+Both normal OS builds and all four strict ls/SMP and feature 17 boot checks
+pass. Paired independent rereading verifies all 1,694 source controls, 429
+objects, sixteen artifacts, six user products, complete ABI and preserved FAT
+data. Only the manual wrapper changes; generated symbol source and object stay
+identical. The complete manual is 169,383 bytes and occurs once in every kernel
+output. Only the three measured kernel-size policy rows are applied. Evidence
+is `stack-source-checkpoint-os2-paired-independent.json`. These runs use the
+earlier qualified seed; the new compiler's qualification and OS acceptance remain
+separate requirements.
+
+## Private emitter verification, 2026-10-06
+
+The combined frame, rotate and stack-transfer prototype passes all fifteen
+native and Cupid-built capability controls on each host. Two Cupid-built
+emitter generations agree, and all four complete 200 MiB publication suites
+pass under their original limits. The reviewed object expectations pass 124
+native ordinary and self-host executions plus actual i386 host-adapter
+execution on both hosts. Eight complete linked products agree between hosts.
+
+Both final Cupid-built callers compile within 1,800 seconds and pass all 58
+ordinary modes; independent rereading confirms all 116 executions. Their full
+self-host frontiers pass in 1,727.977 seconds on Windows and 1,761.934 seconds
+on Linux, within 1,800 seconds. Both pass the CupidObj subset, host-adapter link
+and actual i386 adapter execution. Independent rereading records the six modes
+and two executions in `stack-object-cupid30-selfhost1-paired-independent.json`.
+Both derivative seven-tool links time out at the unchanged 1,800-second limit.
+Earlier callers
+retain their three obsolete inventory failures and a seven-tool link timeout
+at the unchanged 1,800-second limit on each host. Independent rereading records
+those results in `stack-object-cupid2-paired-independent.json`.
+
+The final 1,694-input source copy passes every strict audit contract. Seven
+optional fixtures have explicit ownership rows, and all 26 selected existing
+ownership controls pass. The CPP inventory remains 422 tracked roots, four
+generated roots and 53 strict hosted roots. The four complete observer,
+private-capacity and snapshot regressions select 396 methods. All 382 executed
+methods pass, with 14 expected platform skips. Independent rereading checks
+88 snapshot invocations and 60 complete candidate files. The corresponding
+i386 objects and programs agree between native and Cupid-built producers on
+each host.
+
+Full Windows preparation passes from the frozen, uncommitted 99-input producer
+snapshot in 1,757.258 seconds with conventional host producers blocked. Its
+prepared compiler passes all 58 ordinary modes, the full self-host frontier,
+CupidObj subset, host-adapter link and seven-tool link. The seven-tool link
+takes 1,709.252 seconds, within 1,800 seconds.
+Linux preparation also passes in 1,846.250 seconds. Independent rereading checks
+198 source copies, 291 stage artifacts and 97 matching final-stage pairs. Both
+prepared compilers pass the 58 ordinary modes, full self-host frontier, CupidObj
+subset and host-adapter link. Linux's seven-tool link passes in 1,648.417 seconds.
+Independent rereading checks all 138 phases, 124 object modes, two actual i386
+adapter executions and eight matching complete products in
+`stack-object-fullcohort2-paired-independent.json`. The full Windows
+source frontier compiles all 156 sources twice in 1,858.271 seconds, within
+2,340 seconds. Its first object set totals 4,162,872 bytes and still requires
+paired review before changing the old locks. The Windows review accepts 152
+objects with only the approved local rewrites and four unchanged objects in
+`stack-kernel-local-rewrite1-windows.json`. The first Linux attempt
+times out at 2,340 seconds and publishes no result. Measuring the identical
+478-input snapshot takes 4.3 to 22.4 seconds on Windows-mounted storage and
+about 0.08 seconds on Linux storage. The fresh full-source Linux replay passes
+in 1,488.105 seconds with the compiler, checks, profile and original deadline
+unchanged. Paired independent rereading checks all 624 produced objects,
+478 raw source inputs per host, the complete 1,694-input Linux clone and 313
+retained Linux output copies. All corresponding objects agree. Evidence is
+`stack-full-frontier2-paired-independent.json`. Complete compiler
+qualification, SDK publication and normal OS/runtime
+acceptance remain open. [ADR 0444](../adr/0444-fold-proven-scalar-load-stack-transfers.md)
+records the emitter boundary and retained evidence.
+
+The actual SDK IR checkpoint passes with the complete prepared compilers.
+Windows compiles it in 495.482 seconds and Linux in 539.476 seconds, within
+900 seconds. Both complete objects and linked programs agree. All 58 unchanged
+IR modes pass on each host; the original compile, link and runtime limits stay
+900, 360 and 900 seconds. Independent rereading checks all source and library
+bindings plus 116 executions in `stack-sdk-ir-controls1-paired-independent.json`.
+Complete SDK publication and committed compiler qualification remain open.
+
+The bounded publisher has a separate Windows repair for the second checked
+tool's candidate reopen. All ten new method executions and fourteen checked
+invocations pass through native and complete prepared producers on both hosts,
+with two expected Windows skips. A rejecting second tool preserves the previous
+output; both Linux producers pass under a 32 MiB address-space limit. This
+35-input proof changes the Windows publisher API and is separate from the
+1,694-input compiler preparation source. See
+[ADR 0439](../adr/0439-bound-large-candidate-publication-explicitly.md).
+
+## Retained adoption-manual acceptance, 2026-10-06
+
+Both normal OS builds and all four strict private boot checks pass with the
+earlier qualified disk-foundation seed. Independent rereading checks the
+retained 1,672 source inputs, 429 production objects, sixteen artifacts, six
+user products, complete ABI and preserved FAT suffix. Only the embedded manual
+object changes; generated symbol source and object remain identical.
+
+The manual is 168,013 bytes. Its complete SHA-256 is
+`528b3ba6e37ac761dcdf2400d4c856628c2953ef9372f977f36bc9f2ce8c589e`.
+It occurs once in each kernel output. Only the raw kernel policy row changes,
+from 9,601,480 to 9,602,192 bytes. Final and pass-one ELF sizes remain 9,830,844
+and 9,699,772 bytes. Both complete 200 MiB images have SHA-256
+`9af6ee9b33fed6f48864f8a25f5ffd6bd7b83e0ab6aad9c839f31d052bdd6502`.
+Evidence is `disk-adoption-os3-paired-independent.json`. The checker uses copies
+retained in the workspace after external cleanup began. Complete SDK publication,
+the stack-transfer compiler cohort and normal disk-image ownership remain open.
+
 ## Private disk foundation source plans, 2026-10-06
 
 Private commit `76914250` now has identical committed captures on both hosts.
@@ -8,7 +132,10 @@ Its 99-input producer snapshot has SHA-256
 Both actual preparations pass with conventional host producers forbidden.
 Independent rereading checks 291 stage artifacts, 198 source copies and 97
 matching final-stage pairs. The release author selects all twelve exact tools.
-Behavior qualification and full SDK publication still require their own checks.
+Full behavior qualification subsequently passed on both hosts; its twelve-tool
+projection is recorded in
+`disk-foundation-76914250-qualified-pair-candidate-independent.json`.
+Complete SDK publication remains open.
 
 Both normal OS derivatives also pass with the unchanged installed parent and
 conventional code producers forbidden. Independent comparison verifies all 429
@@ -40,9 +167,10 @@ Release, behavior-authority, ISO fixture and bootstrap CLI consumers also pass
 rereading checks 1,672 inputs per host and all original commands and products.
 Historical ISO profiles retain their exact tuples. The failed shared-root and
 incomplete-capture attempts remain recorded. Synthetic publications and mocked
-stages do not establish a complete SDK build or producer qualification.
+stages do not establish a complete SDK build. Actual producer qualification is
+recorded separately in the accepted private projection.
 See [ADR 0438](../adr/0438-carry-bounded-disk-foundations-in-source-plans.md)
-and [the disk handoff](NATIVE-DISK-HANDOFF.md). New producer qualification,
+and [the disk handoff](NATIVE-DISK-HANDOFF.md). Stack-transfer producer qualification,
 SDK publication, seed installation and normal disk ownership remain open.
 
 ## Private bounded transaction snapshots, 2026-10-06

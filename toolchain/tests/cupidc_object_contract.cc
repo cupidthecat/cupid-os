@@ -2699,14 +2699,13 @@ static int validate_integer_mutation_object(
       0x50u, 0x58u, 0x50u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
       0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0xd3u,
       0xe8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u,
-      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
-      0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0x50u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u,
-      0x00u, 0x00u, 0x59u, 0x58u, 0x01u, 0xc8u, 0x50u, 0x59u,
-      0x58u, 0x89u, 0x08u, 0x51u, 0x68u, 0x01u, 0x00u, 0x00u,
-      0x00u, 0x59u, 0x58u, 0x29u, 0xc8u, 0x50u, 0x58u, 0xc9u,
-      0xc3u};
+      0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x58u, 0x50u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u,
+      0x01u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u,
+      0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x29u,
+      0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
@@ -2746,15 +2745,15 @@ static int validate_integer_mutation_object(
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 35u, 45u) ||
       !symbol_matches(compound, 4u, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 80u, 78u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 80u, 74u) ||
       !symbol_matches(file, 5u, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 158u, 43u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 154u, 43u) ||
       object->relocations[0].relocation_section_file_index !=
           rel_text->file_index ||
       object->relocations[0].entry_index != 0u ||
       object->relocations[0].target_section_file_index != text->file_index ||
-      object->relocations[0].offset != 162u ||
+      object->relocations[0].offset != 158u ||
       object->relocations[0].symbol_file_index != state->file_index ||
       object->relocations[0].type != CTOOL_ELF32_R_386_32 ||
       object->relocations[0].addend_known != CTOOL_TRUE ||
@@ -2801,52 +2800,48 @@ static int validate_integer_mutation_object(
 static int validate_pointer_value_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 expected_text[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u,
-      0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0x50u, 0x58u,
-      0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u,
-      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
-      0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u,
-      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
-      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u,
-      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
-      0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u,
-      0x89u, 0xe5u, 0x83u, 0xecu, 0x04u, 0x8du, 0x45u, 0xfcu,
-      0x50u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u,
-      0x8du, 0x45u, 0xfcu, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
-      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x68u, 0x00u,
-      0x00u, 0x00u, 0x00u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u,
+      0xc3u, 0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x58u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
+      0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x59u,
+      0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0xc9u, 0xc3u, 0x55u,
+      0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8bu,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0xc9u,
+      0xc3u, 0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
+      0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x83u, 0xecu,
+      0x04u, 0x8du, 0x45u, 0xfcu, 0x50u, 0x8bu, 0x85u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u,
+      0x8bu, 0x45u, 0xfcu, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u,
+      0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x8bu,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x59u, 0x58u,
       0x89u, 0x08u, 0x51u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
       0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x68u, 0x00u,
       0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u,
       0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x68u, 0x00u,
       0x00u, 0x00u, 0x00u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u,
       0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u,
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x83u, 0xecu,
-      0x04u, 0x8bu, 0x4cu, 0x24u, 0x04u, 0x89u, 0x0cu, 0x24u,
-      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x08u,
-      0x50u, 0x58u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x83u, 0xecu, 0x04u, 0x8bu, 0x4cu, 0x24u,
+      0x04u, 0x89u, 0x0cu, 0x24u, 0xe8u, 0xfcu, 0xffu, 0xffu,
+      0xffu, 0x83u, 0xc4u, 0x08u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const char *const function_names[] = {
       "read_indirect",        "address_member",     "write_indirect",
       "pass_pointer",         "qualify_pointer",    "erase_pointer",
       "restore_pointer",      "copy_pointer",       "set_global_pointer",
       "clear_global_pointer", "read_global_member", "call_pointer_result"};
   static const ctool_u32 function_offsets[] = {
-      0u, 21u, 34u, 67u, 84u, 101u, 118u, 135u, 171u, 198u, 219u, 240u};
+      0u, 17u, 30u, 55u, 68u, 81u, 94u, 107u,
+      135u, 158u, 179u, 200u};
   static const ctool_u32 function_sizes[] = {
-      21u, 13u, 33u, 17u, 17u, 17u, 17u, 36u, 27u, 21u, 21u, 36u};
+      17u, 13u, 25u, 13u, 13u, 13u, 13u, 28u,
+      23u, 21u, 21u, 32u};
   static const ctool_u32 relocation_offsets[] = {
-      25u, 175u, 202u, 223u, 265u};
+      21u, 139u, 162u, 183u, 221u};
   static const char *const relocation_symbols[] = {
       "global_value", "global_pointer", "global_pointer",
       "global_pointer", "pass_pointer"};
@@ -2983,38 +2978,35 @@ static int validate_typed_null_pointer_object(
 static int validate_pointer_comparison_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 expected_text[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x00u,
-      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu,
-      0x95u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u,
-      0xc0u, 0x0fu, 0x84u, 0x16u, 0x00u, 0x00u, 0x00u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x59u,
+      0x58u, 0x39u, 0xc8u, 0x0fu, 0x95u, 0xc0u, 0x0fu, 0xb6u,
+      0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x12u,
+      0x00u, 0x00u, 0x00u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
       0x00u, 0x50u, 0x58u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
       0xe9u, 0x05u, 0x00u, 0x00u, 0x00u, 0x68u, 0x00u, 0x00u,
       0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u,
-      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u,
+      0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x8bu,
+      0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x59u, 0x58u,
       0x39u, 0xc8u, 0x0fu, 0x94u, 0xc0u, 0x0fu, 0xb6u, 0xc0u,
-      0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0x50u, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x39u,
+      0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8bu,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x8bu, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x59u, 0x58u, 0x39u,
       0xc8u, 0x0fu, 0x92u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u,
-      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
-      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
       0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u,
-      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+      0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0xc9u, 0xc3u};
   static const char *const function_names[] = {
       "ctool_job_arena",       "object_pointer_equal",
       "object_pointer_less",  "object_pointer_bits",
       "object_pointer_erase", "object_pointer_restore"};
   static const ctool_u32 function_offsets[] = {
-      0u, 69u, 108u, 147u, 164u, 181u};
-  static const ctool_u32 function_sizes[] = {69u, 39u, 39u, 17u, 17u, 17u};
+      0u, 61u, 92u, 123u, 136u, 149u};
+  static const ctool_u32 function_sizes[] = {
+      61u, 31u, 31u, 13u, 13u, 13u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   ctool_u32 compare_count = 0u;
   ctool_u32 equal_count = 0u;
@@ -3094,60 +3086,54 @@ static int validate_pointer_comparison_object(
 static int validate_pointer_condition_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 expected_text[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
-      0xc0u, 0x0fu, 0x94u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u,
-      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
-      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x1eu, 0x00u,
-      0x00u, 0x00u, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u,
-      0x0fu, 0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u,
-      0x00u, 0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u, 0x00u,
-      0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u,
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x94u, 0xc0u,
+      0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u,
+      0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x1au, 0x00u,
+      0x00u, 0x00u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x0au, 0x00u,
+      0x00u, 0x00u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0xe9u,
+      0x05u, 0x00u, 0x00u, 0x00u, 0x68u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8bu,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x85u,
       0xc0u, 0x0fu, 0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u,
-      0x01u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x23u, 0x00u, 0x00u,
-      0x00u, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
-      0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u, 0x00u,
-      0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u, 0x00u, 0x68u,
-      0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u, 0x55u,
-      0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u,
+      0x01u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x1fu, 0x00u, 0x00u,
+      0x00u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x0au, 0x00u, 0x00u,
+      0x00u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x05u,
+      0x00u, 0x00u, 0x00u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u,
       0x0fu, 0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u,
       0x00u, 0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u, 0x00u,
       0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u,
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
-      0xc0u, 0x0fu, 0x84u, 0x08u, 0x00u, 0x00u, 0x00u, 0x68u,
-      0x01u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u, 0x68u,
-      0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u, 0x55u,
-      0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u,
+      0x58u, 0xc9u, 0xc3u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u,
       0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x00u,
       0x00u, 0x00u, 0x00u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
-      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
-      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x05u, 0x00u,
-      0x00u, 0x00u, 0xe9u, 0x19u, 0x00u, 0x00u, 0x00u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u,
+      0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x15u,
+      0x00u, 0x00u, 0x00u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
       0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x05u,
-      0x00u, 0x00u, 0x00u, 0xe9u, 0xceu, 0xffu, 0xffu, 0xffu,
+      0x00u, 0x00u, 0x00u, 0xe9u, 0xd6u, 0xffu, 0xffu, 0xffu,
       0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u,
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
-      0xc0u, 0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u,
-      0x00u, 0x00u, 0x00u, 0x00u, 0x68u, 0x00u, 0x00u, 0x00u,
-      0x00u, 0x58u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x05u,
+      0x00u, 0x00u, 0x00u, 0xe9u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
   static const char *const function_names[] = {
       "pointer_not", "pointer_and", "pointer_or", "pointer_select",
       "pointer_if",  "pointer_while", "pointer_do", "pointer_for"};
   static const ctool_u32 function_offsets[] = {
-      0u, 27u, 88u, 159u, 200u, 239u, 275u, 336u};
+      0u, 23u, 76u, 139u, 176u, 211u, 243u, 296u};
   static const ctool_u32 function_sizes[] = {
-      27u, 61u, 71u, 41u, 39u, 36u, 61u, 36u};
+      23u, 53u, 63u, 37u, 35u, 32u, 53u, 32u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   ctool_u32 test_count = 0u;
   ctool_u32 set_equal_count = 0u;
@@ -3219,108 +3205,97 @@ static int validate_pointer_condition_object(
 static int validate_pointer_arithmetic_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 expected_text[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
       0x50u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u,
       0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u,
-      0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u,
-      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du,
-      0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0xc3u, 0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u,
       0x00u, 0x50u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u,
       0x00u, 0x0fu, 0xafu, 0xc2u, 0x01u, 0xc8u, 0x50u, 0x58u,
-      0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u,
-      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
-      0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u,
+      0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u,
       0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x29u, 0xc8u, 0x50u,
-      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
-      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x29u, 0xc8u,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x59u, 0x58u, 0x29u, 0xc8u,
       0xb9u, 0x04u, 0x00u, 0x00u, 0x00u, 0x99u, 0xf7u, 0xf9u,
-      0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0x50u, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau,
+      0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8bu,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x8bu, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau,
       0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u,
       0xc8u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u,
-      0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x0cu, 0x00u,
-      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0xc3u, 0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x0cu, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
       0x00u, 0x50u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u,
       0x00u, 0x0fu, 0xafu, 0xc2u, 0x01u, 0xc8u, 0x50u, 0x58u,
       0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
-      0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x0cu, 0x00u,
-      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u,
+      0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x59u,
       0x58u, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u,
-      0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x0cu,
-      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u,
       0x59u, 0x58u, 0xbau, 0x0cu, 0x00u, 0x00u, 0x00u, 0x0fu,
       0xafu, 0xcau, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u,
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
       0x50u, 0x59u, 0x58u, 0x29u, 0xc8u, 0xb9u, 0x0cu, 0x00u,
       0x00u, 0x00u, 0x99u, 0xf7u, 0xf9u, 0x50u, 0x58u, 0xc9u,
       0xc3u, 0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u,
       0x00u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x68u,
-      0x00u, 0x00u, 0x00u, 0x00u, 0x8du, 0x85u, 0x08u, 0x00u,
-      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u,
-      0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu,
-      0xcau, 0x01u, 0xc8u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
-      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
-      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x50u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u,
-      0x00u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u,
-      0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u, 0x59u, 0x58u,
-      0x89u, 0x08u, 0x51u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
-      0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
-      0x58u, 0x50u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u,
-      0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0xbau, 0x04u,
-      0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x29u, 0xc8u,
-      0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x68u, 0x01u,
-      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x8bu, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u,
       0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u,
-      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
-      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x50u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x0cu, 0x00u,
-      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u,
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u,
+      0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x50u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0xbau,
+      0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u,
+      0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u,
+      0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x50u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u,
+      0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u, 0x0fu,
+      0xafu, 0xcau, 0x29u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x89u,
+      0x08u, 0x51u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u,
+      0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu,
+      0xcau, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u,
+      0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x50u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x59u,
       0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu,
       0xcau, 0x01u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u,
       0x51u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du,
       0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x50u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x0cu,
-      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
-      0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u, 0x0fu,
-      0xafu, 0xcau, 0x29u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x89u,
-      0x08u, 0x51u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u,
-      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
-      0x50u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x00u,
-      0x01u, 0x00u, 0x00u, 0x59u, 0x58u, 0xbau, 0x02u, 0x00u,
-      0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u,
-      0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0xc9u, 0xc3u,
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x50u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x68u, 0x00u, 0x01u, 0x00u, 0x00u, 0x59u, 0x58u,
-      0xbau, 0x02u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau,
-      0x01u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u,
-      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
-      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x50u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u,
-      0x00u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u,
-      0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u, 0x59u, 0x58u,
-      0x89u, 0x08u, 0x51u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u,
-      0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u, 0x0fu,
-      0xafu, 0xcau, 0x29u, 0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u,
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x50u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u,
-      0xbau, 0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau,
-      0x29u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u,
-      0x58u, 0xc9u, 0xc3u};
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau, 0x04u,
+      0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x29u, 0xc8u,
+      0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0xc9u,
+      0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x50u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x68u, 0x00u, 0x01u, 0x00u, 0x00u, 0x59u,
+      0x58u, 0xbau, 0x02u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu,
+      0xcau, 0x01u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u,
+      0x51u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x50u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x00u, 0x01u,
+      0x00u, 0x00u, 0x59u, 0x58u, 0xbau, 0x02u, 0x00u, 0x00u,
+      0x00u, 0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u, 0x59u,
+      0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0xc9u, 0xc3u, 0x55u,
+      0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x50u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0xbau,
+      0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u,
+      0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x68u,
+      0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0xbau, 0x04u,
+      0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x29u, 0xc8u,
+      0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x50u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u,
+      0x00u, 0x00u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u,
+      0x00u, 0x0fu, 0xafu, 0xcau, 0x29u, 0xc8u, 0x50u, 0x59u,
+      0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0xc9u, 0xc3u};
   static const char *const function_names[] = {
       "advance",       "reverse_add",       "retreat",
       "distance",      "read_index",        "read_reverse",
@@ -3330,11 +3305,13 @@ static int validate_pointer_arithmetic_object(
       "advance_read_sector", "advance_write_sector", "postfix_advance",
       "prefix_retreat"};
   static const ctool_u32 function_offsets[] = {
-      0u, 41u, 82u, 123u, 164u, 209u, 254u, 287u, 328u, 369u, 380u,
-      419u, 462u, 523u, 572u, 621u, 664u, 707u, 768u};
+      0u, 33u, 66u, 99u, 132u, 169u, 206u, 231u,
+      264u, 297u, 308u, 343u, 386u, 447u, 492u, 537u,
+      580u, 623u, 684u};
   static const ctool_u32 function_sizes[] = {
-      41u, 41u, 41u, 41u, 45u, 45u, 33u, 41u, 41u, 11u, 39u,
-      43u, 61u, 49u, 49u, 43u, 43u, 61u, 43u};
+      33u, 33u, 33u, 33u, 37u, 37u, 25u, 33u,
+      33u, 11u, 35u, 43u, 61u, 45u, 45u, 43u,
+      43u, 61u, 43u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
@@ -3383,7 +3360,8 @@ static int validate_pointer_arithmetic_object(
   }
   for (index = 0u; index < object->relocation_count; index++) {
     const ctool_elf32_relocation_t *relocation = &object->relocations[index];
-    static const ctool_u32 relocation_offsets[] = {373u, 384u};
+    static const ctool_u32 relocation_offsets[] = {
+      301u, 312u};
     if (relocation->relocation_section_file_index != rel_text->file_index ||
         relocation->entry_index != index ||
         relocation->target_section_file_index != text->file_index ||
@@ -3442,11 +3420,10 @@ static int validate_incomplete_array_member_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 expected_text[] = {
       0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
-      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau, 0x0cu, 0x00u,
-      0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u,
-      0x58u, 0x83u, 0xc0u, 0x04u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x58u, 0xc9u, 0xc3u};
+      0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x59u,
+      0x58u, 0xbau, 0x0cu, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu,
+      0xcau, 0x01u, 0xc8u, 0x50u, 0x58u, 0x83u, 0xc0u, 0x04u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text =
       find_section(object, ".rel.text");
@@ -3557,16 +3534,13 @@ static int validate_external_object_load(
 static int validate_file_assignment_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 function_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u,
-      0x00u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u,
-      0x89u, 0x08u, 0x51u, 0x58u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x59u,
+      0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
   const ctool_elf32_section_t *rel_text =
@@ -3795,20 +3769,17 @@ static int validate_bit_field_object(
 static int validate_chained_assignment_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 function_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u,
-      0x00u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u,
-      0x51u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u,
-      0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x8bu, 0x85u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u,
+      0x51u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0xc9u,
+      0xc3u};
   static const ctool_x86_mnemonic_t instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
   static const ctool_u32 relocation_offsets[] = {4u, 9u};
   static const char *const relocation_symbols[] = {
       "first_state", "second_state"};
@@ -3873,31 +3844,26 @@ static int validate_paint_multiplication_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 function_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
-      0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x08u, 0x00u,
-      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u,
-      0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0x8bu, 0x00u, 0x50u,
-      0x59u, 0x58u, 0x29u, 0xc8u, 0x50u, 0x68u, 0x00u, 0x00u,
-      0x00u, 0x00u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u,
-      0x0fu, 0xafu, 0xc1u, 0x50u, 0x59u, 0x58u, 0x01u, 0xc8u,
-      0x50u, 0x58u, 0xc9u, 0xc3u};
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x8bu, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x58u, 0x8bu, 0x00u, 0x89u, 0xc1u, 0x58u, 0x29u, 0xc8u,
+      0x50u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0x8bu,
+      0x00u, 0x89u, 0xc1u, 0x58u, 0x0fu, 0xafu, 0xc1u, 0x50u,
+      0x59u, 0x58u, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 expected_data[] = {
       0x38u, 0x00u, 0x00u, 0x00u, 0x14u, 0x00u,
       0x00u, 0x00u, 0x01u, 0x00u, 0x00u, 0x00u};
   static const ctool_x86_mnemonic_t instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_IMUL, CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_ADD,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_SUB, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_IMUL, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_ADD, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
       CTOOL_X86_MN_RET};
   static const ctool_u32 relocation_offsets[] = {
-      4u, 24u, 38u, 64u, 84u, 98u};
+      4u, 20u, 34u, 60u, 76u, 90u};
   static const char *const relocation_symbols[] = {
       "CANVAS_X", "view_x", "zoom_level",
       "CANVAS_Y", "view_y", "zoom_level"};
@@ -3919,7 +3885,7 @@ static int validate_paint_multiplication_object(
   if (text == NULL || data == NULL || bss == NULL || rel_text == NULL ||
       canvas_x == NULL || canvas_y == NULL || zoom == NULL ||
       view_x == NULL || view_y == NULL || function_x == NULL ||
-      function_y == NULL || text->contents.size != 120u ||
+      function_y == NULL || text->contents.size != 112u ||
       text->relocation_first != 0u || text->relocation_count != 6u ||
       data->contents.size != (ctool_u32)sizeof(expected_data) ||
       data->contents.data == NULL ||
@@ -3945,11 +3911,11 @@ static int validate_paint_multiplication_object(
                       CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 4u, 4u) ||
       !symbol_matches(function_x, 6u, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u, 60u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u, 56u) ||
       !symbol_matches(function_y, 7u, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 60u,
-                      60u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 56u,
+                      56u) ||
       !decode_function(
           job, text, function_x, instructions,
           (ctool_u32)(sizeof(instructions) / sizeof(instructions[0])),
@@ -3991,16 +3957,13 @@ static int validate_paint_multiplication_object(
 static int validate_unsigned_multiplication_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 function_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u,
-      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
-      0x68u, 0x01u, 0x00u, 0x00u, 0x80u, 0x59u, 0x58u,
-      0x0fu, 0xafu, 0xc1u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x80u, 0x59u,
+      0x58u, 0x0fu, 0xafu, 0xc1u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_IMUL,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_IMUL,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text =
       find_section(object, ".rel.text");
@@ -4028,45 +3991,35 @@ static int validate_unsigned_multiplication_object(
 static int validate_division_object(ctool_job_t *job,
                                     const ctool_elf32_object_t *object) {
   static const ctool_u8 signed_divide_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x59u, 0x58u, 0x99u, 0xf7u, 0xf9u, 0x50u, 0x58u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x89u, 0xc1u, 0x58u, 0x99u, 0xf7u, 0xf9u, 0x50u, 0x58u,
       0xc9u, 0xc3u};
   static const ctool_u8 signed_remainder_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x59u, 0x58u, 0x99u, 0xf7u, 0xf9u, 0x52u, 0x58u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x89u, 0xc1u, 0x58u, 0x99u, 0xf7u, 0xf9u, 0x52u, 0x58u,
       0xc9u, 0xc3u};
   static const ctool_u8 unsigned_divide_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x59u, 0x58u, 0x31u, 0xd2u, 0xf7u, 0xf1u, 0x50u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x89u, 0xc1u, 0x58u, 0x31u, 0xd2u, 0xf7u, 0xf1u, 0x50u,
       0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 unsigned_remainder_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x59u, 0x58u, 0x31u, 0xd2u, 0xf7u, 0xf1u, 0x52u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x89u, 0xc1u, 0x58u, 0x31u, 0xd2u, 0xf7u, 0xf1u, 0x52u,
       0x58u, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t signed_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_CDQ,
-      CTOOL_X86_MN_IDIV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP, CTOOL_X86_MN_CDQ,
+      CTOOL_X86_MN_IDIV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t unsigned_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_XOR,
-      CTOOL_X86_MN_DIV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP, CTOOL_X86_MN_XOR,
+      CTOOL_X86_MN_DIV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text =
       find_section(object, ".rel.text");
@@ -4149,14 +4102,13 @@ static int validate_division_object(ctool_job_t *job,
 static int validate_branch_fit_object(ctool_job_t *job,
                                       const ctool_elf32_object_t *object) {
   static const ctool_u8 function_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x7fu,
-      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu,
-      0x96u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u,
-      0xc0u, 0x0fu, 0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u,
-      0x01u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x33u, 0x00u, 0x00u,
-      0x00u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x80u, 0xffu, 0xffu,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x68u, 0x7fu, 0x00u, 0x00u, 0x00u, 0x59u,
+      0x58u, 0x39u, 0xc8u, 0x0fu, 0x96u, 0xc0u, 0x0fu, 0xb6u,
+      0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x0au,
+      0x00u, 0x00u, 0x00u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u,
+      0xe9u, 0x2fu, 0x00u, 0x00u, 0x00u, 0x8bu, 0x85u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x68u, 0x80u, 0xffu, 0xffu,
       0xffu, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x93u, 0xc0u,
       0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
       0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u, 0x00u,
@@ -4166,66 +4118,48 @@ static int validate_branch_fit_object(ctool_job_t *job,
       0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u, 0x00u, 0x68u,
       0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 signed_less_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9cu, 0xc0u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x89u, 0xc1u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9cu, 0xc0u,
       0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 signed_less_equal_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9eu, 0xc0u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x89u, 0xc1u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9eu, 0xc0u,
       0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 unsigned_less_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x92u, 0xc0u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x89u, 0xc1u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x92u, 0xc0u,
       0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u32 branch_targets[] = {
-      49u, 100u, 95u, 100u, 119u, 124u};
+      45u, 92u, 87u, 92u, 111u, 116u};
   static const ctool_x86_mnemonic_t branch_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETBE,
-      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETAE, CTOOL_X86_MN_MOVZX,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
-      CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_JMP,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
-      CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_JMP,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
-      CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETBE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP, CTOOL_X86_MN_SETAE, CTOOL_X86_MN_MOVZX,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_JMP, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t signed_less_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
-      CTOOL_X86_MN_SETL,  CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETL, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t signed_less_equal_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
-      CTOOL_X86_MN_SETLE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETLE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t unsigned_less_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
-      CTOOL_X86_MN_SETB,  CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETB, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *function =
@@ -4303,38 +4237,28 @@ static int validate_branch_fit_object(ctool_job_t *job,
 static int validate_aes_rotw_object(ctool_job_t *job,
                                     const ctool_elf32_object_t *object) {
   static const ctool_u8 rotw_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x08u,
-      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0xd3u, 0xe0u, 0x50u,
-      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x68u, 0x18u, 0x00u, 0x00u, 0x00u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x68u, 0x08u, 0x00u, 0x00u, 0x00u, 0x59u,
+      0x58u, 0xd3u, 0xe0u, 0x50u, 0x8bu, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x68u, 0x18u, 0x00u, 0x00u, 0x00u,
       0x59u, 0x58u, 0xd3u, 0xe8u, 0x50u, 0x59u, 0x58u, 0x09u,
       0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 signed_right_shift_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x59u, 0x58u, 0xd3u, 0xf8u, 0x50u, 0x58u, 0xc9u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x89u, 0xc1u, 0x58u, 0xd3u, 0xf8u, 0x50u, 0x58u, 0xc9u,
       0xc3u};
   static const ctool_x86_mnemonic_t rotw_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_SHL,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,  CTOOL_X86_MN_SHR,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_OR,    CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_SHL,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_SHR, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_OR, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t signed_right_shift_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_SAR,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
-      CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP, CTOOL_X86_MN_SAR,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *rotw_symbol = find_symbol(object, "rotw");
@@ -4381,31 +4305,23 @@ static int validate_aes_rotw_object(ctool_job_t *job,
 static int validate_align_up_object(ctool_job_t *job,
                                     const ctool_elf32_object_t *object) {
   static const ctool_u8 function_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x59u, 0x58u, 0x01u, 0xc8u, 0x50u, 0x68u, 0x01u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x89u, 0xc1u, 0x58u, 0x01u, 0xc8u, 0x50u, 0x68u, 0x01u,
       0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x29u, 0xc8u, 0x50u,
-      0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u,
-      0x59u, 0x58u, 0x29u, 0xc8u, 0x50u, 0x58u, 0xf7u, 0xd0u,
-      0x50u, 0x59u, 0x58u, 0x21u, 0xc8u, 0x50u, 0x58u, 0xc9u,
-      0xc3u};
+      0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x68u,
+      0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x29u, 0xc8u,
+      0x50u, 0x58u, 0xf7u, 0xd0u, 0x50u, 0x59u, 0x58u, 0x21u,
+      0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,  CTOOL_X86_MN_ADD,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_SUB,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,  CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_NOT,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_AND,   CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP, CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_SUB, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_NOT, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_AND, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *function = find_symbol(object, "align_up");
@@ -4431,35 +4347,27 @@ static int validate_align_up_object(ctool_job_t *job,
 static int validate_integer_unary_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 unary_plus_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u,
-      0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 negate_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u,
-      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
-      0x58u, 0xf7u, 0xd8u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x89u, 0xc0u, 0xf7u, 0xd8u, 0x50u, 0x58u, 0xc9u,
+      0xc3u};
   static const ctool_u8 logical_not_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u,
-      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
-      0x58u, 0x85u, 0xc0u, 0x0fu, 0x94u, 0xc0u, 0x0fu,
-      0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x89u, 0xc0u, 0x85u, 0xc0u, 0x0fu, 0x94u, 0xc0u,
+      0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t unary_plus_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
-      CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t negate_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_NEG,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_NEG, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
       CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t logical_not_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
-      CTOOL_X86_MN_SETE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_TEST, CTOOL_X86_MN_SETE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *unary_plus =
@@ -4537,28 +4445,22 @@ static int validate_integer_unary_object(
 static int validate_integer_cast_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 signed_bits_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xf7u,
-      0xd0u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u,
-      0x58u, 0x01u, 0xc8u, 0x50u, 0x58u, 0xf7u, 0xd8u, 0x50u,
-      0x58u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x89u, 0xc0u, 0xf7u, 0xd0u, 0x50u, 0x68u, 0x01u,
+      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x01u, 0xc8u, 0x50u,
+      0x58u, 0xf7u, 0xd8u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 unsigned_bits_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u,
-      0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t signed_bits_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_NOT,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_ADD,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_NEG,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
-  static const ctool_x86_mnemonic_t unsigned_bits_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_NOT, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_ADD, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_NEG, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
       CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t unsigned_bits_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *signed_bits =
@@ -4602,49 +4504,39 @@ static int validate_integer_cast_object(
 static int validate_signed_bits_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 function_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0xffu,
-      0xffu, 0xffu, 0x7fu, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu,
-      0x96u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u,
-      0xc0u, 0x0fu, 0x84u, 0x0eu, 0x00u, 0x00u, 0x00u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x8du, 0x85u, 0x08u,
-      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
-      0x68u, 0x00u, 0x00u, 0x00u, 0x80u, 0x59u, 0x58u, 0x39u,
-      0xc8u, 0x0fu, 0x94u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u,
-      0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x16u, 0x00u, 0x00u,
-      0x00u, 0x68u, 0xffu, 0xffu, 0xffu, 0x7fu, 0x58u, 0xf7u,
-      0xd8u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u,
-      0x58u, 0x29u, 0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0x50u, 0x58u, 0xf7u, 0xd0u, 0x50u, 0x68u, 0x01u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x68u, 0xffu, 0xffu, 0xffu, 0x7fu, 0x59u,
+      0x58u, 0x39u, 0xc8u, 0x0fu, 0x96u, 0xc0u, 0x0fu, 0xb6u,
+      0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x0au,
+      0x00u, 0x00u, 0x00u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x8bu, 0x85u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u,
+      0x80u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x94u, 0xc0u,
+      0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
+      0x84u, 0x16u, 0x00u, 0x00u, 0x00u, 0x68u, 0xffu, 0xffu,
+      0xffu, 0x7fu, 0x58u, 0xf7u, 0xd8u, 0x50u, 0x68u, 0x01u,
+      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x29u, 0xc8u, 0x50u,
+      0x58u, 0xc9u, 0xc3u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x89u, 0xc0u, 0xf7u, 0xd0u, 0x50u, 0x68u, 0x01u,
       0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x01u, 0xc8u, 0x50u,
       0x58u, 0xf7u, 0xd8u, 0x50u, 0x58u, 0xc9u, 0xc3u};
-  static const ctool_u32 branch_targets[] = {53u, 111u};
+  static const ctool_u32 branch_targets[] = {
+      45u, 99u};
   static const ctool_x86_mnemonic_t instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETBE,
-      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
-      CTOOL_X86_MN_RET,   CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETE,  CTOOL_X86_MN_MOVZX,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
-      CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_NEG,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
-      CTOOL_X86_MN_RET,   CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_NOT,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_ADD,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_NEG,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETBE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_CMP, CTOOL_X86_MN_SETE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_NEG, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_SUB, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_NOT, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_ADD, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_NEG, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
       CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
@@ -4677,31 +4569,25 @@ static int validate_while_object(ctool_job_t *job,
       0xfcu, 0x50u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x50u,
       0x59u, 0x58u, 0x89u, 0x08u, 0x83u, 0xecu, 0x04u, 0xe8u,
       0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x04u, 0x50u,
-      0x8du, 0x45u, 0xfcu, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
-      0x59u, 0x58u, 0x29u, 0xc8u, 0x50u, 0x8du, 0x85u, 0x08u,
-      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
-      0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x92u, 0xc0u, 0x0fu,
+      0x8bu, 0x45u, 0xfcu, 0x89u, 0xc1u, 0x58u, 0x29u, 0xc8u,
+      0x50u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x89u,
+      0xc1u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x92u, 0xc0u, 0x0fu,
       0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u,
       0x10u, 0x00u, 0x00u, 0x00u, 0x83u, 0xecu, 0x04u, 0xe8u,
       0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x04u, 0xe9u,
-      0xb8u, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
+      0xc0u, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_CALL,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_SUB,   CTOOL_X86_MN_CALL,
-      CTOOL_X86_MN_ADD,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_SUB,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETB,
-      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_CALL,  CTOOL_X86_MN_ADD,   CTOOL_X86_MN_JMP,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
-  static const ctool_u32 branch_targets[] = {92u, 20u};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB, CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_CALL, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB, CTOOL_X86_MN_CALL,
+      CTOOL_X86_MN_ADD, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_SUB, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP, CTOOL_X86_MN_SETB,
+      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE, CTOOL_X86_MN_SUB, CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_JMP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 branch_targets[] = {
+      84u, 20u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *function =
@@ -4747,7 +4633,7 @@ static int validate_while_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[2].entry_index != 2u ||
       object->relocations[2].target_section_file_index != text->file_index ||
-      object->relocations[2].offset != 80u ||
+      object->relocations[2].offset != 72u ||
       object->relocations[2].symbol_file_index != yield->file_index ||
       object->relocations[2].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[2].addend_known != CTOOL_TRUE ||
@@ -4771,40 +4657,33 @@ static int validate_do_object(ctool_job_t *job,
       0xfcu, 0x50u, 0x83u, 0xecu, 0x0cu, 0xe8u, 0xfcu, 0xffu,
       0xffu, 0xffu, 0x83u, 0xc4u, 0x0cu, 0x50u, 0x59u, 0x58u,
       0x89u, 0x08u, 0x51u, 0x58u, 0x8du, 0x45u, 0xf8u, 0x50u,
-      0x8du, 0x45u, 0xfcu, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
-      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x29u, 0xc8u, 0x50u,
+      0x8bu, 0x45u, 0xfcu, 0x50u, 0x8bu, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x89u, 0xc1u, 0x58u, 0x29u, 0xc8u, 0x50u,
       0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0x68u, 0x01u,
       0x00u, 0x00u, 0x00u, 0x83u, 0xecu, 0x0cu, 0x8bu, 0x4cu,
       0x24u, 0x0cu, 0x89u, 0x0cu, 0x24u, 0xe8u, 0xfcu, 0xffu,
-      0xffu, 0xffu, 0x83u, 0xc4u, 0x10u, 0x8du, 0x45u, 0xf8u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x00u, 0x00u,
-      0x00u, 0x00u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9eu,
-      0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u,
-      0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x8bu,
-      0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
+      0xffu, 0xffu, 0x83u, 0xc4u, 0x10u, 0x8bu, 0x45u, 0xf8u,
+      0x50u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u,
+      0x39u, 0xc8u, 0x0fu, 0x9eu, 0xc0u, 0x0fu, 0xb6u, 0xc0u,
+      0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x05u, 0x00u,
+      0x00u, 0x00u, 0xe9u, 0x97u, 0xffu, 0xffu, 0xffu, 0xc9u,
+      0xc3u};
   static const ctool_x86_mnemonic_t instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_CALL,  CTOOL_X86_MN_ADD,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_SUB,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_CALL,  CTOOL_X86_MN_ADD,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
-      CTOOL_X86_MN_SETLE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,
-      CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
-  static const ctool_u32 branch_targets[] = {123u, 6u};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB, CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_SUB, CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEA, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_SUB, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_SUB, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETLE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_JMP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_u32 branch_targets[] = {
+      111u, 6u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *function =
@@ -4841,7 +4720,7 @@ static int validate_do_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[1].entry_index != 1u ||
       object->relocations[1].target_section_file_index != text->file_index ||
-      object->relocations[1].offset != 78u ||
+      object->relocations[1].offset != 70u ||
       object->relocations[1].symbol_file_index != sleep->file_index ||
       object->relocations[1].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[1].addend_known != CTOOL_TRUE ||
@@ -4863,52 +4742,42 @@ static int validate_for_object(ctool_job_t *job,
   static const ctool_u8 function_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x04u, 0x8du, 0x45u,
       0xfcu, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x59u,
-      0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0x8du, 0x45u, 0xfcu,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x08u, 0x00u,
-      0x00u, 0x00u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9cu,
-      0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u,
-      0x0fu, 0x84u, 0x2au, 0x00u, 0x00u, 0x00u, 0x8du, 0x45u,
-      0xfcu, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x8du,
-      0x45u, 0xfcu, 0x50u, 0x8du, 0x45u, 0xfcu, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u,
-      0x59u, 0x58u, 0x01u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x89u,
-      0x08u, 0x51u, 0x58u, 0xe9u, 0xb5u, 0xffu, 0xffu, 0xffu,
-      0x8du, 0x45u, 0xfcu, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0x8bu, 0x45u, 0xfcu,
+      0x50u, 0x68u, 0x08u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u,
+      0x39u, 0xc8u, 0x0fu, 0x9cu, 0xc0u, 0x0fu, 0xb6u, 0xc0u,
+      0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x22u, 0x00u,
+      0x00u, 0x00u, 0x8bu, 0x45u, 0xfcu, 0x50u, 0x58u, 0x8du,
+      0x45u, 0xfcu, 0x50u, 0x8bu, 0x45u, 0xfcu, 0x50u, 0x68u,
+      0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x01u, 0xc8u,
+      0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0xe9u,
+      0xc1u, 0xffu, 0xffu, 0xffu, 0x8bu, 0x45u, 0xfcu, 0x50u,
       0x58u, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETL,
-      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_ADD,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
-      CTOOL_X86_MN_RET};
-  static const ctool_u32 branch_targets[] = {96u, 21u};
-  static const ctool_u8 break_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
-      0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u,
-      0x00u, 0xe9u, 0xe2u, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
-  static const ctool_x86_mnemonic_t break_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
-      CTOOL_X86_MN_JE,    CTOOL_X86_MN_JMP,   CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB, CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_CMP, CTOOL_X86_MN_SETL, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEA, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_ADD, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_JMP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
       CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
-  static const ctool_u32 break_targets[] = {28u, 33u, 3u};
+  static const ctool_u32 branch_targets[] = {
+      84u, 21u};
+  static const ctool_u8 break_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x05u,
+      0x00u, 0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u, 0x00u,
+      0xe9u, 0xe6u, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t break_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_JMP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 break_targets[] = {
+      24u, 29u, 3u};
   static const ctool_u8 break_do_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0xe9u, 0x00u,
       0x00u, 0x00u, 0x00u, 0xc9u, 0xc3u};
@@ -4917,87 +4786,74 @@ static int validate_for_object(ctool_job_t *job,
       CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_u32 break_do_targets[] = {8u};
   static const ctool_u8 continue_while_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
-      0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0xe7u, 0xffu, 0xffu,
-      0xffu, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x05u,
+      0x00u, 0x00u, 0x00u, 0xe9u, 0xebu, 0xffu, 0xffu, 0xffu,
+      0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t continue_while_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
-      CTOOL_X86_MN_JE,    CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEAVE,
-      CTOOL_X86_MN_RET};
-  static const ctool_u32 continue_while_targets[] = {28u, 3u};
-  static const ctool_u8 continue_do_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0xe9u, 0x00u, 0x00u, 0x00u, 0x00u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x05u, 0x00u, 0x00u,
-      0x00u, 0xe9u, 0xe2u, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
-  static const ctool_x86_mnemonic_t continue_do_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_JMP,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_JMP,
       CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
-  static const ctool_u32 continue_do_targets[] = {8u, 33u, 3u};
+  static const ctool_u32 continue_while_targets[] = {
+      24u, 3u};
+  static const ctool_u8 continue_do_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0xe9u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0x85u, 0xc0u, 0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u,
+      0xe9u, 0xe6u, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t continue_do_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_JMP, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE,
+      CTOOL_X86_MN_JMP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 continue_do_targets[] = {
+      8u, 29u, 3u};
   static const ctool_u8 continue_for_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
-      0x84u, 0x2cu, 0x00u, 0x00u, 0x00u, 0xe9u, 0x00u, 0x00u, 0x00u,
-      0x00u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x29u,
-      0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0xe9u,
-      0xc0u, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x28u,
+      0x00u, 0x00u, 0x00u, 0xe9u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x8bu,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x68u, 0x01u,
+      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x29u, 0xc8u, 0x50u,
+      0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0xe9u, 0xc8u,
+      0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t continue_for_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
-      CTOOL_X86_MN_JE,    CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_SUB,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_LEA, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_JMP, CTOOL_X86_MN_LEAVE,
       CTOOL_X86_MN_RET};
-  static const ctool_u32 continue_for_targets[] = {67u, 28u, 3u};
+  static const ctool_u32 continue_for_targets[] = {
+      59u, 24u, 3u};
   static const ctool_u8 nested_continue_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
-      0x84u, 0x1eu, 0x00u, 0x00u, 0x00u, 0x8du, 0x85u, 0x0cu, 0x00u,
-      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
-      0xc0u, 0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0xe7u,
-      0xffu, 0xffu, 0xffu, 0xe9u, 0xceu, 0xffu, 0xffu, 0xffu, 0xc9u,
-      0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x1au,
+      0x00u, 0x00u, 0x00u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x05u,
+      0x00u, 0x00u, 0x00u, 0xe9u, 0xebu, 0xffu, 0xffu, 0xffu,
+      0xe9u, 0xd6u, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t nested_continue_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
-      CTOOL_X86_MN_JE,    CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,
-      CTOOL_X86_MN_JMP,   CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEAVE,
-      CTOOL_X86_MN_RET};
-  static const ctool_u32 nested_continue_targets[] = {53u, 48u, 23u, 3u};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE,
+      CTOOL_X86_MN_JMP, CTOOL_X86_MN_JMP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 nested_continue_targets[] = {
+      45u, 40u, 19u, 3u};
   static const ctool_u8 nested_break_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
-      0x84u, 0x1eu, 0x00u, 0x00u, 0x00u, 0x8du, 0x85u, 0x0cu, 0x00u,
-      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
-      0xc0u, 0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x00u,
-      0x00u, 0x00u, 0x00u, 0xe9u, 0x00u, 0x00u, 0x00u, 0x00u, 0xc9u,
-      0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x1au,
+      0x00u, 0x00u, 0x00u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x05u,
+      0x00u, 0x00u, 0x00u, 0xe9u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0xe9u, 0x00u, 0x00u, 0x00u, 0x00u, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t nested_break_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
-      CTOOL_X86_MN_JE,    CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,
-      CTOOL_X86_MN_JMP,   CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEAVE,
-      CTOOL_X86_MN_RET};
-  static const ctool_u32 nested_break_targets[] = {53u, 48u, 48u, 53u};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE,
+      CTOOL_X86_MN_JMP, CTOOL_X86_MN_JMP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 nested_break_targets[] = {
+      45u, 40u, 40u, 45u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *function =
@@ -5193,60 +5049,47 @@ static int validate_declaration_for_object(
   static const ctool_u8 function_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x04u, 0x8du, 0x45u,
       0xfcu, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x59u,
-      0x58u, 0x89u, 0x08u, 0x8du, 0x45u, 0xfcu, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u,
-      0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9cu, 0xc0u, 0x0fu,
-      0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u,
-      0x21u, 0x00u, 0x00u, 0x00u, 0x8du, 0x45u, 0xfcu, 0x50u,
-      0x8du, 0x45u, 0xfcu, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0x89u, 0x08u, 0x8bu, 0x45u, 0xfcu, 0x50u, 0x68u,
+      0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x39u, 0xc8u,
+      0x0fu, 0x9cu, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u,
+      0x85u, 0xc0u, 0x0fu, 0x84u, 0x1du, 0x00u, 0x00u, 0x00u,
+      0x8du, 0x45u, 0xfcu, 0x50u, 0x8bu, 0x45u, 0xfcu, 0x50u,
       0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x01u,
       0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u,
-      0xe9u, 0xbeu, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
+      0xe9u, 0xc6u, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
-      CTOOL_X86_MN_SETL,  CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_ADD,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB, CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP, CTOOL_X86_MN_SETL,
+      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE, CTOOL_X86_MN_LEA, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_ADD, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_JMP,
       CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
-  static const ctool_u32 branch_targets[] = {85u, 19u};
+  static const ctool_u32 branch_targets[] = {
+      77u, 19u};
   static const ctool_u8 nested_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x08u, 0x8du, 0x85u,
-      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x1eu, 0x00u,
-      0x00u, 0x00u, 0x8du, 0x45u, 0xfcu, 0x50u, 0x8du, 0x85u,
-      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x8du, 0x45u, 0xfcu,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u,
-      0x8du, 0x45u, 0xf8u, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u,
-      0x00u, 0x59u, 0x58u, 0x89u, 0x08u, 0x8du, 0x45u, 0xf8u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x08u, 0x8bu, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u,
+      0x0fu, 0x84u, 0x16u, 0x00u, 0x00u, 0x00u, 0x8du, 0x45u,
+      0xfcu, 0x50u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x8bu, 0x45u, 0xfcu,
+      0x50u, 0x58u, 0xc9u, 0xc3u, 0x8du, 0x45u, 0xf8u, 0x50u,
+      0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x89u,
+      0x08u, 0x8bu, 0x45u, 0xf8u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t nested_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
-      CTOOL_X86_MN_RET};
-  static const ctool_u32 nested_targets[] = {56u};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE,
+      CTOOL_X86_MN_LEA, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET,
+      CTOOL_X86_MN_LEA, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 nested_targets[] = {
+      44u};
   static const ctool_u8 unreachable_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u,
       0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
@@ -5254,24 +5097,21 @@ static int validate_declaration_for_object(
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_u8 loop_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
-      0xc0u, 0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u,
-      0x00u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x00u, 0x00u, 0x00u,
-      0x00u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x05u,
+      0x00u, 0x00u, 0x00u, 0xe9u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0xe9u, 0x00u, 0x00u, 0x00u, 0x00u, 0x8bu, 0x85u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
       0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x00u, 0x00u,
       0x00u, 0x00u, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t loop_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_TEST,
-      CTOOL_X86_MN_JE,   CTOOL_X86_MN_JMP,  CTOOL_X86_MN_JMP,
-      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE,   CTOOL_X86_MN_JMP,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
-  static const ctool_u32 loop_targets[] = {28u, 28u, 33u, 58u, 58u};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_JMP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_JMP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_u32 loop_targets[] = {
+      24u, 24u, 29u, 50u, 50u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *function =
@@ -5352,17 +5192,15 @@ static int validate_selection_edge_object(
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_u8 void_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u,
-      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
-      0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x02u, 0x00u,
-      0x00u, 0x00u, 0xc9u, 0xc3u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x02u,
+      0x00u, 0x00u, 0x00u, 0xc9u, 0xc3u, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t void_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV, CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST,
-      CTOOL_X86_MN_JE,    CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
-  static const ctool_u32 void_branch_targets[] = {25u};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 void_branch_targets[] = {
+      21u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *unreachable =
@@ -5407,28 +5245,23 @@ static int validate_selection_edge_object(
 static int validate_simd_cpuid_object(ctool_job_t *job,
                                       const ctool_elf32_object_t *object) {
   static const ctool_u8 simd_cpuid_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x59u, 0x58u, 0x31u, 0xc8u, 0x50u, 0x68u, 0x01u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x89u, 0xc1u, 0x58u, 0x31u, 0xc8u, 0x50u, 0x68u, 0x01u,
       0x00u, 0x00u, 0x00u, 0x68u, 0x15u, 0x00u, 0x00u, 0x00u,
       0x59u, 0x58u, 0xd3u, 0xe0u, 0x50u, 0x59u, 0x58u, 0x21u,
       0xc8u, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x59u,
       0x58u, 0x39u, 0xc8u, 0x0fu, 0x95u, 0xc0u, 0x0fu, 0xb6u,
       0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t simd_cpuid_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_XOR,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_SHL,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_AND,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
-      CTOOL_X86_MN_SETNE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP, CTOOL_X86_MN_XOR,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_SHL, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_AND, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP, CTOOL_X86_MN_SETNE,
+      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *simd_cpuid_symbol =
@@ -5459,10 +5292,9 @@ static int validate_function_object(ctool_job_t *job,
       0x55u, 0x89u, 0xe5u, 0x68u, 0x2au, 0x00u,
       0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 helper_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0xffu,
-      0xffu, 0xffu, 0xffu, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x68u, 0xffu, 0xffu, 0xffu, 0xffu, 0x8bu,
+      0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x89u, 0xc1u, 0x58u,
       0x29u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu,
       0x97u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u,
       0xc0u, 0x0fu, 0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u,
@@ -5470,10 +5302,9 @@ static int validate_function_object(ctool_job_t *job,
       0x00u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u,
       0xc3u};
   static const ctool_u8 signed_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9fu, 0xc0u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x89u, 0xc1u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9fu, 0xc0u,
       0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 idle_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0xc9u, 0xc3u};
@@ -5485,19 +5316,17 @@ static int validate_function_object(ctool_job_t *job,
       0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x08u, 0x50u, 0x58u,
       0xc9u, 0xc3u};
   static const ctool_u8 call_external_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
       0x50u, 0x8bu, 0x4cu, 0x24u, 0x04u, 0x8bu, 0x14u, 0x24u,
       0x89u, 0x54u, 0x24u, 0x04u, 0x89u, 0x0cu, 0x24u, 0xe8u,
       0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x08u, 0x50u,
       0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 call_nested_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x83u, 0xecu,
-      0x04u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u,
-      0x04u, 0x50u, 0x8du, 0x85u, 0x10u, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8bu, 0x4cu, 0x24u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x83u, 0xecu, 0x04u, 0xe8u, 0xfcu, 0xffu,
+      0xffu, 0xffu, 0x83u, 0xc4u, 0x04u, 0x50u, 0x8bu, 0x85u,
+      0x10u, 0x00u, 0x00u, 0x00u, 0x50u, 0x8bu, 0x4cu, 0x24u,
       0x08u, 0x8bu, 0x14u, 0x24u, 0x89u, 0x54u, 0x24u, 0x08u,
       0x89u, 0x0cu, 0x24u, 0x83u, 0xecu, 0x0cu, 0x8bu, 0x4cu,
       0x24u, 0x0cu, 0x89u, 0x0cu, 0x24u, 0x8bu, 0x4cu, 0x24u,
@@ -5506,88 +5335,81 @@ static int validate_function_object(ctool_job_t *job,
       0xffu, 0xffu, 0x83u, 0xc4u, 0x18u, 0x50u, 0x58u, 0xc9u,
       0xc3u};
   static const ctool_u8 call_void_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x83u, 0xecu,
-      0x04u, 0x8bu, 0x4cu, 0x24u, 0x04u, 0x89u, 0x0cu, 0x24u,
-      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x08u,
-      0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x83u, 0xecu, 0x04u, 0x8bu, 0x4cu, 0x24u,
+      0x04u, 0x89u, 0x0cu, 0x24u, 0xe8u, 0xfcu, 0xffu, 0xffu,
+      0xffu, 0x83u, 0xc4u, 0x08u, 0xc9u, 0xc3u};
   static const ctool_u8 add2_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x59u, 0x58u, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x89u, 0xc1u, 0x58u, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u,
       0xc3u};
   static const ctool_u8 local_round_trip_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x08u, 0x8du, 0x45u,
       0xfcu, 0x50u, 0x83u, 0xecu, 0x0cu, 0xe8u, 0xfcu, 0xffu,
       0xffu, 0xffu, 0x83u, 0xc4u, 0x0cu, 0x50u, 0x59u, 0x58u,
-      0x89u, 0x08u, 0x8du, 0x45u, 0xf8u, 0x50u,
-      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x8du,
-      0x45u, 0xfcu, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du,
-      0x45u, 0xf8u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u,
-      0x58u, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+      0x89u, 0x08u, 0x8du, 0x45u, 0xf8u, 0x50u, 0x8bu, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x59u, 0x58u, 0x89u,
+      0x08u, 0x8bu, 0x45u, 0xfcu, 0x50u, 0x8bu, 0x45u, 0xf8u,
+      0x89u, 0xc1u, 0x58u, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u,
+      0xc3u};
   static const ctool_u8 local_call_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x04u, 0x8du, 0x45u,
-      0xfcu, 0x50u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x02u, 0x00u,
-      0x00u, 0x00u, 0x8bu, 0x4cu, 0x24u, 0x04u, 0x8bu, 0x14u,
-      0x24u, 0x89u, 0x54u, 0x24u, 0x04u, 0x89u, 0x0cu, 0x24u,
-      0x83u, 0xecu, 0x08u, 0x8bu, 0x4cu, 0x24u, 0x08u, 0x89u,
-      0x0cu, 0x24u, 0x8bu, 0x4cu, 0x24u, 0x0cu, 0x89u, 0x4cu,
-      0x24u, 0x04u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u,
-      0xc4u, 0x10u,
-      0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x8du, 0x45u, 0xfcu,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+      0xfcu, 0x50u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x68u, 0x02u, 0x00u, 0x00u, 0x00u, 0x8bu, 0x4cu,
+      0x24u, 0x04u, 0x8bu, 0x14u, 0x24u, 0x89u, 0x54u, 0x24u,
+      0x04u, 0x89u, 0x0cu, 0x24u, 0x83u, 0xecu, 0x08u, 0x8bu,
+      0x4cu, 0x24u, 0x08u, 0x89u, 0x0cu, 0x24u, 0x8bu, 0x4cu,
+      0x24u, 0x0cu, 0x89u, 0x4cu, 0x24u, 0x04u, 0xe8u, 0xfcu,
+      0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x10u, 0x50u, 0x59u,
+      0x58u, 0x89u, 0x08u, 0x8bu, 0x45u, 0xfcu, 0x50u, 0x58u,
+      0xc9u, 0xc3u};
   static const ctool_u8 uninitialized_local_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x04u, 0x8du, 0x45u, 0xfcu,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x04u, 0x8bu, 0x45u,
+      0xfcu, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 vga_flip_ready_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x04u, 0x8du, 0x45u,
       0xfcu, 0x50u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x50u,
-      0x59u, 0x58u, 0x89u, 0x08u, 0x8du, 0x45u, 0xfcu, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u,
-      0x00u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x29u,
-      0xc8u, 0x50u, 0x68u, 0x10u, 0x00u, 0x00u, 0x00u, 0x59u,
-      0x58u, 0x39u, 0xc8u, 0x0fu, 0x93u, 0xc0u, 0x0fu, 0xb6u,
-      0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+      0x59u, 0x58u, 0x89u, 0x08u, 0x8bu, 0x45u, 0xfcu, 0x50u,
+      0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0x8bu, 0x00u,
+      0x89u, 0xc1u, 0x58u, 0x29u, 0xc8u, 0x50u, 0x68u, 0x10u,
+      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu,
+      0x93u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u,
+      0xc3u};
   static const ctool_u8 external_clock_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
       0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 signed_greater_equal_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9du, 0xc0u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x89u, 0xc1u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9du, 0xc0u,
       0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 power_of_two_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x00u,
-      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu,
-      0x95u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u,
-      0xc0u, 0x0fu, 0x84u, 0x48u, 0x00u, 0x00u, 0x00u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0x50u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u,
-      0x00u, 0x00u, 0x59u, 0x58u, 0x29u, 0xc8u, 0x50u, 0x59u,
-      0x58u, 0x21u, 0xc8u, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u,
-      0x00u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x94u, 0xc0u,
-      0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
-      0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u, 0x00u,
-      0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u, 0x00u, 0x68u,
-      0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0x85u, 0xc0u, 0x0fu,
-      0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u, 0x00u,
-      0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u, 0x00u, 0x68u,
-      0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x59u,
+      0x58u, 0x39u, 0xc8u, 0x0fu, 0x95u, 0xc0u, 0x0fu, 0xb6u,
+      0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x40u,
+      0x00u, 0x00u, 0x00u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u,
+      0x29u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x21u, 0xc8u, 0x50u,
+      0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x39u,
+      0xc8u, 0x0fu, 0x94u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u,
+      0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x0au, 0x00u, 0x00u,
+      0x00u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x05u,
+      0x00u, 0x00u, 0x00u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x0au, 0x00u, 0x00u,
+      0x00u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x05u,
+      0x00u, 0x00u, 0x00u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 bool_valid_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x00u,
-      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu,
-      0x94u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u,
-      0xc0u, 0x0fu, 0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u,
-      0x01u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x33u, 0x00u, 0x00u,
-      0x00u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x59u,
+      0x58u, 0x39u, 0xc8u, 0x0fu, 0x94u, 0xc0u, 0x0fu, 0xb6u,
+      0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x0au,
+      0x00u, 0x00u, 0x00u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u,
+      0xe9u, 0x2fu, 0x00u, 0x00u, 0x00u, 0x8bu, 0x85u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u,
       0x00u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x94u, 0xc0u,
       0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
       0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u, 0x00u,
@@ -5596,26 +5418,23 @@ static int validate_function_object(ctool_job_t *job,
       0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u, 0x00u,
       0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u, 0x00u, 0x68u,
       0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
-  static const ctool_u32 helper_branch_targets[] = {65u, 70u};
+  static const ctool_u32 helper_branch_targets[] = {
+      57u, 62u};
   static const ctool_u32 power_of_two_branch_targets[] = {
-      111u, 111u, 116u, 135u, 140u};
+      99u, 99u, 104u, 123u, 128u};
   static const ctool_u32 bool_valid_branch_targets[] = {
-      49u, 100u, 95u, 100u, 119u, 124u};
+      45u, 92u, 87u, 92u, 111u, 116u};
   static const ctool_x86_mnemonic_t implemented_instructions[] = {
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t helper_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_SUB,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETA,
-      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_JMP,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_SUB, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_CMP, CTOOL_X86_MN_SETA, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_JMP, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t idle_instructions[] = {
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_LEAVE,
       CTOOL_X86_MN_RET};
@@ -5627,144 +5446,94 @@ static int validate_function_object(ctool_job_t *job,
       CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD, CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t call_external_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE,
-      CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t call_nested_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_SUB,  CTOOL_X86_MN_CALL,
-      CTOOL_X86_MN_ADD,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_SUB,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,
-      CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_SUB, CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t call_void_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_SUB, CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_MOV, CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_SUB, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_CALL,
+      CTOOL_X86_MN_ADD, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t add2_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_ADD,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE,
-      CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP, CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t local_round_trip_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_ADD,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB, CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_SUB, CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_LEA, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_ADD, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
       CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t local_call_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_SUB,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_CALL,
-      CTOOL_X86_MN_ADD,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB, CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_SUB, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t uninitialized_local_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_LEA, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t vga_flip_ready_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_CALL,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_SUB,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
-      CTOOL_X86_MN_SETAE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB, CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_CALL, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_SUB, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP, CTOOL_X86_MN_SETAE,
+      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t external_clock_instructions[] = {
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t signed_greater_equal_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
-      CTOOL_X86_MN_SETGE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETGE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t signed_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
-      CTOOL_X86_MN_SETG,  CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETG, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t power_of_two_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETNE,
-      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_SUB,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_AND,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETE,  CTOOL_X86_MN_MOVZX,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
-      CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_JMP,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
-      CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_JMP,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETNE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_SUB, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_AND, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP, CTOOL_X86_MN_SETE,
+      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_JMP, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_JMP, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
       CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t bool_valid_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETE,
-      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETE,  CTOOL_X86_MN_MOVZX,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
-      CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_JMP,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
-      CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_JMP,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
-      CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_CMP, CTOOL_X86_MN_SETE, CTOOL_X86_MN_MOVZX,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_JMP, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *data = find_section(object, ".data");
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
@@ -5868,61 +5637,61 @@ static int validate_function_object(ctool_job_t *job,
                       idle->size) ||
       !symbol_matches(local_target, local_target->file_index,
                       CTOOL_ELF32_BIND_LOCAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 128u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 112u,
                       11u) ||
       !symbol_matches(call_local, call_local->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 139u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 123u,
                       18u) ||
       !symbol_matches(call_external, call_external->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 157u,
-                      51u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 141u,
+                      43u) ||
       !symbol_matches(call_nested, call_nested->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 208u,
-                      89u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 184u,
+                      81u) ||
       !symbol_matches(call_void, call_void->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 297u,
-                      34u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 265u,
+                      30u) ||
       !symbol_matches(add2, add2->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 331u,
-                       33u) ||
+                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 295u,
+                       25u) ||
       !symbol_matches(local_round_trip, local_round_trip->file_index,
                       CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 364u,
-                       69u) ||
+                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 320u,
+                       57u) ||
       !symbol_matches(local_call, local_call->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 433u,
-                      82u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 377u,
+                      74u) ||
       !symbol_matches(uninitialized_local, uninitialized_local->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 515u,
-                      17u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 451u,
+                      13u) ||
       !symbol_matches(vga_flip_ready, vga_flip_ready->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 532u,
-                      61u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 464u,
+                      57u) ||
       !symbol_matches(read_external_clock, read_external_clock->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 593u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 521u,
                       15u) ||
       !symbol_matches(signed_greater_equal,
                       signed_greater_equal->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 608u,
-                      39u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 536u,
+                      31u) ||
       !symbol_matches(power_of_two, power_of_two->file_index,
                       CTOOL_ELF32_BIND_LOCAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 647u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 567u,
                       (ctool_u32)sizeof(power_of_two_bytes)) ||
       !symbol_matches(bool_valid, bool_valid->file_index,
                       CTOOL_ELF32_BIND_LOCAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 790u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 698u,
                       (ctool_u32)sizeof(bool_valid_bytes)) ||
       !symbol_matches(external_sum, external_sum->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
@@ -5959,12 +5728,12 @@ static int validate_function_object(ctool_job_t *job,
       data->contents.data[2] != 0u || data->contents.data[3] != 0u ||
       implemented->size == 0u || helper->size == 0u ||
       signed_greater->size == 0u || idle->size == 0u ||
-      bool_valid->size == 0u || text->contents.size != 917u ||
+      bool_valid->size == 0u || text->contents.size != 817u ||
       object->relocations[0].relocation_section_file_index !=
           rel_text->file_index ||
       object->relocations[0].entry_index != 0u ||
       object->relocations[0].target_section_file_index != text->file_index ||
-      object->relocations[0].offset != 146u ||
+      object->relocations[0].offset != 130u ||
       object->relocations[0].symbol_file_index != local_target->file_index ||
       object->relocations[0].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[0].addend_known != CTOOL_TRUE ||
@@ -5973,7 +5742,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[1].entry_index != 1u ||
       object->relocations[1].target_section_file_index != text->file_index ||
-      object->relocations[1].offset != 197u ||
+      object->relocations[1].offset != 173u ||
       object->relocations[1].symbol_file_index != external_sum->file_index ||
       object->relocations[1].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[1].addend_known != CTOOL_TRUE ||
@@ -5982,7 +5751,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[2].entry_index != 2u ||
       object->relocations[2].target_section_file_index != text->file_index ||
-      object->relocations[2].offset != 226u ||
+      object->relocations[2].offset != 198u ||
       object->relocations[2].symbol_file_index != call_local->file_index ||
       object->relocations[2].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[2].addend_known != CTOOL_TRUE ||
@@ -5991,7 +5760,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[3].entry_index != 3u ||
       object->relocations[3].target_section_file_index != text->file_index ||
-      object->relocations[3].offset != 286u ||
+      object->relocations[3].offset != 254u ||
       object->relocations[3].symbol_file_index != external_three->file_index ||
       object->relocations[3].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[3].addend_known != CTOOL_TRUE ||
@@ -6000,7 +5769,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[4].entry_index != 4u ||
       object->relocations[4].target_section_file_index != text->file_index ||
-      object->relocations[4].offset != 322u ||
+      object->relocations[4].offset != 286u ||
       object->relocations[4].symbol_file_index != external_sink->file_index ||
       object->relocations[4].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[4].addend_known != CTOOL_TRUE ||
@@ -6009,7 +5778,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[5].entry_index != 5u ||
       object->relocations[5].target_section_file_index != text->file_index ||
-      object->relocations[5].offset != 378u ||
+      object->relocations[5].offset != 334u ||
       object->relocations[5].symbol_file_index !=
           timer_get_uptime_ms->file_index ||
       object->relocations[5].type != CTOOL_ELF32_R_386_PC32 ||
@@ -6019,7 +5788,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[6].entry_index != 6u ||
       object->relocations[6].target_section_file_index != text->file_index ||
-      object->relocations[6].offset != 492u ||
+      object->relocations[6].offset != 432u ||
       object->relocations[6].symbol_file_index != initializer_sum->file_index ||
       object->relocations[6].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[6].addend_known != CTOOL_TRUE ||
@@ -6028,7 +5797,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[7].entry_index != 7u ||
       object->relocations[7].target_section_file_index != text->file_index ||
-      object->relocations[7].offset != 543u ||
+      object->relocations[7].offset != 475u ||
       object->relocations[7].symbol_file_index !=
           timer_get_uptime_ms->file_index ||
       object->relocations[7].type != CTOOL_ELF32_R_386_PC32 ||
@@ -6038,7 +5807,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[8].entry_index != 8u ||
       object->relocations[8].target_section_file_index != text->file_index ||
-      object->relocations[8].offset != 561u ||
+      object->relocations[8].offset != 489u ||
       object->relocations[8].symbol_file_index != last_flip_ms->file_index ||
       object->relocations[8].type != CTOOL_ELF32_R_386_32 ||
       object->relocations[8].addend_known != CTOOL_TRUE ||
@@ -6047,7 +5816,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[9].entry_index != 9u ||
       object->relocations[9].target_section_file_index != text->file_index ||
-      object->relocations[9].offset != 597u ||
+      object->relocations[9].offset != 525u ||
       object->relocations[9].symbol_file_index != external_clock->file_index ||
       object->relocations[9].type != CTOOL_ELF32_R_386_32 ||
       object->relocations[9].addend_known != CTOOL_TRUE ||
@@ -10592,40 +10361,34 @@ cleanup:
 static int validate_function_pointer_call_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 expected_text[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
       0x50u, 0x8bu, 0x44u, 0x24u, 0x04u, 0xffu, 0xd0u, 0x83u,
-      0xc4u, 0x08u, 0x50u, 0x58u, 0xc9u, 0xc3u,
-      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
-      0x58u, 0xc9u, 0xc3u,
-      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
-      0x58u, 0xc9u, 0xc3u,
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x8bu, 0x44u, 0x24u, 0x04u, 0xffu, 0xd0u, 0x83u,
-      0xc4u, 0x08u, 0x50u, 0x58u, 0xc9u, 0xc3u,
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x8bu, 0x44u, 0x24u, 0x04u, 0xffu, 0xd0u, 0x83u,
-      0xc4u, 0x08u, 0xc9u, 0xc3u,
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
-      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
-      0x50u, 0x8du, 0x85u, 0x10u, 0x00u, 0x00u, 0x00u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x14u, 0x00u,
-      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8bu,
-      0x4cu, 0x24u, 0x08u, 0x8bu, 0x14u, 0x24u, 0x89u, 0x54u,
-      0x24u, 0x08u, 0x89u, 0x0cu, 0x24u, 0x83u, 0xecu, 0x08u,
-      0x8bu, 0x4cu, 0x24u, 0x08u, 0x89u, 0x0cu, 0x24u, 0x8bu,
-      0x4cu, 0x24u, 0x0cu, 0x89u, 0x4cu, 0x24u, 0x04u, 0x8bu,
-      0x4cu, 0x24u, 0x10u, 0x89u, 0x4cu, 0x24u, 0x08u, 0x8bu,
-      0x44u, 0x24u, 0x14u, 0xffu, 0xd0u, 0x83u, 0xc4u, 0x18u,
-      0x50u, 0x58u, 0xc9u, 0xc3u};
+      0xc4u, 0x08u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
+      0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u,
+      0xc3u, 0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8bu,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x8bu, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x8bu, 0x44u, 0x24u,
+      0x04u, 0xffu, 0xd0u, 0x83u, 0xc4u, 0x08u, 0x50u, 0x58u,
+      0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x8bu, 0x44u, 0x24u, 0x04u, 0xffu,
+      0xd0u, 0x83u, 0xc4u, 0x08u, 0xc9u, 0xc3u, 0x55u, 0x89u,
+      0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x8bu,
+      0x85u, 0x10u, 0x00u, 0x00u, 0x00u, 0x50u, 0x8bu, 0x85u,
+      0x14u, 0x00u, 0x00u, 0x00u, 0x50u, 0x8bu, 0x4cu, 0x24u,
+      0x08u, 0x8bu, 0x14u, 0x24u, 0x89u, 0x54u, 0x24u, 0x08u,
+      0x89u, 0x0cu, 0x24u, 0x83u, 0xecu, 0x08u, 0x8bu, 0x4cu,
+      0x24u, 0x08u, 0x89u, 0x0cu, 0x24u, 0x8bu, 0x4cu, 0x24u,
+      0x0cu, 0x89u, 0x4cu, 0x24u, 0x04u, 0x8bu, 0x4cu, 0x24u,
+      0x10u, 0x89u, 0x4cu, 0x24u, 0x08u, 0x8bu, 0x44u, 0x24u,
+      0x14u, 0xffu, 0xd0u, 0x83u, 0xc4u, 0x18u, 0x50u, 0x58u,
+      0xc9u, 0xc3u};
   static const ctool_u32 relocation_offsets[] = {
-      42u, 53u, 260u, 279u, 330u, 450u, 455u, 466u, 502u, 0u};
+      34u, 45u, 216u, 231u, 274u, 378u, 383u, 394u,
+      426u, 0u};
   static const ctool_u32 relocation_types[] = {
       CTOOL_ELF32_R_386_32,   CTOOL_ELF32_R_386_32,
       CTOOL_ELF32_R_386_32,   CTOOL_ELF32_R_386_32,
@@ -10680,7 +10443,7 @@ static int validate_function_pointer_call_object(
       missing == NULL || present == NULL || install == NULL || forward == NULL ||
       object->relocations == NULL || object->relocation_count != 10u ||
       text->relocation_count != 9u || data->relocation_count != 1u ||
-      object->symbol_count != 17u || text->contents.size != 513u ||
+      object->symbol_count != 17u || text->contents.size != 437u ||
       memcmp(text->contents.data, expected_text, sizeof(expected_text)) != 0 ||
       data->type != CTOOL_ELF32_SHT_PROGBITS || data->alignment != 4u ||
       data->size != 4u || data->contents.size != 4u ||
@@ -10689,28 +10452,28 @@ static int validate_function_pointer_call_object(
       data->contents.data[3] != 0u ||
       function->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
       function->section_file_index != text->file_index ||
-      function->value != 0u || function->size != 38u ||
+      function->value != 0u || function->size != 30u ||
       !symbol_matches(address, address->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
-                      38u, 11u) ||
+                      30u, 11u) ||
       !symbol_matches(
           explicit_address, explicit_address->file_index,
           CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
           CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
-          49u, 11u) ||
+          41u, 11u) ||
       !symbol_matches(
           dereferenced, dereferenced->file_index, CTOOL_ELF32_BIND_GLOBAL,
           CTOOL_ELF32_SYMBOL_FUNCTION, CTOOL_ELF32_SYMBOL_DEFINED,
-          text->file_index, 60u, 38u) ||
+          text->file_index, 52u, 30u) ||
       !symbol_matches(notify, notify->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
-                      98u, 36u) ||
+                      82u, 28u) ||
       !symbol_matches(three, three->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
-                      134u, 100u) ||
+                      110u, 84u) ||
       !symbol_matches(target, target->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
@@ -10724,32 +10487,32 @@ static int validate_function_pointer_call_object(
                       0u, 0u) ||
       !symbol_matches(round_trip, round_trip->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 234u,
-                      56u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 194u,
+                      48u) ||
       !symbol_matches(select, select->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 290u,
-                      47u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 242u,
+                      39u) ||
       !symbol_matches(equal, equal->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 337u,
-                      39u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 281u,
+                      31u) ||
       !symbol_matches(missing, missing->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 376u,
-                      33u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 312u,
+                      29u) ||
       !symbol_matches(present, present->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 409u,
-                      37u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 341u,
+                      33u) ||
       !symbol_matches(install, install->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 446u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 374u,
                       31u) ||
       !symbol_matches(forward, forward->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 477u,
-                      36u)) {
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 405u,
+                      32u)) {
     (void)fprintf(stderr, "function pointer object inventory differs\n");
     return 0;
   }
@@ -10829,11 +10592,9 @@ static int validate_function_pointer_call_object(
 static int validate_local_function_address_object(
     const ctool_elf32_object_t *object) {
   static const ctool_u8 expected_text[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u,
-      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
-      0x58u, 0xc9u, 0xc3u,
-      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u,
-      0x00u, 0x58u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u,
+      0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *target =
@@ -10843,17 +10604,17 @@ static int validate_local_function_address_object(
   const ctool_elf32_relocation_t *relocation;
   if (text == NULL || rel_text == NULL || target == NULL || address == NULL ||
       object->symbol_count != 3u || object->relocation_count != 1u ||
-      text->relocation_count != 1u || text->contents.size != 28u ||
+      text->relocation_count != 1u || text->contents.size != 24u ||
       memcmp(text->contents.data, expected_text, sizeof(expected_text)) != 0 ||
       !symbol_matches(target, 1u, CTOOL_ELF32_BIND_LOCAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
-                      0u, 17u) ||
+                      0u, 13u) ||
       !symbol_matches(address, address->file_index,
                       CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
-                      17u, 11u)) {
+                      13u, 11u)) {
     (void)fprintf(stderr, "local function address inventory differs\n");
     return 0;
   }
@@ -10861,7 +10622,7 @@ static int validate_local_function_address_object(
   if (relocation->relocation_section_file_index != rel_text->file_index ||
       relocation->entry_index != 0u ||
       relocation->target_section_file_index != text->file_index ||
-      relocation->offset != 21u ||
+      relocation->offset != 17u ||
       relocation->symbol_file_index != target->file_index ||
       relocation->type != CTOOL_ELF32_R_386_32 ||
       relocation->addend_known != CTOOL_TRUE || relocation->addend != 0) {
@@ -11049,11 +10810,10 @@ cleanup:
 static int validate_function_pointer_cast_object(
     const ctool_elf32_object_t *object) {
   static const ctool_u8 expected_text[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u,
-      0xc3u, 0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u,
-      0x00u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u,
+      0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
       0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text =
@@ -11079,15 +10839,15 @@ static int validate_function_pointer_cast_object(
       !symbol_matches(change, change->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
-                      0u, 17u) ||
+                      0u, 13u) ||
       !symbol_matches(bits, bits->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
-                      17u, 11u) ||
+                      13u, 11u) ||
       !symbol_matches(restore, restore->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
-                      28u, 17u)) {
+                      24u, 13u)) {
     (void)fprintf(stderr,
                   "function pointer cast object inventory differs\n");
     return 0;
@@ -11096,7 +10856,7 @@ static int validate_function_pointer_cast_object(
   if (relocation->relocation_section_file_index != rel_text->file_index ||
       relocation->entry_index != 0u ||
       relocation->target_section_file_index != text->file_index ||
-      relocation->offset != 21u ||
+      relocation->offset != 17u ||
       relocation->symbol_file_index != entry->file_index ||
       relocation->type != CTOOL_ELF32_R_386_32 ||
       relocation->addend_known != CTOOL_TRUE ||
@@ -12225,19 +11985,17 @@ static int validate_automatic_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 expected_text[] = {
       0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x10u, 0x8du, 0x45u,
-      0xf0u, 0x50u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau,
-      0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u,
-      0xc8u, 0x50u, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x89u,
-      0x08u, 0x51u, 0x58u, 0x8du, 0x45u, 0xf0u, 0x50u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0x50u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u,
-      0x00u, 0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
-      0xe5u, 0x83u, 0xecu, 0x08u, 0x8du, 0x45u, 0xf8u, 0x50u,
-      0x58u, 0x83u, 0xc0u, 0x04u, 0x50u, 0x8du, 0x85u, 0x08u,
-      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0xf0u, 0x50u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u,
+      0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u, 0x8bu, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x59u, 0x58u, 0x89u,
+      0x08u, 0x51u, 0x58u, 0x8du, 0x45u, 0xf0u, 0x50u, 0x8bu,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x59u, 0x58u,
+      0xbau, 0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau,
+      0x01u, 0xc8u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u,
+      0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x08u,
+      0x8du, 0x45u, 0xf8u, 0x50u, 0x58u, 0x83u, 0xc0u, 0x04u,
+      0x50u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
       0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0x8du, 0x45u,
       0xf8u, 0x50u, 0x58u, 0x83u, 0xc0u, 0x04u, 0x50u, 0x58u,
       0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
@@ -12250,20 +12008,20 @@ static int validate_automatic_object(
       0x04u, 0x8bu, 0x4cu, 0x24u, 0x04u, 0x89u, 0x0cu, 0x24u,
       0x8bu, 0x4cu, 0x24u, 0x08u, 0x89u, 0x4cu, 0x24u, 0x04u,
       0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x0cu,
-      0xc9u, 0xc3u,
-      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x0cu, 0x8du, 0x45u,
-      0xf4u, 0x50u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau,
-      0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u,
-      0xc8u, 0x50u, 0x83u, 0xecu, 0x08u, 0x8bu, 0x4cu, 0x24u,
-      0x08u, 0x89u, 0x0cu, 0x24u, 0xe8u, 0xfcu, 0xffu, 0xffu,
-      0xffu, 0x83u, 0xc4u, 0x0cu, 0xc9u, 0xc3u};
+      0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x0cu,
+      0x8du, 0x45u, 0xf4u, 0x50u, 0x8bu, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u,
+      0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u,
+      0x83u, 0xecu, 0x08u, 0x8bu, 0x4cu, 0x24u, 0x08u, 0x89u,
+      0x0cu, 0x24u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u,
+      0xc4u, 0x0cu, 0xc9u, 0xc3u};
   static const char *const function_names[] = {
       "automatic_array", "automatic_record", "automatic_bytes",
       "automatic_mixed", "automatic_children"};
-  static const ctool_u32 function_offsets[] = {0u, 86u, 134u, 154u,
-                                                210u};
-  static const ctool_u32 function_sizes[] = {86u, 48u, 20u, 56u, 54u};
+  static const ctool_u32 function_offsets[] = {
+      0u, 74u, 118u, 138u, 194u};
+  static const ctool_u32 function_sizes[] = {
+      74u, 44u, 20u, 56u, 50u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *consume =
@@ -12317,7 +12075,7 @@ static int validate_automatic_object(
           rel_text->file_index ||
       object->relocations[0].entry_index != 0u ||
       object->relocations[0].target_section_file_index != text->file_index ||
-      object->relocations[0].offset != 145u ||
+      object->relocations[0].offset != 129u ||
       object->relocations[0].symbol_file_index != consume->file_index ||
       object->relocations[0].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[0].addend_known != CTOOL_TRUE ||
@@ -12326,7 +12084,7 @@ static int validate_automatic_object(
           rel_text->file_index ||
       object->relocations[1].entry_index != 1u ||
       object->relocations[1].target_section_file_index != text->file_index ||
-      object->relocations[1].offset != 201u ||
+      object->relocations[1].offset != 185u ||
       object->relocations[1].symbol_file_index != consume_layout->file_index ||
       object->relocations[1].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[1].addend_known != CTOOL_TRUE ||
@@ -12335,7 +12093,7 @@ static int validate_automatic_object(
           rel_text->file_index ||
       object->relocations[2].entry_index != 2u ||
       object->relocations[2].target_section_file_index != text->file_index ||
-      object->relocations[2].offset != 255u ||
+      object->relocations[2].offset != 235u ||
       object->relocations[2].symbol_file_index != consume_child->file_index ||
       object->relocations[2].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[2].addend_known != CTOOL_TRUE ||
@@ -13657,14 +13415,14 @@ static int validate_narrow_mutation_object(
     ctool_u32 size;
   } narrow_mutation_function_t;
   static const narrow_mutation_function_t functions[] = {
-      {"all_u8_compounds", 0u, 446u},
-      {"signed_i16_compounds", 446u, 108u},
-      {"prefix_i8", 554u, 44u},
-      {"prefix_u8", 598u, 44u},
-      {"postfix_i16", 642u, 60u},
-      {"postfix_u16", 702u, 60u},
-      {"volatile_postfix", 762u, 57u},
-      {"add_prefix", 819u, 59u}};
+      {"all_u8_compounds", 0u, 406u},
+      {"signed_i16_compounds", 406u, 100u},
+      {"prefix_i8", 506u, 44u},
+      {"prefix_u8", 550u, 44u},
+      {"postfix_i16", 594u, 60u},
+      {"postfix_u16", 654u, 60u},
+      {"volatile_postfix", 714u, 57u},
+      {"add_prefix", 771u, 55u}};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
@@ -13687,7 +13445,7 @@ static int validate_narrow_mutation_object(
   ctool_u32 index;
   if (text == NULL || bss == NULL || rel_text == NULL ||
       volatile_byte_symbol == NULL ||
-      text->contents.data == NULL || text->contents.size != 878u ||
+      text->contents.data == NULL || text->contents.size != 826u ||
       text->relocation_count != 1u || object->relocation_count != 1u ||
       object->relocations == NULL || object->symbol_count != 10u ||
       bss->type != CTOOL_ELF32_SHT_NOBITS || bss->alignment != 1u ||
@@ -14212,25 +13970,16 @@ cleanup:
 static int validate_void_cast_object(ctool_job_t *job,
                                      const ctool_elf32_object_t *object) {
   static const ctool_u8 function_bytes[] = {
-      0x55u, 0x89u, 0xe5u,
-      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0x50u, 0x58u,
-      0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0x50u, 0x58u,
-      0x8du, 0x85u, 0x10u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0x50u, 0x58u,
-      0x83u, 0xecu, 0x08u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu,
-      0x83u, 0xc4u, 0x08u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x85u, 0x0cu, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x85u, 0x10u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x83u, 0xecu, 0x08u, 0xe8u, 0xfcu,
+      0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x08u, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_SUB, CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text =
       find_section(object, ".rel.text");
@@ -14253,7 +14002,7 @@ static int validate_void_cast_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[0].entry_index != 0u ||
       object->relocations[0].target_section_file_index != text->file_index ||
-      object->relocations[0].offset != 43u ||
+      object->relocations[0].offset != 31u ||
       object->relocations[0].symbol_file_index != sink->file_index ||
       object->relocations[0].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[0].addend_known != CTOOL_TRUE ||
@@ -14605,14 +14354,14 @@ static int validate_structure_value_object(
        0u},
       {"copy12", 403u, 61u, copy12_frame, 2u, 2u, 0u, 0u, 0u, 0u,
        1u, 0u},
-      {"bridge", 464u, 157u, bridge_frame, 4u, 3u, 1u, 1u, 0u, 0u,
+      {"bridge", 464u, 149u, bridge_frame, 4u, 3u, 1u, 1u, 0u, 0u,
        1u, 32u},
-      {"indirect_bridge", 621u, 169u, indirect_frame, 5u, 3u, 1u, 0u,
+      {"indirect_bridge", 613u, 157u, indirect_frame, 5u, 3u, 1u, 0u,
        1u, 0u, 1u, 48u},
-      {"assign8", 790u, 138u, assign_frame, 3u, 5u, 0u, 0u, 0u, 0u,
+      {"assign8", 770u, 134u, assign_frame, 3u, 5u, 0u, 0u, 0u, 0u,
        1u, 0u}};
   static const ctool_u32 relocation_offsets[] = {
-      103u, 217u, 331u, 586u};
+      103u, 217u, 331u, 578u};
   static const ctool_u32 relocation_symbol_indices[] = {1u, 2u, 4u, 3u};
   static const char *const relocation_symbols[] = {
       "take8", "take12", "take3", "transform"};
@@ -14621,8 +14370,8 @@ static int validate_structure_value_object(
   ctool_u32 index;
   if (text == (const ctool_elf32_section_t *)0 ||
       rel_text == (const ctool_elf32_section_t *)0 ||
-      text->contents.size != 928u ||
-      structure_text_fingerprint(text->contents) != 0x31d58b50u ||
+      text->contents.size != 904u ||
+      structure_text_fingerprint(text->contents) != 0x1d1033a6u ||
       text->relocation_count != 4u || text->relocation_first != 0u ||
       object->relocation_count != 4u || object->relocations == NULL ||
       object->symbol_count != 13u || object->symbols == NULL ||
@@ -16839,10 +16588,10 @@ static int validate_old_style_empty_object(
       text->contents.data == NULL || object->symbol_count != 6u ||
       object->relocation_count != 2u || object->relocations == NULL ||
       text->relocation_first != 0u || text->relocation_count != 2u ||
-      text->contents.size != 181u ||
-      structure_text_fingerprint(text->contents) != 0x898ebd57u ||
+      text->contents.size != 177u ||
+      structure_text_fingerprint(text->contents) != 0x991e3310u ||
       tick->size != 11u || invoke->size != 18u || promoted->size != 70u ||
-      indirect->size != 82u || tick->value != 0u ||
+      indirect->size != 78u || tick->value != 0u ||
       invoke->value != tick->size ||
       promoted->value != invoke->value + invoke->size ||
       indirect->value != promoted->value + promoted->size ||
@@ -18679,52 +18428,43 @@ static int validate_bit_field_promotion_object(
     ctool_u32 expected;
   } bit_field_promotion_case_t;
   static const ctool_u8 shift_red_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0xc1u, 0xe0u, 0x08u, 0xc1u, 0xe8u, 0x18u, 0x50u,
-      0x68u, 0x03u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0xd3u,
-      0xf8u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0xc1u, 0xe0u, 0x08u,
+      0xc1u, 0xe8u, 0x18u, 0x50u, 0x68u, 0x03u, 0x00u, 0x00u,
+      0x00u, 0x59u, 0x58u, 0xd3u, 0xf8u, 0x50u, 0x58u, 0xc9u,
+      0xc3u};
   static const ctool_x86_mnemonic_t shift_red_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_SHL,   CTOOL_X86_MN_SHR,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_SAR,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
-  static const ctool_u8 mask_green_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0xc1u, 0xe0u, 0x10u, 0xc1u, 0xe8u, 0x18u, 0x50u,
-      0x68u, 0xfcu, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x21u,
-      0xc8u, 0x50u, 0x68u, 0x03u, 0x00u, 0x00u, 0x00u, 0x59u,
-      0x58u, 0xd3u, 0xe0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
-  static const ctool_x86_mnemonic_t mask_green_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_SHL,   CTOOL_X86_MN_SHR,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_AND,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_SHL,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SHL, CTOOL_X86_MN_SHR,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_SAR, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
       CTOOL_X86_MN_RET};
+  static const ctool_u8 mask_green_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0xc1u, 0xe0u, 0x10u,
+      0xc1u, 0xe8u, 0x18u, 0x50u, 0x68u, 0xfcu, 0x00u, 0x00u,
+      0x00u, 0x59u, 0x58u, 0x21u, 0xc8u, 0x50u, 0x68u, 0x03u,
+      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0xd3u, 0xe0u, 0x50u,
+      0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t mask_green_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SHL, CTOOL_X86_MN_SHR,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_AND, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_SHL, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_u8 shift_blue_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0xc1u, 0xe0u, 0x18u, 0xc1u, 0xe8u, 0x18u, 0x50u,
-      0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0xd3u, 0xe0u, 0x50u,
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0xc1u, 0xe0u, 0x18u,
+      0xc1u, 0xe8u, 0x18u, 0x50u, 0x8bu, 0x85u, 0x0cu, 0x00u,
+      0x00u, 0x00u, 0x89u, 0xc1u, 0x58u, 0xd3u, 0xe0u, 0x50u,
       0x58u, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t shift_blue_instructions[] = {
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_SHL,   CTOOL_X86_MN_SHR,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_SHL,   CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SHL, CTOOL_X86_MN_SHR,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_SHL, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
   static const bit_field_promotion_function_t functions[] = {
       {"shift_red", shift_red_bytes,
        (ctool_u32)sizeof(shift_red_bytes), shift_red_instructions,
@@ -18735,12 +18475,12 @@ static int validate_bit_field_promotion_object(
        (ctool_u32)sizeof(mask_green_bytes), mask_green_instructions,
        (ctool_u32)(sizeof(mask_green_instructions) /
                    sizeof(mask_green_instructions[0])),
-       37u},
+       33u},
       {"shift_blue", shift_blue_bytes,
        (ctool_u32)sizeof(shift_blue_bytes), shift_blue_instructions,
        (ctool_u32)(sizeof(shift_blue_instructions) /
                    sizeof(shift_blue_instructions[0])),
-       84u}};
+       76u}};
   static const bit_field_promotion_case_t cases[] = {
       {"shift_red", 0x00ff0000u, 0u, 31u},
       {"shift_red", 0x00800000u, 0u, 16u},
@@ -18753,7 +18493,7 @@ static int validate_bit_field_promotion_object(
   const ctool_elf32_section_t *text = find_section(object, ".text");
   ctool_u32 index;
   if (job == NULL || object == NULL || text == NULL ||
-      text->contents.data == NULL || text->contents.size != 127u ||
+      text->contents.data == NULL || text->contents.size != 111u ||
       text->relocation_count != 0u || object->relocation_count != 0u ||
       object->symbol_count != 4u) {
     (void)fprintf(
@@ -19061,8 +18801,8 @@ static int validate_bit_field_store_function(
         instruction->operands[1].width_bits == 32u &&
         instruction->operands[1].as.memory.base.class_id ==
             CTOOL_X86_REG_GPR32 &&
-        instruction->operands[1].as.memory.base.index ==
-            NARROW_ORACLE_EAX) {
+        (instruction->operands[1].as.memory.base.index == NARROW_ORACLE_EAX ||
+         instruction->operands[1].as.memory.base.index == NARROW_ORACLE_EBP)) {
       storage_loads++;
     }
     if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
@@ -19348,8 +19088,8 @@ static int validate_bit_field_mutation_function(
         instruction->operands[1].width_bits == 32u &&
         instruction->operands[1].as.memory.base.class_id ==
             CTOOL_X86_REG_GPR32 &&
-        instruction->operands[1].as.memory.base.index ==
-            NARROW_ORACLE_EAX) {
+        (instruction->operands[1].as.memory.base.index == NARROW_ORACLE_EAX ||
+         instruction->operands[1].as.memory.base.index == NARROW_ORACLE_EBP)) {
       eax_indirect_loads++;
     }
     if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
@@ -19557,7 +19297,7 @@ static int validate_bit_field_mutation_object(
   ctool_u32 expected_offset = 0u;
   ctool_u32 index;
   if (job == NULL || object == NULL || text == NULL ||
-      text->contents.data == NULL || text->contents.size != 1415u ||
+      text->contents.data == NULL || text->contents.size != 1287u ||
       text->relocation_count != 0u || object->relocation_count != 0u ||
       object->symbol_count != 21u) {
     (void)fprintf(stderr,
@@ -21516,8 +21256,8 @@ static int validate_wide_value_object(
       data->contents.data == NULL ||
       data->contents.size != sizeof(expected_data) ||
       memcmp(data->contents.data, expected_data, sizeof(expected_data)) != 0 ||
-      text->contents.size != 879u ||
-      structure_text_fingerprint(text->contents) != 0x2448a1cdu ||
+      text->contents.size != 819u ||
+      structure_text_fingerprint(text->contents) != 0x34748692u ||
       object->symbol_count != 14u || object->symbols == NULL ||
       !symbol_matches(frequency, frequency->file_index,
                       CTOOL_ELF32_BIND_LOCAL, CTOOL_ELF32_SYMBOL_OBJECT,
@@ -21715,8 +21455,8 @@ static int validate_wide_return_object(
   ctool_u32 index;
   ctool_u32 low;
   ctool_u32 high;
-  if (text == NULL || rel_text == NULL || text->contents.size != 439u ||
-      structure_text_fingerprint(text->contents) != 0x181ca1ecu ||
+  if (text == NULL || rel_text == NULL || text->contents.size != 419u ||
+      structure_text_fingerprint(text->contents) != 0xc09505b3u ||
       text->relocation_first != 0u || text->relocation_count != 4u ||
       object->relocation_count != 4u || object->relocations == NULL ||
       object->symbol_count != 7u || object->symbols == NULL) {
@@ -22205,8 +21945,8 @@ static int validate_wide_operation_object(
   const uint64_t value = UINT64_C(0x8123456789abcdef);
   ctool_u32 index;
   if (job == NULL || object == NULL || text == NULL ||
-      text->contents.data == NULL || text->contents.size != 3156u ||
-      structure_text_fingerprint(text->contents) != 0xb52392eau ||
+      text->contents.data == NULL || text->contents.size != 3140u ||
+      structure_text_fingerprint(text->contents) != 0x2671ac44u ||
       object->symbol_count != 26u || object->relocation_count != 0u ||
       text->relocation_count != 0u) {
     (void)fprintf(stderr, "wide operation object inventory differs\n");
@@ -22397,7 +22137,7 @@ static int validate_wide_multiplication_object(
       "multiply_mixed",          "multiply_wide_narrow",
       "multiply_chained",        "multiply_then_reuse_left"};
   static const ctool_u32 function_sizes[] = {
-      154u, 154u, 154u, 158u, 259u, 224u};
+      154u, 154u, 154u, 154u, 259u, 224u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   ctool_u32 fingerprint =
       text == NULL ? 0u : structure_text_fingerprint(text->contents);
@@ -22431,7 +22171,7 @@ static int validate_wide_multiplication_object(
       text->type != CTOOL_ELF32_SHT_PROGBITS ||
       text->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR) ||
       text->alignment != 1u || text->contents.data == NULL ||
-      text->contents.size != 1103u || fingerprint != 0xe357be84u ||
+      text->contents.size != 1099u || fingerprint != 0x87da0c0bu ||
       text->relocation_count != 0u ||
       object->relocation_count != 0u || object->symbol_count != 7u) {
     (void)fprintf(stderr,
@@ -22603,8 +22343,8 @@ static int validate_wide_division_object(
       "divide_chained",          "quotient_plus_remainder",
       "divide_then_reuse_left"};
   static const ctool_u32 function_sizes[] = {
-      353u, 353u, 421u, 421u, 353u, 353u,
-      357u, 357u, 657u, 727u, 423u};
+      353u, 353u, 421u, 421u, 353u, 353u, 353u, 353u,
+      657u, 727u, 423u};
   static const wide_division_opcode_expectation_t expected_opcodes[] = {
       {CTOOL_X86_MN_ADC, 2u},    {CTOOL_X86_MN_ADD, 2u},
       {CTOOL_X86_MN_CALL, 0u},   {CTOOL_X86_MN_CLD, 24u},
@@ -22612,9 +22352,9 @@ static int validate_wide_division_object(
       {CTOOL_X86_MN_DIV, 0u},    {CTOOL_X86_MN_IDIV, 0u},
       {CTOOL_X86_MN_INC, 13u},   {CTOOL_X86_MN_JA, 13u},
       {CTOOL_X86_MN_JB, 39u},    {CTOOL_X86_MN_JNE, 13u},
-      {CTOOL_X86_MN_LEA, 80u},   {CTOOL_X86_MN_LEAVE, 11u},
+      {CTOOL_X86_MN_LEA, 78u},   {CTOOL_X86_MN_LEAVE, 11u},
       {CTOOL_X86_MN_MOV, 667u},  {CTOOL_X86_MN_MOVSB, 24u},
-      {CTOOL_X86_MN_POP, 117u},  {CTOOL_X86_MN_PUSH, 128u},
+      {CTOOL_X86_MN_POP, 115u},  {CTOOL_X86_MN_PUSH, 126u},
       {CTOOL_X86_MN_RCL, 52u},   {CTOOL_X86_MN_RET, 11u},
       {CTOOL_X86_MN_SAR, 17u},   {CTOOL_X86_MN_SBB, 30u},
       {CTOOL_X86_MN_SHL, 26u},   {CTOOL_X86_MN_SUB, 54u},
@@ -22865,7 +22605,7 @@ static int validate_wide_division_object(
     expected_offset += function->size;
   }
   if (expected_offset != text->contents.size || operation_count != 13u ||
-      text->contents.size != 4775u || fingerprint != 0x55f1a495u) {
+      text->contents.size != 4767u || fingerprint != 0xa6dff957u) {
     inventory_matches = CTOOL_FALSE;
   }
   for (index = 1u; index < (ctool_u32)CTOOL_X86_MN_COUNT; index++) {
@@ -23186,7 +22926,7 @@ static int validate_wide_condition_execution(
   ctool_u32 fingerprint =
       text == NULL ? 0u : structure_text_fingerprint(text->contents);
   if (text == NULL || text->contents.data == NULL ||
-      text->contents.size != 3341u || fingerprint != 0x16626ce1u ||
+      text->contents.size != 3305u || fingerprint != 0x4c79fa0fu ||
       object->symbol_count != 25u || object->relocation_count != 0u) {
     (void)fprintf(stderr,
                   "wide condition object differs: text=%u fingerprint=%08x "
@@ -23692,7 +23432,7 @@ static int run_wide_division_object(const char *host_root) {
   first_bytes = ctool_buffer_view(first);
   second_bytes = ctool_buffer_view(second);
   if (first_bytes.size != second_bytes.size ||
-      first_bytes.size != 5452u ||
+      first_bytes.size != 5444u ||
       memcmp(first_bytes.data, second_bytes.data,
              (size_t)first_bytes.size) != 0 ||
       !expect_object_failure_preserves_unit(
@@ -23752,13 +23492,13 @@ static int validate_wide_mutation_object(
     ctool_u32 copies;
     ctool_u32 zeroes;
   } expected[] = {
-      {"multiply_assign", 227u, 4u, 0u},
+      {"multiply_assign", 223u, 4u, 0u},
       {"divide_assign", 490u, 5u, 0u},
       {"remainder_assign", 490u, 5u, 0u},
       {"mixed_add_assign", 188u, 5u, 0u},
       {"subtract_assign", 188u, 5u, 0u},
-      {"shift_left_assign", 183u, 4u, 0u},
-      {"shift_right_assign", 183u, 4u, 0u},
+      {"shift_left_assign", 179u, 4u, 0u},
+      {"shift_right_assign", 179u, 4u, 0u},
       {"and_assign", 188u, 5u, 0u},
       {"xor_assign", 188u, 5u, 0u},
       {"or_assign", 188u, 5u, 0u},
@@ -23767,8 +23507,8 @@ static int validate_wide_mutation_object(
       {"postfix_increment", 254u, 4u, 0u},
       {"postfix_decrement", 254u, 4u, 0u},
       {"postfix_snapshot", 368u, 7u, 0u},
-      {"indexed_postfix_once", 506u, 6u, 1u},
-      {"volatile_prefix_increment", 143u, 2u, 0u}};
+      {"indexed_postfix_once", 502u, 6u, 1u},
+      {"volatile_prefix_increment", 139u, 2u, 0u}};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   ctool_u32 mnemonic_counts[CTOOL_X86_MN_COUNT];
   ctool_u32 expected_offset = 0u;
@@ -23826,7 +23566,7 @@ static int validate_wide_mutation_object(
     cursor += decoded.consumed;
   }
   fingerprint = structure_text_fingerprint(text->contents);
-  if (text->contents.size != 4410u || fingerprint != 0x4b337038u ||
+  if (text->contents.size != 4390u || fingerprint != 0xf9bc02b5u ||
       mnemonic_counts[CTOOL_X86_MN_MOVSB] != 78u ||
       mnemonic_counts[CTOOL_X86_MN_CLD] != 79u ||
       mnemonic_counts[CTOOL_X86_MN_MUL] != 1u ||
@@ -24108,7 +23848,7 @@ static int run_wide_mutation_object(const char *host_root) {
   }
   first_bytes = ctool_buffer_view(first);
   second_bytes = ctool_buffer_view(second);
-  if (first_bytes.size != 5272u || first_bytes.size != second_bytes.size ||
+  if (first_bytes.size != 5252u || first_bytes.size != second_bytes.size ||
       memcmp(first_bytes.data, second_bytes.data,
              (size_t)first_bytes.size) != 0 ||
       !expect_object_failure_preserves_unit(
@@ -24580,8 +24320,8 @@ static int validate_long_double_local_object(
   fingerprint = structure_text_fingerprint(
       ctool_bytes(text->contents.data + function->value,
                   function->size));
-  if (cursor != function->size || function->size != 830u ||
-      fingerprint != 0x16fde78cu ||
+  if (cursor != function->size || function->size != 826u ||
+      fingerprint != 0xce22fc33u ||
       fld32 != 1u || fld64 != 2u || fld80 != 10u ||
       fstp64 != 1u || fstp80 != 7u ||
       fchs != 1u || faddp != 1u || fsubp != 1u ||
@@ -24626,7 +24366,7 @@ static int validate_integer_long_double_usual_object(
       {"usual_ushort_sub", INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC,
        CTOOL_X86_MN_FSUBP, 123u, 0x3d98ba5bu},
       {"usual_int_mul", INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC,
-       CTOOL_X86_MN_FMULP, 123u, 0x8b95f63bu},
+       CTOOL_X86_MN_FMULP, 119u, 0x1636b260u},
       {"usual_uwide_div", INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC,
        CTOOL_X86_MN_FDIVP, 215u, 0xaa097c47u},
       {"usual_uchar_equal", INTEGER_LONG_DOUBLE_USUAL_COMPARISON,
@@ -24634,27 +24374,27 @@ static int validate_integer_long_double_usual_object(
       {"usual_long_short_less", INTEGER_LONG_DOUBLE_USUAL_COMPARISON,
        CTOOL_X86_MN_FUCOMIP, 129u, 0x615081feu},
       {"usual_uint_greater", INTEGER_LONG_DOUBLE_USUAL_COMPARISON,
-       CTOOL_X86_MN_FUCOMIP, 111u, 0x497fb455u},
+       CTOOL_X86_MN_FUCOMIP, 107u, 0x81faedcau},
       {"usual_long_wide_not_equal", INTEGER_LONG_DOUBLE_USUAL_COMPARISON,
        CTOOL_X86_MN_FUCOMIP, 152u, 0x21a296f7u},
       {"usual_choose_schar", INTEGER_LONG_DOUBLE_USUAL_CONDITIONAL,
-       CTOOL_X86_MN_INVALID, 108u, 0xb3033cadu},
+       CTOOL_X86_MN_INVALID, 104u, 0x3a935954u},
       {"usual_choose_uint", INTEGER_LONG_DOUBLE_USUAL_CONDITIONAL,
-       CTOOL_X86_MN_INVALID, 106u, 0x2753b752u},
+       CTOOL_X86_MN_INVALID, 98u, 0xa37f235cu},
       {"usual_choose_wide", INTEGER_LONG_DOUBLE_USUAL_CONDITIONAL,
-       CTOOL_X86_MN_INVALID, 131u, 0x093e1840u},
+       CTOOL_X86_MN_INVALID, 127u, 0x85047ff3u},
       {"usual_choose_uwide", INTEGER_LONG_DOUBLE_USUAL_CONDITIONAL,
-       CTOOL_X86_MN_INVALID, 199u, 0x141e404eu},
+       CTOOL_X86_MN_INVALID, 195u, 0x3844c0f1u},
       {"usual_bool_add", INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC,
        CTOOL_X86_MN_FADDP, 123u, 0x9de56a2cu},
       {"usual_char_sub", INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC,
        CTOOL_X86_MN_FSUBP, 124u, 0xb4e2fea7u},
       {"usual_long_mul", INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC,
-       CTOOL_X86_MN_FMULP, 123u, 0x8b95f63bu},
+       CTOOL_X86_MN_FMULP, 119u, 0x1636b260u},
       {"usual_ulong_div", INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC,
-       CTOOL_X86_MN_FDIVP, 122u, 0xc97747e8u},
+       CTOOL_X86_MN_FDIVP, 118u, 0xbba5f1f5u},
       {"usual_enum_equal", INTEGER_LONG_DOUBLE_USUAL_COMPARISON,
-       CTOOL_X86_MN_FUCOMIP, 128u, 0xc8139b67u}};
+       CTOOL_X86_MN_FUCOMIP, 124u, 0x6d4464fau}};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   ctool_u32 index;
   int valid = 1;
@@ -24951,7 +24691,7 @@ static int validate_long_double_call_function(
 static int validate_long_double_call_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const long_double_call_expectation_t functions[] = {
-      {"long_double_fixed_calls", 220u, 0xedb702ddu,
+      {"long_double_fixed_calls", 216u, 0xde04958au,
        2u, 1u, 1u, 6u, 2u, 8u},
       {"long_double_variadic_call", 99u, 0x1fed7ca7u,
        1u, 1u, 0u, 2u, 1u, 2u},
@@ -24959,9 +24699,9 @@ static int validate_long_double_call_object(
        1u, 1u, 0u, 4u, 1u, 5u},
       {"long_double_identity", 39u, 0x46bafe97u,
        0u, 0u, 0u, 1u, 0u, 1u},
-      {"long_double_open_calls", 176u, 0xa3c2bf25u,
+      {"long_double_open_calls", 172u, 0x3ad85358u,
        2u, 1u, 1u, 4u, 2u, 6u},
-      {"long_double_call_results", 300u, 0xfa304910u,
+      {"long_double_call_results", 296u, 0xc0d8a8c9u,
        2u, 1u, 1u, 7u, 2u, 9u}};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text =
@@ -24979,8 +24719,8 @@ static int validate_long_double_call_object(
   if (job == NULL || object == NULL || text == NULL ||
       rel_text == NULL || sink == NULL || variadic_sink == NULL ||
       open_sink == NULL || identity == NULL ||
-      text->contents.size != 4478u ||
-      structure_text_fingerprint(text->contents) != 0x94b88bf9u ||
+      text->contents.size != 4422u ||
+      structure_text_fingerprint(text->contents) != 0x1675fd0bu ||
       text->relocation_count != 11u ||
       object->relocation_count != 11u ||
       object->relocations == NULL || object->symbol_count != 42u) {
@@ -26444,8 +26184,8 @@ static int validate_floating_transport_object(
       global_float->size != 4u || global_double->size != 8u ||
       (global_float->value & 3u) != 0u ||
       (global_double->value & 3u) != 0u ||
-      text->contents.size != 4507u ||
-      structure_text_fingerprint(text->contents) != 0x7e3bc543u ||
+      text->contents.size != 4399u ||
+      structure_text_fingerprint(text->contents) != 0x337cb936u ||
       bss->size != 24u || object->symbol_count != 48u ||
       object->relocation_count != 38u ||
       !wide_function_symbol_is_valid(object, text, return_float) ||
@@ -27045,8 +26785,8 @@ static int validate_floating_comparison_object(
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
   ctool_u32 index;
   if (job == NULL || object == NULL || text == NULL ||
-      text->contents.data == NULL || text->contents.size != 2927u ||
-      structure_text_fingerprint(text->contents) != 0xabb6b4c0u ||
+      text->contents.data == NULL || text->contents.size != 2843u ||
+      structure_text_fingerprint(text->contents) != 0xa0ab21b1u ||
       (bss != NULL && bss->size != 0u) ||
       object->symbol_count != 31u || object->relocation_count != 0u) {
     (void)fprintf(
@@ -27339,8 +27079,8 @@ static int validate_floating_truth_object(
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
   ctool_u32 index;
   if (job == NULL || object == NULL || text == NULL ||
-      text->contents.data == NULL || text->contents.size != 855u ||
-      structure_text_fingerprint(text->contents) != 0x6b4d7e90u ||
+      text->contents.data == NULL || text->contents.size != 827u ||
+      structure_text_fingerprint(text->contents) != 0x4e8220ebu ||
       (bss != NULL && bss->size != 0u) || object->symbol_count != 10u ||
       object->relocation_count != 0u) {
     (void)fprintf(
@@ -27879,8 +27619,8 @@ static int validate_floating_arithmetic_object(
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
   ctool_u32 index;
   if (job == NULL || object == NULL || text == NULL ||
-      text->contents.data == NULL || text->contents.size != 2766u ||
-      structure_text_fingerprint(text->contents) != 0x48bbf0cfu ||
+      text->contents.data == NULL || text->contents.size != 2674u ||
+      structure_text_fingerprint(text->contents) != 0x92f6aa33u ||
       (bss != NULL && bss->size != 0u) || object->symbol_count != 25u ||
       object->relocation_count != 25u) {
     (void)fprintf(
@@ -28670,8 +28410,8 @@ static int validate_floating_conversion_object(
       (ctool_u32)(sizeof(cases) / sizeof(cases[0]));
   ctool_u32 index;
   if (job == NULL || object == NULL || text == NULL ||
-      text->contents.data == NULL || text->contents.size != 13549u ||
-      structure_text_fingerprint(text->contents) != 0x4fc4077bu ||
+      text->contents.data == NULL || text->contents.size != 12889u ||
+      structure_text_fingerprint(text->contents) != 0xd92821c5u ||
       (bss != NULL && bss->size != 0u) ||
       object->symbol_count != 75u ||
       object->relocation_count != 135u) {
@@ -29529,14 +29269,14 @@ static int validate_floating_scalar_object(
           object, text, wide_low_symbol) ||
       !wide_function_symbol_is_valid(
           object, text, wide_high_symbol) ||
-      wide_low_symbol->size != 253u ||
+      wide_low_symbol->size != 245u ||
       structure_text_fingerprint(
           ctool_bytes(text->contents.data + wide_low_symbol->value,
-                      wide_low_symbol->size)) != 0xf7cbb220u ||
-      wide_high_symbol->size != 330u ||
+                      wide_low_symbol->size)) != 0x42e4a1f2u ||
+      wide_high_symbol->size != 322u ||
       structure_text_fingerprint(
           ctool_bytes(text->contents.data + wide_high_symbol->value,
-                      wide_high_symbol->size)) != 0x848707fcu) {
+                      wide_high_symbol->size)) != 0x479e0d12u) {
     (void)fprintf(stderr, "double to uint64 i386 shape differs\n");
     return 0;
   }
@@ -33196,21 +32936,25 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 131u, 82u, 140u, 31u, 143u, 270u, 368u, 463u, 91u, 37u, 65u,
+      65u, 131u, 82u, 140u,
+      31u, 143u, 270u, 374u,
+      463u, 91u, 37u, 65u,
       46u};
   static const ctool_u32 expected_text_sizes[] = {
-      42118u, 188766u, 118477u, 183181u, 42212u,
-      190304u, 505745u, 579035u, 916370u, 160618u, 70368u, 85460u,
-      73546u};
+      38666u, 175074u, 107997u, 169071u,
+      39036u, 176040u, 464445u, 557374u,
+      855894u, 147794u, 64216u, 80016u,
+      68406u};
   static const ctool_u32 expected_object_sizes[] = {
-      46720u, 214448u, 137444u, 220508u, 49484u,
-      226668u, 544760u, 649488u, 1084736u, 182072u, 79348u, 141552u,
-      80856u};
+      43268u, 200756u, 126964u, 206316u,
+      46308u, 212404u, 503460u, 628668u,
+      1024260u, 169248u, 73196u, 136108u,
+      75716u};
   static const ctool_u32 expected_text_fingerprints[] = {
-      0x6bff5a25u, 0x08d1d4d1u, 0x3e007f3eu,
-      0x90f1448fu, 0x999f97b7u, 0xb49d8eb9u,
-      0x6c17acdeu, 0x788cef1du, 0x90513d61u, 0xf1ddd046u,
-      0x34558a49u, 0x3811ba0cu, 0x9a880083u};
+      0x97c6e17au, 0x93e07935u, 0x4fa9eea9u, 0x82cead18u,
+      0x64e2c3aeu, 0xb155200bu, 0xe9880621u, 0x02322fb8u,
+      0x4d6d6583u, 0x9456ae68u, 0xf98bc6b2u, 0x2e81510cu,
+      0xb497c0beu};
   ctool_u32 index;
   int all_matched = 1;
   if (first_index > past_last_index ||
@@ -33567,11 +33311,11 @@ static int run_self_host_hosted_adapters(const char *host_root) {
       "strncmp",
       "strlen"};
   static const hosted_adapter_case_t cases[] = {
-      {"/toolchain/ctool_host.cc", 11u, 5522u, 6944u, 0x28739c3fu,
+      {"/toolchain/ctool_host.cc", 11u, 5058u, 6480u, 0xc6cc68eeu,
        ctool_host_undefined, 10u, 25u, 38u, 28u, 10u},
-      {"/toolchain/cupidasm_main.cc", 47u, 50943u, 59200u, 0x26b019d6u,
+      {"/toolchain/cupidasm_main.cc", 47u, 46547u, 54804u, 0x359b866eu,
        cupidasm_undefined, 41u, 127u, 368u, 319u, 49u},
-      {"/toolchain/cupiddis_main.cc", 28u, 46249u, 58720u, 0x81c4a4c0u,
+      {"/toolchain/cupiddis_main.cc", 28u, 43453u, 55924u, 0xc11ab6d0u,
        cupiddis_undefined, 39u, 186u, 358u, 216u, 142u}};
   ctool_u32 index;
   for (index = 0u; index <
@@ -34184,6 +33928,12 @@ static int run_self_host_link_tools(const char *host_root,
       {"/toolchain/cupidbuild_iso_image.cc", "/toolchain/cupidbuild_iso_image.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
       {"/toolchain/cupidbuild_iso_publication.cc", "/toolchain/cupidbuild_iso_publication.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/fat16_stage.cc", "/toolchain/fat16_stage.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/fat16_names.cc", "/toolchain/fat16_names.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/disk_image.cc", "/toolchain/disk_image.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE}};
   static const ctool_u32 cupidasm_objects[] = {
       0u, 7u, 6u, 3u, 2u, 4u, 5u, 1u};
@@ -34197,7 +33947,7 @@ static int run_self_host_link_tools(const char *host_root,
       0u, 20u, 19u, 18u, 17u, 16u, 15u, 3u, 2u, 4u, 5u, 1u};
   static const ctool_u32 cupidbuild_objects[] = {
       0u, 23u, 21u, 22u, 3u, 2u, 4u, 26u, 27u, 28u, 30u, 31u, 32u, 33u,
-      34u, 35u, 36u, 37u, 38u, 1u};
+      34u, 35u, 36u, 37u, 38u, 39u, 40u, 41u, 1u};
   static const ctool_u32 runtime_objects[] = {0u, 14u, 1u};
   ctool_host_adapter_t adapter;
   ctool_limits_t limits = ctool_default_limits();
@@ -34678,7 +34428,7 @@ static int run_self_host_link_ctool_host(const char *host_root,
       executable.program_header_count != 5u ||
       executable.section_count != 8u || executable.symbol_count != 25u ||
       executable.relocation_count != 0u ||
-      linked_text == NULL || linked_text->contents.size != 5897u ||
+      linked_text == NULL || linked_text->contents.size != 5365u ||
       linked_rodata == NULL || linked_rodata->contents.size != 9u ||
       linked_data == NULL || linked_data->contents.size != 2u ||
       linked_bss == NULL || linked_bss->size != 16u ||
@@ -34743,8 +34493,8 @@ static int validate_self_host_frontier_object(
   const ctool_u32 pointer_bits[] = {0x89abcdefu};
   const ctool_u32 wide_bits[] = {0x89abcdefu, 0x81234567u};
   if (job == NULL || object == NULL || text == NULL ||
-      text->contents.data == NULL || text->contents.size != 871u ||
-      structure_text_fingerprint(text->contents) != 0x2cca0718u ||
+      text->contents.data == NULL || text->contents.size != 859u ||
+      structure_text_fingerprint(text->contents) != 0x6f6ecc37u ||
       object->symbol_count != 11u || object->relocation_count != 2u) {
     (void)fprintf(
         stderr,
@@ -35311,28 +35061,19 @@ static int validate_pointer_output_assembly_function(
     ctool_job_t *job, const ctool_elf32_section_t *text,
     const ctool_elf32_symbol_t *symbol) {
   static const ctool_x86_mnemonic_t expected[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_SUB, CTOOL_X86_MN_LEA,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_LEA, CTOOL_X86_MN_PUSH,
-      CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB, CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
   static const ctool_u8 function_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x0cu,
-      0x8du, 0x45u, 0xfcu, 0x50u,
-      0x89u, 0x9du, 0xf8u, 0xffu, 0xffu, 0xffu,
-      0x65u, 0xa1u, 0x00u, 0x00u, 0x00u, 0x00u,
-      0x89u, 0x85u, 0xf4u, 0xffu, 0xffu, 0xffu,
-      0x8bu, 0x9du, 0xf8u, 0xffu, 0xffu, 0xffu,
-      0x58u,
-      0x8bu, 0x8du, 0xf4u, 0xffu, 0xffu, 0xffu,
-      0x89u, 0x08u,
-      0x8du, 0x45u, 0xfcu, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x0cu, 0x8du, 0x45u,
+      0xfcu, 0x50u, 0x89u, 0x9du, 0xf8u, 0xffu, 0xffu, 0xffu,
+      0x65u, 0xa1u, 0x00u, 0x00u, 0x00u, 0x00u, 0x89u, 0x85u,
+      0xf4u, 0xffu, 0xffu, 0xffu, 0x8bu, 0x9du, 0xf8u, 0xffu,
+      0xffu, 0xffu, 0x58u, 0x8bu, 0x8du, 0xf4u, 0xffu, 0xffu,
+      0xffu, 0x89u, 0x08u, 0x8bu, 0x45u, 0xfcu, 0x50u, 0x58u,
+      0xc9u, 0xc3u};
   static const ctool_u8 target_bytes[] = {
       0x65u, 0xa1u, 0x00u, 0x00u, 0x00u, 0x00u};
   ctool_u32 cursor = 0u;
@@ -35783,7 +35524,7 @@ static int validate_atomic_builtin_object(
        CTOOL_X86_PREFIX_LOCK, fetch_dword,
        (ctool_u32)sizeof(fetch_dword), 1u, 0},
       {"atomic_load_dword", CTOOL_X86_MN_MOV, 32u, 0u,
-       load_dword, (ctool_u32)sizeof(load_dword), 2u, 1},
+       load_dword, (ctool_u32)sizeof(load_dword), 1u, 1},
       {"atomic_side_effect", CTOOL_X86_MN_XADD, 32u,
        CTOOL_X86_PREFIX_LOCK, fetch_dword,
        (ctool_u32)sizeof(fetch_dword), 1u, 0}};
@@ -36692,12 +36433,12 @@ static int run_privileged_register_assembly_object(
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
-  if (second_bytes.size != 680u ||
-      find_section(&object, ".text")->contents.size != 199u ||
+  if (second_bytes.size != 644u ||
+      find_section(&object, ".text")->contents.size != 163u ||
       object.section_count != 5u || object.symbol_count != 8u ||
       object.relocation_count != 0u ||
       structure_text_fingerprint(
-          find_section(&object, ".text")->contents) != 0xa3095253u) {
+          find_section(&object, ".text")->contents) != 0xa185db45u) {
     (void)fprintf(
         stderr,
         "privileged-register-assembly: object metrics differ: "
@@ -37380,11 +37121,8 @@ static int validate_fxsave_assembly_function(
     ctool_job_t *job, const ctool_elf32_section_t *text,
     const ctool_elf32_symbol_t *symbol) {
   static const ctool_u8 function_bytes[] = {
-      0x55u, 0x89u, 0xe5u,
-      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u,
-      0x58u, 0x0fu, 0xaeu, 0x00u,
-      0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x0fu, 0xaeu, 0x00u, 0xc9u, 0xc3u};
   static const ctool_u8 fxsave_bytes[] = {
       0x0fu, 0xaeu, 0x00u};
   ctool_u32 cursor = 0u;
@@ -37552,8 +37290,8 @@ static int run_fxsave_assembly_object(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
-  if (second_bytes.size != 396u ||
-      find_section(&object, ".text")->contents.size != 40u ||
+  if (second_bytes.size != 388u ||
+      find_section(&object, ".text")->contents.size != 32u ||
       object.section_count != 5u || object.symbol_count != 3u ||
       object.relocation_count != 0u) {
     (void)fprintf(
@@ -43201,20 +42939,14 @@ static int validate_state_memory_assembly_function(
 static int validate_state_memory_assembly_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 status_bytes[] = {
-      0x55u, 0x89u, 0xe5u,
-      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u,
-      0x58u, 0xddu, 0x38u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0xddu, 0x38u, 0xc9u, 0xc3u};
   static const ctool_u8 control_bytes[] = {
-      0x55u, 0x89u, 0xe5u,
-      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u,
-      0x58u, 0xd9u, 0x38u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0xd9u, 0x38u, 0xc9u, 0xc3u};
   static const ctool_u8 mxcsr_bytes[] = {
-      0x55u, 0x89u, 0xe5u,
-      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u,
-      0x58u, 0x0fu, 0xaeu, 0x18u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x8bu, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x0fu, 0xaeu, 0x18u, 0xc9u, 0xc3u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   if (text == NULL || text->contents.data == NULL ||
       object->relocation_count != 0u ||
@@ -43357,9 +43089,9 @@ static int run_state_memory_assembly_object(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
-  if (second_bytes.size != 448u ||
+  if (second_bytes.size != 436u ||
       find_section(&object, ".text") == NULL ||
-      find_section(&object, ".text")->contents.size != 58u ||
+      find_section(&object, ".text")->contents.size != 46u ||
       object.section_count != 5u ||
       object.symbol_count != 4u ||
       object.relocation_count != 0u) {
@@ -43542,12 +43274,12 @@ static int run_port_io_assembly_object(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
-  if (second_bytes.size != 916u ||
-      find_section(&object, ".text")->contents.size != 408u ||
+  if (second_bytes.size != 908u ||
+      find_section(&object, ".text")->contents.size != 400u ||
       object.section_count != 5u || object.symbol_count != 9u ||
       object.relocation_count != 0u ||
       structure_text_fingerprint(
-          find_section(&object, ".text")->contents) != 0x008def58u) {
+          find_section(&object, ".text")->contents) != 0x0e564a72u) {
     (void)fprintf(
         stderr,
         "port-io-assembly: object metrics differ: object=%u text=%u "
@@ -44929,17 +44661,13 @@ static int call_next_oracle_execute(
 static int validate_call_next_assembly_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 expected_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x0cu,
-      0x8du, 0x45u, 0xfcu, 0x50u,
-      0x89u, 0x9du, 0xf8u, 0xffu, 0xffu, 0xffu,
-      0xe8u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u,
-      0x89u, 0x85u, 0xf4u, 0xffu, 0xffu, 0xffu,
-      0x8bu, 0x9du, 0xf8u, 0xffu, 0xffu, 0xffu,
-      0x58u,
-      0x8bu, 0x8du, 0xf4u, 0xffu, 0xffu, 0xffu,
-      0x89u, 0x08u,
-      0x8du, 0x45u, 0xfcu, 0x50u, 0x58u,
-      0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x0cu, 0x8du, 0x45u,
+      0xfcu, 0x50u, 0x89u, 0x9du, 0xf8u, 0xffu, 0xffu, 0xffu,
+      0xe8u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0x89u, 0x85u,
+      0xf4u, 0xffu, 0xffu, 0xffu, 0x8bu, 0x9du, 0xf8u, 0xffu,
+      0xffu, 0xffu, 0x58u, 0x8bu, 0x8du, 0xf4u, 0xffu, 0xffu,
+      0xffu, 0x89u, 0x08u, 0x8bu, 0x45u, 0xfcu, 0x50u, 0x58u,
+      0xc9u, 0xc3u};
   static const ctool_u32 code_base = 0x00400000u;
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_symbol_t *symbol =
@@ -50222,7 +49950,7 @@ static int validate_returns_twice_call_object(
       0x8bu, 0x8du, 0xf8u, 0xffu, 0xffu, 0xffu,
       0x89u, 0x0cu, 0x24u, 0x50u};
   static const ctool_u32 relocation_offsets[] = {
-      0x19u, 0x4eu, 0x9fu, 0xf7u, 0x135u};
+      21u, 70u, 139u, 219u, 277u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text =
       find_section(object, ".rel.text");
@@ -50243,7 +49971,7 @@ static int validate_returns_twice_call_object(
   if (text == (const ctool_elf32_section_t *)0 ||
       rel_text == (const ctool_elf32_section_t *)0 ||
       text->contents.data == (const ctool_u8 *)0 ||
-      text->contents.size != 334u || fingerprint != 0xfce5b12cu ||
+      text->contents.size != 302u || fingerprint != 0xfbb0546cu ||
       text->relocation_first != 0u || text->relocation_count != 5u ||
       object->symbol_count != 6u || object->relocation_count != 5u ||
       object->relocations == (const ctool_elf32_relocation_t *)0 ||
@@ -50254,19 +49982,19 @@ static int validate_returns_twice_call_object(
       !symbol_matches(direct, 2u, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
-                      0u, 36u) ||
+                      0u, 32u) ||
       !symbol_matches(assignment, 3u, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
-                      36u, 74u) ||
+                      32u, 66u) ||
       !symbol_matches(addition, 4u, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
-                      110u, 74u) ||
+                      98u, 66u) ||
       !symbol_matches(twice, 5u, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
-                      184u, 150u)) {
+                      164u, 138u)) {
     (void)fprintf(
         stderr,
         "returns_twice call inventory differs: text=%u fingerprint=%08x "
@@ -50782,7 +50510,8 @@ static int execute_returns_twice_second_return(
 static int validate_returns_twice_execution_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u32 left_value = 0x11223344u;
-  static const ctool_u32 relative_offsets[] = {0x35u, 0xb1u};
+  static const ctool_u32 relative_offsets[] = {
+      45u, 157u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text =
       find_section(object, ".rel.text");
@@ -52500,7 +52229,98 @@ cleanup:
   return 1;
 }
 
+
+static int run_unsigned_rotate_leaves(const char *host_root) {
+  static const char *folded[] = {
+      "rotate_right", "rotate_left", "rotate_reversed", "rotate_long"};
+  static const char *ordinary[] = {
+      "different_values", "different_complement", "volatile_value",
+      "volatile_count", "mixed_types", "signed_value", "signed_count",
+      "wide_value"};
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_binding_t *bindings = NULL;
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_elf32_object_t object;
+  const ctool_elf32_section_t *text;
+  ctool_u32 index;
+  int ok = 0;
+  if (!open_job(host_root, &adapter, &config, &job)) return 1;
+  path.text = ctool_string("/toolchain/tests/cupidc_rotate_leaf_runtime.cc");
+  if (ctool_job_load_source(job, &path, &source) != CTOOL_OK ||
+      !parse_source(job, path.text.data, (const char *)source.contents.data,
+                    &unit) ||
+      ctool_job_open_buffer(job, 1024u, config.limits.output_bytes, &first) != CTOOL_OK ||
+      ctool_job_open_buffer(job, 1024u, config.limits.output_bytes, &second) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(job, &unit, first,
+                                           "unsigned rotate leaves"))
+    goto cleanup;
+  source.path.text = ctool_string("/rotate-leaves.o");
+  source.contents = ctool_buffer_view(first);
+  if (ctool_elf32_read(job, &source, &object) != CTOOL_OK) goto cleanup;
+  text = find_section(&object, ".text");
+  if (text == NULL) goto cleanup;
+  for (index = 0u; index < sizeof(folded) / sizeof(folded[0]); index++) {
+    const ctool_elf32_symbol_t *symbol = find_symbol(&object, folded[index]);
+    const ctool_u8 *code;
+    if (symbol == NULL || symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+        symbol->section_file_index != text->file_index || symbol->size != 19u ||
+        symbol->value > text->contents.size ||
+        symbol->size > text->contents.size - symbol->value) goto cleanup;
+    code = text->contents.data + symbol->value;
+    if (code[15] != 0xd3u || code[16] != (index == 1u ? 0xc0u : 0xc8u) ||
+        code[17] != 0xc9u || code[18] != 0xc3u) goto cleanup;
+    /* Reversed source parameters must reverse both cdecl frame loads. */
+    if (code[5] != (index == 2u ? 12u : 8u) ||
+        code[11] != (index == 2u ? 8u : 12u)) {
+      (void)fprintf(stderr, "rotate parameter offsets differ: %s\n", folded[index]);
+      goto cleanup;
+    }
+  }
+  for (index = 0u; index < sizeof(ordinary) / sizeof(ordinary[0]); index++) {
+    const ctool_elf32_symbol_t *symbol = find_symbol(&object, ordinary[index]);
+    if (symbol == NULL || symbol->size <= 19u) goto cleanup;
+  }
+  bindings = (ctool_c_binding_t *)malloc(
+      (size_t)unit.binding_count * sizeof(*bindings));
+  if (bindings == NULL) goto cleanup;
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[unit.function_definitions[0].binding].type = unit.graph.type_count;
+  mutant = unit;
+  mutant.bindings = bindings;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, second, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "invalid rotate function type") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "rotate emission after rejected unit") ||
+      ctool_buffer_view(first).size != ctool_buffer_view(second).size ||
+      memcmp(ctool_buffer_view(first).data, ctool_buffer_view(second).data,
+             (size_t)ctool_buffer_view(first).size) != 0) goto cleanup;
+  ok = 1;
+cleanup:
+  if (!ok) {
+    (void)fprintf(stderr, "unsigned rotate leaf contract differs\n");
+    (void)ctool_job_render_diagnostics(job);
+  }
+  free(bindings);
+  ctool_job_close(job);
+  if (ok) (void)puts("unsigned-rotate-leaves: ok");
+  return ok ? 0 : 1;
+}
+
 int main(int argc, char **argv) {
+  if (argc == 3 && strcmp(argv[1], "unsigned-rotate-leaves") == 0) {
+    return run_unsigned_rotate_leaves(argv[2]);
+  }
   if (argc == 4 &&
       strcmp(argv[1], "fpu-init-codegen-policy") == 0) {
     return run_fpu_init_codegen_policy(argv[2], argv[3]);

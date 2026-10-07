@@ -2322,6 +2322,12 @@ own capacity, including complete ISO bundle metadata. Its capacity belongs to
 the private input lifetime and does not grant a larger published artifact.
 _Avoid_: enlarged output limit, unbounded bundle
 
+**Guarded publication capacity**:
+The accepted candidate and previous-output capacity for the whole guarded
+publication transaction, including subsequent checked-tool invocations.
+Frozen-input and byte-returning capture capacities belong to separate lifetimes.
+_Avoid_: enlarged input limit, capacity of one tool invocation
+
 **Guarded ISO publication**:
 A complete ISO publication that retains fixture observations and frozen file
 inputs, both seed cohorts and selected release authority through checked
@@ -2489,3 +2495,15 @@ objects and passes twenty-two cases with one declared POSIX skip; Linux
 certifies twelve objects and passes twenty-three cases. The 16 MiB guard
 limits individual allocations. Checked large-disk coverage and a guarded
 image coordinator remain required before image ownership changes.
+
+**Static rotate-call fold**:
+Object-emitter selection that replaces a validated call to a local pure unsigned rotate helper with its represented rotation while preserving argument evaluation and abstract stack effects.
+_Avoid_: general inlining, source intrinsic, qualified compiler
+
+**Immediate rotate-call span**:
+A validated literal count and selected local rotate call whose combined stack effect is represented by one immediate rotation after value evaluation.
+_Avoid_: general constant folding, source intrinsic
+
+**Proven scalar stack transfer**:
+A recorded one-byte PUSH EAX followed by a validated word unary or binary consumer, with no branch entering that consumer. The emitter can replace the adjacent PUSH and POP with an equal-size register MOV after ordinary validation finishes.
+_Avoid_: general peephole optimization, byte-pattern matching, qualified compiler

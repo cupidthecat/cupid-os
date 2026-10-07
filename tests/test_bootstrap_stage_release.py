@@ -238,7 +238,10 @@ class StageReleaseTests(unittest.TestCase):
         source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True)
         authority = request.authorize(source, ROOT, self.linux_plan, self.windows_plan,
             self.linux, None, *self.stages["elf32"][1:], "elf32")
-        for payload in (release._encode(self.linux.manifest["build_plan"]),
+        wrong_plan = copy.deepcopy(self.linux_plan)
+        wrong_plan["links"]["cupidbuild"].remove("fat16_stage")
+        self.assertNotEqual(wrong_plan, self.linux_plan)
+        for payload in (release._encode(wrong_plan),
                         b'{"sources":[],"sources":[]}'):
             changed = replace(authority, linux_plan_bytes=payload)
             with self.assertRaises(seed.BootstrapError):

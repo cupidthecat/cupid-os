@@ -1,5 +1,26 @@
 # cupid-os
 
+## Private publisher and emitter verification, 2026-10-06
+
+Bounded transactions publish and reuse complete 200 MiB candidates through
+native and Cupid-built callers on Windows and Linux. Linux also checks the
+candidate and previous output under a 32 MiB address-space limit. A Windows
+repair preserves the accepted capacity when the second checked tool reopens
+the candidate; a rejecting second tool preserves the previous output.
+
+The frame, rotate and stack-transfer compiler prototype passes fifteen
+capability controls on each host. Both complete prepared cohorts pass
+all ordinary and self-host object modes, including its seven-tool link within
+1,800 seconds. The full Windows 156-source kernel frontier passes within 2,340 seconds.
+Independent review checks 152 objects with only the approved local rewrites
+and four unchanged objects. The first Linux frontier times out; an identical
+source replay on Linux storage passes in 1,488.105 seconds with every check and
+the original limit. Independent rereading checks all 624 objects and their
+complete source bindings; corresponding objects agree between hosts.
+Paired producer qualification, SDK publication and normal OS/runtime acceptance
+remain open. See [the bootstrap record](docs/bootstrap/README.md) and
+[the candidate-capacity decision](docs/adr/0439-bound-large-candidate-publication-explicitly.md).
+
 ## FAT16 reserved cluster boundary, 2026-10-06
 
 FAT16 stops allocation before reserved cluster `0xfff0`, while retaining

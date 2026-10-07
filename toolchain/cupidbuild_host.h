@@ -205,6 +205,14 @@ typedef struct {
 int cupidbuild_host_transaction_open(
     const char *repository_root, const char *source_logical,
     const char *output_logical, cupidbuild_host_transaction_t **transaction_out);
+/* Explicit candidate and previous-output extent, 1..2147483647 bytes.
+ * Source, seed, payload and private-stream limits keep their existing rules.
+ * Digest-only capture uses bounded memory; requested payloads still allocate
+ * the complete candidate. Invalid capacities create no transaction or files. */
+int cupidbuild_host_transaction_open_bounded(
+    const char *repository_root, const char *source_logical,
+    const char *output_logical, unsigned long long candidate_capacity,
+    cupidbuild_host_transaction_t **transaction_out);
 int cupidbuild_host_profile_transaction_open(
     const char *repository_root, const char *source_logical,
     const char *output_logical,

@@ -31,9 +31,20 @@ class DiskFoundationPlanTests(unittest.TestCase):
                              [{'name': name, 'path': '/toolchain/' + name + '.cc', 'gnu_extensions': False}])
         self.assertEqual(bootstrap._candidate_build_plan(self.plan), self.plan)
         self.assertEqual(self.installed['build_plan'], parent)
-        self.assertEqual(len(parent['sources']), 34)
-        self.assertEqual(tuple(parent['links']['cupidbuild']), bootstrap.ISO_PUBLICATION_CUPIDBUILD_LINK)
+        self.assertEqual(len(parent['sources']), 37)
+        self.assertEqual(tuple(parent['links']['cupidbuild']), bootstrap.CANDIDATE_CUPIDBUILD_LINK)
         bootstrap._validate_build_plan(self.installed, promoted=True)
+
+    def test_historical_iso_parent_upgrades_without_mutating_its_exact_plan(self):
+        parent = copy.deepcopy(self.plan)
+        parent['sources'] = [row for row in parent['sources'] if row['name'] not in MODULES]
+        parent['links']['cupidbuild'] = list(bootstrap.ISO_PUBLICATION_CUPIDBUILD_LINK)
+        before = copy.deepcopy(parent)
+        self.assertEqual(len(parent['sources']), 34)
+        self.assertEqual(bootstrap._build_plan_sha256(parent),
+                         'ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3')
+        self.assertEqual(bootstrap._candidate_build_plan(parent), self.plan)
+        self.assertEqual(parent, before)
 
     def test_all_five_windows_profiles_match_measured_source_and_plan_closures(self):
         profiles = (
@@ -138,5 +149,5 @@ class DiskFoundationPlanTests(unittest.TestCase):
     def test_installed_paired_parent_cohort_still_verifies(self):
         for host in ('linux', 'windows'):
             checked = bootstrap.verify_seed_inputs(ROOT / 'bootstrap/seeds' / ('i386-' + host) / 'manifest.json')
-            self.assertEqual(checked.manifest['provenance']['source_input_count'], 92)
+            self.assertEqual(checked.manifest['provenance']['source_input_count'], 99)
             bootstrap.require_live_seed_inputs(checked)

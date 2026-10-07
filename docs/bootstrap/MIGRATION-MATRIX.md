@@ -1,5 +1,23 @@
 # Toolchain ownership migration matrix
 
+## Private publisher and emitter verification, 2026-10-06
+
+Bounded candidate and previous-output publication passes complete 200 MiB
+controls through native and Cupid-built callers on both hosts. The repaired
+Windows second-tool reopen retains the transaction's accepted capacity. All
+ten new method executions and fourteen checked invocations pass, including
+both Linux cases under a 32 MiB address-space limit.
+
+The compiler prototype passes the frame, rotate, stack-transfer and direct
+branch-entry controls. Both complete prepared cohorts pass the ordinary and
+self-host object modes. Windows also passes the full 156-source frontier. Independent review
+checks 152 rewritten objects and four unchanged objects. Linux's first frontier
+times out at its original limit; the identical Linux-storage replay passes
+in 1,488.105 seconds. Independent rereading checks all 624 produced objects
+and their raw source bindings. Complete paired qualification, committed lineage, SDK publication and
+normal OS/runtime acceptance remain required. Ownership remains 449 CupidBuild
+actions and three Python actions across 452 transforms.
+
 ## Installed qualified ISO and ABI handoff, 2026-10-06
 
 The `51f3c9ee` normal graph transfers ISO publication and the shared syscall ABI

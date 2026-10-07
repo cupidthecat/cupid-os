@@ -945,7 +945,7 @@ DOOM_CUPIDC_HEADERS := $(sort $(wildcard drivers/*.h kernel/*.h kernel/*/*.h \
 	                         kernel/doom/src/*.h \
 	                         kernel/doom/src/include_stubs/*.h \
 	                         kernel/doom/src/include_stubs/*/*.h \
-	                         toolchain/*.h \
+	                         toolchain/*.h toolchain/*.inc \
 	                         toolchain/hosted/i386-linux/include/*.h \
 	                         toolchain/tests/*.h toolchain/tests/*.inc))
 override DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-cupidc-inputs.json

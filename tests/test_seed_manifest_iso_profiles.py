@@ -350,9 +350,26 @@ class DiskFoundationSeedProfileTests(IsoSeedProfileTests):
                 else: link[position], link[position - 1] = link[position - 1], link[position]
                 self.check(changed, 1, accepted=False, record=self.release(changed, 1))
 
-    def test_shared_count_cannot_exchange_installed_and_disk_plans(self):
+    def test_shared_count_cannot_exchange_historical_iso_and_disk_plans(self):
         disk = self.fixtures[0][1]
-        installed = copy.deepcopy(self.windows.manifest)
+        historical_plan = copy.deepcopy(self.plan)
+        historical_plan['sources'] = [row for row in historical_plan['sources']
+                                      if row['name'] not in DISK_OBJECTS]
+        historical_plan['links']['cupidbuild'] = list(bootstrap.ISO_PUBLICATION_CUPIDBUILD_LINK)
+        snapshot = bootstrap.capture_source_snapshot(ROOT, historical_plan, windows_utf8=True,
+            windows_long_paths=True, windows_user_link_aliases=True)
+        snapshot = {name: value for name, value in snapshot.items()
+                    if name not in {'toolchain/' + object_name + '.h' for object_name in DISK_OBJECTS}}
+        native = bootstrap._windows_build_plan(historical_plan, utf8=True, long_paths=True,
+                                               user_link_aliases=True)
+        digest = bootstrap._build_plan_sha256(native)
+        self.assertEqual(digest, '0dfd1982dc1cd7c9d625c4c0546fc20f13fe3c9ae4dc8cbcf8835ff2e6b4e12d')
+        previous = bootstrap._retarget_native_windows_behavior_seed(self.windows, digest,
+            historical_plan, snapshot, utf8=True, long_paths=True, user_link_aliases=True,
+            parent_plan_seed=self.linux)
+        installed = json.loads(previous.manifest_bytes)
+        self.check(installed, 2, 5, record=self.release(installed, 2))
+        self.check(disk, 2, 1, record=self.release(disk, 2))
         self.assertEqual(disk['provenance']['source_input_count'], installed['provenance']['source_input_count'])
         for original, other in ((disk, installed), (installed, disk)):
             for field in ('native_build_plan_sha256', 'linux_candidate_build_plan_sha256'):

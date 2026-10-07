@@ -383,6 +383,14 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             arguments.extend(["-include", forced_include])
         return arguments
 
+    def test_unsigned_rotate_leaves_preserve_types_abi_and_recovery(self):
+        result = subprocess.run(
+            [str(self.contract_path), "unsigned-rotate-leaves", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT, text=True, capture_output=True, timeout=60,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(result.stdout, "unsigned-rotate-leaves: ok\n")
+
     def test_static_definitions_emit_deterministic_elf32_objects(self):
         result = subprocess.run(
             [str(self.contract_path), "static-data", str(REPO_ROOT)],

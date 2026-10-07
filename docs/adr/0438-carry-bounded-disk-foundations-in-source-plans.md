@@ -2,9 +2,10 @@
 
 ## Status
 
-Implemented and tested privately on 2026-10-06. Candidate plans and native and
-Cupid-built readers and Python coordinator controls pass on both hosts.
-Paired producer qualification and seed installation remain open.
+Implemented and tested privately on 2026-10-06. Candidate plans, native and
+Cupid-built readers and Python coordinator controls pass on both hosts. The
+private disk-foundation producer cohorts are qualified. Complete SDK publication
+and active seed installation remain open.
 
 ## Context
 
@@ -51,8 +52,10 @@ LFS assets. Its complete 99-input producer snapshot is
 Both actual preparations pass with conventional host producers forbidden.
 Independent checking verifies 291 stage artifacts, 198 source copies and 97
 matching final-stage pairs. The actual release author selects the twelve exact
-prepared tools. These preparations remain unqualified until full behavior
-checks pass; SDK publication and installation remain separate obligations.
+prepared tools. Subsequent full behavior qualification passed on both hosts.
+The accepted twelve-tool projection is recorded in
+`disk-foundation-76914250-qualified-pair-candidate-independent.json`.
+SDK publication and installation remain separate obligations.
 
 All thirteen plan and source-capture methods pass on Windows and Linux.
 Independent rereading checks the 26 executions, retained source bytes, logs,
@@ -125,3 +128,13 @@ now bind the five exact disk plans and counts without changing promotion pins.
 Stage-pair totals, new seed identities and normal
 disk ownership require actual qualification and publication results. The
 normal disk-image action remains Python-owned.
+
+The later adoption source closure passes both normal OS builds and all four
+strict boot checks. Independent rereading verifies 1,672 retained source inputs,
+429 objects, sixteen artifacts, six unchanged user products, the complete ABI
+and preserved FAT data. Only the 168,013-byte embedded manual object changes
+from the qualified parent. The paired image SHA-256 is
+`9af6ee9b33fed6f48864f8a25f5ffd6bd7b83e0ab6aad9c839f31d052bdd6502`.
+Only the raw kernel policy row changes to 9,602,192 bytes. Evidence is
+`disk-adoption-os3-paired-independent.json`; it validates the earlier qualified
+seed and does not establish stack-transfer compiler qualification.

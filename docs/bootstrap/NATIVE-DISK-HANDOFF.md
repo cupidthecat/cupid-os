@@ -1,5 +1,87 @@
 # Native disk-image handoff
 
+## Earlier-seed source checkpoint acceptance, 2026-10-07
+
+Both normal kernel, image and user builds pass with conventional code producers
+blocked. All four strict ls/SMP and feature 17 boot checks pass within 150
+seconds. Paired independent rereading checks all 1,694 source controls, 429
+objects, sixteen artifacts, six user products, complete ABI and the preserved
+FAT suffix. Only the manual wrapper changes; generated symbols remain identical.
+
+The 169,383-byte manual occurs once in each kernel output. Kernel sizes are
+9,603,560 raw bytes, 9,830,844 final ELF bytes and 9,699,772 pass-one ELF bytes.
+Both complete 200 MiB images have SHA-256
+`b40e8d807965bc917c9ee0e9a8f2883ed07448bdcd71d0aacc2c70ae1d9cbcdb`.
+Evidence is `stack-source-checkpoint-os2-paired-independent.json`. Only the three
+measured kernel policy rows change. The new compiler remains a separate
+qualification and adoption step.
+
+## Separate streamed frozen-input prototype, 2026-10-07
+
+The retained prototype copies and revalidates complete 200 MiB inputs through
+64 KiB blocks. All twenty actual i386 build phases and 62 runtime controls pass
+through native and complete prepared CupidC producers on both hosts. Both Linux
+i386 callers retain the 32 MiB address-space limit. Independent rereading also
+checks 31 native diagnostic cases and 57 complete exported copies.
+
+The normal test module and optional fixture ownership row also pass in a later
+source copy. Independent rereading checks 75 method executions, 141 invocations,
+105 complete copies, twenty strict audit contracts and 26 existing ownership
+controls. API and C caller bytes stay unchanged from the preceding prototype.
+
+The prototype keeps ordinary freezing and payload reads at 64 MiB, records an
+explicit limit for each larger input, and preserves input/output alias rejection.
+It has not been applied to the integration worktree or installed seeds. The
+previous public image still needs its own retained previous-output role before
+native disk publication can use these copies. See
+[the streamed-input prototype](STREAMED-FROZEN-INPUT-PROTOTYPE.md).
+
+## Private large-candidate publication, 2026-10-06
+
+The bounded constructor carries the accepted candidate and previous-output
+capacity through their complete transaction lifetime. All four native and
+Cupid-built producer suites publish and reuse complete 200 MiB outputs under
+the original limits. Linux checks both files under a 32 MiB address-space limit.
+
+Review found a Windows second-tool reopen that still used the ordinary 64 MiB
+wrapper. The retained old API reproduces the pre-launch rejection. The repair
+uses the accepted transaction capacity and keeps identity, digest, sharing and
+single-capture checks. Ten new method executions and fourteen checked
+invocations pass through all four producers, with two expected Windows skips.
+A rejecting second tool preserves the previous output. Independent rereading
+checks the separate 35-input source capture, all complete outputs and namespace
+cleanup in `stack-candidate-reopen1-four-producer-independent.json`.
+
+The combined emitter also passes its capability and ordinary object controls.
+Both complete prepared cohorts pass every self-host object mode; Windows
+also passes the full kernel frontier. An identical Linux-storage frontier
+replay passes in 1,488.105 seconds. Independent paired checking verifies all
+624 objects and their complete raw source bindings. Full producer
+qualification, SDK publication and normal OS/runtime
+acceptance remain open. Large frozen-input copies, full-range snapshot layout,
+flush guarantees, independent disk validation and final normal disk ownership
+remain separate work. See [ADR 0439](../adr/0439-bound-large-candidate-publication-explicitly.md)
+and [ADR 0444](../adr/0444-fold-proven-scalar-load-stack-transfers.md).
+
+## Retained adoption-manual acceptance, 2026-10-06
+
+The later adoption source closure passes both normal OS builds with conventional
+code producers forbidden. Windows takes 6,383.205 seconds for the kernel and
+Linux 4,264.147 seconds. All four strict four-CPU max/e1000 ls/SMP and feature 17
+checks pass the original 150-second limits. Independent rereading verifies all
+1,672 source controls, 429 objects, sixteen artifacts, six unchanged user
+products, the complete ABI and preserved FAT data from retained workspace copies.
+
+Only the manual object changes from the qualified parent. The 168,013-byte manual
+occurs once in each kernel output. Raw kernel size is 9,602,192 bytes; final ELF
+and pass-one ELF sizes stay at 9,830,844 and 9,699,772 bytes. The policy changes
+only the raw kernel row. Both complete 200 MiB images have SHA-256
+`9af6ee9b33fed6f48864f8a25f5ffd6bd7b83e0ab6aad9c839f31d052bdd6502`.
+Evidence is `disk-adoption-os3-paired-independent.json`. Original receipts keep
+their original path bindings after copying. This run uses the earlier qualified
+seed. The stack-transfer compiler, complete SDK publication and normal disk-image
+ownership require their own acceptance.
+
 ## Embedded manual acceptance, 2026-10-06
 
 Both normal OS derivatives pass with the installed parent unchanged and
