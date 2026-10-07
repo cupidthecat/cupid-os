@@ -1,5 +1,62 @@
 # cupid-os
 
+## Qualified scalar emitter cohort, 2026-10-07
+
+The committed `2d04ff25` producer passes complete Linux and native Windows
+qualification with conventional host producers forbidden. Paired independent
+review checks all 291 staged products and 7,761 published files. The private
+worktree carries the fifteen exact replacement seed files, reviewed Python
+pins and fifteen measured seed and kernel policy rows; its 99 compiler producer
+inputs remain unchanged.
+
+Public bootstrap commands now accept an explicitly reviewed behavior release.
+Both final tool sets must match that cohort exactly. Both actual Make recipes,
+complete public methods, paired normal OS builds and all four SDK publication
+profiles pass. Windows external-user acceptance remains open. See
+[the behavior context record](docs/bootstrap/BOOTSTRAP-BEHAVIOR-CONTEXT.md) and
+[the seed decision](docs/adr/0446-carry-qualified-scalar-emitter-seeds.md).
+
+Both actual public Make bootstraps pass with all 291 staged products and 7,761
+published files independently checked. Both fresh OS builds pass review of
+429 objects, sixteen artifacts, six user products, preserved FAT data and four
+strict four-CPU boots. Corresponding products and complete images agree byte
+for byte. Both original kernel-frontier modules pass all 36 methods, including
+the complete cohort compiled twice, with all sixty reviewed locks intact.
+Linux external `hello`, `ls` and `cat` pass independent FAT and runtime checks.
+The Windows external `ls` attempt panics during EHCI DMA revocation; its failure
+is retained. Ordinary and explicit long-path SDK publication now pass on both
+hosts. Each profile passes independent review of 104 inputs, 77 stage pairs,
+22 ELF artifacts and its manifest.
+
+The revised 174,193-byte embedded manual passes paired independent reconstruction,
+all sixteen artifact checks and four strict four-CPU boots. Both complete
+200 MiB images agree. Its measured raw-kernel length is 9,292,324 bytes;
+fifteen other policy rows and all 99 producer inputs stay unchanged. Evidence is
+`stack-manual-refresh4-paired-independent.json`.
+
+## Retained previous-output prototype, 2026-10-07
+
+Four actual i386 producers pass 114 previous-output runtime cases, including
+complete 200 MiB copies, changed and equal publication, and both Linux 32 MiB
+controls. The normal small cases, fresh ordinary publication regressions,
+twenty strict audit contracts and 26 ownership controls also pass. Earlier
+600-second timeouts remain retained and rejected.
+
+The API and further result-transfer emitter remain in a separate prototype.
+The corrected emitter passes 23 capability methods through all four producers.
+Both actual Cupid-built callers pass all 58 ordinary modes. All 156 kernel
+sources compile twice through each of four producers, with matching complete
+objects. Both native callers also pass all 62 ordinary and self-host modes;
+all 422 reviewed objects and eight linked products agree. Actual i386 adapter
+and full hosted-runtime execution pass on both hosts. Both complete preparations pass; independent checks reread 291 staged
+artifacts and 97 fixed-point pairs. The current-control integration candidate
+also passes both strict audits, ownership controls and native capability tests.
+Both retained-copy APIs pass 88 independently checked runtime cases, including
+complete 200 MiB copies and publications under 32 MiB on Linux. Fresh complete
+Cupid object callers remain under verification. Committed qualification,
+normal OS acceptance and recipe adoption remain open. See
+[the previous-output record](docs/bootstrap/PREVIOUS-OUTPUT-PROTOTYPE.md).
+
 ## Private publisher and emitter verification, 2026-10-06
 
 Bounded transactions publish and reuse complete 200 MiB candidates through
@@ -17,8 +74,10 @@ and four unchanged objects. The first Linux frontier times out; an identical
 source replay on Linux storage passes in 1,488.105 seconds with every check and
 the original limit. Independent rereading checks all 624 objects and their
 complete source bindings; corresponding objects agree between hosts.
-Paired producer qualification, SDK publication and normal OS/runtime acceptance
-remain open. See [the bootstrap record](docs/bootstrap/README.md) and
+Paired producer qualification now passes for the committed cohort above.
+Paired normal OS and all four SDK publication profiles pass as recorded above.
+Windows external-user acceptance and the separate further emitter remain open. See
+[the bootstrap record](docs/bootstrap/README.md) and
 [the candidate-capacity decision](docs/adr/0439-bound-large-candidate-publication-explicitly.md).
 
 ## FAT16 reserved cluster boundary, 2026-10-06

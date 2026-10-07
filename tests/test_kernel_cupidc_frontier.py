@@ -1912,7 +1912,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                4421620,
+                4162872,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -1921,143 +1921,122 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(
                 object_records["kernel/smp/acpi.cc"],
                 (
-                    5708,
-                    "0e32026db8af4d22ad9007c1900df16bee2bca342187a797dc12f154f340b1d5",
+                    5360,
+                    'eb0212ae698355c1fe095d211e0ec5dfd71732af14ecff3355c683a341427a33',
                 ),
             )
             self.assertEqual(
                 object_records["kernel/smp/mp_tables.cc"],
                 (
-                    4156,
-                    "37791cc5ab28b93e92553735a2c8380d539f9473529e3f8d5731859c37358960",
+                    3960,
+                    '5f3b28380424d152a670eca91542dba97325c55b12f7ae596d0d3d58fb2fba24',
                 ),
             )
             self.assertEqual(
                 object_records["kernel/smp/percpu.cc"],
                 (
-                    6760,
-                    "3c2c6f0e00e5edec1ca16cba91e9fc5"
-                    "93d1c42e24f4ebd3591e5f574fb0dd772",
+                    6632,
+                    '4d7f63e37ecb48fe526f5c61505e9db17bb83fd19ba47946368e8272ca4af716',
                 ),
             )
             self.assertEqual(
                 object_records["kernel/smp/smp.cc"],
                 (
-                    8444,
-                    "bd3189b2a1a6d15728c559172f5d6acc"
-                    "a0889103428085cec8cc1024742a22d1",
+                    8032,
+                    'b40925edb03f01f7cc03226ea4594f6f85b938319de2bfff9a304e93c706279a',
                 ),
             )
             self.assertEqual(
                 object_records["drivers/e1000.cc"],
                 (
-                    8784,
-                    "167b60a977a63f28dd92c25afa27f65f"
-                    "bacd4318ce17f5c148db447737542d2e",
+                    8160,
+                    'd217206b962485df43ee05247f1d0563ef6b3124374af9bea8a3c2815f569c8a',
                 ),
             )
             self.assertEqual(
                 object_records["kernel/gui/desktop.cc"],
                 (
-                    115488,
-                    "64dd0fdc511fc4af8a5f3a64c62770d5"
-                    "1a1ef9f863b8b337b5d94162d3f583e0",
+                    111152,
+                    'bd9ddaaa0820b98b119ce7dc026ba84f8a785db8ab9901801e6de294d06bb083',
                 ),
             )
             self.assertEqual(
                 object_records["kernel/network/socket.cc"],
                 (
-                    12416,
-                    "9e9e40831f1551c499c2899870869b15"
-                    "c204c992adf9da75ff73715a35c86e39",
+                    11552,
+                    '2983188467cdf757f61dfac61269fa879a9fbe52b06aa405b567528830efe91b',
                 ),
             )
             self.assertEqual(
                 object_records["kernel/network/tcp.cc"],
                 (
-                    20204,
-                    "831f2a82687ab327f4b48b28fef69104"
-                    "cc94af0770dc6caf7b8a8df5b87a7368",
+                    18356,
+                    '084475f4d09525d91c737d855819e2d30d7b101ef2f04a4027644234e4ced448',
                 ),
             )
             self.assertEqual(
                 object_records["toolchain/x86.cc"],
                 (
-                    141552,
-                    "f912265d1ed23b00a3c6877ab4bdd129"
-                    "d43d234ff8171e31d1a2c4ccfa1f34eb",
+                    136108,
+                    'dff96083877c54ac939b240e372dd12fcd1e58e49fd1332290e81ebd827998a1',
                 ),
             )
             port_io_object_records = {
                 "drivers/ata.cc": (
-                    10748,
-                    "7675b2eaf6aca4ae022b53943887a6fc"
-                    "5d419a41a6dd2af3300f6265fd501575",
+                    10536,
+                    '9062a30bdf6e23d7f335b4fb2df374821a52e2f9e068e1ec297bb1788d946461',
                 ),
                 "drivers/keyboard.cc": (
-                    11740,
-                    "0703723bd6aecb968fd011d8921cf859"
-                    "5eff10d2e8d30b9dd5c68c74f85e6daa",
+                    11480,
+                    'e5e0ced46569e51fd83004e66a4547605efa0da1679ef3a0fe1534c424e45ffe',
                 ),
                 "drivers/mouse.cc": (
-                    12936,
-                    "0fc5292e291cd8ff0403cda1948029cb"
-                    "8f1e92051e04f882e8935dc371f330d8",
+                    12580,
+                    'f54981f2ff5bfc76524e428dc95316782e204a13bab9db52d78ccf46662d777e',
                 ),
                 "drivers/pci.cc": (
-                    7136,
-                    "7d006772700b8b0192daa7690417bc68"
-                    "72b8324588cd67e50126cf318858a68e",
+                    6880,
+                    '3b1bc8084d162651adb943d69dd8dcde8dda1499cc535c96ae188ab57d00656c',
                 ),
                 "drivers/pit.cc": (
-                    1816,
-                    "988d4678c3ca72ee706192c22138dbe3"
-                    "a899d70d7ce059eaed5c613e2ca77b53",
+                    1768,
+                    'affa6d8150e05e0cedeb93a0312f268b5f4de86a42e1d09ef72bfc7491cb6cf7',
                 ),
                 "drivers/rtc.cc": (
-                    7520,
-                    "e4e81e276d1fc15c04f3b56ace981647"
-                    "9af6e8c4c3a4f3b1a38b2a137766ef4a",
+                    7356,
+                    '056e63838c5562473a43386872a47b98ba87c83d67e6ac33d7ef79ebe8c6b49a',
                 ),
                 "drivers/rtl8139.cc": (
-                    8420,
-                    "868bc268aa052fada119bbebc32f8565"
-                    "d812ee48ed443f97fe4a909875b27879",
+                    7944,
+                    'e23a582d1bba3de464ec2b470048d0ee714eed6220c971eaae0f454196b11af7',
                 ),
                 "drivers/speaker.cc": (
-                    1576,
-                    "f880fc8db95090e040596589725c0935"
-                    "384da2387ba45661cb25657337bc55fa",
+                    1560,
+                    '278d8be88e17ae2300dcc17277ea2202a9a4699ce7881b9752b7a19e8fde281f',
                 ),
                 "drivers/vga.cc": (
-                    4764,
-                    "6a4e5de13541c623dfe440ca44705dc2"
-                    "e40bdf843ba33cabe69df5ce0bf45dbd",
+                    4572,
+                    '082bf6721f997f378c6fe8630fdd77602b9a8f15324b7c5e839fc466489a8716',
                 ),
                 "kernel/audio/ac97.cc": (
-                    14104,
-                    "318d9d78742d2f09b69231fb608da2c4"
-                    "312e40c918efb0a9d29073a7370eecf4",
+                    13716,
+                    '90f5d376a6eab5480685e2454ad1e40737f27aaa87d6e05df1fe6b1779df3cbc',
                 ),
                 "kernel/core/syscall.cc": (
-                    12572,
-                    "c2e30823de92cdd54dd849763dc37d81"
-                    "fdd72e64326cef807bf825725096a5aa",
+                    12212,
+                    'e6a527342f185be8a5a76cce8cd8776b187b1191ab30992ba079daf611e3e4ea',
                 ),
                 "kernel/lang/shell.cc": (
-                    173564,
-                    "e33958e9ab18224c4bd7117a14bf995a"
-                    "017b045002a47ca5f50fd1be5039c00f",
+                    166276,
+                    '7d597199c9c0cae758a1a8c800abd3da6bfa74e61074db2d03c1cc38ccdcfe44',
                 ),
                 "kernel/usb/ehci.cc": (
-                    22824,
-                    "4a8897d450b18acf4ddf6011428d66c1"
-                    "1ca36b495b6ae639c310bad52aebee5c",
+                    21084,
+                    '094d54f42bd3166c1d2ea4d4e28035d3387877e8e7fb17323eff92c187df4047',
                 ),
                 "kernel/usb/uhci.cc": (
-                    18680,
-                    "94f071c59c664abb6b5b8a1344a2475a"
-                    "7a4815dab1bd632f2f43a6dd73f5ea9d",
+                    17452,
+                    '57dd3b97447d0d4ce1acb2da685c0101dc547cc9f3156dd55681d66671def12d',
                 ),
             }
             self.assertEqual(
@@ -2069,189 +2048,152 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             )
             source_driven_object_records = {
                 "drivers/serial.cc": (
-                    20776,
-                    "7b049fdc9ef79fee075e5903fa984663"
-                    "56d089135665591249194b5b81690bbd",
+                    19980,
+                    'c23179bbd79178fb8350d722ba24266037e74a8b78e65645bee18e71fa989cd0',
                 ),
                 "drivers/timer.cc": (
-                    6404,
-                    "af2c13c68060bfa71a2e001722837ba1"
-                    "64c803de8864acfa6d468d7cedc2e3da",
+                    6260,
+                    'b436edb83d1869f7d618d706bb9328c7f559bac91b39436536a49cb710df052f',
                 ),
                 "kernel/audio/nuked_opl3.cc": (
-                    40424,
-                    "a3a04ade4029d9333902bb93376fb5ee"
-                    "f21f349ee5a1406bd0751cc4cee9f2a1",
+                    37984,
+                    'e2cdeba4b807596d5dacfd0c783fe797e035c64516e82e4d416f34775c116dc5',
                 ),
                 "kernel/core/app_launch.cc": (
-                    5488,
-                    "242aa3d0d14d70f6096fd64d3cff4a52"
-                    "a148b3caa660190c1024da0b0f6b1e9f",
+                    5312,
+                    '56bc4f681a7e479ea9c26bcd854c95a6024cc240048669b1272b04a7acecce5f',
                 ),
                 "kernel/core/kernel.cc": (
-                    25972,
-                    "90fc64e3e92e2a1fac573c7f983f2727"
-                    "0ab5b47c5eba6164b5703ad317003ed6",
+                    25384,
+                    '867a199a12dce7743db38aebee1cf748bc59615735e7a37ea80900e4df8a6c35',
                 ),
                 "kernel/core/panic.cc": (
-                    10212,
-                    "84daa51a65d6970ae7a7918b05fe64b7"
-                    "676c39d3309264375e349cf0ae20d428",
+                    9900,
+                    'c19fedd77e8c986eb37755f0c5be8cb31571a7d05f5aeeec36c1bda7614a5ba7',
                 ),
                 "kernel/core/process.cc": (
-                    33856,
-                    "5e5c376b3dd51bba5c276931771b1b87"
-                    "296802912598c519128b8ef643cd4212",
+                    31904,
+                    'bec2e8f5eea28e7612e0c28f4d5ca76474c47d83086db9fa7290c5db04e6252d',
                 ),
                 "kernel/core/string.cc": (
-                    14460,
-                    "d48bb6ea18b7124fbefeaca0d5d5ee8a"
-                    "517db950f21ea88e30ededd6c5c2a577",
+                    13820,
+                    '34e1143fbde2aae8eed602aa1b69fcce608ec35d6f56e226600663c514ffc280',
                 ),
                 "kernel/cpu/fpu.cc": (
-                    6620,
-                    "14c3ea232b7d4455ceabd561c69293cc"
-                    "5849abae24d9f210aa69d64ed8c8a5cb",
+                    6484,
+                    'd365c3b6201266cbdafcb3872e4adbf453f1778458754047076f11917f2b3afb',
                 ),
                 "kernel/cpu/idt.cc": (
-                    8756,
-                    "0ad16fd3250bc09ced7c928cb287123d"
-                    "b245980de73c15f0249db71a2f2f6ea3",
+                    8640,
+                    '43c5dff872298c574b11979ab422c11c9136ecd83796ba48bc0df95deec005eb',
                 ),
                 "kernel/cpu/irq.cc": (
-                    4308,
-                    "96356f3cfa63bbef6acf5a352e0ce89e"
-                    "d0f9b6a92174b66206f0eef7ae684ade",
+                    4112,
+                    '47355288dcef1cd0a8f4d07303a5d7bd23ca12b3bb133999685c4f8d15ae2d93',
                 ),
                 "kernel/cpu/ksyms.cc": (
-                    2620,
-                    "5d64f392df38b6730ff30c3099c3bdfd"
-                    "96bcc84d90740e20fd263c1ad7c94389",
+                    2368,
+                    '67a34475226fc81680583d7e359c6e7e27893977b784c133a808e7db374de583',
                 ),
                 "kernel/cpu/libm.cc": (
-                    16164,
-                    "c0911732361f2e1ea78aa778f834719b"
-                    "a12208cc2d9f0a312455a5e6a38a75b4",
+                    16004,
+                    '82655ff4fba8ed73413d316fb959af403627f76b0f25810a3c5b326957718dc8',
                 ),
                 "kernel/cpu/pic.cc": (
                     2408,
-                    "c1855a19e0cd285953996344493dcefe"
-                    "916f06d89fed706219718920b4d2ea5d",
+                    'c1855a19e0cd285953996344493dcefe916f06d89fed706219718920b4d2ea5d',
                 ),
                 "kernel/cpu/simd.cc": (
-                    8768,
-                    "fd280c321b8eb38a90d4f0982d70b8df"
-                    "0364585e3da322eb2c9de722e071f8d4",
+                    8008,
+                    '42ce37cb0ba0c5b3e52262139497e285385c626f741adf0f67e73501899ad230',
                 ),
                 "kernel/fs/fat16.cc": (
-                    65720,
-                    "77f2f571d26b4750911c6c14610e3588"
-                    "5bec4f1972ec3869ba10dc3226d1c4ef",
+                    62120,
+                    'aeb20c926671367f5bb403294d1b12fd52909eb6d0b54da85bff28d8320657ce',
                 ),
                 "kernel/fs/iso9660.cc": (
-                    13452,
-                    "34b8d669539365babac7d02cd51dd580"
-                    "e7c873775b679e0213e9180b49680917",
+                    12284,
+                    'cb9aa916f133ed396bd242b0e5e88158560862f50177a69daaaf1a6312bf592c',
                 ),
                 "kernel/fs/loopdev.cc": (
-                    3456,
-                    "cc53a4983a96d3b4a65931beec83c092"
-                    "66fe46e596f6b84f14a0205a40d3809d",
+                    3172,
+                    '0d80399a7a3396822e004dbd8ad6a27aa976bbeee410218afcada663949c8be7',
                 ),
                 "kernel/gfx/deflate.cc": (
-                    10640,
-                    "74d24784f3ea32e0523de68b3c6fc0d3"
-                    "bd63e80df05402d7b6fa4a85f891fee8",
+                    9808,
+                    '026a44cf8df0c431d16b486a5e2e1afee063965e20e9fccede1901ff4fd533e5',
                 ),
                 "kernel/gfx/gfx2d.cc": (
-                    183504,
-                    "65a12dc13c3e34d5a0fbdbc1edd6223d"
-                    "dbd361d64dbed4c0482bfc892ceef51b",
+                    166388,
+                    '841e23a7f7473efbfdb9204f505ed4f514943fddc18542ddcb398f5624f1a07b',
                 ),
                 "kernel/gfx/glyph_raster.cc": (
-                    11744,
-                    "83d2f4cac28abbc5bb8a92020ab7fb57"
-                    "251b1b927b4fdbc40981f29556aa1e80",
+                    10500,
+                    '93290146189a0bf0ef2b082e5b4f64384ef73c4e6096bf1941624a0e37d3b969',
                 ),
                 "kernel/gfx/jpeg.cc": (
-                    21132,
-                    "7ceffc0070f4e2bb26ba47f77c68a999"
-                    "a043f558ec41d30b9082e18744aeac2e",
+                    19368,
+                    '480e085c8d9b587525069a5cf58acdc1637f6bc04aef4aa87b481a31a5f937a8',
                 ),
                 "kernel/gfx/png.cc": (
-                    24128,
-                    "1823778061d7eb76c9f6ef03aadd7862"
-                    "d4207a08fa5ab8731e58a84cd0dd84be",
+                    21836,
+                    '91e66593bc1e3d151cf0b7ca54440ef3f49e448a5405bab89529e06d7fdd05b9',
                 ),
                 "kernel/gui/ed.cc": (
-                    55032,
-                    "dabc5904d830f11eeb73e1b8e4a7f691"
-                    "e28c3a730a4b4d66b52ddd3ca516aa24",
+                    52172,
+                    '8334ca1c1924317b2efb961e3151360129fa0e0a65ea3eaafafd3a62273ff577',
                 ),
                 "kernel/lang/as.cc": (
-                    165532,
-                    "d34560b2f67d535f37437b4dee5f1249"
-                    "c1f845ab9e654bc468b09db35a2d2e8d",
+                    160204,
+                    '501c06b85dee4a74d0eeafa8dca66790598d0f0f8f012e938084895ab7b3a8c2',
                 ),
                 "kernel/lang/cupidc.cc": (
-                    282560,
-                    "5128bc506f19dabdacba7d9171591790"
-                    "270c2b7422db0b89868816b7e1ebf4a3",
+                    272652,
+                    '8456d83d3093fd8251379dd77dabef2ff73811b141c4708c49fa4612881c5cbd',
                 ),
                 "kernel/lang/cupidc_lex.cc": (
-                    50428,
-                    "ed167056018f56bbefccd147ca35932e"
-                    "4d815ab6e126ff473e4e7c9963249291",
+                    48324,
+                    '98b8b4040214afa3b0f2ba6ac6a86c4a6167ae2fbb6dcf621b6dbb148057cbb7',
                 ),
                 "kernel/lang/cupidc_parse.cc": (
-                    508488,
-                    "27af09c37216cde40f20e3dfc4bef8f2"
-                    "b41e8bc8f48f772ce7cf661c9c4c9371",
+                    474052,
+                    '3cf105b8bd98a1f77fbfbd520eb88410d25bccd36541f7a1cab72ee3ca6b4cb4',
                 ),
                 "kernel/lang/cupidc_string.cc": (
-                    7332,
-                    "24533c70791b3c9b8f1f0d47bc5c7639"
-                    "af67e300c59eac4abbe1c9fa747598f2",
+                    6824,
+                    'b14eec63b6a9f1ae0710a0b613e51fbff168431b8bab22424202ea1aa392c5ae',
                 ),
                 "kernel/lang/ssh_io.cc": (
-                    12152,
-                    "f1bd3163beed6a1dca210ca228a12e1a"
-                    "f37223487f22ab2154701263654b464d",
+                    11452,
+                    '0f5de2a005763516bebe5a16b782494ab5b6337d393711c0c992d4fb5efd4e81',
                 ),
                 "kernel/mm/memory.cc": (
-                    18364,
-                    "45869b2941187d99d95dcb40b5396a68"
-                    "7fc3170fbc794cf377a82ce2002e78d4",
+                    17380,
+                    '88ca033bb7dcc521f4a3797d03f87d1bb041d0356573063382409539a7cfaa46',
                 ),
                 "kernel/mm/paging.cc": (
-                    2336,
-                    "fc9b757a35cf474f90436333ba732be2"
-                    "52253feeea531cad851215e17f793e2d",
+                    2180,
+                    '266fbe5367bd9a114b4cfdb8a6ee4ac6fdf5265281b625b710dbe1ba3b7baa8a',
                 ),
                 "kernel/network/sshd.cc": (
-                    48944,
-                    "766ff45396c659ac384b7edc0f8ff0df"
-                    "14215dbdd2d2efa0823879ee1b670bad",
+                    45960,
+                    '73c33acc4a4852b7fd8815256ae696f3cd1d9f03094437fcb2d01317a4a60418',
                 ),
                 "kernel/network/udp.cc": (
-                    3188,
-                    "9ec0a805ed7bdc271a49dce88f335aa1"
-                    "80588b910da075ef4cf8cf95d1efa726",
+                    2972,
+                    '280b70b728ece9b0dcf12c2ef07f9057354173724a39a34a8e6b8632a8ef3023',
                 ),
                 "kernel/smp/bkl.cc": (
-                    3128,
-                    "254793a6970f466cf4b3d55a98e907d1"
-                    "a68649a9b6dc736edadc5697bd316fd3",
+                    3024,
+                    '0b9943852ccebb12753528e84e61bef5e4b60b2f4fe565d98a4e018b07046e4c',
                 ),
                 "kernel/smp/lapic.cc": (
-                    4184,
-                    "6ce344d265ad3fb6b221a9159d860954"
-                    "c5f5512a7eac526838e69bc181a4c045",
+                    4128,
+                    '4c76e7cb0382d2474299f13ce85307dc258d3f12a001c6e1e596fc6a679048b2',
                 ),
                 "kernel/tls/tls_ca_bundle.cc": (
                     388,
-                    "f94fe7c44ba8fbb94df7ef97f8e37c6d"
-                    "db0155eba143c07d154803a2c9171ec2",
+                    'f94fe7c44ba8fbb94df7ef97f8e37c6ddb0155eba143c07d154803a2c9171ec2',
                 ),
             }
             self.assertEqual(

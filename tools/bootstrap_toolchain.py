@@ -22,6 +22,11 @@ from typing import Sequence
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+if __name__ == "__main__":
+    # The release coordinator imports this module by its package name. Keep
+    # its BootstrapError identical to the one handled by the CLI below.
+    sys.modules["tools.bootstrap_toolchain"] = sys.modules[__name__]
+
 
 SEED_SCHEMA = "cupid.bootstrap-seed.v1"
 WINDOWS_SEED_SCHEMA = "cupid.execution-seed.v1"
@@ -108,29 +113,29 @@ WINDOWS_SEED_PARENT_MANIFEST_SHA256 = (
 WINDOWS_SEED_PARENT_SOURCE_REVISION = (
     "a17c9465911da41d59b7ada71733d36c39faa5ea"
 )
-PROMOTION_PARENT_LINUX_MANIFEST_SHA256 = 'a6d47be27b6251c14558bce043fd984b69d03e811c52e22bc4babd2e100240e4'
-PROMOTION_PARENT_WINDOWS_MANIFEST_SHA256 = '4e283de89c289f1e9c0c86d02456817cd954a31330f685bc45ece536d56bff31'
-PROMOTION_PARENT_SOURCE_REVISION = '344a9eeec2bbdf2fdc28e4d425139ff77f08a792'
+PROMOTION_PARENT_LINUX_MANIFEST_SHA256 = 'ff9a33a232b779d5e69c31e967e0406245b6ce537b2f5e3552e96606162c666e'
+PROMOTION_PARENT_WINDOWS_MANIFEST_SHA256 = 'fd1a1cdb9fc47b224f76266c841cce1fc79320a1ff2b788e25b0bbb2efe9390b'
+PROMOTION_PARENT_SOURCE_REVISION = '769142507c600af8e7edcb209de19fabab11aa2a'
 PROMOTED_SOURCE_INPUT_COUNT = 99
-PROMOTED_SOURCE_REVISION = '769142507c600af8e7edcb209de19fabab11aa2a'
-PROMOTED_SOURCE_SNAPSHOT_SHA256 = '3975f8d83f615d97e2179c12a2ebef484e1f8bc34eaa68da8893b93d2d0fc3be'
-PROMOTED_LINUX_MANIFEST_SHA256 = 'ff9a33a232b779d5e69c31e967e0406245b6ce537b2f5e3552e96606162c666e'
-PROMOTED_WINDOWS_MANIFEST_SHA256 = 'fd1a1cdb9fc47b224f76266c841cce1fc79320a1ff2b788e25b0bbb2efe9390b'
+PROMOTED_SOURCE_REVISION = '2d04ff25c3191eeacb71bb052f316817dc0954a7'
+PROMOTED_SOURCE_SNAPSHOT_SHA256 = '9bbcbb975781f2acd687add5e952cca317328276a94fb15ca781b5512ce51955'
+PROMOTED_LINUX_MANIFEST_SHA256 = 'c309c47d0da840b0904cc301648e58fa7054ed21433e680caf26ade262de7d67'
+PROMOTED_WINDOWS_MANIFEST_SHA256 = '680a898109c9620013b2c64b85e8e28afdd7871c2332388b12bbf084c6a6faea'
 PROMOTED_LINUX_ARTIFACT_IDENTITIES = {
-    'cupidasm': (517692, '34b963b607ace2dca9f1c542b2e82b55da9efbdd1316088bc7bbb0f89c7b7a15'),
-    'cupiddis': (538724, 'ec7797ccb802c6efd75394380501b985d957a8596f52094d1137503a49afdbd2'),
-    'cupidld': (317240, 'cac06a8804ca28c0f8201d729f80eb51b520989cd59b3c434c2f5cef70d07d54'),
-    'cupidobj': (413820, 'fb685251f09a7174c2477c28d815f8c57a4bb39d7b2784e860ae98c7771d4e71'),
-    'cupidc': (2704504, '9d89d13dd02afbc593ecea984b4cf5b3d7702c68e80cf166bc9d17e028a7e181'),
-    'cupidbuild': (1186140, 'c3bd26ac2af75787aafc39537e3a3f597fc353a545d9ecb5f9c2381ef0acb90c'),
+    'cupidasm': (480828, 'c75a976783b406f9eca127fb554932d35b7235506a85ece7dcc72f07a58e0949'),
+    'cupiddis': (505956, '86e4ced525fcb9a3e01358ba54a4c7325a15dfe1fdcbaa53b3a70f7c9f7d8095'),
+    'cupidld': (292664, 'bbe3510796f6c853b8af70217e99799fec5f138829fe9ac4a866cc4d5472e454'),
+    'cupidobj': (385148, '9bdfd38ad60a725a8057d8484ca51b3f9c7e20c7deb8818b3b17855ace02ad0e'),
+    'cupidc': (2540932, 'fa6165975b44e94cccdae4b8ade35914f27b74bf4988fd61170c100d650286e0'),
+    'cupidbuild': (1116624, 'af88283d9b68b15599c25d816d682a5075a93a08ab422ef1b50ba3c927a0043d'),
 }
 PROMOTED_WINDOWS_ARTIFACT_IDENTITIES = {
-    'cupidasm': (512512, '5efcc4503b01f90e80575cff59573216859c2eaee73128e93d6f0f631d905f24'),
-    'cupiddis': (536064, 'f45cdb3ea1c2426698162245dd4eb53005229775be2305d11ef7f67bacdccee4'),
-    'cupidld': (318464, '6dfa692ae2994e05f192d26a0e40d1c79838a19e90a5aee6510ab369af01795c'),
-    'cupidobj': (409088, 'da26911eeb57d497cd18b573bc364870d4d75d6e6337463e7a7155adfae28014'),
-    'cupidc': (2646528, '039d888a79bf08867fe66ba473e83850e453b36c210bac29c301664abfe0c9a3'),
-    'cupidbuild': (1172992, '2130c5a41e3f05cdad40c50421a8455963c577f9c66591faf14a663a6fc80539'),
+    'cupidasm': (475136, 'f1d87596966b6f01e9aff074b9c0a868a1aaf4f5b084939e7b3cf4d8911400de'),
+    'cupiddis': (499712, '6898dca0ff713faaef4fe1d47d3d45ade9dbbe5877bc6f8ae161d155b7f5cd39'),
+    'cupidld': (291840, '9bd4f1fede38cc95061902a8c1e45a2124a47d937f9683f7d1b82ba81d9d95b5'),
+    'cupidobj': (377344, 'a37095166fedfe14305b4a9b7a0357bb236e7a4b64f1a7ffdb866cb9a5c0d657'),
+    'cupidc': (2484224, '3e0778edaaacda264f37011e829533b354f9076df2ac5c01c9dde0dfb4262dc6'),
+    'cupidbuild': (1098752, 'cb83cca5ea6cbb7dda60ac8192aa63e87bd0a9cf1797459ba9897dc2757a03f0'),
 }
 PROMOTED_LINUX_PLAN_SHA256 = '808d9a566c3dd200252cb6ca974dfa19992a923867dc60f500797efd5169c73e'
 PROMOTED_WINDOWS_PLAN_SHA256 = '754895566b00e6e53b045a1414e7b734872f04d4f0c84d62e3dfcf8dd9bc57ab'
@@ -10043,6 +10048,7 @@ def bootstrap_windows_from_seed(
     *,
     windows_long_paths: bool = False,
     windows_user_link_aliases: bool = True,
+    seed_release_path: Path | None = None,
 ) -> dict[str, object]:
     """Build three native PE generations from the checked Windows seed."""
     if type(windows_user_link_aliases) is not bool:
@@ -10078,6 +10084,10 @@ def bootstrap_windows_from_seed(
             raise BootstrapError(
                 "native Windows bootstrap requires a Windows host"
             )
+        release_request = None
+        if seed_release_path is not None:
+            from tools.bootstrap_stage_release import capture_seed_behavior_release
+            release_request = capture_seed_behavior_release(seed_release_path, plan_inputs, seed_inputs)
         return _bootstrap_windows_from_frozen_seed(
             seed_inputs,
             plan_inputs,
@@ -10085,6 +10095,7 @@ def bootstrap_windows_from_seed(
             output_root,
             **({"windows_long_paths": True} if windows_long_paths else {}),
             windows_user_link_aliases=windows_user_link_aliases,
+            **({"release_request": release_request} if release_request is not None else {}),
         )
 
 
@@ -10097,11 +10108,14 @@ def _bootstrap_from_seed_with_policy(
     windows_long_paths: bool = False,
     windows_user_link_aliases: bool = True,
     release_request: object | None = None,
+    seed_release_path: Path | None = None,
 ) -> dict[str, object]:
     if type(windows_user_link_aliases) is not bool:
         raise BootstrapError("Windows user-link alias selection must be Boolean")
     if type(windows_long_paths) is not bool:
         raise BootstrapError("Windows long-path selection must be Boolean")
+    if release_request is not None and seed_release_path is not None:
+        raise BootstrapError("behavior authority selections are mutually exclusive")
     with tempfile.TemporaryDirectory(
         prefix="cupid-bootstrap-seed-inputs-"
     ) as temporary:
@@ -10116,6 +10130,9 @@ def _bootstrap_from_seed_with_policy(
                 "the native Windows execution seed cannot drive the "
                 "Linux fixed-point bootstrap"
             )
+        if seed_release_path is not None:
+            from tools.bootstrap_stage_release import capture_seed_behavior_release
+            release_request = capture_seed_behavior_release(seed_release_path, seed_inputs)
         return _bootstrap_from_frozen_seed(
             seed_inputs,
             source_root,
@@ -10135,6 +10152,7 @@ def bootstrap_from_seed(
     *,
     windows_long_paths: bool = False,
     windows_user_link_aliases: bool = True,
+    seed_release_path: Path | None = None,
 ) -> dict[str, object]:
     if type(windows_user_link_aliases) is not bool:
         raise BootstrapError("Windows user-link alias selection must be Boolean")
@@ -10147,6 +10165,7 @@ def bootstrap_from_seed(
         windows_long_paths=windows_long_paths,
         windows_user_link_aliases=windows_user_link_aliases,
         compare_fixed_point=True,
+        **({"seed_release_path": seed_release_path} if seed_release_path is not None else {}),
     )
 
 
@@ -10191,6 +10210,8 @@ def _build_parser() -> argparse.ArgumentParser:
     bootstrap.add_argument("--manifest", required=True, type=Path)
     bootstrap.add_argument("--root", required=True, type=Path)
     bootstrap.add_argument("--output", required=True, type=Path)
+    bootstrap.add_argument("--seed-release", type=Path,
+        help="reuse an explicitly reviewed cohort only when both rebuilt tool stages match its bytes")
     bootstrap.add_argument(
         "--windows-long-paths", action="store_true",
         help="capture the 77-file Windows long-path profile for paired proofs",
@@ -10210,6 +10231,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     windows_bootstrap.add_argument("--root", required=True, type=Path)
     windows_bootstrap.add_argument("--output", required=True, type=Path)
+    windows_bootstrap.add_argument("--seed-release", type=Path,
+        help="reuse an explicitly reviewed paired cohort only when both rebuilt tool stages match its bytes")
     windows_bootstrap.add_argument(
         "--windows-long-paths", action="store_true",
         help="capture the 77-file Windows long-path profile for paired proofs",
@@ -10248,6 +10271,7 @@ def main(argv: list[str] | None = None) -> int:
                 arguments.manifest, arguments.root, arguments.output,
                 windows_long_paths=arguments.windows_long_paths,
                 windows_user_link_aliases=arguments.windows_user_link_aliases,
+                **({"seed_release_path": arguments.seed_release} if arguments.seed_release is not None else {}),
             )
             print(
                 "checked i386 Linux bootstrap: ok "
@@ -10262,6 +10286,7 @@ def main(argv: list[str] | None = None) -> int:
                 arguments.output,
                 windows_long_paths=arguments.windows_long_paths,
                 windows_user_link_aliases=arguments.windows_user_link_aliases,
+                **({"seed_release_path": arguments.seed_release} if arguments.seed_release is not None else {}),
             )
             print(
                 "checked i386 Windows bootstrap: ok "

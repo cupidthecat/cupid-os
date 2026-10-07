@@ -1,5 +1,561 @@
 # Bootstrapping log
 
+
+## 2026-10-07: Accept complete new-cohort retained-copy runtime
+
+Both retained-copy APIs now pass complete runtime through the entire new
+stage-four cohort. Independent rereading checks 57 previous-output cases and
+31 frozen-input cases, including 68 complete exported copies and twelve expected
+capacity or ordinary-input rejection exits. Both Linux complete 200 MiB cases
+pass under a 32 MiB address-space limit. Every original 600-second process bound,
+semantic predicate, complete file and namespace check remains. Evidence is
+`result-fullcohort-api2-previous-runtime-paired-independent.json` and
+`result-fullcohort-api1-frozen-runtime-paired-independent.json`.
+
+Windows blocks the attempted live-output write; Linux permits that write and
+rejects the changed observation. Both preserve the complete previous copy.
+The first new previous-output checker incorrectly adds a universal cross-host
+output equality check after all 57 original per-host predicates pass. Its failed
+source and observed result remain retained. The corrected checker keeps every
+per-host predicate and verifies both exact host-specific outcomes. No runtime
+case, executable, source byte or deadline changes. Evidence is
+`result-fullcohort-api-previous-checker1-observed-failure.json`.
+
+Complete new-cohort object callers remain under verification. Committed paired
+producer qualification, normal OS/runtime acceptance, seed installation and
+production recipe adoption remain open.
+
+
+
+## 2026-10-07: Retain the derivative tool-cohort timeout
+
+The derivative caller passes all 62 original modes on Windows. Linux passes
+61 modes, then reaches the original 1,800-second limit on `self-host-link-tools`.
+The failed mode emits no diagnostics and writes none of its seven requested
+tool executables; the earlier linked adapter remains retained. Independent
+rereading checks all 138 build/mode phases, exact commands, source and component
+bytes, streams and available products. Evidence is
+`result-complete-controls6-measured-independent.json`: 123 passes and one failed
+mode across the two hosts. This is a measured failure, not paired acceptance.
+The separate callers built from the entire new stage-four cohort remain under
+verification with all original modes and limits. No deadline or assertion is
+weakened, and no replacement seed is installed.
+
+
+
+## 2026-10-07: Check complete preparations and preserve current controls
+
+Both complete source-seven preparations pass. Independent rereading checks all
+198 producer source copies, 291 staged artifacts and 97 fixed-point pairs,
+including every complete executable format and original parent record. The
+99-input snapshot is
+`36fabda2192edb3ac0548834c93205f6bdde19562efaa7740fae8e8039a50bb5`.
+Evidence is `result-full-preparations1-paired-independent.json`. The preparations
+are uncommitted and unqualified; installed seeds remain unchanged.
+
+The prototype predates current public bootstrap-control fixes. A separate
+1,704-input candidate carries twelve reviewed implementation/test files and
+adds only two optional-fixture ownership rows to the current private snapshot.
+It preserves the public fixes, installed seeds, Python golden expectations,
+artifact policy and embedded manual. Every C/header/assembly input agrees with
+source seven; all 99 producer inputs exactly match the complete preparations.
+Independent checks pass twenty strict audit contracts, twenty-six ownership
+methods and forty-six native capability methods. Both code-review axes report
+zero new findings. Evidence is `result-integration-candidate2-paired-independent.json`.
+
+Both retained-copy callers then build with the entire new stage-four cohort on
+each host. Their exact fixed-point API objects receive strict disassembly.
+Independent checks verify all sixteen build phases, commands, component bytes,
+streams, image formats and original bounds in
+`result-fullcohort-api-build1-paired-independent.json`. Fresh complete object
+callers and full retained-copy runtime are under verification. Committed
+qualification, normal OS/runtime acceptance, seed installation and production
+recipe adoption remain separate gates.
+
+The first candidate checker named the artifact policy under the wrong directory
+and failed with a missing-key error. Its original source and observed failure
+remain retained. The corrected checker selects
+`bootstrap/artifact-size-policy.json`; candidate source and acceptance rules do
+not change. Evidence is `result-integration-checker1-observed-failure.json`.
+
+
+
+## 2026-10-07: Accept corrected ordinary, kernel and native self-host controls
+
+Both actual corrected Cupid-built ordinary callers pass all 58 original modes.
+Independent rereading verifies every source, compiler, object, executable,
+command profile and stream under the original bounds. All 156 kernel sources
+also compile twice through each of four producers: 1,248 compilations with
+matching complete objects. Complete instruction review permits 15,303
+same-address register transfers across 153 changed objects; three objects stay
+identical. Evidence is `result-ordinary-controls5-paired-independent.json`,
+`result-kernel-frontier5-four-producer-independent.json` and
+`result-kernel-frontier5-instruction-review.json`.
+
+The initial additional native self-host selection retains two encoding-inventory
+failures on each host. Complete paired review checks 115 current-source objects,
+including 114 with 32,357 same-address transfers and one unchanged object.
+Sixteen exact numeric expectations receive that review. All function counts,
+synthetic inventory counts, 10,268 source and diagnostic strings, semantic
+oracles, useful negative controls and deadlines remain. Both native callers then
+pass all 62 ordinary and self-host modes. Their 422 complete objects and eight
+linked products agree across hosts. Actual i386 adapter execution and the full
+hosted runtime contract also pass under their original bounds. Evidence is
+`result-paired-selfhost-dump6-complete-instruction-review.json`,
+`result-object-proposal10-native-paired-independent.json` and the two
+`result-linked-runtime10-{windows,linux}/closed.json` receipts.
+
+Fresh actual Cupid-built complete callers and paired full preparations use the
+sealed 1,698-input source-seven copy. These remain separate prototypes; no
+production seed or recipe changes. Committed qualification, normal OS/runtime
+acceptance and production adoption remain required. The initial failed native
+inventory runs and the earlier enum and lock failures stay retained.
+
+
+
+## 2026-10-07: Accept revised manual and corrected enum controls
+
+The revised 174,193-byte manual passes paired independent reconstruction,
+generated-symbol checks, all 429 resulting objects, sixteen artifacts, six user
+products, full ABI and preserved FAT data. Four strict four-CPU max/e1000 boots
+pass. Both complete 209,715,200-byte images have SHA-256
+`774925f38151973ce91ed4fd4103c4cf28e985264723ada750a3500b06f89781`.
+Only the raw-kernel policy row changes from 9,291,864 to 9,292,324 bytes; fifteen
+other rows and all 99 producer inputs remain exact. Evidence is
+`stack-manual-refresh4-paired-independent.json`. The previous failed proof-role
+probe and original Windows external-user EHCI failure remain retained.
+
+The separate corrected enum-transfer emitter passes all 23 capability methods
+through native and actual CupidC producers on both hosts, for 92 passing
+selections. Its two further emitter generations agree on each host and across
+hosts. Removing only the no-code conversion's branch-entry guard makes both
+strict certifiers reject a target in the middle of a MOV. Fresh complete object
+review accepts 162 ordinary objects with 1,325 same-address transfers and 145
+unchanged objects. Both native callers pass all 58 ordinary modes; every one of
+their 307 complete outputs matches the reviewed corpus. All 10,268 original
+source and diagnostic strings remain. See
+`result-enum-transfer-controls5-four-producer-independent.json`,
+`result-paired-object-dump6-complete-instruction-review.json` and
+`result-object-proposal9-native-paired-independent.json`.
+
+The failed quotient/remainder proposal remains rejected. Later proposals retain
+their two-mode and one-mode failures while resolving explicit symbol and whole
+section bindings. The current proposal keeps quotient and remainder mnemonic
+lists distinct. Fresh Cupid-built ordinary callers and the corrected full
+kernel frontiers are running under their original bounds. Complete self-host,
+producer qualification and normal OS/runtime acceptance remain required before
+adopting this separate implementation. The integration producer stays unchanged.
+
+## 2026-10-07: Accept all SDK profiles and diagnose enum transfer equivalence
+
+Ordinary Make SDK publication and the explicit long-path builder pass on native
+Windows and Linux. Each profile independently verifies 104 publication inputs,
+77 complete stage pairs, 22 strict ELF artifacts and its manifest. Ordinary
+bootstrap views capture 98 inputs and long-path views capture 99. Evidence is
+`stack-qualified-sdk3-four-profile-independent.json`. The original Windows
+observer failure remains failed. Windows external-user acceptance still requires
+resolution of the retained EHCI DMA-revocation panic.
+
+The separate further-emitter source passes 1,248 complete kernel compilations
+with matching outputs across all four producers. Whole-object review accepts
+153 objects with 14,260 same-address register transfers and three unchanged
+objects. Complete ordinary review accepts 160 objects with 1,214 such transfers
+and 147 unchanged objects. Every other byte and all symbol, relocation and
+branch anchors remain checked. These reviews belong to the captured producer;
+its subsequent enum correction needs its own complete review.
+
+Actual Cupid-built ordinary callers retain 35 passes and 23 failures per host.
+The first encoding proposal resolves thirteen modes but incorrectly changes a
+shared quotient/remainder mnemonic list. Both failed proposals stay retained.
+The block-enum failure is a real equivalence regression, minimized to one enum
+parameter returned as `int`. Its extra validated conversion emits no bytes but
+interrupts the optimizer's IR adjacency test. The separate correction looks
+past only word conversions that emit no bytes and have no branch entry.
+Both native hosts pass all 23 frame, rotate and transfer methods, including
+the new equivalence, useful-error and conversion-entry controls. The private
+integration producer stays unchanged. See
+[the previous-output record](PREVIOUS-OUTPUT-PROTOTYPE.md).
+
+The SDK acceptance text changes the embedded chapter, so it receives a new
+controlled manual/link refresh. The previously accepted 173,733-byte manual
+and image remain separate evidence until the revised payload passes.
+
+## 2026-10-07: Accept the final paired embedded manual
+
+Both final controlled manual refreshes pass independent review of all 1,700
+source controls, 99 unchanged producer inputs, the complete 173,733-byte manual,
+generated symbols, 427 reused objects and all 429 resulting objects. All sixteen
+artifacts, six user products, full ABI and preserved FAT data agree between
+hosts. Four strict four-CPU max/e1000 boots pass under their original limits.
+Both complete images are 209,715,200 bytes with SHA-256
+`579332992ef91cdc1f21ccc320c4d4cbd7a791dd290d08b8698909bff0293ab4`.
+Evidence is `stack-manual-refresh3-paired-independent.json`.
+
+The final proof runner and independent checker require the production Windows
+checked manifest and native execution manifest on both hosts. Their original
+policy probes reject the actual measured raw-kernel length, then normal Make
+passes all sixteen exact artifact checks. Adopt only the raw row from
+9,291,496 to 9,291,864 bytes. Fifteen other rows and all producer bytes remain
+unchanged. The second Linux run and the incorrect seam-checker success phrase
+stay failed and retained.
+
+## 2026-10-07: Retain the manual proof role error and measure EHCI reproduction
+
+The second Windows controlled manual refresh passes independent review of the
+corrected 173,367-byte payload, generated symbols, all 429 objects, sixteen
+artifacts, six user products, preserved FAT data and both strict four-CPU boots.
+Its complete image is 209,715,200 bytes with SHA-256
+`8b2abdbdef6b1d69b745061c39127cda6c498fd0f3136eb56312de3e272f966b`.
+Evidence is `stack-manual-refresh2-windows/independent.json`.
+
+Linux's kernel phase passes in 344.290 seconds, then the proof-only size probe
+rejects its incorrect checked-manifest role. That role must name the production
+Windows manifest on both hosts; the execution manifest selects the native host.
+The normal Make recipe already supplies those roles correctly. Earlier Linux
+pre-policy probes rejected the same role error, so their exit codes alone do
+not prove an artifact-length rejection. Their subsequent normal Make image
+gates independently pass all sixteen exact artifact sizes. Keep those distinct
+claims and retain the terminal second-refresh failure in
+`stack-manual-refresh2-linux-manifest-role-failure.json`.
+
+A direct call to the unchanged Linux verifier reproduces the exact role error
+and accepts the corrected Windows checked role against all sixteen artifacts.
+The first seam checker expects the wrong success phrase and remains failed.
+The corrected checker requires the actual Cupid success line. Evidence is
+`stack-manual-manifest-role-seam3/closed.json`. Correct the final proof runner
+and its checker together; changed current chapter bytes need a new refresh.
+
+A fixed six-case diagnostic cohort runs the original Windows external-ls
+scenario with two concurrent guests. Every case passes without the exact EHCI
+DMA-revocation panic; no post-failure register sample is taken. All six outcomes
+remain retained in `ehci-untraced-cohort2/closed.json`. These observations do
+not establish the cause or close the original failure.
+
+Fresh verification of the active branch confirms all eleven user files, their
+line endings, complete binary worktree patch, raw status and empty index still
+match the retained guard. Evidence is `stack-active-worktree-guard2-verified.json`.
+
+## 2026-10-07: Accept ordinary Linux SDK publication and the manual refresh
+
+The supported ordinary Linux SDK Make recipe passes in 6,345.836 seconds.
+Independent rereading checks all 1,700 source controls, 99 unchanged producer
+inputs, the default 98-input bootstrap profile, 104 publication inputs, all
+77 complete stage pairs, 22 strict ELF artifacts and the authored manifest.
+Every published tool matches the qualified cohort. The complete retained archive
+contains 8,910 files. Evidence is
+`stack-qualified-sdk1-default1-linux-independent.json`. Ordinary Windows and both
+explicit long-path profiles remain running with the synchronous retention
+checkpoint and original producer deadlines.
+
+The embedded manual refresh passes on both hosts. It reuses 427 accepted objects
+under byte-identical active C, header and assembly inputs. Normal checked recipes
+rebuild the complete manual wrapper, kernel links, generated symbols and image.
+Independent reconstruction checks the whole 173,367-byte manual and symbol blob,
+all 429 resulting objects, sixteen artifacts, six user products, full ABI and
+preserved FAT data. Four strict max/e1000 boots pass. Both complete images agree:
+209,715,200 bytes with SHA-256
+`a16eea433675ed055bd250bc2e39cb008aedee7a13be94d5019965170df2c4f0`.
+Evidence is `stack-manual-refresh1-paired-independent.json`.
+
+The first independent checker wrongly expected all three kernel lengths to
+change. Paired measurements change only the raw length to 9,291,496 bytes;
+both ELF files change bytes but retain their previous lengths. Keep the failed
+checker, compare the exact measured policy differences and adopt only the raw
+row. Fifteen other policy rows and all 99 producer inputs stay unchanged.
+The earlier publication paragraph still lists historical 101-input/74-pair
+counts. Update its three numeric fields to the measured current 104 inputs,
+77 pairs and 38 bootstrap objects. The revised embedded bytes need their own
+controlled refresh; the preceding accepted image remains retained.
+
+Two traced Windows ls replays and a third replay without tracing pass without
+reproducing the original EHCI panic. The untraced probe samples registers only
+after the exact panic; no sample is taken in its successful run. These observations
+do not replace the initial failure or establish its cause. A distinct Windows cat
+case, left unlaunched by the initial attempt, passes in 98.045 seconds with the
+original setup, fixture, PID-bound pattern and timeout argument. Independent
+rereading checks all 1,700 source controls, the whole staged image against the
+accepted Linux FAT image and the complete fixture output and PID-bound exit.
+Evidence is `stack-qualified-user-cat1-windows/independent.json`. This closes
+the separate cat case; the initial Windows ls failure remains unresolved.
+
+## 2026-10-07: Accept the paired normal OS and complete kernel modules
+
+Both corrected public selections pass. Paired rereading checks all four selected
+methods: three executions and Linux's declared Windows-host skip. The native
+Windows selection closes in 4,871.152 seconds, including complete long/alias
+preparation and unreleased-parent rejection. Original deadlines remain unchanged.
+Evidence is `stack-public-entry-tests2-paired-independent.json`.
+
+Both complete kernel-frontier modules pass all 36 methods. Linux closes in
+2,025.214 seconds and Windows in 2,277.085 seconds. Each executes the approved
+156-source cohort twice under the unchanged 2,340-second command limit.
+Independent rereading checks all 1,700 controls, 99 producer inputs and sixty
+reviewed locks, and repeats the AST isolation of the fourteen port-I/O updates.
+Evidence is `stack-kernel-port-tests2-{linux,windows}/independent.json`.
+
+The Windows normal kernel build closes in 3,421.790 seconds. Its strict ls/SMP
+and feature 17 boots pass in 63.516 and 70.586 seconds. Paired independent
+rereading checks all actual 429 objects, sixteen artifacts, six user products,
+manual, ABI, policy and complete 200 MiB image against the accepted Linux build.
+Corresponding products agree byte for byte; all four strict boots pass with
+their original bounds. Evidence is `stack-qualified-os1-paired-independent.json`.
+Only the three measured kernel-size policy rows are applied privately; thirteen
+other rows and all 99 producer inputs remain unchanged. The original policy and
+exact adoption remain in `stack-qualified-kernel-policy-adoption1`.
+
+Linux external hello, ls and cat pass. An independent FAT16 reader verifies both
+FAT copies, bounded chains, all four staged payloads and the preserved file.
+The boot/kernel prefix and original image stay unchanged. Each guest execution
+satisfies its original PID-bound output and exit pattern. The ninety-second
+driver argument stays intact; total boot/setup/command wall times are reported
+separately. Evidence is `stack-qualified-user-runtime1-linux/independent.json`.
+
+The Windows external attempt passes hello, then panics during EHCI DMA ownership
+revocation before ls executes. Cat is not launched. The original serial log,
+commands, staged image and failed closure remain retained. The staged image
+matches the successful Linux run byte for byte. A diagnostic replay with only
+targeted EHCI register tracing passes without reproducing the panic. It does
+not replace the original failure or establish Windows external-user acceptance.
+
+The initial Windows ordinary SDK run fails directory publication with WinError 5.
+The concurrent proof collector reads a file in the subtree being renamed.
+A minimal call to the unchanged publisher reproduces the failure while an
+ordinary reader stays open and succeeds after that reader closes. Delete-sharing
+file handles still block the parent-directory rename; an open directory scan
+does not. The corrected collector runs synchronously after the SDK body returns
+and before original workspace cleanup. Absent-output and empty-output controls
+both publish, retain their bytes and complete normal cleanup. These proof-only
+changes preserve every producer, source, publication guard and deadline. Full
+ordinary Windows and both explicit long-path SDK runs remain under verification.
+The Linux ordinary SDK run continues with its original collector. Failed probes
+and the initial complete Windows failure remain retained.
+
+## 2026-10-07: Review the fresh Linux OS and complete the kernel byte locks
+
+The fresh Linux kernel build passes in 2,471.395 seconds with conventional
+producers blocked and zero copied objects. Strict four-CPU max/e1000 boots
+pass `ls` in 81.771 seconds and `feature17_iso` in 84.077 seconds, each within
+its original 150-second limit. Independent rereading checks all 1,700 source
+controls, 99 producer inputs, 429 OS objects, sixteen artifacts, six user
+products, the full syscall ABI and the preserved FAT suffix. Evidence is
+`stack-qualified-os2-linux/os-independent-linux.json`.
+
+Whole-object comparison accepts 200 unchanged objects, 227 explained by the
+two existing local instruction rules and the complete 171,682-byte manual
+payload. The remaining kernel-symbol object is checked against an independent
+pass-one symbol listing and exact reconstructed source and blob. All three
+fresh user objects also pass instruction, branch, symbol, data and relocation
+comparison. The three measured kernel policy rows are 9,289,812 bytes for the
+raw kernel, 9,519,548 for the final ELF and 9,388,476 for pass one. The image is
+209,715,200 bytes with SHA-256
+`13b7fe3ca4fe8141ecbd3b6167d24c726633bf9d396e31c6be28e99e5bc5b672`.
+Private policy adoption waits for the matching Windows review.
+
+The earlier kernel-lock updater selected nine direct assertions and the
+37-entry source-driven dictionary, but missed the fourteen-entry port-I/O
+dictionary. Static rereading finds fourteen retained baseline locks. Their
+replacements already have complete paired review in the accepted 624-object
+frontier. Update only those 28 size/hash literals and verify all sixty locks
+against that review. AST comparison preserves every other assertion, source,
+deadline and test method. Evidence is
+`stack-reviewed-kernel-port-lock-adoption2/closed.json`. Complete original
+kernel-frontier modules now run from separate exact consumer copies on both
+hosts. This correction changes no C, assembly or producer input.
+
+The first corrected Windows full-bootstrap method passes. Its native
+long/alias preparation remains running, as do the fresh Windows OS and both
+ordinary SDK publications. External user-program guest execution remains a
+separate runtime requirement.
+
+## 2026-10-07: Verify both actual public Make bootstraps
+
+The actual Linux `bootstrap-from-seed` recipe closes in 2,472.824 seconds.
+Paired independent rereading checks it with the accepted native Windows result:
+all 291 staged products and 7,761 published regular files, exact 99-input
+producer observations, reviewed release, complete executable profiles and both
+behavior generations. Each stage matches the separately qualified fixed point.
+Evidence is `stack-public-make1-paired-independent.json`.
+
+Both actual Make recipes keep conventional producers blocked. The corrected
+Linux full method also passes; the corrected Windows full selection, fresh
+paired OS builds and ordinary SDK publications remain running. This closes
+the public Make recipe requirement without claiming OS or SDK acceptance.
+
+## 2026-10-07: Pass the corrected Linux full test and native Windows public Make
+
+The corrected original Linux two-method selection closes in 2,379.158 seconds.
+Its complete fixed-point method passes; the native Windows method retains its
+declared host skip. Independent rereading checks the exact 1,700-file consumer
+copy, log and unchanged 6,000/3,000-second method bounds in
+`stack-public-entry-tests2-linux-independent.json`.
+
+The actual native Windows `bootstrap-windows-from-seed` recipe closes in
+2,632.352 seconds with conventional producers blocked. Independent rereading
+checks all 3,423 published regular files, 159 complete staged products, the
+99-input producer snapshot, reviewed release, executable profiles and both
+behavior generations. Each stage matches the separately qualified fixed point.
+Evidence is `stack-public-make1-windows-independent.json`. The corrected
+Windows full selection and Linux Make recipe remain running.
+
+The completed compatibility selection still covers the current selected code.
+Four inputs retain exact complete bytes; the fifth changes only inside the two
+explicitly excluded full methods. AST-defined method ranges leave every other
+byte identical. `bootstrap-context5-selected-source3-independent.json` binds
+the existing 508 executions and twenty expected skips to the corrected source.
+
+Fresh OS preparations pass independent review with all 1,700 consumer inputs,
+the same 99 compiler inputs and zero copied objects or generated build outputs.
+The first Linux preparation stops at a missing historical native-storage disk.
+The separate corrected preparation uses the retained accepted Windows disk,
+whose complete hash matches the accepted Linux image, only to preserve disk
+data. Evidence is `stack-qualified-os-preparations1-paired-independent.json`;
+the failed preparation remains retained. Both normal OS rebuilds are running
+with conventional producers blocked. Their measured policy, whole-object,
+ABI, disk-data and strict runtime checks remain required.
+
+Ordinary SDK publication also runs from separate exact consumer copies on both
+hosts through the supported `toolchain` Make recipe. Its original producer and
+contract deadlines remain unchanged. The selected reviewed release supplies
+behavior authority; the native publication author keeps its own source and
+object comparisons. Complete publication results remain required.
+
+## 2026-10-07: Retain the original public Windows preparation result
+
+The original Windows two-method selection closes in 3,997.645 seconds. The
+bootstrap command succeeds before its fixed-point method rejects stale native
+compiler/linker output locks. The complete long/alias preparation passes,
+including rejection of an unreleased parent. Paired independent rereading
+binds both original failed host selections and the successful preparation to
+their unchanged source copies in
+`stack-public-entry-tests1-failures-paired-independent.json`.
+
+Corrected full methods and actual Make recipes run from separate immutable
+1,700-file copies. Normal OS acceptance needs a fresh object rebuild through
+the qualified pair; the earlier cached-object preparation cannot establish it.
+
+## 2026-10-07: Verify the separate retained previous-output prototype
+
+All four actual i386 caller builds pass twenty phases through native and
+prepared CupidC producers. The complete runtime selections pass 114 cases;
+independent rereading checks 98 whole previous-file copies, final outputs,
+source preservation, namespace cleanup and both Linux 32 MiB controls under
+the original 600-second case limits. Three earlier runtime timeouts stay
+retained and rejected. Successful native-storage and shorter Windows replays
+retain every original source byte, program, assertion and bound.
+
+The added normal module passes 35 complete native methods with one declared
+Windows skip. Its twelve small-case methods also pass through all four i386
+callers, with 108 invocations, 76 complete copies and every one of the five
+invalid/exceeded capacities. Fresh ordinary publication regressions pass 382
+executions with fourteen expected skips; independent rereading checks 88
+snapshot invocations and sixty complete copies. Both strict audits pass all
+twenty contracts and 26 existing ownership controls. CPP profiles agree
+between hosts; the inventory stays 422 tracked, four generated and 53 strict
+hosted roots.
+
+The API and further emitter remain outside the integration source. Whole
+object review, committed qualification, OS/runtime acceptance and production
+adoption remain required. The original equal-reuse inode/time assertion runs
+during execution; its pre-run stat tuple is not retained for independent
+rereading. See [the previous-output record](PREVIOUS-OUTPUT-PROTOTYPE.md) for
+the exact evidence and remaining disk ownership work.
+
+## 2026-10-07: Review public bootstrap context and committed producer qualification
+
+Public Linux and native Windows bootstrap entry points privately accept an
+explicit reviewed behavior release after seed freezing. Native Windows keeps
+both selected roles live, and every tool in both final stages must match the
+reviewed bytes. Current source and object observations stay unchanged.
+
+The original actual-worktree selection passes 500 executions with eighteen
+platform skips. Its five raw inputs remain retained before subsequent CLI
+fixes. Review against `1328cc18` finds an actual script/module exception-class
+split: malformed releases produce a traceback. Shared module identity fixes
+the diagnostic. Missing-file controls then expose raw filesystem failures;
+the behavior reader now translates them at capture and final revalidation.
+Actual subprocess red and green controls retain both failures and exact
+corrected diagnostics with absent output. The current context module has
+22 methods; native Windows passes all of them. The corrected five-module rerun
+selects 528 methods across both hosts. Independent rereading checks 508 passes
+and twenty expected skips against its five retained input files.
+
+The reviewer also identifies the current source/release mismatch in proposed
+Make bindings and the complete fixed-point test. Those changes remain
+unaccepted until the candidate cohort is exercised through the public paths.
+Its independent paired qualification and private installation are now complete.
+Reviewed byte matching stays strict.
+
+Both committed 99-input preparations pass at `2d04ff25`. Independent rereading
+checks 198 source copies, 291 stage artifacts and 97 matching final-stage pairs.
+The separate reviewed release is 2,736 bytes. Complete native Linux
+qualification passes in 1,973.318 seconds. Independent rereading checks all
+4,338 published regular files and 132 staged products, with both final
+behavior generations and the actual source and release bindings.
+
+The first Windows attempt retains 159 matching products, then rejects a
+checked child launch from its deep working directory. The unchanged production
+helper reproduces that failure and passes from a shorter layout with identical
+source, tools and release. The fresh complete Windows qualification passes in
+2,492.113 seconds from an exact shorter source copy with every original deadline
+and check intact. Paired independent review rereads all 7,761 published regular
+files and 291 staged products. The private worktree receives the fifteen exact
+qualified seed files, twelve reviewed Python pin assignments and twelve measured
+seed-size policy rows. All 99 compiler producer inputs remain unchanged. Full
+public bootstrap, normal consumer and candidate OS/runtime acceptance remain
+open.
+
+The first compatibility run after adoption fails five stale object-lock methods
+on each host: libm, kernel entry, SIMD, Doom compatibility and `returns_twice`.
+All original source guards pass. Fresh old/new paired compiles reproduce the
+earlier locks and repeat the new bytes. Independent review accepts 56 complete
+objects from seven unchanged sources through the existing direct frame-word
+read and adjacent register-transfer rules, with branch targets, symbol extents,
+data and relocations preserved. The private tests receive seven active-object
+locks and 46 full-kernel locks plus the 4,162,872-byte total. The latter also
+uses the existing paired 624-object review. Source digests, semantic assertions,
+negative controls and deadlines remain unchanged.
+
+The next compatibility run closes with 508 passes and twenty expected skips
+across the original 528 selections. Independent rereading checks both logs and
+all five retained inputs. Evidence is
+`stack-seed-golden-objects1-paired-rewrite-review.json`,
+`stack-reviewed-seed-golden-adoption1/closed.json` and
+`bootstrap-behavior-context5-paired-independent.json`. The failed stale-lock
+runs remain retained in `bootstrap-behavior-context4-*`. Full public bootstrap,
+normal consumer and OS/runtime acceptance remain open.
+
+Read-only inspection of the running original full fixture finds a profile
+mismatch in its own final source assertion. The command selects the 99-input
+long profile, but its later capture selects 98 inputs and two old literals
+still expect 81. The private fixture now uses the same long selection, expects
+99 and checks the complete input map and promoted snapshot digest. The original
+running copy remains untouched. Corrected full execution still needs to pass;
+the 6,000-second bootstrap and 3,000-second native Windows preparation bounds
+remain unchanged. Evidence is `stack-public-source-profile-diagnosis1.json`. See
+[ADR 0446](../adr/0446-carry-qualified-scalar-emitter-seeds.md) and
+[the behavior context record](BOOTSTRAP-BEHAVIOR-CONTEXT.md).
+
+The original Linux full selection closes after 2,078.706 seconds with a stale
+Windows image-lock failure. Its complete bootstrap command passes the original
+status and output assertions first. Review also finds stale native compiler
+and linker product locks. Fresh paired controls review forty complete objects
+and sixteen PE images from four unchanged C cases and two unchanged startups.
+The C changes use only the two approved local rewrites, with all branches,
+symbols, data and relocations checked. Both linkers produce exactly the same
+bytes for each reviewed input set. Twelve native Windows executions pass the
+old/new images, runtime file contracts and argument rejection.
+
+The first reconstruction rejects the old 33,792-byte runtime literal. The
+previous seed and a read-only `1328cc18` baseline probe both produce the same
+35,840-byte image from current source. That failed assumption and every product
+remain retained. The corrected comparison uses this measured baseline and
+matches the qualified 33,280-byte replacement. Only three exact hashes and two
+sizes change in the private full method. Every other assertion and original
+deadline remains intact. Evidence is
+`stack-public-golden-products2-paired-rewrite-review.json` and
+`stack-public-reviewed-lock-adoption1/closed.json`. Corrected full public and
+normal OS acceptance remain required.
+
 ## 2026-10-07: Close the earlier-seed source checkpoint's OS acceptance
 
 Both normal kernel, image and user builds pass with conventional code producers

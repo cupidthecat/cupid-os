@@ -57,10 +57,37 @@ The candidate producer captures the three disk modules and Unicode table.
 Its Linux plan has 37 C sources and 38 objects. The SDK separately captures
 104 source/control inputs; bootstrap views retain 97 through 99 inputs.
 The native readers keep historical profiles and check exact disk inventories
-and raw object pairs. Paired producer qualification and installation remain open.
-Large transaction capture, final disk validation, flushing, complete producer
-qualification and seed carriage remain open. The normal disk publisher
+and raw object pairs. The committed 99-input producer now passes complete
+Linux and native Windows qualification; its exact paired seeds are carried
+in the private integration worktree. Normal large transaction capture, final
+disk validation, flushing and OS/runtime acceptance remain open. The normal disk publisher
 remains Python-owned.
+>endtree
+
+>h2 Retained previous-output prototype
+>tree open Retained previous-output prototype
+The separate host prototype captures one complete previous output into a
+private file through fixed 64 KiB blocks and records its whole SHA-256. It
+retains the original file handle through capture and cleanup. Absence clears
+the results; repeated capture, unsafe names and runner-only requests reject
+publication. Ordinary input freezing still rejects the public output and its
+hardlink aliases. Payload-returning reads keep the existing 64 MiB limit.
+
+Four actual i386 producers pass 114 complete runtime cases, including changed
+and equal 200 MiB publication and both Linux 32 MiB controls. Independent
+rereading checks 98 complete previous-file copies. The normal small cases
+also pass through all four callers with every invalid-capacity rejection.
+Fresh ordinary publication regressions, strict audits and ownership controls
+pass. Earlier 600-second runtime timeouts remain failed; successful replays
+keep the original source, programs, checks and bounds.
+
+The API and further result-transfer emitter remain in the retained prototype.
+Its captured producer passes complete kernel and ordinary object review.
+A separate correction preserves enum-to-int transfer equivalence by looking
+past validated word conversions that emit no bytes and have no branch entry.
+Native regressions pass; the corrected producer still needs actual Cupid-built
+controls, complete object review, qualification and normal OS acceptance.
+Recipe adoption remains open. The normal disk publisher remains Python-owned.
 >endtree
 
 >h2 Private scalar emitter verification
@@ -84,8 +111,28 @@ self-host modes, including their seven-tool links within 1,800 seconds. Windows'
 review accepts 152 objects containing only the approved local changes and four
 unchanged objects. The first Linux frontier times out at its original limit.
 An identical full-source replay uses Linux storage with the same compiler,
-profile, source checks and deadline. Complete paired qualification, seed
-installation and normal OS/runtime acceptance remain open.
+profile, source checks and deadline. Independent paired review checks all
+624 objects. Complete paired producer qualification and private seed carriage
+also pass. Complete public bootstraps and paired normal OS gates now pass.
+Ordinary and explicit long-path SDK publication pass on Windows and Linux.
+Each profile verifies 104 inputs, 77 stage pairs and 22 ELF artifacts plus its
+manifest. Windows external-user acceptance remains open after an EHCI panic.
+Changes to this embedded chapter require a controlled manual/link refresh.
+>endtree
+
+>h2 Public bootstrap behavior context
+>tree open Public bootstrap behavior context
+The Linux and native Windows public bootstrap commands accept an explicit
+reviewed release with --seed-release. Reuse requires every tool in both final
+stages to match the reviewed six-tool cohort. Source observations and object
+comparisons remain the producer's own facts. Changed tools need separate
+producer qualification before becoming a reviewed seed.
+
+Native Windows retains the execution seed and Linux plan seed as separate
+roles and rechecks both through publication. Malformed, missing or changed
+releases fail with the bounded bootstrap diagnostic before output publication.
+Long filenames do not establish support for long inherited child working
+directories. The qualified cohort passes from the verified shorter layout.
 >endtree
 
 >h2 FAT16 allocation
@@ -2853,8 +2900,8 @@ Installation and normal consumer acceptance retain their own checks.
 Toolchain publication validates the selected Linux seed through the shared
 reader, then passes its captured manifest, plan and six image identities to
 the Cupid-built policy. CUPMAN5 authors the publication; CUPMAN6 verifies it.
-The complete policy retains 101 publication inputs and all 74 raw stage-pair
-comparisons: seventeen contract objects, sixteen contract programs, 35 bootstrap
+The complete policy retains 104 publication inputs and all 77 raw stage-pair
+comparisons: seventeen contract objects, sixteen contract programs, 38 bootstrap
 objects and six tools. The caller retains and rechecks the original file
 observations through publication. Historical producer profiles preserve their
 own complete inventories and comparison counts.
@@ -2902,6 +2949,37 @@ The complete allocation contracts run the exact four active kernel bodies
 with real headers and controlled sector callbacks. Native and Cupid-built
 callers agree on both hosts, including the last usable cluster, exhaustion,
 copy errors, allocation holes and the original HomeFS replacement workload.
+>endtree
+
+>h2 Qualified scalar emitter and public bootstrap
+>tree
+The scalar emitter folds proven direct frame-word reads and adjacent register
+transfers while preserving source behavior. Its complete Linux and Windows
+cohorts pass separate producer qualification. The installed private seeds retain
+their reviewed parent pair, exact twelve tool identities and source observations.
+
+Public Linux and native Windows bootstrap commands accept --seed-release for
+byte-identical reviewed tools. Both final stages must match all six selected
+images. Native Windows retains its execution seed and Linux plan seed through
+publication. Missing, malformed, changed or incompatible release authority fails
+with the bounded bootstrap diagnostic before publishing output.
+
+Both actual public Make recipes and corrected complete public methods pass.
+Both original kernel-frontier modules pass all 36 methods, including the complete
+156-source cohort compiled twice with sixty independently reviewed byte locks.
+Fresh normal OS builds produce identical 429-object cohorts, sixteen artifacts,
+six user products and complete images. The full syscall ABI, preserved FAT data
+and all four strict four-CPU boot checks pass with their original limits.
+
+Linux external hello, ls and cat pass independent FAT payload and PID-bound
+runtime checks. Windows hello passes, then the initial ls attempt panics during
+EHCI DMA ownership revocation. Later traced replays do not reproduce that panic.
+The original failure remains open. A separate Windows cat case passes independent
+fixture and PID-bound runtime checks. Ordinary Linux SDK publication passes
+independent review of all 104 inputs, 77 stage pairs, 22 ELF artifacts and its
+manifest. Ordinary Windows and both explicit long-path profiles retain separate
+acceptance checks. The streamed previous-output API and further result-transfer
+emitter remain separate prototypes.
 >endtree
 
 >h2 See Also

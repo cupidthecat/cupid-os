@@ -12,8 +12,13 @@ worktree. Reviewed separate self-host expectations also pass all native controls
 on both hosts. Final derivative callers also pass those three self-host modes
 and execute their adapters, while both seven-tool links time out. The complete
 prepared cohorts pass all four self-host modes on both hosts. Compiler cohort
-qualification and OS
-acceptance remain open.
+qualification now passes for the exact committed `2d04ff25` source cohort on
+both hosts. Its replacement seeds are installed privately under ADR 0446.
+Complete public bootstraps and paired normal OS gates now pass. Windows
+external-user acceptance remains open. All four SDK publication profiles pass
+independent verification. The revised 174,193-byte manual passes paired
+reconstruction and four strict boots. Its measured raw-kernel length is
+9,292,324 bytes; the compiler producer remains unchanged.
 
 ## Context
 

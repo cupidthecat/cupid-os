@@ -48,6 +48,28 @@ _Avoid_: compiler build input, promoted seed evidence
 Explicit authority to check byte-identical staged tools through a reviewed seed
 release. Both stage tool sets must match the pinned cohort; the publication
 author still owns its actual source observations and producer comparisons.
+The private public bootstrap entry points accept this context explicitly after
+freezing the selected seeds. Native Windows retains and rechecks both manifest
+roles. A changed source cohort needs separate producer qualification; an older
+reviewed release cannot authorize its different tool bytes. ADR 0445 records
+the entry points, actual CLI diagnostics and pending integration requirements.
+The current private cohort passes the corrected complete public methods
+and both actual public Make bootstraps. Independent rereading checks
+the 99 producer inputs, 291 complete staged products and 7,761 published
+regular files. The existing compatibility selection retains 508 passes and
+twenty expected skips; full-fixture body changes fall outside that selection.
+Fresh paired OS rebuilds start with 1,700 consumer inputs and zero copied
+objects. Both rebuilds pass independent review of all 429 objects,
+six user products, sixteen artifacts, preserved FAT data and four strict
+four-CPU boots. Corresponding products and complete images agree byte for byte.
+All sixty kernel byte locks match the existing complete object review; each
+original kernel-frontier module passes all 36 methods. The three measured
+kernel-size rows are installed privately. Linux external hello, ls and cat
+pass independent FAT and runtime checks. Windows external ls retains an EHCI
+DMA-revocation panic; a separate Windows cat case passes independent checks.
+Ordinary and explicit long-path SDK publication pass on both hosts. Each profile
+passes independent review of 104 inputs, 77 complete stage pairs, 22 ELF artifacts
+and its manifest. Windows external-user acceptance remains open under ADR 0446.
 _Avoid_: new producer qualification, source inventory substitution
 
 **Artifact policy observation request**:

@@ -1,5 +1,90 @@
 # Cupid Toolchain bootstrap
 
+## Separate previous-output prototype, 2026-10-07
+
+Four actual i386 producers pass 114 complete previous-output runtime cases.
+Independent rereading checks 98 whole-file copies and both Linux 32 MiB
+controls. The normal module's small cases add 48 passing methods and all five
+capacity rejections per producer. Fresh ordinary publication regressions pass
+382 executions with fourteen expected skips. All twenty strict audit contracts
+and 26 existing ownership controls pass.
+
+The API and further result-transfer emitter remain in a separate retained
+prototype. Earlier 600-second runtime timeouts stay failed; unchanged native
+storage and short Windows replays supply the accepted results. The corrected
+emitter passes all 23 capability methods through each of four producers. Both
+actual Cupid-built callers pass all 58 ordinary modes. The complete corrected
+kernel frontier passes 1,248 compilations across four producers; all whole
+objects agree. Both native callers pass all 62 ordinary and self-host modes,
+with 422 reviewed objects and eight matching linked products. Actual i386
+adapter and full hosted-runtime execution also pass. Both complete preparations pass independent checks of 291 staged artifacts
+and 97 fixed-point pairs. A separate 1,704-input integration candidate preserves
+the current public bootstrap controls and installed seeds while carrying the
+same 99 prepared producer inputs. Both strict audits, ownership controls and
+native capability modules pass. Its two retained-copy callers also build and
+pass strict disassembly on each host. Both retained-copy APIs pass 88 complete runtime cases and 68 exported copies,
+including both Linux 200 MiB controls under 32 MiB. All original bounds and
+useful negative predicates remain. Fresh complete Cupid object callers,
+committed qualification, normal OS acceptance and production adoption remain
+open. See [the previous-output record](PREVIOUS-OUTPUT-PROTOTYPE.md).
+
+## Public bootstrap context and committed qualification, 2026-10-07
+
+The private public entry points now accept an explicit reviewed behavior
+release and retain both seed roles for native Windows. Actual script and
+module rejection tests cover malformed and missing releases. The original
+compatibility run passes 500 executions with eighteen platform skips. Independent
+rereading of the corrected run checks 508 passes and twenty host skips. After
+seed adoption, five stale object-lock methods fail on each host. Paired review
+accepts 56 complete old/new objects from seven unchanged sources. The private
+tests receive seven active locks and 46 kernel locks through that review and
+the existing 624-object kernel review, with every source and semantic guard
+intact. The subsequent unchanged selection closes with 508 passes and twenty
+expected skips. Full public bootstrap and normal OS/runtime acceptance remain
+required.
+
+The corrected complete public selections now pass, retaining Linux's declared
+Windows-method skip and every original deadline.
+Both actual public Make bootstraps also pass; independent rereading
+checks all 291 staged products and 7,761 published regular files against the
+qualified fixed point. The completed compatibility selection remains identical
+outside the two excluded full methods. Both fresh OS builds pass independent
+review of 429 objects, sixteen artifacts, six user products, preserved FAT
+data and four strict four-CPU boots. Corresponding products and complete images
+agree byte for byte; only three measured kernel-size policy rows are adopted.
+Fourteen remaining port-I/O byte locks
+receive the existing complete object review; all sixty full-kernel locks now
+match. Each complete kernel-frontier module passes all 36 methods. Linux
+external hello, ls and cat also pass independent FAT and runtime checks.
+Windows external ls retains an EHCI DMA-revocation panic. Ordinary and explicit
+long-path SDK publication pass on both hosts. Each profile passes independent
+review of 104 inputs, all 77 stage pairs, 22 ELF artifacts and its manifest.
+Evidence is `stack-qualified-sdk3-four-profile-independent.json`.
+The initial Windows SDK collector
+blocked bootstrap-directory publication; a synchronous checkpoint before normal
+workspace cleanup passes the publisher regression and the complete publications.
+
+The revised embedded manual passes paired independent reconstruction of all
+174,193 bytes, generated symbols, 429 objects, sixteen artifacts and six user
+products. Full ABI and preserved FAT checks pass, as do four strict four-CPU
+boots. Both complete images agree. Only the raw-kernel policy row changes to
+9,292,324 bytes. The failed Linux second-refresh manifest-role probe stays
+retained; the current runner and checker verify the production checked role and
+the actual artifact-length rejection. Evidence is
+`stack-manual-refresh4-paired-independent.json`.
+
+The committed candidate's Linux qualification passes. Independent rereading
+checks 4,338 published files and 132 staged products. The first Windows attempt
+retains all 159 matching products but fails at checked child launch from its
+deep working directory. An unchanged production-helper probe passes in a
+shorter layout. Complete Windows qualification now passes there in 2,492.113
+seconds with the same source, release and original limits. Paired independent
+rereading checks 7,761 published files and all 291 staged products. The private
+worktree receives the fifteen qualified seed files, reviewed pins and twelve
+measured seed-size policy rows; all 99 producer inputs stay unchanged. See
+[the behavior context record](BOOTSTRAP-BEHAVIOR-CONTEXT.md) and
+[ADR 0445](../adr/0445-pass-reviewed-behavior-context-to-public-bootstraps.md).
+
 ## Separate streamed-input prototype, 2026-10-07
 
 The retained prototype freezes complete 200 MiB inputs with bounded memory.

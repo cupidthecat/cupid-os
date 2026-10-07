@@ -61207,7 +61207,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "822c1ef1d64fe9576916f39bce23e8b308ffd5e35ef16386928e209ce438424e"
+        "sha256": "82b12e2c7ae327bc766515a0ff58f3c62c686a880dbf915852276e35937e670c"
       },
       {
         "path": "user/Makefile",
@@ -61231,11 +61231,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "1b114e6eb34a7ca9493789d81866b93f2158e50a44f98df30dba81af76453338"
+        "sha256": "18c94149909df93b8feee162c75e5308287bd59cb6e8f7a9772ea0e57ddb7f8a"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
-        "sha256": "fd1a1cdb9fc47b224f76266c841cce1fc79320a1ff2b788e25b0bbb2efe9390b"
+        "sha256": "680a898109c9620013b2c64b85e8e28afdd7871c2332388b12bbf084c6a6faea"
       }
     ],
     "generator": {

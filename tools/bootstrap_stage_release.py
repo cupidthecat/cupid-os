@@ -379,6 +379,7 @@ class SeedBehaviorRequest:
     payload: bytes
     linux_seed: seed.SeedInputs
     linux_plan_bytes: bytes
+    windows_seed: seed.SeedInputs | None = None
 
     def _identity(self):
         try:
@@ -403,44 +404,68 @@ class SeedBehaviorRequest:
         return self._identity()["source_snapshot_sha256"]
 
     def require_live(self):
-        if _regular_bytes(self.path, MAX_RELEASE_BYTES) != self.payload:
+        if _behavior_release_bytes(self.path) != self.payload:
             raise seed.BootstrapError("caller seed release changed during behavior")
-        seed.require_live_seed_inputs(self.linux_seed)
+        seed.require_live_seed_inputs(self.linux_seed, *(
+            (self.windows_seed,) if self.windows_seed is not None else ()))
 
     def authorize(self, source_inputs, source_root, linux_plan, windows_plan,
                   linux_seed, windows_seed, stage_three, stage_four, format_name):
         # These remain the publication author's actual source and object facts;
         # they are not replaced by the reused seed's producer claims.
-        del source_inputs, source_root, windows_plan
+        del source_inputs, source_root
         self.require_live()
         identity = self._identity()
-        if (format_name != "elf32" or windows_seed is not None or
+        if (format_name not in ("elf32", "pe32") or
                 linux_seed.manifest_bytes != self.linux_seed.manifest_bytes or
                 linux_seed.artifact_bytes != self.linux_seed.artifact_bytes):
+            raise seed.BootstrapError("behavior seed selection differs from reviewed cohort")
+        if format_name == "elf32":
+            if windows_seed is not None:
+                raise seed.BootstrapError("behavior seed selection differs from reviewed cohort")
+        elif (self.windows_seed is None or windows_seed is None or
+                windows_seed.manifest_bytes != self.windows_seed.manifest_bytes or
+                windows_seed.artifact_bytes != self.windows_seed.artifact_bytes):
             raise seed.BootstrapError("behavior seed selection differs from reviewed cohort")
         if (seed._build_plan_sha256(linux_plan) != identity["linux_plan_sha256"] or
                 seed._build_plan_sha256(_json(self.linux_plan_bytes)) != identity["linux_plan_sha256"]):
             raise seed.BootstrapError("behavior seed plan differs from reviewed cohort")
+        if format_name == "pe32" and seed._build_plan_sha256(windows_plan) != identity["windows_plan_sha256"]:
+            raise seed.BootstrapError("behavior seed plan differs from reviewed cohort")
         expected = {row["name"]: {"size": row["size"], "sha256": row["sha256"]}
-                    for row in identity["artifacts"] if row["format"] == "elf32"}
+                    for row in identity["artifacts"] if row["format"] == format_name}
         for stage in (stage_three, stage_four):
             actual = {role: _identity(_regular_bytes(path)) for role, path in stage.tools.items()}
             if actual != expected:
                 raise seed.BootstrapError("behavior stage tools differ from reviewed seed cohort")
-        return BehaviorRelease(self.payload, identity, "elf32", self.linux_plan_bytes)
+        return BehaviorRelease(self.payload, identity, format_name, self.linux_plan_bytes)
 
 
 
-def capture_seed_behavior_release(path, linux_seed):
+def _behavior_release_bytes(path):
+    try:
+        return _regular_bytes(path, MAX_RELEASE_BYTES)
+    except OSError as error:
+        raise seed.BootstrapError("behavior seed release could not be read") from error
+
+
+def capture_seed_behavior_release(path, linux_seed, windows_seed=None):
     """Capture explicitly selected release bytes against independently reviewed pins."""
-    payload = _regular_bytes(path, MAX_RELEASE_BYTES)
+    payload = _behavior_release_bytes(path)
     checked = seed.verify_seed_inputs(linux_seed.live_manifest_path)
     if (checked.manifest.get("schema") != seed.PROMOTED_SEED_SCHEMA or
             checked.manifest_bytes != linux_seed.manifest_bytes or
             checked.artifact_bytes != linux_seed.artifact_bytes):
         raise seed.BootstrapError("behavior seed selection differs from reviewed cohort")
+    if windows_seed is not None:
+        windows_checked = seed.verify_seed_inputs(windows_seed.live_manifest_path)
+        if (windows_checked.manifest.get("schema") != seed.PROMOTED_WINDOWS_SEED_SCHEMA or
+                windows_checked.manifest_bytes != windows_seed.manifest_bytes or
+                windows_checked.artifact_bytes != windows_seed.artifact_bytes):
+            raise seed.BootstrapError("behavior seed selection differs from reviewed cohort")
+        seed._require_seed_pair_identity(windows_checked, checked)
     request = SeedBehaviorRequest(path.absolute(), payload, linux_seed,
-                                  _encode(checked.manifest["build_plan"]))
+                                  _encode(checked.manifest["build_plan"]), windows_seed)
     request._identity()
     request.require_live()
     return request

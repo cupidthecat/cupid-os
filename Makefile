@@ -1757,15 +1757,17 @@ verify-artifact-sizes: $(ARTIFACT_SIZE_OUTPUTS) \
 		--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST) \
 		--execution-manifest $(PRODUCTION_SEED_MANIFEST)
 
-bootstrap-from-seed: verify-bootstrap-seed
+bootstrap-from-seed: verify-bootstrap-seed $(PRODUCTION_SEED_RELEASE)
 	$(PYTHON) tools/bootstrap_toolchain.py bootstrap \
 	  --root . --manifest $(BOOTSTRAP_SEED_MANIFEST) \
+	  --seed-release $(PRODUCTION_SEED_RELEASE) --windows-long-paths \
 	  --output $(BOOTSTRAP_SEED_OUTPUT)
 
-bootstrap-windows-from-seed: verify-bootstrap-seed verify-windows-bootstrap-seed
+bootstrap-windows-from-seed: verify-bootstrap-seed verify-windows-bootstrap-seed $(PRODUCTION_SEED_RELEASE)
 	$(PYTHON) tools/bootstrap_toolchain.py bootstrap-windows \
 	  --root . --manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST) \
 	  --plan-manifest $(BOOTSTRAP_SEED_MANIFEST) \
+	  --seed-release $(PRODUCTION_SEED_RELEASE) \
 	  --windows-long-paths \
 	  --output $(BOOTSTRAP_WINDOWS_SEED_OUTPUT)
 
