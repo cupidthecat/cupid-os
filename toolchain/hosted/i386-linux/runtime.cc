@@ -1387,6 +1387,10 @@ int fputc(int character, FILE *stream) {
   return fwrite(&byte, 1u, 1u, stream) == 1u ? (int)byte : EOF;
 }
 
+int putchar(int character) {
+  return fputc(character, stdout);
+}
+
 int fputs(const char *text, FILE *stream) {
   size_t size;
   if (text == (const char *)0) {

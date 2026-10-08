@@ -1,5 +1,29 @@
 # Cupid Toolchain bootstrap
 
+## Hosted putchar and optional stage evidence, 2026-10-08
+
+Shared hosted source now provides standard `putchar`. Native and Cupid-built
+callers pass all eight integration executions, including every byte conversion
+and a failed read-only stream write. [The runtime record](HOSTED-PUTCHAR.md)
+retains the source, parent tools, actual commands and failed import recipes.
+Installed seeds remain pinned; this changes two producer source paths and needs
+its own complete qualification and carriage.
+
+The current 178,330-byte manual passes fresh paired kernel/image and
+user builds plus all four strict private four-CPU boots. Independent comparison
+checks all 429 objects, sixteen artifacts, six user products, complete images
+and the preserved FAT suffix. Only the manual wrapper changes; the raw kernel
+measures 9,296,460 bytes. All fifteen installed seed files remain unchanged.
+The runtime record retains the closed commands and source controls.
+
+The [private optional-stage publisher](OPTIONAL-DISK-STAGES.md) passes all 236
+publisher executions through four callers with independently reconstructed
+complete images and final FAT payload checks. The broader matrix retains one
+Windows standalone cleanup failure, with its private frozen writer preserved.
+Its cause remains unproven after 100 passing direct replays. A separate external
+observer capability passes all 72 cases through four callers. External payload
+freezing/staging and normal recipe adoption remain open.
+
 ## Qualified wide pointer seed cohort, 2026-10-07
 
 Shared hosted CupidC carries signed and unsigned eight-byte offsets through
@@ -25,7 +49,7 @@ SDK profiles also pass complete independent checks of 104 inputs, 77 stage
 pairs and 22 published ELF images. Complete public-bootstrap selections and
 both actual Make bootstraps pass. Direct qualified rebuilds, independent import
 decoding and the original runtime checks verify the corrected Windows output
-goldens. All 99 producer inputs remain unchanged; [the seed record](QUALIFIED-WIDE-POINTER-SEEDS.md) retains
+goldens. All 99 producer inputs remained unchanged at adoption; [the seed record](QUALIFIED-WIDE-POINTER-SEEDS.md) retains
 the original failure and projection evidence.
 
 The corrected complete Linux public selection and actual Make bootstrap pass.
@@ -38,12 +62,12 @@ complete behavior artifact pairs. The actual Windows Make bootstrap passes
 in 1,988.571 seconds, completing that serial queue with the original bounds
 and two producer workers.
 
-The current 177,436-byte manual also passes both fresh normal image builds and
+The preceding 177,436-byte manual also passed both fresh normal image builds and
 all four strict boots through the replacement seeds. Complete paired rereading
 checks every byte of all 429 objects, six user products, sixteen artifacts and
 both 200 MiB images, with the baseline FAT suffix preserved. Only the manual
-wrapper changes from the accepted previous kernel. The raw-kernel policy row
-records its measured 9,295,568 bytes.
+wrapper changes from its preceding accepted kernel. That acceptance recorded
+a 9,295,568-byte raw kernel.
 
 ## Separate native disk pipeline prototype, 2026-10-08
 

@@ -20,6 +20,7 @@ int fclose(FILE *stream);
 int fflush(FILE *stream);
 int ferror(FILE *stream);
 int fputc(int character, FILE *stream);
+int putchar(int character);
 int fputs(const char *text, FILE *stream);
 int fprintf(FILE *stream, const char *format, ...);
 int printf(const char *format, ...);

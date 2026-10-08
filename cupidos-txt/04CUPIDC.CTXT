@@ -3037,6 +3037,22 @@ qualification remain open. The normal disk recipe and SDK author/verifier
 coordination still use Python.
 >endtree
 
+>h2 Hosted standard byte output
+>tree
+Shared hosted runtime source provides standard putchar through fputc and the
+current stdout stream. Native and Cupid-built callers on both hosts verify all
+768 signed arguments and complete output bytes. A read-only stream requires
+EOF, a stream error and nonzero errno while preserving its bytes and timestamp.
+Restoring stdout permits a later successful byte write. Installed seeds remain
+pinned to their earlier qualified source; the new runtime needs seed carriage.
+
+The optional disk publisher prototype passes 236 publisher cases with complete
+independent image and FAT checks. Its broader matrix retains one Windows
+standalone cleanup failure. A separate external-root observer passes 72 cases,
+but external WAD capture, normal command ownership and qualification remain open.
+The normal disk recipe and SDK coordinators still use Python.
+>endtree
+
 >h2 See Also
 [03CUPIDSC.CTXT - CupidScript](open:03CUPIDSC.CTXT)
 [12HOLYC-CUPIDC.CTXT - HolyC comparison](open:12HOLYC-CUPIDC.CTXT)

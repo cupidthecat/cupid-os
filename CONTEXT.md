@@ -206,6 +206,13 @@ ownership and acceptance are recorded in the
 **Hosted bootstrap runtime**:
 The static i386 C runtime linked into Cupid tool and contract images. It supplies the represented heap, file, memory, string, error, and working-directory interfaces without a host libc. Its string boundary includes binary `memchr`, which CupidBuild uses while validating frozen JSON. The active six-tool seeds contain CupidBuild beside CupidC, CupidASM, CupidDis, CupidLD, and CupidObj.
 
+Shared runtime source also supplies standard `putchar` through the current
+stdout stream and the existing `fputc` byte/error boundary. Native and Cupid-built
+callers verify every byte, signed argument conversion and read-only stream
+failure on both hosts. This source addition has separate seed-carriage work;
+ADR 0450 and the [runtime record](docs/bootstrap/HOSTED-PUTCHAR.md) retain its
+evidence.
+
 CupidBuild coordinates guarded transformations and checked tool invocations.
 The [migration matrix](docs/bootstrap/MIGRATION-MATRIX.md) records current
 ownership, and the [host dependency inventory](docs/bootstrap/HOST-DEPENDENCIES.md)
