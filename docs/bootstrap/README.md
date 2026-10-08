@@ -1,20 +1,77 @@
 # Cupid Toolchain bootstrap
 
-## Wide pointer offsets in hosted compiler source, 2026-10-07
+## Qualified wide pointer seed cohort, 2026-10-07
 
 Shared hosted CupidC carries signed and unsigned eight-byte offsets through
 pointer arithmetic, subscripts and compound assignment. The i386 emitter reads
 the value from its private snapshot and retains target element stride. The
 hosted Windows seek declaration accepts the standard `LONG *` high word with a
-matching runtime declaration. Installed seed ownership remains at `2d04ff25`;
-the full-width transaction prototype and its adoption are separate.
+matching runtime declaration. Both complete qualifications pass for committed
+source `a1cc8f3a`. The qualified pair is adopted after paired consumer checks;
+the full-width transaction prototype and native disk adoption remain separate.
 [The implementation record](WIDE-POINTER-OFFSETS.md) describes the reproducer,
-runtime contracts, rejected inputs and remaining producer gates.
+runtime contracts and rejected inputs. [The seed record](QUALIFIED-WIDE-POINTER-SEEDS.md)
+binds the release, all 99 inputs, fifteen-file projection and retained evidence.
 
 The source/manual consumer checks pass on both hosts: 429 matching objects,
 sixteen exact artifacts, identical complete images and all four strict boots.
 Only the manual wrapper changes from the baseline. Both new stage-four tool
-sets pass the pointer/header controls; complete paired qualification remains open.
+sets pass the pointer/header controls. Independent qualification checks cover
+291 staged products, 97 fixed-point pairs and all 7,761 published files.
+Fresh normal OS and user builds and all four strict boots also pass through the
+replacement seeds. Independent rereading checks complete paired image bytes,
+all 429 objects, six user products and the full syscall ABI. All four current
+SDK profiles also pass complete independent checks of 104 inputs, 77 stage
+pairs and 22 published ELF images. Complete public-bootstrap selections and
+both actual Make bootstraps pass. Direct qualified rebuilds, independent import
+decoding and the original runtime checks verify the corrected Windows output
+goldens. All 99 producer inputs remain unchanged; [the seed record](QUALIFIED-WIDE-POINTER-SEEDS.md) retains
+the original failure and projection evidence.
+
+The corrected complete Linux public selection and actual Make bootstrap pass.
+Independent rereading checks all 4,338 retained files, 99 committed producer
+inputs, 132 staged products and 132 complete behavior artifact pairs. Original
+private source copies and after-command Git copies keep distinct evidence scopes.
+Both complete Windows public methods now pass. Independent rereading checks
+all 4,351 retained files, 99 committed inputs, 132 staged products and 132
+complete behavior artifact pairs. The actual Windows Make bootstrap passes
+in 1,988.571 seconds, completing that serial queue with the original bounds
+and two producer workers.
+
+The current 177,436-byte manual also passes both fresh normal image builds and
+all four strict boots through the replacement seeds. Complete paired rereading
+checks every byte of all 429 objects, six user products, sixteen artifacts and
+both 200 MiB images, with the baseline FAT suffix preserved. Only the manual
+wrapper changes from the accepted previous kernel. The raw-kernel policy row
+records its measured 9,295,568 bytes.
+
+## Separate native disk pipeline prototype, 2026-10-08
+
+The prototype in `C:/Users/admin/cw9` connects
+[owned wide stores](CANDIDATE-STORES.md),
+[retained disk I/O](RETAINED-DISK-IO.md),
+[independent disk validation](DISK-VERIFY.md), paired seed capture and the
+checked CupidObj template to required-file publication. Its
+[original combined publisher body](CHECKED-DISK-PUBLISH.md) passes 132 native
+and Cupid-built cases with complete independent image and FAT comparisons.
+All 260 current-adapter regression methods and 352 actual runtime cases also
+pass independent rereading. The archived prototype observes 105 producer inputs;
+it has separate compiler and runtime evidence and is not the qualified installed
+99-input cohort.
+
+The first two matched complete 200 MiB cohorts time out at the original
+600-second bound, including the later delegation of redundant final checks
+to the unchanged host publication owner. Fresh ordinary replays now pass on
+both hosts under the same bound, with 32 MiB on Linux. Complete independent
+image/FAT checking and all four original strict boots pass. All 132 current
+small-image and 24 publication-boundary
+executions pass complete independent checks. Separate instrumented full-image
+runs finish within 600 seconds and measure about 11 to 12 GB of digest input
+per 200 MiB operation. Earlier timeouts remain failed evidence.
+Optional discovery, the normal CLI, complete large-geometry template
+production, qualification and recipe adoption remain open. The normal image
+recipe still belongs to Python. [The handoff record](NATIVE-DISK-HANDOFF.md)
+keeps these requirements alongside the qualified consumer work.
 
 ## Reviewed retained-copy source integration, 2026-10-07
 

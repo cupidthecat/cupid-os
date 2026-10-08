@@ -120,6 +120,11 @@ class SeedImageProfileTests(unittest.TestCase):
                     '5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc': 3,
                     '79241fcdd8784952cf9e1e74907ac817dc83e24429c5625d3424a889c2753d70': 4,
                     '2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff': 5,
+                    '5633a265a4076d8a544621735795dae2baf9b28653c6a5e4b6fa6d8ec37c3dc7': 1,
+                    'b84cf24ca21c5024c0ccda5bc470a4c6f97f2bb1073b846381dceec6413239ba': 2,
+                    '4e05c478b4628fc71aadc9ab2d2ac564abdc537402f4b713fe6d02c746ed18d5': 3,
+                    '6023235b95ec568a107b163b2e107dc5979d9dc0d8a811f2bf605baa26d79bf5': 4,
+                    '754895566b00e6e53b045a1414e7b734872f04d4f0c84d62e3dfcf8dd9bc57ab': 5,
                 }[digest]
         if isinstance(payload, bytes):
             path = self.directory / 'candidate.bin'

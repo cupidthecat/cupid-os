@@ -8,8 +8,10 @@ assignment. Its i386 address calculation retains target stride and single
 operand evaluation. Floating offsets, incomplete and function referents, and
 atomic access remain rejected. The Windows seek header and runtime agree on
 the `LONG *` high-word argument. [The source record](WIDE-POINTER-OFFSETS.md)
-distinguishes these tests from installed-seed qualification and native disk
-publication.
+distinguishes the compiler tests from native disk publication. Both complete
+qualifications pass for `a1cc8f3a`; its exact pair is adopted after complete
+paired OS, user, public-bootstrap and SDK checks. [The seed record](QUALIFIED-WIDE-POINTER-SEEDS.md) records
+the release and all committed producer inputs.
 
 ## Qualified complete ISO and native ABI commands, 2026-10-06
 

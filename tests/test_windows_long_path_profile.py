@@ -12,7 +12,7 @@ from tools import artifact_size_policy, toolchain_manifest_contract as verifier
 ROOT = Path(__file__).resolve().parents[1]
 LINUX = ROOT / "bootstrap/seeds/i386-linux/manifest.json"
 WINDOWS = ROOT / "bootstrap/seeds/i386-windows/manifest.json"
-LONG_PLAN = "5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc"
+LONG_PLAN = "4e05c478b4628fc71aadc9ab2d2ac564abdc537402f4b713fe6d02c746ed18d5"
 SHIM = "toolchain/hosted/i386-windows/utf8_long_path_start.asm"
 
 
@@ -23,14 +23,24 @@ class WindowsLongPathProfileTests(unittest.TestCase):
         self.assertEqual(bootstrap._build_plan_sha256(plan), LONG_PLAN)
         self.assertEqual(bootstrap._windows_plan_profile(plan), (True, True, False))
         for name in bootstrap.CANDIDATE_TOOL_NAMES:
-            self.assertEqual(bootstrap._promoted_windows_imports(name, LONG_PLAN, 77),
+            self.assertEqual(bootstrap._promoted_windows_imports(name, LONG_PLAN, 98),
                              bootstrap._windows_utf8_imports(name, long_paths=True))
-            for count in (76, 78, True, 77.0, "77"):
+            for count in (97, 99, True, 98.0, "98"):
                 with self.subTest(tool=name, count=count), self.assertRaisesRegex(
                         bootstrap.BootstrapError, "import profile differs"):
                     bootstrap._promoted_windows_imports(name, LONG_PLAN, count)
         with self.assertRaisesRegex(bootstrap.BootstrapError, "unknown.*role"):
-            bootstrap._promoted_windows_imports("unknown", LONG_PLAN, 77)
+            bootstrap._promoted_windows_imports("unknown", LONG_PLAN, 98)
+
+    def test_historical_long_profile_retains_its_original_count_and_imports(self):
+        digest = "5647e926c96a50be0d5c7089a04ac3259e5e8c00ad9a32b50d0a78f11c16e3cc"
+        for name in bootstrap.CANDIDATE_TOOL_NAMES:
+            self.assertEqual(bootstrap._promoted_windows_imports(name, digest, 77),
+                             bootstrap._windows_utf8_imports(name, long_paths=True))
+            for count in (76, 78, True, 77.0, "77"):
+                with self.subTest(tool=name, count=count), self.assertRaisesRegex(
+                        bootstrap.BootstrapError, "import profile differs"):
+                    bootstrap._promoted_windows_imports(name, digest, count)
 
     def test_public_drivers_forward_explicit_selection_and_keep_fixed_point(self):
         seed = bootstrap.verify_seed_inputs(LINUX)
@@ -83,12 +93,12 @@ class WindowsLongPathProfileTests(unittest.TestCase):
         native = bootstrap.verify_seed_inputs(WINDOWS)
         linux = bootstrap._candidate_build_plan(json.loads(LINUX.read_bytes())["build_plan"])
         snapshot = bootstrap.capture_source_snapshot(ROOT, linux, windows_utf8=True, windows_long_paths=True)
-        self.assertEqual(len(snapshot), 77)
+        self.assertEqual(len(snapshot), 98)
         self.assertIn(SHIM, snapshot)
         changed = bootstrap._retarget_native_windows_behavior_seed(native, LONG_PLAN, linux, snapshot,
             utf8=True, long_paths=True, parent_plan_seed=bootstrap.verify_seed_inputs(LINUX))
         provenance = changed.manifest["provenance"]
-        self.assertEqual(provenance["source_input_count"], 77)
+        self.assertEqual(provenance["source_input_count"], 98)
         self.assertEqual(provenance["parent_execution_seed_manifest_sha256"], native.manifest_sha256)
         self.assertEqual(provenance["parent_plan_seed_manifest_sha256"], bootstrap.verify_seed_inputs(LINUX).manifest_sha256)
         self.assertEqual(provenance["native_build_plan_sha256"], LONG_PLAN)
@@ -125,8 +135,8 @@ class WindowsLongPathProfileTests(unittest.TestCase):
         with artifact_size_policy._PinnedRepository(ROOT) as reader:
             short = verifier._bootstrap_input_logical_paths(reader, linux)
             long = verifier._bootstrap_input_logical_paths(reader, linux, windows_long_paths=True)
-            self.assertEqual(len(short), 76)
-            self.assertEqual(len(long), 77)
+            self.assertEqual(len(short), 97)
+            self.assertEqual(len(long), 98)
             self.assertNotIn(SHIM, short)
             self.assertEqual(set(long) - set(short), {SHIM})
             reader.require_unchanged()

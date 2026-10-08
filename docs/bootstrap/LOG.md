@@ -1,5 +1,132 @@
 # Bootstrapping log
 
+## 2026-10-08: Correct native consumer fixtures and measure the refreshed manual
+
+The Windows public bootstrap builds its tool cohort but fails on two stale
+native output hashes after 2,495.508 seconds. Its separate tool-boundary method
+passes. Direct qualified-tool rebuilds reproduce the complete object and PE,
+thirteen decoded imports, original runtime behavior and useful compiler/linker
+failure predicates. Eight retained stage pairs match every byte. The two
+fixture hashes now match that independent evidence; all 99 producer inputs
+remain unchanged in the integration and both consumer copies. A fresh Windows
+public replay and its following public Make build are running with the
+original workers and bounds.
+
+Both refreshed-manual kernel builds pass. Complete independent rereading
+checks all 429 object pairs and the three kernel products. Only the manual
+wrapper changes, and the raw kernel grows to 9,295,568 bytes. Final/pass-one ELF
+sizes stay unchanged. The measured raw policy row is updated in the three
+consumer copies, and both normal image builds are running with conventional
+producers blocked. Current-manual image and runtime acceptance remain pending.
+See [the qualified-pair record](QUALIFIED-WIDE-POINTER-SEEDS.md).
+
+## 2026-10-08: Retain combined native disk publication evidence
+
+The separate prototype's original combined publisher passes 132 small-image
+executions through four actual callers. Complete independent reconstruction,
+FAT payload reads and source/build custody pass. Its complete current-adapter
+regressions add 260 methods and 352 runtime cases. The normal producer observation
+has 105 inputs; the installed qualified 99-input cohort remains separate.
+
+Full normal-image native callers produce the complete independent 200 MiB image.
+Both matched callers time out under the original 600-second bound. A measured
+delegation of redundant final checks to the unchanged guarded host owner retains
+both matched timeouts. Every failed cohort keeps complete source/build copies,
+candidate and prior-image identities and unchanged borrowed OS inputs. Native
+late-mutation controls pass all 24 current native and matched cases, with
+complete independent review in 93.191 seconds. All 132 current small-image
+executions also pass independent reconstruction and custody in 52.746 seconds.
+Separate instrumented 200 MiB runs complete observer cleanup at 571.954 seconds
+on Windows and 565.126 on Linux, within the original 600-second limit and Linux
+32 MiB bound. Independent custody passes in 23.668 seconds. Their counters
+measure 12,104,195,597 and 11,080,258,967 bytes of digest input, respectively.
+Fresh ordinary native and Cupid-built 200 MiB operations also pass on both
+hosts. Matched runtimes take 576.097 seconds on Windows and 576.810 on Linux,
+under the original 600-second bound and Linux 32 MiB limit. Complete independent
+reconstruction, raw FAT checking and source/build custody pass in 33.515 seconds.
+All four original strict boots pass; independent boot rereading takes 5.041
+seconds. The earlier ordinary timeouts remain failed evidence. Optional
+discovery, large-geometry template production and native recipe ownership
+remain open.
+The detailed record is
+[checked disk publication](CHECKED-DISK-PUBLISH.md). Twelve prototype evidence
+documents are projected into this checkout with the qualified source unchanged.
+
+## 2026-10-08: Check consumers through the qualified wide-offset pair
+
+Fresh normal OS builds pass on Windows and Linux with conventional producers
+blocked, in 3,120.281 and 2,240.053 seconds. All 429 objects match the accepted
+cold builds. Six user products and the complete 103-field, 101-provider syscall
+ABI agree. All four strict ls/SMP and feature 17 boots pass within the original
+150-second bounds. Independent rereading compares both complete 200 MiB images
+and their preserved FAT suffix byte for byte. The paired image digest is
+`101c065de80fc88a794d03f172e1eac6b1428b437eb1dd7041709cca7a7b80f5`.
+
+The complete 141-method audit replay passes in 1,402.946 seconds. Repairs follow
+the measured file, include, conditional and sizeof inventories while preserving
+all expression values and useful negative checks. Four native and Cupid-built
+preprocessor callers pass the same corpus and reject one deliberately incorrect
+total. Their complete evidence also passes independent rereading.
+
+The first normal Windows SDK publication passes in 6,595.688 seconds and its
+complete published cohort is archived. Its earlier inventory fixtures and
+normally removed private stage products require a fresh replay. Full SDK and
+public bootstrap replays now run one at a time with their original bounds and
+workers. The fresh normal Linux SDK publication passes in 4,879.237 seconds.
+Independent rereading checks 104 captured inputs, 77 complete stage pairs and
+all 22 published ELF images. The explicit long-profile Linux SDK also passes
+in 4,512.263 seconds, followed by a complete independent reread in 41.596.
+The fresh normal Windows replay fails in 2,142.395 seconds on a WSL service
+connection error during the stage-three CupidObj behavior check. Its private
+stages are removed before the outer observer runs; the retained publication
+is from the earlier success. Four separate help-launch preflights pass. A fresh
+Windows SDK replay passes in 4,784.269 seconds. Independent rereading checks
+all 104 SDK inputs, 77 complete stage pairs and 22 published ELF images in
+47.538 seconds. Its complete retained stages belong to this successful replay.
+The explicit Windows long-path SDK passes in 5,338.889 seconds. Independent
+rereading checks all 104 SDK inputs, 77 complete stage pairs and all 22
+published ELF images in 52.365 seconds. All four current SDK profiles now pass
+complete independent acceptance. The first complete Linux public replay stops
+after 1,956.923 seconds on a stale 2,048-byte Windows PE hash. A direct qualified
+rebuild reproduces all six corresponding retained SDK images, decodes the
+expected imports and passes the original ten-second Windows runtime check.
+Only that golden changes; all three 99-input producer captures stay unchanged.
+The fresh Linux public replay uses label `wide-adopted-full-methods-linux3`.
+It passes in 2,114.476 seconds with one expected Windows-only skip. Independent
+rereading passes in 79.727 seconds and checks all 4,338 retained regular files,
+99 committed producer inputs, 132 staged products and 132 behavior artifact
+pairs, including eleven exact preserved rejection sentinels. The observer
+retains 45 original producer source copies; the other source archive contains
+explicit after-command Git copies because inner cleanup removed those files.
+The actual Linux Make bootstrap passes in 1,792.951 seconds. Windows public
+methods and the Windows Make bootstrap keep the original commands, two workers
+and process bounds; their acceptance remains open.
+Fresh Windows compatibility passes all 277 methods in
+1,601.483 seconds, with one platform skip and the original process bounds.
+Earlier concurrent timeouts and the Linux temporary-tool launch failure
+remain failed evidence. [The qualified seed record](QUALIFIED-WIDE-POINTER-SEEDS.md)
+tracks those open checks and their retained products.
+
+## 2026-10-07: Qualify and project the hosted wide-offset seed pair
+
+Complete Windows and Linux qualification passes for committed `a1cc8f3a`,
+in 2,439.406 and 2,221.945 seconds respectively. Independent rereading checks
+all 291 staged products, 97 fixed-point pairs, 7,761 published files, 99
+committed producer inputs and fifteen unchanged parent files. Original
+producer limits, two-worker plans, complete behavior cases and disabled
+conventional producers remain in force.
+
+The private integration worktree receives the twelve exact tools, two
+manifests and reviewed release, with Python pins and measured seed-size rows.
+All 99 producer inputs remain unchanged. The initial Windows projection keeps
+the behavior manifest's parent plan binding; the actual installed pair check
+rejects it. Projecting the replacement Linux manifest digest into that one
+field and its Python pin passes the unchanged check. The original rejection
+is retained. Both complete manifest verifiers pass.
+Fresh normal OS, user, public-bootstrap and SDK acceptance through the new
+tools is under verification. [The seed record](QUALIFIED-WIDE-POINTER-SEEDS.md)
+contains identities, receipts and remaining ownership work.
+
 ## 2026-10-07: Support wide integer pointer offsets
 
 Shared hosted CupidC now accepts signed and unsigned eight-byte offsets in
@@ -46094,3 +46221,47 @@ Complete committed-source bootstrap qualification, seed installation, normal ISO
 regeneration and feature 17 remain open. Normal ownership remains 447 CupidBuild
 and five Python actions across 452 transforms. No installed tool cohort or
 existing C/assembly ownership changes. `TempleOS/` remains read-only and excluded.
+
+
+## Qualified wide-seed current consumer acceptance, 2026-10-08
+
+Both complete Windows public methods pass in 2,672.293 seconds. Independent
+rereading passes in 79.376 seconds and checks all 4,351 retained regular files,
+99 committed producer inputs, 132 staged products, 44 final-stage pairs and
+132 complete behavior artifact pairs. The source archive distinguishes its
+45 original private copies from the after-command Git copies. The stale-output
+failures and direct whole-byte rebuilds remain recorded. Evidence is
+`wide-adopted-full-methods-windows3-retained-independent-products.json`.
+The actual Windows Make bootstrap passes in 1,988.571 seconds, closing serial
+queue five. Its commands, two producer workers and original process bounds
+stay unchanged. Evidence is `wide-adopted-make-bootstrap-windows2.json` and
+`wide-adopted-serial-replay-closed5.json`.
+
+Both current-manual normal image builds pass, in 2,478.395 seconds on Windows
+and 1,755.905 on Linux. Fresh user checks preserve the complete 103-field,
+101-provider ABI and the accepted six user products. Windows ls/SMP and ISO
+boots pass in 49.087 and 57.160 seconds; Linux passes in 61.421 and 67.689.
+Each uses four max-model CPUs, e1000, private images, required command completion
+and the original 150-second timeout.
+
+Independent paired checking passes in 5.906 seconds. Every byte of all 429
+objects, both linked inputs, sixteen artifacts, six user products, fifteen
+installed seed files and both complete 200 MiB images agrees. Only the manual
+wrapper differs from the prior accepted kernel. The complete baseline FAT
+suffix is preserved. Both current images have SHA-256
+`10f5995aa214346c34fe4c45e4ca3c278f145266f8e7fc08f4d8b84a7388829b`.
+The 177,436-byte manual is complete and nonexecuting in all kernel products;
+only its measured raw-kernel policy row changes to 9,295,568 bytes. Evidence is
+`wide-adopted-manual-os-paired-independent1-products.json` and the two current
+manual measurements. The installed producer snapshot remains exactly the
+qualified 99-input `a1cc8f3a` cohort. Native disk recipe ownership, optional
+capture integration and the earlier EHCI/Doom runtime requirements remain open.
+
+The final canonical `make check-bootstrap-audit` passes in 72.695 seconds.
+Both installed seed verifiers pass in 3.988 seconds with conventional producers
+blocked. The preceding audit launcher used the nonexistent
+`cupidc_pp_active_jobs.inc` filename and failed. Its original receipt remains
+under `wide-adopted-final-audit-check1`; the actual Make target selects
+`cupidc_pp_active_cases.inc` and passes under
+`wide-adopted-final-audit-check2`. No inventory predicate or producer source
+changes to repair that launcher error.

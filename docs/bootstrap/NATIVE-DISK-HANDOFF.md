@@ -1,12 +1,66 @@
 # Native disk-image handoff
 
-## Current source-step acceptance and remaining I/O extent, 2026-10-07
+## Qualified hosted wide-offset producer, 2026-10-08
+
+Both complete producer qualifications pass for committed `a1cc8f3a` and its
+99-input snapshot. Independent rereading checks 291 products, 97 fixed-point
+pairs, 7,761 published files and all parent bytes. The exact hosted seed pair is
+adopted after complete paired consumer checks. Both normal OS and user builds, all four strict boots
+and complete paired comparisons pass. All 429 objects, sixteen policy
+artifacts, six user products, fifteen seed files and the complete 200 MiB image
+agree between hosts; every byte of the baseline FAT partition is preserved.
+All four current SDK profiles pass complete independent acceptance.
+The public replay now carries the independently verified Windows runtime PE
+golden after its first complete Linux method detects the stale pin. All 99
+producer inputs remain unchanged. The corrected complete Linux public methods
+and actual Make bootstrap pass. Independent rereading checks all 99 inputs,
+132 staged products and 132 complete behavior artifact pairs. Both complete
+Windows public methods also pass independent review of all 4,351 retained files.
+The actual Windows Make bootstrap also passes in 1,988.571 seconds.
+The refreshed 177,436-byte manual
+passes both normal image builds, all four strict boots and independent paired
+comparison of every object and complete image, preserving the baseline FAT
+suffix. See [the seed record](QUALIFIED-WIDE-POINTER-SEEDS.md).
+The normal disk publisher still belongs to Python. Full-width retained file
+I/O and owned candidate stores remain separate prototypes requiring integration,
+the retained independent image validator and their own producer qualification.
+
+## Separate combined publisher prototype, 2026-10-08
+
+The prototype source in `C:/Users/admin/cw9` now connects paired producer
+capture, retained required payloads, destination projection, composition,
+sequential FAT16 writes, independent disk verification and guarded publication.
+Its original body passes all 132 small-image executions. Independent rereading
+reconstructs every accepted complete image and reads its final FAT payloads,
+chains and padding. All 260 current-adapter regression methods and 352 runtime
+cases also pass. The full source/build archives retain the observed 105-input
+prototype separately from the qualified 99-input installation.
+
+Both matched full normal-image replays retain their 600-second timeouts,
+including the later delegation of redundant checks to the unchanged guarded
+host owner. Complete candidate bytes alone do not establish successful
+publication and cleanup. All 132 current small-image and 24 publication-boundary
+executions pass complete independent review. Separate instrumented full-image
+runs finish under the original bounds and retain independent custody. Fresh
+ordinary complete 200 MiB replays also pass, with independent reconstruction,
+raw FAT checks and all four strict boots. [The combined publisher record](CHECKED-DISK-PUBLISH.md) retains the actual
+commands, complete failed image identities, source custody and phase timings.
+
+Normal recipe ownership still requires optional input/discovery observations,
+compatible CLI behavior, template
+production for the accepted large geometries, source integration and producer
+qualification. The new evidence documents are projected into the integration
+checkout under `prototype-evidence-integration1`; that projection carries no
+implementation source or seed changes.
+
+## Earlier source-step acceptance and remaining I/O extent, 2026-10-07
 
 Both cold source-step builds and all four strict boots pass as recorded in
 `result-source-os1-paired-independent.json`. All 429 objects, sixteen artifacts,
 six user products, complete ABI, manual and complete 200 MiB images agree.
-The installed `2d04ff25` seeds supply this consumer gate; the new producer
-snapshot still requires its own committed qualification and adoption.
+The installed `2d04ff25` seeds supply this earlier consumer gate. The hosted
+wide-offset producer now has its own complete committed qualification; the
+replacement's public-bootstrap and SDK acceptance remain pending.
 
 The existing geometry chooser also accepts 2,048 and 2,050 MiB images with
 FAT start LBA 20,480, and a 4,096 MiB image with FAT start LBA 7,979,008.

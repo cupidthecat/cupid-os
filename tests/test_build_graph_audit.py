@@ -2523,14 +2523,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     (item["path"], item["line"])
                     for item in forms["pack(push, 1)"]["evidence"]
                 ],
-                [("bin/fat16.h", 26), ("kernel/fs/fat16.h", 26)],
+                [("bin/fat16.h", 26), ("kernel/fs/fat16.h", 27)],
             )
             self.assertEqual(
                 [
                     (item["path"], item["line"])
                     for item in forms["pack(pop)"]["evidence"]
                 ],
-                [("bin/fat16.h", 76), ("kernel/fs/fat16.h", 76)],
+                [("bin/fat16.h", 76), ("kernel/fs/fat16.h", 77)],
             )
             self.assertTrue(
                 all(
@@ -2573,7 +2573,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8")
             )
             contract = generated["contracts"]["c_preprocessor_line_directives"]
-            self.assertEqual(contract["source_files"], 734)
+            self.assertEqual(contract["source_files"], 745)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -2594,7 +2594,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 734 source files; max conditional depth 0",
+                "0 numeric markers; 745 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2950,9 +2950,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 427)
-            self.assertEqual(contract["elif_occurrences"], 20)
-            self.assertEqual(contract["expression_occurrences"], 447)
+            self.assertEqual(contract["if_occurrences"], 449)
+            self.assertEqual(contract["elif_occurrences"], 24)
+            self.assertEqual(contract["expression_occurrences"], 473)
             self.assertEqual(contract["unique_expressions"], 61)
             self.assertEqual(contract["directive_expression_pairs"], 64)
             executable_contract = CUPIDC_PP_CONTRACT.read_text(encoding="utf-8")
@@ -4454,10 +4454,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 734)
-            self.assertEqual(contract["include_occurrences"], 2584)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2262)
-            self.assertEqual(contract["direct_angle_occurrences"], 322)
+            self.assertEqual(contract["source_files"], 745)
+            self.assertEqual(contract["include_occurrences"], 2608)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2280)
+            self.assertEqual(contract["direct_angle_occurrences"], 328)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(
@@ -9633,6 +9633,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             inputs.extend(
                 (
                     "bootstrap/seeds/i386-linux/manifest.json",
+                    "bootstrap/seeds/release.json",
                     "bootstrap/seeds/i386-linux/cupidasm.elf",
                     "bootstrap/seeds/i386-linux/cupiddis.elf",
                     "bootstrap/seeds/i386-linux/cupidld.elf",
@@ -9681,7 +9682,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                                         "--root .. --manifest "
                                         "../bootstrap/seeds/i386-linux/"
                                         "manifest.json \\",
-                                        "--output $(CONTRACT_DIR)",
+                                        "--output $(CONTRACT_DIR) \\",
+                                        '--behavior-release "$(TOOLCHAIN_MANIFEST_BEHAVIOR_RELEASE)"',
                                     ]
                                     if recipe is None
                                     else recipe
@@ -9929,6 +9931,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 contract_cohort_audit(
                     recipe=[
                         "$(PYTHON) ../tools/cupidc_toolchain_contracts.py other "
+                        "--root .. --manifest ../bootstrap/seeds/i386-linux/manifest.json "
+                        '--output $(CONTRACT_DIR) --behavior-release "$(TOOLCHAIN_MANIFEST_BEHAVIOR_RELEASE)"'
                     ]
                 ),
                 r"recipe no longer invokes the checked fixed-point builder",
@@ -10369,7 +10373,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "active_sources": 786,
                     "features": 255,
                     "transforms": 452,
-                    "unreachable_sources": 59,
+                    "unreachable_sources": 69,
                 },
             )
             features = {
@@ -10394,7 +10398,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 self.assertEqual(unreachable[fixture], "host_fixture")
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (7088, 191),
+                "c.expression.sizeof": (7100, 191),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }

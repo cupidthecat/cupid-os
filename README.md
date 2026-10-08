@@ -1,18 +1,26 @@
 # cupid-os
 
-## Hosted wide pointer offsets, 2026-10-07
+## Qualified wide pointer seeds, 2026-10-07
 
 Shared CupidC source supports signed and unsigned eight-byte offsets in pointer
 arithmetic, subscripts and compound assignment while preserving element stride
 and operand evaluation. The hosted Windows seek API uses a matching `LONG *`
 high-word declaration. [The bootstrap record](docs/bootstrap/WIDE-POINTER-OFFSETS.md)
-covers the tests and remaining producer qualification. Installed seeds and the
-three remaining Python coordinators retain their current ownership.
+covers the compiler and runtime tests. Both complete producer qualifications
+pass for committed source `a1cc8f3a`; independent checks cover 291 staged
+products, 97 fixed-point pairs, 7,761 published files and all 99 producer inputs.
+The qualified pair is adopted for normal host builds on the bootstrap branch. [The seed record](docs/bootstrap/QUALIFIED-WIDE-POINTER-SEEDS.md)
+records its exact release and manifest bindings. Three Python coordinators remain.
 
 The source/manual consumer checks pass on both hosts: 429 matching objects,
 sixteen exact artifacts, identical complete images and all four strict boots.
 Only the manual wrapper changes from the baseline. Both new stage-four tool
-sets pass the pointer/header controls; complete paired qualification remains open.
+sets pass the pointer/header controls. Both fresh normal OS image builds,
+user ABI checks, all four strict boots and all four ordinary/long SDK profiles
+pass through the replacement seeds. Independent review verifies every object,
+complete image and SDK stage pair. Complete public methods pass on both hosts;
+both actual public Make bootstraps also pass. The current 177,436-byte manual
+and 9,295,568-byte raw-kernel policy have their own complete paired acceptance.
 
 ## Reviewed retained-copy source integration, 2026-10-07
 
@@ -42,9 +50,10 @@ producer cohort remain separate. Evidence is
 Both complete Cupid callers pass all 124 paired ordinary/self-host modes,
 and all four actual linked adapter/runtime executions pass. Independent
 checks preserve all original commands, bounds and complete artifacts.
-Committed producer qualification, replacement seed adoption, OS/runtime acceptance
-through the new tools and native recipe ownership remain open. The installed `2d04ff25` tools keep their separate earlier
-acceptance; they do not establish carriage of these newly integrated APIs.
+The adopted `a1cc8f3a` cohort closes committed producer qualification,
+replacement seed carriage and paired OS acceptance for these integrated APIs.
+The `2d04ff25` tools retain their earlier acceptance. Native recipe ownership
+and the separate full-width file/store prototype remain open.
 
 
 ## Qualified scalar emitter cohort, 2026-10-07

@@ -2975,11 +2975,11 @@ Linux external hello, ls and cat pass independent FAT payload and PID-bound
 runtime checks. Windows hello passes, then the initial ls attempt panics during
 EHCI DMA ownership revocation. Later traced replays do not reproduce that panic.
 The original failure remains open. A separate Windows cat case passes independent
-fixture and PID-bound runtime checks. Ordinary Linux SDK publication passes
-independent review of all 104 inputs, 77 stage pairs, 22 ELF artifacts and its
-manifest. Ordinary Windows and both explicit long-path profiles retain separate
-acceptance checks. The streamed input, previous-output and further result-transfer
-source is now integrated privately; replacement qualification remains separate.
+fixture and PID-bound runtime checks. Ordinary and explicit long-path SDK
+publication pass on Windows and Linux. Each profile passes independent review
+of all 104 inputs, 77 complete stage pairs, 22 ELF artifacts and its manifest.
+Current hosted seeds also carry the bounded input-copy, previous-output and
+further result-transfer source.
 >endtree
 
 >h2 Retained-copy APIs and scalar results
@@ -3002,10 +3002,10 @@ space limit. Original process bounds, useful rejection checks and all complete
 file digests remain. Both complete Cupid callers also pass all 62 original
 ordinary and self-host modes per host. Their eight linked products agree with
 the independently reviewed native products; both actual adapters and hosted
-runtimes execute within their original limits. The installed seeds keep the
-earlier qualified emitter.
-New producer qualification, seed carriage, normal OS/runtime acceptance and
-native disk recipe ownership retain their own gates.
+runtimes execute within their original limits. Current qualified hosted seeds
+carry these bounded APIs and the result-transfer emitter. Full-width retained
+files, owned candidate stores and native disk recipe ownership remain separate
+source work.
 >endtree
 
 >h2 Hosted wide pointer offsets
@@ -3014,9 +3014,27 @@ Shared hosted CupidC source accepts signed and unsigned eight-byte offsets in
 complete-object pointer arithmetic, subscripts and compound assignment. It keeps
 element stride and evaluates each operand once. Floating offsets, incomplete or
 function referents, and atomic access remain rejected. The hosted Windows seek
-API uses a matching LONG pointer for its high word. This source capability needs
-producer qualification and seed adoption; installed seeds retain their qualified
-checkpoint. It does not extend the private in-kernel CupidC boundary.
+API uses a matching LONG pointer for its high word. Both complete hosted seed
+qualifications pass from committed source a1cc8f3a and the same 99 producer
+inputs. The paired release binds all twelve tool images, source, parents and
+plans. The Windows execution manifest binds the selected Linux plan manifest.
+Installed hosted seeds carry this capability. The private in-kernel CupidC
+boundary remains separate.
+
+Both hosts build the complete OS and separate user programs through the
+qualified pair with conventional code producers disabled. Independent checks
+compare all 429 objects, sixteen artifacts, six user products and complete
+200 MiB images. The syscall ABI, preserved FAT data and all four strict
+four-CPU boot checks pass with their original bounds.
+
+A separate native disk publisher prototype captures the paired checked tools
+and required files, composes the image, stages FAT16 payloads, verifies complete
+content and publishes through the retained transaction. Native and Cupid-built
+callers pass complete 200 MiB publication and the strict boot checks on both
+hosts. This source is not installed in the hosted seeds. Optional discovery,
+complete large-geometry template production, the normal command and producer
+qualification remain open. The normal disk recipe and SDK author/verifier
+coordination still use Python.
 >endtree
 
 >h2 See Also

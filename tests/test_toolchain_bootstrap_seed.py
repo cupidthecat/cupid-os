@@ -9733,7 +9733,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 (len(images[0]), hashlib.sha256(images[0]).hexdigest()),
                 (
                     492,
-                    'cc78089847320ade15db11cb68cd49e7e80abaddca4b322304ee2922ea93ecbb',
+                    'cef60b368df3a1a9252118a0694a79ee94c7ef1c9ccc161d2a18e5657ded6c80',
                 ),
             )
 
@@ -10998,7 +10998,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             1500,
             "baffe801c7573b8500c60251298a753f60732608d58443178be8ce9ab809ef93",
             16004,
-            '82655ff4fba8ed73413d316fb959af403627f76b0f25810a3c5b326957718dc8',
+            '91cb378447c48e9aac0d94ea858257b2d5c44540ea77a78ed8abfb1ae83bcf36',
         )
 
     def test_checked_seed_emits_complete_unchanged_kernel_entry_object(self):
@@ -11008,7 +11008,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             952,
             "258bb51ea67e3159add45400c2652c2e1674dc61f788f747104a63353404a276",
             25384,
-            '867a199a12dce7743db38aebee1cf748bc59615735e7a37ea80900e4df8a6c35',
+            'dbc62ff2103e9afcdf92a421820b22c0d4e7b301aa7aee8b052c6154e84b3663',
         )
 
     def test_checked_seed_emits_page_aligned_kernel_stack_top(self):
@@ -11078,7 +11078,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             487,
             "5b4c892322d41e901cdeda34817f79a6547139a2ed703fb6a90eb4b06d34692d",
             8008,
-            '42ce37cb0ba0c5b3e52262139497e285385c626f741adf0f67e73501899ad230',
+            '7f63adc1b925f8cf8e0f8c3e202a1a5be0bbd53fc378e086a849da3495870378',
         )
 
     def test_checked_seed_emits_exact_doom_compatibility_objects_twice(
@@ -11162,7 +11162,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "6a56616dff23b608260d003b09634c2c2"
                 "2e0220d5b31a1332db0859d152babb2",
                 88972,
-                '87caf12f4988646dc48208d5a24668d993129684760ce7a39d5eb73e6e0f5415',
+                '11ebab6f151eab5290e19d0eede7bddb3dd351da306726bba6390daeb094300b',
             ),
             "/kernel/doom/doom_libc_stubs.cc": (
                 10516,
@@ -11170,7 +11170,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "c19a5dbcd96fb9dc9e9a6f0fef20bb0"
                 "5e18502e2a5d058d4737d85886b7ccbea",
                 16136,
-                '2d09b35798f62aeb98fc12c85badd33822cb3c533a4e354f22b1628658bf8dd1',
+                '8ac1971586b322ff112291c45251b74f34da8e5b9199ddeb8beb32b9b66e96d1',
             ),
             "/kernel/doom/doomgeneric_cupidos.cc": (
                 13788,
@@ -11178,7 +11178,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "13c9bdfe659443e227d9cec6a770e9bce"
                 "26714fb83a62b2338d8b6a295d4e725",
                 10156,
-                'aee13e990d63d6253232825e6c72f247ce5c45eddb6b6a26ad45b87482cff3de',
+                'be4c857c2c6cc32e34dd567ef3d5c77784be2b68eec6613eddf5c4cbd6bc8bb7',
             ),
         }
         from tools.cupidc_kernel_compile import APPROVED_DOOM_COMPAT_SOURCES
@@ -11703,7 +11703,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                             "failure_return_code": 1,
                             "help_return_code": 0,
                             "output_sha256": (
-                                "899a6c78aae817a495791f6c6ae20fb2129b8e6d199f03802920fd827d49c1e6"
+                                "ad1040837e69e983c89024918d491c48b70c1f03d216e51831647a21c65b0665"
                             ),
                             "output_size": 360,
                             "return_code": 0,
@@ -11737,7 +11737,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                                 "20323a24be105b1b519962994b8e4e6a7f8e3cd0d005b8ee10c9aeb66da5d40a"
                             ),
                             "output_sha256": (
-                                "24fd9736512c21e12172febe02005d4af156a345681ebcda5d1ac30a7c77a86d"
+                                "25a2c763758b6fe1f67211492c2223d1e357145f5802c477cefbbcdc591d85a6"
                             ),
                             "output_size": 33280,
                             "return_code": 0,
@@ -11813,7 +11813,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 windows_artifacts["stage-three-image"],
                 {
                     "sha256": (
-                        "612f07794c6255b97619b271f08b8a269de9f6f1d470f88704f614164081a16d"
+                        "192f060dd5fe3f4ded16cc1423352b4879027086a8052d3eb3c4130ef4a7ec16"
                     ),
                     "size": 2048,
                 },

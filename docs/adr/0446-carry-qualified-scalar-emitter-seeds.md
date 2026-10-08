@@ -2,13 +2,23 @@
 
 Date: 2026-10-07
 
-Status: Installed privately; paired normal OS, full tests and all SDK profiles accepted; Windows external runtime pending
+Status: Scalar cohort accepted; its qualified wide-offset replacement is adopted after paired consumer checks; Windows external runtime pending
 
 The scalar emitter in committed source `2d04ff25` produces different tools
 from the installed `76914250` disk cohort. Reviewed behavior reuse must reject
 that difference. Qualify the new producer through the existing separate
 preparation and caller-owned release flow before selecting it in public
 bootstrap recipes.
+
+The same reviewed projection applies to the later `a1cc8f3a` hosted wide-offset
+cohort. Both complete qualifications pass with the exact 99 committed producer
+inputs and `2d04ff25` parents. Its fifteen-file private projection passes both
+manifest verifiers and the actual installed pair binding. The initial Windows
+projection's parent plan-manifest binding is rejected and retained; the
+corrected field names the replacement Linux manifest. Normal OS and user builds,
+all four strict boots, complete public methods, both actual Make bootstraps and
+all four ordinary/long SDK profiles pass for this replacement. See
+[the qualified seed record](../bootstrap/QUALIFIED-WIDE-POINTER-SEEDS.md).
 
 The committed capture contains 1,695 source/control files, with 99 compiler
 producer inputs and digest

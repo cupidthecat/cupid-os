@@ -124,12 +124,19 @@ and all 97 equal stage-three/stage-four pairs in
 pass all four current pointer/header methods in `wide-prepared-pointer-linux`
 and `wide-prepared-pointer-windows`. Their exact copied tool identities and
 control hashes are retained in each mirror's `prepared-pointer-controls/controls.json`.
-These preparations and focused behavior checks still require committed-source
-binding and complete paired qualification before adoption.
+All prepared inputs now match committed source `a1cc8f3a`. Both complete
+qualifications pass: Windows in 2,439.406 seconds and Linux in 2,221.945.
+Independent rereading checks 291 staged products, all 97 fixed-point pairs,
+7,761 published regular files, the 99 committed producer inputs and fifteen
+unchanged parent files. Both complete tool sets match the reviewed release.
+See [the qualified seed record](QUALIFIED-WIDE-POINTER-SEEDS.md).
 
 ## Ownership
 
-This is a hosted compiler source capability. Installed seeds, ordinary
-transaction limits, the normal build graph and Python coordinator count retain
-their current ownership. Paired producer qualification and adoption remain
-required before the normal build can use the new compiler capability.
+The adopted hosted seed pair carries this compiler capability. Its installed
+projection passes both manifest verifiers and the actual pair binding.
+Normal OS and user builds, all four strict boots, complete public-bootstrap
+selections, both actual Make bootstraps and all four SDK profiles pass.
+Ordinary transaction limits, the normal build
+graph and Python coordinator count retain their current ownership. Full-width
+file transactions and native disk publication remain separate work.

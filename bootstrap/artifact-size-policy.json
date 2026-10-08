@@ -13,13 +13,13 @@
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 1116624,
+      "exact_bytes": 1125180,
       "path": "bootstrap/seeds/i386-linux/cupidbuild.elf",
       "producer": "CupidBuild",
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 2540932,
+      "exact_bytes": 2545028,
       "path": "bootstrap/seeds/i386-linux/cupidc.elf",
       "producer": "CupidC",
       "reason": "The checked seed is immutable between reviewed promotions."
@@ -49,13 +49,13 @@
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 1098752,
+      "exact_bytes": 1107968,
       "path": "bootstrap/seeds/i386-windows/cupidbuild.exe",
       "producer": "CupidBuild",
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 2484224,
+      "exact_bytes": 2485760,
       "path": "bootstrap/seeds/i386-windows/cupidc.exe",
       "producer": "CupidC",
       "reason": "The checked seed is immutable between reviewed promotions."
@@ -79,7 +79,7 @@
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 9294504,
+      "exact_bytes": 9295568,
       "path": "kernel/kernel.bin",
       "producer": "CupidObj",
       "reason": "CupidObj emits deterministic bytes, and the disk image copies this output verbatim."
