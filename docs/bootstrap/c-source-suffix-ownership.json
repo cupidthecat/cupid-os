@@ -180,6 +180,7 @@
     "toolchain/tests/cupidc_rotate_leaf_runtime.cc": "not_reached",
     "toolchain/tests/cupidc_stack_transfer_entry_contract.cc": "not_reached",
     "toolchain/tests/cupidc_stack_transfer_runtime.cc": "not_reached",
+    "toolchain/tests/cupidc_wide_pointer_runtime.cc": "not_reached",
     "toolchain/tests/cupiddis_kernel_adapter_contract.cc": "host_oracle",
     "toolchain/tests/disk_image_contract.cc": "not_reached",
     "toolchain/tests/disk_stage_contract.cc": "not_reached",

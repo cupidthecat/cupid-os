@@ -1,5 +1,109 @@
 # Bootstrapping log
 
+## 2026-10-07: Support wide integer pointer offsets
+
+Shared hosted CupidC now accepts signed and unsigned eight-byte offsets in
+pointer addition, pointer subtraction, subscripts and compound assignment.
+The requirement comes from keeping a guarded file snapshot's complete extent:
+its ordinary owner-record expression `bytes[snapshot.size - 1u]` must remain
+valid when that size widens. Linear IR retains one typed operand; the i386
+emitter reads its snapshot's low word before applying the referent size.
+Existing word-offset emission and pointer difference remain unchanged.
+
+The minimal subscript fails twice with `CTD000003` on the installed compiler.
+Signed indexing and explicit addition fail too, while an explicit word
+conversion succeeds. The prepared `3072bc4f` compiler has the same restriction.
+This isolates the IR and emitter checks; source casts are unnecessary after
+the extension. The regression covers reversed operands, signed negative
+offsets, record and array stride, volatile loads, postfix updates, and single
+evaluation of compound destinations and offsets. Useful negative cases retain
+the existing output. Native compiler copies and Cupid-built compiler copies
+pass all three methods on both hosts, including the linked i386 runtime.
+The neighboring exact pointer IR/object and wide-mutation checks also pass.
+
+The Windows hosted header and runtime now agree on `LONG` and `LONG *` seek
+parameters. Target `long` remains four bytes; the assembly bridge is unchanged.
+Both matched Cupid-built hosted runtimes pass all seventeen original wide-file
+methods with their thirty-second execution limits, including reads, writes
+and append above four GiB and signed seek failures.
+The fourth compiler method accepts `LONG *` and rejects `int *` without changing
+an existing object. Both Cupid-built compilers pass all four methods. The first
+seek-type assertion expected a different diagnostic word; the corrected check
+requires `CTB000010` and the actual parameter-conversion diagnostic.
+The new runtime fixture is classified as outside the normal build graph.
+The first graph audit rejects the header's stale exact fingerprint. An
+independent token measurement binds the corrected `LONG` declaration; a new
+mutation case rejects a seek high word changed back to `int *`.
+Initial test assertions assumed a short MOV encoding and different diagnostic
+wording; corrected assertions check the existing displacement encoding and
+actual diagnostics. The Linux development build initially reused its copied
+execution compiler's filename for the final link. Its post-link hash identifies
+the new program, so this receipt cannot serve as a promotion identity. Later
+builds keep copied execution tools separate.
+
+Final Standards and Spec reviews find no remaining defect. All five selected
+audit and source-suffix rejection methods pass, including the exact seek
+declaration mutation. The first Windows kernel build fails at the unchanged
+in-kernel CupidC source with only a generic checked-compiler error. An isolated
+retry passes under the original 180-second compiler limit and preserves the
+accepted object. Source and object hashes match the baseline. Load remains an
+inference, since the first wrapper does not report its cause. The full Windows
+kernel retry passes in 3,561.948 seconds with two workers. Its unchanged
+exact-size verifier and image recipe then pass directly. Linux's cold kernel
+gate takes 1,146.547 seconds and its normal image gate takes 2,470.606.
+The early Windows collector runs before flattening completes, encounters its
+exclusive file lock, and the policy rejects the older published raw kernel.
+After publication, unchanged measurement and verification pass.
+
+Independent rereading checks all 429 objects and all sixteen exact artifacts.
+Only the manual wrapper differs from the baseline; all 428 other objects,
+including generated symbols, stay exact. The full 176,375-byte manual occurs
+once in each kernel output. Raw size increases by 596 to 9,294,504 bytes;
+the two ELF sizes remain unchanged. Only the measured raw policy row changes.
+Both complete 200 MiB images match at SHA-256
+`a29691b4471c3c3a3abbc58229b4d82453380f091927401321d1b4c8db714cf1`.
+Every FAT suffix byte is preserved and all fifteen installed seed files remain
+exact. No fresh user-product build is inferred from these checks.
+The final regenerated graph and check pass all ten contracts. Its 452 transforms
+retain 449 CupidBuild operations and the same three Python coordinators.
+All four strict private max/e1000 four-CPU smokes pass under their original
+150-second limits and predicates. Windows ls/SMP and feature 17 take 54.046
+and 61.723 seconds; Linux takes 73.420 and 81.191 seconds. The paired measurements,
+images and original smoke logs pass independent rereading in
+`wide-source-os-independent.json`.
+Both complete preparations also match all 99 source inputs and all 97 final
+stage pairs. Their source snapshot is
+`0980af62c697272c5107ee52dbc0e8feae5774e98e9af562a5d57ee8cced2753`.
+Linux takes 1,957.055 seconds and Windows 1,665.945 seconds. All staged artifacts,
+fifteen parents and exact plans pass `wide-paired-preparations-unqualified.json`.
+Both actual stage-four tool sets pass all four pointer/header methods.
+Committed-source binding, complete paired qualification and adoption remain separate.
+Installed seeds remain at `2d04ff25`. The full-width file transaction remains
+a separate prototype; no normal-build ownership changes follow from these
+development compilers. Detailed evidence and receipt names are in
+[WIDE-POINTER-OFFSETS.md](WIDE-POINTER-OFFSETS.md).
+
+## 2026-10-07: Prepare the committed 3072bc4f producer pair
+
+Both complete stage preparations start from the installed `2d04ff25` pair.
+Windows takes 1,786.395 seconds and Linux 1,765.200 seconds. Linux's first
+attempt fails at the existing 360-second frontend limit; its successful retry
+keeps that limit. The original failure remains in `prepare-linux2.json` and
+`prepare-linux2.log` under `C:/Users/admin/cp7/`.
+
+Independent rereading checks all 99 producer inputs, all fifteen parent files,
+every stage artifact, both exact plans and all 97 stage-three/stage-four pairs.
+Linux has 38 objects and six tools per stage; Windows has 47 objects and six
+tools. Their producer snapshot is
+`36fabda2192edb3ac0548834c93205f6bdde19562efaa7740fae8e8039a50bb5`.
+The full publications contain 232 Linux files and 259 Windows files.
+Evidence is `paired-preparations-independent2.json` in that proof directory.
+
+These are preparations, with behavior still pending. They neither change the
+installed seeds nor carry the subsequent wide-pointer source extension.
+Qualification of the complete committed extension and seed adoption retain
+their own requirements.
+
 ## 2026-10-07: Close the reviewed source-step controls
 
 The complete public-context, stage-release, seed-manifest, retained-API and

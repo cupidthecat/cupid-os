@@ -1,5 +1,16 @@
 # Cupid Toolchain capability matrix
 
+## Hosted wide pointer offsets, 2026-10-07
+
+Compiler source accepts signed and unsigned eight-byte integer offsets for
+complete-object pointer addition, subtraction, subscripts and compound
+assignment. Its i386 address calculation retains target stride and single
+operand evaluation. Floating offsets, incomplete and function referents, and
+atomic access remain rejected. The Windows seek header and runtime agree on
+the `LONG *` high-word argument. [The source record](WIDE-POINTER-OFFSETS.md)
+distinguishes these tests from installed-seed qualification and native disk
+publication.
+
 ## Qualified complete ISO and native ABI commands, 2026-10-06
 
 Both complete `344a9eee` producer qualifications pass with the exact 92-input

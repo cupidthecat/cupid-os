@@ -809,8 +809,9 @@ static const char atomic_pointer_update_source[] =
     "int * _Atomic shared_pointer;\n"
     "int *advance_atomic(void) { return shared_pointer++; }\n";
 
-static const char wide_pointer_offset_source[] =
-    "int *wide_assign(int *pointer) { return pointer += (long long)1; }\n";
+static const char atomic_wide_pointer_offset_source[] =
+    "extern _Atomic long long wide_offset;\n"
+    "int *wide_assign(int *pointer) { return pointer += wide_offset; }\n";
 
 static const char qualified_array_decay_source[] =
     "typedef int values_t[2];\n"
@@ -19088,12 +19089,12 @@ static int run_pointer_arithmetic(const char *host_root) {
           "CupidC IR lowering does not yet support this value type",
           "atomic pointer update") ||
       !parse_source(job, "/wide-pointer-offset.c",
-                    wide_pointer_offset_source, &wide_unit) ||
+                    atomic_wide_pointer_offset_source, &wide_unit) ||
       !expect_ir_failure_preserves_unit(
           job, &wide_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
-          "wide pointer offset")) {
+          "atomic wide pointer offset")) {
     goto cleanup;
   }
   for (index = 0u; index < unit.expression_count; index++) {

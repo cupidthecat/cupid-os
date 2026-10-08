@@ -13865,7 +13865,8 @@ static ctool_status_t cemit_emit_ir_instruction(
           left_is_pointer == CTOOL_TRUE ? right_type : left_type;
       scale_register = left_is_pointer == CTOOL_TRUE ? 1u : 0u;
       if (left_is_pointer == right_is_pointer ||
-          cemit_ir_type_is_i32_integer(context, integer_type) == CTOOL_FALSE ||
+          (cemit_ir_type_is_i32_integer(context, integer_type) == CTOOL_FALSE &&
+           cemit_ir_type_is_wide_integer(context, integer_type) == CTOOL_FALSE) ||
           cemit_ir_pointer_types_match(context, pointer_type,
                                        ir_instruction->type) == CTOOL_FALSE ||
           cemit_ir_pointer_arithmetic_size(context, pointer_type,
@@ -13888,8 +13889,8 @@ static ctool_status_t cemit_emit_ir_instruction(
           referent_size != right_size) {
         return CTOOL_ERR_INTERNAL;
       }
-    } else if (cemit_ir_type_is_i32_integer(context, right_type) ==
-                   CTOOL_FALSE ||
+    } else if ((cemit_ir_type_is_i32_integer(context, right_type) == CTOOL_FALSE &&
+                cemit_ir_type_is_wide_integer(context, right_type) == CTOOL_FALSE) ||
                cemit_ir_pointer_types_match(
                    context, left_type, ir_instruction->type) == CTOOL_FALSE ||
                cemit_ir_pointer_arithmetic_size(context, left_type,
@@ -13902,6 +13903,15 @@ static ctool_status_t cemit_emit_ir_instruction(
     if (status == CTOOL_OK) {
       status = cemit_x86_one_register(
           context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    if (status == CTOOL_OK && left_is_pointer != right_is_pointer &&
+        cemit_ir_type_is_wide_integer(context,
+            left_is_pointer == CTOOL_TRUE ? right_type : left_type) == CTOOL_TRUE) {
+      /* One logical wide operand holds a private snapshot address. i386
+       * address arithmetic uses its low word; defined pointer arithmetic
+       * remains within one represented object and keeps the target stride. */
+      status = cemit_x86_load_register_at_register(
+          context, scale_register, scale_register, 0u);
     }
     if (status == CTOOL_OK && left_is_pointer != right_is_pointer) {
       status = cemit_x86_scale_register(context, scale_register,

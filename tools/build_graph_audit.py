@@ -10177,7 +10177,7 @@ def _cupid_toolchain_fixed_point_contract(
     windows_publication_sources_match = all(
         (
             windows_publication_header_digest
-            == "2f9bc97792166726bff5a8d3cdf74ed7ad59d6503d4b896e4d05929d9e997417",
+            == "09417243701c249da8e6f15036bde5debfe5ec648b75d449a4733296d7a3b6ce",
             windows_publication_runtime_digest
             == "536fa0a609ddaf6fe90c3fb0696c8e66823284634b75811f03d275427187ad0c",
             windows_publication_start_digest

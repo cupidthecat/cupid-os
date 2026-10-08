@@ -3008,6 +3008,17 @@ New producer qualification, seed carriage, normal OS/runtime acceptance and
 native disk recipe ownership retain their own gates.
 >endtree
 
+>h2 Hosted wide pointer offsets
+>tree
+Shared hosted CupidC source accepts signed and unsigned eight-byte offsets in
+complete-object pointer arithmetic, subscripts and compound assignment. It keeps
+element stride and evaluates each operand once. Floating offsets, incomplete or
+function referents, and atomic access remain rejected. The hosted Windows seek
+API uses a matching LONG pointer for its high word. This source capability needs
+producer qualification and seed adoption; installed seeds retain their qualified
+checkpoint. It does not extend the private in-kernel CupidC boundary.
+>endtree
+
 >h2 See Also
 [03CUPIDSC.CTXT - CupidScript](open:03CUPIDSC.CTXT)
 [12HOLYC-CUPIDC.CTXT - HolyC comparison](open:12HOLYC-CUPIDC.CTXT)

@@ -5247,7 +5247,8 @@ static ctool_status_t cir_append_pointer_binary(
             CTOOL_FALSE) {
       return cir_invalid_unit(context, location);
     }
-    if (cir_type_is_i32_integer(context, integer_type) == CTOOL_FALSE) {
+    if (cir_type_is_i32_integer(context, integer_type) == CTOOL_FALSE &&
+        cir_type_is_wide_integer(context, integer_type) == CTOOL_FALSE) {
       return cir_unsupported_type(context, location);
     }
   } else if (left_is_pointer == CTOOL_FALSE) {
@@ -5273,7 +5274,8 @@ static ctool_status_t cir_append_pointer_binary(
             CTOOL_FALSE) {
       return cir_invalid_unit(context, location);
     }
-    if (cir_type_is_i32_integer(context, right->type) == CTOOL_FALSE) {
+    if (cir_type_is_i32_integer(context, right->type) == CTOOL_FALSE &&
+        cir_type_is_wide_integer(context, right->type) == CTOOL_FALSE) {
       return cir_unsupported_type(context, location);
     }
   }

@@ -1,5 +1,21 @@
 # Toolchain bootstrap
 
+## Hosted wide pointer offsets, 2026-10-07
+
+Shared CupidC source accepts signed and unsigned eight-byte integer offsets in
+complete-object pointer arithmetic, subscripts and compound assignment. i386
+emission retains element stride and single operand evaluation. The hosted
+Windows seek declaration uses `LONG *` for its high word. Installed seeds retain
+their qualified checkpoint; wider disk transactions and producer adoption are
+separate gates. The
+[implementation record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/WIDE-POINTER-OFFSETS.md)
+contains the compiler and runtime evidence.
+
+The source/manual consumer checks pass on both hosts: 429 matching objects,
+sixteen exact artifacts, identical complete images and all four strict boots.
+Only the manual wrapper changes from the baseline. Both new stage-four tool
+sets pass the pointer/header controls; complete paired qualification remains open.
+
 ## Block static assertions at compiler head, 2026-10-03
 
 Shared CupidC accepts C11 `_Static_assert` declarations in function compounds.

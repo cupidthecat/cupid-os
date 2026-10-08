@@ -7048,6 +7048,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             native_build_loop_start:native_build_loop_end
         ]
         mutations = {
+            "Windows seek header loses its LONG pointer type": (
+                "windows_publication_header",
+                "unsigned int handle, LONG distance, LONG *distance_high,",
+                "unsigned int handle, LONG distance, int *distance_high,",
+                r"fixed-point Windows publication contract differs",
+            ),
             "Windows final-path declaration changes calling arguments": (
                 "windows_publication_header",
                 "DWORD cupid_windows_get_final_path_name_by_handle_wide(\n    HANDLE handle, unsigned short *destination, DWORD capacity, DWORD flags);",

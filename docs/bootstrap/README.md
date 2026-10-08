@@ -1,5 +1,21 @@
 # Cupid Toolchain bootstrap
 
+## Wide pointer offsets in hosted compiler source, 2026-10-07
+
+Shared hosted CupidC carries signed and unsigned eight-byte offsets through
+pointer arithmetic, subscripts and compound assignment. The i386 emitter reads
+the value from its private snapshot and retains target element stride. The
+hosted Windows seek declaration accepts the standard `LONG *` high word with a
+matching runtime declaration. Installed seed ownership remains at `2d04ff25`;
+the full-width transaction prototype and its adoption are separate.
+[The implementation record](WIDE-POINTER-OFFSETS.md) describes the reproducer,
+runtime contracts, rejected inputs and remaining producer gates.
+
+The source/manual consumer checks pass on both hosts: 429 matching objects,
+sixteen exact artifacts, identical complete images and all four strict boots.
+Only the manual wrapper changes from the baseline. Both new stage-four tool
+sets pass the pointer/header controls; complete paired qualification remains open.
+
 ## Reviewed retained-copy source integration, 2026-10-07
 
 The reviewed integration source carries the bounded frozen-input

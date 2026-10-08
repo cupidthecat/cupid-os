@@ -5,6 +5,7 @@
 
 typedef unsigned int BOOL;
 typedef unsigned int DWORD;
+typedef long LONG;
 typedef unsigned int HANDLE;
 typedef unsigned int SIZE_T;
 typedef unsigned short WORD;
@@ -203,7 +204,7 @@ unsigned int cupid_windows_read_file(unsigned int handle, void *destination,
                                      void *overlapped);
 unsigned int cupid_windows_remove_directory(const char *path);
 unsigned int cupid_windows_set_file_pointer(
-    unsigned int handle, int distance, int *distance_high,
+    unsigned int handle, LONG distance, LONG *distance_high,
     unsigned int method);
 unsigned int cupid_windows_set_handle_information(
     unsigned int handle, unsigned int mask, unsigned int flags);

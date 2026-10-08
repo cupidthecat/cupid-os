@@ -1,5 +1,19 @@
 # cupid-os
 
+## Hosted wide pointer offsets, 2026-10-07
+
+Shared CupidC source supports signed and unsigned eight-byte offsets in pointer
+arithmetic, subscripts and compound assignment while preserving element stride
+and operand evaluation. The hosted Windows seek API uses a matching `LONG *`
+high-word declaration. [The bootstrap record](docs/bootstrap/WIDE-POINTER-OFFSETS.md)
+covers the tests and remaining producer qualification. Installed seeds and the
+three remaining Python coordinators retain their current ownership.
+
+The source/manual consumer checks pass on both hosts: 429 matching objects,
+sixteen exact artifacts, identical complete images and all four strict boots.
+Only the manual wrapper changes from the baseline. Both new stage-four tool
+sets pass the pointer/header controls; complete paired qualification remains open.
+
 ## Reviewed retained-copy source integration, 2026-10-07
 
 The reviewed integration source carries the bounded frozen-input

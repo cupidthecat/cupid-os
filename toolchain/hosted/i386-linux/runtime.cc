@@ -84,8 +84,8 @@ unsigned int cupid_windows_read_file(unsigned int handle, void *destination,
                                      unsigned int *read_out,
                                      void *overlapped);
 unsigned int cupid_windows_set_file_pointer(unsigned int handle,
-                                            int distance,
-                                            int *high_distance,
+                                            long distance,
+                                            long *high_distance,
                                             unsigned int origin);
 void *cupid_windows_virtual_alloc(void *address, unsigned int bytes,
                                   unsigned int allocation_type,
@@ -655,9 +655,9 @@ static int cupid_windows_seek_position64(unsigned int handle,
                                          unsigned int origin,
                                          long long *position_out) {
   unsigned long long bits = (unsigned long long)offset;
-  int high = (int)(bits >> 32);
+  long high = (long)(bits >> 32);
   unsigned int low = cupid_windows_set_file_pointer(
-      handle, (int)(unsigned int)bits, &high, origin);
+      handle, (long)(unsigned int)bits, &high, origin);
   if (low == CUPID_WINDOWS_INVALID_FILE_POINTER) {
     unsigned int error = cupid_windows_get_last_error();
     if (error != 0u) {
@@ -1025,7 +1025,7 @@ int fseek(FILE *stream, long offset, int origin) {
   }
 #if defined(CUPID_RUNTIME_WINDOWS)
   result = (int)cupid_windows_set_file_pointer(
-      (unsigned int)stream->descriptor, (int)offset, (int *)0,
+      (unsigned int)stream->descriptor, offset, (long *)0,
       (unsigned int)origin);
   if ((unsigned int)result == CUPID_WINDOWS_INVALID_FILE_POINTER) {
     (void)cupid_windows_error();
@@ -1052,7 +1052,7 @@ long ftell(FILE *stream) {
   }
 #if defined(CUPID_RUNTIME_WINDOWS)
   result = (int)cupid_windows_set_file_pointer(
-      (unsigned int)stream->descriptor, 0, (int *)0,
+      (unsigned int)stream->descriptor, 0, (long *)0,
       CUPID_LINUX_SEEK_CUR);
   if ((unsigned int)result == CUPID_WINDOWS_INVALID_FILE_POINTER) {
     (void)cupid_windows_error();
