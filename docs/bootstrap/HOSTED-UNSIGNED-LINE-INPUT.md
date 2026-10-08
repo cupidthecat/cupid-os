@@ -65,7 +65,7 @@ expression for the native wrapper constant. The corrected checker selects
 literal wrapper definitions and supports the explicit 8,192-digit controls.
 All failed receipts and generated source remain retained.
 
-## Remaining work
+## Bootstrap integration and OS acceptance
 
 The reviewed integration copy under `C:/Users/admin/cp7/hosted-runtime-integration-source1`
 retains the normal 99 producer paths. Exactly the shared runtime and its stdio
@@ -120,7 +120,34 @@ Evidence uses `hosted-runtime-manual-kernels1-products.json`,
 command receipts and `hosted-runtime-manual-os-paired-independent1-products.json`
 under `C:/Users/admin/cp7`.
 
-This integrated source still needs committed-source qualification, replacement
+## Committed preparation binding
+
+Commit `84ae3852923a18dd6dab3f2a659f1f1d8ef684c0` contains this library source.
+Its 99-input producer snapshot is
+`7953f8cc9c3843590ef11dae6dd7d44a96e056e40c17c470b5cc38389c04e433`.
+`hosted-runtime-preparations-committed-independent2/closed.json` compares every
+input with its actual Git blob and both retained preparation source copies,
+without line-ending normalization. It rereads all 291 products and compares
+all 97 fixed-point pairs byte for byte. All fifteen installed seed files retain
+their accepted identities.
+
+The Linux preparation also has an exact retained copy on the shared Windows
+filesystem, so native Windows can read both prepared cohorts. The check compares
+every copied file with the original and rechecks both originals. The first
+checker could not open a Windows-linked worktree through Linux Git; the corrected
+checker uses Windows Git to read those same committed blobs. Both receipts remain
+retained, and none of the source or product predicates change.
+
+`hosted-runtime-release-author1` writes the paired
+`hosted-runtime-reviewed-release1.json` in the bootstrap worktree. Both complete
+qualifiers are running under `hosted-runtime-source-qualify-{windows,linux}2`,
+with their original producer bounds and two workers. Their output directories
+are `hosted-runtime-seed-qualification-{windows,linux}1` beneath that worktree.
+The first launches rejected output paths outside the source root before
+qualification; the corrected launches preserve that containment requirement.
+Authoring a release and starting qualification do not establish acceptance.
+
+This committed source still needs complete behavior qualification, replacement
 seed carriage and normal OS/SDK/public acceptance through the new tool cohort.
 The external frozen-input and publisher prototypes keep their separate gates.
 The normal disk recipe and both SDK coordinators still use Python.

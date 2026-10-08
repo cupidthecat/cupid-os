@@ -122,9 +122,18 @@ is preserved, and private host or publisher extensions are not imported.
 copies omit active X25519 and private CupidC fixtures; the corrected copies
 then expose omitted AES and VGA fixtures in the narrow IR contract. The
 third copies retain 418 controls with the same 99 producer inputs. Five of
-six low-level selections pass per host; the complete dependency closure and
-that remaining selection are still open. All failed copies and receipts remain
-retained. Source binding and complete qualification also remain open.
+six low-level selections pass per host. The fourth copies add the original
+ATA, serial, timer and VGA sources named by the unmodified contracts, reaching
+422 controls. All ten execution methods and all six low-level selections pass
+on each host. `mixed-hosted-native4-independent1/closed.json` checks all 422
+controls, the 99 producer inputs, actual native compiler/contract programs,
+complete saved outputs, eleven rejected compiler calls per host and unchanged
+qualified parents. Corresponding compiler outputs agree across hosts.
+The fourth copies differ from committed library source only in the two IR
+producer paths. Both complete stage preparations are running under
+`mixed-hosted-prepare-{windows,linux}1` with conventional producers forbidden.
+All failed copies and receipts remain retained. Source integration, complete
+qualification and seed carriage remain open.
 
 The separately built required and optional caller programs pass all 33 and 20
 methods on each host, for 106 further executions without skips. Windows takes

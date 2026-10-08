@@ -16,7 +16,11 @@ checking compares all 429 objects, sixteen artifacts, six user products and
 complete 200 MiB images, with the baseline FAT suffix preserved. The raw kernel
 measures 9,297,992 bytes; exactly three measured kernel policy rows change.
 All fifteen installed seed files and the current 99 producer inputs remain
-unchanged through acceptance. Producer qualification and carriage remain open.
+unchanged through acceptance. Commit `84ae3852` contains the library source.
+Independent checking binds all 99 inputs to exact committed Git blobs and both
+retained preparations, with 291 products and 97 complete fixed-point pairs.
+The paired release record is written and both complete qualifiers are running;
+qualification and carriage remain open.
 
 The separate [external frozen-input API](EXTERNAL-INPUT-FREEZING.md) passes
 200 selections, 196 executions and four POSIX skips. Independent checks cover
@@ -41,6 +45,13 @@ on both hosts, with the other five tools still qualified. That compiler remains
 unqualified and uninstalled. Independent checking binds retained template
 producers to the installed tools and verifies all fifteen seed files remain
 unchanged. Large geometry, normal CLI handoff and recipe adoption remain open.
+
+The compiler extension also passes fresh native tests in separate copies of the
+normal 99-input producer source: all ten execution methods and six IR/object
+contracts per host. Independent checking verifies all 422 captured controls,
+actual programs and complete saved outputs. Both complete stage preparations
+are running from those copies. The bootstrap worktree retains the committed
+library inputs throughout its separate qualification.
 
 ## Hosted putchar and optional stage evidence, 2026-10-08
 
