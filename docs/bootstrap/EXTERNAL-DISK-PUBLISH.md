@@ -141,8 +141,15 @@ methods on each host, for 106 further executions without skips. Windows takes
 publisher and optional fixture programs while preserving all 188 controls,
 actual caller bytes, fifteen installed parent files, original 180-second case
 bounds and Linux 32 MiB limits. Their commands and separate product directories
-use `external-publisher-regressions-checked-{windows,linux}1`. Independent
-checking of these additional programs remains open. This source also
+use `external-publisher-regressions-checked-{windows,linux}1`.
+`external-publisher-regressions-independent1/closed.json` passes in 42.125
+seconds for all 106 executions. It reconstructs every positive complete image,
+compares corresponding images across hosts and reads final FAT payloads with
+the retained independent mirror, chain and padding reader. It verifies prior
+bytes and timestamps, namespaces, deliberate late source changes, all 188
+controls and 106 producer inputs, actual standalone required and optional
+programs, compiler receipt/IR bindings and fifteen unchanged installed seeds.
+The current committed library inputs also remain unchanged. This source still
 needs large-image controls, normal external WAD discovery and command parsing,
 accepted large-geometry templates, source integration, qualification and recipe
 adoption. The older Windows standalone cleanup failure retains its own

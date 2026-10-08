@@ -46,6 +46,11 @@ unqualified and uninstalled. Independent checking binds retained template
 producers to the installed tools and verifies all fifteen seed files remain
 unchanged. Large geometry, normal CLI handoff and recipe adoption remain open.
 
+The actual required and optional publication callers also pass all 106 further
+executions without skips. Independent review reconstructs complete images,
+reads final FAT payloads and verifies preservation facts, actual programs,
+source/compiler bindings and all fifteen unchanged installed seed files.
+
 The compiler extension also passes fresh native tests in separate copies of the
 normal 99-input producer source: all ten execution methods and six IR/object
 contracts per host. Independent checking verifies all 422 captured controls,
