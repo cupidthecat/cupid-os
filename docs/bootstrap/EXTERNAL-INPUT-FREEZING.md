@@ -37,17 +37,38 @@ first implementation opened a metadata-only Windows handle before reading;
 requesting payload access repairs that failure. Linux accepted an empty label
 for an anonymous file; the external API now validates a nonempty component.
 
+## Cupid execution and independent checking
+
+The corrected checked builds capture 117 source controls and 106 producer paths.
+They use six qualified parent tools per host, two workers and the original
+360/120/180-second producer bounds. Windows takes 57.314 seconds and Linux 58.778.
+The Windows candidate explicitly imports `NtQueryInformationFile`, required by
+its external adapter; its complete static PE import profile checks that exact
+addition. Installed import profiles and parent tools retain their original bytes.
+
+The 32 frozen-input methods and eighteen existing external-observer methods pass
+through both checked callers. Linux executes all fifty; Windows executes 48 with
+two declared POSIX skips. Those complete checked selections take 698.030 and
+641.326 seconds. These totals include separate commands; each command keeps its
+20, 180 or 600-second bound. Both large payload controls pass, including the
+complete 200 MiB extent under 32 MiB on Linux.
+
+Together with both native selections, independent checking accepts 200 selected
+methods, 196 executions and four POSIX skips. It rereads every complete positive
+output, preserved prior bytes and timestamps, case namespaces, command limits,
+captured source copies, actual objects and caller images, static profiles and
+all qualified parent tools. Evidence is `external-freeze-quad-independent1/closed.json`
+under `C:/Users/admin/cp7`. Checked builds use `external-freeze-checked5` on Windows
+and `external-freeze-checked4` on Linux beneath their retained source roots.
+
+The first copied builder lacked supporting Python modules. Later builds exposed
+missing standard `strtoull` and `fgets` interfaces; the shared runtime now supplies
+them through ordinary contract source. [The library record](HOSTED-UNSIGNED-LINE-INPUT.md)
+keeps their separate native and Cupid evidence. A Windows link then identified
+the missing NTDLL procedure import. All unsuccessful invocations remain recorded.
+
 ## Remaining acceptance
 
-The checked builder captures 117 source controls and 106 producer paths, with
-unchanged qualified parent tools and 360/120/180-second producer bounds. Its first
-invocation lacked supporting Python modules in the copied source bundle. The
-corrected build compiles the host implementation, then stops because the ordinary
-contract caller uses undeclared `strtoull`. The shared hosted runtime also lacks
-that interface. Extending the runtime is the next requirement; the caller remains
-ordinary C source.
-
-Cupid runtime verification, existing observer/capture regressions, independent
-whole-product checks, optional publisher integration, normal CLI support,
+Optional stage and publisher integration, normal CLI support,
 qualification and recipe adoption remain open. This is private capability work.
 The normal disk recipe and two SDK coordinators still belong to Python.

@@ -114,6 +114,7 @@ struct _IO_FILE {
   int descriptor;
   int error;
   int owned;
+  int eof;
 #if defined(CUPID_RUNTIME_WINDOWS)
   int append;
 #endif
@@ -130,13 +131,13 @@ struct cupid_heap_block {
 
 static int cupid_runtime_errno;
 #if defined(CUPID_RUNTIME_WINDOWS)
-static FILE cupid_runtime_stdin = {-1, 0, 0, 0};
-static FILE cupid_runtime_stdout = {-1, 0, 0, 0};
-static FILE cupid_runtime_stderr = {-1, 0, 0, 0};
+static FILE cupid_runtime_stdin = {-1, 0, 0, 0, 0};
+static FILE cupid_runtime_stdout = {-1, 0, 0, 0, 0};
+static FILE cupid_runtime_stderr = {-1, 0, 0, 0, 0};
 #else
-static FILE cupid_runtime_stdin = {0, 0, 0};
-static FILE cupid_runtime_stdout = {1, 0, 0};
-static FILE cupid_runtime_stderr = {2, 0, 0};
+static FILE cupid_runtime_stdin = {0, 0, 0, 0};
+static FILE cupid_runtime_stdout = {1, 0, 0, 0};
+static FILE cupid_runtime_stderr = {2, 0, 0, 0};
 static cupid_heap_block_t *cupid_heap_first;
 static cupid_heap_block_t *cupid_heap_last;
 static unsigned int cupid_heap_end;
@@ -279,6 +280,79 @@ int strncmp(const char *left, const char *right, size_t count) {
   }
   return (int)(unsigned char)left[index] -
          (int)(unsigned char)right[index];
+}
+
+static int cupid_runtime_integer_digit(unsigned char character) {
+  if (character >= '0' && character <= '9') {
+    return (int)character - '0';
+  }
+  if (character >= 'a' && character <= 'z') {
+    return (int)character - 'a' + 10;
+  }
+  if (character >= 'A' && character <= 'Z') {
+    return (int)character - 'A' + 10;
+  }
+  return -1;
+}
+
+unsigned long long strtoull(const char *text, char **end, int base) {
+  const char *cursor = text;
+  unsigned long long maximum = ~0ull;
+  unsigned long long value = 0ull, cutoff;
+  unsigned int remainder;
+  int negative = 0, any = 0, overflow = 0, digit;
+  if (end != NULL) {
+    *end = (char *)text;
+  }
+  if (base != 0 && (base < 2 || base > 36)) {
+    errno = EINVAL;
+    return 0ull;
+  }
+  while (*cursor == ' ' || *cursor == '\t' || *cursor == '\n' ||
+         *cursor == '\r' || *cursor == '\f' || *cursor == '\v') {
+    cursor++;
+  }
+  if (*cursor == '-' || *cursor == '+') {
+    negative = *cursor == '-';
+    cursor++;
+  }
+  if ((base == 0 || base == 16) && cursor[0] == '0' &&
+      (cursor[1] == 'x' || cursor[1] == 'X')) {
+    digit = cupid_runtime_integer_digit((unsigned char)cursor[2]);
+    if (digit >= 0 && digit < 16) {
+      base = 16;
+      cursor += 2;
+    }
+  }
+  if (base == 0) {
+    base = *cursor == '0' ? 8 : 10;
+  }
+  cutoff = maximum / (unsigned int)base;
+  remainder = (unsigned int)(maximum % (unsigned int)base);
+  for (;;) {
+    digit = cupid_runtime_integer_digit((unsigned char)*cursor);
+    if (digit < 0 || digit >= base) {
+      break;
+    }
+    any = 1;
+    if (value > cutoff || (value == cutoff && (unsigned int)digit > remainder)) {
+      overflow = 1;
+    } else if (!overflow) {
+      value = value * (unsigned int)base + (unsigned int)digit;
+    }
+    cursor++;
+  }
+  if (!any) {
+    return 0ull;
+  }
+  if (end != NULL) {
+    *end = (char *)cursor;
+  }
+  if (overflow) {
+    errno = ERANGE;
+    return maximum;
+  }
+  return negative ? 0ull - value : value;
 }
 
 char *strchr(const char *text, int character) {
@@ -736,6 +810,7 @@ static FILE *cupid_stdio_open(const char *path, int flags) {
   stream->descriptor = descriptor;
   stream->error = 0;
   stream->owned = 1;
+  stream->eof = 0;
 #if defined(CUPID_RUNTIME_WINDOWS)
   stream->append = (flags & CUPID_LINUX_O_APPEND) != 0 ? 1 : 0;
 #endif
@@ -837,6 +912,17 @@ static int cupid_stdio_size(FILE *stream, size_t width, size_t count,
   return 1;
 }
 
+int feof(FILE *stream) {
+  return cupid_stdio_bad_stream(stream) ? 0 : stream->eof;
+}
+
+void clearerr(FILE *stream) {
+  if (!cupid_stdio_bad_stream(stream)) {
+    stream->error = 0;
+    stream->eof = 0;
+  }
+}
+
 size_t fread(void *destination, size_t width, size_t count, FILE *stream) {
   unsigned char *bytes = (unsigned char *)destination;
   size_t requested;
@@ -848,6 +934,9 @@ size_t fread(void *destination, size_t width, size_t count, FILE *stream) {
     return 0u;
   }
   if (requested == 0u) {
+    return 0u;
+  }
+  if (stream->eof) {
     return 0u;
   }
   if (destination == (void *)0) {
@@ -868,6 +957,7 @@ size_t fread(void *destination, size_t width, size_t count, FILE *stream) {
         (unsigned int)chunk, &read, (void *)0);
     if (result == 0) {
       if (cupid_windows_get_last_error() == CUPID_WINDOWS_ERROR_BROKEN_PIPE) {
+        stream->eof = 1;
         break;
       }
       (void)cupid_windows_error();
@@ -888,11 +978,33 @@ size_t fread(void *destination, size_t width, size_t count, FILE *stream) {
     }
 #endif
     if (result == 0) {
+      stream->eof = 1;
       break;
     }
     total += (size_t)result;
   }
   return total / width;
+}
+
+char *fgets(char *destination, int capacity, FILE *stream) {
+  size_t used = 0u;
+  if (capacity <= 0) {
+    errno = EINVAL;
+    return NULL;
+  }
+  while (used < (size_t)capacity - 1u) {
+    if (fread(destination + used, 1u, 1u, stream) != 1u) {
+      if (used == 0u || ferror(stream)) {
+        return NULL;
+      }
+      break;
+    }
+    if (destination[used++] == '\n') {
+      break;
+    }
+  }
+  destination[used] = '\0';
+  return destination;
 }
 
 size_t fwrite(const void *source, size_t width, size_t count, FILE *stream) {
@@ -998,7 +1110,11 @@ static int cupid_stdio_position64(FILE *stream, long long offset, int origin,
 
 int cupid_fseek64(FILE *stream, long long offset, int origin) {
   long long position = 0;
-  return cupid_stdio_position64(stream, offset, origin, &position);
+  int result = cupid_stdio_position64(stream, offset, origin, &position);
+  if (result == 0) {
+    stream->eof = 0;
+  }
+  return result;
 }
 
 int cupid_ftell64(FILE *stream, long long *position_out) {
@@ -1042,6 +1158,7 @@ int fseek(FILE *stream, long offset, int origin) {
     return -1;
   }
 #endif
+  stream->eof = 0;
   return 0;
 }
 

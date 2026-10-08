@@ -7,5 +7,6 @@ void *malloc(size_t bytes);
 void *calloc(size_t count, size_t bytes);
 void *realloc(void *allocation, size_t bytes);
 void free(void *allocation);
+unsigned long long strtoull(const char *text, char **end, int base);
 
 #endif

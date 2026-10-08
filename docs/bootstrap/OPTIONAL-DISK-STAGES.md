@@ -76,7 +76,12 @@ separate acceptance requirements. TempleOS stays outside implementation and
 progress counts.
 
 The separate [external frozen-input API](EXTERNAL-INPUT-FREEZING.md) now passes
-both native 32-method selections, including complete 200 MiB transfer with
-32 MiB on Linux. Its Cupid host implementation compiles; the ordinary caller
-exposes a missing hosted `strtoull` interface. Cupid runtime and independent
-verification, publisher integration and normal recipe adoption remain open.
+200 selections, 196 executions and four platform skips with native and Cupid
+callers, including complete 200 MiB transfer under 32 MiB on Linux. Its ordinary
+caller drove the hosted unsigned-conversion and line-input additions.
+
+[External stage capture](EXTERNAL-DISK-STAGES.md) separately passes 220 selections,
+212 executions and eight platform skips. It distinguishes identical logical
+spellings by their observer authority and retains missing external inputs through
+publication. Complete source/product checking covers 119 controls and 106 private
+producer paths. Publisher integration and normal recipe adoption remain open.

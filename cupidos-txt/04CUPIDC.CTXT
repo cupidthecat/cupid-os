@@ -3044,13 +3044,38 @@ current stdout stream. Native and Cupid-built callers on both hosts verify all
 768 signed arguments and complete output bytes. A read-only stream requires
 EOF, a stream error and nonzero errno while preserving its bytes and timestamp.
 Restoring stdout permits a later successful byte write. Installed seeds remain
-pinned to their earlier qualified source; the new runtime needs seed carriage.
+pinned to their earlier qualified source. Both complete qualifications of the
+byte-output source pass, with 291 staged products and 97 matching stage pairs.
+The later library additions keep their separate qualification and carriage work.
 
 The optional disk publisher prototype passes 236 publisher cases with complete
 independent image and FAT checks. Its broader matrix retains one Windows
 standalone cleanup failure. A separate external-root observer passes 72 cases,
 but external WAD capture, normal command ownership and qualification remain open.
 The normal disk recipe and SDK coordinators still use Python.
+>endtree
+
+>h2 Hosted unsigned conversion and line input
+>tree
+The shared hosted runtime provides strtoull, fgets, feof and clearerr. Unsigned
+conversion accepts the complete 64-bit range, bases 2 through 36, automatic
+decimal/octal/hexadecimal selection, whitespace and optional signs. It retains
+the first unconverted position. Overflow consumes all valid digits, returns the
+unsigned maximum and sets ERANGE. Invalid bases report EINVAL.
+
+Line input preserves binary bytes and a retained newline, writes at most the
+capacity minus one and terminates successful data. Empty EOF preserves the
+destination; partial final lines return their data. Stream EOF and errors remain
+separate. Clearerr resets both; successful standard and wide seeks clear EOF,
+while position queries preserve it. The caller still sees an opaque FILE type.
+
+Native and Cupid callers pass 128 conversion and line/state methods. Independent
+checks cover 5,856 conversion inputs. Fresh integration callers pass 64 further
+executions and both byte-output regressions with the normal 99 producer inputs.
+The new library source still needs its complete committed-source qualification
+and seed carriage. External frozen-input callers separately pass 196 executions
+with four platform skips, including complete 200 MiB transfers under the original
+limits. Normal disk and SDK coordination still use Python.
 >endtree
 
 >h2 See Also

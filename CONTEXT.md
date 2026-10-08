@@ -2540,3 +2540,27 @@ _Avoid_: general peephole optimization, byte-pattern matching, qualified compile
 **Retained previous-output snapshot**:
 A transaction-owned immutable copy of the initially observed output, retained separately from the public output name while publication can replace that name. Its authority comes from the transaction's initial output observation.
 _Avoid_: ordinary live input, replaced output pathname
+
+## Hosted unsigned conversion and line input, 2026-10-08
+
+The shared runtime supplies standard `strtoull`, `fgets`, `feof` and `clearerr`.
+Unsigned conversion retains full 64-bit values, base selection, end positions
+and overflow diagnostics. Line input keeps binary bytes, newline and termination
+bounds. Streams retain separate EOF and error indicators; successful standard
+and wide seeks clear EOF, while position queries preserve it. Stream storage
+remains opaque. ADR 0451 records diagnostic policies and native CRT differences.
+
+Native and Cupid callers pass 128 methods. Independent checks cover 5,856
+conversion inputs and complete generated native source. The isolated normal
+99-input integration copy passes 64 further Cupid executions and both byte-output
+regressions; exactly three producer paths are applied to the bootstrap worktree.
+Its paired preparations keep the previous qualified parent tools. Committed-source
+qualification and adoption of this new library cohort remain open.
+
+Byte-output source b64dd8292 passes both complete qualifications. Independent
+rereading checks 291 staged products, 97 fixed-point pairs, 7,761 publication
+files and 99 committed inputs. That qualification remains separate from this
+later library source. The external frozen-input prototype passes 200 selections,
+196 executions and four platform skips, with complete large transfers under the
+original limits. Normal external staging and command ownership remain open;
+the normal disk recipe and two SDK coordinators still use Python.

@@ -1,15 +1,60 @@
 # Cupid Toolchain bootstrap
 
+## Hosted unsigned conversion and line input, 2026-10-08
+
+The shared runtime now supplies `strtoull`, `fgets`, `feof` and `clearerr`.
+The ordinary external-input caller drove these additions. Four callers pass
+128 conversion and line/state methods; independent checking covers 5,856
+conversion inputs. Fresh integration callers pass another 64 executions and
+both putchar regressions while retaining the normal 99 producer paths.
+[The library record](HOSTED-UNSIGNED-LINE-INPUT.md) binds the exact three producer
+changes, native oracle differences, copied source and remaining qualification.
+
+The updated 179,862-byte manual passes paired normal kernel/image builds,
+fresh user checks and all four strict private four-CPU boots. Independent
+checking compares all 429 objects, sixteen artifacts, six user products and
+complete 200 MiB images, with the baseline FAT suffix preserved. The raw kernel
+measures 9,297,992 bytes; exactly three measured kernel policy rows change.
+All fifteen installed seed files and the current 99 producer inputs remain
+unchanged through acceptance. Producer qualification and carriage remain open.
+
+The separate [external frozen-input API](EXTERNAL-INPUT-FREEZING.md) passes
+200 selections, 196 executions and four POSIX skips. Independent checks cover
+complete outputs, prior bytes/timestamps, source copies, actual products and
+qualified parents. Complete 65 MiB and 200 MiB transfers pass their original
+bounds, including the Linux 32 MiB controls. Separate
+[external stage capture](EXTERNAL-DISK-STAGES.md) passes 212 executions and eight
+platform skips through four callers, with 119 captured source controls.
+Publisher/CLI handoff retains its own acceptance work. Ownership remains
+449 CupidBuild and three Python actions across 452 transforms.
+
+The next private [external publisher handoff](EXTERNAL-DISK-PUBLISH.md) passes
+all four native and Cupid 44-method selections, with 172 executions and four
+platform skips.
+It stages external payloads into complete eight-MiB FAT images while retaining
+source authority and final publication guards. Independent checking now
+reconstructs complete images, reads their final FAT payloads and verifies
+external archives and prior publication facts. Both initial qualified-parent
+builds expose an unsupported mixed width compound assignment in CupidBuild.
+The recorded private compiler extension builds all three publication callers
+on both hosts, with the other five tools still qualified. That compiler remains
+unqualified and uninstalled. Independent checking binds retained template
+producers to the installed tools and verifies all fifteen seed files remain
+unchanged. Large geometry, normal CLI handoff and recipe adoption remain open.
+
 ## Hosted putchar and optional stage evidence, 2026-10-08
 
 Shared hosted source now provides standard `putchar`. Native and Cupid-built
 callers pass all eight integration executions, including every byte conversion
 and a failed read-only stream write. [The runtime record](HOSTED-PUTCHAR.md)
 retains the source, parent tools, actual commands and failed import recipes.
-Installed seeds remain pinned; this changes two producer source paths and needs
-its own complete qualification and carriage.
+Both complete qualifications now pass for committed byte-output source
+`b64dd8292`. Independent checking covers 291 staged products, 97 fixed-point
+pairs, 7,761 published files and all 99 committed inputs. Installed seeds remain
+at their preceding qualified cohort; the later library source needs its own
+qualification and carriage.
 
-The current 178,330-byte manual passes fresh paired kernel/image and
+The preceding 178,330-byte manual passes fresh paired kernel/image and
 user builds plus all four strict private four-CPU boots. Independent comparison
 checks all 429 objects, sixteen artifacts, six user products, complete images
 and the preserved FAT suffix. Only the manual wrapper changes; the raw kernel
@@ -21,8 +66,9 @@ publisher executions through four callers with independently reconstructed
 complete images and final FAT payload checks. The broader matrix retains one
 Windows standalone cleanup failure, with its private frozen writer preserved.
 Its cause remains unproven after 100 passing direct replays. A separate external
-observer capability passes all 72 cases through four callers. External payload
-freezing/staging and normal recipe adoption remain open.
+observer capability passes all 72 cases through four callers. The later external
+freeze and stage scopes are recorded above. Publisher/CLI handoff and normal
+recipe adoption remain open.
 
 ## Qualified wide pointer seed cohort, 2026-10-07
 

@@ -75,5 +75,28 @@ and `putchar-manual-os-paired-independent1-products.json` under
 `C:/Users/admin/cp7`. All 99 current producer inputs remain unchanged through
 these checks. Their only differences from the installed qualified source are
 the shared runtime and hosted stdio declaration. All fifteen installed seed
-files retain their original bytes. Full qualification and seed carriage of
-the new runtime remain open.
+files retain their original bytes.
+
+## Committed producer qualification
+
+Both complete qualifications pass for committed source `b64dd8292bed14208699afe7025ecd01da153c02`
+and source snapshot `682eb4d8c80fb348280e42db3e6a43f0292258c137017265b39d9741797a0be2`.
+Windows takes 2,464.580 seconds and Linux 2,756.732, with conventional producers
+disabled, two workers and the original per-command bounds. Stage-three and
+stage-four behavior use the explicitly authored paired release candidate.
+
+Independent checks read all 291 staged products, compare all 97 fixed-point
+pairs byte for byte, and hash all 7,761 published files. They bind the actual
+99 producer inputs to their committed Git bytes, both preparations, twelve
+release tool images, behavior manifests and fifteen unchanged installed parent
+files. Windows retains 54 failure, seven help and sixty success cases; Linux
+retains 66, seven and 73. Each behavior selection runs at both generations.
+Evidence is `putchar-qualification-{windows,linux}-independent2/closed.json`
+under `C:/Users/admin/cp7`.
+
+The first checker's facts filename collided with the command wrapper's receipt.
+The corrected checks use separate paths and pass again with every original
+predicate. The original passing command logs remain available. This qualification
+belongs to byte-output source `b64dd8292`; the later unsigned-conversion and
+line-input source has its own preparations and acceptance work. No seed adoption
+is inferred from the completed byte-output qualification.
