@@ -171,10 +171,19 @@ complete acceptance.
 
 The clean paired source-four copies retain 209 controls and 109 private
 producer inputs; only the host implementation changes from source three.
-All four five-program builds and both complete native regression selections
-pass. Checked regressions, all eight clean-source large cases, complete
-independent checks and strict guest boots remain required. The source-three
-acceptance and its original large failures remain preserved.
+All four five-program builds and complete native/Cupid runtime selections pass.
+Checked Windows closes in 2,763.886 seconds; checked Linux in 1,996.940.
+`disk-required-handoff-independent8-products/closed.json` verifies all 664
+selections, 646 executions, eighteen skips and 652 actual calls. All 23 complete
+checked object pairs agree. The checker reconstructs every positive image,
+checks complete FAT data, negative bytes/timestamps/namespaces and all legacy
+regressions, and confirms every other object equals source three.
+
+The original eight-case 200 MiB queue now closes with seven successes. All native
+cases, both checked Windows cases and checked Linux fresh publication pass.
+Checked Linux reuse still times out at 600 seconds with 32 MiB. Complete large
+independent review and six strict guest boots remain required after every large
+case passes. The source-three acceptance and all original failures remain held.
 
 ## Preserved failures and remaining integration
 

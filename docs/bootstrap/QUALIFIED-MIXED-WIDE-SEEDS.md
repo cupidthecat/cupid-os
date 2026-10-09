@@ -115,11 +115,17 @@ in 63.093 seconds, checking 104 SDK inputs, 98 bootstrap inputs, all 77 complete
 stage pairs, the full manifest and all 22 published images against retained
 stage four. Evidence is `mixed-qualified-sdk-default-linux1-independent-products.json`.
 
-The queue now runs the Linux long-path profile before the two Windows SDK
-profiles, both complete public selections and both actual Make bootstraps.
-Each SDK keeps its original complete independent check; public and Make results
-require their complete rereading. These remaining gates stay open. The queue
-uses one full producer job at a time with the original two workers and bounds.
+All four SDK profiles now pass their original complete independent checks.
+Linux long-path closes in 4,458.823 seconds; Windows default in 5,184.661;
+Windows long-path retry in 5,266.572. The last independent check closes in
+45.987 seconds and rereads 104 SDK inputs, 99 bootstrap inputs, all 77 complete
+stage pairs and every one of the 22 published ELF images. The earlier Windows
+long-path I/O failure and partial workspace remain held.
+
+The original queue now runs both complete public selections and actual Make
+bootstraps. Their complete independent rereading remains required before root
+seed or manual adoption. The queue keeps one full producer job at a time with
+the original two workers, deadlines and forbidden host producers.
 
 All fifteen installed bootstrap seed files still have the `a1cc8f3a` identities.
 No normal recipe ownership transfers through this private projection.

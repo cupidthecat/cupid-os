@@ -6,9 +6,11 @@ The private [frozen-set follow-up](../adr/0459-coalesce-required-frozen-input-re
 removes duplicate complete validations within one live-input pass. Its actual
 FAT-reuse work-count feedback changes from red to green, and a checked Linux
 200 MiB diagnostic closes under the original 600-second and 32 MiB limits.
-Whole-image digest passes fall from 49 to 44. All four clean builds and both
-complete native regression selections pass; complete checked, large-image,
-independent and boot acceptance remain open.
+Whole-image digest passes fall from 49 to 44. All four clean builds, complete
+native/Cupid regression selections and independent small-image checks pass.
+The checker accepts all 664 selections and 652 calls. Seven of eight clean
+200 MiB cases pass; checked Linux reuse still times out at its original
+600-second limit. Complete large-image and boot acceptance remain open.
 
 The separate [literal-transfer entry controls](REQUIRED-DISK-HANDOFF.md)
 now pass 32 native/Cupid verdicts. A caller that legally clobbers ECX exposes
@@ -19,9 +21,18 @@ qualification and normal source integration remain open.
 Explicit disk-full failures stop the first clean Windows runtime and original
 Windows long-path SDK attempts. Their results remain retained. Space recovery
 preserves every compressed file's bytes and timestamp. Both native runtime
-selections pass; the checked regressions and SDK retry are running. The three
-already accepted SDK profiles, 99 normal producer inputs and fifteen installed
-seed files retain their earlier evidence.
+selections pass. Both checked regressions and the Windows long-path SDK retry
+now pass. All four SDK profiles have complete independent acceptance. Original
+public methods and actual Make bootstraps remain in their serial queue. The
+99 normal producer inputs and fifteen installed seed files remain unchanged.
+
+The separate [distinct-input follow-up](../adr/0460-retain-distinct-image-input-capacity.md)
+adds explicit observer quotas, retained-file streaming and complete validation
+before discovery returns a view. Both native callers pass all 64 methods,
+including 4,096 distinct files, nested files and missing paths. All four builders
+pass. Checked Windows still rejects four capacity cases during allocation;
+checked Linux still exceeds the original bounds in four cases. Full paired
+acceptance, normal CLI integration and producer qualification remain open.
 
 ## Required-file capture and publication, 2026-10-09
 

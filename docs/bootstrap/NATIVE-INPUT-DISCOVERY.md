@@ -94,6 +94,22 @@ record checks all six regression selections and their complete actual results.
 
 ## Retained failures and remaining work
 
+The [distinct-input follow-up](../adr/0460-retain-distinct-image-input-capacity.md)
+now retains explicit observer quotas, streams already retained file records and
+validates the complete construction before exposing a view. It is held separately
+in `input-discovery-source7` and its paired Linux copy. All four builders and both
+native 64-method selections pass, including 4,096 distinct present/missing/nested
+inputs. All 100 original ordinary/UNC observer regression executions and 106
+calls also pass. Deterministic construction hooks prove rejection of kernel
+metadata drift and original working-root/selected-parent rebinding before return.
+
+The full checked selections remain rejected: Windows has four capacity allocation
+failures, and Linux has four original sixty-second failures with 32 MiB. The
+new quota, descriptor and work-count evidence does not close those gates. Full
+paired independent review, original capacity bounds, source qualification and
+normal command integration remain required. The preceding complete 236-call
+acceptance stays preserved.
+
 The first fixtures spell the WAD option incorrectly and match a UNC kind against
 the word "missing" in the test directory name. A second fixture assumes the
 wrong WAD destination. Corrections use `--wads`, explicit kind expectations and

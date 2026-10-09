@@ -1,5 +1,34 @@
 # Public bootstrap behavior context
 
+## Independent public and Make rereading, 2026-10-09
+
+The current replacement cohort completes all four original SDK profiles with
+their full independent checks. Original public selections and both actual Make
+bootstraps remain in the serial queue. Their pending results cannot be replaced
+by validation of an earlier cohort.
+
+The new native Windows boundary checker validates against the closed predecessor
+in `public-native-boundary-predecessor-validation9-products/closed.json`. It
+rereads 26 retained files, checks thirteen commands and objects, and relinks all
+three complete PE images byte for byte with the frozen CupidLD. Original argument,
+runtime I/O, disassembler, help, publication and cleanup controls remain. This
+record explicitly does not accept the current consumer.
+
+The actual Make checker also passes both predecessor validations. It verifies
+all 291 staged products, 7,761 published regular files and 3,286 complete
+generation pairs. It constructs the expected plans independently, validates
+every object and tool, compares full behavior artifacts and preserved failures,
+and checks exact namespace membership and all original recipe controls.
+Current-consumer mode additionally binds all 99 committed producer inputs,
+fifteen candidate files and unchanged installed parents.
+
+These records cannot reconstruct producer commands that the original drivers
+did not log individually. Private kernel-flatten outputs were not retained in
+the published Make namespaces, and internal timestamp checks lack separate
+retained observations. Those limits remain explicit. Neither checker validation
+authorizes current seed installation. The checker files and accepted receipts
+remain under `C:/Users/admin/cp7`; original failed checker attempts are preserved.
+
 The private Linux and native Windows bootstrap entry points accept an explicit
 reviewed release through `--seed-release`. This reuses runtime authority only
 for byte-identical final tools. It does not qualify changed compiler source.
