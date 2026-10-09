@@ -1,5 +1,28 @@
 # Cupid Toolchain bootstrap
 
+## Frozen input validation and entry guards, 2026-10-09
+
+The private [frozen-set follow-up](../adr/0459-coalesce-required-frozen-input-revalidation.md)
+removes duplicate complete validations within one live-input pass. Its actual
+FAT-reuse work-count feedback changes from red to green, and a checked Linux
+200 MiB diagnostic closes under the original 600-second and 32 MiB limits.
+Whole-image digest passes fall from 49 to 44. All four clean builds and both
+complete native regression selections pass; complete checked, large-image,
+independent and boot acceptance remain open.
+
+The separate [literal-transfer entry controls](REQUIRED-DISK-HANDOFF.md)
+now pass 32 native/Cupid verdicts. A caller that legally clobbers ECX exposes
+both isolated entry-guard mutants as wrong runtime results on both hosts.
+Whole object comparisons and independent rereading pass. Full compiler
+qualification and normal source integration remain open.
+
+Explicit disk-full failures stop the first clean Windows runtime and original
+Windows long-path SDK attempts. Their results remain retained. Space recovery
+preserves every compressed file's bytes and timestamp. Both native runtime
+selections pass; the checked regressions and SDK retry are running. The three
+already accepted SDK profiles, 99 normal producer inputs and fifteen installed
+seed files retain their earlier evidence.
+
 ## Required-file capture and publication, 2026-10-09
 
 The private [required-file handoff](REQUIRED-DISK-HANDOFF.md) now carries

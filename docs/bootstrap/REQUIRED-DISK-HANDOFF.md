@@ -119,9 +119,30 @@ A separate literal-transfer compiler prototype preserves instruction offsets
 while replacing selected validated PUSH-immediate/POP spans with MOV and NOP.
 Both checked compiler derivatives reach a three-generation emitter fixed point
 and pass ten capability controls. This is a limited emitter/derivative check;
-the complete producer and branch-entry regression scope remain open. Whole
+complete producer qualification remains open. Whole
 host-object comparison accepts 2,742 Windows and 2,385 Linux transfers, with
 every other byte, symbol and relocation unchanged.
+
+The separate entry fixture now passes all eight controls through native and
+Cupid-built callers on each host. Consumer and zero-byte conversion jump entries
+retain both operand POP instructions and execute all 36 edge-value pairs.
+Invalid literal IR still fails ordinary validation before an output write and
+preserves the prior object bytes and modification time. Native and checked
+objects and linked runtime images agree completely within each host.
+
+Removing only the consumer-entry guard makes the original caller return one.
+Removing the conversion-entry guard changes the instructions but passes that
+caller by relying on its incoming ECX value. A stronger assembly caller sets
+the caller-saved ECX register to `0x76543210`, preserves the original stack
+arguments and calls the same generated function. All 32 regular controls pass.
+Each isolated guard mutant now returns one on both hosts; its unaffected mode
+and ordinary malformed-IR rejection remain exact. Both wrong programs still
+pass strict disassembly, so decoded instruction boundaries alone cannot prove
+the stack protocol. `literal-entry-controls11-independent-products/closed.json`
+rereads the 32 regular verdicts, four actual wrong-runtime cases and complete
+object comparisons. The initial caller and failed checker attempts remain
+retained. This closes the represented entry-guard controls, not full compiler
+qualification or normal source integration.
 
 Replacing only that host object lets the Windows diagnostic reuse close in
 589.996 seconds. Linux still times out in close at 600 seconds, after publication
@@ -130,6 +151,30 @@ accept the complete large-image cohort. Neither the SHA workload nor a returning
 publication function substitutes for successful bounded end-to-end close.
 Complete image/FAT comparison and strict guest boots remain required after all
 large cases pass.
+
+## Frozen-set work-count follow-up
+
+[ADR 0459](../adr/0459-coalesce-required-frozen-input-revalidation.md) records
+the separate source-four implementation. The actual eight-MiB FAT-reuse method
+exposes eleven live-input validations. Five calls validate the same frozen set
+twice because both a private-output row and a previous-output row require it.
+The red feedback detects duplication; the green feedback also requires exactly
+one full pass whenever a qualifying row exists.
+
+The follow-up validates the entire frozen set once after all ordinary live
+observations in that call. It retains every digest and every other guard and
+does not cache validity across calls. The checked Linux 200 MiB diagnostic
+closes in 542.555 seconds under its original 600-second and 32 MiB limits.
+Whole-image digest passes decrease from 49 to 44, with the same complete image.
+These instrumented runs establish counted work, not a stable timing ratio or
+complete acceptance.
+
+The clean paired source-four copies retain 209 controls and 109 private
+producer inputs; only the host implementation changes from source three.
+All four five-program builds and both complete native regression selections
+pass. Checked regressions, all eight clean-source large cases, complete
+independent checks and strict guest boots remain required. The source-three
+acceptance and its original large failures remain preserved.
 
 ## Preserved failures and remaining integration
 
@@ -141,6 +186,16 @@ disk-full and WSL I/O failures remain separate terminal attempts. Lossless NTFS
 compression of closed generated images verifies all complete hashes, lengths
 and modification times; no files are deleted. Fresh retries preserve every
 earlier accepted selection.
+
+The first clean source-four Windows runtime attempt stops on explicit disk-full
+errors after its handoff and template selections pass. Its fresh complete retry
+passes after space recovery. The original replacement-seed Windows long-path
+SDK attempt also stops on a compiler output I/O error and retains its partial
+workspace. A fresh retry preserves the three independently accepted SDK
+profiles and all original producer bounds. Nine explicitly selected closed
+large fixtures are subsequently compressed with complete byte, length and
+timestamp checks. Volume free space changes during other filesystem activity,
+so that change is not an exact measure of recovered storage.
 
 The independent checker's failed versions assume a different outer receipt
 schema, empty stderr for deliberate producer failure, an ordinary test root for

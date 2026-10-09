@@ -67,6 +67,11 @@ time out during cleanup after guarded publication returns. These results do
 not establish successful close, recovery cleanup or large-image acceptance.
 Linux keeps its original 32 MiB address-space limit. No deadline is increased.
 
+[ADR 0459](0459-coalesce-required-frozen-input-revalidation.md) records a
+separate follow-up that removes duplicate complete frozen-set walks within one
+validation call. Its clean caller and complete large-image acceptance remain
+open; the original checked reuse failures remain failures.
+
 The first fixture assumes LF-only readiness output. A separate correction
 accepts the existing Windows CRLF spelling. The next checked build exposes the
 missing hosted `getchar` declaration; ADR 0458 records its separate library
