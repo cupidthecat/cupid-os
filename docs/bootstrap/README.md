@@ -1,5 +1,23 @@
 # Cupid Toolchain bootstrap
 
+## Native image options and replacement OS consumers, 2026-10-09
+
+The separate [native image option owner](NATIVE-IMAGE-OPTIONS.md) passes all
+25 methods through four native/Cupid callers, for 100 executions and 780 actual
+invocations. Independent checking rereads 113 controls, complete output
+sequences and four whole checked object pairs. Required values, repeated
+options, stage-before-WAD order, both basename profiles, Unicode decimals and
+the full capture capacity are represented. The normal 99-input producer
+closure and installed seeds stay unchanged; native discovery and publication
+handoff remain open.
+
+The [qualified mixed width candidate](QUALIFIED-MIXED-WIDE-SEEDS.md) now passes
+both cold kernels, complete image/user builds, all four strict boots and full
+paired rereading of every object, image and preserved FAT byte. Both 277-method
+compatibility replays also pass. The four SDK profiles, complete public methods
+and actual Make bootstraps remain in their serial consumer queue. Root seed
+adoption and the pending manual commit await those remaining gates.
+
 ## Mixed width mutation source, 2026-10-08
 
 The bootstrap source now accepts a represented narrow integer destination whose

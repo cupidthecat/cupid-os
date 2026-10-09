@@ -6,6 +6,11 @@ image command. Linux retains the same source under
 `/var/tmp/disk-stage-arguments-source1`. The existing command and publisher
 continue to own their current recipes.
 
+The subsequent [image option owner](NATIVE-IMAGE-OPTIONS.md) uses these same
+functions to interpret all required values, repeated groups and stage order.
+It passes separate four-caller and independent checks. Discovery, observer
+lifetimes and normal publication remain outside both argument interfaces.
+
 ## Source and interface
 
 `toolchain/cupidbuild_disk_stage_arguments.cc` and its header provide two

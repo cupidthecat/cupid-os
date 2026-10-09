@@ -9,8 +9,9 @@ additions, plus the mixed width calculation described in
 [the mutation record](MIXED-WIDE-MUTATION.md).
 
 Qualification is complete. The candidate is projected into private consumers;
-its installation in the bootstrap worktree and complete replacement-tool
-consumer acceptance remain open. Private UNC and native publisher/discovery
+its installation in the bootstrap worktree and the remaining SDK and public
+bootstrap consumer acceptance remain open. Paired OS, user and strict runtime
+acceptance now pass. Private UNC and native publisher/discovery
 source is outside this producer cohort. Normal ownership remains 449
 CupidBuild operations and three Python coordinators across 452 transforms.
 
@@ -63,29 +64,56 @@ source and seed bytes without copied objects or images.
 
 ## Consumer gates
 
-Cold kernel builds are running under `mixed-qualified-kernel-{windows,linux}1`.
-The prepared acceptance coordinator waits for both successful receipts, then
-rereads all 429 objects and three kernel products. It stops if any nonmanual
-object changes from the accepted parent consumer. Kernel policy changes must
-follow measured equal host products, and all sixteen actual artifact sizes
-must agree before image production continues.
+Both cold kernels pass under `mixed-qualified-kernel-{windows,linux}1`.
+Windows completes in 2,778.845 seconds and Linux in 1,938.869. Independent
+comparison rereads all 429 objects and three kernel products. Only the manual
+object differs from the preceding accepted consumers. The raw kernel measures
+9,299,760 bytes; both ELF sizes remain unchanged. Exactly that measured raw
+policy row changes in the private consumers, alongside the twelve replacement
+seed rows prepared earlier. All sixteen actual artifact facts agree.
 
-Fresh normal image and user builds must then pass, followed by ls/SMP and
-feature 17 ISO checks on both hosts. Each strict boot keeps four max-model
-CPUs, e1000, a private image, required command completion and the original
-150-second bound. Complete paired rereading must verify every object, the
-six user products, full 103-field/101-provider ABI, complete images, preserved
-FAT suffix and exact 99 committed producer inputs. The updated 181,631-byte
-manual is part of this pending acceptance.
+Both fresh normal image and user builds pass. Windows image production takes
+2,297.426 seconds and Linux 1,578.803. All four ls/SMP and feature 17 ISO boots
+pass with four max-model CPUs, e1000, private images, required completion and
+the original 150-second bound. Complete paired rereading passes in 19.030
+seconds. It checks every object, six user products, the 103-field/101-provider
+ABI, fifteen candidate seed files, 431 inspection inputs and all 99 committed
+producer inputs. The 181,631-byte manual is present exactly once as data.
+
+Both complete 209,715,200-byte images have SHA-256
+`e549ca8a89e1c5edb95e91888aee03fa2bc17b3094752ea4699cc468436bb754`.
+Every byte of the baseline FAT suffix is preserved: offset 10,485,760,
+length 199,229,440, SHA-256
+`29aea9c62cb8fb9c39cf82b237bb6c3d76b65d8580682144146b6b1bf4393f1b`.
+The acceptance records are `mixed-qualified-os-acceptance1-closed.json` and
+`mixed-qualified-os-paired-independent1-products.json` under the proof root.
 
 The first Linux compatibility selection reaches all 277 methods but fails
 two committed-source checks because the private copy has no Git metadata.
 Pointing the replay at the existing common Git directory preserves every test
 body and process bound. The complete replay passes in 118.850 seconds, with
 nineteen expected skips. Its test runner reports 109.601 seconds. The original
-failure remains retained. The Windows selection is still running its long-path
-preparation case. Complete public-bootstrap methods, both actual public Make
-bootstraps and all four SDK profiles retain their own acceptance requirements.
+failure remains retained. The Windows replay also passes all 277 selections in
+1,460.322 seconds, with one expected skip; its runner reports 1,457.281 seconds.
+Independent Windows rereading checks every exact method/status row, all 1,743
+original source/control files, the candidate cohort, committed inputs and
+unchanged installed parents. Its first checker assumes each status shares the
+test heading's line; allowing intervening SDK stdout retains all checks. The
+later product record uses a separate filename from the outer runner receipt.
+Both failed checker receipts remain retained. Final evidence is
+`mixed-qualified-windows-compat-independent4-products.json`.
+
+An independent direct rebuild also verifies the native runtime fixture's
+38,400-byte PE image, complete import profile, exact output and useful failures.
+The minimal 360-byte object and 2,048-byte PE remain unchanged. Only the runtime
+image's measured size and digest are projected into the idle private fixtures
+after both compatibility replays close. The root fixture remains unchanged.
+
+The serial consumer queue now runs all four SDK profiles, both complete public
+selections and both actual Make bootstraps. Each SDK keeps its original complete
+independent check; public and Make results require their complete rereading.
+These gates remain open. The queue uses one full producer job at a time with
+the original two workers and process bounds.
 
 All fifteen installed bootstrap seed files still have the `a1cc8f3a` identities.
 No normal recipe ownership transfers through this private projection.

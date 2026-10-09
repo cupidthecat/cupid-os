@@ -1,5 +1,33 @@
 # Bootstrapping log
 
+## 2026-10-09: Check native image options and replacement OS consumers
+
+A separate image argument owner interprets the six required values, repeated
+options, explicit-stage order, WAD groups, host basename rules and complete
+sector geometry. Four native/Cupid callers pass all 25 methods, for 100
+executions and 780 actual invocations. Independent rereading checks 113 source
+controls, complete programs and output sequences, four whole checked object
+pairs and unchanged normal inputs/installed parents. The first capacity fixture
+uses an undeclared hosted `strtoul`; explicit full-width conversion repairs the
+fixture. Binary stdout repairs the native Windows CRLF difference without
+relaxing complete byte comparison. Both original failures remain held. The
+options module is unchanged across the repairs. See
+[the option record](NATIVE-IMAGE-OPTIONS.md) and ADR 0455.
+
+Both replacement-seed cold kernels, normal images, fresh user builds and all
+four strict boots now pass. Complete paired rereading checks all 429 objects,
+six user products, sixteen artifacts, fifteen candidate seed files, ABI,
+complete image bytes and every preserved baseline FAT byte. Both 277-method
+compatibility replays pass; Windows keeps one expected skip and Linux nineteen.
+All 99 producer inputs retain the committed mixed width snapshot.
+
+The SDK and public bootstrap consumer queue keeps one full producer job at a
+time, two workers and the original bounds. Those gates, root seed adoption and
+the manual commit remain open. New option headers stay outside the normal
+source snapshot while that queue runs. Native image discovery, lifetimes,
+large geometry publication and the three Python coordinator replacements
+remain separate work. See [the candidate record](QUALIFIED-MIXED-WIDE-SEEDS.md).
+
 ## 2026-10-08: Qualify the committed mixed width producer source
 
 Both complete qualifications pass for committed `acbbd834` and its exact

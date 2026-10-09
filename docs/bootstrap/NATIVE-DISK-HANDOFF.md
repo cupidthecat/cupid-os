@@ -1,5 +1,21 @@
 # Native disk-image handoff
 
+## Native image option owner, 2026-10-09
+
+The private [image option owner](NATIVE-IMAGE-OPTIONS.md) now interprets all six
+required values, repeated options, stage-before-WAD order, host basename rules
+and complete geometry. Four native/Cupid callers pass 100 method executions
+and 780 actual calls. Independent checking rereads 113 source controls,
+complete outputs and four whole checked object pairs while retaining the
+normal 99-input snapshot and installed parent seeds. Native path discovery,
+physical-root deduplication, observer/argv lifetimes and publisher integration
+remain open. Normal disk ownership stays with Python.
+
+The replacement mixed width cohort separately passes paired normal image/user
+builds, all four strict boots and complete product/image/FAT comparison.
+Its SDK and public bootstrap gates remain in the serial queue before root
+seed adoption. The new option headers stay outside that producer closure.
+
 ## Current external publication evidence, 2026-10-08
 
 The [external publisher](EXTERNAL-DISK-PUBLISH.md) now passes two complete
