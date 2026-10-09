@@ -140,14 +140,24 @@ retained, and none of the source or product predicates change.
 
 `hosted-runtime-release-author1` writes the paired
 `hosted-runtime-reviewed-release1.json` in the bootstrap worktree. Both complete
-qualifiers are running under `hosted-runtime-source-qualify-{windows,linux}2`,
-with their original producer bounds and two workers. Their output directories
-are `hosted-runtime-seed-qualification-{windows,linux}1` beneath that worktree.
+qualifiers pass under `hosted-runtime-source-qualify-{windows,linux}2`, with
+their original producer bounds and two workers. Windows takes 2,413.305 seconds
+and Linux 2,580.462. Their output directories are
+`hosted-runtime-seed-qualification-{windows,linux}1` beneath that worktree.
 The first launches rejected output paths outside the source root before
 qualification; the corrected launches preserve that containment requirement.
-Authoring a release and starting qualification do not establish acceptance.
 
-This committed source still needs complete behavior qualification, replacement
-seed carriage and normal OS/SDK/public acceptance through the new tool cohort.
+`hosted-runtime-qualification-{windows,linux}-independent1/closed.json` binds
+both complete qualifications to the actual release, preparations and all 99
+raw committed Git blobs. Windows contributes 159 staged products, 53 complete
+fixed-point pairs and 3,423 published files; Linux contributes 132, 44 and 4,338.
+The paired totals are 291 products, 97 pairs and 7,761 files. The checks verify
+both behavior generations, exact source and plan digests, all twelve described
+release artifacts and every published file. All fifteen installed parent files
+retain their accepted identities. This qualifies the committed library source;
+it does not install its seeds.
+
+This committed source still needs replacement seed carriage and normal
+OS/SDK/public acceptance through the new tool cohort.
 The external frozen-input and publisher prototypes keep their separate gates.
 The normal disk recipe and both SDK coordinators still use Python.

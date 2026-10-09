@@ -130,10 +130,23 @@ controls, the 99 producer inputs, actual native compiler/contract programs,
 complete saved outputs, eleven rejected compiler calls per host and unchanged
 qualified parents. Corresponding compiler outputs agree across hosts.
 The fourth copies differ from committed library source only in the two IR
-producer paths. Both complete stage preparations are running under
+producer paths. Both complete stage preparations pass under
 `mixed-hosted-prepare-{windows,linux}1` with conventional producers forbidden.
-All failed copies and receipts remain retained. Source integration, complete
-qualification and seed carriage remain open.
+Windows takes 1,511.270 seconds and Linux 1,626.093.
+`mixed-hosted-preparations-independent1/closed.json` rereads all 291 products
+and compares all 97 fixed-point pairs byte for byte, retaining every original
+static profile and all 422 controls. The source snapshot is
+`5a2d30853cc1e064c93a2795428c7511822f8833e03085e5e044efc895f0fe9b`.
+
+Both new stage-four Cupid compilers also pass all ten execution methods per
+host. `mixed-hosted-four-producer-independent1-products.json` verifies all
+forty native and Cupid caller/method combinations, twelve native IR/object
+contracts and complete saved outputs. All corresponding compiler objects agree
+across the four producers, and same-host linked products agree. The check binds
+all 99 producer inputs, 107 runtime source controls and the actual execution
+compilers to the retained preparations. All failed copies and receipts remain
+retained. Source integration, committed-source qualification and seed carriage
+remain open.
 
 The separately built required and optional caller programs pass all 33 and 20
 methods on each host, for 106 further executions without skips. Windows takes
@@ -149,9 +162,45 @@ the retained independent mirror, chain and padding reader. It verifies prior
 bytes and timestamps, namespaces, deliberate late source changes, all 188
 controls and 106 producer inputs, actual standalone required and optional
 programs, compiler receipt/IR bindings and fifteen unchanged installed seeds.
-The current committed library inputs also remain unchanged. This source still
-needs large-image controls, normal external WAD discovery and command parsing,
-accepted large-geometry templates, source integration, qualification and recipe
-adoption. The older Windows standalone cleanup failure retains its own
+The current committed library inputs also remain unchanged.
+
+## Complete normal-geometry external publication
+
+The separate `external-publisher-large-source1` copies retain 190 controls and
+the same 106 producer inputs. A test wrapper selects the normal 409,600-sector
+image with FAT start LBA 20,480. The original fixture retains its eight-MiB
+defaults, and the complete 44-method small selection is byte unchanged.
+The first wrapper generator stopped before copying because its extracted
+Python method lost indentation; the corrected generator preserves that source
+indentation. Both scripts and the failed receipt remain retained.
+
+All four native and Cupid callers pass both large methods, for eight executions
+without skips. Each publishes a complete 209,715,200-byte image using the actual
+accepted OS bootloader and kernel plus an external 8,388,864-byte synthetic
+WAD-shaped payload. One case creates a fresh image and retains a missing
+optional observation. The other starts from the complete accepted persistent
+image and preserves its previous files and tail. Each invocation retains the
+existing full-image 600-second bound and Linux 32 MiB limit. The small selection
+retains 180 seconds.
+
+`external-publisher-large-quad-independent3/closed.json` reconstructs all eight
+complete images with the separate Python template and FAT writer. A separate
+reader verifies FAT mirrors, cluster chains, complete payloads and cluster
+padding. It enumerates and rereads every previous regular file in the reuse
+image. Corresponding complete images agree across all four callers. The check
+also binds the original OS inputs, 190 controls, all 106 producer entries,
+actual compiler IR inputs and receipts, external initial/final archives,
+namespaces, qualified template producers and fifteen unchanged installed files.
+The three existing caller programs are byte identical to their accepted
+small-scope builds on each host. The first independent checker stopped on its
+outdated Linux source-root mapping; an initial correction command then failed
+shell parsing before creating the new checker. The corrected checker uses the
+actual large-source roots and retains every image and custody predicate. All
+failed receipts remain retained. No guest boot or Doom runtime claim follows
+from these synthetic WAD payloads.
+
+This source still needs normal external WAD discovery and command parsing,
+accepted templates for the remaining large geometries, source integration,
+qualification and recipe adoption. The older Windows standalone cleanup failure retains its own
 unresolved scope. The normal disk recipe and two SDK coordinators still use
 Python. TempleOS remains read-only and outside implementation and progress counts.

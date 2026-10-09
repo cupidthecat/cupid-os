@@ -1,5 +1,22 @@
 # Native disk-image handoff
 
+## Current external publication evidence, 2026-10-08
+
+The [external publisher](EXTERNAL-DISK-PUBLISH.md) now passes two complete
+normal-geometry methods through all four native and Cupid callers. Independent
+checking reconstructs every 200 MiB image, reads final external payloads and
+all previous regular files on reuse, and verifies source/tool custody and
+unchanged installed seeds. These runs use actual accepted bootloader/kernel
+bytes and synthetic eight-MiB WAD-shaped payloads. They do not establish guest
+or Doom acceptance, support for the other accepted large geometries, normal
+CLI ownership or recipe adoption.
+
+Both committed hosted library qualifications also pass independent checks of
+291 staged products, 97 complete fixed-point pairs and 7,761 published files.
+The mixed width compiler extension passes separate normal-source preparations
+and all forty native/Cupid runtime combinations. Source integration, complete
+qualification and replacement seed carriage remain separate requirements.
+
 ## Qualified hosted wide-offset producer, 2026-10-08
 
 Both complete producer qualifications pass for committed `a1cc8f3a` and its

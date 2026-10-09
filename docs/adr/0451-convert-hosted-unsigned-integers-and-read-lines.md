@@ -3,7 +3,8 @@
 ## Status
 
 Implemented, tested and integrated into bootstrap source on 2026-10-08.
-Complete qualification of this producer cohort and seed carriage remain open.
+Both complete committed-source qualifications and independent checks pass.
+Seed carriage and acceptance through replacement tools remain open.
 
 ## Context
 

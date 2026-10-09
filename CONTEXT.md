@@ -2554,8 +2554,11 @@ Native and Cupid callers pass 128 methods. Independent checks cover 5,856
 conversion inputs and complete generated native source. The isolated normal
 99-input integration copy passes 64 further Cupid executions and both byte-output
 regressions; exactly three producer paths are applied to the bootstrap worktree.
-Its paired preparations keep the previous qualified parent tools. Committed-source
-qualification and adoption of this new library cohort remain open.
+Its paired preparations keep the previous qualified parent tools. Both complete
+qualifications pass for committed library source `84ae3852`. Independent checks
+bind all 99 raw Git blobs, 291 staged products, 97 complete fixed-point pairs and
+7,761 published files. Adoption and acceptance through replacement tools remain
+open; all fifteen installed files still belong to the qualified `a1cc8f3a` pair.
 
 Byte-output source b64dd8292 passes both complete qualifications. Independent
 rereading checks 291 staged products, 97 fixed-point pairs, 7,761 publication

@@ -19,8 +19,9 @@ All fifteen installed seed files and the current 99 producer inputs remain
 unchanged through acceptance. Commit `84ae3852` contains the library source.
 Independent checking binds all 99 inputs to exact committed Git blobs and both
 retained preparations, with 291 products and 97 complete fixed-point pairs.
-The paired release record is written and both complete qualifiers are running;
-qualification and carriage remain open.
+Both complete committed-source qualifications and independent checks pass,
+covering all 291 products, 97 fixed-point pairs and 7,761 published files.
+Seed carriage and acceptance through replacement tools remain open.
 
 The separate [external frozen-input API](EXTERNAL-INPUT-FREEZING.md) passes
 200 selections, 196 executions and four POSIX skips. Independent checks cover
@@ -44,7 +45,11 @@ The recorded private compiler extension builds all three publication callers
 on both hosts, with the other five tools still qualified. That compiler remains
 unqualified and uninstalled. Independent checking binds retained template
 producers to the installed tools and verifies all fifteen seed files remain
-unchanged. Large geometry, normal CLI handoff and recipe adoption remain open.
+unchanged. Separate normal-geometry external publication now passes all eight
+native and Cupid executions. Independent reconstruction verifies complete 200 MiB images,
+external synthetic WAD payloads and every previous regular file on reuse.
+Other accepted large geometries, normal CLI handoff and recipe adoption remain
+open.
 
 The actual required and optional publication callers also pass all 106 further
 executions without skips. Independent review reconstructs complete images,
@@ -55,8 +60,11 @@ The compiler extension also passes fresh native tests in separate copies of the
 normal 99-input producer source: all ten execution methods and six IR/object
 contracts per host. Independent checking verifies all 422 captured controls,
 actual programs and complete saved outputs. Both complete stage preparations
-are running from those copies. The bootstrap worktree retains the committed
-library inputs throughout its separate qualification.
+now pass, with 291 products and 97 whole fixed-point pairs independently checked.
+Both new Cupid compilers also pass the ten execution methods per host.
+Independent checking verifies all forty native and Cupid combinations and their
+complete outputs. The compiler still needs source integration, committed-source
+qualification and seed carriage.
 
 ## Hosted putchar and optional stage evidence, 2026-10-08
 

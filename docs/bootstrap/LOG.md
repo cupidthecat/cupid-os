@@ -1,5 +1,29 @@
 # Bootstrapping log
 
+## 2026-10-08: Qualify hosted library source and check external normal images
+
+Both complete library qualifications pass for committed `84ae3852`, with
+conventional producers forbidden and two workers. Windows takes 2,413.305
+seconds and Linux 2,580.462. Independent checks verify all 99 raw committed
+inputs, 291 staged products, 97 whole fixed-point pairs and 7,761 published
+files. All fifteen installed seed files remain at the qualified parent pair.
+See [the library record](HOSTED-UNSIGNED-LINE-INPUT.md).
+
+Separate normal-source preparations for the mixed width mutation extension
+pass on both hosts. All 291 products and 97 fixed-point pairs pass independent
+checking. Their new Cupid compilers pass all ten runtime methods per host;
+independent review checks all forty native/Cupid combinations, twelve native
+IR/object contracts and complete outputs. Source integration and committed
+qualification remain open.
+
+Four external publisher callers also pass all eight complete 200 MiB cases,
+with actual OS inputs and synthetic external WAD-shaped payloads. Independent
+reconstruction checks whole images, mirrored FAT chains and padding, all prior
+regular files on reuse, source/tool custody and unchanged installed files.
+The original small caller programs are byte unchanged. Normal CLI discovery,
+the remaining large geometries and recipe adoption remain open. See
+[the publisher record](EXTERNAL-DISK-PUBLISH.md).
+
 ## 2026-10-08: Correct native consumer fixtures and measure the refreshed manual
 
 The Windows public bootstrap builds its tool cohort but fails on two stale
