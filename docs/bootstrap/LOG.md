@@ -1,5 +1,35 @@
 # Bootstrapping log
 
+## 2026-10-09: Preserve retained image help and pathname grammar
+
+A 39-case replay against the actual original command records twenty
+native/Cupid help-order mismatches on Windows and twenty-six on Linux. The
+installed Windows 3.14.3 parser checks ambiguity when reaching an action;
+Linux 3.12.3 checks the complete option sequence first. The next private owner
+represents both grammar profiles independently of basename rules. Unknown
+arguments defer until actions finish, short help tails retain their rules, and
+option-like paths with spaces keep their original value interpretation.
+
+All four callers pass the complete 30-method suite, for 120 executions and
+1,032 actual invocations. Independent checking passes in 11.198 seconds and
+verifies 168 original-help oracle records, 113 complete source/support controls,
+all repeated output sequences and four whole checked object pairs. Native and
+Cupid bytes agree on each host; twelve common cross-host argument keys also
+agree. All original bounds, qualified tools, normal 99 inputs and fifteen
+installed parent identities remain intact.
+
+The first expanded independent checker rejects a legitimate repeated
+test/argument tuple. The successor keeps every invocation in its full sequence
+and preserves all source, profile and output predicates. Before compilation,
+an installed-header read also corrects the fixture's conversion choice to the
+represented `strtoull`; no production runtime changes. The original observations,
+source1 acceptance, fixture copy and failed checker receipt remain preserved.
+
+Source2 changes exactly four private paths and stays outside the live producer
+snapshot. SDK/public consumer checks, root seed adoption, the pending manual
+commit and full native disk discovery/publication remain open. See
+[the option record](NATIVE-IMAGE-OPTIONS.md) and ADR 0455.
+
 ## 2026-10-09: Check native image options and replacement OS consumers
 
 A separate image argument owner interprets the six required values, repeated

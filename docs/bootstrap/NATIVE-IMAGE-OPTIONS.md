@@ -1,8 +1,10 @@
 # Native image command options
 
-The private source at `C:/Users/admin/cp7/image-options-source1` interprets the
-existing image command's options in Cupid C. Linux holds the same 113 source
-and support files at `/var/tmp/image-options-source1`. The normal image recipe
+The current private source at `C:/Users/admin/cp7/image-options-source2`
+interprets the existing image command's options in Cupid C. Linux holds the
+same 113 source and support files at `/var/tmp/image-options-source2`. The
+preceding `image-options-source1` and its complete acceptance remain preserved.
+The normal image recipe
 continues to use Python; path discovery, retained observer lifetimes, complete
 publisher integration and recipe adoption remain open.
 
@@ -44,7 +46,53 @@ headers during the current producer-consumer queue would change its inputs.
 All 99 current files still match committed `acbbd834`; fifteen installed root
 seed files retain the accepted `a1cc8f3a` identities.
 
-## Executed checks
+## Retained help and pathname grammar
+
+The current owner reports unknown arguments after represented actions, so
+help can finish despite an earlier unknown flag or positional argument. It
+retains short help clusters and their attached-value rejections. An option-like
+pathname containing an ASCII space is a value when the original parser treats
+it that way; recognized options still cannot supply another option's value.
+The `--` marker ends option interpretation.
+
+`cupidbuild_disk_image_options_open` uses deferred ambiguity. The explicit
+`open_profile` entry point also represents eager ambiguity checking before
+actions, stopping at `--`. This grammar choice is independent of the selected
+basename rules. It preserves both installed parser behaviors: Windows Python
+3.14.3 reaches help before a later ambiguous flag, while Linux Python 3.12.3
+rejects that ambiguity during its initial argument scan. Each test caller
+executes the actual original command to select its retained grammar and archives
+the complete installed `argparse` source and selection outputs. Neither profile
+opens files or changes seed authority.
+
+All four native/Cupid callers pass the complete expanded 30-method suite, for
+120 method executions and 1,032 actual invocations. Windows runs 262 calls per
+caller and Linux 254. Each caller retains 42 additional complete original-help
+oracle records; independent review checks all 168 records against actual
+arguments, status and output identities. Tests exercise both grammar profiles
+with both basename rules, useful invalid profile rejections, unknown/help order,
+ambiguous/help order, short flag tails and space-containing pathnames. All earlier
+numeric, Unicode, stage-order and full-capacity methods also pass.
+
+The final labels are
+`image-options-{native,checked}-{build,contracts}-{windows,linux}4`.
+`image-options-independent5/closed.json` passes in 11.198 seconds. It rereads
+all 113 controls, actual programs and complete output sequences, four whole
+checked object pairs, qualified tools, all 99 raw committed inputs and unchanged
+installed parents. Native and Cupid bytes agree on each host, including every
+repeated invocation. Twelve shared cross-host argument keys produce equal
+bytes; cross-host call multiplicities are kept separate. All original process
+bounds and the two checked compiler workers remain unchanged.
+
+The current options object is 19,736 bytes with SHA-256
+`28b73d656d6e6bb48361588e9875cad0884562ba964b3bbfe0acd722da31bdfd`.
+The source-control record has SHA-256
+`bb6484cf15a3a53663dd4097702842036995f0665b3688def9451d091d85e3d8`.
+Exactly four private parent paths change: the options header/implementation,
+contract program and Python contracts. All preceding source1 bytes and normal
+producer inputs remain unchanged.
+
+## Preceding complete checks
 
 Native and qualified normal-source Cupid compilers build all four callers.
 Every caller passes all 25 methods, for 100 method executions and 780 actual
@@ -86,6 +134,19 @@ The first independent check detects native Windows CRT CRLF output where the
 hosted runtime emits LF. Its parsed results already agree. The native Windows
 fixture now selects binary stdout; the independent checker keeps complete byte
 equality. All original source copies, programs and failed receipts remain held.
+
+The subsequent 39-case help replay finds twenty native/Cupid mismatches on
+Windows and twenty-six on Linux. It also records the different ambiguity timing
+in the two installed parsers. Those original programs and observations remain
+preserved. Before the expanded fixture is compiled, an installed-header read
+finds no `atoi` declaration; its already validated profile argument uses the
+represented `strtoull` instead. Only the fixture changes, and no compiler failure
+is claimed for that observation.
+
+The first expanded independent checker rejects a legitimately repeated
+test/argument tuple. Its successor retains each complete invocation sequence
+and requires native/Cupid sequence equality without dropping repeated calls.
+The original failed receipt remains under `image-options-independent4`.
 
 Source-plan integration still needs the complete native command's compatible
 diagnostics, absolute path discovery, physical-root deduplication, argv and

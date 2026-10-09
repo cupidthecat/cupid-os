@@ -11,6 +11,14 @@ the full capture capacity are represented. The normal 99-input producer
 closure and installed seeds stay unchanged; native discovery and publication
 handoff remain open.
 
+The subsequent private owner preserves the two installed commands' help order,
+short help flags and option-like pathnames with spaces. An explicit grammar
+profile keeps ambiguity timing separate from basename rules. All four callers
+pass the expanded 30-method suite, for 120 executions and 1,032 actual calls.
+Independent review checks 168 original-help oracle records, all 113 controls,
+complete repeated output sequences and four whole checked object pairs. The
+preceding source and complete 780-call acceptance remain preserved.
+
 The [qualified mixed width candidate](QUALIFIED-MIXED-WIDE-SEEDS.md) now passes
 both cold kernels, complete image/user builds, all four strict boots and full
 paired rereading of every object, image and preserved FAT byte. Both 277-method

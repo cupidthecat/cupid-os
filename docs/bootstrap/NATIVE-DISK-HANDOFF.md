@@ -11,6 +11,14 @@ normal 99-input snapshot and installed parent seeds. Native path discovery,
 physical-root deduplication, observer/argv lifetimes and publisher integration
 remain open. Normal disk ownership stays with Python.
 
+The subsequent private option source also preserves unknown/help ordering,
+short help clusters, option-like paths with spaces and both installed parsers'
+ambiguity timing. Grammar and basename profiles remain independent. The complete
+expanded suite passes all 120 method executions and 1,032 actual calls.
+Independent checking retains all repeated calls and verifies 168 original-help
+oracle records, 113 controls and four whole checked object pairs. These checks
+interpret requests; whole native discovery/publication remains required.
+
 The replacement mixed width cohort separately passes paired normal image/user
 builds, all four strict boots and complete product/image/FAT comparison.
 Its SDK and public bootstrap gates remain in the serial queue before root
