@@ -101,6 +101,15 @@ _Avoid_: tool backend, giant platform vtable
 The verified previous output and retained transaction state left after a failed publication when the output namespace is ambiguous. Preserving this evidence keeps the old bytes recoverable; it does not mean the old public name was restored or the new candidate was committed.
 _Avoid_: successful rollback, committed output
 
+**Observed required-file handoff**:
+A private template request that retains selected bootloader and kernel
+observers, validates the paired seed cohort and supplies registered frozen
+captures to the guarded publisher within one transaction. Complete small-image
+and legacy acceptance passes under ADR 0457. Checked 200 MiB reuse still exceeds
+its original bound; normal command ownership, original parent-binding lifetime
+and qualification remain open.
+_Avoid_: native CLI ownership, adopted disk recipe, large-image acceptance
+
 **CupidBuild output-parent preparation**:
 A retained directory chain for a configurable output, held from preparation
 through transaction cleanup. Its validity includes every ancestor binding;

@@ -1,5 +1,26 @@
 # Cupid Toolchain bootstrap
 
+## Required-file capture and publication, 2026-10-09
+
+The private [required-file handoff](REQUIRED-DISK-HANDOFF.md) now carries
+retained external bootloader and kernel files through one template capture and
+guarded publication. All four native/Cupid builders pass. Independent rereading
+checks all 664 method selections, 652 actual calls, 209 controls and 23 complete
+checked object pairs, including every legacy template/publisher/observer method.
+The shared [byte-input library](HOSTED-BYTE-INPUT.md) supplies fgetc and getchar
+for the actual mutation pause and passes all byte, EOF and error-state controls.
+Normal producer source and installed seeds remain unchanged.
+
+All native fresh/reuse 200 MiB cases and both checked fresh cases pass. Both
+checked reuse cases time out at the original 600-second limit. Separate traces
+reach close after guarded publication returns, then time out; complete cleanup
+and large acceptance remain unproved. Performance work preserves every digest,
+identity check, original deadline and Linux 32 MiB limit. Complete CLI ownership,
+qualification and recipe adoption remain open. Both Linux replacement-seed SDK
+profiles and the Windows default profile pass independent review. The Windows
+long-path SDK, public methods and Make bootstraps continue in their original
+serial queue.
+
 ## Retained native image input discovery, 2026-10-09
 
 The private [input-discovery owner](NATIVE-INPUT-DISCOVERY.md) now retains
