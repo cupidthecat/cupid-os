@@ -36,3 +36,11 @@ Issue #25 remains open. Eight-byte values passed through an ellipsis or an unpro
 ## Extension: wide variadic transport
 
 ADR 0075 carries signed and unsigned eight-byte values through ellipsis and unprototyped calls and returns wide `va_arg` reads in private snapshots. A retrieved value can enter the mutation path defined here, while the destination still follows the non-atomic wide-object rules of this decision.
+
+## Extension: narrow stores after wide computation
+
+ADR 0453 extends the ordinary mutation path to represented narrow integer and
+supported integer bit-field destinations with a wide computation type. The full
+calculation precedes assignment conversion and the exact-width store. Wide
+shift counts, atomic/boolean mutation and partial volatile bit fields retain
+their existing rejection contracts.

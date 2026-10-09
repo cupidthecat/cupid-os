@@ -145,8 +145,12 @@ contracts and complete saved outputs. All corresponding compiler objects agree
 across the four producers, and same-host linked products agree. The check binds
 all 99 producer inputs, 107 runtime source controls and the actual execution
 compilers to the retained preparations. All failed copies and receipts remain
-retained. Source integration, committed-source qualification and seed carriage
-remain open.
+retained. The two IR changes and four test paths are now applied to the
+bootstrap worktree. Fresh worktree selections repeat all forty methods and
+twelve native contracts with independent source and complete output checks.
+The refreshed manual's normal OS acceptance, committed-source qualification
+and seed carriage remain open; [the mutation record](MIXED-WIDE-MUTATION.md)
+retains their exact scope.
 
 The separately built required and optional caller programs pass all 33 and 20
 methods on each host, for 106 further executions without skips. Windows takes
@@ -196,8 +200,43 @@ small-scope builds on each host. The first independent checker stopped on its
 outdated Linux source-root mapping; an initial correction command then failed
 shell parsing before creating the new checker. The corrected checker uses the
 actual large-source roots and retains every image and custody predicate. All
-failed receipts remain retained. No guest boot or Doom runtime claim follows
-from these synthetic WAD payloads.
+failed receipts remain retained. The synthetic payloads do not exercise Doom.
+
+Six strict private-image guest boots now pass for the actual Cupid-published
+images: fresh and reused image ls/SMP checks on each host, plus feature 17 ISO
+completion from each reused image. The fresh images do not contain that ISO.
+Every boot keeps four max-model CPUs, e1000, required command completion and
+the original 150-second bound. Windows takes 50.719, 51.408 and 59.425 seconds;
+Linux takes 62.009, 61.490 and 69.988. The independent receipt
+`external-publisher-large-boots-independent1/closed.json` rereads all six
+commands, serial logs, unchanged driver sources and complete preserved images,
+and reruns the four SMP serial contracts. It passes in 5.023 seconds. These
+images carry the accepted 179,862-byte manual and kernel, rather than the
+refreshed mixed-mutation manual still undergoing normal OS acceptance.
+
+## Publisher builds through the normal-source compiler
+
+The new stage-four compilers from the separate normal 99-input preparations
+build all four private publisher programs on each host. The compiler source
+snapshot is `5a2d30853cc1e064c93a2795428c7511822f8833e03085e5e044efc895f0fe9b`.
+Windows takes 110.764 seconds and Linux 111.901 under
+`external-publisher-normal-compiler-build-{windows,linux}1`. Both builds retain
+two workers, the original 360/120/180-second producer bounds, standard compiler
+execution profiles and separately copied qualified parent tools.
+
+`external-publisher-normal-compiler-independent1/closed.json` passes in 6.463
+seconds. It compares every actual object and all eight complete same-host
+program pairs byte for byte with the preceding accepted builds. It also checks
+all 190 caller source/support controls, the 106-entry producer inventory, the
+actual normal compiler and preparation copies, all 99 normal producer inputs
+and fifteen unchanged installed seed files. The broader controls retain the
+publisher module sources beyond that producer inventory.
+
+Complete program identity permits reuse of the preceding checked scope:
+198 selections, 196 executions and two Windows POSIX skips. This records
+existing execution evidence for identical programs; it does not count fresh
+runtime executions. The private callers still contain the separate host and
+publisher extensions. The normal compiler remains unqualified and uninstalled.
 
 This source still needs normal external WAD discovery and command parsing,
 accepted templates for the remaining large geometries, source integration,

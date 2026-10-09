@@ -3072,10 +3072,38 @@ while position queries preserve it. The caller still sees an opaque FILE type.
 Native and Cupid callers pass 128 conversion and line/state methods. Independent
 checks cover 5,856 conversion inputs. Fresh integration callers pass 64 further
 executions and both byte-output regressions with the normal 99 producer inputs.
-The new library source still needs its complete committed-source qualification
-and seed carriage. External frozen-input callers separately pass 196 executions
+Both complete library qualifications pass for committed source, with independent
+checks of all 99 inputs, 291 staged products and 97 matching stage pairs. Seed
+carriage remains open. External frozen-input callers separately pass 196 executions
 with four platform skips, including complete 200 MiB transfers under the original
 limits. Normal disk and SDK coordination still use Python.
+>endtree
+
+>h2 Mixed width integer compound assignment
+>tree
+Hosted compiler source supports a narrow integer destination combined with an
+eight-byte integer calculation. It completes the promoted calculation before
+converting and storing the result at the destination's declared width. The
+ordinary source expression remains unchanged.
+
+For example, an unsigned word containing 0xffffffffu becomes zero after
+division assignment by 0x100000001ULL. Converting the divisor to a word first
+would change that result. Byte, halfword, word, compatible enum and supported
+integer bit-field destinations use the same calculation and assignment rules.
+The lvalue address and right operand are evaluated once; chained assignments
+receive the stored result. Nonvolatile bit fields preserve adjacent bits.
+
+Arithmetic and bitwise compound operators use the existing wide calculation
+path. Shift counts remain represented four-byte values. Atomic and boolean
+mutation, wide shift counts and partial volatile bit-field mutation remain
+unsupported and preserve the previous output on rejection.
+
+Native and Cupid worktree callers pass all forty selected methods, including
+wide divisors, narrowing, side effects, volatile exact stores and existing
+pointer/frame-load regressions. The separate normal-source preparations have
+matching stage-three and stage-four products. This source still needs complete
+committed-source qualification and seed carriage. Installed tools remain pinned
+to their qualified preceding cohort.
 >endtree
 
 >h2 See Also

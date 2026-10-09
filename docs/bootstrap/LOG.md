@@ -1,5 +1,110 @@
 # Bootstrapping log
 
+## 2026-10-08: Compare retained physical roots without weakening observation checks
+
+A separate host source copy adds physical-root comparison after complete
+ordinary read-only observer revalidation. Native and normal-source stage-four
+Cupid callers on both hosts select 56 methods, execute 52 and retain four
+Windows-only skips on Linux. Positive cases cover equal/distinct roots,
+self-comparison, Unicode and Windows aliases. Rejections cover invalid or
+poisoned observers, root metadata changes, streamed same-size edits with restored
+timestamps and missing-leaf appearance. Every result retains handle closure.
+
+Independent checking passes in 18.604 seconds, rereading all 192 controls,
+actual programs and compiler preparations, complete outputs, producer/runtime
+bounds and the whole checked fixture object pair. All 99 normal compiler inputs
+and fifteen installed seeds remain unchanged. The API grants no authority and
+has no publication-mutation exemption. Complete discovery and publisher
+integration, committed qualification and Windows UNC root opening remain open.
+See [the root identity record](OBSERVER-ROOT-IDENTITY.md).
+
+## 2026-10-08: Close refreshed mixed-mutation OS acceptance
+
+Both complete normal image commands pass with conventional producers blocked
+and two workers, in 2,399.016 seconds on Windows and 1,679.188 on Linux. Fresh
+normal user checks and all four strict private boots pass. Each host completes
+ls/SMP and feature 17 ISO under the original 150-second bound, with four
+max-model CPUs, e1000, command completion and private images. The accepted image
+bytes remain unchanged by the boot checks.
+
+Independent comparison passes in 6.528 seconds. It checks every byte of all
+429 objects, sixteen artifacts, six user products, fifteen installed seed files
+and both complete 200 MiB images. The 181,453-byte manual occurs once in every
+kernel product. The complete syscall ABI and baseline FAT suffix are preserved,
+and all 99 producer inputs stay held. The shared image SHA-256 is
+`8869c891beafa901eeb9b9adae791831659de0b16e22683deb812a2fdce9d158`.
+The source still needs committed-source qualification and seed carriage.
+See [the mutation record](MIXED-WIDE-MUTATION.md).
+
+## 2026-10-08: Measure mixed-mutation manual kernels and repair contract ownership
+
+Both kernel builds close successfully with the qualified parents and
+conventional producers blocked, in 2,511.158 seconds on Windows and 1,784.260
+on Linux. Paired cold measurement checks all 429 objects and three kernel
+products byte for byte. Only the manual object changes. The complete
+181,453-byte manual occurs once in each kernel product and is nonexecuting
+in its wrapper. The raw kernel measures 9,299,584 bytes; final/pass-one ELF
+sizes remain 9,527,740 and 9,396,668. All sixteen measured artifact sizes match,
+and only the raw-kernel policy row changes. Both normal image builds are
+running before fresh user and strict private boot checks.
+
+The first canonical audit check exposes three earlier hosted-library fixture
+paths missing from the explicit ownership policy. Those exact paths and the
+new mixed-width execution fixture receive the existing not-reached
+classification for the supported Make roots. Canonical regeneration and
+checking pass in 105.075 and 93.306 seconds, along with three focused positive
+and negative ownership contracts. Independent checking verifies exactly four
+added entries, no removed unreachable source and unchanged 99 compiler inputs,
+fifteen installed seeds and generated preprocessor cases. The inventory now
+accounts for 786 active inputs, 255 features, 452 transforms and 73 unreachable
+sources. The failed check remains retained. See
+[the mutation record](MIXED-WIDE-MUTATION.md).
+
+## 2026-10-08: Implement native stage splitting and WAD destination aliases
+
+A separate source copy adds the stage argument splitter and WAD alias projector
+without changing the 99-input compiler source. Native and new stage-four Cupid
+callers on both hosts pass all eight methods, for 32 method executions and
+464 actual invocations. The existing Python image functions supply the behavior
+oracle. Independent review compares complete four-caller outputs and three
+checked object pairs, all 108 source/support controls, actual compilers/runtime
+objects and fifteen unchanged installed seeds. It passes in 6.229 seconds.
+
+The tests preserve drive-colon syntax, alias precedence, both host basename
+profiles, Unicode, full-width indices, long basenames and useful malformed-input
+and output-capacity failures. The first Python fixture's terminal backslash in
+a raw string is corrected before any native or Cupid build. The new source
+still needs image option parsing, host-path discovery and observer lifetime
+integration with the accepted publisher. No normal recipe or seed changes.
+See [the stage argument record](DISK-STAGE-ARGUMENTS.md).
+
+## 2026-10-08: Build private publishers with normal-source compilers and boot their images
+
+The stage-four compilers from the separate mixed-mutation preparations build
+all four private publication callers per host. Windows takes 110.764 seconds
+and Linux 111.901. Independent checking compares every actual object and
+eight complete program pairs byte for byte with the preceding accepted builds.
+It binds the actual compilers to the normal 99-input source snapshot, checks
+all 190 caller controls and fifteen unchanged installed files, and retains
+the original workers, producer bounds and execution profiles. Existing checked
+evidence covers 198 selections, 196 executions and two platform skips for those
+identical programs. No fresh execution count is added by this comparison.
+
+Six strict boots pass for the actual fresh and reused 200 MiB publisher images.
+Each host completes fresh/reused ls/SMP and reused feature 17 ISO checks under
+the original 150-second bound, with four max-model CPUs, e1000 and private
+images. Independent rereading verifies all commands, serial contracts, driver
+sources and complete preserved images. The synthetic WAD payloads do not prove
+Doom behavior. These images carry the preceding accepted manual and kernel.
+
+The two IR producer changes and four test paths are applied to the bootstrap
+worktree; fresh independent checks pass all forty native/Cupid methods and
+twelve native contracts. Both refreshed-manual kernel builds pass with complete
+paired cold measurements; the normal image commands are running.
+Paired normal OS/image acceptance, committed-source qualification and seed
+carriage remain open. See [the mutation record](MIXED-WIDE-MUTATION.md) and
+[the publisher record](EXTERNAL-DISK-PUBLISH.md).
+
 ## 2026-10-08: Qualify hosted library source and check external normal images
 
 Both complete library qualifications pass for committed `84ae3852`, with

@@ -4292,7 +4292,8 @@ static ctool_status_t cir_require_integer_mutation_computation(
     }
     return cir_unsupported_type(context, location);
   }
-  if (cir_type_is_i32_integer(context, computation_type) == CTOOL_TRUE) {
+  if (cir_type_is_i32_integer(context, computation_type) == CTOOL_TRUE ||
+      cir_type_is_wide_integer(context, computation_type) == CTOOL_TRUE) {
     return CTOOL_OK;
   }
   if (cir_type_is_represented_integer(context, computation_type) ==

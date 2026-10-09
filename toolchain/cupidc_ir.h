@@ -317,8 +317,10 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * bit-field mutation, while a supported integer, pointer, or floating
  * compound assignment loads and stores the object. This evaluates the
  * destination once. Integer mutation supports non-Boolean scalar objects that
- * occupy one, two, four, or eight bytes. Narrow values are promoted for the
- * 32-bit computation and converted back before an exact-width store.
+ * occupy one, two, four, or eight bytes. Narrow values are promoted before
+ * the usual arithmetic conversions choose a 32-bit or 64-bit computation;
+ * assignment conversion precedes the exact-width store. Shift counts remain
+ * independently promoted 32-bit integers.
  * Eight-byte mutation uses a private snapshot and keeps one semantic load and
  * store. Compound assignments retain integer-promotion, usual arithmetic, and
  * assignment conversions. A non-atomic compound assignment with a floating

@@ -2567,3 +2567,29 @@ later library source. The external frozen-input prototype passes 200 selections,
 196 executions and four platform skips, with complete large transfers under the
 original limits. Normal external staging and command ownership remain open;
 the normal disk recipe and two SDK coordinators still use Python.
+
+## Hosted mixed width integer mutation, 2026-10-08
+
+An ordinary represented narrow integer or supported integer bit-field
+destination can now use an eight-byte integer computation in compound
+assignment. Frontend promotions and usual arithmetic conversion select the
+calculation type; assignment conversion and the exact-width store follow the
+completed calculation. The address and right operand are evaluated once, and
+the stored result remains available to a surrounding expression. Existing
+bit-field neighbor and volatile access rules remain in force.
+
+ADR 0453 records the two producer changes and their positive/negative contracts.
+Both separate normal-source preparations and all forty native/Cupid worktree
+methods pass. Wide shift counts, atomic/boolean mutation and partial volatile
+bit-field mutation retain their rejection contracts. The refreshed manual
+passes paired normal kernel/image and user builds plus all four strict private
+boots. Independent comparison checks every object, complete image, user product
+and the preserved FAT suffix. Committed-source qualification and seed carriage
+remain open.
+The new normal-source compilers build all four private publisher callers on
+each host, with every object and eight complete program pairs matching the
+preceding builds byte for byte. Their private host and publisher source remains
+separate. Six strict boots pass for the earlier accepted 200 MiB publisher
+images, including fresh/reused ls/SMP and reused ISO completion. These images
+contain the preceding accepted manual and do not establish Doom runtime
+acceptance or native disk recipe ownership.

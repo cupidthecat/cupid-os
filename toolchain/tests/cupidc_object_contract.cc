@@ -23855,16 +23855,14 @@ static int run_wide_mutation_object(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "atomic wide mutation object") ||
-      !expect_object_failure_preserves_unit(
-          job, &narrow_destination_unit, failure, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+      !expect_object_success_preserves_unit(
+          job, &narrow_destination_unit, failure,
           "narrow destination with wide mutation computation") ||
-      !expect_object_failure_preserves_unit(
-          job, &bit_field_unit, failure, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &bit_field_unit, failure,
           "bit-field destination with wide mutation computation") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
       !expect_object_failure_preserves_unit(
           job, &bit_field_shift_left_unit, failure,
           CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,

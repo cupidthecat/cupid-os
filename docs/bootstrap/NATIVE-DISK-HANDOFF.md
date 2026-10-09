@@ -7,15 +7,37 @@ normal-geometry methods through all four native and Cupid callers. Independent
 checking reconstructs every 200 MiB image, reads final external payloads and
 all previous regular files on reuse, and verifies source/tool custody and
 unchanged installed seeds. These runs use actual accepted bootloader/kernel
-bytes and synthetic eight-MiB WAD-shaped payloads. They do not establish guest
-or Doom acceptance, support for the other accepted large geometries, normal
-CLI ownership or recipe adoption.
+bytes and synthetic eight-MiB WAD-shaped payloads. Six strict guest boots now
+pass for the fresh and reused images, including reused ISO completion on both
+hosts. Independent rereading verifies every command, serial contract and
+complete preserved image. Doom acceptance, support for the other accepted
+large geometries, normal CLI ownership and recipe adoption remain open.
 
 Both committed hosted library qualifications also pass independent checks of
 291 staged products, 97 complete fixed-point pairs and 7,761 published files.
 The mixed width compiler extension passes separate normal-source preparations
-and all forty native/Cupid runtime combinations. Source integration, complete
+and all forty native/Cupid runtime combinations. Its two producer changes and
+four test paths are applied to the bootstrap source; fresh worktree checks
+repeat all forty methods and twelve native contracts. The new normal-source
+compilers build all four private publisher programs per host, with every object
+and eight complete program pairs matching the preceding builds byte for byte.
+The refreshed manual passes paired normal image/user builds, all four strict
+private boots and complete independent product/image comparison. Committed
 qualification and replacement seed carriage remain separate requirements.
+
+Separate [native stage argument interpretation](DISK-STAGE-ARGUMENTS.md) now
+passes all 32 native/Cupid method executions and 464 actual program invocations.
+Independent review compares the existing Python stage/alias behavior, complete
+four-caller output sequences and three checked object pairs. It preserves all
+99 normal compiler inputs and fifteen installed seeds. Full option parsing,
+host-path discovery and observer lifetime integration remain open.
+
+A separate [physical observer comparison](OBSERVER-ROOT-IDENTITY.md) passes
+52 native/Cupid executions, with four expected Windows-only skips on Linux.
+Independent checking binds all 192 source controls, actual programs, original
+compiler preparations and complete outputs. Invalid or changed observations
+poison both supplied observers; distinct valid roots compare false. Discovery
+integration and Windows UNC root opening remain separate work.
 
 ## Qualified hosted wide-offset producer, 2026-10-08
 

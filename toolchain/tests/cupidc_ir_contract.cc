@@ -13984,10 +13984,8 @@ static int run_bit_field_mutations(const char *host_root) {
           "volatile bit-field mutation") ||
       !parse_source(job, "/bit-field-wide-rhs.c", bit_field_wide_rhs_source,
                     &wide_rhs_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &wide_rhs_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+      !expect_ir_success_preserves_unit(
+          job, &wide_rhs_unit,
           "bit-field destination with wide mutation computation") ||
       !parse_source(job, "/bit-field-wide-shift.c",
                     bit_field_wide_shift_source, &wide_shift_unit) ||
@@ -14980,10 +14978,8 @@ static int run_wide_mutations(const char *host_root) {
       !parse_source(job, "/narrow-destination-wide-rhs.c",
                     narrow_destination_wide_rhs_source,
                     &narrow_destination_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &narrow_destination_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+      !expect_ir_success_preserves_unit(
+          job, &narrow_destination_unit,
           "narrow destination with wide mutation computation")) {
     goto cleanup;
   }

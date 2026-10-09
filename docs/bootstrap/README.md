@@ -1,5 +1,48 @@
 # Cupid Toolchain bootstrap
 
+## Mixed width mutation source, 2026-10-08
+
+The bootstrap source now accepts a represented narrow integer destination whose
+compound calculation uses an eight-byte integer. The ordinary publisher keeps
+its original extent expression. Both separate normal-source preparations pass
+all 291 products and 97 fixed-point pairs. Fresh native and Cupid worktree
+callers pass all forty methods and twelve native IR/object contracts.
+[The mutation record](MIXED-WIDE-MUTATION.md) keeps exact source, output and
+producer bindings. The refreshed manual passes paired normal OS/image and
+user builds, all four strict private boots and complete independent comparison.
+Committed-source qualification and seed carriage remain open.
+
+The new normal-source compilers build all four private publisher callers per
+host. Independent checking compares every object and eight complete program
+pairs with the earlier accepted builds, preserving existing runtime evidence
+through byte identity. Six strict guest boots also pass for the fresh and
+reused 200 MiB publisher images, including ISO completion from both reused
+images. [The publisher record](EXTERNAL-DISK-PUBLISH.md) keeps those source,
+program and boot scopes separate from the refreshed manual's acceptance.
+
+Separate [native stage argument interpretation](DISK-STAGE-ARGUMENTS.md) keeps
+the existing stage drive-colon syntax and WAD destination aliases. Four callers
+pass 32 methods and 464 actual invocations. Independent checking compares the
+original Python behavior, complete outputs and three checked object pairs.
+Full image options, path discovery, observer lifetimes and recipe adoption
+remain open; the normal 99-input producer source and installed seeds are held.
+
+The separate [retained observer comparison](OBSERVER-ROOT-IDENTITY.md) passes
+52 native/Cupid executions and complete independent checking of 192 controls.
+It compares physical directory identity after ordinary metadata, streamed
+payload and absence checks. Discovery integration and Windows UNC root support
+remain open.
+
+Both refreshed-manual kernel builds pass. Independent cold comparison checks
+all 429 objects and three kernel products, with only the manual object changed.
+The raw kernel measures 9,299,584 bytes; both ELF sizes stay unchanged, so only
+the measured raw policy row changes. Both normal image builds, fresh user checks
+and all four strict private boots pass. Independent comparison checks every
+object, complete image, user product and preserved FAT byte. Canonical audit generation
+and checking also pass after four exact contract ownership entries are added;
+all compiler inputs, installed seeds and generated preprocessor cases remain
+unchanged.
+
 ## Hosted unsigned conversion and line input, 2026-10-08
 
 The shared runtime now supplies `strtoull`, `fgets`, `feof` and `clearerr`.
@@ -63,8 +106,10 @@ actual programs and complete saved outputs. Both complete stage preparations
 now pass, with 291 products and 97 whole fixed-point pairs independently checked.
 Both new Cupid compilers also pass the ten execution methods per host.
 Independent checking verifies all forty native and Cupid combinations and their
-complete outputs. The compiler still needs source integration, committed-source
-qualification and seed carriage.
+complete outputs. The two producer changes and four test paths are applied to
+the bootstrap worktree, where fresh independent checks repeat all forty
+methods and twelve native contracts. Refreshed-manual OS acceptance passes;
+committed-source qualification and seed carriage remain open.
 
 ## Hosted putchar and optional stage evidence, 2026-10-08
 
