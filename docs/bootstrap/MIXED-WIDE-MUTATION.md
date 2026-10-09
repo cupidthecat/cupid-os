@@ -170,12 +170,23 @@ inputs, actual preparation copies and twelve reviewed final tool identities.
 Windows retains 60 success groups, 54 rejection groups and seven help groups;
 Linux retains 73, 66 and seven. Both behavior generations complete.
 
-All fifteen installed seed files remain unchanged at qualified `a1cc8f3a`.
-The new release is qualified for its exact source and artifacts. Its installed
-projection and complete OS, SDK and public-bootstrap consumer acceptance
-remain open. Private UNC/discovery source is outside this qualified cohort.
+All fifteen installed seed files now belong to qualified `acbbd834`.
+The exact source and artifact release completes installed projection and full
+OS, SDK and public-bootstrap consumer acceptance as recorded below. Private UNC/discovery source is outside this qualified cohort.
 
 [The seed candidate record](QUALIFIED-MIXED-WIDE-SEEDS.md) records the private
 fifteen-file projection, paired manifest binding and fresh zero-object OS/test
 consumers. Complete replacement-tool acceptance remains separate from the
 completed producer qualification.
+
+## Installed mixed width cohort, 2026-10-09
+
+The qualified `acbbd834` pair now carries this capability in both installed
+host tool sets. All four ordinary/long-path SDK profiles, complete public
+bootstrap methods and both actual Make bootstraps pass independent review.
+Current paired OS image and fresh user builds, all four strict boots and
+complete product comparison also pass with the revised manual.
+[The installed cohort record](QUALIFIED-MIXED-WIDE-SEEDS.md) binds the exact
+source, release, original failures and final adoption evidence.
+Private host extensions and retirement of the three normal Python
+coordinators retain their separate acceptance requirements.

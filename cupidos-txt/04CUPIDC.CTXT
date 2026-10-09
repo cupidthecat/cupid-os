@@ -3043,10 +3043,10 @@ Shared hosted runtime source provides standard putchar through fputc and the
 current stdout stream. Native and Cupid-built callers on both hosts verify all
 768 signed arguments and complete output bytes. A read-only stream requires
 EOF, a stream error and nonzero errno while preserving its bytes and timestamp.
-Restoring stdout permits a later successful byte write. Installed seeds remain
-pinned to their earlier qualified source. Both complete qualifications of the
-byte-output source pass, with 291 staged products and 97 matching stage pairs.
-The later library additions keep their separate qualification and carriage work.
+Restoring stdout permits a later successful byte write. The qualified
+acbbd834 seeds carry this interface together with the later standard conversion
+and line-input library. Both complete qualifications of the earlier byte-output
+source remain accepted, with 291 staged products and 97 matching stage pairs.
 
 The optional disk publisher prototype passes 236 publisher cases with complete
 independent image and FAT checks. Its broader matrix retains one Windows
@@ -3073,8 +3073,9 @@ Native and Cupid callers pass 128 conversion and line/state methods. Independent
 checks cover 5,856 conversion inputs. Fresh integration callers pass 64 further
 executions and both byte-output regressions with the normal 99 producer inputs.
 Both complete library qualifications pass for committed source, with independent
-checks of all 99 inputs, 291 staged products and 97 matching stage pairs. Seed
-carriage remains open. External frozen-input callers separately pass 196 executions
+checks of all 99 inputs, 291 staged products and 97 matching stage pairs. The
+qualified acbbd834 seeds now carry these standard interfaces. External
+frozen-input callers separately pass 196 executions
 with four platform skips, including complete 200 MiB transfers under the original
 limits. Normal disk and SDK coordination still use Python.
 >endtree
@@ -3101,9 +3102,15 @@ unsupported and preserve the previous output on rejection.
 Native and Cupid worktree callers pass all forty selected methods, including
 wide divisors, narrowing, side effects, volatile exact stores and existing
 pointer/frame-load regressions. The separate normal-source preparations have
-matching stage-three and stage-four products. This source still needs complete
-committed-source qualification and seed carriage. Installed tools remain pinned
-to their qualified preceding cohort.
+matching stage-three and stage-four products. Both complete committed-source
+qualifications pass for acbbd834. Independent checks cover all 99 committed
+inputs, 291 staged products, 97 complete fixed-point pairs and 7,761 published
+files. The installed Linux and native Windows seeds carry this compiler change
+and the standard byte-output, unsigned-conversion and line-input library. All
+four ordinary/long-path SDK profiles, complete public bootstrap methods and both
+actual Make bootstraps pass their complete independent checks. Normal OS and
+user builds and all four strict four-CPU boots also pass through the same pair.
+The retained twelve-tool release binds the source, parents and both build plans.
 >endtree
 
 >h2 See Also

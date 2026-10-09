@@ -43,3 +43,16 @@ six user products and complete images, with baseline FAT data preserved. Only
 the manual wrapper changes. The runtime record gives measured sizes and original
 command bounds. All installed seed bytes remain pinned; new runtime carriage
 still requires complete producer qualification.
+
+## Installed cohort acceptance, 2026-10-09
+
+The qualified `acbbd834` pair now carries this capability in both installed
+host tool sets. All four SDK profiles, complete public bootstrap methods and
+both actual Make bootstraps pass independent checks. Current paired normal
+image and user builds, all four strict private boots and complete object,
+artifact, ABI and image comparisons pass with the revised manual.
+[The installed cohort record](../bootstrap/QUALIFIED-MIXED-WIDE-SEEDS.md)
+binds all 99 committed inputs, fifteen seed files and final adoption evidence.
+This installs the compiler/library capability; native image command ownership,
+private host follow-ups and retirement of the three Python coordinators
+remain open.

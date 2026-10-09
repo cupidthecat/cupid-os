@@ -6,7 +6,8 @@ Applied to bootstrap source on 2026-10-08. Native and Cupid execution contracts
 pass. Paired refreshed-manual kernel/image and normal user builds, all four
 strict private boots and complete independent comparisons pass.
 Both complete committed-source qualifications and independent checks pass.
-Seed carriage and acceptance through replacement tools remain pending.
+Seed carriage and complete replacement-tool consumer acceptance pass through
+the installed mixed width cohort recorded below.
 
 ## Context
 
@@ -65,3 +66,16 @@ application, source/producer bindings, failed fixture copies, fresh worktree
 controls and remaining acceptance. Installed seeds remain the qualified
 `a1cc8f3a` pair. This source capability does not transfer normal disk recipe
 ownership.
+
+## Installed cohort acceptance, 2026-10-09
+
+The qualified `acbbd834` pair now carries this capability in both installed
+host tool sets. All four SDK profiles, complete public bootstrap methods and
+both actual Make bootstraps pass independent checks. Current paired normal
+image and user builds, all four strict private boots and complete object,
+artifact, ABI and image comparisons pass with the revised manual.
+[The installed cohort record](../bootstrap/QUALIFIED-MIXED-WIDE-SEEDS.md)
+binds all 99 committed inputs, fifteen seed files and final adoption evidence.
+This installs the compiler/library capability; native image command ownership,
+private host follow-ups and retirement of the three Python coordinators
+remain open.

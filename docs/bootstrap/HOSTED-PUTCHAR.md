@@ -43,7 +43,8 @@ final-path bridge while requesting the compiler import profile. Adding unrelated
 objects did not repair that mismatch. The corrected recipe selects the existing
 long-path bridge. Those failures remain distinct from implementation evidence.
 
-The new source has not completed paired toolchain qualification or seed adoption.
+This byte-output source later completes paired qualification, and the installed
+mixed width cohort below carries the interface on both hosts.
 The independent optional publisher and external-observer records describe
 separate private capabilities; this runtime change does not transfer a normal
 build recipe from Python.
@@ -100,3 +101,15 @@ predicate. The original passing command logs remain available. This qualificatio
 belongs to byte-output source `b64dd8292`; the later unsigned-conversion and
 line-input source has its own preparations and acceptance work. No seed adoption
 is inferred from the completed byte-output qualification.
+
+## Installed mixed width cohort, 2026-10-09
+
+The qualified `acbbd834` pair now carries this capability in both installed
+host tool sets. All four ordinary/long-path SDK profiles, complete public
+bootstrap methods and both actual Make bootstraps pass independent review.
+Current paired OS image and fresh user builds, all four strict boots and
+complete product comparison also pass with the revised manual.
+[The installed cohort record](QUALIFIED-MIXED-WIDE-SEEDS.md) binds the exact
+source, release, original failures and final adoption evidence.
+Private host extensions and retirement of the three normal Python
+coordinators retain their separate acceptance requirements.

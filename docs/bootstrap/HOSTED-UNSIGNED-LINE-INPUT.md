@@ -157,7 +157,19 @@ release artifacts and every published file. All fifteen installed parent files
 retain their accepted identities. This qualifies the committed library source;
 it does not install its seeds.
 
-This committed source still needs replacement seed carriage and normal
-OS/SDK/public acceptance through the new tool cohort.
+The installed mixed width cohort below completes replacement seed carriage
+and normal OS/SDK/public acceptance for this library.
 The external frozen-input and publisher prototypes keep their separate gates.
 The normal disk recipe and both SDK coordinators still use Python.
+
+## Installed mixed width cohort, 2026-10-09
+
+The qualified `acbbd834` pair now carries this capability in both installed
+host tool sets. All four ordinary/long-path SDK profiles, complete public
+bootstrap methods and both actual Make bootstraps pass independent review.
+Current paired OS image and fresh user builds, all four strict boots and
+complete product comparison also pass with the revised manual.
+[The installed cohort record](QUALIFIED-MIXED-WIDE-SEEDS.md) binds the exact
+source, release, original failures and final adoption evidence.
+Private host extensions and retirement of the three normal Python
+coordinators retain their separate acceptance requirements.

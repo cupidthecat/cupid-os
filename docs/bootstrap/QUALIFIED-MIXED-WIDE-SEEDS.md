@@ -1,4 +1,4 @@
-# Qualified mixed width seed candidate
+# Qualified mixed width seed cohort
 
 Both complete qualifications pass for producer source
 `acbbd8342d8901169c5484742b168277ce9bbdd1`. Its 99 exact committed inputs have
@@ -8,10 +8,10 @@ The candidate carries the hosted byte-output and line/conversion library
 additions, plus the mixed width calculation described in
 [the mutation record](MIXED-WIDE-MUTATION.md).
 
-Qualification is complete. The candidate is projected into private consumers;
-its installation in the bootstrap worktree and the remaining SDK and public
-bootstrap consumer acceptance remain open. Paired OS, user and strict runtime
-acceptance now pass. Private UNC and native publisher/discovery
+Qualification and installation acceptance are complete. The bootstrap
+worktree now carries this exact paired cohort. All four SDK profiles, complete
+public bootstrap methods, both actual Make bootstraps, paired OS/user products
+and four strict private boots pass their independent checks. Private UNC and native publisher/discovery
 source is outside this producer cohort. Normal ownership remains 449
 CupidBuild operations and three Python coordinators across 452 transforms.
 
@@ -107,7 +107,8 @@ An independent direct rebuild also verifies the native runtime fixture's
 38,400-byte PE image, complete import profile, exact output and useful failures.
 The minimal 360-byte object and 2,048-byte PE remain unchanged. Only the runtime
 image's measured size and digest are projected into the idle private fixtures
-after both compatibility replays close. The root fixture remains unchanged.
+after both compatibility replays close. The adopted root fixture now carries only those two measured runtime-image
+expectations; its minimal object and PE expectations remain unchanged.
 
 The first serial SDK consumer, Linux default, passes in 4,588.616 seconds under
 `mixed-qualified-sdk-default-linux1`. Its complete independent rereading passes
@@ -143,8 +144,49 @@ published files and 1,419 complete generation pairs in 153.300 seconds. All four
 SDK profiles, complete public methods and both actual Make bootstraps are now
 accepted. The closed queue retains one full producer job at a time with the
 original two workers, deadlines and forbidden host producers. Root seed and
-manual adoption still require their separate audit.
+manual adoption pass their separate source, policy and complete OS audit.
 
-All fifteen installed bootstrap seed files still have the `a1cc8f3a` identities.
+All fifteen installed bootstrap seed files now have the qualified `acbbd834`
+identities.
 No normal recipe ownership transfers through this private projection.
 TempleOS remains read-only and excluded.
+
+## Installed cohort and current manual acceptance, 2026-10-09
+
+The final audit rechecks all 99 raw committed producer inputs, the twelve tools,
+both manifests, reviewed release, reader pins and measured native runtime
+fixture. Twelve seed policy rows and the measured kernel rows follow actual
+accepted artifacts; no policy limit is loosened. Both real Make negative gates
+reject the earlier kernel length with exit two before the current measurement
+is applied. All other policy fields remain unchanged.
+
+The revised 181,994-byte manual and exact cohort are captured in
+`C:/Users/admin/cp7/m2` and `/var/tmp/cp7m2`, with 1,757 source/control
+files per host. They import the previously independently accepted object cohort;
+this refresh is separate from the original zero-object cold builds above.
+All 1,757 files are reread at the final adoption audit. The only later controlled
+source-file change is the measured artifact policy. All active C, assembly and
+header bytes retain their accepted identities.
+
+Both current normal Make images, fresh user products and four strict private
+boots pass with nine conventional producer sentinels. Image Make takes
+2,321.252 seconds on Windows and 1,629.214 on Linux. Each host completes
+ls/SMP and feature 17 ISO checks with four max-model CPUs, e1000, private
+images, required completion and the original 150-second deadline.
+
+Complete paired rereading passes in 19.345 seconds. It checks all 429 objects,
+431 inspection inputs, sixteen artifacts, six user products, the full
+103-field/101-provider ABI and every installed seed file. The manual occurs
+once as data in each kernel product. The raw kernel measures 9,300,124 bytes.
+The two complete 209,715,200-byte images have SHA-256
+`3ad5400a92a761e5a654c8f0dc1cff2dfb15d872e366a5bff73d667d4c61d3da`.
+Every byte of the 199,229,440-byte baseline FAT suffix remains preserved.
+
+Final evidence is `mixed-adopted-manual-os-acceptance1-closed.json`,
+`mixed-adopted-manual-os-paired-independent1-products.json`,
+`mixed-adopted-manual-measured-policy1.json` and
+`mixed-qualified-root-final2/audited.json` under the proof root.
+Private heap, POSIX path, observer and publisher follow-ups remain outside
+these installed tools. Their qualification and command integration have
+separate gates. Normal image publication and both SDK coordinators still
+use Python; Doom runtime and in-OS tooling acceptance remain open.

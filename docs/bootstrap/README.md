@@ -1,5 +1,23 @@
 # Cupid Toolchain bootstrap
 
+## Qualified mixed width seed installation, 2026-10-09
+
+The [qualified paired cohort](QUALIFIED-MIXED-WIDE-SEEDS.md) is installed from
+committed `acbbd834` source and its exact 99-input snapshot. All four SDK
+profiles, complete public bootstrap methods and both actual Make bootstraps
+pass their original independent checks. The installed tools carry standard
+byte output, unsigned conversion, line/EOF state and wide computation before
+narrow compound-assignment stores.
+
+The revised 181,994-byte manual passes current normal Make image and fresh user
+builds on both hosts, all four strict private boots and complete paired review.
+The final audit checks 1,757 source/control files per host, all 429 objects,
+six user products, sixteen artifacts and all fifteen installed seed files.
+Complete image bytes agree and the baseline FAT suffix is preserved.
+The normal graph remains 449 CupidBuild actions and three Python coordinators
+across 452 transforms. Private observer, heap and publisher extensions retain
+their separate qualification and native command integration work.
+
 ## Hosted heap storage and original consumer progress, 2026-10-09
 
 The [private hosted heap](HOSTED-HEAP.md) shares Windows memory regions and
@@ -21,7 +39,8 @@ PE relinks. Original Windows Make also passes in 1,974.688 seconds. Its current
 independent review accepts 159 stage artifacts, 3,423 files and 1,419 complete
 generation pairs in 153.300 seconds. All four SDK profiles, complete public
 methods and both actual Make bootstraps are now accepted. Installed seed and
-manual adoption still require their separate audit.
+manual adoption now pass their separate final audit; the installed cohort is
+recorded above.
 
 ## Frozen input validation and entry guards, 2026-10-09
 

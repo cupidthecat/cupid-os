@@ -2584,8 +2584,9 @@ regressions; exactly three producer paths are applied to the bootstrap worktree.
 Its paired preparations keep the previous qualified parent tools. Both complete
 qualifications pass for committed library source `84ae3852`. Independent checks
 bind all 99 raw Git blobs, 291 staged products, 97 complete fixed-point pairs and
-7,761 published files. Adoption and acceptance through replacement tools remain
-open; all fifteen installed files still belong to the qualified `a1cc8f3a` pair.
+7,761 published files. The qualified `acbbd834` pair now carries this library
+in all fifteen installed seed files. Complete OS, SDK and public-bootstrap
+consumer acceptance passes through the replacement tools.
 
 Byte-output source b64dd8292 passes both complete qualifications. Independent
 rereading checks 291 staged products, 97 fixed-point pairs, 7,761 publication
@@ -2614,7 +2615,10 @@ boots. Independent comparison checks every object, complete image, user product
 and the preserved FAT suffix. Both complete committed-source qualifications and
 independent checks pass for `acbbd834`, covering 291 staged products, 97 whole
 fixed-point pairs, 7,761 published files and all 99 exact committed inputs.
-Seed carriage and acceptance through replacement tools remain open.
+Seed carriage and complete replacement-tool consumer acceptance now pass.
+The current 181,994-byte manual, paired normal images and fresh users also pass
+all four strict private boots and complete independent product/ABI comparison.
+The installed seed record binds the 99 committed inputs and fifteen seed files.
 The new normal-source compilers build all four private publisher callers on
 each host, with every object and eight complete program pairs matching the
 preceding builds byte for byte. Their private host and publisher source remains
