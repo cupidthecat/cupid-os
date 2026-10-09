@@ -79,10 +79,13 @@ It preserves ordinary root, payload and absence checks before comparing captured
 physical identity; command and publisher integration remain open. The publisher
 rejects distinct observer pointers for one physical root, so textual path
 equality alone cannot supply the authority map.
-The current Windows observer also requires a drive-rooted absolute path and
-rejects UNC roots in `cupidbuild_host_observer_open`. External UNC discovery
-needs its own retained-root implementation and tests before command adoption;
-the stage splitter does not establish that filesystem support.
+The normal integration observer still requires a drive-rooted Windows path.
+A separate [UNC observer implementation](OBSERVER-UNC-ROOTS.md) now passes
+48 native/Cupid UNC methods and 54 actual calls on real local shares, retaining
+metadata, payload, absence and no-reparse checks. Its source and complete
+ordinary-root/Linux output checks also pass independent review. Full discovery
+and publisher integration remain open; the stage splitter alone does not grant
+that filesystem authority.
 
 The new module is still in the separate source copy. Committed source
 integration, full producer qualification and seed/recipe carriage remain open.

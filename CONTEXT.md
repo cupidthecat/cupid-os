@@ -2334,6 +2334,18 @@ these observations; the new kind operation is a separate source capability.
 ADRs 0401, 0408 and 0421 record the contracts.
 _Avoid_: atomic filesystem snapshot, frozen execution transaction
 
+**Retained Windows UNC share anchor**:
+An ordinary server/share directory handle selected before a read-only observer
+walks descendants through retained no-reparse parent handles. The separate host
+implementation preserves the existing root metadata, streamed digest, absence
+and cleanup rules, and rejects device namespaces and reparse-point descendants.
+Native and Cupid Windows callers pass 48 UNC method executions and 54 actual
+calls on real local shares, plus all 52 ordinary-root executions through four
+callers. Independent checking verifies 193 controls and unchanged complete
+Linux products. ADR 0454 records this private capability; normal image discovery,
+whole publisher integration and committed qualification remain open.
+_Avoid_: network-share authority grant, device namespace, native image adoption
+
 **Borrowed publication observer**:
 A retained observer bound once to a transaction with the same root identity,
 before any publication attempt. The caller keeps it alive through transaction

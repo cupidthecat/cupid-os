@@ -76,10 +76,12 @@ and observer lifetimes with the accepted publisher. This contract does not
 establish execution of the complete publisher body with the changed host copy,
 committed producer qualification or normal recipe adoption.
 
-Windows observer opening still requires a drive-rooted absolute path and rejects
-UNC roots. UNC discovery needs a separate retained-root implementation and
-useful positive and negative filesystem tests. The stage argument splitter's
-UTF-8/path syntax support does not supply that host capability.
+This exact comparison copy still requires a drive-rooted Windows path. A
+subsequent [UNC observer copy](OBSERVER-UNC-ROOTS.md) now passes 48 UNC method
+executions and 54 actual calls, plus the ordinary four-caller selection.
+Independent checking preserves all source/tool controls and Linux output bytes.
+The changed copy still needs publisher and native discovery integration; the
+stage splitter's path syntax alone does not grant filesystem authority.
 
 Normal ownership remains 449 CupidBuild and three Python actions across 452
 transforms. Full Doom runtime acceptance and the existing standalone Windows

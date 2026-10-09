@@ -1,5 +1,32 @@
 # Bootstrapping log
 
+## 2026-10-08: Retain ordinary Windows UNC share roots
+
+A separate host copy selects an ordinary drive or UNC server/share anchor,
+then keeps the existing no-reparse descendant walk and complete observation
+checks. Native and Cupid Windows callers pass all 24 UNC methods each, for
+48 method executions and 54 actual calls. Real local shares cover long Unicode
+paths, share-only anchors, drive/share and server aliases, streamed payloads,
+metadata/absence drift and useful root-opening rejections. All 52 ordinary-root
+executions also pass through four callers, retaining four platform skips.
+
+The first junction fixture resolves its path to the ordinary target before
+invocation. Preserving its absolute spelling corrects that test without changing
+C/header bytes; a direct original-program call rejects the actual junction.
+The first independent checker keeps one old artifact-directory name. Its
+correction retains every acceptance predicate. All failed copies, receipts and
+helpers remain retained.
+
+Independent acceptance passes in 24.970 seconds, rereading 193 controls, actual
+programs/compiler preparations, exact profiles, complete results and original
+bounds. Every Linux checked object and the complete program match the preceding
+accepted comparison build. Both hosts' checked objects/programs also agree
+across the fixture-only repair. The 99 normal compiler inputs and fifteen
+installed seed files remain unchanged while their mixed-source qualification
+continues. The changed host copy still needs whole publisher execution, native
+discovery integration and committed qualification. See
+[the UNC observer record](OBSERVER-UNC-ROOTS.md) and ADR 0454.
+
 ## 2026-10-08: Commit mixed mutation source and start paired behavior qualification
 
 Commit `acbbd834` is pushed to the bootstrap branch with the two IR producer

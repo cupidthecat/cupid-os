@@ -33,8 +33,12 @@ remain open; the normal 99-input producer source and installed seeds are held.
 The separate [retained observer comparison](OBSERVER-ROOT-IDENTITY.md) passes
 52 native/Cupid executions and complete independent checking of 192 controls.
 It compares physical directory identity after ordinary metadata, streamed
-payload and absence checks. Discovery integration and Windows UNC root support
-remain open.
+payload and absence checks. A subsequent
+[UNC observer implementation](OBSERVER-UNC-ROOTS.md) passes 48 native/Cupid
+methods and 54 actual calls on real local shares, plus all 52 ordinary-root
+executions. Independent review checks 193 controls, exact profiles and complete
+results while preserving every Linux object/program byte. Discovery and whole
+publisher integration remain open.
 
 Both refreshed-manual kernel builds pass. Independent cold comparison checks
 all 429 objects and three kernel products, with only the manual object changed.

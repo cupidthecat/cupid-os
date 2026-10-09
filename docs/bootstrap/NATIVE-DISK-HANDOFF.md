@@ -37,7 +37,12 @@ A separate [physical observer comparison](OBSERVER-ROOT-IDENTITY.md) passes
 Independent checking binds all 192 source controls, actual programs, original
 compiler preparations and complete outputs. Invalid or changed observations
 poison both supplied observers; distinct valid roots compare false. Discovery
-integration and Windows UNC root opening remain separate work.
+integration remains separate work. A subsequent
+[UNC observer copy](OBSERVER-UNC-ROOTS.md) passes 48 native/Cupid methods and
+54 actual calls on real local shares, plus all 52 ordinary-root executions.
+Independent checking verifies 193 controls, complete results and unchanged
+Linux objects/program. Full publisher and native discovery integration remain
+open.
 
 ## Qualified hosted wide-offset producer, 2026-10-08
 
