@@ -1,5 +1,28 @@
 # Cupid Toolchain bootstrap
 
+## Hosted heap storage and original consumer progress, 2026-10-09
+
+The [private hosted heap](HOSTED-HEAP.md) shares Windows memory regions and
+searches free blocks on both hosts. Actual allocator failures and work counts
+drive the change. Both hosts pass density, alignment, reuse, useful failure
+cases and their complete original runtime contracts. Guarded cohort ten passes
+all four complete 64-method discovery selections and every ordinary/UNC observer
+selection with the original bounds and checked host-producer sentinels. Paired
+independent review accepts 242 discovery executions, 410 calls, five complete
+object pairs and all 100 legacy observer executions with 106 calls. Named-commit
+qualification remains open. The implementation and regression fixture are
+retained in an unapplied prototype patch.
+
+The original Linux Make bootstrap and both Windows public methods now pass
+their complete current independent checks. Linux Make retains 132 staged
+artifacts, 4,338 files and 1,867 whole generation pairs. Windows public review
+retains its full bootstrap behavior and native boundary, including three exact
+PE relinks. Original Windows Make also passes in 1,974.688 seconds. Its current
+independent review accepts 159 stage artifacts, 3,423 files and 1,419 complete
+generation pairs in 153.300 seconds. All four SDK profiles, complete public
+methods and both actual Make bootstraps are now accepted. Installed seed and
+manual adoption still require their separate audit.
+
 ## Frozen input validation and entry guards, 2026-10-09
 
 The private [frozen-set follow-up](../adr/0459-coalesce-required-frozen-input-revalidation.md)

@@ -129,10 +129,21 @@ products, 44 final-stage pairs and 132 complete behavior pairs. Eleven exact
 failure sentinels and 121 validated positive artifacts remain represented.
 Evidence is `mixed-qualified-full-methods-linux1-retained-independent-products.json`.
 
-The original queue now runs the actual Linux Make bootstrap, followed by native
-Windows public and Make consumers. Their complete independent rereading remains
-required before root seed or manual adoption. The queue keeps one full producer
-job at a time with the original two workers, deadlines and forbidden host producers.
+The original Linux Make bootstrap passes in 1,750.592 seconds. Its current
+independent checker accepts all 132 stage products, 4,338 published files and
+1,867 complete generation pairs in 10.785 seconds.
+
+The original native Windows public selection passes both methods in 2,486.729
+seconds. Bootstrap-role independent review passes in 77.538 seconds, retaining
+4,351 files, 132 products and 132 behavior pairs. The native boundary
+checker also passes in 9.709 seconds and checks thirteen objects and three full
+PE relinks. The final original Windows Make bootstrap passes in 1,974.688
+seconds. Its current independent review accepts 159 staged artifacts, 3,423
+published files and 1,419 complete generation pairs in 153.300 seconds. All four
+SDK profiles, complete public methods and both actual Make bootstraps are now
+accepted. The closed queue retains one full producer job at a time with the
+original two workers, deadlines and forbidden host producers. Root seed and
+manual adoption still require their separate audit.
 
 All fifteen installed bootstrap seed files still have the `a1cc8f3a` identities.
 No normal recipe ownership transfers through this private projection.

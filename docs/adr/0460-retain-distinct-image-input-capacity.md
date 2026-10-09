@@ -8,6 +8,13 @@ pass. Ordinary/UNC observer regressions also pass all 100 executions and 106
 calls. Four checked capacity cases fail on each host. Complete paired acceptance,
 source qualification and normal command integration remain open.
 
+The separate [hosted heap follow-up](0461-manage-hosted-heap-regions-and-free-blocks.md)
+now accepts all four complete discovery selections through guarded cohort ten
+and paired independent review. It changes only the shared runtime relative to
+source seven. All 242 executions, 410 discovery calls and 106 legacy observer
+calls pass with the original limits. The source-seven failures below remain
+preserved. Named-commit qualification and normal integration are still open.
+
 ## Context
 
 ADR 0456 accepts 4,096 repeated stages, which does not prove 4,096 distinct files

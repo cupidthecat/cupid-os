@@ -11,9 +11,20 @@ behavior pairs. The latter retain eleven exact failure sentinels and 121 validat
 positive artifacts. Evidence is
 `mixed-qualified-full-methods-linux1-retained-independent-products.json`.
 
-The original actual Linux Make bootstrap is running, followed by native Windows
-public and Make consumers. Their complete independent checks remain required;
-earlier-cohort checker validation does not accept those pending results.
+The original actual Linux Make bootstrap passes in 1,750.592 seconds. Its current
+independent review passes in 10.785 seconds and checks 132 staged artifacts,
+4,338 published files and 1,867 complete generation pairs. It binds every original
+recipe control, the 99 committed producer inputs and both seed families.
+
+The original native Windows public selection passes both methods in 2,486.729
+seconds. Bootstrap-role rereading passes in 77.538 seconds and checks all 4,351
+retained files, 132 stage artifacts and 132 complete behavior pairs. The separate
+native boundary review passes in 9.709 seconds: thirteen retained objects,
+twenty-six files and three complete PE relinks, with all original success and
+failure controls. Original Windows Make passes in 1,974.688 seconds. Its current
+independent review accepts all 159 staged artifacts, 3,423 published files and
+1,419 complete generation pairs in 153.300 seconds. The original consumer queue
+is closed and accepted. Root seed and manual adoption remain separate work.
 
 The new native Windows boundary checker validates against the closed predecessor
 in `public-native-boundary-predecessor-validation9-products/closed.json`. It

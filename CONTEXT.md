@@ -222,6 +222,12 @@ failure on both hosts. This source addition has separate seed-carriage work;
 ADR 0450 and the [runtime record](docs/bootstrap/HOSTED-PUTCHAR.md) retain its
 evidence.
 
+An unapplied [hosted heap prototype](docs/bootstrap/HOSTED-HEAP.md) shares
+Windows allocation regions and searches free blocks on both hosts. Its guarded
+private discovery cohort and paired independent review pass with the original
+limits, alongside density/failure fixtures and both complete runtime contracts.
+Named-commit qualification and normal source/seed adoption remain open.
+
 CupidBuild coordinates guarded transformations and checked tool invocations.
 The [migration matrix](docs/bootstrap/MIGRATION-MATRIX.md) records current
 ownership, and the [host dependency inventory](docs/bootstrap/HOST-DEPENDENCIES.md)

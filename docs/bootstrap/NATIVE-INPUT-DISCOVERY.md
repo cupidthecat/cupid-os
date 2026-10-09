@@ -103,12 +103,20 @@ inputs. All 100 original ordinary/UNC observer regression executions and 106
 calls also pass. Deterministic construction hooks prove rejection of kernel
 metadata drift and original working-root/selected-parent rebinding before return.
 
-The full checked selections remain rejected: Windows has four capacity allocation
-failures, and Linux has four original sixty-second failures with 32 MiB. The
-new quota, descriptor and work-count evidence does not close those gates. Full
-paired independent review, original capacity bounds, source qualification and
-normal command integration remain required. The preceding complete 236-call
-acceptance stays preserved.
+Source seven's checked selections remain preserved failures: Windows has four
+capacity allocation failures, and Linux has four original sixty-second failures
+with 32 MiB. The [hosted heap follow-up](HOSTED-HEAP.md) isolates Windows address
+placement and Linux's quadratic allocated-block search, then changes only the
+shared runtime in private source nine. All four complete 64-method selections
+and legacy observer selections pass through guarded cohort ten. It retains every
+original runtime deadline and Linux memory bound and enforces all nine checked
+host-producer sentinels. Paired independent review accepts all 242 executions
+and 410 discovery calls, five complete object pairs, and all 100 legacy observer
+executions with 106 calls. It rereads 206 controls and confirms that every checked
+object other than the runtime retains its source-seven bytes on each host.
+Named-commit source qualification and normal command integration remain required.
+The preceding complete 236-call acceptance and every later failed selection
+stay preserved.
 
 The first fixtures spell the WAD option incorrectly and match a UNC kind against
 the word "missing" in the test directory name. A second fixture assumes the
