@@ -3,9 +3,17 @@
 ## Independent public and Make rereading, 2026-10-09
 
 The current replacement cohort completes all four original SDK profiles with
-their full independent checks. Original public selections and both actual Make
-bootstraps remain in the serial queue. Their pending results cannot be replaced
-by validation of an earlier cohort.
+their full independent checks. The original Linux public selection closes in
+2,082.435 seconds, with its declared native Windows skip. Its independent check
+passes in 64.179 seconds and rereads all 4,338 retained regular files, 99 committed
+producer inputs, 132 stage products, 44 complete final-stage pairs and 132
+behavior pairs. The latter retain eleven exact failure sentinels and 121 validated
+positive artifacts. Evidence is
+`mixed-qualified-full-methods-linux1-retained-independent-products.json`.
+
+The original actual Linux Make bootstrap is running, followed by native Windows
+public and Make consumers. Their complete independent checks remain required;
+earlier-cohort checker validation does not accept those pending results.
 
 The new native Windows boundary checker validates against the closed predecessor
 in `public-native-boundary-predecessor-validation9-products/closed.json`. It

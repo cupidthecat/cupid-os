@@ -22,9 +22,11 @@ Explicit disk-full failures stop the first clean Windows runtime and original
 Windows long-path SDK attempts. Their results remain retained. Space recovery
 preserves every compressed file's bytes and timestamp. Both native runtime
 selections pass. Both checked regressions and the Windows long-path SDK retry
-now pass. All four SDK profiles have complete independent acceptance. Original
-public methods and actual Make bootstraps remain in their serial queue. The
-99 normal producer inputs and fifteen installed seed files remain unchanged.
+now pass. All four SDK profiles have complete independent acceptance. The original
+Linux public selection also passes; independent review checks all 4,338 retained
+files, 132 stage products and 132 behavior pairs. Actual Linux Make, native Windows
+public and native Windows Make remain in the serial queue. The 99 normal producer
+inputs and fifteen installed seed files remain unchanged.
 
 The separate [distinct-input follow-up](../adr/0460-retain-distinct-image-input-capacity.md)
 adds explicit observer quotas, retained-file streaming and complete validation

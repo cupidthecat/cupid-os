@@ -122,10 +122,17 @@ Windows long-path retry in 5,266.572. The last independent check closes in
 stage pairs and every one of the 22 published ELF images. The earlier Windows
 long-path I/O failure and partial workspace remain held.
 
-The original queue now runs both complete public selections and actual Make
-bootstraps. Their complete independent rereading remains required before root
-seed or manual adoption. The queue keeps one full producer job at a time with
-the original two workers, deadlines and forbidden host producers.
+The original Linux public selection also passes in 2,082.435 seconds with its
+declared Windows skip. Complete independent rereading passes in 64.179 seconds,
+checking all 4,338 retained files, 99 committed producer inputs, 132 staged
+products, 44 final-stage pairs and 132 complete behavior pairs. Eleven exact
+failure sentinels and 121 validated positive artifacts remain represented.
+Evidence is `mixed-qualified-full-methods-linux1-retained-independent-products.json`.
+
+The original queue now runs the actual Linux Make bootstrap, followed by native
+Windows public and Make consumers. Their complete independent rereading remains
+required before root seed or manual adoption. The queue keeps one full producer
+job at a time with the original two workers, deadlines and forbidden host producers.
 
 All fifteen installed bootstrap seed files still have the `a1cc8f3a` identities.
 No normal recipe ownership transfers through this private projection.
