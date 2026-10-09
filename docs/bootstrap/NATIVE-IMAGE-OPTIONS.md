@@ -148,9 +148,16 @@ test/argument tuple. Its successor retains each complete invocation sequence
 and requires native/Cupid sequence equality without dropping repeated calls.
 The original failed receipt remains under `image-options-independent4`.
 
+The subsequent [input-discovery owner](NATIVE-INPUT-DISCOVERY.md) now passes
+148 method executions and 236 calls, with complete owned strings, retained
+required/optional paths, physical-root reuse and original binding checks.
+Independent review verifies 206 controls, five whole object pairs and all
+106 ordinary/UNC observer regression calls. This closes the represented private
+discovery selection; complete command compatibility remains required.
+
 Source-plan integration still needs the complete native command's compatible
-diagnostics, absolute path discovery, physical-root deduplication, argv and
-observer lifetimes, seed/output authority and publisher handoff. Whole publisher
+diagnostics, full pathname/capacity surface, seed/output authority, transaction
+lifetimes and publisher handoff. Whole publisher
 execution with the UNC host copy, accepted large-image publication and normal
 recipe adoption remain separate gates. No ownership count changes here.
 TempleOS remains read-only and excluded.

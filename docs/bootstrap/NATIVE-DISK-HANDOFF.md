@@ -1,5 +1,21 @@
 # Native disk-image handoff
 
+## Retained input discovery, 2026-10-09
+
+The separate [discovery owner](NATIVE-INPUT-DISCOVERY.md) retains required and
+optional paths, owned strings, primary/external physical roots and original
+parent bindings. Four native/Cupid callers pass 148 method executions and 236
+calls, including direct rejection of unretained file comparisons. Independent
+review checks 206 controls, five whole object pairs and all 106 original
+ordinary/UNC observer regression calls. The first 188-call scope remains held.
+
+This owner must survive every transaction borrowing its observers. Complete
+paired seed authority, external required-file freezing, output-parent preparation,
+output/input alias rejection and whole publication remain with the command
+handoff. Full CLI pathname/capacity compatibility and accepted large geometries
+remain required. The normal 99-input snapshot and installed seeds stay unchanged
+through the live SDK/public queue; Linux default SDK acceptance is now closed.
+
 ## Native image option owner, 2026-10-09
 
 The private [image option owner](NATIVE-IMAGE-OPTIONS.md) now interprets all six

@@ -1,5 +1,22 @@
 # Cupid Toolchain bootstrap
 
+## Retained native image input discovery, 2026-10-09
+
+The private [input-discovery owner](NATIVE-INPUT-DISCOVERY.md) now retains
+required and optional paths, physical roots, original parent bindings and owned
+strings after option/argv storage is released. Four native/Cupid callers pass
+148 method executions and 236 calls, with twelve platform skips. Direct file
+identity contracts reject unobserved files, invalid arguments and changed inputs.
+Independent review checks 206 controls, five whole object pairs and all 106
+ordinary/UNC observer regression calls. Normal source and installed seeds stay
+unchanged. Complete seed/output authority and publication integration remain open.
+
+The Linux default replacement-seed SDK consumer also passes its original
+independent check: 104 SDK inputs, 98 bootstrap inputs, 77 complete stage pairs
+and all 22 published images. The other three SDK profiles, complete public
+methods and actual Make bootstraps remain in the serial queue. Root seed
+adoption and the pending manual commit still await those gates.
+
 ## Native image options and replacement OS consumers, 2026-10-09
 
 The separate [native image option owner](NATIVE-IMAGE-OPTIONS.md) passes all

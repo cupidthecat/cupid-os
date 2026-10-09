@@ -109,11 +109,17 @@ The minimal 360-byte object and 2,048-byte PE remain unchanged. Only the runtime
 image's measured size and digest are projected into the idle private fixtures
 after both compatibility replays close. The root fixture remains unchanged.
 
-The serial consumer queue now runs all four SDK profiles, both complete public
-selections and both actual Make bootstraps. Each SDK keeps its original complete
-independent check; public and Make results require their complete rereading.
-These gates remain open. The queue uses one full producer job at a time with
-the original two workers and process bounds.
+The first serial SDK consumer, Linux default, passes in 4,588.616 seconds under
+`mixed-qualified-sdk-default-linux1`. Its complete independent rereading passes
+in 63.093 seconds, checking 104 SDK inputs, 98 bootstrap inputs, all 77 complete
+stage pairs, the full manifest and all 22 published images against retained
+stage four. Evidence is `mixed-qualified-sdk-default-linux1-independent-products.json`.
+
+The queue now runs the Linux long-path profile before the two Windows SDK
+profiles, both complete public selections and both actual Make bootstraps.
+Each SDK keeps its original complete independent check; public and Make results
+require their complete rereading. These remaining gates stay open. The queue
+uses one full producer job at a time with the original two workers and bounds.
 
 All fifteen installed bootstrap seed files still have the `a1cc8f3a` identities.
 No normal recipe ownership transfers through this private projection.

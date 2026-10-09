@@ -1,5 +1,40 @@
 # Bootstrapping log
 
+## 2026-10-09: Retain native image input paths and observer lifetimes
+
+A private path-selection owner resolves parent aliases, retains physical parents
+before releasing resolution handles and rechecks original bindings. Optional
+missing suffixes retain their first absence. The image discovery owner copies
+request/destination strings, retains required and optional inputs, reuses primary
+descendants and interns external physical roots. Its comparison helper reads
+only already retained files and grants no source authority.
+
+The first selection passes 128 method executions and 188 calls. Five subsequent
+direct identity methods extend acceptance to forty methods per caller: 148
+executions, twelve platform skips and 236 calls. Fresh Windows/Linux native and
+Cupid builds pass. Independent rereading passes in 30.282 seconds and checks
+206 controls, five whole checked object pairs, complete same-host results and
+all 106 original observer regression calls. Direct failures cover unretained
+files, bad logical paths/UTF-8, null arguments, metadata and digest drift.
+
+The first fixtures use a wrong WAD option, an expectation derived from their
+directory name and a wrong WAD destination. Corrections use the original option
+and destination oracle without changing implementation bytes. Independent checker
+repairs preserve all predicates while correcting the measured Linux call count
+and current/preceding artifact paths. Every original failure remains retained.
+The full stage-vector case repeats one file; distinct-observation capacity still
+needs complete command acceptance. See [the discovery record](NATIVE-INPUT-DISCOVERY.md)
+and ADR 0456.
+
+The first replacement-seed SDK consumer, Linux default, passes in 4,588.616
+seconds. Its original independent rereading passes in 63.093 seconds and checks
+104 SDK inputs, 98 bootstrap inputs, all 77 complete stage pairs and 22 published
+images. The Linux long-path profile is live; the remaining SDK, complete public
+methods and actual Make bootstraps stay serialized. Root seed adoption, manual
+commit, source-plan integration, complete seed/output authority and whole native
+publication remain open. All 99 normal producer inputs and fifteen installed
+seed identities stay unchanged. No ownership count changes here.
+
 ## 2026-10-09: Preserve retained image help and pathname grammar
 
 A 39-case replay against the actual original command records twenty
