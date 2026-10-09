@@ -1,5 +1,25 @@
 # Bootstrapping log
 
+## 2026-10-08: Qualify the committed mixed width producer source
+
+Both complete qualifications pass for committed `acbbd834` and its exact
+99-input snapshot. Windows completes in 2,158.125 seconds and Linux in
+2,252.197, with conventional producers blocked, two workers and the original
+process bounds. Both stage-three and stage-four behavior generations pass.
+
+Independent checks pass in 5.889 and 6.168 seconds. They reread every byte of
+291 staged products, 97 complete fixed-point pairs and 7,761 published files,
+and bind the actual preparation inputs to the committed Git blobs. Both final
+tool sets match all twelve reviewed release identities. Windows keeps its
+60 success, 54 rejection and seven help groups; Linux keeps 73, 66 and seven.
+All fifteen installed seeds remain unchanged at `a1cc8f3a`.
+
+The pending manual update records the completed qualification. Its new payload
+needs fresh OS acceptance through the replacement cohort. Seed carriage, complete
+consumer acceptance, native disk recipe ownership and the two SDK coordinator
+replacements remain open. Private UNC and discovery source is excluded from
+this qualified producer snapshot. See [the mutation record](MIXED-WIDE-MUTATION.md).
+
 ## 2026-10-08: Retain ordinary Windows UNC share roots
 
 A separate host copy selects an ordinary drive or UNC server/share anchor,

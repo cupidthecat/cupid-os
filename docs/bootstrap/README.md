@@ -12,8 +12,11 @@ producer bindings. The refreshed manual passes paired normal OS/image and
 user builds, all four strict private boots and complete independent comparison.
 All 99 producer files now match committed `acbbd834` exactly and both retained
 preparations pass complete independent review. The paired release candidate is
-written and full behavior qualification is running on both hosts. Qualification
-and seed carriage remain open.
+written and both complete qualifications pass. Independent rereading checks
+291 staged products, 97 fixed-point pairs, 7,761 published files and all
+99 exact committed inputs. Seed carriage and replacement-tool consumer
+acceptance remain open. [The seed candidate record](QUALIFIED-MIXED-WIDE-SEEDS.md)
+binds its private fifteen-file projection and fresh zero-object consumers.
 
 The new normal-source compilers build all four private publisher callers per
 host. Independent checking compares every object and eight complete program
@@ -116,7 +119,8 @@ Independent checking verifies all forty native and Cupid combinations and their
 complete outputs. The two producer changes and four test paths are applied to
 the bootstrap worktree, where fresh independent checks repeat all forty
 methods and twelve native contracts. Refreshed-manual OS acceptance passes;
-committed-source qualification and seed carriage remain open.
+both committed-source qualifications pass complete independent checking.
+Seed carriage and acceptance through replacement tools remain open.
 
 ## Hosted putchar and optional stage evidence, 2026-10-08
 

@@ -2596,8 +2596,10 @@ methods pass. Wide shift counts, atomic/boolean mutation and partial volatile
 bit-field mutation retain their rejection contracts. The refreshed manual
 passes paired normal kernel/image and user builds plus all four strict private
 boots. Independent comparison checks every object, complete image, user product
-and the preserved FAT suffix. Committed-source qualification and seed carriage
-remain open.
+and the preserved FAT suffix. Both complete committed-source qualifications and
+independent checks pass for `acbbd834`, covering 291 staged products, 97 whole
+fixed-point pairs, 7,761 published files and all 99 exact committed inputs.
+Seed carriage and acceptance through replacement tools remain open.
 The new normal-source compilers build all four private publisher callers on
 each host, with every object and eight complete program pairs matching the
 preceding builds byte for byte. Their private host and publisher source remains

@@ -5,7 +5,8 @@
 Applied to bootstrap source on 2026-10-08. Native and Cupid execution contracts
 pass. Paired refreshed-manual kernel/image and normal user builds, all four
 strict private boots and complete independent comparisons pass.
-Committed-source qualification and seed carriage remain pending.
+Both complete committed-source qualifications and independent checks pass.
+Seed carriage and acceptance through replacement tools remain pending.
 
 ## Context
 
@@ -51,6 +52,13 @@ compares complete outputs across forty native and Cupid caller/method
 combinations and verifies twelve native IR/object contracts. Exactly two of the
 99 producer paths differ from the qualified hosted library source. Private host
 and publisher extensions are excluded.
+
+Committed `acbbd834` passes Windows qualification in 2,158.125 seconds and
+Linux qualification in 2,252.197 seconds. Independent rereading checks all
+291 staged products, 97 complete fixed-point pairs, 7,761 published files,
+99 exact committed inputs and fifteen unchanged parent seed files. Both final
+tool sets match the reviewed release. The producer workers and original bounds
+remain unchanged.
 
 [The implementation record](../bootstrap/MIXED-WIDE-MUTATION.md) retains the
 application, source/producer bindings, failed fixture copies, fresh worktree

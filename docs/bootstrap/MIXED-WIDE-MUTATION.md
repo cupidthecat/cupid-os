@@ -115,9 +115,9 @@ seed files and both complete 200 MiB images. It verifies the 103-field,
 101-provider user ABI, the complete manual in every kernel and the unchanged
 baseline FAT suffix. The images share SHA-256
 `8869c891beafa901eeb9b9adae791831659de0b16e22683deb812a2fdce9d158`.
-All 99 compiler inputs remain held. Complete behavior qualification, seed
-carriage and replacement-cohort
-OS/SDK/public acceptance remain open. The normal disk recipe and both SDK
+All 99 compiler inputs remain held. Both complete behavior qualifications now
+pass as recorded below. Seed carriage and replacement-cohort OS/SDK/public
+acceptance remain open. The normal disk recipe and both SDK
 coordinators still use Python. TempleOS remains read-only and excluded.
 
 ## Canonical ownership audit repair
@@ -138,7 +138,7 @@ generated preprocessor-case bytes. The current inventory contains 786 active
 inputs, 255 features, 452 transforms and 73 accounted unreachable sources.
 The first failed command remains retained.
 
-## Committed source binding and active qualification
+## Committed source binding and completed qualification
 
 Commit `acbbd8342d8901169c5484742b168277ce9bbdd1` contains the two IR producer
 changes, four test paths, accepted manual, measured policy and documentation.
@@ -156,9 +156,26 @@ every source, product, preparation and seed predicate remains in place. The
 original failed receipt and helper are retained.
 
 `mixed-hosted-reviewed-release-author1` writes the paired release candidate
-for that exact source revision and snapshot. It remains an unqualified artifact
-identity record. Full behavior qualification is running under
-`mixed-hosted-source-qualify-{windows,linux}1`, with conventional producers
-blocked, two workers and the original command bounds. Both successful commands
-and their independent complete publication checks must close before seed
-carriage. Installed tools remain at the qualified `a1cc8f3a` cohort.
+for that exact source revision and snapshot. Both complete qualifications pass
+under `mixed-hosted-source-qualify-{windows,linux}1`, in 2,158.125 seconds on
+Windows and 2,252.197 on Linux. Conventional producers stay blocked, with two
+workers and the original command bounds.
+
+`mixed-hosted-qualification-{windows,linux}-independent1/closed.json` passes
+in 5.889 and 6.168 seconds respectively. Windows supplies 159 complete staged
+products, 53 whole fixed-point pairs and 3,423 published files; Linux supplies
+132 products, 44 pairs and 4,338 files. Together these checks cover all 291
+products, 97 pairs and 7,761 files, plus the exact 99 committed producer
+inputs, actual preparation copies and twelve reviewed final tool identities.
+Windows retains 60 success groups, 54 rejection groups and seven help groups;
+Linux retains 73, 66 and seven. Both behavior generations complete.
+
+All fifteen installed seed files remain unchanged at qualified `a1cc8f3a`.
+The new release is qualified for its exact source and artifacts. Its installed
+projection and complete OS, SDK and public-bootstrap consumer acceptance
+remain open. Private UNC/discovery source is outside this qualified cohort.
+
+[The seed candidate record](QUALIFIED-MIXED-WIDE-SEEDS.md) records the private
+fifteen-file projection, paired manifest binding and fresh zero-object OS/test
+consumers. Complete replacement-tool acceptance remains separate from the
+completed producer qualification.

@@ -22,8 +22,10 @@ repeat all forty methods and twelve native contracts. The new normal-source
 compilers build all four private publisher programs per host, with every object
 and eight complete program pairs matching the preceding builds byte for byte.
 The refreshed manual passes paired normal image/user builds, all four strict
-private boots and complete independent product/image comparison. Committed
-qualification and replacement seed carriage remain separate requirements.
+private boots and complete independent product/image comparison. Both complete
+committed-source qualifications and independent checks now pass, covering
+291 products, 97 fixed-point pairs, 7,761 published files and all 99 committed
+inputs. Replacement seed carriage and consumer acceptance remain open.
 
 Separate [native stage argument interpretation](DISK-STAGE-ARGUMENTS.md) now
 passes all 32 native/Cupid method executions and 464 actual program invocations.
