@@ -10,7 +10,10 @@ callers pass all forty methods and twelve native IR/object contracts.
 [The mutation record](MIXED-WIDE-MUTATION.md) keeps exact source, output and
 producer bindings. The refreshed manual passes paired normal OS/image and
 user builds, all four strict private boots and complete independent comparison.
-Committed-source qualification and seed carriage remain open.
+All 99 producer files now match committed `acbbd834` exactly and both retained
+preparations pass complete independent review. The paired release candidate is
+written and full behavior qualification is running on both hosts. Qualification
+and seed carriage remain open.
 
 The new normal-source compilers build all four private publisher callers per
 host. Independent checking compares every object and eight complete program

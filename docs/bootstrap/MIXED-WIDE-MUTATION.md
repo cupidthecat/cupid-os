@@ -115,8 +115,8 @@ seed files and both complete 200 MiB images. It verifies the 103-field,
 101-provider user ABI, the complete manual in every kernel and the unchanged
 baseline FAT suffix. The images share SHA-256
 `8869c891beafa901eeb9b9adae791831659de0b16e22683deb812a2fdce9d158`.
-All 99 compiler inputs remain held. Source commit binding, complete behavior
-qualification, seed carriage and replacement-cohort
+All 99 compiler inputs remain held. Complete behavior qualification, seed
+carriage and replacement-cohort
 OS/SDK/public acceptance remain open. The normal disk recipe and both SDK
 coordinators still use Python. TempleOS remains read-only and excluded.
 
@@ -137,3 +137,28 @@ entries, no removed unreachable source, and unchanged compiler, seed and
 generated preprocessor-case bytes. The current inventory contains 786 active
 inputs, 255 features, 452 transforms and 73 accounted unreachable sources.
 The first failed command remains retained.
+
+## Committed source binding and active qualification
+
+Commit `acbbd8342d8901169c5484742b168277ce9bbdd1` contains the two IR producer
+changes, four test paths, accepted manual, measured policy and documentation.
+It is pushed to `bootstrap/cupid-self-hosting` without merging main.
+`mixed-hosted-preparations-committed-independent2/closed.json` passes in
+20.370 seconds. It compares all 99 source files with their exact committed Git
+blobs and both retained preparation copies, without line-ending conversion.
+It rechecks 291 complete products, 97 fixed-point pairs and fifteen unchanged
+installed seeds, and retains an exact 232-file Linux preparation for native
+Windows release authoring.
+
+The first checker cannot launch Windows `git.exe` from WSL. The corrected checker
+uses native Git to read the same committed objects from the common repository;
+every source, product, preparation and seed predicate remains in place. The
+original failed receipt and helper are retained.
+
+`mixed-hosted-reviewed-release-author1` writes the paired release candidate
+for that exact source revision and snapshot. It remains an unqualified artifact
+identity record. Full behavior qualification is running under
+`mixed-hosted-source-qualify-{windows,linux}1`, with conventional producers
+blocked, two workers and the original command bounds. Both successful commands
+and their independent complete publication checks must close before seed
+carriage. Installed tools remain at the qualified `a1cc8f3a` cohort.

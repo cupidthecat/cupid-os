@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## 2026-10-08: Commit mixed mutation source and start paired behavior qualification
+
+Commit `acbbd834` is pushed to the bootstrap branch with the two IR producer
+changes, four test paths, accepted manual and measured raw-kernel policy.
+Independent committed-source checking passes in 20.370 seconds, comparing all
+99 raw Git blobs, both preparation source copies, 291 complete products and
+97 fixed-point pairs. An exact 232-file Linux preparation is retained on the
+shared filesystem, and all fifteen installed seeds remain unchanged.
+
+The first checker fails because WSL cannot launch Windows Git. Its replacement
+reads the same committed objects with native Git while retaining every source,
+product, preparation and seed check. The failed receipt remains retained.
+Paired release authoring passes and writes an unqualified identity record.
+Both complete source qualifiers are running with conventional producers blocked,
+two workers and their original bounds. Qualification, independent publication
+checking and seed carriage remain open. See
+[the mutation record](MIXED-WIDE-MUTATION.md).
+
 ## 2026-10-08: Compare retained physical roots without weakening observation checks
 
 A separate host source copy adds physical-root comparison after complete
