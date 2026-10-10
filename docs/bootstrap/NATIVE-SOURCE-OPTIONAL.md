@@ -101,9 +101,23 @@ parent forms. The first diagnostic incorrectly expects both Python hosts to
 reject a regular-file parent; its failed receipt is retained. These controls
 do not establish complete Python discovery compatibility.
 
+The later [missing-path revalidation diagnostic](evidence/native-source-missing-revalidation-20261010.json)
+compares twenty calls through the unchanged four native/Cupid callers.
+Python permits missing ancestors to appear while the requested leaf remains
+absent. The held owner rejects appearance of its first absence. Eight calls
+show that difference; twelve controls agree for unchanged paths, siblings
+and appearing leaves. The diagnostic evaluates the actual Python publication
+predicate without authoring a complete image. Existing owner contracts stay
+unchanged; image integration must resolve this additional compatibility gap.
+
 ## Reproduce
 
-From the repository root, use a fresh direct child of `build`:
+The complete replay below belongs to `76f345f9`, before the subsequent
+[manual acceptance](SOURCE-OWNER-MANUAL.md) changes two of its twenty
+captured root files. Use that commit to reproduce this historical packet.
+Its exact manual and policy guards remain intact.
+
+From that repository root, use a fresh direct child of `build`:
 
 ```sh
 python docs/bootstrap/prototypes/replay-native-source-optional.py --output build/source-optional-replay

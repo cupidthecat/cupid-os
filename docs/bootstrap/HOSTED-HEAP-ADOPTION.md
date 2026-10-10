@@ -1,5 +1,11 @@
 # Hosted heap seed and manual adoption
 
+This record retains the heap promotion and its 72,415-byte manual. The
+later [source-owner manual acceptance](SOURCE-OWNER-MANUAL.md) installs
+73,031 bytes after complete paired and normal-root builds and strict boots.
+The installed tools and 99-input producer cohort retain their accepted
+bytes.
+
 The qualified `1d852023` Linux and Windows tool pair passes paired cold OS
 builds, user and ABI checks, exact artifact gates and strict boots. The final
 72,415-byte manual also passes complete follow-up builds on both hosts. Every

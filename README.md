@@ -33,8 +33,10 @@ and native report audit correction remain recorded. [Seed/manual
 adoption](docs/bootstrap/HOSTED-HEAP-ADOPTION.md) and its final paired cold
 builds and boots pass. The normal checkout also passes complete build,
 seed-reader/release-operation and strict boot checks; all products equal the
-accepted pair. The final manual is 72,415 bytes, and the raw kernel is
-9,301,660 bytes. The three Python coordinators remain.
+accepted pair. The later [manual refresh](docs/bootstrap/SOURCE-OWNER-MANUAL.md)
+also passes paired builds and strict boots. The installed manual is 73,031
+bytes, and the raw kernel is 9,302,276 bytes. The three Python coordinators
+remain.
 
 ## Optional source-file owners, 2026-10-10
 

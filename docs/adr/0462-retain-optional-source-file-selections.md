@@ -5,7 +5,8 @@
 Implemented as a held patch on 2026-10-10. Four native/Cupid callers pass all
 382 new contracts and both complete repository replays pass. The normal source
 cohort and recipe ownership remain unchanged. Complete native image discovery
-and publication remain open.
+and publication remain open. The later [manual acceptance](../bootstrap/SOURCE-OWNER-MANUAL.md)
+records these held APIs in the OS manual after paired builds and boots.
 
 ## Context
 
@@ -53,7 +54,12 @@ four unchanged-capacity controls pass; the first timeout's cause is unproven.
 
 Python skips children of broken parent aliases on both hosts and children of
 regular-file parents on Windows. The held owner rejects both forms. Native
-image integration must resolve those compatibility differences. This patch
-does not retire any of the three Python coordinators, enter the normal 99-input
-closure or establish complete image ownership. TempleOS remains read-only and
+image integration must resolve those compatibility differences. A later
+[twenty-call diagnostic](../bootstrap/evidence/native-source-missing-revalidation-20261010.json)
+also finds that Python permits absent ancestors to appear while the final
+leaf remains missing. The held first-absence contract rejects that change.
+Those calls retain the existing owner and observer behavior and evaluate
+the publication predicate without claiming complete image publication.
+The three Python coordinators and normal 99-input closure remain unchanged.
+Complete image ownership remains open. TempleOS remains read-only and
 excluded.

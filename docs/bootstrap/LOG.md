@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## OS manual acceptance for retained source files, 2026-10-10
+
+The OS manual now records the held required and optional source-file owners,
+their metadata and retained-stream boundaries, and the remaining Python
+parent-path compatibility gaps. Both complete host builds pass user/ABI
+checks, all sixteen exact artifact gates and four strict boots. Independent
+review compares all 429 whole object pairs, four linked products, six user
+products and all 209,715,200 image bytes. The normal root repeats its build
+and both strict boots; every whole product equals the accepted pair. All
+seventeen unchanged artifact-policy regression methods also pass.
+
+The installed manual is 73,031 bytes. Its 616-byte growth moves the raw
+kernel to 9,302,276 bytes and both ELF files across a page boundary. Three
+measured kernel policy rows change; all thirteen other rows remain exact.
+The [manual acceptance](SOURCE-OWNER-MANUAL.md) retains the first failed
+harness receipts and complete corrected results. The 99 producer inputs,
+installed tool cohort and three Python coordinators remain unchanged.
+
 ## 2026-10-10: Retain optional source-file selections
 
 The held [optional source-file owner](NATIVE-SOURCE-OPTIONAL.md) selects

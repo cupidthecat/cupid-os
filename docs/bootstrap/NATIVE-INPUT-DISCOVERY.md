@@ -15,7 +15,8 @@ acceptance below retains its original checkpoint and guards.
 The shared [hosted heap](HOSTED-HEAP.md) is now normal source at `1d852023`.
 Current tests cover both hosts and the normal Windows UTF-8/long-path profile;
 both complete qualifications pass for the exact 99-input source cohort, with
-replacement-tool consumers pending. Normal
+replacement-tool consumers and seed adoption complete. Both private host
+images and the normal root pass their full builds and strict boots. Normal
 image publication still uses Python. The discovery, option and quota extensions
 described below remain private implementations. Their `cp7` products are absent
 from the current linked worktree and cannot establish current integration.
@@ -30,8 +31,10 @@ resolution. The [source spelling component](NATIVE-SOURCE-PATHS.md) now passes
 354 calls covering actual Python spellings and useful API failures through four
 native/Cupid callers. It normalizes lexical paths before aliases are resolved
 and retains an unapplied patch and repository replay. The later required-file
-owner supplies regular-file selection. Optional missing selection and the
-complete discovery owner below still need implementation and integrated acceptance.
+owner supplies regular-file selection. The later optional owner supplies
+nearest-existing-parent and missing-suffix retention. Python parent-path
+compatibility and the complete discovery owner below still need integrated
+acceptance.
 
 The [source observer profile](NATIVE-SOURCE-OBSERVER.md) also has a direct held
 patch and complete paired replays. It retains the POSIX colon/backslash names
@@ -46,8 +49,10 @@ replays pass. The [required source-file owner](NATIVE-SOURCE-FILE.md) now retain
 each original absolute parent request and regular leaf. Its 232 new contracts
 and both repository replays pass. The full selection preserves all 1,360 current
 API outcomes, every original legacy/alias result and all 35 whole checked objects
-and eighteen programs. Optional missing-parent selection, physical-root
-interning and the complete owner below remain open.
+and eighteen programs. The later optional owner passes its complete paired
+replays and is documented in the [accepted OS manual](SOURCE-OWNER-MANUAL.md).
+Python parent-path compatibility, physical-root interning and the complete
+owner below remain open.
 
 The private source at `C:/Users/admin/cp7/input-discovery-source4` owns the
 path strings and read-only observers needed by an interpreted image request.

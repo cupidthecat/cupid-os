@@ -35,6 +35,14 @@ memberships.
 The held source-root prototype copies the original absolute directory request
 and resolved physical root. Complete validation and borrowed publication reject
 changed request bindings even while the original physical directory still exists.
+The held source-file prototype retains a regular leaf and its original parent
+request. Its optional constructor selects a regular file or keeps the first
+absent component beneath the nearest existing directory, with the complete
+requested suffix. Views recheck the original parent binding before exposing
+borrowed names. Optional source validation permits unrelated sibling changes
+unless directory membership was captured; required metadata checks stay strict.
+Retained streaming protects payloads against restored-time edits. Native image
+parity still needs the Python broken-parent and Windows file-parent rules.
 The image recipe still requires its complete native input owner
 and publication handoff; its normal coordinator currently uses Python.
 

@@ -2685,8 +2685,10 @@ object pairs, four linked outputs, six user products and all 209,715,200 image
 bytes. The normal checkout repeats the build, user/ABI and artifact checks,
 all 170 unchanged seed-reader and release-operation methods, and both strict
 boots. Its complete products equal the accepted pair. The final manual is
-72,415 bytes and the raw kernel is 9,301,660 bytes. The 99 producer inputs and
-449 CupidBuild / three Python ownership counts remain unchanged.
+73,031 bytes after documenting the held source-file owners, and the raw
+kernel is 9,302,276 bytes. Its separate paired and normal-root builds
+and strict boots pass. The 99 producer inputs and 449 CupidBuild / three
+Python ownership counts remain unchanged.
 
 ## Optional source-file owners, 2026-10-10
 
