@@ -23,6 +23,17 @@ independent review accepts 22 published programs, 104 SDK inputs and all 77
 complete stage pairs. The other three SDK profiles, original public methods
 and both Make bootstraps remain in progress.
 
+## Native image argument owner, 2026-10-10
+
+A [reproducible C owner](docs/bootstrap/NATIVE-IMAGE-ARGUMENT-OWNER.md) interprets
+image options, repeated stages and final WAD groups under both actual host
+parser profiles. Four native/Cupid callers pass all 11,954 captured sequences,
+for 47,816 complete calls, with seven equal shared object pairs. Both hosts also
+pass the installed-seed repository replay. The held patch includes allocation
+failure and borrowed/owned storage checks. Normal image-command discovery,
+observers, diagnostics and publication remain open; three Python coordinators
+remain.
+
 ## Native image integer prototype, 2026-10-10
 
 A [reproducible C prototype](docs/bootstrap/NATIVE-IMAGE-INTEGERS.md) preserves

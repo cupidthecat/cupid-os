@@ -35,6 +35,23 @@ original public methods and both Make bootstraps continue. The existing historic
 fixtures keep their recognized pre-ISO no-context contract; all sixteen unchanged
 methods pass on each host.
 
+## Native image argument owner, 2026-10-10
+
+The [reproducible C owner](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-IMAGE-ARGUMENT-OWNER.md)
+interprets required image values, repeated stages and the final WAD group under
+both actual host option grammars. Four native/Cupid callers pass all 11,954
+captured sequences: 47,816 calls with equal complete results and seven equal
+shared object pairs. Both installed-seed repository replays pass and recheck
+their actual host's complete original parser output. Allocation probes verify
+failure unwinding and borrowed pathname/owned destination lifetimes.
+
+The source remains an unapplied patch outside the normal 99-input cohort. Native
+path normalization, discovery, observers, complete diagnostics and publication
+still precede normal recipe adoption. The Linux fixture's mounted-filesystem
+timeout is repaired with 64 KiB I/O buffers under the original bounds; failed
+receipts and the filesystem diagnostic remain recorded. Three normal Python
+coordinators remain.
+
 ## Native image integer prototype, 2026-10-10
 
 The [held C source](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-IMAGE-INTEGERS.md)

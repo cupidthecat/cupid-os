@@ -1,0 +1,1946 @@
+{
+  "all_complete_results_equal": true,
+  "cases_per_caller": 11954,
+  "complete_calls": 47816,
+  "help_calls": 3696,
+  "independent_verifier": {
+    "sha256": "ba7fe0d98c8ae470dbe3b18b216131ad13e24312551d6ca3ab5bb60b7dd8278a",
+    "size": 5716
+  },
+  "installed_seed_files_unchanged": 15,
+  "negative_calls": 6960,
+  "normal_99_raw_committed_inputs_unchanged": true,
+  "normal_recipe_ownership_transferred": false,
+  "originals": {
+    "linux": {
+      "original": {
+        "actual_argparse_source": {
+          "sha256": "29395feb61bc376ca4ff9d44069af8d914ec2a1f25a4bd7978f6e2afef5bc07f",
+          "size": 101750
+        },
+        "actual_current_host_oracle_cases": 5937,
+        "actual_original_stdout_and_stderr_equal": true,
+        "all_owner_allocation_failures_unwind": true,
+        "argv_path_views_borrowed": true,
+        "calls": 23908,
+        "cases_per_caller": 11954,
+        "checked_image": {
+          "sha256": "2a5e560c19bfd64114b0b0e3189dc6ed14e5b37b979f1de25fc590962fe52a5e",
+          "size": 102472
+        },
+        "commands": [
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/usr/bin/clang",
+              "-x",
+              "c",
+              "-std=c11",
+              "-O2",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-I",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/toolchain",
+              "-D",
+              "calloc=cupidbuild_disk_options_fault_calloc",
+              "-D",
+              "malloc=cupidbuild_disk_options_fault_malloc",
+              "-D",
+              "free=cupidbuild_disk_options_fault_free",
+              "-D",
+              "cupidbuild_disk_options_open=cupidbuild_disk_options_fault_open",
+              "-D",
+              "cupidbuild_disk_options_view=cupidbuild_disk_options_fault_view",
+              "-D",
+              "cupidbuild_disk_options_stage=cupidbuild_disk_options_fault_stage",
+              "-D",
+              "cupidbuild_disk_options_close=cupidbuild_disk_options_fault_close",
+              "-c",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/source/cupidbuild_disk_options.cc",
+              "-o",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/native-options-fault.o"
+            ],
+            "exit_code": 0,
+            "label": "native-fault-build",
+            "seconds": 0.17839421999997285,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 180
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/usr/bin/clang",
+              "-x",
+              "c",
+              "-std=c11",
+              "-O2",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-I",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/toolchain",
+              "-DCUPID_DISK_OPTIONS_NATIVE=1",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/source/cupidbuild_disk_options.cc",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/source/cupidbuild_disk_integer.cc",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/source/cupidbuild_disk_options_contract.cc",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/source/cupidbuild_disk_options_fault_contract.cc",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/toolchain/path_encoding.cc",
+              "-x",
+              "none",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/native-options-fault.o",
+              "-o",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/native.elf"
+            ],
+            "exit_code": 0,
+            "label": "native-build",
+            "seconds": 0.6903179099999761,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 180
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupidc.elf",
+              "--root",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009",
+              "-D",
+              "calloc=cupidbuild_disk_options_fault_calloc",
+              "-D",
+              "malloc=cupidbuild_disk_options_fault_malloc",
+              "-D",
+              "free=cupidbuild_disk_options_fault_free",
+              "-D",
+              "cupidbuild_disk_options_open=cupidbuild_disk_options_fault_open",
+              "-D",
+              "cupidbuild_disk_options_view=cupidbuild_disk_options_fault_view",
+              "-D",
+              "cupidbuild_disk_options_stage=cupidbuild_disk_options_fault_stage",
+              "-D",
+              "cupidbuild_disk_options_close=cupidbuild_disk_options_fault_close",
+              "-c",
+              "/build/image-options-replay-linux1/source/cupidbuild_disk_options.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-linux1/objects/options-fault.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-options-fault",
+            "seconds": 3.2879131489999054,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupidc.elf",
+              "--root",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009",
+              "-c",
+              "/build/image-options-replay-linux1/source/cupidbuild_disk_options.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-linux1/objects/options.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-options",
+            "seconds": 3.3275891249995766,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupidc.elf",
+              "--root",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009",
+              "-c",
+              "/build/image-options-replay-linux1/source/cupidbuild_disk_integer.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-linux1/objects/number.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-number",
+            "seconds": 0.8474603149998075,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupidc.elf",
+              "--root",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009",
+              "-c",
+              "/build/image-options-replay-linux1/source/cupidbuild_disk_options_contract.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-linux1/objects/contract.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-contract",
+            "seconds": 1.499530281999796,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupidc.elf",
+              "--root",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009",
+              "-c",
+              "/build/image-options-replay-linux1/source/cupidbuild_disk_options_fault_contract.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-linux1/objects/fault-probe.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-fault-probe",
+            "seconds": 0.5180869200003144,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupidc.elf",
+              "--root",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009",
+              "-c",
+              "/build/image-options-replay-linux1/source/fgetc_extension.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-linux1/objects/fgetc.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-fgetc",
+            "seconds": 0.06736141399960616,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupidc.elf",
+              "--root",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009",
+              "-c",
+              "/toolchain/path_encoding.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-linux1/objects/path.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-path",
+            "seconds": 1.908764305000659,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupidc.elf",
+              "--root",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009",
+              "--gnu",
+              "-c",
+              "/toolchain/hosted/i386-linux/runtime.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-linux1/objects/runtime.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-runtime",
+            "seconds": 5.790954120999231,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupidasm.elf",
+              "-f",
+              "elf32",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/toolchain/hosted/i386-linux/start.asm",
+              "-o",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/start.o"
+            ],
+            "exit_code": 0,
+            "label": "assemble",
+            "seconds": 0.07997475399952236,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupidld.elf",
+              "-m",
+              "elf_i386",
+              "--text-address",
+              "0x08048000",
+              "--entry",
+              "_start",
+              "-o",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/checked.elf",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/start.o",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/options.o",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/options-fault.o",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/number.o",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/contract.o",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/fault-probe.o",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/fgetc.o",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/path.o",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/runtime.o"
+            ],
+            "exit_code": 0,
+            "label": "link",
+            "seconds": 0.05561625800055481,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 180
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupiddis.elf",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/contract.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-contract.o",
+            "seconds": 0.08844523599964305,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupiddis.elf",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/fault-probe.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-fault-probe.o",
+            "seconds": 0.05436801900032151,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupiddis.elf",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/fgetc.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-fgetc.o",
+            "seconds": 0.038957630999902904,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupiddis.elf",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/number.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-number.o",
+            "seconds": 0.05957023699920683,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupiddis.elf",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/options-fault.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-options-fault.o",
+            "seconds": 0.12370660600026895,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupiddis.elf",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/options.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-options.o",
+            "seconds": 0.13113097800032847,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupiddis.elf",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/path.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-path.o",
+            "seconds": 0.09217774300032033,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupiddis.elf",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/runtime.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-runtime.o",
+            "seconds": 0.18667845800064242,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupiddis.elf",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/objects/start.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-start.o",
+            "seconds": 0.03782818799936649,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/seed/cupiddis.elf",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/checked.elf"
+            ],
+            "exit_code": 0,
+            "label": "strict-checked.elf",
+            "seconds": 0.48880513600033737,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": 33554432,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/native.elf",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/request.bin",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/native-results.bin"
+            ],
+            "exit_code": 0,
+            "label": "native-runtime",
+            "seconds": 0.06827674799933448,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 60
+          },
+          {
+            "address_space_bytes": 33554432,
+            "argv": [
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/checked.elf",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/request.bin",
+              "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/image-options-replay-linux1/checked-results.bin"
+            ],
+            "exit_code": 0,
+            "label": "checked-runtime",
+            "seconds": 1.2980364860004556,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 60
+          }
+        ],
+        "complete_result": {
+          "sha256": "202f6bc0e9735a8c01cbc78303f71159d38503bd291a724bc4fc1b73f3898e59",
+          "size": 1952647
+        },
+        "fixture_io_chunk_bytes": 65536,
+        "generated_wad_destinations_owned": true,
+        "help_calls": 1848,
+        "host": "linux",
+        "inputs": {
+          "build/image-options-replay-linux1/source/cupidbuild_disk_integer.cc": {
+            "sha256": "f096ef8afdbd22fe3f7485d4be965081cef6cc92574f2199b7e1af17e0941db8",
+            "size": 5188
+          },
+          "build/image-options-replay-linux1/source/cupidbuild_disk_integer.h": {
+            "sha256": "c382c730ad976618ac3c9783c7cb7b8f03368262b94761ca5f8d7576e748d1aa",
+            "size": 1219
+          },
+          "build/image-options-replay-linux1/source/cupidbuild_disk_integer_tables.inc": {
+            "sha256": "ce397615d42511bc7d83eab970bc5efa285452669234deac20c93afe48047247",
+            "size": 2050
+          },
+          "build/image-options-replay-linux1/source/cupidbuild_disk_options.cc": {
+            "sha256": "8d998aba16120dae4c3499e45b6699ece8a2e1dafee3d92d67a4cd3280ebeb30",
+            "size": 14394
+          },
+          "build/image-options-replay-linux1/source/cupidbuild_disk_options.h": {
+            "sha256": "f6ba20a7d00dd19c1d51317f52f3e13b38871e1e3e50dfc99d6522889710df92",
+            "size": 2394
+          },
+          "build/image-options-replay-linux1/source/cupidbuild_disk_options_contract.cc": {
+            "sha256": "0424da2550c5e254587769083cbdd981a09df755a93d691bc43dbce8e503edb4",
+            "size": 7700
+          },
+          "build/image-options-replay-linux1/source/cupidbuild_disk_options_fault_contract.cc": {
+            "sha256": "d2f7264668f2539ff715a64a0164e3cc4b7102cfe9b662589acfdf8748c7b136",
+            "size": 3244
+          },
+          "build/image-options-replay-linux1/source/fgetc_extension.cc": {
+            "sha256": "19c7a8c76cdfca92cf3fdcf9c12589e4616d8947708ed49ea64b84df1c10d47b",
+            "size": 154
+          },
+          "build/image-options-replay-linux1/source/fgetc_extension.h": {
+            "sha256": "a61d0d5294d34c5b6d0fef19c55aaf84e693be26bce2e085a52d49bb5eb0a519",
+            "size": 132
+          },
+          "docs/bootstrap/prototypes/native-image-options-oracles.json.gz": {
+            "sha256": "3bab600e230765e9eb0eaeee49e66537feb09c54c88b95b0f7170e7ff3555185",
+            "size": 496740
+          },
+          "docs/bootstrap/prototypes/native-image-options.patch": {
+            "sha256": "4ebceab2a1b942c59cee3db2dac956cc06774e3d2f56198126874af9b4479f4b",
+            "size": 38473
+          },
+          "docs/bootstrap/prototypes/replay-native-image-options.py": {
+            "sha256": "3e78250d243c131df76f47c8a7be32fdde33ce97db480b7bb906b04a5c591758",
+            "size": 19328
+          },
+          "toolchain/hosted/i386-linux/include/cupid_host_abi.h": {
+            "sha256": "75f5ea95099808118319cb05c8c0ccdcd399fffe0350c8e0107e1842df77dd4f",
+            "size": 374
+          },
+          "toolchain/hosted/i386-linux/include/direct.h": {
+            "sha256": "ca8371f6f146f63db416ec71330fe51ff0fb2c04dcaf07a664dad2e0565a4c01",
+            "size": 239
+          },
+          "toolchain/hosted/i386-linux/include/errno.h": {
+            "sha256": "3e90118b90a6a596309bdedc2e382322deaaf4f0751464585cd27b2fe0c59135",
+            "size": 271
+          },
+          "toolchain/hosted/i386-linux/include/stddef.h": {
+            "sha256": "1116b1fc8ddeadf277e0816613e6ab33f5e004eb3cda8e8fc26d98fda8945528",
+            "size": 377
+          },
+          "toolchain/hosted/i386-linux/include/stdint.h": {
+            "sha256": "c11547ba80e6b1703f6fba97c36b043b07a69393c122dd07be71dd5cbd015f17",
+            "size": 1019
+          },
+          "toolchain/hosted/i386-linux/include/stdio.h": {
+            "sha256": "e42e3cf1c1807b4fdd096e57d608ea7556e50d8fe2029b25ac1cde581e5f9115",
+            "size": 1557
+          },
+          "toolchain/hosted/i386-linux/include/stdlib.h": {
+            "sha256": "ba7457596ec83e79c18ba9c325c58fe1e5f5232bb138230e4b7e9e7bec818d75",
+            "size": 335
+          },
+          "toolchain/hosted/i386-linux/include/string.h": {
+            "sha256": "cc92a949f0816c8c07e239d5982d5c8779159afd5542ef78113b525ddabf56e8",
+            "size": 781
+          },
+          "toolchain/hosted/i386-linux/include/unistd.h": {
+            "sha256": "fd597726e04977d24c1b97c8fabcc605fbe4c4f9a9ff3b0c8164b0f39d61b57b",
+            "size": 170
+          },
+          "toolchain/hosted/i386-linux/include/windows.h": {
+            "sha256": "b887ed4c5e17a19e0959f909eaadac492f7cc197701b3e2a9ea2f317bdbc4b80",
+            "size": 9953
+          },
+          "toolchain/hosted/i386-linux/runtime.cc": {
+            "sha256": "ade2b98d00be63c0c0fdaa59e60d9e6726d3dd641d6ab5ae886cbfba67297b1f",
+            "size": 54763
+          },
+          "toolchain/hosted/i386-linux/start.asm": {
+            "sha256": "cadc46d38ade1ad65664b70037b4a9a02bc95bb5cea4f07e08ad0a2d14f33f90",
+            "size": 1260
+          },
+          "toolchain/path_encoding.cc": {
+            "sha256": "295205541474056a06f6467bb247c77058891c25de31c152aa335a0e6a74fa58",
+            "size": 6619
+          },
+          "toolchain/path_encoding.h": {
+            "sha256": "4bad0b0cab07fa2ed7ec89fbbb4fa799297b5750a77ce44184f48610e5338be2",
+            "size": 1094
+          },
+          "tools/hostbuild.py": {
+            "sha256": "de917e6825a84203460f26dfe753c6cfc0c176792ccb0a63373ffd0c56deb249",
+            "size": 213854
+          }
+        },
+        "native_image": {
+          "sha256": "a660d1b1ac3d6a182c7a9aa7daddf45d1f47ac2f4e4a87411641d52067082cc3",
+          "size": 39248
+        },
+        "negative_calls": 3480,
+        "objects": {
+          "contract.o": {
+            "sha256": "8384e4b778002f785ebfbd350b72e67e7ac009a6df5187054939aecee5779100",
+            "size": 11420
+          },
+          "fault-probe.o": {
+            "sha256": "686832c200bd82616e9ad8153ac26527f04bc9c9dbfce7e439ff6673ef710df8",
+            "size": 4592
+          },
+          "fgetc.o": {
+            "sha256": "1bb8e1780e7cd7d4064e406c22fdc1aae1e8321351f94e87afd8628f88f07a20",
+            "size": 556
+          },
+          "number.o": {
+            "sha256": "2cb4f3c97cc39a876df82f4729f969a5705c930bdc9f7984858e321e71b714b0",
+            "size": 5540
+          },
+          "options-fault.o": {
+            "sha256": "4b4ef30c0be8af55af82638dc2d258d18fa3656db6339c24c2648bece1c7a6d2",
+            "size": 18396
+          },
+          "options.o": {
+            "sha256": "c01d8e6e09cfe5ad6194dad0f3e9e1c15f307fe31ac54935d3b401a31baece2e",
+            "size": 18280
+          },
+          "path.o": {
+            "sha256": "34ab4aeaa38aed335ac99ac3a3deccfa27e9c6ac70de3dfb8f898ec34cf03192",
+            "size": 10000
+          },
+          "runtime.o": {
+            "sha256": "51d3ff76543209dc1101686995f2155e73d5b9a3de69e75e242ccc127abe616d",
+            "size": 32664
+          },
+          "start.o": {
+            "sha256": "cd3c6ff524666cd666976df08717ef8c576de982312a008b04bc2bc345af3b9c",
+            "size": 788
+          }
+        },
+        "oracle_fixture": {
+          "sha256": "3bab600e230765e9eb0eaeee49e66537feb09c54c88b95b0f7170e7ff3555185",
+          "size": 496740
+        },
+        "positive_calls": 18580,
+        "producer_sentinels": {
+          "AR": "forbidden-host-AR",
+          "AS": "forbidden-host-AS",
+          "CC": "forbidden-host-CC",
+          "CPP": "forbidden-host-CPP",
+          "CXX": "forbidden-host-CXX",
+          "LD": "forbidden-host-LD",
+          "NASM": "forbidden-host-NASM",
+          "NM": "forbidden-host-NM",
+          "OBJCOPY": "forbidden-host-OBJCOPY"
+        },
+        "prototype_sources": {
+          "cupidbuild_disk_integer.cc": {
+            "sha256": "f096ef8afdbd22fe3f7485d4be965081cef6cc92574f2199b7e1af17e0941db8",
+            "size": 5188
+          },
+          "cupidbuild_disk_integer.h": {
+            "sha256": "c382c730ad976618ac3c9783c7cb7b8f03368262b94761ca5f8d7576e748d1aa",
+            "size": 1219
+          },
+          "cupidbuild_disk_integer_tables.inc": {
+            "sha256": "ce397615d42511bc7d83eab970bc5efa285452669234deac20c93afe48047247",
+            "size": 2050
+          },
+          "cupidbuild_disk_options.cc": {
+            "sha256": "8d998aba16120dae4c3499e45b6699ece8a2e1dafee3d92d67a4cd3280ebeb30",
+            "size": 14394
+          },
+          "cupidbuild_disk_options.h": {
+            "sha256": "f6ba20a7d00dd19c1d51317f52f3e13b38871e1e3e50dfc99d6522889710df92",
+            "size": 2394
+          },
+          "cupidbuild_disk_options_contract.cc": {
+            "sha256": "0424da2550c5e254587769083cbdd981a09df755a93d691bc43dbce8e503edb4",
+            "size": 7700
+          },
+          "cupidbuild_disk_options_fault_contract.cc": {
+            "sha256": "d2f7264668f2539ff715a64a0164e3cc4b7102cfe9b662589acfdf8748c7b136",
+            "size": 3244
+          },
+          "fgetc_extension.cc": {
+            "sha256": "19c7a8c76cdfca92cf3fdcf9c12589e4616d8947708ed49ea64b84df1c10d47b",
+            "size": 154
+          },
+          "fgetc_extension.h": {
+            "sha256": "a61d0d5294d34c5b6d0fef19c55aaf84e693be26bce2e085a52d49bb5eb0a519",
+            "size": 132
+          }
+        },
+        "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+        "request": {
+          "sha256": "75636652fa4b88a0824b1ac9fe74e1a6ad12dbc266a1b941c81fcc648874fba1",
+          "size": 4561704
+        },
+        "schema": "cupid.native-image-options-replay.v1",
+        "seconds": 19.81889570400017,
+        "seed_manifest": {
+          "sha256": "1f7847a6bf7479caa5b34ac99fb05969025c017f0c8dc42b3b98d6f3d50021e2",
+          "size": 9123
+        },
+        "status": "pass",
+        "tools": {
+          "cupidasm": {
+            "sha256": "69e779f7291cfe3bcedd18d8a66ef4ae98385a816f26bf8c237c4a88d79dfdda",
+            "size": 485084
+          },
+          "cupidbuild": {
+            "sha256": "2911cef0cf91ae1e3511135e17e7737b72865cab68580536289b2760338b9e46",
+            "size": 1129436
+          },
+          "cupidc": {
+            "sha256": "7bef8d49ecd5cea9a3392a853f4dce578d96b3e3f2e3e47fdf2487e2b6cb0a4a",
+            "size": 2549284
+          },
+          "cupiddis": {
+            "sha256": "f66cfc8dcdb33308dd6c354b810764652a0294e5bef1fcadc7a3507649639430",
+            "size": 510212
+          },
+          "cupidld": {
+            "sha256": "2242524c1be20e519c4a47bb50b5d1e340e42607e4e4a0a75eac9ae20cdb1a22",
+            "size": 296920
+          },
+          "cupidobj": {
+            "sha256": "6a9851fce7ceb4271311c806a2115d3afdf3333685b31271c6ac05882723f43e",
+            "size": 389404
+          }
+        },
+        "unicode": "15.0.0"
+      },
+      "original_receipt": {
+        "sha256": "1a27bd7dd18a13783e9ca188209f678b1021de4c8e204d6a102ba0bad76d5483",
+        "size": 32632
+      }
+    },
+    "windows": {
+      "original": {
+        "actual_argparse_source": {
+          "sha256": "1a006f224514b6731c799540a39d038f3c85fcd4d9f44128edb0bcb7e8e48040",
+          "size": 106655
+        },
+        "actual_current_host_oracle_cases": 6017,
+        "actual_original_stdout_and_stderr_equal": true,
+        "all_owner_allocation_failures_unwind": true,
+        "argv_path_views_borrowed": true,
+        "calls": 23908,
+        "cases_per_caller": 11954,
+        "checked_image": {
+          "sha256": "609c58dd849d4a9b880de46011edaac952f54ea9fe9e6f247fb3311a346cbe88",
+          "size": 93696
+        },
+        "commands": [
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Program Files\\LLVM\\bin\\clang.EXE",
+              "-x",
+              "c",
+              "-std=c11",
+              "-O2",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-D_CRT_SECURE_NO_WARNINGS=1",
+              "-I",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\toolchain",
+              "-D",
+              "calloc=cupidbuild_disk_options_fault_calloc",
+              "-D",
+              "malloc=cupidbuild_disk_options_fault_malloc",
+              "-D",
+              "free=cupidbuild_disk_options_fault_free",
+              "-D",
+              "cupidbuild_disk_options_open=cupidbuild_disk_options_fault_open",
+              "-D",
+              "cupidbuild_disk_options_view=cupidbuild_disk_options_fault_view",
+              "-D",
+              "cupidbuild_disk_options_stage=cupidbuild_disk_options_fault_stage",
+              "-D",
+              "cupidbuild_disk_options_close=cupidbuild_disk_options_fault_close",
+              "-c",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\source\\cupidbuild_disk_options.cc",
+              "-o",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\native-options-fault.o"
+            ],
+            "exit_code": 0,
+            "label": "native-fault-build",
+            "seconds": 0.15458979993127286,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 180
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Program Files\\LLVM\\bin\\clang.EXE",
+              "-x",
+              "c",
+              "-std=c11",
+              "-O2",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-D_CRT_SECURE_NO_WARNINGS=1",
+              "-I",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\toolchain",
+              "-DCUPID_DISK_OPTIONS_NATIVE=1",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\source\\cupidbuild_disk_options.cc",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\source\\cupidbuild_disk_integer.cc",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\source\\cupidbuild_disk_options_contract.cc",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\source\\cupidbuild_disk_options_fault_contract.cc",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\toolchain\\path_encoding.cc",
+              "-x",
+              "none",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\native-options-fault.o",
+              "-o",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\native.exe"
+            ],
+            "exit_code": 0,
+            "label": "native-build",
+            "seconds": 0.5469423000467941,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 180
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupidc.exe",
+              "--root",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009",
+              "-D",
+              "calloc=cupidbuild_disk_options_fault_calloc",
+              "-D",
+              "malloc=cupidbuild_disk_options_fault_malloc",
+              "-D",
+              "free=cupidbuild_disk_options_fault_free",
+              "-D",
+              "cupidbuild_disk_options_open=cupidbuild_disk_options_fault_open",
+              "-D",
+              "cupidbuild_disk_options_view=cupidbuild_disk_options_fault_view",
+              "-D",
+              "cupidbuild_disk_options_stage=cupidbuild_disk_options_fault_stage",
+              "-D",
+              "cupidbuild_disk_options_close=cupidbuild_disk_options_fault_close",
+              "-c",
+              "/build/image-options-replay-windows1/source/cupidbuild_disk_options.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-windows1/objects/options-fault.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-options-fault",
+            "seconds": 3.275915800011717,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupidc.exe",
+              "--root",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009",
+              "-c",
+              "/build/image-options-replay-windows1/source/cupidbuild_disk_options.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-windows1/objects/options.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-options",
+            "seconds": 3.2836758999619633,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupidc.exe",
+              "--root",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009",
+              "-c",
+              "/build/image-options-replay-windows1/source/cupidbuild_disk_integer.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-windows1/objects/number.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-number",
+            "seconds": 0.9432339000049978,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupidc.exe",
+              "--root",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009",
+              "-c",
+              "/build/image-options-replay-windows1/source/cupidbuild_disk_options_fault_contract.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-windows1/objects/fault-probe.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-fault-probe",
+            "seconds": 0.6176696000620723,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupidc.exe",
+              "--root",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009",
+              "-c",
+              "/build/image-options-replay-windows1/source/fgetc_extension.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-windows1/objects/fgetc.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-fgetc",
+            "seconds": 0.06364800001028925,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupidc.exe",
+              "--root",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009",
+              "-c",
+              "/build/image-options-replay-windows1/source/cupidbuild_disk_options_contract.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-windows1/objects/contract.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-contract",
+            "seconds": 1.7380275999894366,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupidc.exe",
+              "--root",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009",
+              "-c",
+              "/toolchain/path_encoding.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-windows1/objects/path.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-path",
+            "seconds": 2.0967173000099137,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupidc.exe",
+              "--root",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009",
+              "--gnu",
+              "-D",
+              "_WIN32=1",
+              "-c",
+              "/toolchain/hosted/i386-windows/runtime.cc",
+              "--include-angle",
+              "/toolchain",
+              "--include-angle",
+              "/toolchain/hosted/i386-linux/include",
+              "-o",
+              "/build/image-options-replay-windows1/objects/runtime.o"
+            ],
+            "exit_code": 0,
+            "label": "compile-runtime",
+            "seconds": 6.8902948999311775,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 360
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupidasm.exe",
+              "-f",
+              "elf32",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\toolchain\\hosted\\i386-windows\\tool_start.asm",
+              "-o",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\start.o"
+            ],
+            "exit_code": 0,
+            "label": "assemble",
+            "seconds": 0.11059820000082254,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupidld.exe",
+              "-m",
+              "i386pe",
+              "--text-address",
+              "0x00401000",
+              "--entry",
+              "_start",
+              "--import",
+              "__imp_CloseHandle=KERNEL32.dll:CloseHandle",
+              "--import",
+              "__imp_CreateFileA=KERNEL32.dll:CreateFileA",
+              "--import",
+              "__imp_ExitProcess=KERNEL32.dll:ExitProcess",
+              "--import",
+              "__imp_GetCommandLineA=KERNEL32.dll:GetCommandLineA",
+              "--import",
+              "__imp_GetCurrentDirectoryA=KERNEL32.dll:GetCurrentDirectoryA",
+              "--import",
+              "__imp_GetFileInformationByHandle=KERNEL32.dll:GetFileInformationByHandle",
+              "--import",
+              "__imp_GetLastError=KERNEL32.dll:GetLastError",
+              "--import",
+              "__imp_GetStdHandle=KERNEL32.dll:GetStdHandle",
+              "--import",
+              "__imp_ReadFile=KERNEL32.dll:ReadFile",
+              "--import",
+              "__imp_SetFilePointer=KERNEL32.dll:SetFilePointer",
+              "--import",
+              "__imp_VirtualAlloc=KERNEL32.dll:VirtualAlloc",
+              "--import",
+              "__imp_VirtualFree=KERNEL32.dll:VirtualFree",
+              "--import",
+              "__imp_WriteFile=KERNEL32.dll:WriteFile",
+              "-o",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\checked.exe",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\start.o",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\options.o",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\options-fault.o",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\number.o",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\contract.o",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\fault-probe.o",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\fgetc.o",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\path.o",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\runtime.o"
+            ],
+            "exit_code": 0,
+            "label": "link",
+            "seconds": 0.05264550005085766,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 180
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupiddis.exe",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\contract.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-contract.o",
+            "seconds": 0.07779390003997833,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupiddis.exe",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\fault-probe.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-fault-probe.o",
+            "seconds": 0.04507089999970049,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupiddis.exe",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\fgetc.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-fgetc.o",
+            "seconds": 0.03402640006970614,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupiddis.exe",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\number.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-number.o",
+            "seconds": 0.05315569997765124,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupiddis.exe",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\options-fault.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-options-fault.o",
+            "seconds": 0.11296679999213666,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupiddis.exe",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\options.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-options.o",
+            "seconds": 0.11121209990233183,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupiddis.exe",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\path.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-path.o",
+            "seconds": 0.08027509995736182,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupiddis.exe",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\runtime.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-runtime.o",
+            "seconds": 0.2243669000454247,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupiddis.exe",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\objects\\start.o"
+            ],
+            "exit_code": 0,
+            "label": "strict-start.o",
+            "seconds": 0.033124999958090484,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\seed\\cupiddis.exe",
+              "--require-known",
+              "--require-local-targets",
+              "--require-code-anchors",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\checked.exe"
+            ],
+            "exit_code": 0,
+            "label": "strict-checked.exe",
+            "seconds": 0.5145303000463173,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 120
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\native.exe",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\request.bin",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\native-results.bin"
+            ],
+            "exit_code": 0,
+            "label": "native-runtime",
+            "seconds": 0.07779660006053746,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 60
+          },
+          {
+            "address_space_bytes": null,
+            "argv": [
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\checked.exe",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\request.bin",
+              "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\image-options-replay-windows1\\checked-results.bin"
+            ],
+            "exit_code": 0,
+            "label": "checked-runtime",
+            "seconds": 0.7711682999506593,
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "size": 0
+            },
+            "timeout_seconds": 60
+          }
+        ],
+        "complete_result": {
+          "sha256": "202f6bc0e9735a8c01cbc78303f71159d38503bd291a724bc4fc1b73f3898e59",
+          "size": 1952647
+        },
+        "fixture_io_chunk_bytes": 65536,
+        "generated_wad_destinations_owned": true,
+        "help_calls": 1848,
+        "host": "windows",
+        "inputs": {
+          "build/image-options-replay-windows1/source/cupidbuild_disk_integer.cc": {
+            "sha256": "f096ef8afdbd22fe3f7485d4be965081cef6cc92574f2199b7e1af17e0941db8",
+            "size": 5188
+          },
+          "build/image-options-replay-windows1/source/cupidbuild_disk_integer.h": {
+            "sha256": "c382c730ad976618ac3c9783c7cb7b8f03368262b94761ca5f8d7576e748d1aa",
+            "size": 1219
+          },
+          "build/image-options-replay-windows1/source/cupidbuild_disk_integer_tables.inc": {
+            "sha256": "ce397615d42511bc7d83eab970bc5efa285452669234deac20c93afe48047247",
+            "size": 2050
+          },
+          "build/image-options-replay-windows1/source/cupidbuild_disk_options.cc": {
+            "sha256": "8d998aba16120dae4c3499e45b6699ece8a2e1dafee3d92d67a4cd3280ebeb30",
+            "size": 14394
+          },
+          "build/image-options-replay-windows1/source/cupidbuild_disk_options.h": {
+            "sha256": "f6ba20a7d00dd19c1d51317f52f3e13b38871e1e3e50dfc99d6522889710df92",
+            "size": 2394
+          },
+          "build/image-options-replay-windows1/source/cupidbuild_disk_options_contract.cc": {
+            "sha256": "0424da2550c5e254587769083cbdd981a09df755a93d691bc43dbce8e503edb4",
+            "size": 7700
+          },
+          "build/image-options-replay-windows1/source/cupidbuild_disk_options_fault_contract.cc": {
+            "sha256": "d2f7264668f2539ff715a64a0164e3cc4b7102cfe9b662589acfdf8748c7b136",
+            "size": 3244
+          },
+          "build/image-options-replay-windows1/source/fgetc_extension.cc": {
+            "sha256": "19c7a8c76cdfca92cf3fdcf9c12589e4616d8947708ed49ea64b84df1c10d47b",
+            "size": 154
+          },
+          "build/image-options-replay-windows1/source/fgetc_extension.h": {
+            "sha256": "a61d0d5294d34c5b6d0fef19c55aaf84e693be26bce2e085a52d49bb5eb0a519",
+            "size": 132
+          },
+          "docs/bootstrap/prototypes/native-image-options-oracles.json.gz": {
+            "sha256": "3bab600e230765e9eb0eaeee49e66537feb09c54c88b95b0f7170e7ff3555185",
+            "size": 496740
+          },
+          "docs/bootstrap/prototypes/native-image-options.patch": {
+            "sha256": "4ebceab2a1b942c59cee3db2dac956cc06774e3d2f56198126874af9b4479f4b",
+            "size": 38473
+          },
+          "docs/bootstrap/prototypes/replay-native-image-options.py": {
+            "sha256": "3e78250d243c131df76f47c8a7be32fdde33ce97db480b7bb906b04a5c591758",
+            "size": 19328
+          },
+          "toolchain/hosted/i386-linux/include/cupid_host_abi.h": {
+            "sha256": "75f5ea95099808118319cb05c8c0ccdcd399fffe0350c8e0107e1842df77dd4f",
+            "size": 374
+          },
+          "toolchain/hosted/i386-linux/include/direct.h": {
+            "sha256": "ca8371f6f146f63db416ec71330fe51ff0fb2c04dcaf07a664dad2e0565a4c01",
+            "size": 239
+          },
+          "toolchain/hosted/i386-linux/include/errno.h": {
+            "sha256": "3e90118b90a6a596309bdedc2e382322deaaf4f0751464585cd27b2fe0c59135",
+            "size": 271
+          },
+          "toolchain/hosted/i386-linux/include/stddef.h": {
+            "sha256": "1116b1fc8ddeadf277e0816613e6ab33f5e004eb3cda8e8fc26d98fda8945528",
+            "size": 377
+          },
+          "toolchain/hosted/i386-linux/include/stdint.h": {
+            "sha256": "c11547ba80e6b1703f6fba97c36b043b07a69393c122dd07be71dd5cbd015f17",
+            "size": 1019
+          },
+          "toolchain/hosted/i386-linux/include/stdio.h": {
+            "sha256": "e42e3cf1c1807b4fdd096e57d608ea7556e50d8fe2029b25ac1cde581e5f9115",
+            "size": 1557
+          },
+          "toolchain/hosted/i386-linux/include/stdlib.h": {
+            "sha256": "ba7457596ec83e79c18ba9c325c58fe1e5f5232bb138230e4b7e9e7bec818d75",
+            "size": 335
+          },
+          "toolchain/hosted/i386-linux/include/string.h": {
+            "sha256": "cc92a949f0816c8c07e239d5982d5c8779159afd5542ef78113b525ddabf56e8",
+            "size": 781
+          },
+          "toolchain/hosted/i386-linux/include/unistd.h": {
+            "sha256": "fd597726e04977d24c1b97c8fabcc605fbe4c4f9a9ff3b0c8164b0f39d61b57b",
+            "size": 170
+          },
+          "toolchain/hosted/i386-linux/include/windows.h": {
+            "sha256": "b887ed4c5e17a19e0959f909eaadac492f7cc197701b3e2a9ea2f317bdbc4b80",
+            "size": 9953
+          },
+          "toolchain/hosted/i386-linux/runtime.cc": {
+            "sha256": "ade2b98d00be63c0c0fdaa59e60d9e6726d3dd641d6ab5ae886cbfba67297b1f",
+            "size": 54763
+          },
+          "toolchain/hosted/i386-windows/runtime.cc": {
+            "sha256": "50dfc7fd7cdfb93541c52fe2c87a65878a90e84fb966b8d1c75e661aa20927d1",
+            "size": 68
+          },
+          "toolchain/hosted/i386-windows/tool_start.asm": {
+            "sha256": "8b04f7071e253d11d6abc8945cc1a926455d551589e1be882c5baa16d574cb55",
+            "size": 3146
+          },
+          "toolchain/path_encoding.cc": {
+            "sha256": "295205541474056a06f6467bb247c77058891c25de31c152aa335a0e6a74fa58",
+            "size": 6619
+          },
+          "toolchain/path_encoding.h": {
+            "sha256": "4bad0b0cab07fa2ed7ec89fbbb4fa799297b5750a77ce44184f48610e5338be2",
+            "size": 1094
+          },
+          "tools/hostbuild.py": {
+            "sha256": "de917e6825a84203460f26dfe753c6cfc0c176792ccb0a63373ffd0c56deb249",
+            "size": 213854
+          }
+        },
+        "native_image": {
+          "sha256": "3b2d52061ca816c7ce35e0383100ccd73399f3a8a4d113afc2a0db1917a441cc",
+          "size": 154624
+        },
+        "negative_calls": 3480,
+        "objects": {
+          "contract.o": {
+            "sha256": "8384e4b778002f785ebfbd350b72e67e7ac009a6df5187054939aecee5779100",
+            "size": 11420
+          },
+          "fault-probe.o": {
+            "sha256": "686832c200bd82616e9ad8153ac26527f04bc9c9dbfce7e439ff6673ef710df8",
+            "size": 4592
+          },
+          "fgetc.o": {
+            "sha256": "1bb8e1780e7cd7d4064e406c22fdc1aae1e8321351f94e87afd8628f88f07a20",
+            "size": 556
+          },
+          "number.o": {
+            "sha256": "2cb4f3c97cc39a876df82f4729f969a5705c930bdc9f7984858e321e71b714b0",
+            "size": 5540
+          },
+          "options-fault.o": {
+            "sha256": "4b4ef30c0be8af55af82638dc2d258d18fa3656db6339c24c2648bece1c7a6d2",
+            "size": 18396
+          },
+          "options.o": {
+            "sha256": "c01d8e6e09cfe5ad6194dad0f3e9e1c15f307fe31ac54935d3b401a31baece2e",
+            "size": 18280
+          },
+          "path.o": {
+            "sha256": "34ab4aeaa38aed335ac99ac3a3deccfa27e9c6ac70de3dfb8f898ec34cf03192",
+            "size": 10000
+          },
+          "runtime.o": {
+            "sha256": "ff9ababfbe09e87462f2740085db46a1a2f4ad7a7d6b3f7eeda087a21ec0e2b1",
+            "size": 37512
+          },
+          "start.o": {
+            "sha256": "3d607279fce7ae95e14506eb3ab85696ca9a43be17ff037f2cc86423bf94bdef",
+            "size": 1780
+          }
+        },
+        "oracle_fixture": {
+          "sha256": "3bab600e230765e9eb0eaeee49e66537feb09c54c88b95b0f7170e7ff3555185",
+          "size": 496740
+        },
+        "positive_calls": 18580,
+        "producer_sentinels": {
+          "AR": "forbidden-host-AR",
+          "AS": "forbidden-host-AS",
+          "CC": "forbidden-host-CC",
+          "CPP": "forbidden-host-CPP",
+          "CXX": "forbidden-host-CXX",
+          "LD": "forbidden-host-LD",
+          "NASM": "forbidden-host-NASM",
+          "NM": "forbidden-host-NM",
+          "OBJCOPY": "forbidden-host-OBJCOPY"
+        },
+        "prototype_sources": {
+          "cupidbuild_disk_integer.cc": {
+            "sha256": "f096ef8afdbd22fe3f7485d4be965081cef6cc92574f2199b7e1af17e0941db8",
+            "size": 5188
+          },
+          "cupidbuild_disk_integer.h": {
+            "sha256": "c382c730ad976618ac3c9783c7cb7b8f03368262b94761ca5f8d7576e748d1aa",
+            "size": 1219
+          },
+          "cupidbuild_disk_integer_tables.inc": {
+            "sha256": "ce397615d42511bc7d83eab970bc5efa285452669234deac20c93afe48047247",
+            "size": 2050
+          },
+          "cupidbuild_disk_options.cc": {
+            "sha256": "8d998aba16120dae4c3499e45b6699ece8a2e1dafee3d92d67a4cd3280ebeb30",
+            "size": 14394
+          },
+          "cupidbuild_disk_options.h": {
+            "sha256": "f6ba20a7d00dd19c1d51317f52f3e13b38871e1e3e50dfc99d6522889710df92",
+            "size": 2394
+          },
+          "cupidbuild_disk_options_contract.cc": {
+            "sha256": "0424da2550c5e254587769083cbdd981a09df755a93d691bc43dbce8e503edb4",
+            "size": 7700
+          },
+          "cupidbuild_disk_options_fault_contract.cc": {
+            "sha256": "d2f7264668f2539ff715a64a0164e3cc4b7102cfe9b662589acfdf8748c7b136",
+            "size": 3244
+          },
+          "fgetc_extension.cc": {
+            "sha256": "19c7a8c76cdfca92cf3fdcf9c12589e4616d8947708ed49ea64b84df1c10d47b",
+            "size": 154
+          },
+          "fgetc_extension.h": {
+            "sha256": "a61d0d5294d34c5b6d0fef19c55aaf84e693be26bce2e085a52d49bb5eb0a519",
+            "size": 132
+          }
+        },
+        "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+        "request": {
+          "sha256": "75636652fa4b88a0824b1ac9fe74e1a6ad12dbc266a1b941c81fcc648874fba1",
+          "size": 4561704
+        },
+        "schema": "cupid.native-image-options-replay.v1",
+        "seconds": 15.949310000054538,
+        "seed_manifest": {
+          "sha256": "e496a0fb2e36e74bc04a4ef3e1923c25a805fb1342035c32eb1c4eba20ba5bcf",
+          "size": 2853
+        },
+        "status": "pass",
+        "tools": {
+          "cupidasm": {
+            "sha256": "53427883f2afcc07bef43847aedcf23fb5c678c43cb303c1237c8ea7b4cdffdc",
+            "size": 480256
+          },
+          "cupidbuild": {
+            "sha256": "f45e66e72e91e0c6fd120567b45efaa7df2d64e3ac45e7f95fafb8f10077db7c",
+            "size": 1112576
+          },
+          "cupidc": {
+            "sha256": "601586883a05f9fee01eefefef64d95a2a3c15091842746638e640a544eb0b6f",
+            "size": 2490880
+          },
+          "cupiddis": {
+            "sha256": "b39e1129023e916518e6dc7016d7bbceb07e70b83d5c9c53025e9715c4c5e809",
+            "size": 504832
+          },
+          "cupidld": {
+            "sha256": "98b3b93b0672b4d69d6226abb545dc0ef669b7789575878c169111b48c845efd",
+            "size": 296448
+          },
+          "cupidobj": {
+            "sha256": "373ddd710053dae8ca55160f06759f9dd43eaccc761865bc792ec81cf0c50239",
+            "size": 382464
+          }
+        },
+        "unicode": "16.0.0"
+      },
+      "original_receipt": {
+        "sha256": "ce7a16d8de1628e585c327bd860e6ab95f8dc39d8b68068657c315b9ba0a8ffa",
+        "size": 34319
+      }
+    }
+  },
+  "positive_calls": 37160,
+  "retained_independent_review_failure": {
+    "original": {
+      "cause": "The checker selected compile-runtime as an execution command because it matched the suffix -runtime. The compiler's original bound is 360 seconds.",
+      "correction": "Select only native-runtime and checked-runtime for the unchanged 60-second and Linux 32 MiB execution predicates.",
+      "exception": "AssertionError at line 60: command['timeout_seconds'] == 60",
+      "exit_code": 1,
+      "original_execution_receipts_changed": false,
+      "producer_commands_run_by_checker": 0,
+      "runner": "verify-options-replays-first.py",
+      "schema": "cupid.native-image-options-independent-review-failure.v1",
+      "status": "fail"
+    },
+    "record": {
+      "sha256": "eb68e4f0cd409852f52688d5dc5321a3c29f335ffcdf738fe96e95b805187cb1",
+      "size": 621
+    },
+    "runner": {
+      "sha256": "c3e0dc1b6f1db09c17b41afab1b094d288fdf74b1608e1e79f44ca06c8a34a0e",
+      "size": 5696
+    }
+  },
+  "runner": {
+    "sha256": "3e78250d243c131df76f47c8a7be32fdde33ce97db480b7bb906b04a5c591758",
+    "size": 19328
+  },
+  "schema": "cupid.native-image-options-paired-replay.v1",
+  "seconds": 4.02436130004935,
+  "seven_complete_shared_object_pairs": {
+    "contract.o": {
+      "sha256": "8384e4b778002f785ebfbd350b72e67e7ac009a6df5187054939aecee5779100",
+      "size": 11420
+    },
+    "fault-probe.o": {
+      "sha256": "686832c200bd82616e9ad8153ac26527f04bc9c9dbfce7e439ff6673ef710df8",
+      "size": 4592
+    },
+    "fgetc.o": {
+      "sha256": "1bb8e1780e7cd7d4064e406c22fdc1aae1e8321351f94e87afd8628f88f07a20",
+      "size": 556
+    },
+    "number.o": {
+      "sha256": "2cb4f3c97cc39a876df82f4729f969a5705c930bdc9f7984858e321e71b714b0",
+      "size": 5540
+    },
+    "options-fault.o": {
+      "sha256": "4b4ef30c0be8af55af82638dc2d258d18fa3656db6339c24c2648bece1c7a6d2",
+      "size": 18396
+    },
+    "options.o": {
+      "sha256": "c01d8e6e09cfe5ad6194dad0f3e9e1c15f307fe31ac54935d3b401a31baece2e",
+      "size": 18280
+    },
+    "path.o": {
+      "sha256": "34ab4aeaa38aed335ac99ac3a3deccfa27e9c6ac70de3dfb8f898ec34cf03192",
+      "size": 10000
+    }
+  },
+  "status": "pass",
+  "strict_certificates": 20
+}

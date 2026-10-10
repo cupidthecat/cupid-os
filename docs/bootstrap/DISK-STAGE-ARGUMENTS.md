@@ -1,5 +1,11 @@
 # Native disk stage argument interpretation
 
+The current [reproducible argument owner](NATIVE-IMAGE-ARGUMENT-OWNER.md) retains
+the stage splitter and WAD alias behavior in an unapplied C patch with complete
+actual-host oracles. Its four callers pass every paired record; both installed
+seed replays also pass. The historical `cp7` source copies described below are
+absent from the current worktree and do not establish a current normal handoff.
+
 The separate source under `C:/Users/admin/cp7/disk-stage-arguments-source1`
 implements the stage splitter and WAD destination naming needed by the normal
 image command. Linux retains the same source under

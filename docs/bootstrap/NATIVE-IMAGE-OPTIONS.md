@@ -14,8 +14,14 @@ historical results do not establish a normal command handoff.
 The current [integer prototype](NATIVE-IMAGE-INTEGERS.md) supplies a reproducible
 numeric component under both actual Unicode profiles. Its unapplied C patch,
 frozen oracle fixture and repository replay pass on Linux and Windows without
-changing the 99-input cohort. The complete option owner still requires its
-separate argv, stage, WAD and pathname integration.
+changing the 99-input cohort. The current
+[reproducible argument owner](NATIVE-IMAGE-ARGUMENT-OWNER.md) now retains argv
+selection, stages, WAD groups and both actual option grammars. All four
+native/Cupid callers pass the complete 11,954-record paired replay, and both
+hosts rebuild it through the installed seeds. Native pathname normalization,
+discovery, observers, complete diagnostics and publication still precede the
+normal command handoff. This held source replaces no normal recipe and does
+not restore the absent historical `cp7` products described below.
 
 The historical private source at `C:/Users/admin/cp7/image-options-source2`
 interpreted the existing image command's options in Cupid C. At that boundary,

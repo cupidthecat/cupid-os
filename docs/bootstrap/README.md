@@ -30,6 +30,19 @@ SDK also passes its complete publication and independent audit of all 22
 programs, 104 SDK inputs and 77 stage pairs. The other three SDK profiles,
 original public methods and both Make bootstraps remain in progress.
 
+## Native image argument owner, 2026-10-10
+
+The [held C owner](NATIVE-IMAGE-ARGUMENT-OWNER.md) retains required image values,
+repeated stages, the final WAD group and both actual host option grammars. Four
+native/Cupid callers pass 47,816 calls across all 11,954 captured sequences;
+seven complete shared object pairs agree. Both installed-seed repository replays
+also pass every record and recheck their actual host's complete original parser
+outputs. Allocation failures unwind without retained storage. The fixture's
+64 KiB I/O buffers repair the original Linux mounted-filesystem timeout under
+the unchanged bounds. The unapplied source, frozen oracles and failed receipts
+are retained. Native command discovery, observers, diagnostics and publication
+remain open; normal recipe ownership and the 99-input cohort are unchanged.
+
 ## Native image integer prototype, 2026-10-10
 
 The [held numeric component](NATIVE-IMAGE-INTEGERS.md) preserves the existing

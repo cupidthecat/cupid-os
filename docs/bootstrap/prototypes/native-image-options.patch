@@ -1,0 +1,1056 @@
+--- /dev/null
++++ b/toolchain/prototypes/native_image_options/cupidbuild_disk_integer.cc
+@@ -0,0 +1,156 @@
++#include "cupidbuild_disk_integer.h"
++
++#include <string.h>
++
++typedef struct {
++  uint32_t first;
++  unsigned int since;
++} cupidbuild_disk_integer_digit_range_t;
++
++typedef struct {
++  uint32_t codepoint;
++  unsigned int profiles;
++} cupidbuild_disk_integer_space_t;
++
++#include "cupidbuild_disk_integer_tables.inc"
++
++_Static_assert(sizeof(uint32_t) == 4, "image integer magnitude needs 32 bits");
++
++static int cupidbuild_disk_integer_next(const unsigned char *text, size_t size,
++                                        size_t *offset, uint32_t *value_out) {
++  size_t position = *offset;
++  uint32_t value;
++  unsigned int count;
++  unsigned int index;
++  unsigned int first;
++  if (position >= size) return 0;
++  first = text[position++];
++  if (first < 0x80u) {
++    *offset = position;
++    *value_out = first;
++    return 1;
++  }
++  if (first >= 0xc2u && first <= 0xdfu) {
++    count = 1u;
++    value = first & 0x1fu;
++  } else if (first >= 0xe0u && first <= 0xefu) {
++    count = 2u;
++    value = first & 0x0fu;
++  } else if (first >= 0xf0u && first <= 0xf4u) {
++    count = 3u;
++    value = first & 0x07u;
++  } else {
++    return 0;
++  }
++  if (size - position < count) return 0;
++  for (index = 0; index < count; index++) {
++    unsigned int byte = text[position++];
++    if ((byte & 0xc0u) != 0x80u) return 0;
++    value = (value << 6) | (byte & 0x3fu);
++  }
++  if ((count == 1u && value < 0x80u) ||
++      (count == 2u && value < 0x800u) ||
++      (count == 3u && value < 0x10000u) || value > 0x10ffffu ||
++      (value >= 0xd800u && value <= 0xdfffu)) return 0;
++  *offset = position;
++  *value_out = value;
++  return 1;
++}
++
++static int cupidbuild_disk_integer_digit(uint32_t value,
++                                         unsigned int unicode_major) {
++  size_t index;
++  for (index = 0; index < sizeof(cupidbuild_disk_integer_digits) /
++                             sizeof(cupidbuild_disk_integer_digits[0]); index++) {
++    const cupidbuild_disk_integer_digit_range_t *range =
++        &cupidbuild_disk_integer_digits[index];
++    if (range->since <= unicode_major && value >= range->first &&
++        value - range->first < 10u) return (int)(value - range->first);
++  }
++  return -1;
++}
++
++static int cupidbuild_disk_integer_space(uint32_t value,
++                                         unsigned int unicode_major) {
++  unsigned int profile = unicode_major == 15u ? 1u : 2u;
++  size_t index;
++  for (index = 0; index < sizeof(cupidbuild_disk_integer_spaces) /
++                             sizeof(cupidbuild_disk_integer_spaces[0]); index++) {
++    const cupidbuild_disk_integer_space_t *space =
++        &cupidbuild_disk_integer_spaces[index];
++    if (space->codepoint == value && (space->profiles & profile) != 0u) return 1;
++  }
++  return 0;
++}
++
++cupidbuild_disk_integer_status_t cupidbuild_disk_integer_parse(
++    const unsigned char *text, size_t size, unsigned int unicode_major,
++    uint32_t digit_limit, cupidbuild_disk_integer_t *result_out) {
++  cupidbuild_disk_integer_t parsed;
++  size_t offset = 0;
++  unsigned int phase = 0;
++  unsigned int last_was_digit = 0;
++  unsigned int negative = 0;
++  uint32_t digit_count = 0;
++  uint32_t magnitude = 0;
++  unsigned int overflow = 0;
++  unsigned int nonzero = 0;
++  unsigned int syntax_error = 0;
++  if (!result_out) return CUPIDBUILD_DISK_INTEGER_ARGUMENT;
++  memset(result_out, 0, sizeof(*result_out));
++  if (!text && size != 0) return CUPIDBUILD_DISK_INTEGER_ARGUMENT;
++  if (unicode_major != 15u && unicode_major != 16u) return CUPIDBUILD_DISK_INTEGER_PROFILE;
++  while (offset < size) {
++    uint32_t value;
++    int digit;
++    int whitespace;
++    if (!cupidbuild_disk_integer_next(text, size, &offset, &value))
++      return CUPIDBUILD_DISK_INTEGER_UTF8;
++    if (syntax_error) continue;
++    whitespace = cupidbuild_disk_integer_space(value, unicode_major);
++    if (phase == 0u) {
++      if (whitespace) continue;
++      phase = 1u;
++      if (value == (uint32_t)'+' || value == (uint32_t)'-') {
++        negative = value == (uint32_t)'-';
++        continue;
++      }
++    }
++    if (phase == 2u) {
++      if (!whitespace) syntax_error = 1u;
++      continue;
++    }
++    digit = cupidbuild_disk_integer_digit(value, unicode_major);
++    if (digit >= 0) {
++      if (digit_count == UINT32_MAX) return CUPIDBUILD_DISK_INTEGER_ARGUMENT;
++      digit_count++;
++      if (digit != 0) nonzero = 1u;
++      if (!overflow) {
++        if (magnitude > (UINT32_MAX - (uint32_t)digit) / 10u) {
++          overflow = 1u;
++          magnitude = UINT32_MAX;
++        } else {
++          magnitude = magnitude * 10u + (uint32_t)digit;
++        }
++      }
++      last_was_digit = 1u;
++    } else if (value == (uint32_t)'_' && last_was_digit) {
++      last_was_digit = 0u;
++    } else if (whitespace && digit_count != 0u && last_was_digit) {
++      phase = 2u;
++    } else {
++      syntax_error = 1u;
++    }
++  }
++  if (syntax_error || digit_count == 0u || !last_was_digit)
++    return CUPIDBUILD_DISK_INTEGER_SYNTAX;
++  if (digit_limit != 0u && digit_count > digit_limit)
++    return CUPIDBUILD_DISK_INTEGER_DIGIT_LIMIT;
++  parsed.magnitude = magnitude;
++  parsed.digits = digit_count;
++  parsed.magnitude_fits_u32 = !overflow;
++  parsed.negative = negative && nonzero;
++  parsed.zero = !nonzero;
++  *result_out = parsed;
++  return CUPIDBUILD_DISK_INTEGER_OK;
++}
+--- /dev/null
++++ b/toolchain/prototypes/native_image_options/cupidbuild_disk_integer.h
+@@ -0,0 +1,34 @@
++#ifndef CUPIDBUILD_DISK_INTEGER_H
++#define CUPIDBUILD_DISK_INTEGER_H
++
++#include <stddef.h>
++#include <stdint.h>
++
++typedef enum {
++  CUPIDBUILD_DISK_INTEGER_OK = 0,
++  CUPIDBUILD_DISK_INTEGER_SYNTAX = 1,
++  CUPIDBUILD_DISK_INTEGER_UTF8 = 2,
++  CUPIDBUILD_DISK_INTEGER_PROFILE = 3,
++  CUPIDBUILD_DISK_INTEGER_DIGIT_LIMIT = 4,
++  CUPIDBUILD_DISK_INTEGER_ARGUMENT = 5
++} cupidbuild_disk_integer_status_t;
++
++typedef struct {
++  uint32_t magnitude;
++  uint32_t digits;
++  unsigned int magnitude_fits_u32;
++  unsigned int negative;
++  unsigned int zero;
++} cupidbuild_disk_integer_t;
++
++/* Interpret a complete UTF-8 decimal spelling, including signs, digit
++ * separators and the selected Unicode 15 or 16 digit/space profile. A zero
++ * digit_limit is unlimited. Valid larger magnitudes return OK with
++ * magnitude_fits_u32 clear and magnitude saturated; the caller decides when
++ * to reject geometry, after repeated options have selected their final value.
++ * Failure clears the result. This function performs no allocation or I/O. */
++cupidbuild_disk_integer_status_t cupidbuild_disk_integer_parse(
++    const unsigned char *text, size_t size, unsigned int unicode_major,
++    uint32_t digit_limit, cupidbuild_disk_integer_t *result_out);
++
++#endif
+--- /dev/null
++++ b/toolchain/prototypes/native_image_options/cupidbuild_disk_integer_tables.inc
+@@ -0,0 +1,107 @@
++/* Captured from both installed integer parsers; see integer-profile-*.json. */
++static const cupidbuild_disk_integer_digit_range_t cupidbuild_disk_integer_digits[] = {
++  {0x30u, 15u},
++  {0x660u, 15u},
++  {0x6f0u, 15u},
++  {0x7c0u, 15u},
++  {0x966u, 15u},
++  {0x9e6u, 15u},
++  {0xa66u, 15u},
++  {0xae6u, 15u},
++  {0xb66u, 15u},
++  {0xbe6u, 15u},
++  {0xc66u, 15u},
++  {0xce6u, 15u},
++  {0xd66u, 15u},
++  {0xde6u, 15u},
++  {0xe50u, 15u},
++  {0xed0u, 15u},
++  {0xf20u, 15u},
++  {0x1040u, 15u},
++  {0x1090u, 15u},
++  {0x17e0u, 15u},
++  {0x1810u, 15u},
++  {0x1946u, 15u},
++  {0x19d0u, 15u},
++  {0x1a80u, 15u},
++  {0x1a90u, 15u},
++  {0x1b50u, 15u},
++  {0x1bb0u, 15u},
++  {0x1c40u, 15u},
++  {0x1c50u, 15u},
++  {0xa620u, 15u},
++  {0xa8d0u, 15u},
++  {0xa900u, 15u},
++  {0xa9d0u, 15u},
++  {0xa9f0u, 15u},
++  {0xaa50u, 15u},
++  {0xabf0u, 15u},
++  {0xff10u, 15u},
++  {0x104a0u, 15u},
++  {0x10d30u, 15u},
++  {0x10d40u, 16u},
++  {0x11066u, 15u},
++  {0x110f0u, 15u},
++  {0x11136u, 15u},
++  {0x111d0u, 15u},
++  {0x112f0u, 15u},
++  {0x11450u, 15u},
++  {0x114d0u, 15u},
++  {0x11650u, 15u},
++  {0x116c0u, 15u},
++  {0x116d0u, 16u},
++  {0x116dau, 16u},
++  {0x11730u, 15u},
++  {0x118e0u, 15u},
++  {0x11950u, 15u},
++  {0x11bf0u, 16u},
++  {0x11c50u, 15u},
++  {0x11d50u, 15u},
++  {0x11da0u, 15u},
++  {0x11f50u, 15u},
++  {0x16130u, 16u},
++  {0x16a60u, 15u},
++  {0x16ac0u, 15u},
++  {0x16b50u, 15u},
++  {0x16d70u, 16u},
++  {0x1ccf0u, 16u},
++  {0x1d7ceu, 15u},
++  {0x1d7d8u, 15u},
++  {0x1d7e2u, 15u},
++  {0x1d7ecu, 15u},
++  {0x1d7f6u, 15u},
++  {0x1e140u, 15u},
++  {0x1e2f0u, 15u},
++  {0x1e4f0u, 15u},
++  {0x1e5f1u, 16u},
++  {0x1e950u, 15u},
++  {0x1fbf0u, 15u},
++};
++
++static const cupidbuild_disk_integer_space_t cupidbuild_disk_integer_spaces[] = {
++  {0x9u, 3u},
++  {0xau, 3u},
++  {0xbu, 3u},
++  {0xcu, 3u},
++  {0xdu, 3u},
++  {0x20u, 3u},
++  {0x85u, 3u},
++  {0xa0u, 3u},
++  {0x1680u, 3u},
++  {0x2000u, 3u},
++  {0x2001u, 3u},
++  {0x2002u, 3u},
++  {0x2003u, 3u},
++  {0x2004u, 3u},
++  {0x2005u, 3u},
++  {0x2006u, 3u},
++  {0x2007u, 3u},
++  {0x2008u, 3u},
++  {0x2009u, 3u},
++  {0x200au, 3u},
++  {0x2028u, 3u},
++  {0x2029u, 3u},
++  {0x202fu, 3u},
++  {0x205fu, 3u},
++  {0x3000u, 3u},
++};
+--- /dev/null
++++ b/toolchain/prototypes/native_image_options/cupidbuild_disk_options.cc
+@@ -0,0 +1,390 @@
++#include "cupidbuild_disk_options.h"
++
++#include <stdlib.h>
++#include <string.h>
++
++#include <path_encoding.h>
++
++enum { TOKEN_VALUE, TOKEN_OPTION, TOKEN_UNKNOWN, TOKEN_AMBIGUOUS, TOKEN_END };
++enum { OPTION_HELP, OPTION_SEED, OPTION_IMAGE, OPTION_BOOT, OPTION_KERNEL,
++       OPTION_HDD, OPTION_FAT, OPTION_STAGE, OPTION_FORCE, OPTION_WADS };
++
++typedef struct {
++  unsigned int kind;
++  unsigned int option;
++  const char *explicit_value;
++  unsigned int short_help;
++} option_token_t;
++
++struct cupidbuild_disk_options {
++  cupidbuild_disk_options_view_t view;
++  cupidbuild_disk_argument_stage_t *stages;
++  char *wad_destinations;
++};
++
++static const char *const option_names[] = {
++    "--help", "--seed-manifest", "--image", "--bootloader", "--kernel",
++    "--hdd-mb", "--fat-start-lba", "--stage", "--force-format", "--wads"};
++
++static size_t scalar_width(const char *text) {
++  unsigned int first = (unsigned char)text[0];
++  if (first < 0x80u) return 1u;
++  if (first < 0xe0u) return 2u;
++  if (first < 0xf0u) return 3u;
++  return 4u;
++}
++
++static int decimal_at(const char *text, unsigned int unicode_major) {
++  cupidbuild_disk_integer_t result;
++  if (!*text) return 0;
++  return cupidbuild_disk_integer_parse((const unsigned char *)text,
++      scalar_width(text), unicode_major, 0u, &result) == CUPIDBUILD_DISK_INTEGER_OK &&
++      result.digits == 1u;
++}
++
++static int negative_value(const char *text, unsigned int unicode_major,
++                          unsigned int grammar_profile) {
++  const char *position = text + 1;
++  size_t integer_digits = 0;
++  size_t fraction_digits = 0;
++  if (grammar_profile == 1u) {
++    if (*position == '.') position++;
++    return decimal_at(position, unicode_major);
++  }
++  while (decimal_at(position, unicode_major)) {
++    integer_digits++;
++    position += scalar_width(position);
++  }
++  if (*position == '.') {
++    position++;
++    while (decimal_at(position, unicode_major)) {
++      fraction_digits++;
++      position += scalar_width(position);
++    }
++    if (fraction_digits == 0) return 0;
++  } else if (integer_digits == 0) {
++    return 0;
++  }
++  return *position == '\0' || (*position == '\n' && position[1] == '\0');
++}
++
++static option_token_t classify(const char *text, unsigned int unicode_major,
++                                unsigned int grammar_profile) {
++  option_token_t token;
++  const char *equals;
++  size_t prefix;
++  size_t index;
++  unsigned int matches = 0;
++  memset(&token, 0, sizeof(token));
++  if (!*text || text[0] != '-' || !text[1]) return token;
++  if (strcmp(text, "--") == 0) {
++    token.kind = TOKEN_END;
++    return token;
++  }
++  if (text[1] == 'h') {
++    token.kind = TOKEN_OPTION;
++    token.option = OPTION_HELP;
++    token.short_help = 1u;
++    token.explicit_value = text[2] ? text + 2 : (const char *)0;
++    return token;
++  }
++  equals = strchr(text, '=');
++  prefix = equals ? (size_t)(equals - text) : strlen(text);
++  for (index = 0; index < sizeof(option_names) / sizeof(option_names[0]); index++) {
++    size_t option_size = strlen(option_names[index]);
++    if (prefix == option_size && strncmp(text, option_names[index], prefix) == 0) {
++      token.kind = TOKEN_OPTION;
++      token.option = (unsigned int)index;
++      token.explicit_value = equals ? equals + 1 : (const char *)0;
++      return token;
++    }
++  }
++  if (text[1] == '-') {
++    for (index = 0; index < sizeof(option_names) / sizeof(option_names[0]); index++) {
++      size_t option_size = strlen(option_names[index]);
++      if (prefix <= option_size && strncmp(text, option_names[index], prefix) == 0) {
++        matches++;
++        token.option = (unsigned int)index;
++      }
++    }
++  }
++  if (matches) {
++    token.kind = matches == 1u ? TOKEN_OPTION : TOKEN_AMBIGUOUS;
++    token.explicit_value = equals ? equals + 1 : (const char *)0;
++    return token;
++  }
++  if (negative_value(text, unicode_major, grammar_profile) || strchr(text, ' ')) return token;
++  token.kind = TOKEN_UNKNOWN;
++  return token;
++}
++
++static cupidbuild_disk_argument_t argument(const char *data, size_t size) {
++  cupidbuild_disk_argument_t view;
++  view.data = data;
++  view.size = size;
++  return view;
++}
++
++static int stage_argument(const char *text, cupidbuild_disk_argument_stage_t *out) {
++  const char *separator = strchr(text, ':');
++  if (!separator) return 0;
++  if (separator == text + 1 &&
++      ((text[0] >= 'A' && text[0] <= 'Z') || (text[0] >= 'a' && text[0] <= 'z'))) {
++    const char *second = strchr(separator + 1, ':');
++    if (second) separator = second;
++  }
++  if (separator[1] != '/') return 0;
++  out->source = argument(text, (size_t)(separator - text));
++  out->destination = argument(separator + 1, strlen(separator + 1));
++  return 1;
++}
++
++static int path_separator(char value, unsigned int windows) {
++  return value == '/' || (windows && value == '\\');
++}
++
++static int ascii_equal(char left, char right) {
++  if (left >= 'A' && left <= 'Z') left = (char)(left + ('a' - 'A'));
++  if (right >= 'A' && right <= 'Z') right = (char)(right + ('a' - 'A'));
++  return left == right;
++}
++
++static cupidbuild_disk_argument_t basename(const char *path, unsigned int windows) {
++  size_t size = strlen(path);
++  size_t position = 0;
++  cupidbuild_disk_argument_t result = argument(path + size, 0);
++  if (windows && size) {
++    if (size >= 2 && path_separator(path[0], 1u) && path_separator(path[1], 1u)) {
++      size_t start = 2;
++      if (size >= 8 && path[2] == '?' && path_separator(path[3], 1u) &&
++          ascii_equal(path[4], 'U') && ascii_equal(path[5], 'N') &&
++          ascii_equal(path[6], 'C') && path_separator(path[7], 1u)) start = 8;
++      position = start;
++      while (position < size && !path_separator(path[position], 1u)) position++;
++      if (position == size) return result;
++      position++;
++      while (position < size && !path_separator(path[position], 1u)) position++;
++      if (position == size) return result;
++      position++;
++    } else if (path_separator(path[0], 1u)) {
++      position = 1;
++    } else {
++      size_t first = scalar_width(path);
++      if (first < size && path[first] == ':') {
++        position = first + 1;
++        if (position < size && path_separator(path[position], 1u)) position++;
++      }
++    }
++  }
++  while (position < size) {
++    size_t start;
++    while (position < size && path_separator(path[position], windows)) position++;
++    start = position;
++    while (position < size && !path_separator(path[position], windows)) position++;
++    if (position != start && !(position == start + 1 && path[start] == '.'))
++      result = argument(path + start, position - start);
++  }
++  return result;
++}
++
++static int contains(cupidbuild_disk_argument_t name, const char *needle) {
++  size_t width = strlen(needle);
++  size_t index;
++  if (width > name.size) return 0;
++  for (index = 0; index <= name.size - width; index++) {
++    size_t offset = 0;
++    while (offset < width && ascii_equal(name.data[index + offset], needle[offset])) offset++;
++    if (offset == width) return 1;
++  }
++  return 0;
++}
++
++static void wad_destination(const char *path, unsigned int windows,
++                             uint32_t index, char *out) {
++  cupidbuild_disk_argument_t name = basename(path, windows);
++  const char *alias = (const char *)0;
++  if (contains(name, "freedoom1")) alias = "/wads/freedo~1.wad";
++  else if (contains(name, "freedoom2")) alias = "/wads/freedo~2.wad";
++  else if (contains(name, "doom2")) alias = "/wads/doom2.wad";
++  else if (contains(name, "doom1") || (name.size == 8 && contains(name, "doom.wad")))
++    alias = "/wads/doom.wad";
++  if (alias) {
++    strcpy(out, alias);
++  } else {
++    char reverse[10];
++    size_t digits = 0;
++    size_t position = 9;
++    strcpy(out, "/wads/wad");
++    do {
++      reverse[digits++] = (char)('0' + index % 10u);
++      index /= 10u;
++    } while (index);
++    while (digits) out[position++] = reverse[--digits];
++    strcpy(out + position, ".wad");
++  }
++}
++
++void cupidbuild_disk_options_close(cupidbuild_disk_options_t *owner) {
++  if (!owner) return;
++  free(owner->wad_destinations);
++  free(owner->stages);
++  free(owner);
++}
++
++cupidbuild_disk_options_status_t cupidbuild_disk_options_view(
++    const cupidbuild_disk_options_t *owner, cupidbuild_disk_options_view_t *view_out) {
++  if (!view_out) return CUPIDBUILD_DISK_OPTIONS_ARGUMENT;
++  memset(view_out, 0, sizeof(*view_out));
++  if (!owner) return CUPIDBUILD_DISK_OPTIONS_ARGUMENT;
++  *view_out = owner->view;
++  return CUPIDBUILD_DISK_OPTIONS_OK;
++}
++
++cupidbuild_disk_options_status_t cupidbuild_disk_options_stage(
++    const cupidbuild_disk_options_t *owner, size_t index,
++    cupidbuild_disk_argument_stage_t *stage_out) {
++  if (!stage_out) return CUPIDBUILD_DISK_OPTIONS_ARGUMENT;
++  memset(stage_out, 0, sizeof(*stage_out));
++  if (!owner || index >= owner->view.stage_count) return CUPIDBUILD_DISK_OPTIONS_ARGUMENT;
++  *stage_out = owner->stages[index];
++  return CUPIDBUILD_DISK_OPTIONS_OK;
++}
++
++cupidbuild_disk_options_status_t cupidbuild_disk_options_open(
++    size_t argc, const char *const *argv, unsigned int unicode_major,
++    uint32_t digit_limit, unsigned int grammar_profile,
++    unsigned int basename_profile, uint32_t stage_capacity,
++    cupidbuild_disk_options_t **owner_out) {
++  cupidbuild_disk_options_t *owner = (cupidbuild_disk_options_t *)0;
++  option_token_t *tokens = (option_token_t *)0;
++  size_t index;
++  size_t explicit_stages = 0;
++  size_t wad_start = 0;
++  size_t wad_count = 0;
++  unsigned int after_end = 0;
++  unsigned int seen = 0;
++  unsigned int extras = 0;
++  cupidbuild_disk_options_status_t status = CUPIDBUILD_DISK_OPTIONS_SYNTAX;
++  if (!owner_out) return CUPIDBUILD_DISK_OPTIONS_ARGUMENT;
++  *owner_out = (cupidbuild_disk_options_t *)0;
++  if ((!argv && argc) || (unicode_major != 15u && unicode_major != 16u) ||
++      grammar_profile > 1u || basename_profile > 1u ||
++      argc > SIZE_MAX / sizeof(*tokens) || argc > SIZE_MAX / sizeof(*owner->stages))
++    return CUPIDBUILD_DISK_OPTIONS_ARGUMENT;
++  for (index = 0; index < argc; index++) {
++    size_t units;
++    if (!argv[index]) return CUPIDBUILD_DISK_OPTIONS_ARGUMENT;
++    if (!cupidbuild_path_to_utf16(argv[index], strlen(argv[index]),
++          (unsigned short *)0, 0, &units)) return CUPIDBUILD_DISK_OPTIONS_ENCODING;
++  }
++  tokens = (option_token_t *)calloc(argc ? argc : 1, sizeof(*tokens));
++  owner = (cupidbuild_disk_options_t *)calloc(1, sizeof(*owner));
++  if (!tokens || !owner) {
++    status = CUPIDBUILD_DISK_OPTIONS_MEMORY;
++    goto done;
++  }
++  for (index = 0; index < argc; index++) {
++    if (!after_end) tokens[index] = classify(argv[index], unicode_major, grammar_profile);
++    if (tokens[index].kind == TOKEN_END) after_end = 1u;
++    if (grammar_profile == 0u && tokens[index].kind == TOKEN_AMBIGUOUS) goto done;
++  }
++  owner->stages = (cupidbuild_disk_argument_stage_t *)calloc(argc ? argc : 1, sizeof(*owner->stages));
++  if (!owner->stages) {
++    status = CUPIDBUILD_DISK_OPTIONS_MEMORY;
++    goto done;
++  }
++  for (index = 0; index < argc; index++) {
++    option_token_t token = tokens[index];
++    const char *value = token.explicit_value;
++    size_t value_index = index + 1;
++    if (token.kind == TOKEN_AMBIGUOUS) goto done;
++    if (token.kind != TOKEN_OPTION) {
++      extras = 1u;
++      continue;
++    }
++    if (token.option == OPTION_HELP) {
++      if (token.short_help && value) {
++        while (*value == 'h') value++;
++        if (*value == '=' || *value == '-') goto done;
++        if (*value != '\0' && token.explicit_value[0] == '=') goto done;
++      } else if (value) {
++        goto done;
++      }
++      status = CUPIDBUILD_DISK_OPTIONS_HELP;
++      goto done;
++    }
++    if (token.option == OPTION_FORCE) {
++      if (value) goto done;
++      owner->view.force_format = 1u;
++      continue;
++    }
++    if (token.option == OPTION_WADS) {
++      if (value) {
++        wad_start = index;
++        wad_count = 1;
++      } else {
++        wad_start = value_index;
++        while (value_index < argc && tokens[value_index].kind == TOKEN_VALUE) value_index++;
++        wad_count = value_index - wad_start;
++        index = value_index - 1;
++      }
++      continue;
++    }
++    if (!value) {
++      if (value_index >= argc || tokens[value_index].kind != TOKEN_VALUE) goto done;
++      value = argv[value_index];
++      index = value_index;
++    }
++    if (token.option >= OPTION_SEED && token.option <= OPTION_KERNEL) {
++      cupidbuild_disk_argument_t path = argument(value, strlen(value));
++      if (token.option == OPTION_SEED) owner->view.seed_manifest = path;
++      else if (token.option == OPTION_IMAGE) owner->view.image = path;
++      else if (token.option == OPTION_BOOT) owner->view.bootloader = path;
++      else owner->view.kernel = path;
++      seen |= 1u << token.option;
++    } else if (token.option == OPTION_HDD || token.option == OPTION_FAT) {
++      cupidbuild_disk_integer_t parsed;
++      if (cupidbuild_disk_integer_parse((const unsigned char *)value, strlen(value),
++            unicode_major, digit_limit, &parsed) != CUPIDBUILD_DISK_INTEGER_OK) goto done;
++      if (token.option == OPTION_HDD) owner->view.hdd_mb = parsed;
++      else owner->view.fat_start_lba = parsed;
++      seen |= 1u << token.option;
++    } else if (token.option == OPTION_STAGE) {
++      if (!stage_argument(value, &owner->stages[explicit_stages])) goto done;
++      explicit_stages++;
++    }
++  }
++  if (extras || seen != 126u) goto done;
++  if (explicit_stages > stage_capacity || wad_count > stage_capacity - explicit_stages) {
++    status = CUPIDBUILD_DISK_OPTIONS_CAPACITY;
++    goto done;
++  }
++  if (wad_count > SIZE_MAX / 32u) {
++    status = CUPIDBUILD_DISK_OPTIONS_ARGUMENT;
++    goto done;
++  }
++  if (wad_count) {
++    owner->wad_destinations = (char *)malloc(wad_count * 32u);
++    if (!owner->wad_destinations) {
++      status = CUPIDBUILD_DISK_OPTIONS_MEMORY;
++      goto done;
++    }
++  }
++  for (index = 0; index < wad_count; index++) {
++    const char *path = tokens[wad_start].explicit_value && index == 0 ?
++        tokens[wad_start].explicit_value : argv[wad_start + index];
++    char *destination = owner->wad_destinations + index * 32u;
++    wad_destination(path, basename_profile, (uint32_t)index + 1u, destination);
++    owner->stages[explicit_stages + index].source = argument(path, strlen(path));
++    owner->stages[explicit_stages + index].destination = argument(destination, strlen(destination));
++  }
++  owner->view.stages = owner->stages;
++  owner->view.stage_count = explicit_stages + wad_count;
++  *owner_out = owner;
++  owner = (cupidbuild_disk_options_t *)0;
++  status = CUPIDBUILD_DISK_OPTIONS_OK;
++done:
++  free(tokens);
++  cupidbuild_disk_options_close(owner);
++  return status;
++}
+--- /dev/null
++++ b/toolchain/prototypes/native_image_options/cupidbuild_disk_options.h
+@@ -0,0 +1,60 @@
++#ifndef CUPIDBUILD_DISK_OPTIONS_H
++#define CUPIDBUILD_DISK_OPTIONS_H
++
++#include "cupidbuild_disk_integer.h"
++
++typedef struct {
++  const char *data;
++  size_t size;
++} cupidbuild_disk_argument_t;
++
++typedef struct {
++  cupidbuild_disk_argument_t source;
++  cupidbuild_disk_argument_t destination;
++} cupidbuild_disk_argument_stage_t;
++
++typedef struct {
++  cupidbuild_disk_argument_t seed_manifest;
++  cupidbuild_disk_argument_t image;
++  cupidbuild_disk_argument_t bootloader;
++  cupidbuild_disk_argument_t kernel;
++  cupidbuild_disk_integer_t hdd_mb;
++  cupidbuild_disk_integer_t fat_start_lba;
++  const cupidbuild_disk_argument_stage_t *stages;
++  size_t stage_count;
++  unsigned int force_format;
++} cupidbuild_disk_options_view_t;
++
++typedef struct cupidbuild_disk_options cupidbuild_disk_options_t;
++
++typedef enum {
++  CUPIDBUILD_DISK_OPTIONS_OK = 0,
++  CUPIDBUILD_DISK_OPTIONS_HELP = 1,
++  CUPIDBUILD_DISK_OPTIONS_SYNTAX = 2,
++  CUPIDBUILD_DISK_OPTIONS_ARGUMENT = 3,
++  CUPIDBUILD_DISK_OPTIONS_MEMORY = 4,
++  CUPIDBUILD_DISK_OPTIONS_CAPACITY = 5,
++  CUPIDBUILD_DISK_OPTIONS_ENCODING = 6
++} cupidbuild_disk_options_status_t;
++
++/* Interpret the arguments following the image command. Grammar 0 retains
++ * Python 3.12's eager ambiguity and complete negative-number pattern; grammar
++ * 1 retains Python 3.14's deferred ambiguity and negative-number prefix.
++ * Basename profile 0 is POSIX and 1 is Windows. Select Unicode 15 or 16.
++ * argv strings are borrowed until close; stages and WAD destinations are
++ * owned. Geometry validation follows final repeated-value selection in the
++ * eventual command caller. This operation observes no filesystem state.
++ * Failure and help clear the owner output. Inputs and outputs are disjoint. */
++cupidbuild_disk_options_status_t cupidbuild_disk_options_open(
++    size_t argc, const char *const *argv, unsigned int unicode_major,
++    uint32_t digit_limit, unsigned int grammar_profile,
++    unsigned int basename_profile, uint32_t stage_capacity,
++    cupidbuild_disk_options_t **owner_out);
++cupidbuild_disk_options_status_t cupidbuild_disk_options_view(
++    const cupidbuild_disk_options_t *owner, cupidbuild_disk_options_view_t *view_out);
++cupidbuild_disk_options_status_t cupidbuild_disk_options_stage(
++    const cupidbuild_disk_options_t *owner, size_t index,
++    cupidbuild_disk_argument_stage_t *stage_out);
++void cupidbuild_disk_options_close(cupidbuild_disk_options_t *owner);
++
++#endif
+--- /dev/null
++++ b/toolchain/prototypes/native_image_options/cupidbuild_disk_options_contract.cc
+@@ -0,0 +1,177 @@
++#include "cupidbuild_disk_options.h"
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++#ifndef CUPID_DISK_OPTIONS_NATIVE
++#include "fgetc_extension.h"
++#endif
++
++int cupidbuild_disk_options_fault_probe(void);
++
++static FILE *reader_file;
++static FILE *writer_file;
++static unsigned char reader_bytes[65536];
++static unsigned char writer_bytes[65536];
++static size_t reader_position;
++static size_t reader_size;
++static size_t writer_size;
++
++static int read_bytes(void *destination, size_t size) {
++  unsigned char *out = (unsigned char *)destination;
++  while (size) {
++    size_t available;
++    size_t amount;
++    if (reader_position == reader_size) {
++      reader_size = fread(reader_bytes, 1, sizeof(reader_bytes), reader_file);
++      reader_position = 0;
++      if (!reader_size) return 0;
++    }
++    available = reader_size - reader_position;
++    amount = size < available ? size : available;
++    memcpy(out, reader_bytes + reader_position, amount);
++    reader_position += amount;
++    out += amount;
++    size -= amount;
++  }
++  return 1;
++}
++
++static int flush_bytes(void) {
++  if (writer_size && fwrite(writer_bytes, 1, writer_size, writer_file) != writer_size) return 0;
++  writer_size = 0;
++  return 1;
++}
++
++static int write_bytes(const void *source, size_t size) {
++  const unsigned char *input = (const unsigned char *)source;
++  while (size) {
++    size_t available = sizeof(writer_bytes) - writer_size;
++    size_t amount = size < available ? size : available;
++    memcpy(writer_bytes + writer_size, input, amount);
++    writer_size += amount;
++    input += amount;
++    size -= amount;
++    if (writer_size == sizeof(writer_bytes) && !flush_bytes()) return 0;
++  }
++  return 1;
++}
++
++static int read_u32(FILE *file, uint32_t *out) {
++  unsigned char bytes[4];
++  (void)file;
++  if (!read_bytes(bytes, 4)) return 0;
++  *out = (uint32_t)bytes[0] | ((uint32_t)bytes[1] << 8) |
++         ((uint32_t)bytes[2] << 16) | ((uint32_t)bytes[3] << 24);
++  return 1;
++}
++
++static int write_u32(FILE *file, uint32_t value) {
++  unsigned char bytes[4];
++  (void)file;
++  bytes[0] = (unsigned char)value;
++  bytes[1] = (unsigned char)(value >> 8);
++  bytes[2] = (unsigned char)(value >> 16);
++  bytes[3] = (unsigned char)(value >> 24);
++  return write_bytes(bytes, 4);
++}
++
++static int write_argument(FILE *file, cupidbuild_disk_argument_t value) {
++  return value.size <= UINT32_MAX && write_u32(file, (uint32_t)value.size) &&
++         write_bytes(value.data, value.size);
++}
++
++static int write_integer(FILE *file, cupidbuild_disk_integer_t value) {
++  return write_u32(file, value.magnitude) && write_u32(file, value.digits) &&
++         write_u32(file, value.magnitude_fits_u32) && write_u32(file, value.negative) &&
++         write_u32(file, value.zero);
++}
++
++int main(int argc, char **argv) {
++  FILE *input;
++  FILE *output;
++  uint32_t count;
++  uint32_t case_index;
++  if (argc != 3) return 20;
++  input = fopen(argv[1], "rb");
++  output = fopen(argv[2], "wb");
++  reader_file = input;
++  writer_file = output;
++  if (!input || !output || !read_u32(input, &count)) return 21;
++  for (case_index = 0; case_index < count; case_index++) {
++    uint32_t unicode_major, digit_limit, grammar, basename, capacity, arguments;
++    uint32_t index;
++    char **values;
++    cupidbuild_disk_options_t *owner = (cupidbuild_disk_options_t *)1;
++    cupidbuild_disk_options_status_t status;
++    cupidbuild_disk_options_view_t view;
++    if (!read_u32(input, &unicode_major) || !read_u32(input, &digit_limit) ||
++        !read_u32(input, &grammar) || !read_u32(input, &basename) ||
++        !read_u32(input, &capacity) || !read_u32(input, &arguments) || arguments > 32768u) return 22;
++    values = (char **)calloc(arguments ? arguments : 1u, sizeof(*values));
++    if (!values) return 23;
++    for (index = 0; index < arguments; index++) {
++      uint32_t bytes;
++      if (!read_u32(input, &bytes) || bytes > 1048576u) return 24;
++      values[index] = (char *)malloc((size_t)bytes + 1u);
++      if (!values[index] || !read_bytes(values[index], bytes)) return 25;
++      if (memchr(values[index], 0, bytes)) return 26;
++      values[index][bytes] = '\0';
++    }
++    status = cupidbuild_disk_options_open(arguments, (const char *const *)values,
++        unicode_major, digit_limit, grammar, basename, capacity, &owner);
++    if (!write_u32(output, (uint32_t)status)) return 30;
++    if (status == CUPIDBUILD_DISK_OPTIONS_OK) {
++      cupidbuild_disk_argument_stage_t guard;
++      if (!owner || cupidbuild_disk_options_view(owner, &view) != CUPIDBUILD_DISK_OPTIONS_OK) return 31;
++      if (!write_argument(output, view.seed_manifest) || !write_argument(output, view.image) ||
++          !write_argument(output, view.bootloader) || !write_argument(output, view.kernel) ||
++          !write_integer(output, view.hdd_mb) || !write_integer(output, view.fat_start_lba) ||
++          !write_u32(output, view.force_format) || view.stage_count > UINT32_MAX ||
++          !write_u32(output, (uint32_t)view.stage_count)) return 32;
++      for (index = 0; index < view.stage_count; index++) {
++        cupidbuild_disk_argument_stage_t stage;
++        if (cupidbuild_disk_options_stage(owner, index, &stage) != CUPIDBUILD_DISK_OPTIONS_OK ||
++            stage.source.data != view.stages[index].source.data ||
++            stage.destination.data != view.stages[index].destination.data ||
++            !write_argument(output, stage.source) || !write_argument(output, stage.destination)) return 33;
++      }
++      memset(&guard, 0xff, sizeof(guard));
++      if (cupidbuild_disk_options_stage(owner, view.stage_count, &guard) != CUPIDBUILD_DISK_OPTIONS_ARGUMENT ||
++          guard.source.data || guard.source.size || guard.destination.data || guard.destination.size) return 34;
++      if (cupidbuild_disk_options_stage(owner, 0, (cupidbuild_disk_argument_stage_t *)0) !=
++          CUPIDBUILD_DISK_OPTIONS_ARGUMENT) return 35;
++      cupidbuild_disk_options_close(owner);
++    } else if (owner) {
++      return 36;
++    }
++    for (index = 0; index < arguments; index++) free(values[index]);
++    free(values);
++  }
++  if (reader_position != reader_size || fgetc(input) != EOF ||
++      !flush_bytes() || fclose(input) != 0 || fclose(output) != 0) return 40;
++  {
++    cupidbuild_disk_options_t *owner = (cupidbuild_disk_options_t *)1;
++    cupidbuild_disk_options_view_t view;
++    cupidbuild_disk_argument_stage_t stage;
++    memset(&view, 0xff, sizeof(view));
++    memset(&stage, 0xff, sizeof(stage));
++    if (cupidbuild_disk_options_open(1, (const char *const *)0, 15, 4300, 0, 0, 4096, &owner) !=
++          CUPIDBUILD_DISK_OPTIONS_ARGUMENT || owner) return 41;
++    if (cupidbuild_disk_options_open(0, (const char *const *)0, 15, 4300, 0, 0, 4096,
++          (cupidbuild_disk_options_t **)0) != CUPIDBUILD_DISK_OPTIONS_ARGUMENT) return 42;
++    if (cupidbuild_disk_options_view((const cupidbuild_disk_options_t *)0, &view) !=
++          CUPIDBUILD_DISK_OPTIONS_ARGUMENT || view.seed_manifest.data || view.image.data ||
++          view.bootloader.data || view.kernel.data || view.stages || view.stage_count || view.force_format ||
++          view.hdd_mb.magnitude || view.hdd_mb.digits || view.hdd_mb.magnitude_fits_u32 ||
++          view.hdd_mb.negative || view.hdd_mb.zero || view.fat_start_lba.magnitude || view.fat_start_lba.digits ||
++          view.fat_start_lba.magnitude_fits_u32 || view.fat_start_lba.negative || view.fat_start_lba.zero) return 43;
++    if (cupidbuild_disk_options_stage((const cupidbuild_disk_options_t *)0, 0, &stage) !=
++          CUPIDBUILD_DISK_OPTIONS_ARGUMENT || stage.source.data || stage.source.size ||
++          stage.destination.data || stage.destination.size) return 44;
++    cupidbuild_disk_options_close((cupidbuild_disk_options_t *)0);
++  }
++  if (!cupidbuild_disk_options_fault_probe()) return 45;
++  return 0;
++}
+--- /dev/null
++++ b/toolchain/prototypes/native_image_options/cupidbuild_disk_options_fault_contract.cc
+@@ -0,0 +1,90 @@
++#include "cupidbuild_disk_options.h"
++
++#include <stdlib.h>
++#include <string.h>
++
++cupidbuild_disk_options_status_t cupidbuild_disk_options_fault_open(
++    size_t argc, const char *const *argv, unsigned int unicode_major,
++    uint32_t digit_limit, unsigned int grammar_profile, unsigned int basename_profile,
++    uint32_t stage_capacity, cupidbuild_disk_options_t **owner_out);
++cupidbuild_disk_options_status_t cupidbuild_disk_options_fault_view(
++    const cupidbuild_disk_options_t *owner, cupidbuild_disk_options_view_t *view_out);
++void cupidbuild_disk_options_fault_close(cupidbuild_disk_options_t *owner);
++
++static void *retained[16];
++static unsigned int attempts;
++static unsigned int fail_after;
++static unsigned int bad_free;
++
++static void *retain(void *value) {
++  size_t index;
++  if (!value) return value;
++  for (index = 0; index < sizeof(retained) / sizeof(retained[0]); index++) {
++    if (!retained[index]) {
++      retained[index] = value;
++      return value;
++    }
++  }
++  bad_free = 1u;
++  free(value);
++  return (void *)0;
++}
++
++void *cupidbuild_disk_options_fault_malloc(size_t size) {
++  if (attempts++ == fail_after) return (void *)0;
++  return retain(malloc(size));
++}
++
++void *cupidbuild_disk_options_fault_calloc(size_t count, size_t size) {
++  if (attempts++ == fail_after) return (void *)0;
++  return retain(calloc(count, size));
++}
++
++void cupidbuild_disk_options_fault_free(void *value) {
++  size_t index;
++  if (!value) return;
++  for (index = 0; index < sizeof(retained) / sizeof(retained[0]); index++) {
++    if (retained[index] == value) {
++      retained[index] = (void *)0;
++      free(value);
++      return;
++    }
++  }
++  bad_free = 1u;
++}
++
++int cupidbuild_disk_options_fault_probe(void) {
++  unsigned int failure;
++  char wad[] = "doom.wad";
++  const char *arguments[] = {"--seed-manifest", "seed.json", "--image", "image.img",
++      "--bootloader", "boot.bin", "--kernel", "kernel.bin", "--hdd-mb", "200",
++      "--fat-start-lba", "20480", "--wads", wad};
++  for (failure = 0; failure < 16u; failure++) {
++    cupidbuild_disk_options_t *owner = (cupidbuild_disk_options_t *)1;
++    cupidbuild_disk_options_status_t status;
++    size_t index;
++    fail_after = failure;
++    attempts = 0;
++    bad_free = 0;
++    status = cupidbuild_disk_options_fault_open(sizeof(arguments) / sizeof(arguments[0]),
++        arguments, 15u, 4300u, 0u, 0u, 4096u, &owner);
++    if (status == CUPIDBUILD_DISK_OPTIONS_OK) {
++      cupidbuild_disk_options_view_t view;
++      if (!owner || cupidbuild_disk_options_fault_view(owner, &view) != CUPIDBUILD_DISK_OPTIONS_OK ||
++          view.stage_count != 1u || strcmp(view.stages[0].destination.data, "/wads/doom.wad") != 0 ||
++          view.stages[0].source.data != wad) return 0;
++      strcpy(wad, "else.wad");
++      if (strcmp(view.stages[0].destination.data, "/wads/doom.wad") != 0 ||
++          strcmp(view.stages[0].source.data, "else.wad") != 0) return 0;
++      cupidbuild_disk_options_fault_close(owner);
++    } else if (status != CUPIDBUILD_DISK_OPTIONS_MEMORY || owner) {
++      return 0;
++    }
++    if (bad_free) return 0;
++    for (index = 0; index < sizeof(retained) / sizeof(retained[0]); index++) {
++      if (retained[index]) return 0;
++    }
++    if (status == CUPIDBUILD_DISK_OPTIONS_OK) return failure != 0u;
++  }
++  return 0;
++}
+--- /dev/null
++++ b/toolchain/prototypes/native_image_options/fgetc_extension.cc
+@@ -0,0 +1,7 @@
++#include "fgetc_extension.h"
++
++int fgetc(FILE *stream) {
++  unsigned char value;
++  if (fread(&value, 1, 1, stream) != 1) return EOF;
++  return (int)value;
++}
+--- /dev/null
++++ b/toolchain/prototypes/native_image_options/fgetc_extension.h
+@@ -0,0 +1,8 @@
++#ifndef CUPID_HOSTED_FGETC_EXTENSION_H
++#define CUPID_HOSTED_FGETC_EXTENSION_H
++
++#include <stdio.h>
++
++int fgetc(FILE *stream);
++
++#endif

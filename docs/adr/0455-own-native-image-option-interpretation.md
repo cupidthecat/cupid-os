@@ -5,6 +5,12 @@
 Implemented and tested privately on 2026-10-09. Source-plan integration,
 discovery, observer lifetimes and the normal image command handoff remain open.
 
+The current [reproducible owner](../bootstrap/NATIVE-IMAGE-ARGUMENT-OWNER.md)
+retains its exact C source and actual host oracles on 2026-10-10. Four callers
+pass all 11,954 sequences, and both installed-seed repository replays pass.
+Historical private `cp7` products are absent from the current worktree. Normal
+command integration remains open.
+
 ## Context
 
 The native disk publisher can capture and publish an image, but its normal
@@ -35,6 +41,11 @@ ambiguity across the argument sequence before actions, stopping at `--`.
 These profiles preserve the observed Windows 3.14.3 and Linux 3.12.3 parser
 behaviors. The caller selects its retained grammar without depending on Python
 for the native interpretation itself.
+
+The actual negative-number token rules also belong to the selected grammar.
+Python 3.12 matches a complete integer or fractional token; Python 3.14 matches
+a negative decimal prefix. Numeric value conversion remains separate and keeps
+oversized values with a range flag until final repeated-value selection.
 
 The normal snapshot includes every top-level Toolchain header. Hold the new
 source outside that closure until the current 99-input consumer queue closes;

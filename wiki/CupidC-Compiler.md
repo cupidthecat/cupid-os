@@ -22,6 +22,14 @@ independent review accepts 22 programs, 104 SDK inputs and all 77 complete
 stage pairs. The other three SDK profiles, original public methods and both
 Make bootstraps remain in progress.
 
+The [native image argument owner](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-IMAGE-ARGUMENT-OWNER.md)
+is retained as an unapplied C patch with complete actual-host oracles and a
+repository replay. All four callers pass 47,816 calls across 11,954 sequences;
+seven complete shared object pairs agree. Both installed-seed replays pass,
+including allocation failure and borrowed/owned storage checks. Native
+discovery, observers, diagnostics and publication remain open. The normal
+producer cohort and its three Python coordinators are unchanged.
+
 The [native image integer prototype](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-IMAGE-INTEGERS.md)
 is retained as an unapplied C patch with a frozen oracle fixture and repository
 replay. Native and Cupid-built callers pass 66,816 complete cases under the

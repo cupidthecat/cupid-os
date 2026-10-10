@@ -150,8 +150,10 @@ command starts, because its pins still name the installed cohort. The completed
 replays use the recognized installed manifests. The candidate consumer queue
 continues in its separately projected reader roots.
 
-After heap-cohort adoption, the numeric component must join a complete image
-argument owner, and `fgetc` must enter the actual hosted header/runtime. Full
-option grammar, native discovery and publication then need complete command
+The [held argument owner](NATIVE-IMAGE-ARGUMENT-OWNER.md) now uses this numeric
+component and separate `fgetc` extension. All four callers pass its complete
+paired argv, stage and WAD replay. After heap-cohort adoption, the owner must
+enter the actual native image command, and `fgetc` must enter the hosted
+header/runtime. Complete diagnostics, native discovery and publication need command
 comparisons, a new qualified producer cohort, normal Make handoff and paired
 OS builds and boots. This prototype does not remove a Python coordinator.
