@@ -199,9 +199,32 @@ streams. All bytes agree. All 104 SDK inputs match; default bootstrap inventorie
 contain the same 98 inputs, and long-path inventories contain the same 99.
 The exact additional input is `toolchain/hosted/i386-windows/utf8_long_path_start.asm`.
 
-The same original queue now runs Linux public bootstrap tests; the independent
-audit companion waits for their result. Neither queue is restarted. Original
-public methods and both actual Make bootstraps remain required before installed
-seed adoption. The normal graph remains 449
+After all four SDK profiles close, the same original queue advances to Linux
+public bootstrap tests. Neither the command nor audit queue is restarted.
+
+## Linux public bootstrap accepted, 2026-10-10
+
+The original complete Linux public selection passes in 1,978.919 seconds,
+with its Windows-only native-boundary skip. Its queue job closes in 1,979.440
+seconds. Independent checking takes 28.552 seconds and rereads every published
+file and all three product generations: 4,338 retained files, 132 complete staged
+products and 44 complete final-generation fixed-point pairs. All 1,823 complete
+named behavior pairs agree. Each behavior generation keeps 73 success, 66
+rejection and seven help cases. No original test body, predicate, timeout or
+resource limit changes.
+
+[Linux public progress evidence](evidence/hosted-heap-public-linux-progress-20261010.json)
+binds both original queue jobs, their logs, both method outcomes and the
+[complete independent audit](evidence/hosted-heap-public-linux-20261010.json.gz).
+The 205,396-byte archive restores the exact 1,129,258-byte original receipt.
+Before publication, the recorder rereads all 4,338 files, every complete stage
+and behavior pair, 1,764 consumer source controls, 99 raw committed producer
+inputs and all fifteen unchanged installed seed files. This establishes the
+public output and method boundary; it adds no unretained producer-command or
+timestamp evidence.
+
+The same original queue now runs Windows public bootstrap tests; the independent
+audit companion waits for their result. Windows public methods and both actual
+Make bootstraps remain required before installed seed adoption. The normal graph remains 449
 CupidBuild actions and three Python coordinators across 452 transforms.
 TempleOS stays read-only and excluded.

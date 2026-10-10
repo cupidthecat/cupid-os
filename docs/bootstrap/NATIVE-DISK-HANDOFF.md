@@ -1,5 +1,25 @@
 # Native disk-image handoff
 
+## Current reproducible prerequisites, 2026-10-10
+
+The [argument owner](NATIVE-IMAGE-ARGUMENT-OWNER.md) and
+[observer-path extension](NATIVE-OBSERVER-PATHS.md) now have held repository
+patches, complete original receipts and installed-seed replays. The observer
+extension supplies quotas, retained streams, captured identities, first
+absences, ordinary UNC roots and Unicode/long directory resolution. Four
+callers pass 388 API calls under the original bounds; every complete checked
+object and program agrees with the original builds after installed-seed replay.
+The older private `cp7` discovery and publisher products below are absent from
+the current worktree. Complete native pathname selection, input ownership and
+image-command publication still require current integration and acceptance.
+
+The normal shared heap source separately passes both qualifications, cold OS
+builds and boots, full compatibility, all four original SDK profiles and Linux
+public bootstrap acceptance. Windows public methods and both actual Make
+bootstraps remain in their original queue before seed adoption. All 99 producer
+inputs and fifteen installed seeds are unchanged. Three normal Python
+coordinators remain.
+
 ## Retained input discovery, 2026-10-09
 
 The separate [discovery owner](NATIVE-INPUT-DISCOVERY.md) retains required and

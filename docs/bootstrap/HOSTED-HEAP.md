@@ -209,8 +209,11 @@ and complete compatibility selections pass. All four original SDK profiles
 also pass complete publication and independent 77-pair audits. A separate
 comparison rereads all 616 stage files and 88 published programs; every complete
 stream agrees across both hosts and profiles. [The seed
-record](QUALIFIED-HOSTED-HEAP-SEEDS.md) retains those consumer results. Original
-public methods and both actual Make bootstraps remain required before
+record](QUALIFIED-HOSTED-HEAP-SEEDS.md) retains those consumer results. The
+original Linux public selection also passes with its Windows-only boundary
+skip; independent review accepts all 4,338 published files, 132 staged files,
+44 fixed-point pairs and 1,823 complete named behavior pairs. Windows public
+methods and both actual Make bootstraps remain required before
 replacement-seed promotion. This integration changes
 one of the 99 normal producer inputs. The fifteen installed seed files retain
 their preceding identities until promotion. No coordinator or normal recipe

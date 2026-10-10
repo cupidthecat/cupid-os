@@ -23,8 +23,9 @@ Linux and Windows. Independent review accepts 22 published programs, 104 SDK
 inputs and all 77 complete stage pairs per profile. A
 [four-profile comparison](docs/bootstrap/evidence/hosted-heap-all-four-sdk-20261010.json)
 rereads all 616 stage files and 88 published programs; every complete stream
-agrees. Original public methods and both actual Make bootstraps remain in
-progress before replacement-seed adoption.
+agrees. The original Linux public bootstrap selection also passes, with its
+Windows-only boundary skip and complete independent review. Windows public
+methods and both actual Make bootstraps remain in progress before seed adoption.
 
 ## Optional input observations and UNC roots, 2026-10-10
 

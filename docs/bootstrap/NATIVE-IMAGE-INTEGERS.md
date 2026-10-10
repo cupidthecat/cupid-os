@@ -23,8 +23,9 @@ The active producer cohort remains the exact 99 inputs committed at
 All fifteen installed seed files retain the `acbbd834` cohort. Cold OS builds,
 boots and full compatibility have accepted the qualified heap replacement.
 All four Linux and Windows SDK profiles pass complete publication and
-independent audits; original public methods and actual Make bootstraps remain
-under their original consumer queue. The normal graph still has
+independent audits. The original Linux public selection also passes independent
+review; Windows public methods and actual Make bootstraps remain under the
+original consumer queue. The normal graph still has
 449 CupidBuild actions and three Python coordinators across 452 transforms.
 
 ## Integer contract
