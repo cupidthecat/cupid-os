@@ -1,5 +1,21 @@
 # Native disk-image handoff
 
+## Optional source-file prerequisite, 2026-10-10
+
+The held [optional source-file owner](NATIVE-SOURCE-OPTIONAL.md) selects
+regular files or retains the first absent component beneath the nearest
+existing parent. Original parent bindings, copied request names, complete
+suffixes and borrowed observer lifetimes remain checked. Four native/Cupid
+callers pass 382 new contracts: 170 successes and 212 rejections. Both complete
+repository replays preserve all 1,742 current API outcomes, 340 legacy passes
+with twelve declared skips and 48 alias methods. All 37 distinct whole checked
+objects and twenty programs equal their originals; thirteen whole object pairs
+agree across hosts. All 59 strict checks retain their original flags and
+runtime bounds. Python compatibility for broken-parent children and Windows
+file-parent children remains open. Complete native image discovery and
+publication remain open; the normal 99-input cohort and three Python
+coordinators are unchanged.
+
 ## Hosted heap adoption, 2026-10-10
 
 The qualified `1d852023` Linux and Windows seeds now carry the shared hosted
@@ -47,8 +63,9 @@ and borrowed publication. Both full replays preserve all 176 new calls and the
 complete preceding selections. The later
 [required source-file owner](NATIVE-SOURCE-FILE.md) retains original parent
 requests and regular leaves through 232 new contracts and both complete
-repository replays. Optional missing-parent selection and the complete command
-handoff remain open.
+repository replays. The later [optional owner](NATIVE-SOURCE-OPTIONAL.md) adds
+nearest-existing-parent selection. Its Python parent-path differences and
+the complete command handoff remain open.
 
 The normal shared heap source separately passes both qualifications, cold OS
 builds and boots, full compatibility, all four original SDK profiles and Linux
@@ -56,9 +73,9 @@ public bootstrap acceptance. The fresh
 [Windows public selection](HOSTED-HEAP-PUBLIC-WINDOWS.md) also passes both methods
 and complete audits after correcting two stale runtime-image byte locks.
 Both [actual Make consumers](HOSTED-HEAP-MAKE.md) and complete independent audits
-pass. Seed/manual adoption and final paired OS acceptance remain pending. All 99 producer
-inputs and fifteen installed seeds are unchanged. Three normal Python
-coordinators remain.
+pass. [Seed/manual adoption](HOSTED-HEAP-ADOPTION.md) and final paired OS
+acceptance also pass; the installed pair carries the qualified heap. All 99
+producer inputs remain unchanged. Three normal Python coordinators remain.
 
 ## Retained input discovery, 2026-10-09
 

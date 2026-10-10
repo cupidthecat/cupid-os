@@ -1,5 +1,15 @@
 # Native image input discovery
 
+## Optional source-file follow-up, 2026-10-10
+
+The later [optional source-file owner](NATIVE-SOURCE-OPTIONAL.md) retains
+nearest-existing parents and complete missing suffixes. Its 382 new contracts
+and both full repository replays pass while retaining every preceding API
+and legacy result. Its separate source-validation API preserves required-file
+metadata checks and captured-membership rejection. Complete Python discovery
+compatibility and native image integration remain open. The historical
+acceptance below retains its original checkpoint and guards.
+
 ## Current integration boundary, 2026-10-10
 
 The shared [hosted heap](HOSTED-HEAP.md) is now normal source at `1d852023`.

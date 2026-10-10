@@ -29,7 +29,9 @@ preceding selection and both complete repository replays pass. It preserves the
 existing quota model. The later
 [required source-file owner](../bootstrap/NATIVE-SOURCE-FILE.md) passes 232 new
 contracts and both complete repository replays with the same quota model and
-original process bounds. Optional missing-parent selection and complete
+original process bounds. The later [optional source-file owner](../bootstrap/NATIVE-SOURCE-OPTIONAL.md)
+adds nearest-existing-parent selection and passes 382 new contracts plus
+both full repository replays. Python parent-path compatibility and complete
 discovery remain open.
 
 ### Reproduced observer prerequisites, 2026-10-10

@@ -44,6 +44,22 @@ users/ABI, sixteen artifact checks and both strict boots. Every whole product
 equals the accepted pair. Earlier held replays use their `ffdbc419` checkpoint
 because their reader and seed guards precede this promotion.
 
+## Optional source-file owners, 2026-10-10
+
+The held [optional source-file owner](NATIVE-SOURCE-OPTIONAL.md) selects
+regular files or retains the first absent component beneath the nearest
+existing parent. Original parent bindings, copied request names, complete
+suffixes and borrowed observer lifetimes remain checked. Four native/Cupid
+callers pass 382 new contracts: 170 successes and 212 rejections. Both complete
+repository replays preserve all 1,742 current API outcomes, 340 legacy passes
+with twelve declared skips and 48 alias methods. All 37 distinct whole checked
+objects and twenty programs equal their originals; thirteen whole object pairs
+agree across hosts. All 59 strict checks retain their original flags and
+runtime bounds. Python compatibility for broken-parent children and Windows
+file-parent children remains open. Complete native image discovery and
+publication remain open; the normal 99-input cohort and three Python
+coordinators are unchanged.
+
 ## Required source-file owners, 2026-10-10
 
 The [required source-file owner](NATIVE-SOURCE-FILE.md) keeps
@@ -54,8 +70,9 @@ case and POSIX literal filename bytes pass actual Python file oracles. Both
 repository replays preserve all 1,360 current API outcomes, 340 legacy methods
 with twelve declared skips and 48 alias methods. All 35 whole checked objects
 and eighteen programs equal their original builds; twelve cross-host object
-pairs agree. Optional missing-parent selection and complete native image
-ownership remain open. The 99-input cohort and installed seeds are unchanged;
+pairs agree. The later optional owner adds nearest-existing-parent selection.
+Complete native image ownership remains open. The 99-input cohort and
+installed seeds remain unchanged within this preceding acceptance;
 three Python coordinators remain.
 
 ## Retained original source roots, 2026-10-10

@@ -38,9 +38,11 @@ checked objects and sixteen programs. The later
 [required source-file owner](../bootstrap/NATIVE-SOURCE-FILE.md) retains the
 lexical request and resolved parent while rejecting linked and special leaves.
 All 232 new contracts and both complete repository replays pass; every current
-API outcome and whole product equals its original acceptance. Nearest-existing
-parents for optional missing inputs and complete discovery still need selection
-and integration.
+API outcome and whole product equals its original acceptance. The later
+[optional owner](../bootstrap/NATIVE-SOURCE-OPTIONAL.md) retains nearest-existing
+parents and complete missing suffixes. All 382 new contracts and both full
+repository replays pass. Python parent-path compatibility and complete
+discovery still need integration.
 
 Both installed-seed observer replays pass every original outcome again, with
 all 24 checked objects and twelve complete programs equal to the original builds.

@@ -1,5 +1,15 @@
 # Retained original source roots
 
+## Optional source-file follow-up, 2026-10-10
+
+The later [optional source-file owner](NATIVE-SOURCE-OPTIONAL.md) retains
+nearest-existing parents and complete missing suffixes. Its 382 new contracts
+and both full repository replays pass while retaining every preceding API
+and legacy result. Its separate source-validation API preserves required-file
+metadata checks and captured-membership rejection. Complete Python discovery
+compatibility and native image integration remain open. The historical
+acceptance below retains its original checkpoint and guards.
+
 Repeat this historical acceptance from `ffdbc4191c9e3bb07cd66fb47a22f81bbff72f1b`.
 Its guarded reader and installed seeds precede the later
 [heap promotion](HOSTED-HEAP-ADOPTION.md). The original guards remain intact.

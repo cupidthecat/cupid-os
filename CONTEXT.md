@@ -51,9 +51,19 @@ A held owner for one regular input that normalizes its lexical request, retains
 the original parent binding and physical parent, and captures the leaf without
 following links. Views revalidate before exposing borrowed names and an observer.
 Retained streaming adds payload custody; metadata alone accepts restored-time
-edits. The owner must outlive every borrowing transaction. Optional missing
-selection and complete native image ownership remain separate work.
+edits. The owner must outlive every borrowing transaction. Optional selection
+uses its separate constructor; complete native image ownership remains open.
 _Avoid_: frozen payload, complete image discovery, publication authority
+
+**Optional source-file owner**:
+A held constructor for the same source-file owner that returns a regular file
+or retains the first absence beneath its nearest existing parent. It keeps
+the original parent binding and complete logical suffix. Its views validate
+root identity, captured observations, payloads and memberships while allowing
+uncaptured sibling changes in the selected parent. Required views retain
+complete root-metadata validation. Python compatibility gaps and native image
+integration remain separate; ADR 0462 records the boundary.
+_Avoid_: optional payload freeze, complete image discovery, production owner
 
 **Toolchain job**:
 An owned, bounded lifetime for deterministic Cupid Toolchain arena, buffer, logical-path, source, and diagnostic state.
@@ -2677,3 +2687,19 @@ all 170 unchanged seed-reader and release-operation methods, and both strict
 boots. Its complete products equal the accepted pair. The final manual is
 72,415 bytes and the raw kernel is 9,301,660 bytes. The 99 producer inputs and
 449 CupidBuild / three Python ownership counts remain unchanged.
+
+## Optional source-file owners, 2026-10-10
+
+The held [optional source-file owner](docs/bootstrap/NATIVE-SOURCE-OPTIONAL.md) selects
+regular files or retains the first absent component beneath the nearest
+existing parent. Original parent bindings, copied request names, complete
+suffixes and borrowed observer lifetimes remain checked. Four native/Cupid
+callers pass 382 new contracts: 170 successes and 212 rejections. Both complete
+repository replays preserve all 1,742 current API outcomes, 340 legacy passes
+with twelve declared skips and 48 alias methods. All 37 distinct whole checked
+objects and twenty programs equal their originals; thirteen whole object pairs
+agree across hosts. All 59 strict checks retain their original flags and
+runtime bounds. Python compatibility for broken-parent children and Windows
+file-parent children remains open. Complete native image discovery and
+publication remain open; the normal 99-input cohort and three Python
+coordinators are unchanged.

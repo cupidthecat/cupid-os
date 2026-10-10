@@ -1,5 +1,29 @@
 # Bootstrapping log
 
+## 2026-10-10: Retain optional source-file selections
+
+The held [optional source-file owner](NATIVE-SOURCE-OPTIONAL.md) selects
+regular files or retains the first absent component beneath the nearest
+existing parent. Original parent bindings, copied request names, complete
+suffixes and borrowed observer lifetimes remain checked. Four native/Cupid
+callers pass 382 new contracts: 170 successes and 212 rejections. Both complete
+repository replays preserve all 1,742 current API outcomes, 340 legacy passes
+with twelve declared skips and 48 alias methods. All 37 distinct whole checked
+objects and twenty programs equal their originals; thirteen whole object pairs
+agree across hosts. All 59 strict checks retain their original flags and
+runtime bounds. Python compatibility for broken-parent children and Windows
+file-parent children remains open. Complete native image discovery and
+publication remain open; the normal 99-input cohort and three Python
+coordinators are unchanged.
+
+The [implementation record](NATIVE-SOURCE-OPTIONAL.md) retains the combined
+patch, every original failure and complete fresh replays. Optional views
+use a separate source-validation API; required metadata checks and captured
+membership stay strict. The Windows builder uses the actual manifest host
+defines. The full UNC timeout remains unexplained after unchanged-capacity
+controls and complete passing retries. Python boundary diagnostics retain
+both broken-parent differences and the Windows file-parent difference.
+
 ## 2026-10-10: Promote the qualified hosted heap seeds
 
 The qualified `1d852023` Linux and Windows seeds now carry the shared hosted
