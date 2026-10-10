@@ -33,8 +33,10 @@ rereads all 616 raw stage files and 88 published programs; every complete stream
 agrees across both hosts and profiles. The original Linux public bootstrap
 selection also passes with its Windows-only boundary skip. Independent review
 accepts all 4,338 published files, 132 stage files and 44 complete fixed-point
-pairs. Windows public methods and both actual Make bootstraps remain in progress
-before installed-seed adoption.
+pairs. The fresh [Windows public selection](HOSTED-HEAP-PUBLIC-WINDOWS.md) passes
+both methods and complete audits after correcting two stale runtime-image
+byte locks. Both actual Make bootstraps remain in progress before installed-seed
+adoption.
 
 ## Native image source spellings, 2026-10-10
 

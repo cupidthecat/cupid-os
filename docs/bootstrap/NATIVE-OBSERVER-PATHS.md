@@ -174,8 +174,8 @@ complete repository replays retain all cases and matching complete products.
 Combining that component with retained observations still requires the complete
 physical pathname selector and its original-request revalidation.
 
-Source integration waits for the hosted heap cohort's remaining original public
-and Make consumers and seed adoption. The complete input owner still needs
+Source integration waits for the hosted heap cohort's remaining actual Make
+consumers and seed adoption. The complete input owner still needs
 original pathname revalidation, final construction checks and borrowed observer
 lifetimes. Normal command integration requires complete CLI/image comparisons,
 a new qualified cohort, OS builds and boots. Remote-share disconnection and

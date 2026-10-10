@@ -223,8 +223,33 @@ inputs and all fifteen unchanged installed seed files. This establishes the
 public output and method boundary; it adds no unretained producer-command or
 timestamp evidence.
 
-The same original queue now runs Windows public bootstrap tests; the independent
-audit companion waits for their result. Windows public methods and both actual
-Make bootstraps remain required before installed seed adoption. The normal graph remains 449
-CupidBuild actions and three Python coordinators across 452 transforms.
-TempleOS stays read-only and excluded.
+The original queue next reaches Windows public tests and stops at a stale
+runtime-image byte lock. The fresh acceptance below retains that original
+failure. Both actual Make bootstraps remain required before installed seed
+adoption. The normal graph remains 449 CupidBuild actions and three Python
+coordinators across 452 transforms. TempleOS stays read-only and excluded.
+
+## Windows public bootstrap accepted, 2026-10-10
+
+The fresh [complete Windows selection](HOSTED-HEAP-PUBLIC-WINDOWS.md) passes both
+original public methods without skips. Direct checked-tool probes establish
+that the new shared runtime alone changes its linked contract from 38,400 to
+41,472 bytes. Substituting only the preceding runtime recovers the exact old
+size and hash. Only those two stale expected literals change; every other
+original case, predicate and bound remains.
+
+The full selection takes 2,431.239 seconds. Independent bootstrap review accepts
+4,351 published files, 132 staged products, 44 complete fixed-point pairs and
+1,823 named behavior pairs in 10.233 seconds. Native boundary review accepts
+thirteen checked objects and three full PE relinks in 20.086 seconds. Each
+relink equals the public product byte for byte and passes strict validation.
+Its corrected import expectation follows CupidLD's existing sorted order;
+the original audit copy and wrong-order failure stay preserved.
+
+[Windows progress evidence](evidence/hosted-heap-public-windows-progress-20261010.json)
+binds every outcome, complete control/product identity and original failure.
+The [receipt archive](evidence/hosted-heap-public-windows-originals-20261010.json.gz)
+restores 36 complete files. All 99 committed producer inputs and fifteen root
+seed files are unchanged. A separate continuation runs the two previously
+unstarted actual Make commands and unchanged bootstrap audits; accepted SDK,
+Linux public and Windows public producers are not restarted.

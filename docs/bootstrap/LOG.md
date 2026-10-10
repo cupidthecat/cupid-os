@@ -1,5 +1,28 @@
 # Bootstrapping log
 
+## 2026-10-10: Close Windows public heap consumer acceptance
+
+The fresh [Windows public selection](HOSTED-HEAP-PUBLIC-WINDOWS.md) passes both
+original methods without skips in 2,431.239 seconds. Its complete independent
+bootstrap audit rereads 4,351 published files, 132 staged products, 44 fixed-point
+pairs and 1,823 named behavior pairs. Native boundary review accepts thirteen
+objects and three whole PE relinks, all identical to their public products.
+
+The original selection fails only two stale literals for the runtime-contract
+image. A checked-tool probe reproduces the current 41,472-byte image with both
+ordinary and reversed imports; substituting only the preceding shared runtime
+recovers the exact former 38,400-byte size and hash. Only those expected size/hash
+literals change. A separate audit repair follows CupidLD's existing canonical
+sorted import order while retaining every strict validation and complete-image
+predicate. The original five audit scripts stay unchanged. Both original failures,
+diagnostic missteps, exact corrected source and complete receipts are archived.
+
+The two previously unstarted actual Make bootstraps now continue with unchanged
+audits. The accepted SDK and public producers are not restarted. All 99 normal
+producer inputs and fifteen installed seed files remain unchanged. Seed/manual
+adoption and paired installed-seed OS builds and boots remain open. Three Python
+coordinators remain; TempleOS is untouched and excluded.
+
 ## 2026-10-10: Reproduce native image source spellings
 
 The [held source spelling component](NATIVE-SOURCE-PATHS.md) produces lexical

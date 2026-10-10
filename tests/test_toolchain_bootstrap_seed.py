@@ -11737,9 +11737,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                                 "20323a24be105b1b519962994b8e4e6a7f8e3cd0d005b8ee10c9aeb66da5d40a"
                             ),
                             "output_sha256": (
-                                "ea4cc776436b0a9bbbaeb6ad9728aee38ade8f793184bb05b8888bd60f71047a"
+                                "5c11befc7b7df2d1907a16f2043725e7b74bd5ce41e97803b1ca277d97444a00"
                             ),
-                            "output_size": 38400,
+                            "output_size": 41472,
                             "return_code": 0,
                             "status": "pass",
                         }

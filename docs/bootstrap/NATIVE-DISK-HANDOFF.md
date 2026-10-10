@@ -20,8 +20,10 @@ image-command publication still require current integration and acceptance.
 
 The normal shared heap source separately passes both qualifications, cold OS
 builds and boots, full compatibility, all four original SDK profiles and Linux
-public bootstrap acceptance. Windows public methods and both actual Make
-bootstraps remain pending before seed adoption. All 99 producer
+public bootstrap acceptance. The fresh
+[Windows public selection](HOSTED-HEAP-PUBLIC-WINDOWS.md) also passes both methods
+and complete audits after correcting two stale runtime-image byte locks.
+Both actual Make bootstraps remain pending before seed adoption. All 99 producer
 inputs and fifteen installed seeds are unchanged. Three normal Python
 coordinators remain.
 

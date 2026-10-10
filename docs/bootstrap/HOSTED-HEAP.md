@@ -212,8 +212,11 @@ stream agrees across both hosts and profiles. [The seed
 record](QUALIFIED-HOSTED-HEAP-SEEDS.md) retains those consumer results. The
 original Linux public selection also passes with its Windows-only boundary
 skip; independent review accepts all 4,338 published files, 132 staged files,
-44 fixed-point pairs and 1,823 complete named behavior pairs. Windows public
-methods and both actual Make bootstraps remain required before
+44 fixed-point pairs and 1,823 complete named behavior pairs. The fresh
+[Windows public selection](HOSTED-HEAP-PUBLIC-WINDOWS.md) passes both methods and
+complete audits after correcting two stale runtime-image byte locks. It retains
+the original failures, all 4,351 published files and three complete native PE
+relinks. Both actual Make bootstraps remain required before
 replacement-seed promotion. This integration changes
 one of the 99 normal producer inputs. The fifteen installed seed files retain
 their preceding identities until promotion. No coordinator or normal recipe
