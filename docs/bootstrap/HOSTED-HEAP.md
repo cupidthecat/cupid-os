@@ -83,8 +83,9 @@ identities. Its 71,593-byte source occurs once in each kernel output. The raw
 kernel grows to 9,300,840 bytes; both ELF sizes stay unchanged. The private normal
 image publication preserves every FAT suffix byte and passes strict four-CPU
 ls/SMP and ISO boots under the existing 150-second limits. All sixteen measured
-artifact gates pass on frozen complete products. The full forced normal all
-rerun remains active. [OS source evidence](evidence/hosted-heap-os-20261010.json)
+artifact gates pass on frozen complete products and the normal root. The full
+forced normal all rerun passes; its published image matches every byte of the
+checked private image. [OS source evidence](evidence/hosted-heap-os-20261010.json)
 records this boundary separately from producer qualification.
 
 ## Failure and diagnosis

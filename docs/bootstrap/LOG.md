@@ -82,9 +82,14 @@ retry succeeds. The first log check omitted PowerShell's UTF-16 decoding; the
 corrected check reads the actual successful gate output. Current OS evidence is
 `evidence/hosted-heap-os-20261010.json`.
 
-The complete normal all invocation remains running. Make deliberately forces
-every production object on each invocation. Its final image must match the
-private checked image before replacement-seed acceptance can close.
+The complete normal all invocation passes, including the sixteen artifact gates
+on the normal root and image publication. Independent rereading requires every
+byte of its image to match the checked private image. All 429 object identities,
+manual occurrences and the complete FAT suffix still agree. Make deliberately
+forces every production object on each invocation. The source implementation is
+committed and pushed as `1d852023`; both hosts are qualifying that exact 99-input
+source snapshot. Wiki commit `026b21e` publishes the source sections while
+preserving every existing page body. Replacement-seed acceptance remains open.
 
 ## 2026-10-09: Retain native image input paths and observer lifetimes
 

@@ -1,5 +1,5 @@
 {
-  "artifact_gate_root": "frozen copy of current complete products",
+  "artifact_gate_root": "normal root and frozen copy of current complete products",
   "artifact_size_gates": 16,
   "artifacts": {
     "boot/boot.bin": {
@@ -60,7 +60,12 @@
   "installed_seed_files_equal_to_parent_commit": 15,
   "kernel_matches_private_image_at_lba": 5,
   "manual_occurrences_per_kernel": 1,
-  "normal_all_rerun": "running",
+  "normal_all_rerun": "pass",
+  "normal_image": {
+    "sha256": "a2d9c3a5f55bd5d7fc089bb476e13fa16fb74b5bb386f42b1cfa741577b865b1",
+    "size": 209715200
+  },
+  "normal_image_equals_checked_private_image": true,
   "normal_kernel_and_boot_build": "pass",
   "normal_user_build": "pass",
   "private_image": {
