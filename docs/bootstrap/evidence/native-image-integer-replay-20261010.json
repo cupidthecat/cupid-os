@@ -1,0 +1,239 @@
+{
+  "actual_oracle_reviews": {
+    "linux": {
+      "cases": 8147,
+      "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+      "receipt": {
+        "sha256": "4b21e017df0a5cf838d59c65a49ae657a3e8e9713999d76dff0db65397b70fd4",
+        "size": 460
+      },
+      "unicode": "15.0.0"
+    },
+    "windows": {
+      "cases": 8557,
+      "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+      "receipt": {
+        "sha256": "0b351676c91f9da7b27894890f78888b07b6301f86a4e5414ae1c0b61a6bd2db",
+        "size": 493
+      },
+      "unicode": "16.0.0"
+    }
+  },
+  "artifact_proof": {
+    "sha256": "deb4252d822fb8055fea9f49ec8124f0e8460a3c95a8e8c26547a80c0ce7382a",
+    "size": 5573
+  },
+  "complete_parser_calls": 66816,
+  "independent_reviewer": {
+    "sha256": "19861d9d6ec0e5515942dc7907ea6b8aa91e2960373d49e8ee847b6998781ff9",
+    "size": 8082
+  },
+  "installed_seed_files_unchanged": 15,
+  "negative_parser_calls": 35888,
+  "normal_99_raw_committed_inputs_unchanged": true,
+  "normal_recipe_ownership_transferred": false,
+  "oracle_fixture": {
+    "sha256": "d739481695cc7d1f417242e07eee1cc17097196b6e101ce3b8ce47823dfa3202",
+    "size": 233265
+  },
+  "original_preflight_failures": {
+    "linux": {
+      "error": "BootstrapError: source revision differs",
+      "original_exec_exit_code": 1,
+      "producer_commands_started": 0,
+      "receipt": {
+        "sha256": "e90e63c06212f2dd56e72c2a15182a7e23fd188aacc85dc95c55b6c57ebeaf85",
+        "size": 420
+      }
+    },
+    "windows": {
+      "error": "BootstrapError: source revision differs",
+      "original_exec_exit_code": 1,
+      "producer_commands_started": 0,
+      "receipt": {
+        "sha256": "6b9b69b2d9752a3639f75fbaa5c7c94bb8f8da86df2794f4c76e8d2b39b9bd8a",
+        "size": 422
+      }
+    }
+  },
+  "positive_parser_calls": 30928,
+  "replay_runner": {
+    "sha256": "e450dfbd3538349e50a8e5bd03237d14a2a51c18f9ced95761716c6ef03fbc72",
+    "size": 13439
+  },
+  "replays": {
+    "linux": {
+      "cases_per_caller": 16704,
+      "checked_image": {
+        "sha256": "fc8d6ef9b67023b2abed6714439c76fdcc9eb91ad6a3885e1f3631d217146a2b",
+        "size": 55824
+      },
+      "command_logs_reread": 15,
+      "complete_result": {
+        "sha256": "0fb1bf09d2b90c67e16d4f8428e05f161c69467e7c8205366f7c5f99a5f255f4",
+        "size": 219078
+      },
+      "native_image": {
+        "sha256": "1e9129e74f2812179035ffcceae38549f691120b3617f3c2cf19c74a1ba98e63",
+        "size": 16752
+      },
+      "negative_calls": 17944,
+      "objects": {
+        "contract.o": {
+          "sha256": "275a2785c7210cca08407bdeb5bdcc4cac65ba64bc80c9c8886bac2bce3793cb",
+          "size": 6260
+        },
+        "fgetc.o": {
+          "sha256": "1bb8e1780e7cd7d4064e406c22fdc1aae1e8321351f94e87afd8628f88f07a20",
+          "size": 556
+        },
+        "number.o": {
+          "sha256": "2cb4f3c97cc39a876df82f4729f969a5705c930bdc9f7984858e321e71b714b0",
+          "size": 5540
+        },
+        "runtime.o": {
+          "sha256": "51d3ff76543209dc1101686995f2155e73d5b9a3de69e75e242ccc127abe616d",
+          "size": 32664
+        },
+        "start.o": {
+          "sha256": "cd3c6ff524666cd666976df08717ef8c576de982312a008b04bc2bc345af3b9c",
+          "size": 788
+        }
+      },
+      "parser_calls": 33408,
+      "positive_calls": 15464,
+      "receipt": {
+        "sha256": "4da7982a1d42ffe2c31768280079415e4d0e7c4993762e272690f2b320e87a68",
+        "size": 21388
+      },
+      "seconds": 34.60429176200023,
+      "seed_manifest": {
+        "sha256": "1f7847a6bf7479caa5b34ac99fb05969025c017f0c8dc42b3b98d6f3d50021e2",
+        "size": 9123
+      },
+      "source_and_support_inputs_reread": 21,
+      "tools": {
+        "cupidasm": {
+          "sha256": "69e779f7291cfe3bcedd18d8a66ef4ae98385a816f26bf8c237c4a88d79dfdda",
+          "size": 485084
+        },
+        "cupidbuild": {
+          "sha256": "2911cef0cf91ae1e3511135e17e7737b72865cab68580536289b2760338b9e46",
+          "size": 1129436
+        },
+        "cupidc": {
+          "sha256": "7bef8d49ecd5cea9a3392a853f4dce578d96b3e3f2e3e47fdf2487e2b6cb0a4a",
+          "size": 2549284
+        },
+        "cupiddis": {
+          "sha256": "f66cfc8dcdb33308dd6c354b810764652a0294e5bef1fcadc7a3507649639430",
+          "size": 510212
+        },
+        "cupidld": {
+          "sha256": "2242524c1be20e519c4a47bb50b5d1e340e42607e4e4a0a75eac9ae20cdb1a22",
+          "size": 296920
+        },
+        "cupidobj": {
+          "sha256": "6a9851fce7ceb4271311c806a2115d3afdf3333685b31271c6ac05882723f43e",
+          "size": 389404
+        }
+      }
+    },
+    "windows": {
+      "cases_per_caller": 16704,
+      "checked_image": {
+        "sha256": "a589da8952883af9d9457a72afca07a5775a133f6a28c83495d2ad9eacbb7c11",
+        "size": 45568
+      },
+      "command_logs_reread": 15,
+      "complete_result": {
+        "sha256": "0fb1bf09d2b90c67e16d4f8428e05f161c69467e7c8205366f7c5f99a5f255f4",
+        "size": 219078
+      },
+      "native_image": {
+        "sha256": "a070578c28a4392e39181f0167127e82ba3f465a62dc6f97c75d2a6a4a880382",
+        "size": 165888
+      },
+      "negative_calls": 17944,
+      "objects": {
+        "contract.o": {
+          "sha256": "275a2785c7210cca08407bdeb5bdcc4cac65ba64bc80c9c8886bac2bce3793cb",
+          "size": 6260
+        },
+        "fgetc.o": {
+          "sha256": "1bb8e1780e7cd7d4064e406c22fdc1aae1e8321351f94e87afd8628f88f07a20",
+          "size": 556
+        },
+        "number.o": {
+          "sha256": "2cb4f3c97cc39a876df82f4729f969a5705c930bdc9f7984858e321e71b714b0",
+          "size": 5540
+        },
+        "runtime.o": {
+          "sha256": "ff9ababfbe09e87462f2740085db46a1a2f4ad7a7d6b3f7eeda087a21ec0e2b1",
+          "size": 37512
+        },
+        "start.o": {
+          "sha256": "3d607279fce7ae95e14506eb3ab85696ca9a43be17ff037f2cc86423bf94bdef",
+          "size": 1780
+        }
+      },
+      "parser_calls": 33408,
+      "positive_calls": 15464,
+      "receipt": {
+        "sha256": "5e3d0cdfd6933580c63af89e0e073cbfddf5078a62a20e1de9c383e9beae7543",
+        "size": 22934
+      },
+      "seconds": 15.914075699984096,
+      "seed_manifest": {
+        "sha256": "e496a0fb2e36e74bc04a4ef3e1923c25a805fb1342035c32eb1c4eba20ba5bcf",
+        "size": 2853
+      },
+      "source_and_support_inputs_reread": 22,
+      "tools": {
+        "cupidasm": {
+          "sha256": "53427883f2afcc07bef43847aedcf23fb5c678c43cb303c1237c8ea7b4cdffdc",
+          "size": 480256
+        },
+        "cupidbuild": {
+          "sha256": "f45e66e72e91e0c6fd120567b45efaa7df2d64e3ac45e7f95fafb8f10077db7c",
+          "size": 1112576
+        },
+        "cupidc": {
+          "sha256": "601586883a05f9fee01eefefef64d95a2a3c15091842746638e640a544eb0b6f",
+          "size": 2490880
+        },
+        "cupiddis": {
+          "sha256": "b39e1129023e916518e6dc7016d7bbceb07e70b83d5c9c53025e9715c4c5e809",
+          "size": 504832
+        },
+        "cupidld": {
+          "sha256": "98b3b93b0672b4d69d6226abb545dc0ef669b7789575878c169111b48c845efd",
+          "size": 296448
+        },
+        "cupidobj": {
+          "sha256": "373ddd710053dae8ca55160f06759f9dd43eaccc761865bc792ec81cf0c50239",
+          "size": 382464
+        }
+      }
+    }
+  },
+  "schema": "cupid.native-image-integer-replay-paired-evidence.v1",
+  "source_revision": "1d852023df98c03481c4b3979dccb398288b7115",
+  "source_snapshot_sha256": "4ae98403b0896b24e50b81b11b213b8117207421b9152e95d0500e00e612d07e",
+  "status": "pass",
+  "strict_certifications": 12,
+  "whole_cross_host_object_pairs": {
+    "contract.o": {
+      "sha256": "275a2785c7210cca08407bdeb5bdcc4cac65ba64bc80c9c8886bac2bce3793cb",
+      "size": 6260
+    },
+    "fgetc.o": {
+      "sha256": "1bb8e1780e7cd7d4064e406c22fdc1aae1e8321351f94e87afd8628f88f07a20",
+      "size": 556
+    },
+    "number.o": {
+      "sha256": "2cb4f3c97cc39a876df82f4729f969a5705c930bdc9f7984858e321e71b714b0",
+      "size": 5540
+    }
+  }
+}

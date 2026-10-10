@@ -11,10 +11,16 @@ installed seed files still carry the reviewed
 and discovery products are absent from the current linked worktree, so their
 historical results do not establish a normal command handoff.
 
-The current private source at `C:/Users/admin/cp7/image-options-source2`
-interprets the existing image command's options in Cupid C. Linux holds the
-same 113 source and support files at `/var/tmp/image-options-source2`. The
-preceding `image-options-source1` and its complete acceptance remain preserved.
+The current [integer prototype](NATIVE-IMAGE-INTEGERS.md) supplies a reproducible
+numeric component under both actual Unicode profiles. Its unapplied C patch,
+frozen oracle fixture and repository replay pass on Linux and Windows without
+changing the 99-input cohort. The complete option owner still requires its
+separate argv, stage, WAD and pathname integration.
+
+The historical private source at `C:/Users/admin/cp7/image-options-source2`
+interpreted the existing image command's options in Cupid C. At that boundary,
+Linux held the same 113 source and support files at `/var/tmp/image-options-source2`.
+The preceding `image-options-source1` and its complete acceptance were preserved.
 The normal image recipe
 continues to use Python; path discovery, retained observer lifetimes, complete
 publisher integration and recipe adoption remain open.

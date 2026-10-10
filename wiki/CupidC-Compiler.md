@@ -20,6 +20,15 @@ Independent review rechecks all outcomes, 99 committed inputs and unchanged
 installed seeds. The four SDK profiles, original public methods and both Make
 bootstraps remain in progress.
 
+The [native image integer prototype](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-IMAGE-INTEGERS.md)
+is retained as an unapplied C patch with a frozen oracle fixture and repository
+replay. Native and Cupid-built callers pass 66,816 complete cases under the
+actual Unicode 15 and 16 profiles, including eighty new digits accepted only
+by profile 16. Three whole checked object pairs agree. A separate hosted
+`fgetc` extension passes every unsigned byte value and EOF recovery. Both hosts
+also pass the installed-seed replay. The producer cohort and normal image
+recipe remain unchanged; complete native command integration stays open.
+
 CupidC builds CupidBuild as part of the promoted Linux and Windows six-tool
 cohorts. The normal ISR, context-switch, bootloader, SMP-trampoline, JPEG, and
 kernel-symbol recipes run that checked CupidBuild image directly, which

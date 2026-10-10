@@ -21,6 +21,17 @@ Independent review rechecks every outcome, all 99 committed producer inputs and
 the unchanged installed seeds. The four SDK profiles, original public methods
 and both Make bootstraps remain in progress.
 
+## Native image integer prototype, 2026-10-10
+
+A [reproducible C prototype](docs/bootstrap/NATIVE-IMAGE-INTEGERS.md) preserves
+the image command's decimal integer syntax under both installed Unicode
+profiles. Native and Cupid-built callers pass 66,816 positive and rejection
+cases, with equal complete results and three equal cross-host objects. A
+separate hosted `fgetc` extension passes every byte value and EOF recovery.
+Both hosts also pass the repository replay with the installed seeds. The
+prototype remains outside the normal producer cohort; three Python
+coordinators and the complete native image-command handoff remain open.
+
 ## Qualified wide pointer seeds, 2026-10-07
 
 Shared CupidC source supports signed and unsigned eight-byte offsets in pointer

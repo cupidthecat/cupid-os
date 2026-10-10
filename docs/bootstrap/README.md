@@ -28,6 +28,19 @@ release-operation fixtures now use their recognized pre-ISO no-context contract;
 all sixteen unchanged methods pass on both hosts. The four SDK profiles, original
 public methods and both Make bootstraps remain in progress.
 
+## Native image integer prototype, 2026-10-10
+
+The [held numeric component](NATIVE-IMAGE-INTEGERS.md) preserves the existing
+image options' decimal grammar under the actual Linux Unicode 15 and Windows
+Unicode 16 profiles. Four compiled callers finish 66,816 parser calls,
+including oversized values, malformed UTF-8, digit limits and all eighty new
+Unicode 16 digits under both profiles. A separate `fgetc` object passes every
+unsigned byte value and EOF recovery. The exact C source is retained in an
+unapplied patch with a frozen oracle fixture and a repository replay; both hosts
+rebuild and pass that replay using the installed seeds. The 99-input producer
+cohort and normal recipe ownership remain unchanged. Complete image-command
+integration still requires argv, discovery, observers and publication.
+
 ## Qualified mixed width seed installation, 2026-10-09
 
 The [qualified paired cohort](QUALIFIED-MIXED-WIDE-SEEDS.md) is installed from

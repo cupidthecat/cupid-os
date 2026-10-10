@@ -33,6 +33,24 @@ original public methods and both Make bootstraps continue. The existing historic
 fixtures keep their recognized pre-ISO no-context contract; all sixteen unchanged
 methods pass on each host.
 
+## Native image integer prototype, 2026-10-10
+
+The [held C source](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-IMAGE-INTEGERS.md)
+interprets the existing image command's decimal geometry values under the
+actual Linux Unicode 15 and Windows Unicode 16 profiles. All four native and
+Cupid-built callers pass both complete oracles: 66,816 parser calls, including
+30,928 positive and 35,888 negative results. Oversized values retain a range
+flag so a later repeated option can replace them before geometry validation.
+Three complete checked object pairs agree between hosts. A separate `fgetc`
+extension passes all 256 byte values, repeated EOF and seek recovery.
+
+The unapplied patch and frozen oracle fixture have a repository replay that
+rebuilds both callers with verified installed seeds. Both hosts pass all 16,704
+cases per caller under the original bounds. The 99-input producer cohort and
+installed seed files remain unchanged. Complete argv interpretation, native
+discovery, observer lifetimes and publication still precede the normal image
+recipe handoff. Three Python coordinators remain.
+
 ## Qualified hosted wide-offset seed pair, 2026-10-07
 
 Both complete qualifications pass for committed `a1cc8f3a` and its 99-input
