@@ -1,5 +1,9 @@
 # Source observer name profiles
 
+Repeat this historical acceptance from `ffdbc4191c9e3bb07cd66fb47a22f81bbff72f1b`.
+Its guarded reader and installed seeds precede the later
+[heap promotion](HOSTED-HEAP-ADOPTION.md). The original guards remain intact.
+
 The held source observer accepts the POSIX colon and backslash filenames used
 by the original image command. Its name profile stays with the observer through
 file lookup, retained streaming, membership capture and revalidation. Windows

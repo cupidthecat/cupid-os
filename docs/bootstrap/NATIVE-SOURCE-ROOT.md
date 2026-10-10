@@ -1,5 +1,9 @@
 # Retained original source roots
 
+Repeat this historical acceptance from `ffdbc4191c9e3bb07cd66fb47a22f81bbff72f1b`.
+Its guarded reader and installed seeds precede the later
+[heap promotion](HOSTED-HEAP-ADOPTION.md). The original guards remain intact.
+
 The held source-root constructor resolves an absolute directory request and
 retains both its original spelling and physical directory. It keeps the first
 resolution handle open while constructing the source observer, compares the
@@ -24,7 +28,7 @@ all eleven source copies, actual tools, complete products and
 [full receipts](evidence/native-source-root-originals-20261010.json.gz).
 
 All 99 normal producer inputs still match committed `1d852023`; the fifteen
-installed seed files retain the bytes checked in at `acbbd834`.
+installed seed files retain the qualified `acbbd834` source cohort at this checkpoint.
 The host extension remains outside the normal producer closure. Normal
 ownership remains 449 CupidBuild actions and three Python coordinators across
 452 transforms. TempleOS is excluded.

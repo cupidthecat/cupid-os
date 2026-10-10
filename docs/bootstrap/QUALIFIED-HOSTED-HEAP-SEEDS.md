@@ -3,10 +3,11 @@
 Both complete qualifications pass for producer source
 `1d852023df98c03481c4b3979dccb398288b7115`. The same 99 committed inputs have
 SHA-256 `4ae98403b0896b24e50b81b11b213b8117207421b9152e95d0500e00e612d07e`.
-This cohort carries the [shared hosted allocator](HOSTED-HEAP.md). The installed
-parent remains `acbbd8342d8901169c5484742b168277ce9bbdd1` while replacement-tool
-consumer acceptance runs. Qualification proves the producer cohort; it does
-not complete seed installation or transfer a normal recipe.
+This cohort carries the [shared hosted allocator](HOSTED-HEAP.md). Complete
+replacement-tool consumers and [seed/manual adoption](HOSTED-HEAP-ADOPTION.md)
+now pass. The installed pair carries `1d852023`; retained parent fixtures
+describe the qualified `acbbd834` source cohort. Qualification and adoption
+retain separate evidence. The three Python coordinators remain.
 
 ## Complete qualification
 
@@ -268,7 +269,21 @@ native Windows report schema while keeping every other predicate unchanged.
 
 All five original audit scripts remain unchanged. Exact failures, successful
 commands, report bytes, complete audits and diagnostic read/cleanup traces are
-archived. Fresh seed/manual adoption copies now run paired cold normal builds
-from zero objects. The root still retains its preceding fifteen seed files
-and reader until the measured manual, complete images, users/ABI and all four
-strict boots pass.
+archived. These consumer checks retain the preceding installed cohort. The
+later [seed/manual adoption](HOSTED-HEAP-ADOPTION.md) passes paired cold builds
+from zero objects, final manual rebuilds, complete product comparison, users/ABI
+and all four strict boots. Normal-root verification then passes before the
+qualified pair is committed.
+
+## Installed cohort accepted, 2026-10-10
+
+The qualified `1d852023` Linux and Windows seeds now carry the shared hosted
+heap. Their adoption passes paired cold OS builds, complete final-manual
+rebuilds, fresh users and ABI checks, all sixteen exact artifact checks and
+four strict boots across the pair. Independent review compares all 429 whole
+object pairs, four linked outputs, six user products and all 209,715,200 image
+bytes. The normal checkout repeats the build, user/ABI and artifact checks,
+all 170 unchanged seed-reader and release-operation methods, and both strict
+boots. Its complete products equal the accepted pair. The final manual is
+72,415 bytes and the raw kernel is 9,301,660 bytes. The 99 producer inputs and
+449 CupidBuild / three Python ownership counts remain unchanged.

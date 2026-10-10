@@ -1,6 +1,6 @@
 # cupid-os
 
-## Hosted allocator source, 2026-10-10
+## Hosted allocator seeds, 2026-10-10
 
 The shared hosted runtime now groups small Windows allocations into regions and
 searches free storage through size bins on both hosts. Cupid-built tests cover
@@ -9,8 +9,8 @@ and release, and data preservation during realloc. The
 [heap record](docs/bootstrap/HOSTED-HEAP.md) describes the implementation and
 reproduction command. Both complete [producer qualifications](docs/bootstrap/QUALIFIED-HOSTED-HEAP-SEEDS.md)
 pass for committed `1d852023`; independent checks reread all 291 staged files,
-97 complete fixed-point pairs and 7,761 published files. Installed seeds retain
-the preceding runtime while replacement-tool consumer acceptance runs. Current tests
+97 complete fixed-point pairs and 7,761 published files. Installed seeds now
+carry that qualified runtime after complete consumer acceptance. Current tests
 also cover the normal Windows UTF-8 startup and a Unicode long-path runtime call.
 The qualified replacement tools pass cold normal image builds, user and ABI
 checks, all sixteen artifact gates per host and four strict boots on Windows and
@@ -29,8 +29,12 @@ Windows-only boundary skip and complete independent review. The fresh
 both methods and complete audits after correcting two stale runtime-image
 byte locks. Both [actual Make consumers](docs/bootstrap/HOSTED-HEAP-MAKE.md) and
 complete independent audits now pass. The original Windows missing-copy failure
-and native report audit correction remain recorded. Seed/manual adoption and
-its final paired OS builds and boots remain pending.
+and native report audit correction remain recorded. [Seed/manual
+adoption](docs/bootstrap/HOSTED-HEAP-ADOPTION.md) and its final paired cold
+builds and boots pass. The normal checkout also passes complete build,
+seed-reader/release-operation and strict boot checks; all products equal the
+accepted pair. The final manual is 72,415 bytes, and the raw kernel is
+9,301,660 bytes. The three Python coordinators remain.
 
 ## Required source-file owners, 2026-10-10
 

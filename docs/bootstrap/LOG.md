@@ -1,5 +1,29 @@
 # Bootstrapping log
 
+## 2026-10-10: Promote the qualified hosted heap seeds
+
+The qualified `1d852023` Linux and Windows seeds now carry the shared hosted
+heap. Their adoption passes paired cold OS builds, complete final-manual
+rebuilds, fresh users and ABI checks, all sixteen exact artifact checks and
+four strict boots across the pair. Independent review compares all 429 whole
+object pairs, four linked outputs, six user products and all 209,715,200 image
+bytes. The normal checkout repeats the build, user/ABI and artifact checks,
+all 170 unchanged seed-reader and release-operation methods, and both strict
+boots. Its complete products equal the accepted pair. The final manual is
+72,415 bytes and the raw kernel is 9,301,660 bytes. The 99 producer inputs and
+449 CupidBuild / three Python ownership counts remain unchanged.
+
+The [adoption record](HOSTED-HEAP-ADOPTION.md) retains the exact twenty-file
+projection, parent-manifest provenance, final manual and kernel measurements,
+cold build failures against the old size row, complete paired receipts and
+normal-root acceptance. Checker corrections preserve the original boot
+geometry, MBR rewrite and historical qualification status. Root preparation
+repairs missing helper/fixture locations before applying any payload. The first
+root test command wrongly passes production sentinels to native comparison
+fixtures. A continuation corrects that harness environment and verifies the
+exact 153-retained/17-retried method union before both strict boots. Earlier
+held observer and source-owner replays remain reproducible from `ffdbc419`.
+
 ## 2026-10-10: Retain required source-file owners
 
 The [required source-file owner](NATIVE-SOURCE-FILE.md) keeps

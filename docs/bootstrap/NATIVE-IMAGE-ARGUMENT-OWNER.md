@@ -1,5 +1,9 @@
 # Reproducible native image argument owner
 
+Repeat this historical acceptance from `ffdbc4191c9e3bb07cd66fb47a22f81bbff72f1b`.
+Its guarded reader and installed seeds precede the later
+[heap promotion](HOSTED-HEAP-ADOPTION.md). The original guards remain intact.
+
 ## Current result, 2026-10-10
 
 A held C owner interprets the existing image command's required options,

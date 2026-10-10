@@ -1,5 +1,23 @@
 # Native disk-image handoff
 
+## Hosted heap adoption, 2026-10-10
+
+The qualified `1d852023` Linux and Windows seeds now carry the shared hosted
+heap. Their adoption passes paired cold OS builds, complete final-manual
+rebuilds, fresh users and ABI checks, all sixteen exact artifact checks and
+four strict boots across the pair. Independent review compares all 429 whole
+object pairs, four linked outputs, six user products and all 209,715,200 image
+bytes. The normal checkout repeats the build, user/ABI and artifact checks,
+all 170 unchanged seed-reader and release-operation methods, and both strict
+boots. Its complete products equal the accepted pair. The final manual is
+72,415 bytes and the raw kernel is 9,301,660 bytes. The 99 producer inputs and
+449 CupidBuild / three Python ownership counts remain unchanged.
+
+The [adoption record](HOSTED-HEAP-ADOPTION.md) carries complete receipts.
+Normal image publication remains a Python coordinator. Required-file and
+source-root owners remain held prerequisites for complete native discovery
+and publication. Historical replay packets below retain their own checkpoints.
+
 ## Current reproducible prerequisites, 2026-10-10
 
 The [argument owner](NATIVE-IMAGE-ARGUMENT-OWNER.md) and

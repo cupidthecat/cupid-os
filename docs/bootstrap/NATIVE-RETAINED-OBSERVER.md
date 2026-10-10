@@ -1,5 +1,9 @@
 # Retained observer prerequisites for native image discovery
 
+Repeat this historical acceptance from `ffdbc4191c9e3bb07cd66fb47a22f81bbff72f1b`.
+Its guarded reader and installed seeds precede the later
+[heap promotion](HOSTED-HEAP-ADOPTION.md). The original guards remain intact.
+
 ## Optional paths and UNC follow-up, 2026-10-10
 
 The [current observer-path extension](NATIVE-OBSERVER-PATHS.md) includes this

@@ -20,9 +20,23 @@ Returned storage keeps sixteen-byte alignment. Failed realloc preserves the
 original data, and failed OS release leaves free storage reusable. Cupid-built
 tests cover 65,536 live allocations, fragmentation, mixed-size mutation,
 overflow, OS failure recovery and the existing platform runtime contracts.
-The installed host seeds retain the preceding allocator until paired source
-qualification and replacement-tool acceptance finish. The normal graph keeps
-449 CupidBuild actions and three Python coordinators across 452 transforms.
+The paired Linux and Windows host seeds carry this allocator from the same
+qualified 99-input source cohort. Complete source qualifications and replacement
+tool consumers preserve their fixed-point, output and runtime checks. The normal
+graph keeps 449 CupidBuild actions and three Python coordinators across 452
+transforms.
+
+>h2 Image input pathnames
+Host image inputs use lexical host pathnames before filesystem aliases are
+resolved. POSIX colons, backslashes, spaces and newlines remain filename bytes;
+host and guest path namespaces are separate. Retained observation foundations
+preserve file identities, payload digests, first absences and exact directory
+memberships.
+The held source-root prototype copies the original absolute directory request
+and resolved physical root. Complete validation and borrowed publication reject
+changed request bindings even while the original physical directory still exists.
+The image recipe still requires its complete native input owner
+and publication handoff; its normal coordinator currently uses Python.
 
 >h2 Shared compiler block assertions
 The shared bootstrap compiler at source head accepts C11 _Static_assert

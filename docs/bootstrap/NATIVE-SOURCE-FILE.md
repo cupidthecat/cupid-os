@@ -1,5 +1,9 @@
 # Required source-file owners
 
+Repeat this historical acceptance from `ffdbc4191c9e3bb07cd66fb47a22f81bbff72f1b`.
+Its guarded reader and installed seeds precede the later
+[heap promotion](HOSTED-HEAP-ADOPTION.md). The original guards remain intact.
+
 The held file owner selects one required regular input using the accepted
 [lexical pathname rules](NATIVE-SOURCE-PATHS.md). It retains the original absolute
 parent request through the [source-root constructor](NATIVE-SOURCE-ROOT.md),

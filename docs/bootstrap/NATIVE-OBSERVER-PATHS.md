@@ -1,5 +1,9 @@
 # Optional input observations and Windows UNC roots
 
+Repeat this historical acceptance from `ffdbc4191c9e3bb07cd66fb47a22f81bbff72f1b`.
+Its guarded reader and installed seeds precede the later
+[heap promotion](HOSTED-HEAP-ADOPTION.md). The original guards remain intact.
+
 ## Current result, 2026-10-10
 
 The held host extension retains the first missing component of an optional

@@ -1,5 +1,9 @@
 # Native image source spellings
 
+Repeat this historical acceptance from `ffdbc4191c9e3bb07cd66fb47a22f81bbff72f1b`.
+Its guarded reader and installed seeds precede the later
+[heap promotion](HOSTED-HEAP-ADOPTION.md). The original guards remain intact.
+
 The held `cupidbuild_source_path_absolute` component produces the image command's
 lexical host pathname before filesystem aliases are resolved. Four native/Cupid
 callers pass 354 calls covering actual Python pathname oracles and C failure

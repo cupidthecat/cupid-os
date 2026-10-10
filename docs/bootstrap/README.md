@@ -14,7 +14,7 @@ UTF-8 runtime profile. Both complete [named-commit qualifications](QUALIFIED-HOS
 pass for `1d852023`; independent checks bind 291 staged files, 97 complete final
 pairs, 7,761 published files and all 99 committed inputs. Private candidate
 consumers verify the complete pair and start from zero production objects.
-Replacement-seed consumer acceptance remains required. The normal graph still has 449 CupidBuild
+The replacement seeds now pass complete consumer acceptance and installation. The normal graph still has 449 CupidBuild
 actions and three Python
 coordinators across 452 transforms.
 The replacement cohort passes cold normal image builds, fresh user and ABI
@@ -37,8 +37,12 @@ pairs. The fresh [Windows public selection](HOSTED-HEAP-PUBLIC-WINDOWS.md) passe
 both methods and complete audits after correcting two stale runtime-image
 byte locks. Both [actual Make consumers](HOSTED-HEAP-MAKE.md) and complete
 independent audits now pass. Original Windows failures and the separate native
-schema audit correction remain recorded. Installed-seed/manual adoption and
-its paired cold OS builds and boots remain pending.
+schema audit correction remain recorded. [Seed/manual adoption](HOSTED-HEAP-ADOPTION.md)
+and final paired cold builds and boots pass. Normal-root verification also
+passes the complete unchanged reader/release-operation selection, build,
+users/ABI, sixteen artifact checks and both strict boots. Every whole product
+equals the accepted pair. Earlier held replays use their `ffdbc419` checkpoint
+because their reader and seed guards precede this promotion.
 
 ## Required source-file owners, 2026-10-10
 

@@ -217,10 +217,11 @@ skip; independent review accepts all 4,338 published files, 132 staged files,
 complete audits after correcting two stale runtime-image byte locks. It retains
 the original failures, all 4,351 published files and three complete native PE
 relinks. Both [actual Make consumers](HOSTED-HEAP-MAKE.md) and their complete
-independent audits now pass. Seed/manual adoption and its final paired OS
-acceptance remain open. This integration changes
-one of the 99 normal producer inputs. The fifteen installed seed files retain
-their preceding identities until promotion. No coordinator or normal recipe
-ownership changes.
+independent audits now pass. [Seed/manual adoption](HOSTED-HEAP-ADOPTION.md)
+also passes final paired cold builds, complete product comparison and strict
+boots. The normal checkout repeats its build, users/ABI, artifact checks,
+complete seed-reader/release-operation selection and both strict boots. The
+fifteen installed files now carry the qualified `1d852023` cohort. The normal
+producer closure retains 99 inputs. The three Python coordinators remain.
 The separate 200 MiB required-file reuse failure and its complete large-image
 and boot checks remain open. TempleOS is excluded.

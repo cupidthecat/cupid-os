@@ -251,11 +251,14 @@ failure on both hosts. This source addition has separate seed-carriage work;
 ADR 0450 and the [runtime record](docs/bootstrap/HOSTED-PUTCHAR.md) retain its
 evidence.
 
-An unapplied [hosted heap prototype](docs/bootstrap/HOSTED-HEAP.md) shares
-Windows allocation regions and searches free blocks on both hosts. Its guarded
-private discovery cohort and paired independent review pass with the original
-limits, alongside density/failure fixtures and both complete runtime contracts.
-Named-commit qualification and normal source/seed adoption remain open.
+The [shared hosted heap](docs/bootstrap/HOSTED-HEAP.md) groups Windows
+allocations into regions and searches free blocks on both hosts. Density,
+fragmentation, mutation and OS-failure contracts pass through Cupid tools.
+Both named-commit qualifications and complete replacement-tool consumers pass
+for `1d852023`. [Seed/manual adoption](docs/bootstrap/HOSTED-HEAP-ADOPTION.md)
+installs the qualified pair and passes paired cold builds, complete product
+comparison and strict boots. Normal-root acceptance also passes. This changes
+runtime carriage without transferring any of the three Python coordinators.
 
 CupidBuild coordinates guarded transformations and checked tool invocations.
 The [migration matrix](docs/bootstrap/MIGRATION-MATRIX.md) records current
@@ -2661,3 +2664,16 @@ separate. Six strict boots pass for the earlier accepted 200 MiB publisher
 images, including fresh/reused ls/SMP and reused ISO completion. These images
 contain the preceding accepted manual and do not establish Doom runtime
 acceptance or native disk recipe ownership.
+
+## Hosted heap seed adoption, 2026-10-10
+
+The qualified `1d852023` Linux and Windows seeds now carry the shared hosted
+heap. Their adoption passes paired cold OS builds, complete final-manual
+rebuilds, fresh users and ABI checks, all sixteen exact artifact checks and
+four strict boots across the pair. Independent review compares all 429 whole
+object pairs, four linked outputs, six user products and all 209,715,200 image
+bytes. The normal checkout repeats the build, user/ABI and artifact checks,
+all 170 unchanged seed-reader and release-operation methods, and both strict
+boots. Its complete products equal the accepted pair. The final manual is
+72,415 bytes and the raw kernel is 9,301,660 bytes. The 99 producer inputs and
+449 CupidBuild / three Python ownership counts remain unchanged.
