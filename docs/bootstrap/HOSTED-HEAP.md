@@ -205,13 +205,13 @@ stdout expectation and the first Windows nested timeout remain preserved.
 ## Remaining work
 
 Both named-commit producer qualifications, paired cold OS builds and boots,
-and complete compatibility selections pass. Both original Linux SDK profiles
-and Windows default also pass complete publication and independent 77-pair
-audits. Complete stage files and published programs agree across the Linux
-profiles and between both default hosts. [The seed
-record](QUALIFIED-HOSTED-HEAP-SEEDS.md) retains those consumer results. Windows
-long-path SDK, original public methods and both actual Make bootstraps
-remain required before replacement-seed promotion. This integration changes
+and complete compatibility selections pass. All four original SDK profiles
+also pass complete publication and independent 77-pair audits. A separate
+comparison rereads all 616 stage files and 88 published programs; every complete
+stream agrees across both hosts and profiles. [The seed
+record](QUALIFIED-HOSTED-HEAP-SEEDS.md) retains those consumer results. Original
+public methods and both actual Make bootstraps remain required before
+replacement-seed promotion. This integration changes
 one of the 99 normal producer inputs. The fifteen installed seed files retain
 their preceding identities until promotion. No coordinator or normal recipe
 ownership changes.

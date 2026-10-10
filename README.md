@@ -18,13 +18,13 @@ Linux. All 429 object pairs and the complete image pair agree with the
 source-accepted products. Both hosts pass the same compatibility selection of
 367 methods, with 705 passes and 29 declared platform skips across both runs.
 Independent review rechecks every outcome, all 99 committed producer inputs and
-the unchanged installed seeds. Both original Linux SDK profiles and the Windows
-default profile also pass:
-independent review accepts 22 published programs, 104 SDK inputs and all 77
-complete stage pairs per profile. Paired rereading compares every complete
-stage file and published program across the Linux profiles and both default
-host profiles. The Windows long-path SDK, original public methods and both
-Make bootstraps remain in progress.
+the unchanged installed seeds. All four original SDK profiles also pass on
+Linux and Windows. Independent review accepts 22 published programs, 104 SDK
+inputs and all 77 complete stage pairs per profile. A
+[four-profile comparison](docs/bootstrap/evidence/hosted-heap-all-four-sdk-20261010.json)
+rereads all 616 stage files and 88 published programs; every complete stream
+agrees. Original public methods and both actual Make bootstraps remain in
+progress before replacement-seed adoption.
 
 ## Retained observer prerequisites, 2026-10-10
 

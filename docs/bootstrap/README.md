@@ -25,13 +25,13 @@ and 26 declared skips on Linux, 364 passes and three skips on Windows. Independe
 review checks every outcome, all 99 committed inputs and the unchanged installed
 seeds. The original
 release-operation fixtures now use their recognized pre-ISO no-context contract;
-all sixteen unchanged methods pass on both hosts. Both original Linux SDK
-profiles and Windows default also pass complete publication and independent
-audits of all 22 programs, 104 SDK inputs and 77 stage pairs each. Complete paired rereading
-checks all 308 raw stage files and 44 published programs; their bytes agree.
-A separate comparison accepts the same complete streams between Linux and
-Windows default. Windows long-path SDK, original public methods and both Make
-bootstraps remain in progress.
+all sixteen unchanged methods pass on both hosts. All four original SDK
+profiles pass complete publication and independent audits of all 22 programs,
+104 SDK inputs and 77 stage pairs each. A
+[four-profile comparison](evidence/hosted-heap-all-four-sdk-20261010.json)
+rereads all 616 raw stage files and 88 published programs; every complete stream
+agrees across both hosts and profiles. Original public methods and both actual
+Make bootstraps remain in progress before installed-seed adoption.
 
 ## Retained observer prerequisites, 2026-10-10
 

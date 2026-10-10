@@ -172,11 +172,36 @@ and its [complete compressed audit](evidence/hosted-heap-sdk-windows-default-202
 retain the actual original command/audit jobs. A [separate comparison between hosts](evidence/hosted-heap-paired-default-sdk-20261010.json)
 rereads all 308 complete stage files and 44 published programs on Linux and
 Windows. Every full stream agrees, and all 104 SDK inputs and 98 bootstrap
-inputs match. The five locked audit helper hashes remain unchanged. The same
-original command queue now runs Windows long-path; its audit companion waits
-for that job without restarting either queue.
+inputs match. The five locked audit helper hashes remain unchanged. After
+Windows default closes, the same original command queue advances to Windows
+long-path; its audit companion waits for that job without restarting either
+queue.
 
-Windows long-path SDK, original public methods and both actual Make
-bootstraps remain required before installed seed adoption. The normal graph remains 449
+## All four SDK profiles accepted, 2026-10-10
+
+The original Windows long-path SDK closes successfully in 4,723.560 seconds.
+Its build and verification commands take 4,719.947 seconds; independent checking
+takes 10.715 seconds. The audit accepts all 22 published programs, 23 publication
+files, 104 SDK inputs and 77 complete stage pairs. The long-path bootstrap uses
+99 inputs, including its actual additional UTF-8 startup source. Review
+reconstructs the full 70,395,254-byte author request and rereads all 4,572 retained
+workspace files, 1,764 source controls, 99 committed producer inputs and fifteen
+unchanged installed seed files.
+
+[Windows long-path progress evidence](evidence/hosted-heap-sdk-windows-long-progress-20261010.json)
+and its [complete compressed audit](evidence/hosted-heap-sdk-windows-long-20261010.json.gz)
+bind the original command and independent audit. The 206,923-byte archive restores
+the exact 948,771-byte audit receipt. A
+[separate four-profile comparison](evidence/hosted-heap-all-four-sdk-20261010.json)
+rereads every complete stage file and published program from Linux and Windows,
+with both default and long-path profiles: 616 raw stage files and 88 program
+streams. All bytes agree. All 104 SDK inputs match; default bootstrap inventories
+contain the same 98 inputs, and long-path inventories contain the same 99.
+The exact additional input is `toolchain/hosted/i386-windows/utf8_long_path_start.asm`.
+
+The same original queue now runs Linux public bootstrap tests; the independent
+audit companion waits for their result. Neither queue is restarted. Original
+public methods and both actual Make bootstraps remain required before installed
+seed adoption. The normal graph remains 449
 CupidBuild actions and three Python coordinators across 452 transforms.
 TempleOS stays read-only and excluded.
