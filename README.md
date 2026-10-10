@@ -27,9 +27,10 @@ agrees. The original Linux public bootstrap selection also passes, with its
 Windows-only boundary skip and complete independent review. The fresh
 [Windows public selection](docs/bootstrap/HOSTED-HEAP-PUBLIC-WINDOWS.md) passes
 both methods and complete audits after correcting two stale runtime-image
-byte locks. The actual Linux Make bootstrap and independent audit pass. Windows
-Make is being replayed after a private seed executable disappeared; seed
-adoption remains pending.
+byte locks. Both [actual Make consumers](docs/bootstrap/HOSTED-HEAP-MAKE.md) and
+complete independent audits now pass. The original Windows missing-copy failure
+and native report audit correction remain recorded. Seed/manual adoption and
+its final paired OS builds and boots remain pending.
 
 ## Source observer name profiles, 2026-10-10
 

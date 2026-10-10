@@ -13,8 +13,8 @@ binds both method outcomes, complete audits, exact consumer controls, the
 original failures and the [full receipt archive](evidence/hosted-heap-public-windows-originals-20261010.json.gz).
 All 99 producer inputs match the live source and their committed raw Git blobs.
 The fifteen installed root seed files remain unchanged. This closes Windows
-public acceptance; both actual Make bootstraps and seed/manual adoption remain
-separate gates.
+public acceptance. Both later [actual Make consumers](HOSTED-HEAP-MAKE.md) and
+complete audits now pass; seed/manual adoption remains a separate gate.
 
 ## The original failure and its cause
 
@@ -87,6 +87,6 @@ python -m unittest -v tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeed
 The retained consumer copies and actual commands are bound in the evidence.
 All nine conventional producer variables name forbidden commands. The normal
 graph stays at 449 CupidBuild actions and three Python coordinators across
-452 transforms. Both actual Make bootstraps, adoption of the exact qualified
-seed pair and manual, and paired installed-seed OS builds and boots still
-precede replacement-seed promotion. TempleOS remains read-only and excluded.
+452 transforms. Both actual Make consumers now pass. Adoption of the exact
+qualified seed pair and manual still requires its paired normal OS builds and
+boots. TempleOS remains read-only and excluded.

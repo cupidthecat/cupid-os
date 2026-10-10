@@ -216,8 +216,9 @@ skip; independent review accepts all 4,338 published files, 132 staged files,
 [Windows public selection](HOSTED-HEAP-PUBLIC-WINDOWS.md) passes both methods and
 complete audits after correcting two stale runtime-image byte locks. It retains
 the original failures, all 4,351 published files and three complete native PE
-relinks. Both actual Make bootstraps remain required before
-replacement-seed promotion. This integration changes
+relinks. Both [actual Make consumers](HOSTED-HEAP-MAKE.md) and their complete
+independent audits now pass. Seed/manual adoption and its final paired OS
+acceptance remain open. This integration changes
 one of the 99 normal producer inputs. The fifteen installed seed files retain
 their preceding identities until promotion. No coordinator or normal recipe
 ownership changes.

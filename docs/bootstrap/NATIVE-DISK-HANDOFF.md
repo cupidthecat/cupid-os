@@ -28,8 +28,8 @@ builds and boots, full compatibility, all four original SDK profiles and Linux
 public bootstrap acceptance. The fresh
 [Windows public selection](HOSTED-HEAP-PUBLIC-WINDOWS.md) also passes both methods
 and complete audits after correcting two stale runtime-image byte locks.
-Linux's actual Make bootstrap and independent audit pass; Windows's replay
-follows a missing private seed executable. Seed adoption remains pending. All 99 producer
+Both [actual Make consumers](HOSTED-HEAP-MAKE.md) and complete independent audits
+pass. Seed/manual adoption and final paired OS acceptance remain pending. All 99 producer
 inputs and fifteen installed seeds are unchanged. Three normal Python
 coordinators remain.
 

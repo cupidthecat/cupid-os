@@ -1,5 +1,25 @@
 # Bootstrapping log
 
+## 2026-10-10: Close both actual heap Make consumers
+
+Both [actual Make bootstrap consumers](HOSTED-HEAP-MAKE.md) pass. Linux's
+complete independent audit checks 4,338 published files, 132 staged products,
+44 whole fixed-point pairs and 1,823 behavior pairs. Windows's native audit
+checks 3,423 published files, 159 stage products, 53 whole pairs and 1,366
+behavior pairs. The original commands, sentinels and tool deadlines remain.
+
+The first Windows command loses its private CupidDis copy and rejects. Its
+cause is not established; the unchanged complete diagnostic replay passes.
+The original audit then rejects the native report because its schema predicate
+still names the Linux schema. A separate derived audit selects the existing
+native Windows schema and passes every other unchanged predicate. All five
+original audits, both failures and complete diagnostic receipts stay retained.
+
+Fresh seed/manual adoption consumers now start paired cold OS builds with zero
+production objects. Root seeds, reader and all 99 producer inputs remain
+unchanged until their measured policy, users, complete images and four strict
+boots pass. Three Python coordinators remain. TempleOS is excluded.
+
 ## 2026-10-10: Retain source observer name profiles
 
 The [held source observer](NATIVE-SOURCE-OBSERVER.md) accepts the original image

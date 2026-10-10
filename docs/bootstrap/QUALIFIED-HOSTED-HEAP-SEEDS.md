@@ -225,8 +225,9 @@ timestamp evidence.
 
 The original queue next reaches Windows public tests and stops at a stale
 runtime-image byte lock. The fresh acceptance below retains that original
-failure. Both actual Make bootstraps remain required before installed seed
-adoption. The normal graph remains 449 CupidBuild actions and three Python
+failure. The later [actual Make acceptance](HOSTED-HEAP-MAKE.md) closes both
+host consumers and their complete independent audits. Installed-seed/manual
+adoption remains open. The normal graph remains 449 CupidBuild actions and three Python
 coordinators across 452 transforms. TempleOS stays read-only and excluded.
 
 ## Windows public bootstrap accepted, 2026-10-10
@@ -253,3 +254,21 @@ restores 36 complete files. All 99 committed producer inputs and fifteen root
 seed files are unchanged. A separate continuation runs the two previously
 unstarted actual Make commands and unchanged bootstrap audits; accepted SDK,
 Linux public and Windows public producers are not restarted.
+
+## Both actual Make consumers accepted, 2026-10-10
+
+The [complete Make record](HOSTED-HEAP-MAKE.md) accepts Linux's actual
+`bootstrap-from-seed` and Windows's `bootstrap-windows-from-seed` recipes.
+Independent review rereads every published file and complete final-stage and
+behavior pair: 4,338 / 132 / 44 / 1,823 on Linux and 3,423 / 159 / 53 / 1,366
+on native Windows. Every original deadline and conventional-producer sentinel
+remains. The first Windows missing-copy failure has no established cause; the
+unchanged diagnostic replay passes. A separate audit correction selects the
+native Windows report schema while keeping every other predicate unchanged.
+
+All five original audit scripts remain unchanged. Exact failures, successful
+commands, report bytes, complete audits and diagnostic read/cleanup traces are
+archived. Fresh seed/manual adoption copies now run paired cold normal builds
+from zero objects. The root still retains its preceding fifteen seed files
+and reader until the measured manual, complete images, users/ABI and all four
+strict boots pass.
