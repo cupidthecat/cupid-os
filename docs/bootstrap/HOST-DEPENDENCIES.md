@@ -1,5 +1,15 @@
 # Host dependency inventory
 
+## Hosted allocator source, 2026-10-10
+
+The Linux and Windows hosted runtime source now uses free-block size bins;
+Windows also shares regions for small allocations. Reproducible fixtures compile,
+assemble, link and inspect through the verified Cupid seed without a host compiler.
+The change strengthens the host service used by Cupid-built tools. It adds no
+external dependency and changes no normal recipe owner. Replacement seed
+qualification and consumer acceptance remain required. Python still coordinates
+disk publication, hosted SDK publication and hosted SDK verification.
+
 ## Installed native ISO and ABI recipes, 2026-10-06
 
 The installed `51f3c9ee` pair carries the complete retained ISO operation and

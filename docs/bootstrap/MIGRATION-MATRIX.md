@@ -1,5 +1,15 @@
 # Toolchain ownership migration matrix
 
+## Hosted allocator source, 2026-10-10
+
+The shared hosted runtime contains the region and free-bin allocator previously
+retained only as a prototype. Its new density and OS-failure fixtures are `.cc`
+and build with checked CupidC, CupidASM and CupidLD on the current host. Strict
+CupidDis checks cover their complete objects and programs. One normal producer
+input changes; the installed fifteen-file seed cohort remains unchanged until
+paired qualification and consumer acceptance. Ownership remains 449 CupidBuild
+actions and three Python coordinators across 452 transforms.
+
 ## Private publisher and emitter verification, 2026-10-06
 
 Bounded candidate and previous-output publication passes complete 200 MiB

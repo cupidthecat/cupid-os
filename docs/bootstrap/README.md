@@ -1,5 +1,20 @@
 # Cupid Toolchain bootstrap
 
+## Hosted allocator source integration, 2026-10-10
+
+The [hosted heap](HOSTED-HEAP.md) is implemented in the normal shared runtime
+source. Its Linux and Windows adapters keep sixteen-byte alignment, reuse free
+blocks through shared size bins, and recover from failed operating-system
+allocation or release. Windows allocates small blocks within regions of at
+least 64 KiB. Tests build the actual runtimes with checked Cupid tools; the
+original Windows runtime fails both 65,536-allocation controls at 32,547.
+Both hosts finish source preparations with 97 complete stage-three/stage-four
+pairs and the same 99-input snapshot. Tests also use the actual normal Windows
+UTF-8 runtime profile. Named-commit behavior qualification and replacement-seed
+consumer acceptance remain required. The normal graph still has 449 CupidBuild
+actions and three Python
+coordinators across 452 transforms.
+
 ## Qualified mixed width seed installation, 2026-10-09
 
 The [qualified paired cohort](QUALIFIED-MIXED-WIDE-SEEDS.md) is installed from

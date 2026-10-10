@@ -13,6 +13,17 @@ Verified against source on: 2026-10-03
 >style linkhover #0B3AA8
 >rule
 
+>h2 Hosted tool allocator source
+The shared hosted runtime source now searches free blocks by size on Linux
+and Windows. Small Windows allocations share regions of at least 64 KiB.
+Returned storage keeps sixteen-byte alignment. Failed realloc preserves the
+original data, and failed OS release leaves free storage reusable. Cupid-built
+tests cover 65,536 live allocations, fragmentation, mixed-size mutation,
+overflow, OS failure recovery and the existing platform runtime contracts.
+The installed host seeds retain the preceding allocator until paired source
+qualification and replacement-tool acceptance finish. The normal graph keeps
+449 CupidBuild actions and three Python coordinators across 452 transforms.
+
 >h2 Shared compiler block assertions
 The shared bootstrap compiler at source head accepts C11 _Static_assert
 inside function compounds. It checks local names and target layout at compile

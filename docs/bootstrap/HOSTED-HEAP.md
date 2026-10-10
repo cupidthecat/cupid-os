@@ -1,10 +1,91 @@
 # Hosted heap storage and search
 
-The [private allocator implementation](../adr/0461-manage-hosted-heap-regions-and-free-blocks.md)
-shares Windows memory regions and searches free blocks on both hosts. It
-preserves the represented malloc, calloc, realloc and free behavior. Its
-[unapplied patch](prototypes/hosted-heap.patch) retains the implementation and
-the Cupid-built density/failure fixture without changing normal producer inputs.
+The [allocator implementation](../adr/0461-manage-hosted-heap-regions-and-free-blocks.md)
+now lives in the shared hosted runtime source. It shares Windows memory regions
+and searches free blocks on both hosts while preserving malloc, calloc, realloc
+and free behavior. The [original prototype patch](prototypes/hosted-heap.patch)
+remains a historical reference. It must not be applied over the integrated source.
+
+## Source integration, 2026-10-10
+
+The runtime uses one shared implementation of size checking and free-bin
+maintenance. Compile-time layout checks pin the 32-byte block header and the
+Windows 16-byte region header. The platform backends retain their respective
+VirtualAlloc/VirtualFree and brk ownership and release rules.
+
+Run `python -m unittest -v tests.test_hosted_heap` from a clean checkout on
+Windows or Linux. The test builds the actual runtime twice with the verified
+platform seed and requires identical complete object bytes. CupidASM supplies
+startup, CupidLD links each caller, and CupidDis checks every object and program
+with all three strict code checks. No conventional compiler builds the fixture.
+An optional `CUPID_HOSTED_HEAP_PRODUCTS` directory inside the checkout retains
+inputs, commands, complete outputs and executable identities.
+
+The density fixture covers 65,536 one-byte and cache-line allocations, page
+allocations, alternating frees, zeroed reuse and intact live neighbors. A
+deterministic 20,000-operation mixed-size replay verifies all live payloads
+during shrink, growth, moves and release. Separate fault callers redirect only
+the existing OS allocation/release boundary. They force allocation failure,
+confirm failed realloc leaves data intact, retry successfully, and force a
+release failure whose storage is then reused without another OS allocation.
+Overflow must fail before requesting OS storage. Both complete pre-existing
+platform runtime contracts link against the same ordinary runtime object.
+Windows runs the contracts through both its original narrow startup and the
+normal UTF-8/long-path profile. A separate complete runtime call writes and reads
+a Unicode filename beyond 260 characters. Retained product directories must be
+empty; a negative harness check preserves an existing input receipt.
+Linux allocator calls retain a sixty-second deadline and a 32 MiB address-space
+limit. Windows uses the same deadline.
+
+The initial unchanged Windows runtime fails both 65,536 controls at 32,547 live
+requests with ENOMEM. Its page-sized and existing boundary controls pass.
+The first Linux harness run omitted the legacy fixture's GNU mode. A later
+run correctly executed that fixture but compared only its final stdout line.
+Both harness errors remain recorded; the settled test checks its complete
+four-line output. A later rerun selected an occupied product directory and
+replaced its old input list before seed capture rejected the run. Those older
+input receipts are no longer usable. The early empty-directory check now rejects
+that case before any receipt write.
+
+The settled suite passes twenty tests on Windows in 70.978 seconds. Linux passes
+ten tests in 42.755 seconds and declares ten Windows-profile skips. Each build
+and runtime invocation rechecks the captured source and seed bytes. Retained
+current receipts are under `build/heap-acceptance/windows-matrix-accepted` and
+`build/heap-acceptance/linux-matrix-accepted`.
+These prove the integrated source through the installed compiler, rather than
+qualification of a new six-tool producer cohort.
+
+The [committed source evidence](evidence/hosted-heap-20261010.json) records all
+twenty-eight allocator/runtime outcomes across three profiles, source/header
+inventories, program and seed identities, both original density failures and
+36 strict certifications. Both retained-receipt guards pass.
+Independent rereading verifies every recorded current source, runtime duplicate,
+command result and executable identity before writing that summary. The Windows
+37,512-byte runtime object has SHA-256
+`ff9ababfbe09e87462f2740085db46a1a2f4ad7a7d6b3f7eeda087a21ec0e2b1`.
+The Linux 32,664-byte object has SHA-256
+`51d3ff76543209dc1101686995f2155e73d5b9a3de69e75e242ccc127abe616d`.
+The normal Windows UTF-8 runtime is 38,496 bytes with SHA-256
+`88e549ecf681cd117708e7e61eb36df584c2bb4d734c33c6822fd225e2579f37`.
+
+Both hosts finish source preparations with the existing parent pair and all nine
+conventional producer variables forbidden. Independent rereading checks the same
+99-input snapshot, `4ae98403b0896b24e50b81b11b213b8117207421b9152e95d0500e00e612d07e`,
+and all 97 complete stage-three/stage-four object and tool pairs. Linux startup
+and runtime and all five selected Windows UTF-8 support objects match the tested
+profile bytes. An initial comparison incorrectly expected the narrow Windows
+runtime to match the UTF-8 object; the corrected check selects the actual profile.
+Preparation remains unqualified until named-commit behavior and consumer checks.
+
+The normal kernel/boot and user builds pass with conventional producers
+forbidden. Only the manual wrapper differs among 429 production object
+identities. Its 71,593-byte source occurs once in each kernel output. The raw
+kernel grows to 9,300,840 bytes; both ELF sizes stay unchanged. The private normal
+image publication preserves every FAT suffix byte and passes strict four-CPU
+ls/SMP and ISO boots under the existing 150-second limits. All sixteen measured
+artifact gates pass on frozen complete products. The full forced normal all
+rerun remains active. [OS source evidence](evidence/hosted-heap-os-20261010.json)
+records this boundary separately from producer qualification.
 
 ## Failure and diagnosis
 
@@ -80,7 +161,9 @@ source-seven bytes, and the normal source and installed seed boundaries stay
 unchanged. This accepts the private cohort; named-commit qualification and
 normal integration remain required.
 
-The retained evidence is under `C:/Users/admin/cp7` and its paired Linux trees:
+Earlier records locate their evidence under `C:/Users/admin/cp7` and paired
+Linux trees. Those private products are absent from this linked worktree and
+do not establish the current integration result:
 
 - `runtime-allocator-debug10`, the original minimal allocation failure.
 - `runtime-allocator-map-debug14`, actual region/commit maps and repeated limits.
@@ -103,10 +186,9 @@ stdout expectation and the first Windows nested timeout remain preserved.
 
 ## Remaining work
 
-Named-commit producer qualification and normal CLI/OS/SDK/public acceptance
-remain required. The normal shared runtime still has SHA-256
-`b46f670563929f80800d8ab5762ef422b067bd216b394bd49345662a6336de0f`.
-All 99 normal producer inputs and fifteen installed seed files retain their
-existing identities. No coordinator or normal recipe ownership changes through
-this private patch. The separate 200 MiB required-file reuse failure and its full
-large-image/boot checks remain open. TempleOS is excluded.
+Named-commit producer qualification and replacement-seed CLI, OS, SDK and public
+bootstrap acceptance remain required. This integration changes one of the 99
+normal producer inputs. The fifteen installed seed files retain their preceding
+identities until promotion. No coordinator or normal recipe ownership changes.
+The separate 200 MiB required-file reuse failure and its complete large-image
+and boot checks remain open. TempleOS is excluded.

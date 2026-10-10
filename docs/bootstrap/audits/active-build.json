@@ -41688,7 +41688,7 @@
     "c_preprocessor_conditionals": {
       "directive_expression_pairs": 64,
       "elif_occurrences": 24,
-      "expression_occurrences": 473,
+      "expression_occurrences": 476,
       "expressions": [
         {
           "elif_occurrences": 0,
@@ -41813,7 +41813,7 @@
             },
             {
               "directive": "if",
-              "line": 154,
+              "line": 181,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if !defined(CUPID_RUNTIME_WINDOWS)"
             }
@@ -43475,97 +43475,115 @@
             },
             {
               "directive": "if",
-              "line": 133,
+              "line": 124,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 403,
+              "line": 139,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 712,
+              "line": 154,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 726,
+              "line": 160,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 762,
+              "line": 477,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 802,
+              "line": 877,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 814,
+              "line": 891,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 866,
+              "line": 927,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 875,
+              "line": 967,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 952,
+              "line": 979,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 1033,
+              "line": 1031,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 1085,
+              "line": 1040,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 1142,
+              "line": 1117,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 1170,
+              "line": 1198,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 1569,
+              "line": 1250,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 1748,
+              "line": 1307,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 1335,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 1734,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 1913,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             }
@@ -43574,8 +43592,8 @@
           "files": [
             "toolchain/hosted/i386-linux/runtime.cc"
           ],
-          "if_occurrences": 18,
-          "occurrences": 18
+          "if_occurrences": 21,
+          "occurrences": 21
         },
         {
           "elif_occurrences": 0,
@@ -43696,7 +43714,7 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 1689,
+              "line": 1854,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_WINDOWS_UTF8)"
             }
@@ -45236,7 +45254,7 @@
           "occurrences": 1
         }
       ],
-      "if_occurrences": 449,
+      "if_occurrences": 452,
       "status": "pass",
       "unique_expressions": 61
     },
@@ -46138,13 +46156,13 @@
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
         "residual_c_sources": 17,
         "runtime_delivery_sources": 130,
-        "sha256": "6a5ba8c363ce56be98371c99406a538afd415c9c18c9d3869879d5e5da26a061",
-        "unreachable_cupid_c_sources": 51
+        "sha256": "0e4d6582f6078d55442152bc68dbf7634fa6ed83df0a33e5052e1b9240681342",
+        "unreachable_cupid_c_sources": 53
       },
       "proven_cupidc_owned_tracked_cupid_c_sources": 426,
       "status": "pass",
       "tracked_c_sources": 17,
-      "tracked_cupid_c_sources": 477,
+      "tracked_cupid_c_sources": 479,
       "unreachable": [
         {
           "classification": "historical_copy",
@@ -46403,6 +46421,16 @@
         },
         {
           "classification": "not_reached",
+          "path": "toolchain/tests/hosted_heap_density_contract.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
+          "path": "toolchain/tests/hosted_heap_fault_contract.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
           "path": "toolchain/tests/hosted_putchar_contract.cc",
           "policy": "source_suffix_policy"
         },
@@ -46473,7 +46501,7 @@
         }
       ],
       "unreachable_tracked_c_sources": 17,
-      "unreachable_tracked_cupid_c_sources": 51
+      "unreachable_tracked_cupid_c_sources": 53
     },
     "cupid_toolchain_fixed_point": {
       "checked_seed_publication": "complete-bundle",
@@ -51408,7 +51436,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5684
+      "occurrences": 5687
     },
     {
       "category": "control",
@@ -51705,7 +51733,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 5022
+      "occurrences": 5024
     },
     {
       "category": "control",
@@ -52192,7 +52220,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 45148
+      "occurrences": 45172
     },
     {
       "category": "control",
@@ -52585,7 +52613,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28010
+      "occurrences": 28017
     },
     {
       "category": "control",
@@ -52993,7 +53021,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3085
+      "occurrences": 3087
     },
     {
       "category": "declaration",
@@ -53019,10 +53047,11 @@
         "kernel/core/syscall.cc",
         "kernel/lang/exec.cc",
         "kernel/mm/memory.h",
-        "kernel/smp/percpu.h"
+        "kernel/smp/percpu.h",
+        "toolchain/hosted/i386-linux/runtime.cc"
       ],
       "id": "c.declaration.static_assert",
-      "occurrences": 28
+      "occurrences": 30
     },
     {
       "category": "declarator",
@@ -53578,7 +53607,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 7100
+      "occurrences": 7111
     },
     {
       "category": "extension",
@@ -54739,7 +54768,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.else",
-      "occurrences": 273
+      "occurrences": 274
     },
     {
       "category": "preprocessor",
@@ -55117,7 +55146,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 890
+      "occurrences": 893
     },
     {
       "category": "preprocessor",
@@ -55314,7 +55343,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.if",
-      "occurrences": 449
+      "occurrences": 452
     },
     {
       "category": "preprocessor",
@@ -57457,7 +57486,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10816
+      "occurrences": 10822
     },
     {
       "category": "type",
@@ -57936,7 +57965,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 12226
+      "occurrences": 12227
     },
     {
       "category": "type",
@@ -58744,7 +58773,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 25960
+      "occurrences": 25965
     },
     {
       "category": "type",
@@ -59252,7 +59281,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 1119
+      "occurrences": 1121
     },
     {
       "category": "type",
@@ -59563,7 +59592,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 1186
+      "occurrences": 1187
     },
     {
       "category": "type",
@@ -59793,7 +59822,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 4531
+      "occurrences": 4538
     },
     {
       "category": "type",
@@ -60426,7 +60455,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 16217
+      "occurrences": 16221
     },
     {
       "category": "declaration",
@@ -61340,7 +61369,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "eacab79b85eb031d5c15d3cea6c2c3a08f38b33f0bee8c947c04bcbb9fc2108b",
+    "active_source_digest": "c2c750dbffe545b80d1d3f95efec27651c7b6a9416355cbee9357bd93464e813",
     "control_files": [
       {
         "path": "Makefile",
@@ -61356,7 +61385,7 @@
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
-        "sha256": "6a5ba8c363ce56be98371c99406a538afd415c9c18c9d3869879d5e5da26a061"
+        "sha256": "0e4d6582f6078d55442152bc68dbf7634fa6ed83df0a33e5052e1b9240681342"
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
@@ -61368,11 +61397,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "d62cfd5e74b54b6cc3f38b12416a373d4f5ee2eb10ec71a33bef323c96176afc"
+        "sha256": "3e296ee302e859494ec224da8c8741498f3f0de748b307e2d1e7c192d81ccfc3"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
-        "sha256": "c2e1bbcfce830217a4e9ce9b6a64f73534b8295610307ec39d791f7473d4c6c6"
+        "sha256": "e496a0fb2e36e74bc04a4ef3e1923c25a805fb1342035c32eb1c4eba20ba5bcf"
       }
     ],
     "generator": {
@@ -88376,6 +88405,7 @@
         "c.control.if",
         "c.control.return",
         "c.control.while",
+        "c.declaration.static_assert",
         "c.declarator.variadic",
         "c.expression.sizeof",
         "c.extension.builtin.va_arg",
@@ -88403,12 +88433,12 @@
         "toolchain/path_encoding.h"
       ],
       "language": "cupid_c",
-      "lines": 1769,
+      "lines": 1934,
       "origin": "tracked",
       "path": "toolchain/hosted/i386-linux/runtime.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b46f670563929f80800d8ab5762ef422b067bd216b394bd49345662a6336de0f"
+      "sha256": "ade2b98d00be63c0c0fdaa59e60d9e6726d3dd641d6ab5ae886cbfba67297b1f"
     },
     {
       "build_owners": [
@@ -90573,7 +90603,7 @@
     "active_sources": 786,
     "features": 255,
     "transforms": 452,
-    "unreachable_sources": 73
+    "unreachable_sources": 75
   },
   "supplemental_builds": [
     {
@@ -91819,6 +91849,26 @@
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
       "sha256": "6f53329166c0e7cd510d5ed9342d51acff5ef9679edd48651a97bf1acdc84122"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 163,
+      "path": "toolchain/tests/hosted_heap_density_contract.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "a002cbd20be41debca379d6e318c631c72d6788a537f965816c94b505cc518f0"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 128,
+      "path": "toolchain/tests/hosted_heap_fault_contract.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "c968a4506b1f1735691cc25d7d972bafa8c5c9cf682aaeb02266af59e6cbf2e2"
     },
     {
       "classification": "not_reached",

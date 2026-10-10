@@ -2,11 +2,12 @@
 
 ## Status
 
-Implemented in private source-eight and source-nine copies on 2026-10-09.
-Guarded cohort ten and its paired independent review accept all four complete
-discovery selections and all legacy observer selections. Named-commit source
-qualification remains open. The implementation and regression fixture are
-retained in an unapplied [prototype patch](../bootstrap/prototypes/hosted-heap.patch).
+Integrated into the shared hosted runtime source on 2026-10-10 after the private
+source-eight/source-nine implementation and guarded cohort-ten checks.
+Reproducible Cupid-built density, mutation and OS-failure contracts accompany
+the source. Named-commit producer qualification and seed promotion remain open.
+The [prototype patch](../bootstrap/prototypes/hosted-heap.patch) is retained as
+historical evidence.
 
 ## Context
 
@@ -92,8 +93,11 @@ read-only and excluded.
 
 ## Consequences
 
-This private change strengthens the hosted runtime used by Cupid-built tools.
+This change strengthens the hosted runtime used by Cupid-built tools.
 It does not retire a coordinator or integrate the new image CLI. The patch uses
 repository LF line endings; private receipts retain their original bytes.
-Adoption requires qualification from a named source revision, complete consumer
-acceptance and the relevant OS/runtime checks.
+Seed adoption requires qualification from a named source revision, complete
+consumer acceptance and the relevant OS/runtime checks. Source integration shares
+the bin implementation between both backends and adds compile-time header layout
+checks. The normal test suite now builds both positive and useful failure
+fixtures through the verified Cupid toolchain on the current host.

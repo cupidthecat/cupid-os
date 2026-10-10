@@ -1,5 +1,23 @@
 # Toolchain bootstrap
 
+## Hosted heap source, 2026-10-10
+
+The shared runtime for Cupid-built host commands now searches free blocks by
+size on Linux and Windows. Small Windows allocations share regions of at least
+64 KiB. Both adapters retain sixteen-byte alignment, data during realloc, and
+reusable storage after failed OS release. Cupid-built tests exercise 65,536
+simultaneous allocations, fragmented reuse, a 20,000-operation mixed-size replay,
+overflow, failure recovery and the complete existing platform runtime contract.
+The normal Windows UTF-8/long-path profile also passes a Unicode filename beyond
+260 characters. Both hosts finish prepared cohorts with 97 complete equal
+stage-three/stage-four object and tool pairs from the same 99-input snapshot.
+Run `python -m unittest -v tests.test_hosted_heap` to reproduce the current-host
+checks. Installed seeds retain the preceding runtime until paired source
+qualification and replacement-tool acceptance finish. Three normal Python
+coordinators remain. The
+[heap record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/HOSTED-HEAP.md)
+contains the implementation and verification scope.
+
 ## Qualified hosted wide-offset seed pair, 2026-10-07
 
 Both complete qualifications pass for committed `a1cc8f3a` and its 99-input

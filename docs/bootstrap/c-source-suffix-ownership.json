@@ -189,6 +189,8 @@
     "toolchain/tests/fat16_names_contract.cc": "not_reached",
     "toolchain/tests/fat16_stage_contract.cc": "not_reached",
     "toolchain/tests/hosted_fgets_contract.cc": "not_reached",
+    "toolchain/tests/hosted_heap_density_contract.cc": "not_reached",
+    "toolchain/tests/hosted_heap_fault_contract.cc": "not_reached",
     "toolchain/tests/hosted_putchar_contract.cc": "not_reached",
     "toolchain/tests/hosted_strtoull_contract.cc": "not_reached",
     "toolchain/tests/hosted_update_modes_contract.cc": "not_reached",

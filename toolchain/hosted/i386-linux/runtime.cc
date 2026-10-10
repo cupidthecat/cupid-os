@@ -121,13 +121,40 @@ struct _IO_FILE {
 };
 
 typedef struct cupid_heap_block cupid_heap_block_t;
+#if defined(CUPID_RUNTIME_WINDOWS)
+typedef struct cupid_heap_arena cupid_heap_arena_t;
+struct cupid_heap_arena {
+  cupid_heap_arena_t *previous;
+  cupid_heap_arena_t *next;
+  size_t size;
+  unsigned int reserved;
+};
+#endif
 
 struct cupid_heap_block {
   size_t size;
   unsigned int available;
   cupid_heap_block_t *previous;
   cupid_heap_block_t *next;
+#if defined(CUPID_RUNTIME_WINDOWS)
+  cupid_heap_arena_t *arena;
+  cupid_heap_block_t *free_previous;
+  cupid_heap_block_t *free_next;
+  unsigned int reserved;
+#else
+  cupid_heap_block_t *free_previous;
+  cupid_heap_block_t *free_next;
+  unsigned int reserved_low;
+  unsigned int reserved_high;
+#endif
 };
+
+_Static_assert(sizeof(cupid_heap_block_t) == 32u,
+               "i386 heap block headers must retain sixteen-byte alignment");
+#if defined(CUPID_RUNTIME_WINDOWS)
+_Static_assert(sizeof(cupid_heap_arena_t) == 16u,
+               "i386 heap arena headers must retain sixteen-byte alignment");
+#endif
 
 static int cupid_runtime_errno;
 #if defined(CUPID_RUNTIME_WINDOWS)
@@ -400,7 +427,8 @@ char *strstr(const char *text, const char *needle) {
   return (char *)0;
 }
 
-#if defined(CUPID_RUNTIME_WINDOWS)
+static cupid_heap_block_t *cupid_heap_free_bins[32];
+
 static int cupid_heap_size(size_t bytes, size_t *aligned_out) {
   size_t requested = bytes == 0u ? 1u : bytes;
   if (requested > CUPID_RUNTIME_UINT_MAX -
@@ -408,35 +436,141 @@ static int cupid_heap_size(size_t bytes, size_t *aligned_out) {
     errno = CUPID_LINUX_ENOMEM;
     return 0;
   }
-  *aligned_out =
-      (requested + CUPID_RUNTIME_HEAP_ALIGNMENT - 1u) &
-      ~(CUPID_RUNTIME_HEAP_ALIGNMENT - 1u);
+  *aligned_out = (requested + CUPID_RUNTIME_HEAP_ALIGNMENT - 1u) &
+                 ~(CUPID_RUNTIME_HEAP_ALIGNMENT - 1u);
   return 1;
 }
 
+static unsigned int cupid_heap_bin(size_t size) {
+  unsigned int bin = 0u;
+  size_t units = size / CUPID_RUNTIME_HEAP_ALIGNMENT;
+  while (units > 1u) {
+    units >>= 1u;
+    bin++;
+  }
+  return bin;
+}
+
+static void cupid_heap_free_insert(cupid_heap_block_t *block) {
+  unsigned int bin = cupid_heap_bin(block->size);
+  block->free_previous = (cupid_heap_block_t *)0;
+  block->free_next = cupid_heap_free_bins[bin];
+  if (block->free_next != (cupid_heap_block_t *)0) {
+    block->free_next->free_previous = block;
+  }
+  cupid_heap_free_bins[bin] = block;
+}
+
+static void cupid_heap_free_remove(cupid_heap_block_t *block) {
+  if (block->free_previous != (cupid_heap_block_t *)0) {
+    block->free_previous->free_next = block->free_next;
+  } else {
+    cupid_heap_free_bins[cupid_heap_bin(block->size)] = block->free_next;
+  }
+  if (block->free_next != (cupid_heap_block_t *)0) {
+    block->free_next->free_previous = block->free_previous;
+  }
+  block->free_previous = (cupid_heap_block_t *)0;
+  block->free_next = (cupid_heap_block_t *)0;
+}
+
+#if defined(CUPID_RUNTIME_WINDOWS)
+static cupid_heap_arena_t *cupid_heap_arenas;
+
+static void cupid_heap_join_next(cupid_heap_block_t *block) {
+  cupid_heap_block_t *next = block->next;
+  if (next == (cupid_heap_block_t *)0 || next->available == 0u) {
+    return;
+  }
+  if (block->available != 0u) {
+    cupid_heap_free_remove(block);
+  }
+  cupid_heap_free_remove(next);
+  block->size += sizeof(cupid_heap_block_t) + next->size;
+  block->next = next->next;
+  if (block->next != (cupid_heap_block_t *)0) {
+    block->next->previous = block;
+  }
+  if (block->available != 0u) {
+    cupid_heap_free_insert(block);
+  }
+}
+
+static void cupid_heap_split(cupid_heap_block_t *block, size_t size) {
+  cupid_heap_block_t *remainder;
+  if (block->size - size < sizeof(cupid_heap_block_t) +
+                                CUPID_RUNTIME_HEAP_ALIGNMENT) {
+    return;
+  }
+  remainder = (cupid_heap_block_t *)((unsigned char *)(block + 1) + size);
+  remainder->size = block->size - size - sizeof(cupid_heap_block_t);
+  remainder->available = 1u;
+  remainder->previous = block;
+  remainder->next = block->next;
+  remainder->arena = block->arena;
+  remainder->reserved = 0u;
+  if (remainder->next != (cupid_heap_block_t *)0) {
+    remainder->next->previous = remainder;
+  }
+  block->next = remainder;
+  block->size = size;
+  cupid_heap_free_insert(remainder);
+  cupid_heap_join_next(remainder);
+}
+
 void *malloc(size_t bytes) {
-  size_t size;
-  size_t total;
+  size_t size, total;
+  unsigned int bin;
   cupid_heap_block_t *block;
+  cupid_heap_arena_t *arena;
   if (!cupid_heap_size(bytes, &size) ||
-      size > CUPID_RUNTIME_UINT_MAX - sizeof(cupid_heap_block_t)) {
+      size > CUPID_RUNTIME_UINT_MAX - sizeof(cupid_heap_arena_t) -
+                 sizeof(cupid_heap_block_t)) {
     errno = CUPID_LINUX_ENOMEM;
     return (void *)0;
   }
-  total = size + sizeof(cupid_heap_block_t);
-  block = (cupid_heap_block_t *)cupid_windows_virtual_alloc(
+  for (bin = cupid_heap_bin(size); bin < 32u; bin++) {
+    block = cupid_heap_free_bins[bin];
+    while (block != (cupid_heap_block_t *)0) {
+      if (block->size >= size) {
+        cupid_heap_free_remove(block);
+        block->available = 0u;
+        cupid_heap_split(block, size);
+        return (void *)(block + 1);
+      }
+      block = block->free_next;
+    }
+  }
+  total = size + sizeof(cupid_heap_arena_t) + sizeof(cupid_heap_block_t);
+  if (total < 65536u) {
+    total = 65536u;
+  }
+  arena = (cupid_heap_arena_t *)cupid_windows_virtual_alloc(
       (void *)0, (unsigned int)total,
       CUPID_WINDOWS_MEM_RESERVE | CUPID_WINDOWS_MEM_COMMIT,
       CUPID_WINDOWS_PAGE_READWRITE);
-  if (block == (cupid_heap_block_t *)0) {
-    (void)cupid_windows_error();
+  if (arena == (cupid_heap_arena_t *)0) {
     errno = CUPID_LINUX_ENOMEM;
     return (void *)0;
   }
-  block->size = size;
+  arena->previous = (cupid_heap_arena_t *)0;
+  arena->next = cupid_heap_arenas;
+  arena->size = total;
+  arena->reserved = 0u;
+  if (arena->next != (cupid_heap_arena_t *)0) {
+    arena->next->previous = arena;
+  }
+  cupid_heap_arenas = arena;
+  block = (cupid_heap_block_t *)(arena + 1);
+  block->size = total - sizeof(cupid_heap_arena_t) - sizeof(cupid_heap_block_t);
   block->available = 0u;
   block->previous = (cupid_heap_block_t *)0;
   block->next = (cupid_heap_block_t *)0;
+  block->arena = arena;
+  block->free_previous = (cupid_heap_block_t *)0;
+  block->free_next = (cupid_heap_block_t *)0;
+  block->reserved = 0u;
+  cupid_heap_split(block, size);
   return (void *)(block + 1);
 }
 
@@ -457,16 +591,44 @@ void *calloc(size_t count, size_t bytes) {
 
 void free(void *allocation) {
   cupid_heap_block_t *block;
+  cupid_heap_arena_t *arena, *previous, *next;
   if (allocation == (void *)0) {
     return;
   }
   block = ((cupid_heap_block_t *)allocation) - 1;
-  (void)cupid_windows_virtual_free(block, 0u, CUPID_WINDOWS_MEM_RELEASE);
+  block->available = 1u;
+  cupid_heap_free_insert(block);
+  cupid_heap_join_next(block);
+  if (block->previous != (cupid_heap_block_t *)0 &&
+      block->previous->available != 0u) {
+    block = block->previous;
+    cupid_heap_join_next(block);
+  }
+  if (block->previous != (cupid_heap_block_t *)0 ||
+      block->next != (cupid_heap_block_t *)0) {
+    return;
+  }
+  arena = block->arena;
+  previous = arena->previous;
+  next = arena->next;
+  cupid_heap_free_remove(block);
+  if (cupid_windows_virtual_free(arena, 0u, CUPID_WINDOWS_MEM_RELEASE) == 0u) {
+    cupid_heap_free_insert(block);
+    return;
+  }
+  if (previous != (cupid_heap_arena_t *)0) {
+    previous->next = next;
+  } else {
+    cupid_heap_arenas = next;
+  }
+  if (next != (cupid_heap_arena_t *)0) {
+    next->previous = previous;
+  }
 }
 
 void *realloc(void *allocation, size_t bytes) {
   cupid_heap_block_t *block;
-  size_t copy_size;
+  size_t size, copy_size;
   void *replacement;
   if (allocation == (void *)0) {
     return malloc(bytes);
@@ -475,7 +637,21 @@ void *realloc(void *allocation, size_t bytes) {
     free(allocation);
     return (void *)0;
   }
+  if (!cupid_heap_size(bytes, &size)) {
+    return (void *)0;
+  }
   block = ((cupid_heap_block_t *)allocation) - 1;
+  if (block->size >= size) {
+    cupid_heap_split(block, size);
+    return allocation;
+  }
+  if (block->next != (cupid_heap_block_t *)0 &&
+      block->next->available != 0u &&
+      block->size + sizeof(cupid_heap_block_t) + block->next->size >= size) {
+    cupid_heap_join_next(block);
+    cupid_heap_split(block, size);
+    return allocation;
+  }
   replacement = malloc(bytes);
   if (replacement == (void *)0) {
     return (void *)0;
@@ -486,22 +662,8 @@ void *realloc(void *allocation, size_t bytes) {
   return replacement;
 }
 #else
-static int cupid_heap_size(size_t bytes, size_t *aligned_out) {
-  size_t requested = bytes == 0u ? 1u : bytes;
-  if (requested > CUPID_RUNTIME_UINT_MAX -
-                      (CUPID_RUNTIME_HEAP_ALIGNMENT - 1u)) {
-    errno = CUPID_LINUX_ENOMEM;
-    return 0;
-  }
-  *aligned_out =
-      (requested + CUPID_RUNTIME_HEAP_ALIGNMENT - 1u) &
-      ~(CUPID_RUNTIME_HEAP_ALIGNMENT - 1u);
-  return 1;
-}
-
 static int cupid_heap_initialize(void) {
-  unsigned int current;
-  unsigned int aligned;
+  unsigned int current, aligned;
   int result;
   if (cupid_heap_end != 0u) {
     return 1;
@@ -512,14 +674,12 @@ static int cupid_heap_initialize(void) {
     return 0;
   }
   current = (unsigned int)result;
-  if (current > CUPID_RUNTIME_UINT_MAX -
-                    (CUPID_RUNTIME_HEAP_ALIGNMENT - 1u)) {
+  if (current > CUPID_RUNTIME_UINT_MAX - (CUPID_RUNTIME_HEAP_ALIGNMENT - 1u)) {
     errno = CUPID_LINUX_ENOMEM;
     return 0;
   }
-  aligned =
-      (current + CUPID_RUNTIME_HEAP_ALIGNMENT - 1u) &
-      ~(CUPID_RUNTIME_HEAP_ALIGNMENT - 1u);
+  aligned = (current + CUPID_RUNTIME_HEAP_ALIGNMENT - 1u) &
+             ~(CUPID_RUNTIME_HEAP_ALIGNMENT - 1u);
   if (aligned != current) {
     result = cupid_linux_syscall1(CUPID_LINUX_SYS_BRK, aligned);
     if ((unsigned int)result != aligned) {
@@ -531,17 +691,35 @@ static int cupid_heap_initialize(void) {
   return 1;
 }
 
-static void cupid_heap_split(cupid_heap_block_t *block, size_t size) {
-  cupid_heap_block_t *remainder;
-  size_t required = size + sizeof(cupid_heap_block_t) +
-                    CUPID_RUNTIME_HEAP_ALIGNMENT;
-  if (block->size < required) {
+static void cupid_heap_join_next(cupid_heap_block_t *block) {
+  cupid_heap_block_t *next = block->next;
+  if (next == (cupid_heap_block_t *)0 || next->available == 0u) {
     return;
   }
-  remainder =
-      (cupid_heap_block_t *)((unsigned char *)(block + 1) + size);
-  remainder->size =
-      block->size - size - sizeof(cupid_heap_block_t);
+  if (block->available != 0u) {
+    cupid_heap_free_remove(block);
+  }
+  cupid_heap_free_remove(next);
+  block->size += sizeof(cupid_heap_block_t) + next->size;
+  block->next = next->next;
+  if (block->next != (cupid_heap_block_t *)0) {
+    block->next->previous = block;
+  } else {
+    cupid_heap_last = block;
+  }
+  if (block->available != 0u) {
+    cupid_heap_free_insert(block);
+  }
+}
+
+static void cupid_heap_split(cupid_heap_block_t *block, size_t size) {
+  cupid_heap_block_t *remainder;
+  if (block->size - size < sizeof(cupid_heap_block_t) +
+                                CUPID_RUNTIME_HEAP_ALIGNMENT) {
+    return;
+  }
+  remainder = (cupid_heap_block_t *)((unsigned char *)(block + 1) + size);
+  remainder->size = block->size - size - sizeof(cupid_heap_block_t);
   remainder->available = 1u;
   remainder->previous = block;
   remainder->next = block->next;
@@ -552,51 +730,40 @@ static void cupid_heap_split(cupid_heap_block_t *block, size_t size) {
   }
   block->next = remainder;
   block->size = size;
-}
-
-static void cupid_heap_join_next(cupid_heap_block_t *block) {
-  cupid_heap_block_t *next = block->next;
-  if (next == (cupid_heap_block_t *)0 || next->available == 0u) {
-    return;
-  }
-  block->size += sizeof(cupid_heap_block_t) + next->size;
-  block->next = next->next;
-  if (block->next != (cupid_heap_block_t *)0) {
-    block->next->previous = block;
-  } else {
-    cupid_heap_last = block;
-  }
+  cupid_heap_free_insert(remainder);
+  cupid_heap_join_next(remainder);
 }
 
 void *malloc(size_t bytes) {
   size_t size;
   cupid_heap_block_t *block;
-  unsigned int address;
-  unsigned int end;
+  unsigned int bin, address, end;
   int result;
   if (!cupid_heap_size(bytes, &size)) {
     return (void *)0;
   }
-  block = cupid_heap_first;
-  while (block != (cupid_heap_block_t *)0) {
-    if (block->available != 0u && block->size >= size) {
-      cupid_heap_split(block, size);
-      block->available = 0u;
-      return (void *)(block + 1);
+  for (bin = cupid_heap_bin(size); bin < 32u; bin++) {
+    block = cupid_heap_free_bins[bin];
+    while (block != (cupid_heap_block_t *)0) {
+      if (block->size >= size) {
+        cupid_heap_free_remove(block);
+        block->available = 0u;
+        cupid_heap_split(block, size);
+        return (void *)(block + 1);
+      }
+      block = block->free_next;
     }
-    block = block->next;
   }
   if (!cupid_heap_initialize()) {
     return (void *)0;
   }
   address = cupid_heap_end;
-  if (size > CUPID_RUNTIME_UINT_MAX - address -
-                 (size_t)sizeof(cupid_heap_block_t)) {
+  if (address > CUPID_RUNTIME_UINT_MAX - sizeof(cupid_heap_block_t) ||
+      size > CUPID_RUNTIME_UINT_MAX - address - sizeof(cupid_heap_block_t)) {
     errno = CUPID_LINUX_ENOMEM;
     return (void *)0;
   }
-  end = address + (unsigned int)sizeof(cupid_heap_block_t) +
-        (unsigned int)size;
+  end = address + (unsigned int)sizeof(cupid_heap_block_t) + (unsigned int)size;
   result = cupid_linux_syscall1(CUPID_LINUX_SYS_BRK, end);
   if ((unsigned int)result != end) {
     errno = CUPID_LINUX_ENOMEM;
@@ -608,6 +775,8 @@ void *malloc(size_t bytes) {
   block->available = 0u;
   block->previous = cupid_heap_last;
   block->next = (cupid_heap_block_t *)0;
+  block->free_previous = (cupid_heap_block_t *)0;
+  block->free_next = (cupid_heap_block_t *)0;
   if (cupid_heap_last != (cupid_heap_block_t *)0) {
     cupid_heap_last->next = block;
   } else {
@@ -633,8 +802,7 @@ void *calloc(size_t count, size_t bytes) {
 }
 
 void free(void *allocation) {
-  cupid_heap_block_t *block;
-  cupid_heap_block_t *previous;
+  cupid_heap_block_t *block, *previous;
   unsigned int address;
   int result;
   if (allocation == (void *)0) {
@@ -642,10 +810,10 @@ void free(void *allocation) {
   }
   block = ((cupid_heap_block_t *)allocation) - 1;
   block->available = 1u;
+  cupid_heap_free_insert(block);
   cupid_heap_join_next(block);
   previous = block->previous;
-  if (previous != (cupid_heap_block_t *)0 &&
-      previous->available != 0u) {
+  if (previous != (cupid_heap_block_t *)0 && previous->available != 0u) {
     cupid_heap_join_next(previous);
     block = previous;
   }
@@ -654,8 +822,10 @@ void free(void *allocation) {
   }
   previous = block->previous;
   address = (unsigned int)block;
+  cupid_heap_free_remove(block);
   result = cupid_linux_syscall1(CUPID_LINUX_SYS_BRK, address);
   if ((unsigned int)result != address) {
+    cupid_heap_free_insert(block);
     return;
   }
   cupid_heap_end = address;
@@ -669,8 +839,7 @@ void free(void *allocation) {
 
 void *realloc(void *allocation, size_t bytes) {
   cupid_heap_block_t *block;
-  size_t size;
-  size_t copy_size;
+  size_t size, copy_size;
   void *replacement;
   if (allocation == (void *)0) {
     return malloc(bytes);
@@ -687,14 +856,10 @@ void *realloc(void *allocation, size_t bytes) {
     cupid_heap_split(block, size);
     return allocation;
   }
-  if (block->next != (cupid_heap_block_t *)0 &&
-      block->next->available != 0u &&
-      block->size + sizeof(cupid_heap_block_t) +
-              block->next->size >=
-          size) {
+  if (block->next != (cupid_heap_block_t *)0 && block->next->available != 0u &&
+      block->size + sizeof(cupid_heap_block_t) + block->next->size >= size) {
     cupid_heap_join_next(block);
     cupid_heap_split(block, size);
-    block->available = 0u;
     return allocation;
   }
   replacement = malloc(bytes);

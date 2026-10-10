@@ -1,5 +1,17 @@
 # cupid-os
 
+## Hosted allocator source, 2026-10-10
+
+The shared hosted runtime now groups small Windows allocations into regions and
+searches free storage through size bins on both hosts. Cupid-built tests cover
+65,536 simultaneous allocations, fragmentation, alignment, failed allocation
+and release, and data preservation during realloc. The
+[heap record](docs/bootstrap/HOSTED-HEAP.md) describes the implementation and
+reproduction command. Installed seeds still carry the preceding runtime until
+the new source completes paired qualification and consumer acceptance.
+Both hosts have prepared matching stage-three/stage-four cohorts. Current tests
+also cover the normal Windows UTF-8 startup and a Unicode long-path runtime call.
+
 ## Qualified wide pointer seeds, 2026-10-07
 
 Shared CupidC source supports signed and unsigned eight-byte offsets in pointer

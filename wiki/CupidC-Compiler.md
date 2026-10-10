@@ -1,5 +1,16 @@
 # CupidC Compiler
 
+The shared hosted runtime source now uses size bins for free storage on both
+hosts and shared Windows regions for small allocations. The allocator retains
+sixteen-byte alignment and failed-realloc data, and keeps storage reusable when
+OS release fails. `tests.test_hosted_heap` builds the actual runtime and its
+positive/failure callers entirely with verified Cupid tools, then runs strict
+CupidDis checks. Both Windows startup profiles run these contracts, including
+a Unicode filename beyond 260 characters. Both hosts finish matching prepared
+stage-three/stage-four cohorts. Seed adoption still requires paired source qualification and
+replacement-tool consumer acceptance. See the
+[heap record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/HOSTED-HEAP.md).
+
 CupidC builds CupidBuild as part of the promoted Linux and Windows six-tool
 cohorts. The normal ISR, context-switch, bootloader, SMP-trampoline, JPEG, and
 kernel-symbol recipes run that checked CupidBuild image directly, which

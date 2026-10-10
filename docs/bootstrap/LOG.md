@@ -1,5 +1,91 @@
 # Bootstrapping log
 
+## 2026-10-10: Integrate hosted heap regions and free-block search
+
+Work starts from bootstrap commit `cf5976b8`; the primary checkout retains unrelated
+changes at the older GNU-used checkpoint. A clean linked worktree continues the
+bootstrap branch. Git's dry-run reports stale registrations whose gitdir targets
+no longer exist; pruning removes those registrations without deleting live
+worktrees or user changes. TempleOS is untouched.
+
+The shared hosted runtime now contains ADR 0461's allocator. Size checks and
+bin maintenance are shared between backends. Compile-time checks pin both i386
+header sizes. Windows splits and joins storage within a VirtualAlloc region;
+Linux retains brk growth and tail trimming. Failed OS release restores reusable
+free storage. The original prototype remains a historical record.
+
+New tests build actual runtime and caller objects with the verified current
+platform seed, require repeated runtime byte identity, and strictly inspect all
+objects and linked programs through CupidDis. They cover 65,536 live one-byte
+and cache-line allocations, fragmentation, zeroed reuse, mixed-size realloc,
+overflow, actual huge-allocation failure, controlled allocation/release failure
+and recovery. A deterministic 20,000-operation replay checks every live payload.
+The complete pre-existing runtime fixture uses the same ordinary runtime object.
+Linux allocator executions keep sixty seconds and 32 MiB.
+
+Before integration, both Windows density cases fail at 32,547 live requests with
+ENOMEM; two other controls pass. The first Linux test harness omitted GNU mode
+for the existing variadic fixture. The next correctly executed the fixture but
+compared only its final stdout line. The settled harness checks all four lines.
+Retained products and commands are in `build/heap-acceptance/`.
+
+Twenty settled tests pass on Windows in 70.978 seconds. Linux passes ten tests
+in 42.755 seconds with ten Windows-profile skips. The suite exercises the narrow
+Windows startup, normal UTF-8/long-path startup and Linux runtime. Its Unicode
+filename exceeds 260 characters. A guard rejects occupied product directories
+without changing a previous receipt. An earlier occupied-directory rerun had
+overwritten its old input list before seed capture rejected it; that older input
+receipt is unusable. Current input inventories bind source, headers and fixtures;
+each invocation rechecks those bytes and the verified seed capture. Both density
+controls now complete all 65,536 allocations. All strict object/program checks,
+forced failure/recovery controls and complete existing runtime contracts pass.
+Independent rereading binds all outcomes, source inventories, runtime duplicates,
+programs and parent tools in
+`evidence/hosted-heap-20261010.json`. Both strict Clang backend checks and the
+Linux GCC check pass. Eight suffix-policy tests pass in 11.302 seconds.
+The existing native Windows tool-boundary method also passes in 244.756 seconds,
+including rebuilt tools, their complete runtime fixture and useful rejection.
+
+Paired stage preparation finishes with all nine conventional producer variables
+forbidden and the original checked parent pair. Independent rereading accepts
+the same 99-input snapshot and all 97 complete stage-three/stage-four pairs. The
+tested Linux startup/runtime and five Windows UTF-8 support objects match the
+prepared bytes. The first comparison incorrectly selected the narrow Windows
+runtime; it now selects the actual UTF-8 profile. Preparation alone does not
+establish release qualification or seed promotion. Installed seeds and normal recipe
+ownership remain unchanged: 449 CupidBuild and three Python actions.
+
+The cold normal Windows image build passes with conventional code producers
+forbidden, all 429 objects and sixteen exact artifact gates. Two baseline boot
+diagnostics time out under the harness's default 45-second bound at different
+startup phases. The recorded acceptance uses 150 seconds. Repeating the baseline
+under that original bound passes desktop, four-CPU SMP/RDRAND/TLS/e1000 checks
+and completed ls execution. No kernel change or acceptance-bound increase follows.
+A diagnostic used an unsupported feature-17 flag and stopped at argument parsing;
+it is not a boot result.
+
+The updated normal kernel/boot build and fresh user build pass with conventional
+producers forbidden. The 71,593-byte manual occurs once in each of the three
+kernel products. All 429 object identities agree with the cold baseline except
+its manual wrapper; generated symbols retain their bytes. The raw kernel is
+9,300,840 bytes, while both ELF sizes stay unchanged. Only the measured raw-kernel
+size gate changes. All fifteen installed seed files match the parent commit.
+
+The normal image publication recipe also passes on a private baseline copy.
+The complete 199,229,440-byte FAT suffix stays byte-identical. The 200 MiB image
+has SHA-256 `a2d9c3a5f55bd5d7fc089bb476e13fa16fb74b5bb386f42b1cfa741577b865b1`.
+Both strict four-CPU max/e1000 private boots pass completed ls/SMP and feature-17
+ISO checks under the original 150-second limits. CupidBuild accepts all sixteen
+exact artifact gates on frozen complete product copies. Independent object
+rereading initially encounters an active Windows publication lock; bounded
+retry succeeds. The first log check omitted PowerShell's UTF-16 decoding; the
+corrected check reads the actual successful gate output. Current OS evidence is
+`evidence/hosted-heap-os-20261010.json`.
+
+The complete normal all invocation remains running. Make deliberately forces
+every production object on each invocation. Its final image must match the
+private checked image before replacement-seed acceptance can close.
+
 ## 2026-10-09: Retain native image input paths and observer lifetimes
 
 A private path-selection owner resolves parent aliases, retains physical parents
