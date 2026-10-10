@@ -60,8 +60,31 @@ keeps the original before receipt. Both failed logs remain retained.
 The consumers are `build/heap-consumers/windows` and
 `/var/tmp/cupid-heap-consumer-20261010`. Both start with zero production objects
 and the exact previously accepted 200 MiB image. Windows begins its cold normal
-`make -j4 all` with all nine conventional producer variables forbidden.
-OS and user products, artifact and ABI gates, strict boots, four complete SDK
+`make -j4 all` with all nine conventional producer variables forbidden. That
+complete Windows build now passes, followed by fresh user products, ABI checks,
+all sixteen artifact gates and both strict four-CPU ls/SMP and ISO boots under
+the original 150-second bounds. Independent rereading checks all 429 objects,
+three kernel products, six user products and 431 inspection inputs. The complete
+200 MiB image matches the earlier source-accepted image; all 199,229,440 FAT
+suffix bytes remain equal. Linux's cold consumer build is running.
+
+The broad Linux compatibility selection first blocks two optional host-oracle
+setups because it inherits the normal build's forbidden `CC`. A repeat allows
+Clang for those oracle tests and reaches all 367 methods. Fourteen historical
+baseline checks then fail before publication: they copy the current installed
+manifest, whose modern plan requires explicit release context. Pinning the
+recent `acbbd834` parent alone retains those failures on both hosts.
+
+The corrected fixture keeps the existing recognized pre-ISO plan and parent
+contract, then binds the actual selected tool image facts. Every test body,
+success predicate, useful rejection, output comparison and deadline remains
+unchanged. All sixteen original release-operation methods pass on both hosts,
+with no skips: Windows takes 149.390 seconds and Linux 117.973. Failed controls
+and their source receipts remain retained. Separate test copies keep the original
+OS source/control snapshots stable. [Consumer progress evidence](evidence/hosted-heap-consumer-progress-20261010.json)
+records the accepted Windows products and both complete fixture selections.
+
+The remaining paired OS and user products, strict boots, four complete SDK
 profiles, original public methods and both actual Make bootstraps remain
 required before installed seed adoption. The normal graph remains 449
 CupidBuild actions and three Python coordinators across 452 transforms.

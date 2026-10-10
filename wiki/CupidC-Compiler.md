@@ -12,6 +12,10 @@ committed `1d852023`, with all 99 producer inputs bound to their Git blobs.
 Seed adoption still requires replacement-tool consumer acceptance. See the
 [heap record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/HOSTED-HEAP.md).
 
+The qualified replacement tools pass a cold Windows normal OS build and both
+strict boots. All 429 object bytes and the complete image match the
+source-accepted products. Full paired consumer acceptance remains open.
+
 CupidC builds CupidBuild as part of the promoted Linux and Windows six-tool
 cohorts. The normal ISR, context-switch, bootloader, SMP-trampoline, JPEG, and
 kernel-symbol recipes run that checked CupidBuild image directly, which

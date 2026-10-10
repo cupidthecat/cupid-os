@@ -12,6 +12,10 @@ pass for committed `1d852023`; independent checks reread all 291 staged files,
 97 complete fixed-point pairs and 7,761 published files. Installed seeds retain
 the preceding runtime while replacement-tool consumer acceptance runs. Current tests
 also cover the normal Windows UTF-8 startup and a Unicode long-path runtime call.
+The qualified replacement tools pass a cold Windows normal image build, user
+and ABI checks, all sixteen artifact gates and both strict boots. All 429 object
+bytes and the complete image agree with the source-accepted products. Full
+paired consumer acceptance remains in progress.
 
 ## Qualified wide pointer seeds, 2026-10-07
 

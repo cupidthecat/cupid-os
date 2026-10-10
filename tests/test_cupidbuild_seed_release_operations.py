@@ -65,7 +65,12 @@ class CupidBuildSeedReleaseOperationsTests(unittest.TestCase):
             _release.CupidBuildSeedReleaseTests.fixture(self, self.root))
         self.historical = self.root / 'seed/historical.json'
         original = ROOT / ('bootstrap/seeds/i386-' + _release.HOST + '/manifest.json')
-        self.historical.write_bytes(original.read_bytes())
+        # Modern plans require release context. Keep the original no-context
+        # baseline on its recognized pre-ISO plan and parent contract.
+        historical = json.loads((ROOT / ('tests/fixtures/'
+            'seed-manifest-pre-iso-' + _release.HOST + '.json')).read_bytes())
+        historical['artifacts'] = json.loads(original.read_bytes())['artifacts']
+        self.historical.write_text(json.dumps(historical) + '\n', encoding='utf-8')
         # The installed LD predates caller-owned publication. Build its actual
         # active source and bind the resulting tool bytes in both fixture records.
         payload = self.linker.read_bytes()
