@@ -18,11 +18,13 @@ Linux. All 429 object pairs and the complete image pair agree with the
 source-accepted products. Both hosts pass the same compatibility selection of
 367 methods, with 705 passes and 29 declared platform skips across both runs.
 Independent review rechecks every outcome, all 99 committed producer inputs and
-the unchanged installed seeds. Both original Linux SDK profiles also pass:
+the unchanged installed seeds. Both original Linux SDK profiles and the Windows
+default profile also pass:
 independent review accepts 22 published programs, 104 SDK inputs and all 77
 complete stage pairs per profile. Paired rereading compares every complete
-stage file and published program. Both Windows SDK profiles, original public
-methods and both Make bootstraps remain in progress.
+stage file and published program across the Linux profiles and both default
+host profiles. The Windows long-path SDK, original public methods and both
+Make bootstraps remain in progress.
 
 ## Retained observer prerequisites, 2026-10-10
 

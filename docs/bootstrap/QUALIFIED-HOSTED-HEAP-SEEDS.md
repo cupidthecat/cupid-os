@@ -135,8 +135,8 @@ all 22 published programs, 23 publication files, 104 SDK inputs and 77 complete
 stage pairs, rereads 4,558 retained files and reconstructs the complete
 70,395,254-byte author request. This profile captures all 99 bootstrap inputs,
 adding `utf8_long_path_start.asm` to the default profile's 98. Every original
-CLI flag, deadline and producer sentinel remains unchanged. The original queue
-now runs Windows default; its audit companion waits for that original job.
+CLI flag, deadline and producer sentinel remains unchanged. That acceptance
+starts Windows default in the original queue.
 
 [Long-profile progress evidence](evidence/hosted-heap-sdk-linux-long-progress-20261010.json)
 and the [complete compressed audit](evidence/hosted-heap-sdk-linux-long-20261010.json.gz)
@@ -149,7 +149,34 @@ its failure remains recorded. Requiring the long profile's actual 99 inputs and
 its exact additional startup source corrects that checker without changing any
 execution receipt or raw input predicate.
 
-Both Windows SDK profiles, original public methods and both actual Make
+The original Windows default SDK and its independent audit now pass too.
+Its build and verification commands take 4,557.118 seconds; the original queue
+job closes in 4,560.567 seconds. Independent checking takes 10.575 seconds.
+All 22 published programs, 23 publication files, 104 SDK inputs and 77 complete
+stage pairs pass. The supported default bootstrap captures the same 98 inputs
+as Linux default. Review reconstructs the complete 70,395,116-byte author request
+and rereads all 4,572 retained Windows workspace files, 1,764 source controls,
+99 committed producer inputs and fifteen unchanged installed seed files.
+
+Windows retains fifteen workspace files absent from Linux default: thirteen
+native Windows behavior products plus the Windows manifest author and its
+runtime object. Linux instead retains its ELF author. Those exact differences
+account for Windows's fourteen additional files. The first recorder assumes
+the host spelling `windows`; the original receipt uses `win32`. Its next copy
+assumes Linux's 4,558-file inventory. Both failed recorders remain fingerprinted;
+the corrected recorder requires the exact platform differences and rehashes
+every complete retained file. No original consumer or receipt changes.
+
+[Windows default progress evidence](evidence/hosted-heap-sdk-windows-default-progress-20261010.json)
+and its [complete compressed audit](evidence/hosted-heap-sdk-windows-default-20261010.json.gz)
+retain the actual original command/audit jobs. A [separate comparison between hosts](evidence/hosted-heap-paired-default-sdk-20261010.json)
+rereads all 308 complete stage files and 44 published programs on Linux and
+Windows. Every full stream agrees, and all 104 SDK inputs and 98 bootstrap
+inputs match. The five locked audit helper hashes remain unchanged. The same
+original command queue now runs Windows long-path; its audit companion waits
+for that job without restarting either queue.
+
+Windows long-path SDK, original public methods and both actual Make
 bootstraps remain required before installed seed adoption. The normal graph remains 449
 CupidBuild actions and three Python coordinators across 452 transforms.
 TempleOS stays read-only and excluded.

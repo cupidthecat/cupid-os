@@ -26,11 +26,12 @@ review checks every outcome, all 99 committed inputs and the unchanged installed
 seeds. The original
 release-operation fixtures now use their recognized pre-ISO no-context contract;
 all sixteen unchanged methods pass on both hosts. Both original Linux SDK
-profiles also pass complete publication and independent audits of all 22
-programs, 104 SDK inputs and 77 stage pairs each. Complete paired rereading
+profiles and Windows default also pass complete publication and independent
+audits of all 22 programs, 104 SDK inputs and 77 stage pairs each. Complete paired rereading
 checks all 308 raw stage files and 44 published programs; their bytes agree.
-Both Windows SDK profiles, original public methods and both Make bootstraps
-remain in progress.
+A separate comparison accepts the same complete streams between Linux and
+Windows default. Windows long-path SDK, original public methods and both Make
+bootstraps remain in progress.
 
 ## Retained observer prerequisites, 2026-10-10
 
