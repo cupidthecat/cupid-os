@@ -32,6 +32,13 @@ are resolved. Its spelling alone establishes neither file identity nor retained
 source authority.
 _Avoid_: physical input path, observed source
 
+**Source observer name profile**:
+A name grammar retained by a read-only input observer for capture, membership
+comparison and revalidation. The held POSIX profile accepts literal colon and
+backslash filename bytes while preserving UTF-8, component and path bounds.
+Ordinary observers and output-name rules retain their separate contracts.
+_Avoid_: pathname selector, namespace authority, output-name policy
+
 **Toolchain job**:
 An owned, bounded lifetime for deterministic Cupid Toolchain arena, buffer, logical-path, source, and diagnostic state.
 _Avoid_: global compiler state, platform context

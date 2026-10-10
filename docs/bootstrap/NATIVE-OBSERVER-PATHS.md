@@ -27,6 +27,11 @@ actions and three Python coordinators across 452 transforms.
 
 ## First absence and retained custody
 
+The later [source name profile](NATIVE-SOURCE-OBSERVER.md) includes this complete
+extension and adds literal POSIX colon/backslash input names. Its direct patch
+and paired replays preserve all outcomes below. Normal observer and output-name
+policies remain unchanged.
+
 `cupidbuild_host_observer_path_kind` returns a retained regular-file, directory
 or missing observation. It validates the entire normalized UTF-8 path before
 the first missing component can end the walk. Paths retain the 8,191-byte limit

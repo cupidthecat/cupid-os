@@ -23,6 +23,12 @@ and retains an unapplied patch and repository replay. Physical pathname
 selection and the complete discovery owner
 below still need current implementation and integrated acceptance.
 
+The [source observer profile](NATIVE-SOURCE-OBSERVER.md) also has a direct held
+patch and complete paired replays. It retains the POSIX colon/backslash names
+accepted by the original image command. All 564 new calls and original observer
+selections pass; every complete checked replay product equals its original.
+Original-request binding and physical selection remain outside this profile.
+
 The private source at `C:/Users/admin/cp7/input-discovery-source4` owns the
 path strings and read-only observers needed by an interpreted image request.
 Its Linux copy is `/var/tmp/input-discovery-source4`. This follows the

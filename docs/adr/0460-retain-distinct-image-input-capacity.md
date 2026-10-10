@@ -17,6 +17,11 @@ preserved. Named-commit qualification and normal integration are still open.
 
 ## Context
 
+The later [source observer name profile](../bootstrap/NATIVE-SOURCE-OBSERVER.md)
+also preserves literal POSIX colon/backslash input names. Its 564 new calls and
+all preceding observer selections pass through both complete repository replays.
+It leaves the quotas, source cohort and normal image-command ownership unchanged.
+
 ### Reproduced observer prerequisites, 2026-10-10
 
 The current worktree has none of the earlier private `cp7` products. The

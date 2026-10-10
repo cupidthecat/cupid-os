@@ -23,6 +23,13 @@ implementation and integrated acceptance;
 the historical private `cp7` products are absent. Normal source and recipe
 ownership remain unchanged.
 
+The later [source observer profile](../bootstrap/NATIVE-SOURCE-OBSERVER.md)
+retains literal POSIX colon and backslash input names through membership and
+revalidation. All 564 new calls and preceding observer selections pass. Both
+complete repository replays reproduce every outcome and all 26 whole checked
+objects and fourteen programs. Physical selection and original-request binding
+remain outside that name profile.
+
 Both installed-seed observer replays pass every original outcome again, with
 all 24 checked objects and twelve complete programs equal to the original builds.
 

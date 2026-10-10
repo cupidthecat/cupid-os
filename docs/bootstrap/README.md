@@ -35,8 +35,22 @@ selection also passes with its Windows-only boundary skip. Independent review
 accepts all 4,338 published files, 132 stage files and 44 complete fixed-point
 pairs. The fresh [Windows public selection](HOSTED-HEAP-PUBLIC-WINDOWS.md) passes
 both methods and complete audits after correcting two stale runtime-image
-byte locks. Both actual Make bootstraps remain in progress before installed-seed
-adoption.
+byte locks. The actual Linux Make bootstrap and independent audit pass. Windows
+Make is being replayed after a private seed executable disappeared; installed-seed
+adoption remains pending.
+
+## Source observer name profiles, 2026-10-10
+
+The [held source observer](NATIVE-SOURCE-OBSERVER.md) retains literal POSIX colon
+and backslash names through file, stream, membership and revalidation checks.
+Ordinary observers and Windows name policy remain unchanged. Four native/Cupid
+callers pass 564 new calls, all 388 preceding API calls, 340 legacy methods with
+twelve declared skips and all 48 alias methods. Seven whole shared object pairs
+agree; all forty strict checks pass. Both installed-seed repository replays
+repeat every result, with 26 checked objects and fourteen complete programs
+equal to the original products. Physical selection, original-request custody
+and complete image discovery remain open. The 99-input producer cohort and
+normal recipe ownership are unchanged.
 
 ## Native image source spellings, 2026-10-10
 

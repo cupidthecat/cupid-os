@@ -17,6 +17,10 @@ coordinators across 452 transforms.
 
 ## Spelling contract
 
+The separate [source observer profile](NATIVE-SOURCE-OBSERVER.md) now retains
+POSIX colon and backslash names accepted by these lexical rules. Physical
+selection and original-request binding remain separate input-owner work.
+
 Relative requests use the supplied absolute working-root spelling. POSIX
 normalization removes duplicate separators and dot components, collapses parent
 components before following any filesystem alias, and preserves exactly two

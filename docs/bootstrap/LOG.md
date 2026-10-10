@@ -1,5 +1,28 @@
 # Bootstrapping log
 
+## 2026-10-10: Retain source observer name profiles
+
+The [held source observer](NATIVE-SOURCE-OBSERVER.md) accepts the original image
+command's POSIX colon and backslash names without changing ordinary observer,
+Windows or output-name rules. Its owner carries one profile through every file,
+stream, membership and revalidation operation. Four native/Cupid callers pass
+564 new calls, all 388 preceding API calls, 340 legacy methods with twelve
+declared skips and all 48 original alias methods. Seven complete shared object
+pairs agree, including the new 11,592-byte caller. All forty strict checks pass.
+
+Both complete repository replays pass every outcome again. Independent review
+rereads all 26 whole checked objects and fourteen programs and compares every
+original result and bound. The held patch, nine public scripts and complete
+compressed receipts are retained. Four original-review checker failures correct
+receipt shape, host filesystem access and platform object scope; no test or
+implementation changes to satisfy those checks.
+
+All 99 normal producer inputs and fifteen installed seed files remain unchanged.
+Physical selection, original-request custody and complete image ownership still
+need integration. The OS manual refresh belongs to the separately tested heap
+seed adoption. Normal ownership remains 449 CupidBuild actions and three Python
+coordinators. TempleOS is untouched and excluded.
+
 ## 2026-10-10: Close Windows public heap consumer acceptance
 
 The fresh [Windows public selection](HOSTED-HEAP-PUBLIC-WINDOWS.md) passes both

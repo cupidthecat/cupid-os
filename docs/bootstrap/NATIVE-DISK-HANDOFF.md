@@ -18,12 +18,18 @@ The older private `cp7` discovery and publisher products below are absent from
 the current worktree. Complete native pathname selection, input ownership and
 image-command publication still require current integration and acceptance.
 
+The [source observer profile](NATIVE-SOURCE-OBSERVER.md) closes the POSIX
+colon/backslash name mismatch with the original image command. All 564 new calls,
+preceding API and legacy selections, and complete paired replays pass. Physical
+selection and original-request custody remain separate prerequisites.
+
 The normal shared heap source separately passes both qualifications, cold OS
 builds and boots, full compatibility, all four original SDK profiles and Linux
 public bootstrap acceptance. The fresh
 [Windows public selection](HOSTED-HEAP-PUBLIC-WINDOWS.md) also passes both methods
 and complete audits after correcting two stale runtime-image byte locks.
-Both actual Make bootstraps remain pending before seed adoption. All 99 producer
+Linux's actual Make bootstrap and independent audit pass; Windows's replay
+follows a missing private seed executable. Seed adoption remains pending. All 99 producer
 inputs and fifteen installed seeds are unchanged. Three normal Python
 coordinators remain.
 
