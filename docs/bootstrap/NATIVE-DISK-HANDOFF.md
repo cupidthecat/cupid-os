@@ -26,8 +26,11 @@ selection and original-request custody remain separate prerequisites.
 The [held source-root constructor](NATIVE-SOURCE-ROOT.md) now retains an original
 directory request and physical root across construction, complete validation
 and borrowed publication. Both full replays preserve all 176 new calls and the
-complete preceding selections. Per-file requests, optional missing-parent
-selection and the complete command handoff remain open.
+complete preceding selections. The later
+[required source-file owner](NATIVE-SOURCE-FILE.md) retains original parent
+requests and regular leaves through 232 new contracts and both complete
+repository replays. Optional missing-parent selection and the complete command
+handoff remain open.
 
 The normal shared heap source separately passes both qualifications, cold OS
 builds and boots, full compatibility, all four original SDK profiles and Linux

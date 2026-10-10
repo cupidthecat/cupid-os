@@ -40,6 +40,20 @@ independent audits now pass. Original Windows failures and the separate native
 schema audit correction remain recorded. Installed-seed/manual adoption and
 its paired cold OS builds and boots remain pending.
 
+## Required source-file owners, 2026-10-10
+
+The [required source-file owner](NATIVE-SOURCE-FILE.md) keeps
+the lexical request, original parent binding, physical parent and regular leaf
+through validation and borrowed publication. Four native/Cupid callers pass 232
+new contracts: 102 successes and 130 rejections. Unicode parents, Windows leaf
+case and POSIX literal filename bytes pass actual Python file oracles. Both
+repository replays preserve all 1,360 current API outcomes, 340 legacy methods
+with twelve declared skips and 48 alias methods. All 35 whole checked objects
+and eighteen programs equal their original builds; twelve cross-host object
+pairs agree. Optional missing-parent selection and complete native image
+ownership remain open. The 99-input cohort and installed seeds are unchanged;
+three Python coordinators remain.
+
 ## Retained original source roots, 2026-10-10
 
 The [held source-root constructor](NATIVE-SOURCE-ROOT.md) keeps the first
@@ -51,8 +65,8 @@ alias retargeting while the original physical payload remains unchanged. All
 twelve declared skips and 48 alias methods also pass. Eight whole shared object
 pairs agree; all 44 strict checks pass. Both complete repository replays repeat
 every outcome, with 28 checked objects and sixteen whole programs equal to their
-originals. Per-file requests, optional missing-parent selection and complete
-image discovery remain open. The 99-input cohort and normal ownership are
+originals. The later required source-file owner supplies per-file selection.
+Optional missing-parent selection and complete image discovery remain open. The 99-input cohort and normal ownership are
 unchanged. The manual paragraph is part of the paired heap adoption builds.
 
 ## Source observer name profiles, 2026-10-10

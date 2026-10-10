@@ -24,7 +24,7 @@ all eleven source copies, actual tools, complete products and
 [full receipts](evidence/native-source-root-originals-20261010.json.gz).
 
 All 99 normal producer inputs still match committed `1d852023`; the fifteen
-installed seed files retain the `acbbd834` cohort at this acceptance checkpoint.
+installed seed files retain the bytes checked in at `acbbd834`.
 The host extension remains outside the normal producer closure. Normal
 ownership remains 449 CupidBuild actions and three Python coordinators across
 452 transforms. TempleOS is excluded.
@@ -52,10 +52,11 @@ with the captured root. A failed binding check poisons the owner; a later
 validation or borrowed publication check cannot restore it. Historical captured
 identity comparisons still grant no current source authority.
 
-This constructor handles the working source directory. Per-file original
-requests, linked or special leaf policy, nearest-existing-parent selection for
-optional missing inputs, complete discovery and image publication still need
-their own owner and integrated acceptance. Individual capture calls do not
+This constructor handles the working source directory. The later
+[required source-file owner](NATIVE-SOURCE-FILE.md) uses it to retain original
+parent requests and regular leaves, with linked and special leaves rejected.
+Nearest-existing-parent selection for optional missing inputs, complete discovery
+and image publication still need their own owner and integrated acceptance. Individual capture calls do not
 replace complete validation. The complete image command must retain its owners
 and validate them before and after consuming borrowed views.
 

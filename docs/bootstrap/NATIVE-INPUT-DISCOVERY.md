@@ -19,9 +19,9 @@ captured identities, first absences, ordinary UNC roots and Unicode/long directo
 resolution. The [source spelling component](NATIVE-SOURCE-PATHS.md) now passes
 354 calls covering actual Python spellings and useful API failures through four
 native/Cupid callers. It normalizes lexical paths before aliases are resolved
-and retains an unapplied patch and repository replay. Physical pathname
-selection and the complete discovery owner
-below still need current implementation and integrated acceptance.
+and retains an unapplied patch and repository replay. The later required-file
+owner supplies regular-file selection. Optional missing selection and the
+complete discovery owner below still need implementation and integrated acceptance.
 
 The [source observer profile](NATIVE-SOURCE-OBSERVER.md) also has a direct held
 patch and complete paired replays. It retains the POSIX colon/backslash names
@@ -32,8 +32,12 @@ Original-request binding and physical selection remain outside this profile.
 The [held source-root constructor](NATIVE-SOURCE-ROOT.md) now owns an original
 absolute directory request and physical root through validation and borrowed
 publication. Its 176 new calls, all preceding selections and both complete
-replays pass. It supplies working-directory custody; per-file original requests,
-optional missing-parent selection and the complete owner below remain open.
+replays pass. The [required source-file owner](NATIVE-SOURCE-FILE.md) now retains
+each original absolute parent request and regular leaf. Its 232 new contracts
+and both repository replays pass. The full selection preserves all 1,360 current
+API outcomes, every original legacy/alias result and all 35 whole checked objects
+and eighteen programs. Optional missing-parent selection, physical-root
+interning and the complete owner below remain open.
 
 The private source at `C:/Users/admin/cp7/input-discovery-source4` owns the
 path strings and read-only observers needed by an interpreted image request.

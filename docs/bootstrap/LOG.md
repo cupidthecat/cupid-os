@@ -1,5 +1,37 @@
 # Bootstrapping log
 
+## 2026-10-10: Retain required source-file owners
+
+The [required source-file owner](NATIVE-SOURCE-FILE.md) keeps
+the lexical request, original parent binding, physical parent and regular leaf
+through validation and borrowed publication. Four native/Cupid callers pass 232
+new contracts: 102 successes and 130 rejections. Unicode parents, Windows leaf
+case and POSIX literal filename bytes pass actual Python file oracles. Both
+repository replays preserve all 1,360 current API outcomes, 340 legacy methods
+with twelve declared skips and 48 alias methods. All 35 whole checked objects
+and eighteen programs equal their original builds; twelve cross-host object
+pairs agree. Optional missing-parent selection and complete native image
+ownership remain open. The 99-input cohort and installed seeds are unchanged;
+three Python coordinators remain.
+
+Construction copies caller storage and captures metadata. Views revalidate
+the original parent request and clear every output on failure. Retained streams
+and borrowed publication reject restored-time edits that metadata alone accepts.
+All 72 held calls use a Unicode physical root behind an alias. Every new call
+keeps sixty seconds; Linux retains 32 MiB address space and 10,240 descriptors.
+The module adds no imports or normal producer inputs.
+
+Both fresh complete prerequisite replays pass. The corrected file runner validates
+those complete runs and records their reuse explicitly; no test or bound changes.
+The first Windows sparse-file timeout has no established cause. The unchanged
+method passes with both native images, and the complete fresh prerequisite passes.
+The first Linux prerequisite passes before an incorrect outer copy directory
+rejects; copying the complete product-source directory repairs the runner.
+Independent review retains every first failure, control, source generation and
+derivation alongside accepted receipts. The proposed 72,415-byte manual covers
+the retained observation foundations and original directory binding and passes
+the paired heap adoption builds. Installed manual/seed adoption remains separate.
+
 ## 2026-10-10: Retain original source-root bindings
 
 The [held directory constructor](NATIVE-SOURCE-ROOT.md) resolves an absolute

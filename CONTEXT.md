@@ -46,6 +46,15 @@ validation and borrowed publication recheck that original directory binding.
 The held constructor does not own per-file requests or complete image discovery.
 _Avoid_: file selector, frozen payload, image publication authority
 
+**Required source-file owner**:
+A held owner for one regular input that normalizes its lexical request, retains
+the original parent binding and physical parent, and captures the leaf without
+following links. Views revalidate before exposing borrowed names and an observer.
+Retained streaming adds payload custody; metadata alone accepts restored-time
+edits. The owner must outlive every borrowing transaction. Optional missing
+selection and complete native image ownership remain separate work.
+_Avoid_: frozen payload, complete image discovery, publication authority
+
 **Toolchain job**:
 An owned, bounded lifetime for deterministic Cupid Toolchain arena, buffer, logical-path, source, and diagnostic state.
 _Avoid_: global compiler state, platform context

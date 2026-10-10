@@ -32,6 +32,20 @@ complete independent audits now pass. The original Windows missing-copy failure
 and native report audit correction remain recorded. Seed/manual adoption and
 its final paired OS builds and boots remain pending.
 
+## Required source-file owners, 2026-10-10
+
+The [required source-file owner](docs/bootstrap/NATIVE-SOURCE-FILE.md) keeps
+the lexical request, original parent binding, physical parent and regular leaf
+through validation and borrowed publication. Four native/Cupid callers pass 232
+new contracts: 102 successes and 130 rejections. Unicode parents, Windows leaf
+case and POSIX literal filename bytes pass actual Python file oracles. Both
+repository replays preserve all 1,360 current API outcomes, 340 legacy methods
+with twelve declared skips and 48 alias methods. All 35 whole checked objects
+and eighteen programs equal their original builds; twelve cross-host object
+pairs agree. Optional missing-parent selection and complete native image
+ownership remain open. The 99-input cohort and installed seeds are unchanged;
+three Python coordinators remain.
+
 ## Source observer name profiles, 2026-10-10
 
 The [held source observer](docs/bootstrap/NATIVE-SOURCE-OBSERVER.md) accepts

@@ -26,7 +26,11 @@ The [held original source root](../bootstrap/NATIVE-SOURCE-ROOT.md) additionally
 copies its directory request and physical name, then rechecks that request
 during complete validation and borrowed publication. All 176 new calls, every
 preceding selection and both complete repository replays pass. It preserves the
-existing quota model; per-file selection and complete discovery remain open.
+existing quota model. The later
+[required source-file owner](../bootstrap/NATIVE-SOURCE-FILE.md) passes 232 new
+contracts and both complete repository replays with the same quota model and
+original process bounds. Optional missing-parent selection and complete
+discovery remain open.
 
 ### Reproduced observer prerequisites, 2026-10-10
 
