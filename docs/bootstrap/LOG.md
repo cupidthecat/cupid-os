@@ -91,6 +91,12 @@ committed and pushed as `1d852023`; both hosts are qualifying that exact 99-inpu
 source snapshot. Wiki commit `026b21e` publishes the source sections while
 preserving every existing page body. Replacement-seed acceptance remains open.
 
+Cleanup of completed intermediate test folders is attempted within this
+worktree's `build/heap-acceptance` directory. Automatic review rejects both the
+validated directory batch and one explicitly resolved literal folder removal
+with "blocked by policy". No folders are deleted. Current acceptance products,
+producer preparations and qualification workspaces remain available.
+
 ## 2026-10-09: Retain native image input paths and observer lifetimes
 
 A private path-selection owner resolves parent aliases, retains physical parents

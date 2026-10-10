@@ -1,5 +1,15 @@
 # Native image command options
 
+## Current integration boundary, 2026-10-10
+
+The option owner described below remains outside the normal producer closure.
+The shared hosted heap is integrated at `1d852023`; its actual Linux and Windows
+runtime contracts pass, and paired qualification of that 99-input source cohort
+is running. The fifteen installed seed files still carry the reviewed
+`acbbd834` cohort. Three normal Python coordinators remain. Private `cp7` option
+and discovery products are absent from the current linked worktree, so their
+historical results do not establish a normal command handoff.
+
 The current private source at `C:/Users/admin/cp7/image-options-source2`
 interprets the existing image command's options in Cupid C. Linux holds the
 same 113 source and support files at `/var/tmp/image-options-source2`. The
@@ -43,8 +53,9 @@ of the table-generation record.
 The source stays outside the normal 99-input producer closure. That snapshot
 collector includes every top-level Toolchain header, so introducing these
 headers during the current producer-consumer queue would change its inputs.
-All 99 current files still match committed `acbbd834`; fifteen installed root
-seed files retain the accepted `a1cc8f3a` identities.
+At that private option boundary, all 99 files match committed `acbbd834` and
+the fifteen root seed files retain the preceding `a1cc8f3a` identities. The
+current source and installed-cohort boundary is recorded above.
 
 ## Retained help and pathname grammar
 

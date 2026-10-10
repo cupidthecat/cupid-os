@@ -1,5 +1,14 @@
 # Native image input discovery
 
+## Current integration boundary, 2026-10-10
+
+The shared [hosted heap](HOSTED-HEAP.md) is now normal source at `1d852023`.
+Current tests cover both hosts and the normal Windows UTF-8/long-path profile;
+the exact 99-input source cohort is undergoing paired qualification. Normal
+image publication still uses Python. The discovery, option and quota extensions
+described below remain private implementations. Their `cp7` products are absent
+from the current linked worktree and cannot establish current integration.
+
 The private source at `C:/Users/admin/cp7/input-discovery-source4` owns the
 path strings and read-only observers needed by an interpreted image request.
 Its Linux copy is `/var/tmp/input-discovery-source4`. This follows the
