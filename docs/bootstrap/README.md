@@ -40,6 +40,21 @@ independent audits now pass. Original Windows failures and the separate native
 schema audit correction remain recorded. Installed-seed/manual adoption and
 its paired cold OS builds and boots remain pending.
 
+## Retained original source roots, 2026-10-10
+
+The [held source-root constructor](NATIVE-SOURCE-ROOT.md) keeps the first
+directory resolution handle through observer construction, copies its original
+request and physical name, and rechecks that request during complete validation
+and borrowed publication. Four native/Cupid callers pass 176 new calls, including
+alias retargeting while the original physical payload remains unchanged. All
+564 source-profile calls, 388 preceding API calls, 340 legacy methods with
+twelve declared skips and 48 alias methods also pass. Eight whole shared object
+pairs agree; all 44 strict checks pass. Both complete repository replays repeat
+every outcome, with 28 checked objects and sixteen whole programs equal to their
+originals. Per-file requests, optional missing-parent selection and complete
+image discovery remain open. The 99-input cohort and normal ownership are
+unchanged. The manual paragraph is part of the paired heap adoption builds.
+
 ## Source observer name profiles, 2026-10-10
 
 The [held source observer](NATIVE-SOURCE-OBSERVER.md) retains literal POSIX colon

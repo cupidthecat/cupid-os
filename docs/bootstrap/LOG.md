@@ -1,5 +1,32 @@
 # Bootstrapping log
 
+## 2026-10-10: Retain original source-root bindings
+
+The [held directory constructor](NATIVE-SOURCE-ROOT.md) resolves an absolute
+source-root request, keeps its resolution handle through observer construction,
+copies the request and physical name, and revalidates before returning. Complete
+validation and borrowed publication resolve the original request again. Four
+native/Cupid callers pass 176 new calls: 76 successes and 100 rejections. Alias
+retargeting rejects while the first physical directory and payload remain intact.
+All 952 preceding API calls, 340 legacy methods with twelve declared skips and
+48 alias methods pass. Eight whole shared object pairs and all 44 strict checks
+pass; 22 unchanged complete objects match the accepted source-profile products.
+
+Both full repository replays pass every selection again. Independent review
+compares all 1,128 API outcomes, every original method result, all 28 whole
+checked objects and sixteen programs. The public runner replaces only an old
+local baseline-program pathname with its freshly built ordinary-constructor
+program; both hosts repeat the same alias rejections. No implementation or
+acceptance bound changes. Exact helpers, source, derivation and full compressed
+receipts stay retained.
+
+All 99 normal producer inputs and fifteen installed seed files remain unchanged.
+Per-file original requests, optional missing-parent selection and complete image
+ownership still need implementation and integration. The 72,415-byte proposed
+manual describes this directory binding and is undergoing paired normal build,
+artifact and boot checks with the heap seed adoption. Normal ownership remains
+449 CupidBuild actions and three Python coordinators. TempleOS is excluded.
+
 ## 2026-10-10: Close both actual heap Make consumers
 
 Both [actual Make bootstrap consumers](HOSTED-HEAP-MAKE.md) pass. Linux's

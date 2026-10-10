@@ -39,6 +39,13 @@ backslash filename bytes while preserving UTF-8, component and path bounds.
 Ordinary observers and output-name rules retain their separate contracts.
 _Avoid_: pathname selector, namespace authority, output-name policy
 
+**Retained original source root**:
+A source directory owner that copies its original absolute request and resolved
+physical name while the first resolution handle remains open. Complete
+validation and borrowed publication recheck that original directory binding.
+The held constructor does not own per-file requests or complete image discovery.
+_Avoid_: file selector, frozen payload, image publication authority
+
 **Toolchain job**:
 An owned, bounded lifetime for deterministic Cupid Toolchain arena, buffer, logical-path, source, and diagnostic state.
 _Avoid_: global compiler state, platform context

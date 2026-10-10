@@ -29,6 +29,12 @@ accepted by the original image command. All 564 new calls and original observer
 selections pass; every complete checked replay product equals its original.
 Original-request binding and physical selection remain outside this profile.
 
+The [held source-root constructor](NATIVE-SOURCE-ROOT.md) now owns an original
+absolute directory request and physical root through validation and borrowed
+publication. Its 176 new calls, all preceding selections and both complete
+replays pass. It supplies working-directory custody; per-file original requests,
+optional missing-parent selection and the complete owner below remain open.
+
 The private source at `C:/Users/admin/cp7/input-discovery-source4` owns the
 path strings and read-only observers needed by an interpreted image request.
 Its Linux copy is `/var/tmp/input-discovery-source4`. This follows the

@@ -30,6 +30,13 @@ complete repository replays reproduce every outcome and all 26 whole checked
 objects and fourteen programs. Physical selection and original-request binding
 remain outside that name profile.
 
+The [original source-root constructor](../bootstrap/NATIVE-SOURCE-ROOT.md) now
+retains a directory request and its physical root across construction, complete
+validation and borrowed publication. All 176 new calls and 952 preceding API
+calls pass; both full repository replays preserve every outcome and all 28
+checked objects and sixteen programs. Per-file original requests and nearest
+existing parents for optional missing inputs still need their own selection.
+
 Both installed-seed observer replays pass every original outcome again, with
 all 24 checked objects and twelve complete programs equal to the original builds.
 

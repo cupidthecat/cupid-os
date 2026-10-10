@@ -22,6 +22,12 @@ also preserves literal POSIX colon/backslash input names. Its 564 new calls and
 all preceding observer selections pass through both complete repository replays.
 It leaves the quotas, source cohort and normal image-command ownership unchanged.
 
+The [held original source root](../bootstrap/NATIVE-SOURCE-ROOT.md) additionally
+copies its directory request and physical name, then rechecks that request
+during complete validation and borrowed publication. All 176 new calls, every
+preceding selection and both complete repository replays pass. It preserves the
+existing quota model; per-file selection and complete discovery remain open.
+
 ### Reproduced observer prerequisites, 2026-10-10
 
 The current worktree has none of the earlier private `cp7` products. The

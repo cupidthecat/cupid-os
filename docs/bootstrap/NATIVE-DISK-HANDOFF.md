@@ -23,6 +23,12 @@ colon/backslash name mismatch with the original image command. All 564 new calls
 preceding API and legacy selections, and complete paired replays pass. Physical
 selection and original-request custody remain separate prerequisites.
 
+The [held source-root constructor](NATIVE-SOURCE-ROOT.md) now retains an original
+directory request and physical root across construction, complete validation
+and borrowed publication. Both full replays preserve all 176 new calls and the
+complete preceding selections. Per-file requests, optional missing-parent
+selection and the complete command handoff remain open.
+
 The normal shared heap source separately passes both qualifications, cold OS
 builds and boots, full compatibility, all four original SDK profiles and Linux
 public bootstrap acceptance. The fresh
