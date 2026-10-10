@@ -111,9 +111,24 @@ This preserves frozen inputs and all 77 raw stage pairs for subsequent review.
 The hook's copy and cleanup checks pass. Original CLI arguments, producer
 commands and deadlines remain unchanged. A separate audit queue waits for each
 original consumer to close, checks its complete retained products, and stops
-on any failure. The command queue has started Linux SDK default.
+on any failure. The original Linux default SDK command now passes its build
+and verification. Its independent audit accepts all 22 published programs,
+23 publication files, 104 SDK inputs and 77 complete stage pairs. It rereads
+4,558 retained workspace files and reconstructs the complete 70,395,116-byte
+author request from the actual frozen inputs and products. All 1,764 source
+controls, all 99 raw committed producer inputs and the fifteen unchanged root
+seed files remain bound to the accepted cohort.
 
-The four complete SDK profiles, original public methods and both actual Make
+The SDK commands take 3,830.021 seconds in their command receipt; the original
+queue job closes in 4,063.054 seconds. Independent checking takes 27.396 seconds.
+The default SDK bootstrap captures 98 inputs under its supported plan, while
+the qualified paired producer closure still contains 99. [SDK progress evidence](evidence/hosted-heap-sdk-linux-default-progress-20261010.json)
+records the original command/audit jobs, every stage pair and all publication
+identities. Its [compressed complete audit](evidence/hosted-heap-sdk-linux-default-20261010.json.gz)
+restores the exact original independent receipt. The original queue has
+advanced to Linux SDK long; no producer restart is used for this acceptance.
+
+The other three complete SDK profiles, original public methods and both actual Make
 bootstraps remain required before installed seed adoption. The normal graph remains 449
 CupidBuild actions and three Python coordinators across 452 transforms.
 TempleOS stays read-only and excluded.

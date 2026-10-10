@@ -204,9 +204,14 @@ stdout expectation and the first Windows nested timeout remain preserved.
 
 ## Remaining work
 
-Named-commit producer qualification and replacement-seed CLI, OS, SDK and public
-bootstrap acceptance remain required. This integration changes one of the 99
-normal producer inputs. The fifteen installed seed files retain their preceding
-identities until promotion. No coordinator or normal recipe ownership changes.
+Both named-commit producer qualifications, paired cold OS builds and boots,
+and complete compatibility selections pass. The original Linux default SDK
+also passes its complete publication and independent 77-pair audit. [The seed
+record](QUALIFIED-HOSTED-HEAP-SEEDS.md) retains those consumer results. The other
+three SDK profiles, original public methods and both actual Make bootstraps
+remain required before replacement-seed promotion. This integration changes
+one of the 99 normal producer inputs. The fifteen installed seed files retain
+their preceding identities until promotion. No coordinator or normal recipe
+ownership changes.
 The separate 200 MiB required-file reuse failure and its complete large-image
 and boot checks remain open. TempleOS is excluded.

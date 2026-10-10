@@ -21,8 +21,9 @@ The active producer cohort remains the exact 99 inputs committed at
 `1d852023df98c03481c4b3979dccb398288b7115`, with snapshot SHA-256
 `4ae98403b0896b24e50b81b11b213b8117207421b9152e95d0500e00e612d07e`.
 All fifteen installed seed files retain the `acbbd834` cohort. Cold OS builds,
-boots and full compatibility have accepted the qualified heap replacement;
-its four SDK profiles, original public methods and actual Make bootstraps
+boots and full compatibility have accepted the qualified heap replacement.
+Its Linux default SDK passes the complete publication and independent audit;
+the other three SDK profiles, original public methods and actual Make bootstraps
 remain under their original consumer queue. The normal graph still has
 449 CupidBuild actions and three Python coordinators across 452 transforms.
 

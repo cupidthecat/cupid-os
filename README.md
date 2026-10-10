@@ -18,7 +18,9 @@ Linux. All 429 object pairs and the complete image pair agree with the
 source-accepted products. Both hosts pass the same compatibility selection of
 367 methods, with 705 passes and 29 declared platform skips across both runs.
 Independent review rechecks every outcome, all 99 committed producer inputs and
-the unchanged installed seeds. The four SDK profiles, original public methods
+the unchanged installed seeds. The original Linux default SDK also passes:
+independent review accepts 22 published programs, 104 SDK inputs and all 77
+complete stage pairs. The other three SDK profiles, original public methods
 and both Make bootstraps remain in progress.
 
 ## Native image integer prototype, 2026-10-10

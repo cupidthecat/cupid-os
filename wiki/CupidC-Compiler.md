@@ -17,8 +17,10 @@ boots on both hosts. All 429 complete object pairs and the complete image pair
 match the source-accepted products. Both full compatibility selections pass all
 367 methods per host, with 705 passes and 29 declared platform skips in total.
 Independent review rechecks all outcomes, 99 committed inputs and unchanged
-installed seeds. The four SDK profiles, original public methods and both Make
-bootstraps remain in progress.
+installed seeds. The original Linux default SDK also passes its full publication;
+independent review accepts 22 programs, 104 SDK inputs and all 77 complete
+stage pairs. The other three SDK profiles, original public methods and both
+Make bootstraps remain in progress.
 
 The [native image integer prototype](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-IMAGE-INTEGERS.md)
 is retained as an unapplied C patch with a frozen oracle fixture and repository
