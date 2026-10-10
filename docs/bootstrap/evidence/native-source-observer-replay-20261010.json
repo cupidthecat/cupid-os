@@ -1,0 +1,137 @@
+{
+  "alias_passed_methods": 48,
+  "alias_selected_methods": 48,
+  "hosts": {
+    "linux": {
+      "alias_passed_methods": 24,
+      "alias_selected_methods": 24,
+      "complete_outcomes_equal_original": true,
+      "legacy_declared_skips": 3,
+      "legacy_passed_methods": 173,
+      "legacy_selected_methods": 176,
+      "missing_unc_api_calls": 64,
+      "original_replay": {
+        "sha256": "3ee9185f867f5f43ae7c6e949a7483e51b2e6b980ceba8246293b0f8c6a3f4f2",
+        "size": 6851
+      },
+      "resolved_parent_api_calls": 20,
+      "retained_api_calls": 86,
+      "seconds": 1526.463185371,
+      "seed_manifest": {
+        "sha256": "1f7847a6bf7479caa5b34ac99fb05969025c017f0c8dc42b3b98d6f3d50021e2",
+        "size": 9123
+      },
+      "source_profile_calls": 338,
+      "source_profile_negative_calls": 154,
+      "source_profile_positive_calls": 184,
+      "tools": {
+        "cupidasm": {
+          "sha256": "69e779f7291cfe3bcedd18d8a66ef4ae98385a816f26bf8c237c4a88d79dfdda",
+          "size": 485084
+        },
+        "cupidbuild": {
+          "sha256": "2911cef0cf91ae1e3511135e17e7737b72865cab68580536289b2760338b9e46",
+          "size": 1129436
+        },
+        "cupidc": {
+          "sha256": "7bef8d49ecd5cea9a3392a853f4dce578d96b3e3f2e3e47fdf2487e2b6cb0a4a",
+          "size": 2549284
+        },
+        "cupiddis": {
+          "sha256": "f66cfc8dcdb33308dd6c354b810764652a0294e5bef1fcadc7a3507649639430",
+          "size": 510212
+        },
+        "cupidld": {
+          "sha256": "2242524c1be20e519c4a47bb50b5d1e340e42607e4e4a0a75eac9ae20cdb1a22",
+          "size": 296920
+        },
+        "cupidobj": {
+          "sha256": "6a9851fce7ceb4271311c806a2115d3afdf3333685b31271c6ac05882723f43e",
+          "size": 389404
+        }
+      },
+      "whole_checked_programs_equal_original": 7,
+      "whole_objects_equal_original": 10
+    },
+    "windows": {
+      "alias_passed_methods": 24,
+      "alias_selected_methods": 24,
+      "complete_outcomes_equal_original": true,
+      "legacy_declared_skips": 9,
+      "legacy_passed_methods": 167,
+      "legacy_selected_methods": 176,
+      "missing_unc_api_calls": 104,
+      "original_replay": {
+        "sha256": "fcd528ebcd2da4337e67a9e4910319f4fafd9385d5e13b3631ab9490c9900ebd",
+        "size": 7691
+      },
+      "resolved_parent_api_calls": 22,
+      "retained_api_calls": 92,
+      "seconds": 972.6207084000343,
+      "seed_manifest": {
+        "sha256": "e496a0fb2e36e74bc04a4ef3e1923c25a805fb1342035c32eb1c4eba20ba5bcf",
+        "size": 2853
+      },
+      "source_profile_calls": 226,
+      "source_profile_negative_calls": 94,
+      "source_profile_positive_calls": 132,
+      "tools": {
+        "cupidasm": {
+          "sha256": "53427883f2afcc07bef43847aedcf23fb5c678c43cb303c1237c8ea7b4cdffdc",
+          "size": 480256
+        },
+        "cupidbuild": {
+          "sha256": "f45e66e72e91e0c6fd120567b45efaa7df2d64e3ac45e7f95fafb8f10077db7c",
+          "size": 1112576
+        },
+        "cupidc": {
+          "sha256": "601586883a05f9fee01eefefef64d95a2a3c15091842746638e640a544eb0b6f",
+          "size": 2490880
+        },
+        "cupiddis": {
+          "sha256": "b39e1129023e916518e6dc7016d7bbceb07e70b83d5c9c53025e9715c4c5e809",
+          "size": 504832
+        },
+        "cupidld": {
+          "sha256": "98b3b93b0672b4d69d6226abb545dc0ef669b7789575878c169111b48c845efd",
+          "size": 296448
+        },
+        "cupidobj": {
+          "sha256": "373ddd710053dae8ca55160f06759f9dd43eaccc761865bc792ec81cf0c50239",
+          "size": 382464
+        }
+      },
+      "whole_checked_programs_equal_original": 7,
+      "whole_objects_equal_original": 16
+    }
+  },
+  "independent_review_seconds": 2.6973321000114083,
+  "installed_root_seed_files_unchanged": 15,
+  "legacy_declared_skips": 12,
+  "legacy_passed_methods": 340,
+  "legacy_selected_methods": 352,
+  "normal_source_inputs_unchanged": 99,
+  "original_api_calls": 388,
+  "original_evidence": {
+    "sha256": "d74dc83e13d39255499bc9126bb20630bcb61db888112cda931a012ab13d5bc7",
+    "size": 32032
+  },
+  "replay_receipts_archive": {
+    "sha256": "b22593a2c55ec30b017a54ab2729ab23d33fd2791d20f10b42e4f2f60a9466f5",
+    "size": 77142
+  },
+  "replay_receipts_uncompressed": {
+    "sha256": "3921b006ba1ecdd6b4bcc3332c26d9eef2d3b4889b1a3390cb74e7e7ff960d71",
+    "size": 1388418
+  },
+  "replay_runner": {
+    "sha256": "23ab847627efd9d3a06b42931207b8a1db421f8db0a79f2a05236a46bff1d49f",
+    "size": 15154
+  },
+  "schema": "cupid.native-source-observer-replay-review.v1",
+  "source_profile_calls": 564,
+  "status": "pass",
+  "whole_checked_programs_equal_original": 14,
+  "whole_cross_host_object_pairs": 7,
+  "whole_objects_equal_original": 26
+}

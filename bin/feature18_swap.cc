@@ -3,7 +3,7 @@
 
 /* CupidC doesn't have memset/memcmp; inline trivial helpers.
  * CupidC also doesn't natively recognize uint32_t - use int (32-bit) for
- * swap handles. The BIND entries in kernel/cupidc.c bind swap_kmalloc to
+ * swap handles. The BIND entries in kernel/lang/cupidc.cc bind swap_kmalloc to
  * return a 32-bit handle in EAX, which lands in an int just fine.*/
 
 void fill_byte(char *p, int n, char v) {

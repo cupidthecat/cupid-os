@@ -1,0 +1,990 @@
+{
+  "command": "python -m unittest -v tests.test_hosted_heap",
+  "date": "2026-10-10",
+  "original_windows_density_failures": {
+    "test_65536_cache_line_allocations_preserve_live_neighbors": {
+      "allocated": 32547,
+      "errno": 12,
+      "requested": 65536
+    },
+    "test_65536_one_byte_allocations_reuse_zeroed_aligned_storage": {
+      "allocated": 32547,
+      "errno": 12,
+      "requested": 65536
+    }
+  },
+  "producer_preparations": {
+    "hosts": {
+      "linux": {
+        "complete_equal_pairs": 44,
+        "format": "elf32",
+        "objects_matching_tested_profile": {
+          "runtime": "runtime.o",
+          "start": "start.o"
+        },
+        "stage_four": {
+          "objects": {
+            "artifact_size_policy": {
+              "sha256": "634d3fcd3c03fc0522d17d76a4bcc05637687bb604cf25cf642a28512f259996",
+              "size": 94564
+            },
+            "contract_parse_internal": {
+              "sha256": "4cfcba82a43e484e73ea0a428c3fa9b0ad25cb3fa820a3781e30c3d0f84378a4",
+              "size": 26576
+            },
+            "ctool": {
+              "sha256": "b3c53624564e96d88100950babb28d768c40eb288195d958cdc4a7c4a5c0fa20",
+              "size": 41864
+            },
+            "ctool_host": {
+              "sha256": "1a473dffc95605846d731663439e9cc887e5204246fbf6e89c376436669642a6",
+              "size": 6480
+            },
+            "cupidasm": {
+              "sha256": "c3578a10f80c3113d43f837013fffaa283580182a8bcd8aaeace0dcbb3935435",
+              "size": 169248
+            },
+            "cupidasm_main": {
+              "sha256": "a7c32d8c7754874227678e1235c5bfd70d586fcc3ffa56e77542c8588df4804d",
+              "size": 54804
+            },
+            "cupidbuild": {
+              "sha256": "430e253161d2fea691b664393df5e2c9738ef15899ba9b0f84967fc36bfe007f",
+              "size": 395100
+            },
+            "cupidbuild_artifacts": {
+              "sha256": "bca67188158923f468c64c0b1334525ef2d05a3597461df0b3b1cf62812fcecd",
+              "size": 22860
+            },
+            "cupidbuild_host": {
+              "sha256": "15671451814c05e2d3497c1867a8b85a5bac97825bed141c8e3e983171d22018",
+              "size": 259608
+            },
+            "cupidbuild_iso": {
+              "sha256": "983f4fc1270094068abe394fe33935bad7e9d02e340c2f981979c9795a22b101",
+              "size": 10544
+            },
+            "cupidbuild_iso_capture": {
+              "sha256": "b98a22c53203a5c24fcfa1c0654e2b5a693af28c8c897e18b98b2899dbf6526a",
+              "size": 13360
+            },
+            "cupidbuild_iso_image": {
+              "sha256": "4b40d3caea2af73690e1fd28f57a4667a3eedce9de1012227d7da69fb372a287",
+              "size": 29220
+            },
+            "cupidbuild_iso_publication": {
+              "sha256": "7d365d4be5d3364716353a6df83290ef802792f6f6a4bf2a4f1ebfdaeeb26cfd",
+              "size": 20972
+            },
+            "cupidbuild_main": {
+              "sha256": "d8f48a848f37aa21e43ef62b8789b9db0dee6b039e0a9d957599e7ba65fdd50a",
+              "size": 24072
+            },
+            "cupidbuild_user_abi": {
+              "sha256": "6993e6a624d69b976a72b92159585198a64b156d0c1adcd7e029dc4086934489",
+              "size": 5632
+            },
+            "cupidc_emit": {
+              "sha256": "9e0b4ad22fa5c7944c657b3ea08adefdae3c6d33fee696377a5cbd4b5eeed0ab",
+              "size": 630368
+            },
+            "cupidc_frontend": {
+              "sha256": "247ef308ec75bd3079497bc97cbc4454b0e062675868bc8d982e611304addd87",
+              "size": 1024260
+            },
+            "cupidc_ir": {
+              "sha256": "20c569e84d326282fff76afdc1310fd8f9e9d3c88f2546fc9caef945688b7284",
+              "size": 503792
+            },
+            "cupidc_main": {
+              "sha256": "7206b5898ebcb85496a00b2ca9c272e13522c626a5f93175ea221f1ed3892835",
+              "size": 29236
+            },
+            "cupidc_pp": {
+              "sha256": "e98d0b14213a334fdcc53426dc2a3d14595f9d795b1635d011c0231644bc6cb3",
+              "size": 212404
+            },
+            "cupidc_type": {
+              "sha256": "8cfdff4a0ab8fda3c0beba617954053a286d11b702eb2c92d5f75ed7d1f8d265",
+              "size": 46308
+            },
+            "cupiddis": {
+              "sha256": "0f8d7644335dbb40585f9d0870bbacf5daecace2de485dc109adad80221a4022",
+              "size": 200756
+            },
+            "cupiddis_main": {
+              "sha256": "0745c6797bb812721d7b8d101a08cbdaabfbfd4247a244762ed732af43aff0f2",
+              "size": 55924
+            },
+            "cupidld": {
+              "sha256": "91b5d33a13d200dbfcb489be56767ac2ae85c7f8b2145abbd5416524d4940d32",
+              "size": 126964
+            },
+            "cupidld_main": {
+              "sha256": "98fbd57ff8823152a1ee256e651aae15fbd03790b5effe535ef63d4336781a8f",
+              "size": 28156
+            },
+            "cupidobj": {
+              "sha256": "6cdc545b0aecfc17ea3233faf031cd5682972b4b1075f787b40113ee7eddabdc",
+              "size": 206316
+            },
+            "cupidobj_main": {
+              "sha256": "0b0ef393a23cfc55471176fa82e38519f5aaec3ba70f2dd17c937cac79fbe332",
+              "size": 39928
+            },
+            "disk_image": {
+              "sha256": "f33bd2816e2778b4fe785adfd1760e89b61407d215630fc5bed23436a36e1a7e",
+              "size": 15720
+            },
+            "elf32": {
+              "sha256": "80dcef903d025f22366286d815b485058ac5c74fcab1d6ce258be980626032da",
+              "size": 73196
+            },
+            "fat16_names": {
+              "sha256": "574304d23e69036e2497b2f7af0f087b0e0e07d20d9643e3e2ac8cfbd27a1f71",
+              "size": 33016
+            },
+            "fat16_stage": {
+              "sha256": "b92ec1c90410f309afd5004475d0e814090fd46187a80a555f687f0b657e21fa",
+              "size": 19152
+            },
+            "iso_fixture_bundle": {
+              "sha256": "c34b5ea90d6af7faae0103c17e7c19739595ac5502e385a2f79efe99e7b4d140",
+              "size": 11968
+            },
+            "runtime": {
+              "sha256": "51d3ff76543209dc1101686995f2155e73d5b9a3de69e75e242ccc127abe616d",
+              "size": 32664
+            },
+            "seed_manifest": {
+              "sha256": "96840ec75ffe08cf60c9aa40d4ac55cc26f175030b24a963cba9c5d6ca0a9c9c",
+              "size": 95696
+            },
+            "seed_release": {
+              "sha256": "dc81035bbfaaa4ff003400663a67f014e18dc14902ca7536ddf39f819e706441",
+              "size": 26284
+            },
+            "start": {
+              "sha256": "cd3c6ff524666cd666976df08717ef8c576de982312a008b04bc2bc345af3b9c",
+              "size": 788
+            },
+            "user_syscall_abi": {
+              "sha256": "dc70dc8f229e532bb75aa871f7f3c926d94045734ceb62b1d0219f03a047b6ba",
+              "size": 74384
+            },
+            "x86": {
+              "sha256": "c791b14905e4f609fb833395a3a64989479f08608d6944df0e2ffc0dbb17c5d2",
+              "size": 136108
+            }
+          },
+          "tools": {
+            "cupidasm": {
+              "sha256": "d72c63e51fe687ea25e80087fd2574108bdfd93419b183cac396c9ce1b225b0f",
+              "size": 485192
+            },
+            "cupidbuild": {
+              "sha256": "deba903351b1c8edb5fe713f20c32d46721f56ce878cbcf15470bdd0bbe196ac",
+              "size": 1129544
+            },
+            "cupidc": {
+              "sha256": "584948f9e23af0446c899fdcf41199e1200fb1ada9b6f0c5b3bc8b0ccaa2cb26",
+              "size": 2549392
+            },
+            "cupiddis": {
+              "sha256": "81788f23045380a428c2180ac0cbec341600c149e9c1aa9f9bfb93d462921cbc",
+              "size": 510320
+            },
+            "cupidld": {
+              "sha256": "8fa010b4034f14423b78e25af4bf1dbcc09e3a5cac7896cb4a39ec1226bdd18a",
+              "size": 297032
+            },
+            "cupidobj": {
+              "sha256": "e7ead217e1018f7b628ba9f2e0eb8b886baa1ea23939f71f7f336498bec6b4cc",
+              "size": 389516
+            }
+          }
+        }
+      },
+      "windows": {
+        "complete_equal_pairs": 53,
+        "format": "pe32",
+        "objects_matching_tested_profile": {
+          "long_path_start": "long-path-start.o",
+          "path_encoding": "path-encoding.o",
+          "runtime": "runtime.o",
+          "start": "start.o",
+          "windows_utf8": "windows-utf8.o"
+        },
+        "stage_four": {
+          "objects": {
+            "artifact_size_policy": {
+              "sha256": "634d3fcd3c03fc0522d17d76a4bcc05637687bb604cf25cf642a28512f259996",
+              "size": 94564
+            },
+            "contract_parse_internal": {
+              "sha256": "4cfcba82a43e484e73ea0a428c3fa9b0ad25cb3fa820a3781e30c3d0f84378a4",
+              "size": 26576
+            },
+            "ctool": {
+              "sha256": "b3c53624564e96d88100950babb28d768c40eb288195d958cdc4a7c4a5c0fa20",
+              "size": 41864
+            },
+            "ctool_host": {
+              "sha256": "acc8c8449f2ae35da64141af2fb48909dab9b7941539d37fcc6c58daef2ef29a",
+              "size": 6616
+            },
+            "cupidasm": {
+              "sha256": "c3578a10f80c3113d43f837013fffaa283580182a8bcd8aaeace0dcbb3935435",
+              "size": 169248
+            },
+            "cupidasm_main": {
+              "sha256": "4864ec9fd7d3ced2b99970cfd2dbe12de013d502f058dec76469d4dde7b8cbcb",
+              "size": 54192
+            },
+            "cupidbuild": {
+              "sha256": "48221e80c263a49e4855c7312144a08cb6a27e019841250258fcdb332b3ddedd",
+              "size": 395736
+            },
+            "cupidbuild_artifacts": {
+              "sha256": "bca67188158923f468c64c0b1334525ef2d05a3597461df0b3b1cf62812fcecd",
+              "size": 22860
+            },
+            "cupidbuild_host": {
+              "sha256": "218e2cc8be0733cf9498677bb95a906e1a3d664b93a23dfe4be4ced34d133cbe",
+              "size": 263092
+            },
+            "cupidbuild_iso": {
+              "sha256": "983f4fc1270094068abe394fe33935bad7e9d02e340c2f981979c9795a22b101",
+              "size": 10544
+            },
+            "cupidbuild_iso_capture": {
+              "sha256": "b98a22c53203a5c24fcfa1c0654e2b5a693af28c8c897e18b98b2899dbf6526a",
+              "size": 13360
+            },
+            "cupidbuild_iso_image": {
+              "sha256": "4b40d3caea2af73690e1fd28f57a4667a3eedce9de1012227d7da69fb372a287",
+              "size": 29220
+            },
+            "cupidbuild_iso_publication": {
+              "sha256": "7d365d4be5d3364716353a6df83290ef802792f6f6a4bf2a4f1ebfdaeeb26cfd",
+              "size": 20972
+            },
+            "cupidbuild_main": {
+              "sha256": "d8f48a848f37aa21e43ef62b8789b9db0dee6b039e0a9d957599e7ba65fdd50a",
+              "size": 24072
+            },
+            "cupidbuild_start": {
+              "sha256": "0e7544b420cb5db28b8f3dbd5d0cb19d594832bb8a62d7fd390974a8d14ba830",
+              "size": 2744
+            },
+            "cupidbuild_user_abi": {
+              "sha256": "6993e6a624d69b976a72b92159585198a64b156d0c1adcd7e029dc4086934489",
+              "size": 5632
+            },
+            "cupidc_emit": {
+              "sha256": "9e0b4ad22fa5c7944c657b3ea08adefdae3c6d33fee696377a5cbd4b5eeed0ab",
+              "size": 630368
+            },
+            "cupidc_frontend": {
+              "sha256": "247ef308ec75bd3079497bc97cbc4454b0e062675868bc8d982e611304addd87",
+              "size": 1024260
+            },
+            "cupidc_ir": {
+              "sha256": "20c569e84d326282fff76afdc1310fd8f9e9d3c88f2546fc9caef945688b7284",
+              "size": 503792
+            },
+            "cupidc_main": {
+              "sha256": "ae6f70d806345c5bfaad818cf697417b2ad6b75398765f53f075ea270bb0837e",
+              "size": 30056
+            },
+            "cupidc_pp": {
+              "sha256": "e98d0b14213a334fdcc53426dc2a3d14595f9d795b1635d011c0231644bc6cb3",
+              "size": 212404
+            },
+            "cupidc_type": {
+              "sha256": "8cfdff4a0ab8fda3c0beba617954053a286d11b702eb2c92d5f75ed7d1f8d265",
+              "size": 46308
+            },
+            "cupiddis": {
+              "sha256": "0f8d7644335dbb40585f9d0870bbacf5daecace2de485dc109adad80221a4022",
+              "size": 200756
+            },
+            "cupiddis_main": {
+              "sha256": "ec261ff81a78d467deacff5af5e4287d38a222d233f2cc47d16bbff75ef3ad45",
+              "size": 55980
+            },
+            "cupidld": {
+              "sha256": "91b5d33a13d200dbfcb489be56767ac2ae85c7f8b2145abbd5416524d4940d32",
+              "size": 126964
+            },
+            "cupidld_main": {
+              "sha256": "ea3908695b59c0befbed4128331bd125954176f7a83860e4c072e59e4c914123",
+              "size": 29136
+            },
+            "cupidobj": {
+              "sha256": "6cdc545b0aecfc17ea3233faf031cd5682972b4b1075f787b40113ee7eddabdc",
+              "size": 206316
+            },
+            "cupidobj_main": {
+              "sha256": "83c31035d5dc0076535260acb529d7429e85cd31af8ddfe99699c36fd2bfa382",
+              "size": 39872
+            },
+            "disk_image": {
+              "sha256": "f33bd2816e2778b4fe785adfd1760e89b61407d215630fc5bed23436a36e1a7e",
+              "size": 15720
+            },
+            "elf32": {
+              "sha256": "80dcef903d025f22366286d815b485058ac5c74fcab1d6ce258be980626032da",
+              "size": 73196
+            },
+            "fat16_names": {
+              "sha256": "574304d23e69036e2497b2f7af0f087b0e0e07d20d9643e3e2ac8cfbd27a1f71",
+              "size": 33016
+            },
+            "fat16_stage": {
+              "sha256": "b92ec1c90410f309afd5004475d0e814090fd46187a80a555f687f0b657e21fa",
+              "size": 19152
+            },
+            "final_path_start": {
+              "sha256": "dec48f88eeb4cff54bceb29c59b5e059ebde8e86d259cd5b3d572818b8b81fd8",
+              "size": 516
+            },
+            "iso_fixture_bundle": {
+              "sha256": "c34b5ea90d6af7faae0103c17e7c19739595ac5502e385a2f79efe99e7b4d140",
+              "size": 11968
+            },
+            "long_path_start": {
+              "sha256": "cf20931e9029549c720907c532d0a2542b385e466fdf176ba514089cc254c5e3",
+              "size": 496
+            },
+            "path_encoding": {
+              "sha256": "34ab4aeaa38aed335ac99ac3a3deccfa27e9c6ac70de3dfb8f898ec34cf03192",
+              "size": 10000
+            },
+            "publication_runtime": {
+              "sha256": "7750d4be294ce290a74c435f2494e4f64b059a3cdc13feb312ac11e8d2a50c10",
+              "size": 2036
+            },
+            "publication_start": {
+              "sha256": "0995296e7a73a115c5686935b942915f49b6c6ac92274b7eb66eddac0aa19f9a",
+              "size": 820
+            },
+            "runtime": {
+              "sha256": "88e549ecf681cd117708e7e61eb36df584c2bb4d734c33c6822fd225e2579f37",
+              "size": 38496
+            },
+            "seed_manifest": {
+              "sha256": "96840ec75ffe08cf60c9aa40d4ac55cc26f175030b24a963cba9c5d6ca0a9c9c",
+              "size": 95696
+            },
+            "seed_release": {
+              "sha256": "dc81035bbfaaa4ff003400663a67f014e18dc14902ca7536ddf39f819e706441",
+              "size": 26284
+            },
+            "start": {
+              "sha256": "7436396405932b7bad11335c4b2a1b8589b216793ea243cc0599574d7571fd11",
+              "size": 1900
+            },
+            "user_syscall_abi": {
+              "sha256": "dc70dc8f229e532bb75aa871f7f3c926d94045734ceb62b1d0219f03a047b6ba",
+              "size": 74384
+            },
+            "windows_utf8": {
+              "sha256": "4ca3680227962341d066f02a7643a2a4cc35d754d3076345bfc630dce7bfd6a8",
+              "size": 5964
+            },
+            "windows_utf8_build": {
+              "sha256": "e47af1e7b4662c9673c6d50d1f4810d76fab26650443f1e831c6fa9e32e23aec",
+              "size": 10284
+            },
+            "windows_utf8_publication": {
+              "sha256": "d7f0f555e929529e57e44a7f8b4245d601520718e7af20a608862ee2c2e3581f",
+              "size": 7924
+            },
+            "x86": {
+              "sha256": "c791b14905e4f609fb833395a3a64989479f08608d6944df0e2ffc0dbb17c5d2",
+              "size": 136108
+            }
+          },
+          "tools": {
+            "cupidasm": {
+              "sha256": "3dfccccade28843fa2f9ae77a837b62eadfd54a04eef67277df93ad468176b9a",
+              "size": 483328
+            },
+            "cupidbuild": {
+              "sha256": "b15393062c0f9fc0c789cf09c2d41d96ba705edbdf83bfd5f3b0c233225f5777",
+              "size": 1115648
+            },
+            "cupidc": {
+              "sha256": "13e49ec4e0bdd8e28ee84bdee43f5d5b7fb620e0d4cf675e30ccc7a4234dd1cc",
+              "size": 2493952
+            },
+            "cupiddis": {
+              "sha256": "a81185a1f3c7f06b0dc806979767ffd66b9200d5dc62c2008a364450451d3342",
+              "size": 507904
+            },
+            "cupidld": {
+              "sha256": "95909c4e1d64cea3f2d9543e0d0558b20f08e853698b6221e6556d3168411806",
+              "size": 300032
+            },
+            "cupidobj": {
+              "sha256": "0c272f79dbc23c33e3b2d4e308a0a3522eba602791212f444738801ad2800e31",
+              "size": 385536
+            }
+          }
+        }
+      }
+    },
+    "parents": {
+      "elf32": {
+        "manifest_sha256": "1f7847a6bf7479caa5b34ac99fb05969025c017f0c8dc42b3b98d6f3d50021e2",
+        "source_revision": "acbbd8342d8901169c5484742b168277ce9bbdd1"
+      },
+      "pe32": {
+        "manifest_sha256": "e496a0fb2e36e74bc04a4ef3e1923c25a805fb1342035c32eb1c4eba20ba5bcf",
+        "source_revision": "acbbd8342d8901169c5484742b168277ce9bbdd1"
+      }
+    },
+    "source_input_count": 99,
+    "source_snapshot_sha256": "4ae98403b0896b24e50b81b11b213b8117207421b9152e95d0500e00e612d07e",
+    "status": "prepared; behavior qualification pending"
+  },
+  "profiles": {
+    "linux": {
+      "allocator_address_space_limit_bytes": 33554432,
+      "allocator_timeout_seconds": 60,
+      "commands": {
+        "sha256": "e51b0d5f713d41cda9d47f83b8723289ccb966575e07e6de8d93d04d2c6456b1",
+        "size": 8855
+      },
+      "host": "linux",
+      "inputs": {
+        "tests/test_hosted_heap.py": {
+          "sha256": "e30690c094d061141fc51ce158617d809aab681db7b5e070ca6c2b819a78a698",
+          "size": 14169
+        },
+        "toolchain/hosted/i386-linux/include/cupid_host_abi.h": {
+          "sha256": "75f5ea95099808118319cb05c8c0ccdcd399fffe0350c8e0107e1842df77dd4f",
+          "size": 374
+        },
+        "toolchain/hosted/i386-linux/include/direct.h": {
+          "sha256": "ca8371f6f146f63db416ec71330fe51ff0fb2c04dcaf07a664dad2e0565a4c01",
+          "size": 239
+        },
+        "toolchain/hosted/i386-linux/include/errno.h": {
+          "sha256": "3e90118b90a6a596309bdedc2e382322deaaf4f0751464585cd27b2fe0c59135",
+          "size": 271
+        },
+        "toolchain/hosted/i386-linux/include/stddef.h": {
+          "sha256": "1116b1fc8ddeadf277e0816613e6ab33f5e004eb3cda8e8fc26d98fda8945528",
+          "size": 377
+        },
+        "toolchain/hosted/i386-linux/include/stdint.h": {
+          "sha256": "c11547ba80e6b1703f6fba97c36b043b07a69393c122dd07be71dd5cbd015f17",
+          "size": 1019
+        },
+        "toolchain/hosted/i386-linux/include/stdio.h": {
+          "sha256": "e42e3cf1c1807b4fdd096e57d608ea7556e50d8fe2029b25ac1cde581e5f9115",
+          "size": 1557
+        },
+        "toolchain/hosted/i386-linux/include/stdlib.h": {
+          "sha256": "ba7457596ec83e79c18ba9c325c58fe1e5f5232bb138230e4b7e9e7bec818d75",
+          "size": 335
+        },
+        "toolchain/hosted/i386-linux/include/string.h": {
+          "sha256": "cc92a949f0816c8c07e239d5982d5c8779159afd5542ef78113b525ddabf56e8",
+          "size": 781
+        },
+        "toolchain/hosted/i386-linux/include/unistd.h": {
+          "sha256": "fd597726e04977d24c1b97c8fabcc605fbe4c4f9a9ff3b0c8164b0f39d61b57b",
+          "size": 170
+        },
+        "toolchain/hosted/i386-linux/include/windows.h": {
+          "sha256": "b887ed4c5e17a19e0959f909eaadac492f7cc197701b3e2a9ea2f317bdbc4b80",
+          "size": 9953
+        },
+        "toolchain/hosted/i386-linux/runtime.cc": {
+          "sha256": "ade2b98d00be63c0c0fdaa59e60d9e6726d3dd641d6ab5ae886cbfba67297b1f",
+          "size": 54763
+        },
+        "toolchain/hosted/i386-linux/start.asm": {
+          "sha256": "cadc46d38ade1ad65664b70037b4a9a02bc95bb5cea4f07e08ad0a2d14f33f90",
+          "size": 1260
+        },
+        "toolchain/tests/hosted_heap_density_contract.cc": {
+          "sha256": "a002cbd20be41debca379d6e318c631c72d6788a537f965816c94b505cc518f0",
+          "size": 6314
+        },
+        "toolchain/tests/hosted_heap_fault_contract.cc": {
+          "sha256": "c968a4506b1f1735691cc25d7d972bafa8c5c9cf682aaeb02266af59e6cbf2e2",
+          "size": 4209
+        },
+        "toolchain/tests/hosted_i386_runtime_contract.cc": {
+          "sha256": "ffb739a447c295ea8955292ae47622f10eff298ee663ef1c567a67748e521ab5",
+          "size": 40982
+        }
+      },
+      "methods": {
+        "test_65536_cache_line_allocations_preserve_live_neighbors": {
+          "exit_code": 0,
+          "stdout": "{\"requested\":65536,\"allocated\":65536,\"reuse\":1,\"alignment\":16}\n"
+        },
+        "test_65536_one_byte_allocations_reuse_zeroed_aligned_storage": {
+          "exit_code": 0,
+          "stdout": "{\"requested\":65536,\"allocated\":65536,\"reuse\":1,\"alignment\":16}\n"
+        },
+        "test_complete_existing_runtime_contract_with_identical_runtime_object": {
+          "exit_code": 0,
+          "stdout": "printf-ok 7\nputs-ok\nfputs-ok\nruntime-ok\n"
+        },
+        "test_failed_os_allocation_preserves_realloc_data_and_recovers": {
+          "exit_code": 0,
+          "stdout": "{\"allocation_failure\":1,\"preserved_data\":1,\"recovery\":1}\n"
+        },
+        "test_failed_os_release_keeps_free_storage_available": {
+          "exit_code": 0,
+          "stdout": "{\"release_failure\":1,\"reused_without_growth\":1,\"recovery\":1}\n"
+        },
+        "test_mixed_size_reallocations_preserve_all_live_payloads": {
+          "exit_code": 0,
+          "stdout": "{\"operations\":20000,\"live_slots\":256,\"preserved_data\":1,\"alignment\":16}\n"
+        },
+        "test_overflow_is_rejected_before_requesting_os_storage": {
+          "exit_code": 0,
+          "stdout": "{\"overflow\":1,\"no_os_allocation\":1}\n"
+        },
+        "test_page_sized_allocations_survive_fragmentation": {
+          "exit_code": 0,
+          "stdout": "{\"requested\":1024,\"allocated\":1024,\"reuse\":1,\"alignment\":16}\n"
+        },
+        "test_split_growth_overflow_failure_and_zero_size_contracts": {
+          "exit_code": 0,
+          "stdout": "{\"contracts\":1,\"overflow\":1,\"failed_realloc_preserves_data\":1,\"zero_size\":1}\n"
+        }
+      },
+      "programs": {
+        "heap-fault.elf": {
+          "sha256": "3418f19cec12dccac1a7035d98af0f97f96c75a49c89e4171446171bc5c95b91",
+          "size": 47556
+        },
+        "heap.elf": {
+          "sha256": "48b73b17b71c55e6fd884e81b2d67a7d3c958dc453ea5f1b6796895ceeb00191",
+          "size": 55668
+        },
+        "runtime-contract.elf": {
+          "sha256": "ba807be01e3ec585aa481af5fb7546f1772d03bb739cc719f991ed7dbf55bfc1",
+          "size": 106008
+        }
+      },
+      "repeated_runtime_object_identical": true,
+      "runtime_object": {
+        "sha256": "51d3ff76543209dc1101686995f2155e73d5b9a3de69e75e242ccc127abe616d",
+        "size": 32664
+      },
+      "seed_manifest": {
+        "sha256": "1f7847a6bf7479caa5b34ac99fb05969025c017f0c8dc42b3b98d6f3d50021e2",
+        "size": 9123
+      },
+      "seed_tools": {
+        "cupidasm": {
+          "sha256": "69e779f7291cfe3bcedd18d8a66ef4ae98385a816f26bf8c237c4a88d79dfdda",
+          "size": 485084
+        },
+        "cupidbuild": {
+          "sha256": "2911cef0cf91ae1e3511135e17e7737b72865cab68580536289b2760338b9e46",
+          "size": 1129436
+        },
+        "cupidc": {
+          "sha256": "7bef8d49ecd5cea9a3392a853f4dce578d96b3e3f2e3e47fdf2487e2b6cb0a4a",
+          "size": 2549284
+        },
+        "cupiddis": {
+          "sha256": "f66cfc8dcdb33308dd6c354b810764652a0294e5bef1fcadc7a3507649639430",
+          "size": 510212
+        },
+        "cupidld": {
+          "sha256": "2242524c1be20e519c4a47bb50b5d1e340e42607e4e4a0a75eac9ae20cdb1a22",
+          "size": 296920
+        },
+        "cupidobj": {
+          "sha256": "6a9851fce7ceb4271311c806a2115d3afdf3333685b31271c6ac05882723f43e",
+          "size": 389404
+        }
+      },
+      "strict_certifications": 11
+    },
+    "windows_basic": {
+      "allocator_address_space_limit_bytes": null,
+      "allocator_timeout_seconds": 60,
+      "commands": {
+        "sha256": "ed5249bf1b61c80b58836d7f6e003de1628e2ab00f53d6bbefc2678e76078832",
+        "size": 12447
+      },
+      "host": "windows",
+      "inputs": {
+        "tests/test_hosted_heap.py": {
+          "sha256": "e30690c094d061141fc51ce158617d809aab681db7b5e070ca6c2b819a78a698",
+          "size": 14169
+        },
+        "toolchain/hosted/i386-linux/include/cupid_host_abi.h": {
+          "sha256": "75f5ea95099808118319cb05c8c0ccdcd399fffe0350c8e0107e1842df77dd4f",
+          "size": 374
+        },
+        "toolchain/hosted/i386-linux/include/direct.h": {
+          "sha256": "ca8371f6f146f63db416ec71330fe51ff0fb2c04dcaf07a664dad2e0565a4c01",
+          "size": 239
+        },
+        "toolchain/hosted/i386-linux/include/errno.h": {
+          "sha256": "3e90118b90a6a596309bdedc2e382322deaaf4f0751464585cd27b2fe0c59135",
+          "size": 271
+        },
+        "toolchain/hosted/i386-linux/include/stddef.h": {
+          "sha256": "1116b1fc8ddeadf277e0816613e6ab33f5e004eb3cda8e8fc26d98fda8945528",
+          "size": 377
+        },
+        "toolchain/hosted/i386-linux/include/stdint.h": {
+          "sha256": "c11547ba80e6b1703f6fba97c36b043b07a69393c122dd07be71dd5cbd015f17",
+          "size": 1019
+        },
+        "toolchain/hosted/i386-linux/include/stdio.h": {
+          "sha256": "e42e3cf1c1807b4fdd096e57d608ea7556e50d8fe2029b25ac1cde581e5f9115",
+          "size": 1557
+        },
+        "toolchain/hosted/i386-linux/include/stdlib.h": {
+          "sha256": "ba7457596ec83e79c18ba9c325c58fe1e5f5232bb138230e4b7e9e7bec818d75",
+          "size": 335
+        },
+        "toolchain/hosted/i386-linux/include/string.h": {
+          "sha256": "cc92a949f0816c8c07e239d5982d5c8779159afd5542ef78113b525ddabf56e8",
+          "size": 781
+        },
+        "toolchain/hosted/i386-linux/include/unistd.h": {
+          "sha256": "fd597726e04977d24c1b97c8fabcc605fbe4c4f9a9ff3b0c8164b0f39d61b57b",
+          "size": 170
+        },
+        "toolchain/hosted/i386-linux/include/windows.h": {
+          "sha256": "b887ed4c5e17a19e0959f909eaadac492f7cc197701b3e2a9ea2f317bdbc4b80",
+          "size": 9953
+        },
+        "toolchain/hosted/i386-linux/runtime.cc": {
+          "sha256": "ade2b98d00be63c0c0fdaa59e60d9e6726d3dd641d6ab5ae886cbfba67297b1f",
+          "size": 54763
+        },
+        "toolchain/hosted/i386-windows/runtime.cc": {
+          "sha256": "50dfc7fd7cdfb93541c52fe2c87a65878a90e84fb966b8d1c75e661aa20927d1",
+          "size": 68
+        },
+        "toolchain/hosted/i386-windows/tool_start.asm": {
+          "sha256": "8b04f7071e253d11d6abc8945cc1a926455d551589e1be882c5baa16d574cb55",
+          "size": 3146
+        },
+        "toolchain/tests/hosted_heap_density_contract.cc": {
+          "sha256": "a002cbd20be41debca379d6e318c631c72d6788a537f965816c94b505cc518f0",
+          "size": 6314
+        },
+        "toolchain/tests/hosted_heap_fault_contract.cc": {
+          "sha256": "c968a4506b1f1735691cc25d7d972bafa8c5c9cf682aaeb02266af59e6cbf2e2",
+          "size": 4209
+        },
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc": {
+          "sha256": "92eac6f5ec47f4381b9852a7c1daeac1f6da71e49fbda03c54f22d0be368390e",
+          "size": 4678
+        }
+      },
+      "methods": {
+        "test_65536_cache_line_allocations_preserve_live_neighbors": {
+          "exit_code": 0,
+          "stdout": "{\"requested\":65536,\"allocated\":65536,\"reuse\":1,\"alignment\":16}\n"
+        },
+        "test_65536_one_byte_allocations_reuse_zeroed_aligned_storage": {
+          "exit_code": 0,
+          "stdout": "{\"requested\":65536,\"allocated\":65536,\"reuse\":1,\"alignment\":16}\n"
+        },
+        "test_complete_existing_runtime_contract_with_identical_runtime_object": {
+          "exit_code": 0,
+          "stdout": "Cupid-built Windows tool runtime: ok\n"
+        },
+        "test_failed_os_allocation_preserves_realloc_data_and_recovers": {
+          "exit_code": 0,
+          "stdout": "{\"allocation_failure\":1,\"preserved_data\":1,\"recovery\":1}\n"
+        },
+        "test_failed_os_release_keeps_free_storage_available": {
+          "exit_code": 0,
+          "stdout": "{\"release_failure\":1,\"reused_without_growth\":1,\"recovery\":1}\n"
+        },
+        "test_mixed_size_reallocations_preserve_all_live_payloads": {
+          "exit_code": 0,
+          "stdout": "{\"operations\":20000,\"live_slots\":256,\"preserved_data\":1,\"alignment\":16}\n"
+        },
+        "test_overflow_is_rejected_before_requesting_os_storage": {
+          "exit_code": 0,
+          "stdout": "{\"overflow\":1,\"no_os_allocation\":1}\n"
+        },
+        "test_page_sized_allocations_survive_fragmentation": {
+          "exit_code": 0,
+          "stdout": "{\"requested\":1024,\"allocated\":1024,\"reuse\":1,\"alignment\":16}\n"
+        },
+        "test_split_growth_overflow_failure_and_zero_size_contracts": {
+          "exit_code": 0,
+          "stdout": "{\"contracts\":1,\"overflow\":1,\"failed_realloc_preserves_data\":1,\"zero_size\":1}\n"
+        }
+      },
+      "programs": {
+        "heap-fault.exe": {
+          "sha256": "85595b3bb037e26294874cac9a921aacd1e26de3f49ec1192225092f4f7a1a79",
+          "size": 38912
+        },
+        "heap.exe": {
+          "sha256": "c8442f426d70580777a5368628de11648189fd9d406da1e9af8e0ceaba5d53bb",
+          "size": 44544
+        },
+        "runtime-contract.exe": {
+          "sha256": "5c11befc7b7df2d1907a16f2043725e7b74bd5ce41e97803b1ca277d97444a00",
+          "size": 41472
+        }
+      },
+      "repeated_runtime_object_identical": true,
+      "runtime_object": {
+        "sha256": "ff9ababfbe09e87462f2740085db46a1a2f4ad7a7d6b3f7eeda087a21ec0e2b1",
+        "size": 37512
+      },
+      "seed_manifest": {
+        "sha256": "e496a0fb2e36e74bc04a4ef3e1923c25a805fb1342035c32eb1c4eba20ba5bcf",
+        "size": 2853
+      },
+      "seed_tools": {
+        "cupidasm": {
+          "sha256": "53427883f2afcc07bef43847aedcf23fb5c678c43cb303c1237c8ea7b4cdffdc",
+          "size": 480256
+        },
+        "cupidbuild": {
+          "sha256": "f45e66e72e91e0c6fd120567b45efaa7df2d64e3ac45e7f95fafb8f10077db7c",
+          "size": 1112576
+        },
+        "cupidc": {
+          "sha256": "601586883a05f9fee01eefefef64d95a2a3c15091842746638e640a544eb0b6f",
+          "size": 2490880
+        },
+        "cupiddis": {
+          "sha256": "b39e1129023e916518e6dc7016d7bbceb07e70b83d5c9c53025e9715c4c5e809",
+          "size": 504832
+        },
+        "cupidld": {
+          "sha256": "98b3b93b0672b4d69d6226abb545dc0ef669b7789575878c169111b48c845efd",
+          "size": 296448
+        },
+        "cupidobj": {
+          "sha256": "373ddd710053dae8ca55160f06759f9dd43eaccc761865bc792ec81cf0c50239",
+          "size": 382464
+        }
+      },
+      "strict_certifications": 11
+    },
+    "windows_utf8_long_paths": {
+      "allocator_address_space_limit_bytes": null,
+      "allocator_timeout_seconds": 60,
+      "commands": {
+        "sha256": "fed6e8670f31be0808f260e4ee8bdfd8d1b610189da383c488335c855ad04c6a",
+        "size": 16872
+      },
+      "host": "windows",
+      "inputs": {
+        "tests/test_hosted_heap.py": {
+          "sha256": "e30690c094d061141fc51ce158617d809aab681db7b5e070ca6c2b819a78a698",
+          "size": 14169
+        },
+        "toolchain/hosted/i386-linux/include/cupid_host_abi.h": {
+          "sha256": "75f5ea95099808118319cb05c8c0ccdcd399fffe0350c8e0107e1842df77dd4f",
+          "size": 374
+        },
+        "toolchain/hosted/i386-linux/include/direct.h": {
+          "sha256": "ca8371f6f146f63db416ec71330fe51ff0fb2c04dcaf07a664dad2e0565a4c01",
+          "size": 239
+        },
+        "toolchain/hosted/i386-linux/include/errno.h": {
+          "sha256": "3e90118b90a6a596309bdedc2e382322deaaf4f0751464585cd27b2fe0c59135",
+          "size": 271
+        },
+        "toolchain/hosted/i386-linux/include/stddef.h": {
+          "sha256": "1116b1fc8ddeadf277e0816613e6ab33f5e004eb3cda8e8fc26d98fda8945528",
+          "size": 377
+        },
+        "toolchain/hosted/i386-linux/include/stdint.h": {
+          "sha256": "c11547ba80e6b1703f6fba97c36b043b07a69393c122dd07be71dd5cbd015f17",
+          "size": 1019
+        },
+        "toolchain/hosted/i386-linux/include/stdio.h": {
+          "sha256": "e42e3cf1c1807b4fdd096e57d608ea7556e50d8fe2029b25ac1cde581e5f9115",
+          "size": 1557
+        },
+        "toolchain/hosted/i386-linux/include/stdlib.h": {
+          "sha256": "ba7457596ec83e79c18ba9c325c58fe1e5f5232bb138230e4b7e9e7bec818d75",
+          "size": 335
+        },
+        "toolchain/hosted/i386-linux/include/string.h": {
+          "sha256": "cc92a949f0816c8c07e239d5982d5c8779159afd5542ef78113b525ddabf56e8",
+          "size": 781
+        },
+        "toolchain/hosted/i386-linux/include/unistd.h": {
+          "sha256": "fd597726e04977d24c1b97c8fabcc605fbe4c4f9a9ff3b0c8164b0f39d61b57b",
+          "size": 170
+        },
+        "toolchain/hosted/i386-linux/include/windows.h": {
+          "sha256": "b887ed4c5e17a19e0959f909eaadac492f7cc197701b3e2a9ea2f317bdbc4b80",
+          "size": 9953
+        },
+        "toolchain/hosted/i386-linux/runtime.cc": {
+          "sha256": "ade2b98d00be63c0c0fdaa59e60d9e6726d3dd641d6ab5ae886cbfba67297b1f",
+          "size": 54763
+        },
+        "toolchain/hosted/i386-windows/runtime.cc": {
+          "sha256": "50dfc7fd7cdfb93541c52fe2c87a65878a90e84fb966b8d1c75e661aa20927d1",
+          "size": 68
+        },
+        "toolchain/hosted/i386-windows/utf8_long_path_start.asm": {
+          "sha256": "52795ffc33af355460796afb3b90c80160f1c64ad68afe5ec82293edea39bd97",
+          "size": 327
+        },
+        "toolchain/hosted/i386-windows/utf8_tool_start.asm": {
+          "sha256": "c5977997e5791d1f33f5aefe818d0b0785e2d71b419e717fdd71e74b9fa2433a",
+          "size": 3399
+        },
+        "toolchain/hosted/i386-windows/windows_utf8.cc": {
+          "sha256": "9dd8d79c1cd796f8fa71226d4f5ef1009d94a3b5121c5456794713d281a4487d",
+          "size": 11700
+        },
+        "toolchain/path_encoding.cc": {
+          "sha256": "295205541474056a06f6467bb247c77058891c25de31c152aa335a0e6a74fa58",
+          "size": 6619
+        },
+        "toolchain/path_encoding.h": {
+          "sha256": "4bad0b0cab07fa2ed7ec89fbbb4fa799297b5750a77ce44184f48610e5338be2",
+          "size": 1094
+        },
+        "toolchain/tests/hosted_heap_density_contract.cc": {
+          "sha256": "a002cbd20be41debca379d6e318c631c72d6788a537f965816c94b505cc518f0",
+          "size": 6314
+        },
+        "toolchain/tests/hosted_heap_fault_contract.cc": {
+          "sha256": "c968a4506b1f1735691cc25d7d972bafa8c5c9cf682aaeb02266af59e6cbf2e2",
+          "size": 4209
+        },
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc": {
+          "sha256": "92eac6f5ec47f4381b9852a7c1daeac1f6da71e49fbda03c54f22d0be368390e",
+          "size": 4678
+        }
+      },
+      "methods": {
+        "test_65536_cache_line_allocations_preserve_live_neighbors": {
+          "exit_code": 0,
+          "stdout": "{\"requested\":65536,\"allocated\":65536,\"reuse\":1,\"alignment\":16}\n"
+        },
+        "test_65536_one_byte_allocations_reuse_zeroed_aligned_storage": {
+          "exit_code": 0,
+          "stdout": "{\"requested\":65536,\"allocated\":65536,\"reuse\":1,\"alignment\":16}\n"
+        },
+        "test_complete_existing_runtime_contract_with_identical_runtime_object": {
+          "exit_code": 0,
+          "stdout": "Cupid-built Windows tool runtime: ok\n"
+        },
+        "test_existing_runtime_contract_handles_unicode_long_paths": {
+          "exit_code": 0,
+          "stdout": "Cupid-built Windows tool runtime: ok\n"
+        },
+        "test_failed_os_allocation_preserves_realloc_data_and_recovers": {
+          "exit_code": 0,
+          "stdout": "{\"allocation_failure\":1,\"preserved_data\":1,\"recovery\":1}\n"
+        },
+        "test_failed_os_release_keeps_free_storage_available": {
+          "exit_code": 0,
+          "stdout": "{\"release_failure\":1,\"reused_without_growth\":1,\"recovery\":1}\n"
+        },
+        "test_mixed_size_reallocations_preserve_all_live_payloads": {
+          "exit_code": 0,
+          "stdout": "{\"operations\":20000,\"live_slots\":256,\"preserved_data\":1,\"alignment\":16}\n"
+        },
+        "test_overflow_is_rejected_before_requesting_os_storage": {
+          "exit_code": 0,
+          "stdout": "{\"overflow\":1,\"no_os_allocation\":1}\n"
+        },
+        "test_page_sized_allocations_survive_fragmentation": {
+          "exit_code": 0,
+          "stdout": "{\"requested\":1024,\"allocated\":1024,\"reuse\":1,\"alignment\":16}\n"
+        },
+        "test_split_growth_overflow_failure_and_zero_size_contracts": {
+          "exit_code": 0,
+          "stdout": "{\"contracts\":1,\"overflow\":1,\"failed_realloc_preserves_data\":1,\"zero_size\":1}\n"
+        }
+      },
+      "programs": {
+        "heap-fault.exe": {
+          "sha256": "d4af33880be4ef4618ff511d2b70b7ae463ffa5b61ec3a257292715a0542c592",
+          "size": 53760
+        },
+        "heap.exe": {
+          "sha256": "97fce0e7306f891c01a8b30d22d6f88cc996edd48dd5c74f7bbd963d8216db73",
+          "size": 59392
+        },
+        "runtime-contract.exe": {
+          "sha256": "edc396d4f5efe775d6fa4f51b8ad26ec4704bba79bedfdca3fcb5f18ea1a4abd",
+          "size": 56320
+        }
+      },
+      "repeated_runtime_object_identical": true,
+      "runtime_object": {
+        "sha256": "88e549ecf681cd117708e7e61eb36df584c2bb4d734c33c6822fd225e2579f37",
+        "size": 38496
+      },
+      "seed_manifest": {
+        "sha256": "e496a0fb2e36e74bc04a4ef3e1923c25a805fb1342035c32eb1c4eba20ba5bcf",
+        "size": 2853
+      },
+      "seed_tools": {
+        "cupidasm": {
+          "sha256": "53427883f2afcc07bef43847aedcf23fb5c678c43cb303c1237c8ea7b4cdffdc",
+          "size": 480256
+        },
+        "cupidbuild": {
+          "sha256": "f45e66e72e91e0c6fd120567b45efaa7df2d64e3ac45e7f95fafb8f10077db7c",
+          "size": 1112576
+        },
+        "cupidc": {
+          "sha256": "601586883a05f9fee01eefefef64d95a2a3c15091842746638e640a544eb0b6f",
+          "size": 2490880
+        },
+        "cupiddis": {
+          "sha256": "b39e1129023e916518e6dc7016d7bbceb07e70b83d5c9c53025e9715c4c5e809",
+          "size": 504832
+        },
+        "cupidld": {
+          "sha256": "98b3b93b0672b4d69d6226abb545dc0ef669b7789575878c169111b48c845efd",
+          "size": 296448
+        },
+        "cupidobj": {
+          "sha256": "373ddd710053dae8ca55160f06759f9dd43eaccc761865bc792ec81cf0c50239",
+          "size": 382464
+        }
+      },
+      "strict_certifications": 14
+    }
+  },
+  "runtime_source": {
+    "sha256": "ade2b98d00be63c0c0fdaa59e60d9e6726d3dd641d6ab5ae886cbfba67297b1f",
+    "size": 54763
+  },
+  "schema": "cupid.hosted-heap-source-evidence.v2",
+  "suites": {
+    "linux": {
+      "passed": 10,
+      "retained_receipts_guard_passes": true,
+      "seconds": 42.755,
+      "skipped": 10
+    },
+    "windows": {
+      "passed": 20,
+      "retained_receipts_guard_passes": true,
+      "seconds": 70.978,
+      "skipped": 0
+    }
+  }
+}

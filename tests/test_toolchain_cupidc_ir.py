@@ -1,0 +1,1068 @@
+import os
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
+
+
+class ToolchainCupidCIRContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls._build_directory = tempfile.TemporaryDirectory(
+            prefix=".cupidc-ir-build-", dir=TOOLCHAIN_ROOT
+        )
+        build_path = Path(cls._build_directory.name)
+        relative_build = build_path.relative_to(TOOLCHAIN_ROOT).as_posix()
+        suffix = ".exe" if os.name == "nt" else ""
+        cls.contract_path = build_path / ("cupidc-ir-contract" + suffix)
+        target = f"{relative_build}/cupidc-ir-contract{suffix}"
+        result = subprocess.run(
+            [
+                "make",
+                "-C",
+                str(TOOLCHAIN_ROOT),
+                f"BUILD_DIR={relative_build}",
+                target,
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        if result.returncode != 0 or not cls.contract_path.exists():
+            cls._build_directory.cleanup()
+            raise AssertionError(
+                "CupidC IR contract build failed\n"
+                + result.stdout
+                + result.stderr
+            )
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._build_directory.cleanup()
+
+    def test_active_leaf_lowers_to_transactional_typed_ir(self):
+        result = subprocess.run(
+            [str(self.contract_path), "active-leaf", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "active-leaf: ok\n")
+
+    def test_section_attributes_publish_owned_validated_function_metadata(self):
+        result = subprocess.run(
+            [str(self.contract_path), "section-attributes", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "section-attributes: ok\n")
+
+    def test_unused_attributes_validate_without_changing_function_ir(self):
+        result = subprocess.run(
+            [str(self.contract_path), "unused-attributes", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "unused-attributes: ok\n")
+
+    def test_used_attributes_validate_without_changing_function_ir(self):
+        result = subprocess.run(
+            [str(self.contract_path), "used-attributes", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "used-attributes: ok\n")
+
+    def test_function_codegen_attributes_constrain_generated_ir(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "function-codegen-attributes",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout, "function-codegen-attributes: ok\n"
+        )
+
+    def test_naked_functions_lower_only_typed_ipi_control_assembly(self):
+        result = subprocess.run(
+            [str(self.contract_path), "naked-functions", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "naked-functions: ok\n")
+
+    def test_weak_attributes_require_external_object_or_function_bindings(self):
+        result = subprocess.run(
+            [str(self.contract_path), "weak-attributes", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "weak-attributes: ok\n")
+
+    def test_pointer_output_assembly_evaluates_its_destination_once(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "pointer-output-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "pointer-output-assembly: ok\n")
+
+    def test_register_snapshot_assembly_preserves_output_order(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "register-snapshot-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "register-snapshot-assembly: ok\n")
+
+    def test_flags_restore_assembly_preserves_cc_metadata(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "flags-restore-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "flags-restore-assembly: ok\n")
+
+    def test_fixed_register_inputs_can_share_their_output_register(self):
+        result = subprocess.run(
+            [str(self.contract_path), "inline-assembly", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "inline-assembly: ok\n")
+
+    def test_call_next_assembly_preserves_output_order(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "call-next-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "call-next-assembly: ok\n")
+
+    def test_atomic_builtins_lower_to_typed_transactional_ir(self):
+        result = subprocess.run(
+            [str(self.contract_path), "atomic-builtins", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "atomic-builtins: ok\n")
+
+    def test_operand_free_and_empty_barrier_assembly_lowers(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "operand-free-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "operand-free-assembly: ok\n")
+
+    def test_kernel_start_assembly_lowers_in_source_order(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "kernel-start-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "kernel-start-assembly: ok\n")
+
+    def test_file_scope_basic_assembly_lowers_as_ordered_unit_effects(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "file-scope-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "file-scope-assembly: ok\n")
+
+    def test_fabs_mask_and_wrappers_lower_in_source_order(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "file-scope-fabs-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout,
+            "file-scope-fabs-assembly: ok\n",
+        )
+
+    def test_port_io_assembly_lowers_widths_and_read_write_operands(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "port-io-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "port-io-assembly: ok\n")
+
+    def test_privileged_register_assembly_lowers_typed_operands(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "privileged-register-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout, "privileged-register-assembly: ok\n"
+        )
+
+    def test_fxsave_assembly_lowers_one_pointer_value_per_statement(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "fxsave-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "fxsave-assembly: ok\n")
+
+    def test_legacy_port_constraints_lower_through_the_dx_fallback(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "legacy-port-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "legacy-port-assembly: ok\n")
+
+    def test_machine_state_memory_outputs_lower_one_address_each(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "state-memory-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "state-memory-assembly: ok\n")
+
+    def test_ldmxcsr_memory_input_lowers_one_address_per_statement(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "ldmxcsr-memory-input",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "ldmxcsr-memory-input: ok\n")
+
+    def test_movss_memory_assembly_lowers_addresses_in_source_order(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "movss-memory-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "movss-memory-assembly: ok\n")
+
+    def test_kernel_simd_assembly_lowers_inputs_in_source_order(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "kernel-simd-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "kernel-simd-assembly: ok\n")
+
+    def test_x87_sine_memory_assembly_lowers_addresses_in_source_order(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "x87-sine-memory-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "x87-sine-memory-assembly: ok\n")
+
+    def test_x87_round_down_memory_assembly_lowers_exact_state_contract(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "x87-round-down-memory-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "x87-round-down-memory-assembly: ok\n")
+
+    def test_x87_pow_memory_assembly_lowers_addresses_in_source_order(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "x87-pow-memory-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "x87-pow-memory-assembly: ok\n")
+
+    def test_x87_powf_memory_assembly_lowers_mixed_width_addresses_in_order(
+        self,
+    ):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "x87-powf-memory-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "x87-powf-memory-assembly: ok\n")
+
+    def test_sqrtsd_assembly_lowers_output_address_before_double_value(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "sqrtsd-register-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "sqrtsd-register-assembly: ok\n")
+
+    def test_x87_atan2_assembly_lowers_output_y_and_x_addresses_in_order(
+        self,
+    ):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "x87-atan2-memory-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "x87-atan2-memory-assembly: ok\n")
+
+    def test_x87_exp_assembly_lowers_output_x_and_log2e_addresses_in_order(
+        self,
+    ):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "x87-exp-memory-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "x87-exp-memory-assembly: ok\n")
+
+    def test_descriptor_table_assembly_lowers_address_and_selector_values(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "descriptor-table-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "descriptor-table-assembly: ok\n")
+
+    def test_direct_forward_goto_lowers_to_function_relative_ir(self):
+        result = subprocess.run(
+            [str(self.contract_path), "forward-goto", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "forward-goto: ok\n")
+
+    def test_goto_enters_nested_compound_at_the_label(self):
+        result = subprocess.run(
+            [str(self.contract_path), "nested-goto", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "nested-goto: ok\n")
+
+    def test_switch_dispatches_once_to_resolved_case_targets(self):
+        result = subprocess.run(
+            [str(self.contract_path), "switch-lowering", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "switch-lowering: ok\n")
+
+    def test_switch_and_loop_control_use_the_nearest_valid_target(self):
+        result = subprocess.run(
+            [str(self.contract_path), "switch-control", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "switch-control: ok\n")
+
+    def test_constant_true_loops_do_not_fall_through_nonvoid_functions(self):
+        result = subprocess.run(
+            [str(self.contract_path), "constant-true-loops", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "constant-true-loops: ok\n")
+
+    def test_comma_expressions_lower_left_to_right_and_discard_intermediates(self):
+        result = subprocess.run(
+            [str(self.contract_path), "comma-expressions", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "comma-expressions: ok\n")
+
+    def test_nested_switches_keep_labels_and_reachability_isolated(self):
+        result = subprocess.run(
+            [str(self.contract_path), "switch-nesting", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "switch-nesting: ok\n")
+
+    def test_integer_update_evaluates_its_destination_once(self):
+        result = subprocess.run(
+            [str(self.contract_path), "integer-updates", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "integer-updates: ok\n")
+
+    def test_integer_compounds_evaluate_their_destination_once(self):
+        result = subprocess.run(
+            [str(self.contract_path), "integer-compounds", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "integer-compounds: ok\n")
+
+    def test_integer_compounds_preserve_usual_arithmetic_conversions(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "integer-compound-conversions",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "integer-compound-conversions: ok\n")
+
+    def test_integer_updates_preserve_promotions_and_qualifiers(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "integer-update-conversions",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "integer-update-conversions: ok\n")
+
+    def test_narrow_integer_mutation_uses_promoted_arithmetic(self):
+        result = subprocess.run(
+            [str(self.contract_path), "narrow-mutations", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "narrow-mutations: ok\n")
+
+    def test_wide_integer_mutation_preserves_value_semantics(self):
+        result = subprocess.run(
+            [str(self.contract_path), "wide-mutations", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "wide-mutations: ok\n")
+
+    def test_integer_mutation_rejects_unsupported_targets_transactionally(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "integer-mutation-rejections",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "integer-mutation-rejections: ok\n")
+
+    def test_bit_field_mutations_evaluate_the_record_address_once(self):
+        result = subprocess.run(
+            [str(self.contract_path), "bit-field-mutations", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "bit-field-mutations: ok\n")
+
+    def test_narrow_unsigned_bit_fields_keep_promotion_provenance(self):
+        result = subprocess.run(
+            [str(self.contract_path), "bit-field-promotions", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "bit-field-promotions: ok\n")
+
+    def test_object_pointer_parameters_reach_indirect_members(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "pointer-member-loads",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "pointer-member-loads: ok\n")
+
+    def test_object_pointer_values_cross_supported_storage_and_calls(self):
+        result = subprocess.run(
+            [str(self.contract_path), "pointer-values", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "pointer-values: ok\n")
+
+    def test_object_pointer_comparisons_preserve_c_pointer_semantics(self):
+        result = subprocess.run(
+            [str(self.contract_path), "pointer-comparisons", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "pointer-comparisons: ok\n")
+
+    def test_object_pointer_conditions_use_scalar_truth_testing(self):
+        result = subprocess.run(
+            [str(self.contract_path), "pointer-conditions", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "pointer-conditions: ok\n")
+
+    def test_object_pointer_arithmetic_scales_by_the_referent_size(self):
+        result = subprocess.run(
+            [str(self.contract_path), "pointer-arithmetic", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "pointer-arithmetic: ok\n")
+
+    def test_function_pointer_values_and_indirect_calls_preserve_types(self):
+        result = subprocess.run(
+            [str(self.contract_path), "function-pointers", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "function-pointers: ok\n")
+
+    def test_function_pointer_casts_keep_exact_i386_ir_types(self):
+        result = subprocess.run(
+            [str(self.contract_path), "function-pointer-casts", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "function-pointer-casts: ok\n")
+
+    def test_doom_pointer_compatibility_lowers_as_typed_no_op_conversions(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "doom-compatibility-pointers",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "doom-compatibility-pointers: ok\n")
+
+    def test_fixed_automatic_objects_use_target_sized_local_storage(self):
+        result = subprocess.run(
+            [str(self.contract_path), "automatic-objects", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "automatic-objects: ok\n")
+
+    def test_block_extern_objects_lower_to_linked_file_addresses(self):
+        result = subprocess.run(
+            [str(self.contract_path), "block-externs", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "block-externs: ok\n")
+
+    def test_block_function_declarations_lower_without_runtime_storage(self):
+        result = subprocess.run(
+            [str(self.contract_path), "block-functions", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "block-functions: ok\n")
+
+    def test_block_enumerators_lower_as_integer_constants_without_storage(self):
+        result = subprocess.run(
+            [str(self.contract_path), "block-enums", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "block-enums: ok\n")
+
+    def test_bit_field_assignments_preserve_the_stored_value(self):
+        result = subprocess.run(
+            [str(self.contract_path), "bit-field-stores", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "bit-field-stores: ok\n")
+
+    def test_block_typedefs_lower_without_runtime_storage(self):
+        result = subprocess.run(
+            [str(self.contract_path), "block-typedefs", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "block-typedefs: ok\n")
+
+    def test_automatic_aggregate_initializers_zero_and_store_subobjects(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "aggregate-initializers",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "aggregate-initializers: ok\n")
+
+    def test_union_initializers_zero_and_store_one_active_member(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "union-initializers",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "union-initializers: ok\n")
+
+    def test_structure_values_cross_storage_conditionals_and_cdecl_calls(self):
+        result = subprocess.run(
+            [str(self.contract_path), "structure-values", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "structure-values: ok\n")
+
+    def test_compound_literals_reinitialize_stable_automatic_objects(self):
+        result = subprocess.run(
+            [str(self.contract_path), "compound-literals", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "compound-literals: ok\n")
+
+    def test_variadic_callees_publish_cursor_operations(self):
+        result = subprocess.run(
+            [str(self.contract_path), "variadic-callees", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "variadic-callees: ok\n")
+
+    def test_wide_variadics_publish_packed_argument_types(self):
+        result = subprocess.run(
+            [str(self.contract_path), "wide-variadics", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "wide-variadics: ok\n")
+
+    def test_floating_values_lower_as_typed_transport_operations(self):
+        result = subprocess.run(
+            [str(self.contract_path), "floating-transport", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "floating-transport: ok\n")
+
+    def test_static_long_double_arithmetic_lowers_without_runtime_work(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "static-long-double-arithmetic",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout, "static-long-double-arithmetic: ok\n"
+        )
+
+    def test_same_kind_floating_arithmetic_lowers_to_typed_ir(self):
+        result = subprocess.run(
+            [str(self.contract_path), "floating-arithmetic", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "floating-arithmetic: ok\n")
+
+    def test_floating_comparisons_lower_to_typed_ir(self):
+        result = subprocess.run(
+            [str(self.contract_path), "floating-comparisons", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "floating-comparisons: ok\n")
+
+    def test_floating_width_conversions_lower_to_typed_ir(self):
+        result = subprocess.run(
+            [str(self.contract_path), "floating-conversions", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "floating-conversions: ok\n")
+
+    def test_wide_integer_floating_conversions_lower_to_typed_ir(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "wide-integer-floating",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "wide-integer-floating: ok\n")
+
+    def test_floating_truth_lowers_to_typed_ir(self):
+        result = subprocess.run(
+            [str(self.contract_path), "floating-truth", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "floating-truth: ok\n")
+
+    def test_floating_updates_preserve_postfix_values_in_typed_ir(self):
+        result = subprocess.run(
+            [str(self.contract_path), "floating-updates", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "floating-updates: ok\n")
+
+    def test_static_floating_arithmetic_reaches_validated_constant_data(self):
+        result = subprocess.run(
+            [str(self.contract_path), "floating-scalars", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "floating-scalars: ok\n")
+
+    def test_old_style_empty_functions_lower_with_zero_parameters(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "old-style-empty-functions",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "old-style-empty-functions: ok\n")
+
+    def test_doom_implicit_functions_keep_call_site_abi_and_identity(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "doom-implicit-functions",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "doom-implicit-functions: ok\n")
+
+    def test_block_record_tags_lower_without_runtime_declaration_work(self):
+        result = subprocess.run(
+            [str(self.contract_path), "block-records", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "block-records: ok\n")
+
+    def test_narrow_integer_values_preserve_width_promotion_and_fixed_abi(self):
+        result = subprocess.run(
+            [str(self.contract_path), "narrow-values", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "narrow-values: ok\n")
+
+    def test_explicit_void_casts_preserve_operand_side_effects(self):
+        result = subprocess.run(
+            [str(self.contract_path), "void-casts", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "void-casts: ok\n")
+
+    def test_wide_shifts_bitwise_operations_and_conversions_lower_together(self):
+        result = subprocess.run(
+            [str(self.contract_path), "wide-returns", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "wide-returns: ok\n")
+
+    def test_wide_comparisons_and_conditions_lower_together(self):
+        result = subprocess.run(
+            [str(self.contract_path), "wide-conditions", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "wide-conditions: ok\n")
+
+    def test_self_host_frontier_values_lower_and_recover_together(self):
+        result = subprocess.run(
+            [str(self.contract_path), "self-host-frontier", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "self-host-frontier: ok\n")
+
+
+if __name__ == "__main__":
+    unittest.main()

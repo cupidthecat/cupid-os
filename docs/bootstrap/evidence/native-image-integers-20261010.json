@@ -1,0 +1,170 @@
+{
+  "artifact_patch": {
+    "sha256": "bae0f3c4a9e5b49c02ad3d74ebc09143ca4efc9dd8f53be09d4f2e35519dd93c",
+    "size": 13227
+  },
+  "bounded_runtime_seconds": 60,
+  "complete_parser_calls": 66816,
+  "fgetc_repeated_eof_and_clear_seek_recovery": true,
+  "fgetc_unsigned_byte_values_per_invocation": 256,
+  "implementation_runner": {
+    "sha256": "e0c5fbb7dea997d5e944aa633a74c3b22434d81e4e9e7f37004505c04cd7c1d0",
+    "size": 14917
+  },
+  "independent_packager": {
+    "sha256": "ef22dc828808a994e7d5e11744575a1f91baa2372afaf265287be4d51d73a177",
+    "size": 10900
+  },
+  "installed_seed_files_unchanged": 15,
+  "linux_address_space_bytes": 33554432,
+  "negative_parser_calls": 35888,
+  "normal_99_raw_committed_inputs_unchanged": true,
+  "normal_recipe_ownership_transferred": false,
+  "oracle_fixture": {
+    "sha256": "d739481695cc7d1f417242e07eee1cc17097196b6e101ce3b8ce47823dfa3202",
+    "size": 233265
+  },
+  "oracle_profiles": {
+    "linux": {
+      "cases": 8067,
+      "expected": {
+        "sha256": "0d9d6129817ecaa5639c6759f90c84974af38ef049a92e703a2edc53256fd098",
+        "size": 105639
+      },
+      "negative_cases": 4441,
+      "positive_cases": 3626,
+      "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+      "request": {
+        "sha256": "3b905c7978b29f790a385eeea1d4dc094e5e41e3c9786e8d38eedfd6d57f44ef",
+        "size": 687505
+      },
+      "unicode": "15.0.0"
+    },
+    "windows": {
+      "cases": 8477,
+      "expected": {
+        "sha256": "35b6891f56ff438c1d34f1fab9ab801a8f12d5379bc9a8dbcfbee1c09317ce51",
+        "size": 111519
+      },
+      "negative_cases": 4451,
+      "positive_cases": 4026,
+      "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+      "request": {
+        "sha256": "448d9ee7272da3fa5e8fee4284e478b901db792405eff543d3bb720295dd03f0",
+        "size": 695655
+      },
+      "unicode": "16.0.0"
+    }
+  },
+  "oracle_uncompressed": {
+    "sha256": "02826ad97931bd359dc67deab4145b424cc4766c2cfba4e745ad6bed9952f71d",
+    "size": 4441963
+  },
+  "original_completion_receipts": {
+    "linux": {
+      "sha256": "8da51a65f81e4ee791f3433f0e874a566573243c94f17e0137112f0bfc78a4bd",
+      "size": 9795
+    },
+    "windows": {
+      "sha256": "ede3d00650066018f3584f08c1bc3a3f2597c91cd585b12997ba3a0a0f820d7e",
+      "size": 9869
+    }
+  },
+  "original_cross_profile_receipts": {
+    "linux": {
+      "sha256": "2b03f0363f4c11868d7236e5bd8501c7108c5a66a2a3c1c2f381593e4817d513",
+      "size": 7679
+    },
+    "windows": {
+      "sha256": "b57a1165085f7facd0106ee99e466fb70e6c9da10b7f838f5df076ffe7b1de9b",
+      "size": 7764
+    }
+  },
+  "original_failures_preserved": {
+    "linux": {
+      "initial": {
+        "sha256": "33da8f317c47fe3dff37f15eb5ce6d2291e91ca6e62f71bd264738ec34b96513",
+        "size": 6836
+      },
+      "preserved_second_runner": {
+        "sha256": "d85a4313baf7f71c8bb782e8282d027c4373934e8e9b0afb1d0637e5d4d23a25",
+        "size": 14921
+      },
+      "wrong_certification_flags": {
+        "sha256": "ad7ba0a89714e7d0dcc6caa4938f84f14903254e094bf470018624075543e6d2",
+        "size": 11892
+      }
+    },
+    "windows": {
+      "initial": {
+        "sha256": "35d240f27c6ed0b9d8fadc23f08421817d111e949e4611ba182f0265a945a6b3",
+        "size": 5997
+      },
+      "preserved_second_runner": {
+        "sha256": "d85a4313baf7f71c8bb782e8282d027c4373934e8e9b0afb1d0637e5d4d23a25",
+        "size": 14921
+      },
+      "wrong_certification_flags": {
+        "sha256": "d2396574aba93d77bd155a1bbb114e388c103376f65c977798095b76fedeb0aa",
+        "size": 13133
+      }
+    }
+  },
+  "positive_parser_calls": 30928,
+  "prototype_sources": {
+    "cupidbuild_disk_integer.cc": {
+      "sha256": "f096ef8afdbd22fe3f7485d4be965081cef6cc92574f2199b7e1af17e0941db8",
+      "size": 5188
+    },
+    "cupidbuild_disk_integer.h": {
+      "sha256": "c382c730ad976618ac3c9783c7cb7b8f03368262b94761ca5f8d7576e748d1aa",
+      "size": 1219
+    },
+    "cupidbuild_disk_integer_contract.cc": {
+      "sha256": "93d61ff6c81466c3d954cca8f77a65046292383188ced06c759d387327c586ab",
+      "size": 3450
+    },
+    "cupidbuild_disk_integer_tables.inc": {
+      "sha256": "ce397615d42511bc7d83eab970bc5efa285452669234deac20c93afe48047247",
+      "size": 2050
+    },
+    "fgetc_extension.cc": {
+      "sha256": "19c7a8c76cdfca92cf3fdcf9c12589e4616d8947708ed49ea64b84df1c10d47b",
+      "size": 154
+    },
+    "fgetc_extension.h": {
+      "sha256": "a61d0d5294d34c5b6d0fef19c55aaf84e693be26bce2e085a52d49bb5eb0a519",
+      "size": 132
+    }
+  },
+  "qualification_receipts": {
+    "linux": {
+      "sha256": "2d6151c6987109de1225c3195bd451755632fb4c22809c769039fefb77fb838b",
+      "size": 1118584
+    },
+    "windows": {
+      "sha256": "18b2492d816046e8d1ef4b1d4b695ec09456d557ab8464eb0accbede6eca1649",
+      "size": 864597
+    }
+  },
+  "schema": "cupid.native-image-integer-paired-evidence.v1",
+  "source_revision": "1d852023df98c03481c4b3979dccb398288b7115",
+  "source_snapshot_sha256": "4ae98403b0896b24e50b81b11b213b8117207421b9152e95d0500e00e612d07e",
+  "status": "pass",
+  "strict_certifications": 12,
+  "unique_parser_cases_per_caller": 16704,
+  "whole_cross_host_object_pairs": {
+    "contract.o": {
+      "sha256": "275a2785c7210cca08407bdeb5bdcc4cac65ba64bc80c9c8886bac2bce3793cb",
+      "size": 6260
+    },
+    "fgetc.o": {
+      "sha256": "1bb8e1780e7cd7d4064e406c22fdc1aae1e8321351f94e87afd8628f88f07a20",
+      "size": 556
+    },
+    "number.o": {
+      "sha256": "2cb4f3c97cc39a876df82f4729f969a5705c930bdc9f7984858e321e71b714b0",
+      "size": 5540
+    }
+  }
+}

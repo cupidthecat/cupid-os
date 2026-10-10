@@ -1215,7 +1215,7 @@ int wait_for_request_reply() {
  *
  * The CupidOS GUI renderer (shell_gui_putchar_ext) already understands
  * VT100/ANSI escape sequences (CSI move/erase, SGR colors, etc) - see
- * kernel/lang/ansi.* and kernel/core/kernel.c. So the cupidc client
+ * kernel/lang/ansi.* and kernel/core/kernel.cc. So the cupidc client
  * acts as a thin passthrough: every byte the server sends goes
  * directly to print_n, which feeds shell_gui_putchar_ext.
  *

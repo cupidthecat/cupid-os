@@ -12,7 +12,7 @@
  *
  * Reference:
  *   https://www.w3.org/TR/WOFF/
- *   kernel/gfx/png.c (zlib-strip pattern: skip 2-byte CMF/FLG header,
+ *   kernel/gfx/png.cc (zlib-strip pattern: skip 2-byte CMF/FLG header,
  *                    drop 4-byte trailing Adler-32, kdeflate_raw rest)
 */
 
@@ -129,7 +129,7 @@ char *woff1_unwrap(char *src, int src_len, int *out_len) {
             /* zlib-wrapped DEFLATE. The 2-byte CMF/FLG header is skipped
              * before kdeflate_raw and the trailing 4-byte Adler-32 is
              * dropped from the byte length, exactly mirroring how
-             * kernel/gfx/png.c hands IDAT chunks to the same primitive.*/
+             * kernel/gfx/png.cc hands IDAT chunks to the same primitive.*/
             if (sd_csize < 6) { kfree(out); return (char*)0; }
             int rc = kdeflate_raw(src + sd_off + 2,
                                   sd_csize - 6,

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 FPU + SSE2 + CupidC Float/Double
-Verified against source on: 2026-05-15
+Verified against source on: 2026-08-20
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -15,12 +15,19 @@ Verified against source on: 2026-05-15
 
 >h2 Overview
 >tree open Overview
-CupidOS supports hardware x87 + SSE/SSE2 floating point end-to-end:
-kernel, language, assembler, libm, printf.
+CupidOS supports hardware x87 and SSE/SSE2 floating point in the kernel,
+language, assembler, libm, and printf.
 
-  - Build: `-mfpmath=sse -msse -msse2 -mstackrealign` in CFLAGS.
-  - Init: `fpu_init()` is the first call in `kmain`. Sets CR0.EM=0/MP=1/NE=1/TS=0
-    and CR4.OSFXSR=1/OSXMMEXCPT=1, runs FNINIT, loads MXCSR=0x1F80.
+  - Target policy: kernel and Doom profiles use SSE/SSE2 floating code and
+    16-byte call alignment. Native-oracle CFLAGS record this as
+    `-mfpmath=sse -msse -msse2 -mstackrealign`.
+  - Init: `fpu_init()` is the first call in `kmain`; every AP calls the
+    no-log `fpu_init_cpu()` before any other C operation or compiler-generated
+    SSE. That helper is built with target("general-regs-only") so its own
+    setup cannot use floating registers. CR0 and CR4 are per-CPU: each path
+    sets
+    CR0.EM=0/MP=1/NE=1/TS=0 and
+    CR4.OSFXSR=1/OSXMMEXCPT=1, runs FNINIT, and loads MXCSR=0x1F80.
   - Context switch: `context_switch.asm` FXSAVEs the outgoing PCB's
     `fp_state[512]` and FXRSTORs the incoming task's. Eager: no CR0.TS games.
   - PCB: `process_t.fp_state` is 512 bytes at 16-byte alignment. Offset 80.
@@ -32,21 +39,499 @@ kernel, language, assembler, libm, printf.
 
 >h2 CupidC FP Types
 >tree open CupidC FP Types
-  float    — 4 bytes, SSE scalar.
-  double   — 8 bytes, SSE scalar.
-  float4   — 16 bytes, SSE packed (4 floats).
-  double2  — 16 bytes, SSE packed (2 doubles).
+  float:   4 bytes, SSE scalar.
+  double:  8 bytes, SSE scalar.
+  float4:  16 bytes, SSE packed (4 floats).
+  double2: 16 bytes, SSE packed (2 doubles).
+
+>h3 Shared Self-Hosting Path
+The shared compiler used for self-hosting combines its i386 x87 transport and
+arithmetic path with SSE conversion and comparison emission. It carries
+non-atomic float and double values through objects, calls, variadic reads, and
+returns. Explicit casts and assignment conversion work in either direction.
+Matching floating conditional arms keep their width. Mixed arithmetic and
+conditional arms use double.
+
+The +=, -=, *=, and /= operators compute at the common width, convert the
+stored result back to the left type, and evaluate the left designator once.
+Each changed x87 result is stored at its C width before the next Linear IR
+instruction.
+
+Decimal constants, represented integer conversions, mixed integer-and-floating
+arithmetic, and all six comparisons use the shared SSE path. A mixed floating
+comparison uses double, and only != is true for an unordered NaN input.
+Runtime float and double values convert to represented unsigned four-byte
+targets across C's defined range. Binary32 widens exactly, and the result path
+splits at 2^31 before signed truncation. ADR 0250 records this rule.
+
+Non-atomic long double values use twelve-byte target objects. Automatic values
+use frame snapshots. Static-duration scalars, fixed arrays, and complete
+records may contain long-double leaves. Implicit initialization zeros the
+complete object. An explicit leaf accepts a represented integer constant
+expression or a bounded decimal L literal with parentheses and unary
+signs. The emitter writes ten exact x87 value bytes, clears both padding
+bytes, and selects .bss, .data, or .rodata from the payload and qualifiers.
+Atomic leaves fail recursively without following pointers. Bounded finite normal
+decimal L tokens round an exact ratio to a 64-bit explicit significand with
+ties to even. The emitter writes that significand and the positive token's
+biased exponent into a twelve-byte snapshot; unary minus supplies the sign.
+The value-bearing ten bytes move through x87 80-bit FLD and FSTP memory forms in Cupid's shared x86 catalogue. The hosted
+path converts among float, double, and long double, applies unary plus and
+minus, and evaluates +, -, *, and /.
+Checked-seed CupidASM and CupidDis also share signed x87 integer memory forms.
+FILD and FISTP accept 16-bit, 32-bit, and 64-bit operands. Checked CupidC uses
+the 64-bit forms for runtime conversion at every i386 integer width. It
+presents input as signed 64-bit memory, adds exact 2^64 for an unsigned 64-bit
+value with bit 63 set, and canonicalizes the 64-bit FISTP result to the target
+width. The unsigned correction temporarily selects 64-bit x87 precision,
+keeps the caller's rounding mode, and restores the complete saved control
+word before the final store. Integer output saves and restores that word
+around truncation toward zero. Static initializer conversion covers _Bool,
+plain char, every signed or unsigned i386 integer width, and an enum whose
+compatible integer type has the represented target layout. A nonzero integer
+magnitude M with bit width w becomes x87 significand M << (64 - w). The high
+word is (negative ? 0x8000 : 0) | (0x3fff + w - 1). Long-double input
+truncates toward zero before its range check for integer destinations other
+than _Bool.
+_Bool tests the original floating value: both signed zeros become false, and
+every represented finite nonzero value becomes true. The fixture converts
+-0.5L to both targets, producing true for _Bool and zero for an unsigned
+integer. Integer-valued zero keeps a CTOOL_C_INITIALIZER_ZERO record. ADR 0258
+records checked-seed carriage.
+Direct and indirect fixed, variadic, and unprototyped arguments occupy twelve
+cdecl bytes. Functions return the value in x87 ST0, and direct or indirect
+callers store it in a twelve-byte snapshot. va_arg(long double) copies twelve
+bytes and leaves the cursor at the following four-byte slot. All six
+comparisons accept matching long-double values and mixed float or double
+inputs. The emitter loads right then left, uses FUCOMIP ST0, ST1, and discards
+the surviving x87 value. Signed zeros compare equal, and only != is true for
+an unordered input. Static long-double truth, all six comparisons,
+short-circuit logic, conditional selection, and conversion to or from binary32
+and binary64 use one target-only decoder. It accepts canonical x87 zero,
+subnormal, normal, infinity, and NaN payloads while rejecting pseudo
+encodings. Finite widening keeps exact x87 bits. Infinity keeps its sign, and
+NaN becomes one quiet x87 payload. Narrowing uses ties-to-even rounding for
+finite values and canonical special encodings. Folded results add no runtime
+IR. Static long-double +, -, *, and / use unsigned 128-bit target arithmetic,
+round once with ties to even, and keep gradual underflow. Hexadecimal or
+subnormal long-double literals and decimal ratios beyond the bounded parser
+remain open.
+
+The static scalar and aggregate proofs cover both scopes, mutable and const
+objects, positive and negative values, both signed zeros, the largest accepted
+bounded literal, exact section placement, symbols, padding, malformed
+metadata, recovery, and deterministic repeated emission. The hosted i386
+runtime reads all three target words for every literal payload. The conversion
+fixture covers every integer kind, signed and unsigned enums, both signed
+64-bit endpoints, ULLONG_MAX, and both the _Bool and unsigned results of
+-0.5L. ADR 0251 records the static-data boundary, ADR 0254 records integer
+conversion, and ADR 0255 records static controls and finite width conversion.
+ADR 0256 records the canonical x87 decoder and special-value transport.
+
+The checked i386 Linux seed now carries static floating constant data and this
+complete comparison path. The normal build uses them in kernel/gfx/jpeg.cc
+and kernel/gfx/glyph_raster.cc. Their deterministic checked objects and guest
+JPEG and glyph paths pass. ADR 0139 records the production transfer.
+
+The checked seed understands the general-regs-only target on canonical
+file-scope functions. It rejects compiler-generated floating instructions,
+values, and call arguments while explicit source assembly keeps its separate
+contract. It also accepts the exact ldmxcsr %0 memory input and
+emits 0F AE 10 through the shared x86 model. The complete fpu_init_cpu body
+passes unchanged. It also accepts the exact MOVSS float-memory round trip in
+fpu_boot_smoke and its one-way load and store forms. Each form requires the
+xmm0 clobber and emits F3 0F 10 00 or F3 0F 11 00 through EAX. The unchanged
+stress_sin x87 block is also represented. It keeps one double output and one
+double input, permits no clobbers, and emits FLD, FSIN, and FSTP through the
+shared x86 model. The x87 stack returns to its original depth and no frame
+temporary is used. Checked-seed CupidC also accepts exact fldcw %0 with one
+addressable, non-atomic 16-bit integer memory input. GNU semantics make the
+no-output statement volatile even without that keyword. The emitter produces
+D9 /5 through EAX. ADR 0258 records checked-seed carriage.
+
+The earlier compiler proof used kernel/cpu/fpu.c. The
+unchanged implementation is now kernel/cpu/fpu.cc, a checked CupidC production
+root. Two checked compiles produce the same validated 6,620-byte object with
+SHA-256
+14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210aa69d64ed8c8a5cb.
+The production object policy decodes fpu_init_cpu. It rejects helper calls
+and floating work before the CR4 write, requires FNINIT before one 32-bit
+memory LDMXCSR, and rejects any other floating work in the function.
+Four-vCPU e1000 and RTL8139 boots print [fpu] SSE2 enabled,
+[fpu] boot smoke ok, and FPU boot smoke passed before they finish
+feature16_asm_fpu.cc successfully.
+
+The checked seed also accepts the exact volatile EFLAGS restore in
+simd_cpu_has_cpuid. One non-atomic 32-bit integer r input and one cc clobber
+produce a checked POP EAX, PUSH EAX, POPF sequence. ESP remains balanced and
+the object needs no relocation for this statement. Both unchanged restore
+sites pass.
+
+It also accepts the CPUID leaf input sharing EAX with the
+compatible write-only output. It keeps the a and =a constraints, records
+their match, and loads EAX immediately before CPUID. The checked seed emits
+the six packed SSE2 statement shapes in kernel/cpu/simd.cc. Their ordered
+inputs, memory effect, and XMM0 through XMM7 clobbers remain explicit. The
+production wrapper freezes the source and its seven-header closure. Two
+checked-seed builds produce the same validated 8,768-byte object with SHA-256
+fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4.
+The normal SIMD recipe now uses this checked object.
+
+The checked seed represents the exact x87 round-down statement in
+str_floor. It takes one double memory output and one double memory input with
+the exact ax and memory clobbers. Emission saves the incoming x87 control word
+below ESP, selects round toward negative infinity, executes FRNDINT, restores
+the saved word, and stores the result. It reuses the consumed input-address
+slot for scratch, leaves the pending output address intact, and needs no frame
+temporary.
+
+A bounded shared-decoder oracle checks eight binary64 inputs under all four
+incoming rounding modes. It verifies exact results, balanced x87 depth, and
+control-word restoration without executing native x87 code. Two exact
+compiles of the unchanged helper produce the same 420-byte object.
+
+The checked seed also emits the later explicit non-atomic double-to-uint64_t
+casts. It derives the high word from value / 2^32, subtracts that exact
+multiple, and derives the low word from the remainder. Each unsigned-word
+step splits at 2^31 before signed SSE truncation. The decoder-driven oracle
+covers positive and negative fractions and the active range through the
+largest binary64 value below 2^64.
+Full unchanged kernel/core/string.cc compiles twice to the same 14,460-byte
+object with SHA-256
+d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577.
+The production wrapper freezes the source and its two headers, validates the
+ELF32 object, and publishes it without a host compiler. ADR 0181 records the
+transfer.
+
+The checked seed also represents the x87 power statements in libm_pow_impl and
+libm_powf_impl. The double form has five double memory operands. The mixed
+form has a float output, two float inputs, and two double inputs. Both require
+one memory clobber. Linear IR evaluates each set of five addresses once in
+source order. Each 116-byte focused function contains seventeen x87
+instructions, uses DC E9 for FSUB ST(1), ST(0), reaches stack depth three,
+and returns to its incoming depth without a relocation. All seven active
+range-reduction sites use the corrected GNU spelling for x - round(x). The
+old DC E1 spelling remains a compatibility contract. ADRs 0208 and 0209
+record seed carriage and the runtime-tested source correction.
+
+The checked seed also represents the exact volatile sqrtsd %1, %0 statement in
+libm_sqrt_impl. It accepts one modifiable, non-atomic double =x output, one
+non-atomic double x input, and no clobbers. Linear IR evaluates the output
+address before the input value. The 65-byte focused function uses the shared
+MOVSD and SQRTSD encodings and has no relocations.
+
+The checked seed also represents the exact volatile x87 statement in
+libm_atan2_impl. It accepts one modifiable, non-atomic double =m output, two
+addressable, non-atomic double m inputs in y, x order, and one memory
+clobber. Linear IR evaluates all three addresses once in source order. The
+53-byte focused function uses the shared model for both loads, FPATAN, and
+the final store, with no relocations.
+
+The checked seed also represents the exact volatile x87 statement in
+libm_exp_impl. It accepts one modifiable, non-atomic double =m output, two
+addressable, non-atomic double m inputs in x, log2e order, and one memory
+clobber. Linear IR evaluates all three addresses once in source order. The
+71-byte focused function has no relocations, reaches x87 depth three, and
+returns to its incoming depth.
+
+The checked seed also represents the exact aligned fabs mask block and the
+following fabs and fabsf wrappers. The masks occupy the first 32 bytes of
+.rodata, with local labels at offsets 0 and 16. The double wrapper uses MOVSD
+and ANDPD in 15 text bytes. The float wrapper uses MOVSS and ANDPS in 14
+bytes. Each has one absolute relocation to its mask.
+
+The following floor, floorf, ceil, ceilf, round, roundf, trunc, and truncf
+wrappers are represented by the checked seed too. They save the incoming x87
+control word, select down, up, nearest-even, or toward-zero mode, apply
+FRNDINT, and restore the original word. Together they occupy 384 text bytes
+without relocations, reach x87 depth one, and balance ESP and x87 depth.
+
+The following fmod and fmodf wrappers are represented by the checked seed too.
+Each repeats FPREM while x87 status-word C2 is set, uses a short backward
+branch, discards the divisor, and returns the remainder through XMM0. Each
+body contains 35 text bytes, reaches x87 depth two, balances ESP and x87
+depth, and has no relocation.
+
+The checked seed also represents the aligned libm_log2e_const and libm_ln2_const
+data and the next eight exponent and logarithm wrappers. The constants occupy
+16 read-only bytes at alignment eight. exp2 and exp2f use FRNDINT, F2XM1, and
+FSCALE. exp and expf multiply by log2(e) first. log2 and log2f use FLD1 with
+FYL2X, while log and logf use ln(2). The functions add 264 text bytes and
+four absolute relocations, never exceed x87 depth three, and balance ESP and
+x87 depth. The source then reaches pow on line 846.
+
+The checked seed represents that wrapper and all 17 later cdecl bridges.
+The pow, hypot, and nextafter pairs take two arguments. The asin, acos, sinh,
+cosh, tanh, and cbrt pairs take one. Each wrapper copies its original cdecl
+words, calls a matching external implementation, reclaims the copied words,
+and moves the ST(0) result into XMM0 at float or double width. The family
+adds 558 text bytes and 18 PC-relative call relocations. Corrected
+kernel/cpu/libm.cc emits a deterministic 16,164-byte ELF32 object through
+the checked production wrapper. The wrapper freezes kernel/core/types.h and
+kernel/cpu/libm.h with the source. The guest smoke runs
+/bin/feature15_libm.cc and requires the seven-case x87 summary, all 29 checks,
+and PASS feature15_libm. ADR 0209 records the numerical correction.
+
+Runtime float, double, and automatic long double values work with unary !,
+&&, ||, the controlling operand of ?:, the conditions of if, while, do, and
+for, and conversion to _Bool. Both signed zeros are false; finite nonzero
+values, subnormals, infinities, and NaNs are true. Checked-seed hosted CupidC
+accepts prefix and postfix increment and decrement on modifiable non-atomic
+float and double lvalues. It evaluates the lvalue once, stores the result after
+adding or subtracting exact-width 1.0, and returns the original raw payload for
+a postfix form. Hosted CupidC forms each decimal float or double
+ratio in a private 1536-bit integer workspace, then rounds once at the selected
+IEEE width with ties going to even. Public frontend, Linear IR, and ELF32
+contracts cover both halfway parities, minimum subnormal and normal values,
+maximum finite values, infinity, signed underflow zero, extreme exponents, and
+the 95-character token boundary. Source head also parses C99 hexadecimal
+float, double, and long double constants with bounded target-only integer
+arithmetic and direct binary32, binary64, or x87 rounding. ADR 0312 first
+carried the decimal capability. ADR 0318 records a preceding linked-image seed.
+ADR 0349 records hexadecimal syntax, and ADR 0353 records carriage in the
+active paired v2 seeds. The four arithmetic compound
+operators also
+accept an integer and a floating operand in either lvalue direction. They use
+the usual float,
+double, or long double computation type, convert back to the declared left
+type, and evaluate the destination once. Atomic floating compound assignment,
+atomic floating updates, long double increment and decrement, decimal
+long-double subnormals, long-double ratios beyond the bounded parser, general SIMD value semantics,
+and atomic floating access remain
+outside this shared path. Checked-seed static controls, arithmetic, and
+floating-width conversion fold through the target representation. ADR 0260
+records the static arithmetic model, and ADR 0265 records seed carriage.
+ADR 0293 records exact source-head decimal float and double literals.
+ADR 0296 records mixed arithmetic compound assignment.
+ADR 0349 records exact source-head hexadecimal floating literals.
+
+Private comparison and truth sequences use SETNP for an ordered guard and SETP
+for an unordered guard. Checked-seed CupidDis recognizes both byte
+predicates, so `dis /bin/test_fpaug.cc` stays aligned through the Boolean merge
+and normalization instructions. The guest executes those bounded parity checks
+before running the full feature-13 comparison and truth program. The checked
+seed and source head carry 604 rows, 249 mnemonics, and fingerprint 55A8970F,
+including these predicates and static arithmetic support. ADR 0258 records the
+preceding seed, ADR 0259 records the parity predicates, and ADR 0265 records
+their checked-seed carriage. In GUI mode, the listing remains in the terminal and is mirrored
+to serial after normal sink and redirection handling, which lets the runtime
+gate inspect production CupidDis output.
+
+The normal poisoned-host root uses the promoted Cupid tools for static
+arithmetic, ordinary floating updates, and parity predicates. Four-CPU e1000
+and RTL8139 runtime gates also cover AC97 and PC speaker behavior. Exact
+artifact identities and dated run evidence are kept in the host bootstrap log.
+That log records the post-manual-freeze poisoned build and strong private
+four-vCPU e1000 frontier because this manual is an image input.
+
+Twelve-byte direct and
+indirect fixed, variadic, and unprototyped arguments, function returns, direct
+and indirect call results, and va_arg(long double) use the represented
+automatic long-double path. The exact production SIMD assembly forms above
+have their own checked path. The SSE details below describe the private in-OS
+compiler.
+
+The private compiler passes represented scalar and pointer values in
+four-byte cdecl slots and double values in eight-byte slots. Direct,
+function-pointer, and method calls preserve left-to-right evaluation, arrange
+complete words in source order, and use the same widths for callee parameter
+offsets and caller cleanup. The feature13 guest exercises ten calls through
+one double, double, double, int helper.
+
+A direct function or method with parsed fixed parameter types converts
+represented integer, char, float, and double arguments to the declared slot
+type before cdecl layout. Represented pointer categories and integer null forms
+can fill a pointer slot. A represented object pointer can fill a fixed int or
+unsigned int slot as one unchanged i386 word. Narrow and floating destinations
+remain rejected. A parsed variadic tail widens float to double and
+promotes char to int. Function-pointer calls, kernel bindings, and calls
+without that metadata keep their source-width slots. A named block-local
+function pointer with an explicit prototype uses the same conversions and
+keeps its declared result. A file-scope function-pointer typedef retains the
+result, fixed parameters, record identities, prototype state, and variadic
+boundary. A free-function or Cupid class method parameter declared through that
+typedef receives the signature. A declaration-initialized automatic object
+receives its own copy. File objects and raw or typedef-backed record fields can
+retain the same signature. JIT and private AOT calls use that metadata. Empty
+(), alias chains, and void-pointer forms remain metadata-free. Plain function
+initializers must match the retained
+signature; an explicit cast erases it. ADR 0301 records the earlier named-local
+callback rule. Named local copies share the check. Later targets receive
+absolute fixups, and provisional signatures must match their definitions.
+Compatible conditional selection checks every named arm, and failed
+declarations restore their prior signature and fixups. Represented integer
+constant expressions that evaluate to zero are valid null pointers; runtime
+zero is not. Null conditional arms are neutral for erasure, and every non-null
+object arm must be cast. A failed function, method, or complete source restores
+its emitted state, patches, control state, touched function symbols, kernel
+bindings, and reused void(void) __start thunk.
+
+Raw one-dimensional function-pointer arrays retain that ABI metadata in
+data-backed file, block-static, and persistent REPL storage. A block-static raw
+scalar callback shares the same allocation, initializer, and later-target
+patch path. A positive fixed bound reserves and clears the full checked
+allocation. An omitted bound is inferred from a nonempty braced initializer.
+Missing fixed entries and omitted fixed initializers remain null, while an
+excess initializer fails. Every non-null element must match the parsed
+signature. A known function address is stored immediately, and a later
+definition receives an absolute data patch.
+
+The signature survives subscripting, indexed assignment, named copies,
+argument conversion, and typed indirect calls. Direct indexed calls and
+(*callbacks[index])(...) both keep the existing four-, eight-, and sixteen-byte
+cdecl slot rules, the variadic boundary, and represented result transport. The
+index runs once. The private contract uses the active Doom
+static int (*wipes[])(int, int, int) shape with wipeno*3 phase selection.
+Checked-seed hosted CupidC still owns the production kernel/doom/src/f_wipe.cc
+object.
+
+Fixed-size automatic raw callback arrays use cleared four-byte local frame
+slots and retain their signature through brace initialization, indexed stores,
+copies, and calls. Unsized automatic arrays, raw array parameters, raw array
+record fields, and multidimensional raw arrays remain unsupported. Typedef-backed fixed
+callback arrays on record fields use the retained ADR 0328 path. ADR 0330
+records the raw data-backed array and shared block-static scalar boundary. ADR
+0351 records the fixed automatic form.
+
+Function-pointer typedef declarations remain file-scope, allow one alias per
+declaration, and share a sixteen-entry table. Direct record and array callback
+results are rejected; record-pointer results retain identity.
+
+A callback parameter nested inside another retained function pointer keeps a
+child handle. Raw children use the private raw-signature pool, and direct
+callback typedefs keep their typedef handles. Further callback parameters are
+followed recursively. Structurally compatible prototyped raw and typedef-backed
+children agree on result and fixed parameter types, record-pointer identities,
+and the variadic boundary at every level. The existing unprototyped
+compatibility rule remains in force.
+
+The nested callback itself remains one four-byte i386 cdecl slot. Its child
+handle affects checking and does not change the runtime ABI. The compiler
+accepts signature graphs through sixteen levels. A 33-entry backing pool uses
+one record for the active kernel callback and leaves 32 records for source.
+Depth and pool failures roll back the parent and child handles,
+emitted state, and pending data patches. Persistent REPL rollback restores the
+same state.
+
+The active binding shape is
+void (*p_icon_set_drawer)(int, void (*)(int, int)) for set_icon_drawer. The
+outer call checks the inner drawer signature before using the normal cdecl
+word. Function pointers still cannot return records or arrays. Raw callback
+array parameters, raw Cupid class method parameters, callback alias chains,
+and aggregate callback results remain unsupported. Checked-seed hosted CupidC
+continues to own the production kernel/lang/cupidc.cc object; the standalone
+seeds do not contain this private parser.
+
+Reviewed native bindings use the same recursive signature record for fixed and
+variadic scalar parameters. Their kernel calls share ordinary typed
+conversion, complete cdecl slot layout, cleanup, arity, default promotion, and
+result transport. The reviewed set includes every libm binding and
+set_icon_drawer. The icon setter publishes its retained void(int, int) child
+handle through the outer native descriptor. Unreviewed entries stay on the
+named legacy result-only path. ADR 0333 records the nested binding.
+
+Private decimal float and double literals use a fixed 1536-bit integer
+workspace. CupidC forms the exact decimal ratio and rounds once to the selected
+IEEE width with ties going to even. An f suffix selects binary32 before
+rounding. The converter covers subnormals, finite limits, infinity, and signed
+zero. Numeric tokens may contain 95 characters including their suffix.
+Hexadecimal floating and long double literals remain unsupported.
+
+Fixed float and double arrays keep their element type through one, two, or
+three dimensions in global, automatic, block-static, and persistent REPL
+storage. The private compiler uses the remaining row stride for each
+subscript and typed SSE access at the leaf. sizeof(array[index]) reports the
+row without running the index. Depth-one floating pointers retain their width
+through address expressions, returns, function and method array parameters,
+dereference, subscripts, scaled direct pointer updates, and assignment.
+Structure and class objects, arrays, and pointers keep scalar floating fields
+and one-dimensional fixed floating field arrays. Bounds and dimension products
+are checked before allocation. Prefix and postfix updates work through a
+depth-one pointer, fixed-array index, or floating record field. The compiler
+evaluates each destination once and keeps the exact old payload for postfix.
+Deeper floating pointers, pointer-to-array types, assignment through a
+pointer-valued floating field subscript remain unsupported.
+
+Matching float4 and double2 values support direct +, -, *, and /. Fixed arrays
+may have one, two, or three dimensions in global, automatic, block-static, and
+persistent REPL storage. Outer indexes keep checked row or middle-slice strides
+until the final 16-byte vector leaf, which uses unaligned-safe packed moves.
+Declared rank stays separate from byte stride, so a unit inner extent still
+needs its final subscript. Plain assignment and +=, -=, *=, and /= retain the
+vector type, evaluate every index once, and allow lane extraction. Row and
+vector sizeof keep their complete size without running an index. Modifiable
+direct vectors and fully indexed leaves support prefix or postfix increment and
+decrement. Automatic, global, block-static, and persistent REPL vectors reserve
+the complete 16 bytes. Prefix returns the stored vector. Postfix returns the
+exact old 128-bit payload after the store. An indexed destination runs once.
+Const qualification is retained through typedef aliases. Const direct vectors
+and fixed-array leaves remain readable but plain and arithmetic compound
+assignment, plus prefix and postfix ++ and --, are rejected before a store.
+Lane updates, computed vectors, SIMD pointers, record fields, array parameters,
+and row values remain unsupported. Every direct operator keeps the
+written left value in the machine destination. MIN and MAX intrinsics keep the
+second input for NaN and equal signed-zero cases. For a both-NaN ADD or
+MUL, the processor or emulator may preserve either input payload. Incomplete
+row assignments and row expressions are rejected.
+
+Fixed-prototype direct functions and methods pass float4 and double2 by value.
+Each vector uses one complete 16-byte cdecl stack slot and returns in XMM0.
+Slots are packed at four-byte granularity, so MOVUPS handles a vector after a
+four- or eight-byte value. The private ABI makes no 16-byte call-site alignment
+promise. Arguments still run from left to right, and the caller reclaims the
+full outgoing area. A const vector parameter is readable but not modifiable.
+A fixed SIMD prefix may precede scalar variadic values. SIMD variadic tails,
+unprototyped SIMD calls, and signature-erased function-pointer calls are
+rejected. A named block-local function pointer with an explicit prototype can
+carry a fixed SIMD parameter or result through the same 16-byte slot and XMM0
+return path. A parameter of the free function helper or Cupid class method
+declared with the feature14 float4 callback typedef keeps that same slot and
+result metadata. A declaration-initialized automatic object keeps it too.
+A file object declared directly with that typedef also keeps the signature
+through null or compatible function initialization, checked assignment,
+indirect call, and clearing. A defined function address is written into
+initialized data, while a later definition receives an absolute data patch.
+Raw or typedef-backed scalar fields retain the signature, and typedef-backed
+fixed callback array fields retain it after subscripting. Raw static-storage
+callback arrays use the data-backed rules above. Alias chains still erase the
+signature.
+Named raw callback file objects and direct free-function parameters retain the
+same mixed-width slot metadata without a typedef. They use the shared
+raw-signature pool described above. ADR 0315 records this boundary. ADR 0325
+records direct raw or typedef-backed field
+calls, and ADR 0328 records typedef-backed callback field arrays.
+Named SIMD intrinsics keep their inline lowering. A plain function initializer
+must match the retained
+signature; an explicit cast opts into erasure. Local callback copies share the
+check, and later target addresses are fixed up. A compatible conditional checks
+all named arms.
+
+Focused JIT and private AOT tests execute named SIMD callbacks, the
+typedef-parameter callback, a typedef-global callback, an automatic callback,
+and a Cupid class method callback parameter. The source expects
+`[feature14-callback-typedef] PASS float4=4 calls=1`,
+`[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
+`cleared=1 calls=2`, and
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2` in that order.
+These tests cover the 16-byte argument and XMM0 result. The four-vCPU e1000
+guest contract requires the direct-call, named-callback, typedef-parameter,
+typedef-global, and automatic-callback markers in that order. It then requires
+`PASS feature14_simd` and CupidC JIT completion. These paths belong to the
+private in-kernel compiler. The
+standalone Linux and Windows toolchain seed reproofs do not prove them.
 
 >h3 Arithmetic
 Binary operators `+`, `-`, `*`, `/` work on scalar float/double via SSE
 scalar opcodes (ADDSS/ADDSD/etc.). Implicit promotion:
-  `int + float -> float`, `float + double -> double`.
+  `int + float -> float`, `char + int -> int`,
+  `char + float -> float`, `float + double -> double`.
 SIMD types need matching types for `+/-/*//`; mixing scalar and SIMD is a
 compile error.
 
 >h3 Casts
-`(int)3.7` -> 3 (truncating). `(float)5` -> 5.0. `(double)1.5f` widens.
-Casts lower to CVTSI2SS/CVTTSS2SI/CVTSS2SD/etc.
+`(int)3.7` -> 3 (truncating). `(float)5` -> 5.0. A char uses the same
+integer-to-floating conversion path. `(double)1.5f` widens. Casts lower to
+CVTSI2SS/CVTTSS2SI/CVTSS2SD/etc.
 
 >h3 Element Access
 `v.x / v.y / v.z / v.w` on float4 extracts a scalar float via SHUFPS.
@@ -69,21 +554,24 @@ Composite:
   exp, log, pow, asin, acos, sinh, cosh, tanh, cbrt, hypot, nextafter.
 
 >box
-IMPORTANT: libm functions use a CupidC-internal ABI (result returned in
-XMM0, not ST(0) as System V would expect). Calling them from plain kernel
-C will NOT work with default GCC code. They are intended to be called from
-CupidC JIT'd code via the BIND_T table.
+libm functions use a CupidC-internal ABI and return results in XMM0 instead of
+ST(0), as System V expects. Default GCC code in the kernel cannot call these
+functions directly. CupidC JIT code reaches them through reviewed fixed
+binding signatures. Base functions publish double parameters and f-suffixed
+functions publish float parameters. The ordinary typed-call path converts
+inputs, lays out the 4- or 8-byte cdecl slots, and returns the result through
+XMM0.
 >endbox
 >endtree
 
 >h2 CupidASM Opcodes
 >tree open CupidASM Opcodes
-Phase B adds ~80 new opcodes:
+CupidASM supports about 80 FPU and SSE opcodes in these groups:
 
   FPU state control (FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR)
   SSE scalar  (23): MOVSS/SD, ADDSS/SD, and more.
   SSE packed  (24): MOVAPS/UPS, ADDPS/PD, SHUFPS, CMPPS, and more.
-  x87         (25): FLD, FSIN, FPATAN, F2XM1, FYL2X, and more.
+  x87         (26): FLD, FUCOMIP, FSIN, FPATAN, F2XM1, FYL2X, and more.
 
 Register tokens: XMM0-7 and ST0-7.
 >endtree
@@ -92,9 +580,12 @@ Register tokens: XMM0-7 and ST0-7.
 >tree open Testing
 Test programs:
   `bin/feature12_float.cc`    scalar float arithmetic, casts, element access.
-  `bin/feature13_double.cc`   double + transcendentals.
-  `bin/feature14_simd.cc`     float4/double2 + intrinsics.
-  `bin/feature15_libm.cc`     cycle 8 functions x 7 inputs vs glibc reference.
+  `bin/feature13_double.cc`   decimal payloads, typed lvalues, calls, and libm.
+  `bin/feature13_derived_aot.cc`
+                              external AOT proof for derived floating updates.
+  `bin/feature14_simd.cc`     packed operators, arrays, matrices, cubes, NaNs,
+                              fixed vector calls, and intrinsics.
+  `bin/feature15_libm.cc`     29 fixed checks, including seven x87 range paths.
   `bin/feature16_asm_fpu.cc`  CupidC inline asm using SSE + x87.
   `bin/fp_drill.cc`           manual #XF provocation (panics kernel).
   `demos/fpu_kernel.asm`      CupidASM FPU state + scalar + packed + x87.
@@ -107,10 +598,10 @@ Interactive: boot QEMU graphical, type the command in the shell.
 
 >h2 Stress Test
 >tree open Stress Test
-`fpu_context_stress()` in `kernel/cpu/fpu.c` spawns 8 threads each running 100k
-sin() loops, compares against a serial reference. Gated by `-DFPU_STRESS`.
-
-To run: add `-DFPU_STRESS` to `CFLAGS`, rebuild, boot.
+fpu_context_stress() is defined in kernel/cpu/fpu.cc, but the normal boot does
+not call it. The checked CupidC production recipe does not consume host
+CFLAGS, so the old -DFPU_STRESS instruction is no longer a valid activation
+path.
 Panics on corruption.
 >endtree
 
@@ -120,7 +611,7 @@ Panics on corruption.
 the #XF handler panics with MXCSR dump.
 
 >box
-WARNING: Kernel reboot required after running `fp_drill`.
+Running `fp_drill` requires a kernel reboot afterward.
 >endbox
 >endtree
 

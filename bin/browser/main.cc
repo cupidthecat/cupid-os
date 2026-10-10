@@ -315,6 +315,7 @@ enum {
     JS_TOK_ASSIGN, JS_TOK_PLUS, JS_TOK_MINUS, JS_TOK_STAR, JS_TOK_SLASH,
     JS_TOK_PERCENT,
     JS_TOK_PLUS_EQ, JS_TOK_MINUS_EQ, JS_TOK_STAR_EQ, JS_TOK_SLASH_EQ,
+    JS_TOK_PERCENT_EQ,
     JS_TOK_PLUS_PLUS, JS_TOK_MINUS_MINUS,
     JS_TOK_EQ, JS_TOK_NEQ, JS_TOK_EQ_EQ, JS_TOK_NEQ_EQ,
     JS_TOK_LT, JS_TOK_GT, JS_TOK_LE, JS_TOK_GE,
@@ -772,19 +773,19 @@ int  doc_bg_suppress_body;
  * attr_pool per-page reset pattern). All sizes are conservative for
  * the small scripts the browser is expected to encounter.*/
 int  jtk_kind   [8192];     /* MAX_JS_TOKENS */
-int  jtk_num    [8192];
+double jtk_num  [8192];
 int  jtk_str_off[8192];
 int  jtk_str_len[8192];
 int  jtk_line   [8192];
 int  jtk_count;
 
-/* JS AST nodes - parallel arrays. Each node carries up to four int
- * slots; per-kind layout is documented in js_parse.cc / js_interp.cc.*/
+/* JS AST nodes use four integer slots plus a numeric-literal lane. */
 int  jn_kind   [8192];
 int  jn_a      [8192];
 int  jn_b      [8192];
 int  jn_c      [8192];
 int  jn_d      [8192];
+double jn_num  [8192];
 int  jn_next   [8192];      /* sibling link inside a list (block stmts, args, params) */
 int  jn_count;
 
@@ -818,6 +819,7 @@ int    jvs_top;
 
 int    jb_name_off[1024];
 int    jb_name_len[1024];
+int    jb_scope   [1024];
 int    jb_tag     [1024];
 double jb_num     [1024];
 int    jb_str_off [1024];
@@ -828,8 +830,6 @@ int    jb_native_id[1024];     /* JS_NATIVE_* when jb_tag == NATIVE */
 int    jb_count;
 
 int    jsc_parent[256];
-int    jsc_first [256];     /* first binding index covered by this frame */
-int    jsc_count [256];
 int    jsc_top;             /* number of allocated frames */
 int    jsc_cur;             /* index of the active frame */
 
@@ -862,7 +862,7 @@ int    jfn_count;
  * singly-linked list through jp_next[].*/
 int    jobj_kind     [512];        /* 0=plain, 1=array */
 int    jobj_first_prop[512];
-int    jobj_arr_len  [512];
+unsigned int jobj_arr_len  [512];
 int    jobj_count;
 
 int    jp_key_off [4096];
@@ -946,6 +946,11 @@ void browser_main() {
     jsd_this_dom_idx = -1;
     jsd_this_obj_idx = -1;
     dom_dirty = 0;
+
+    if (raw && b_streq(raw, "--selftest")) {
+        js_number_selftest();
+        return;
+    }
 
     win = gui_win_create("Browser", WIN_X, WIN_Y, WIN_W, WIN_H);
     if (win == -1) {

@@ -30,8 +30,10 @@ void main() {
     if (p != NULL || buf != NULL) ok = 0;
 
     if (ok) {
+        serial_printf("feature7_new_del: PASS\n");
         println("feature7_new_del: PASS");
     } else {
+        serial_printf("feature7_new_del: FAIL\n");
         println("feature7_new_del: FAIL");
     }
 }
