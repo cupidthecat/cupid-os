@@ -37,6 +37,26 @@ The existing historical release
 fixtures keep their recognized pre-ISO no-context contract; all sixteen unchanged
 methods pass on each host.
 
+## Retained observer prerequisites, 2026-10-10
+
+The [held observer extension](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-RETAINED-OBSERVER.md)
+restores explicit entry quotas, streaming through retained file records and
+captured root/file identity comparisons. Four native/Cupid callers pass 170 API
+calls, including all 4,096 distinct flat and nested files under the original
+deadlines and Linux memory/descriptor bounds. Both complete legacy selections
+pass 340 methods with twelve declared skips across 352 selections. All 24
+strict checks pass and three complete shared object pairs agree.
+
+The source remains an unapplied patch with its original receipts and a
+repository replay. The first legacy runner's added memory limit produces the
+same allocation failure in unmodified host source; restoring the original
+legacy process limits repairs that runner without changing the new API bounds.
+Native pathname selection, missing inputs, UNC roots and complete image
+discovery still precede normal command adoption. The 99-input cohort and three
+normal Python coordinators are unchanged.
+Both installed-seed repository replays pass every API and legacy outcome again;
+all eighteen complete objects and six checked programs equal the original builds.
+
 ## Native image argument owner, 2026-10-10
 
 The [reproducible C owner](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-IMAGE-ARGUMENT-OWNER.md)

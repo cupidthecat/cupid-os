@@ -24,6 +24,20 @@ complete stage pairs per profile. Paired rereading compares every complete
 stage file and published program. Both Windows SDK profiles, original public
 methods and both Make bootstraps remain in progress.
 
+## Retained observer prerequisites, 2026-10-10
+
+The [reproducible observer extension](docs/bootstrap/NATIVE-RETAINED-OBSERVER.md)
+adds explicit entry quotas, streaming through retained file records and captured
+identity comparisons for native image discovery. Four native/Cupid callers pass
+170 API calls, including all 4,096 distinct flat and nested files under the
+original bounds. Both complete legacy selections pass 340 methods with twelve
+declared skips; all 24 strict checks pass and three complete shared object
+pairs agree. The held patch leaves the 99-input cohort unchanged. Native path
+selection and complete image discovery still precede normal command adoption;
+three Python coordinators remain.
+Both installed-seed repository replays pass every outcome and reproduce all
+eighteen complete objects and six checked programs byte for byte.
+
 ## Native image argument owner, 2026-10-10
 
 A [reproducible C owner](docs/bootstrap/NATIVE-IMAGE-ARGUMENT-OWNER.md) interprets

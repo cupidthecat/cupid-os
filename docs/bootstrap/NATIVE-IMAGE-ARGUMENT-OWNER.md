@@ -187,3 +187,9 @@ lifetimes, checked release authority, complete diagnostics, the publisher and
 large-image behavior still require integrated comparisons. A new producer
 cohort, normal Make handoff and paired OS builds and boots precede removal of
 the Python image coordinator. TempleOS remains excluded.
+
+The [reproduced observer prerequisites](NATIVE-RETAINED-OBSERVER.md) now retain
+explicit quotas, streaming through existing records and captured identity
+comparisons. All four callers complete the full 4,096 distinct flat and nested
+inputs, and both full legacy selections pass. Missing-stage observation, UNC
+roots, pathname selection and the complete discovery owner remain open.

@@ -32,6 +32,21 @@ checks all 308 raw stage files and 44 published programs; their bytes agree.
 Both Windows SDK profiles, original public methods and both Make bootstraps
 remain in progress.
 
+## Retained observer prerequisites, 2026-10-10
+
+The [held observer extension](NATIVE-RETAINED-OBSERVER.md) restores explicit
+entry quotas, streaming through existing retained records and captured identity
+comparisons for native image discovery. All four native/Cupid callers complete
+the full 4,096 distinct flat and nested inputs: 170 API calls under the original
+deadlines and Linux memory/descriptor bounds. Both complete legacy selections
+pass 340 methods with twelve declared skips across 352 selections; three
+complete shared object pairs agree and all 24 strict checks pass. The unapplied
+patch, original failures and a repository replay are retained. Native pathname
+selection, missing inputs, UNC roots and the full discovery owner remain open.
+The 99-input producer cohort and normal recipe ownership are unchanged.
+Both installed-seed repository replays also pass all outcomes again; their
+eighteen complete objects and six programs equal the original builds.
+
 ## Native image argument owner, 2026-10-10
 
 The [held C owner](NATIVE-IMAGE-ARGUMENT-OWNER.md) retains required image values,

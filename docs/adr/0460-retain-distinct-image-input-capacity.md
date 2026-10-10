@@ -17,6 +17,28 @@ preserved. Named-commit qualification and normal integration are still open.
 
 ## Context
 
+### Reproduced observer prerequisites, 2026-10-10
+
+The current worktree has none of the earlier private `cp7` products. The
+[retained observer record](../bootstrap/NATIVE-RETAINED-OBSERVER.md) now supplies
+an unapplied source patch, complete receipts and a repository replay for the
+quota, retained-stream and captured-identity APIs in this decision. Four
+native/Cupid callers pass 170 API calls, including all 4,096 distinct flat and
+nested files under the original sixty-second and Linux 32 MiB bounds. The
+ordinary Linux stream control reaches its 10,240-descriptor limit at 2,039
+streams; streaming through retained records completes all 4,096. Both complete
+legacy selections pass 340 methods with twelve declared skips, and three whole
+shared contract objects agree. All 24 strict checks pass.
+
+The first legacy runner incorrectly applies the new API's memory bound to
+older frozen-transaction tests. The unmodified host control reproduces the
+same 512-to-528 allocation failure. Restoring those tests' original process
+limits makes the full selection pass; the new API bounds remain unchanged.
+This current proof covers observer prerequisites. Missing-stage observations,
+UNC roots, pathname selection and the complete image input owner still need
+reproducible implementation and acceptance. Normal producer inputs and recipe
+ownership remain unchanged.
+
 ADR 0456 accepts 4,096 repeated stages, which does not prove 4,096 distinct files
 or directories. Its observer's 4,096-entry quota includes ancestors, file leaves
 and first absences. A direct metadata replay admits 4,088 distinct files and
