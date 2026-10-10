@@ -4,7 +4,8 @@
 
 The shared [hosted heap](HOSTED-HEAP.md) is now normal source at `1d852023`.
 Current tests cover both hosts and the normal Windows UTF-8/long-path profile;
-the exact 99-input source cohort is undergoing paired qualification. Normal
+both complete qualifications pass for the exact 99-input source cohort, with
+replacement-tool consumers pending. Normal
 image publication still uses Python. The discovery, option and quota extensions
 described below remain private implementations. Their `cp7` products are absent
 from the current linked worktree and cannot establish current integration.

@@ -12,8 +12,11 @@ The normal Windows UTF-8/long-path profile also passes a Unicode filename beyond
 260 characters. Both hosts finish prepared cohorts with 97 complete equal
 stage-three/stage-four object and tool pairs from the same 99-input snapshot.
 Run `python -m unittest -v tests.test_hosted_heap` to reproduce the current-host
-checks. Installed seeds retain the preceding runtime until paired source
-qualification and replacement-tool acceptance finish. Three normal Python
+checks. Both complete source qualifications pass for committed `1d852023`.
+Independent checks reread 291 staged files, 97 complete final-generation pairs,
+7,761 published files and all 99 committed inputs. Both private candidate pairs
+verify and start from zero production objects. Installed seeds retain the
+preceding runtime while replacement-tool acceptance runs. Three normal Python
 coordinators remain. The
 [heap record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/HOSTED-HEAP.md)
 contains the implementation and verification scope.

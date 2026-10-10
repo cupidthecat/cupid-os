@@ -75,7 +75,12 @@ and all 97 complete stage-three/stage-four object and tool pairs. Linux startup
 and runtime and all five selected Windows UTF-8 support objects match the tested
 profile bytes. An initial comparison incorrectly expected the narrow Windows
 runtime to match the UTF-8 object; the corrected check selects the actual profile.
-Preparation remains unqualified until named-commit behavior and consumer checks.
+Preparation receipts retain their unqualified status. Separate complete
+[named-commit qualifications](QUALIFIED-HOSTED-HEAP-SEEDS.md) now pass for
+`1d852023` on both hosts. Independent rereading checks 291 staged files, 97
+complete fixed-point pairs, 7,761 published files and all 99 committed inputs.
+The complete pair verifies in both private consumers, which start from zero
+production objects. Replacement-tool consumer acceptance remains open.
 
 The normal kernel/boot and user builds pass with conventional producers
 forbidden. Only the manual wrapper differs among 429 production object

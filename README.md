@@ -7,9 +7,10 @@ searches free storage through size bins on both hosts. Cupid-built tests cover
 65,536 simultaneous allocations, fragmentation, alignment, failed allocation
 and release, and data preservation during realloc. The
 [heap record](docs/bootstrap/HOSTED-HEAP.md) describes the implementation and
-reproduction command. Installed seeds still carry the preceding runtime until
-the new source completes paired qualification and consumer acceptance.
-Both hosts have prepared matching stage-three/stage-four cohorts. Current tests
+reproduction command. Both complete [producer qualifications](docs/bootstrap/QUALIFIED-HOSTED-HEAP-SEEDS.md)
+pass for committed `1d852023`; independent checks reread all 291 staged files,
+97 complete fixed-point pairs and 7,761 published files. Installed seeds retain
+the preceding runtime while replacement-tool consumer acceptance runs. Current tests
 also cover the normal Windows UTF-8 startup and a Unicode long-path runtime call.
 
 ## Qualified wide pointer seeds, 2026-10-07

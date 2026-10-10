@@ -4,8 +4,9 @@
 
 The option owner described below remains outside the normal producer closure.
 The shared hosted heap is integrated at `1d852023`; its actual Linux and Windows
-runtime contracts pass, and paired qualification of that 99-input source cohort
-is running. The fifteen installed seed files still carry the reviewed
+runtime contracts and both complete qualifications of that 99-input source
+cohort pass. Replacement-tool consumer acceptance is pending. The fifteen
+installed seed files still carry the reviewed
 `acbbd834` cohort. Three normal Python coordinators remain. Private `cp7` option
 and discovery products are absent from the current linked worktree, so their
 historical results do not establish a normal command handoff.

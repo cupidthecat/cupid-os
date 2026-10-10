@@ -5,7 +5,9 @@
 Integrated into the shared hosted runtime source on 2026-10-10 after the private
 source-eight/source-nine implementation and guarded cohort-ten checks.
 Reproducible Cupid-built density, mutation and OS-failure contracts accompany
-the source. Named-commit producer qualification and seed promotion remain open.
+the source. Both complete named-commit producer qualifications pass for
+`1d852023`; [replacement-tool consumer acceptance](../bootstrap/QUALIFIED-HOSTED-HEAP-SEEDS.md)
+and installed seed promotion remain open.
 The [prototype patch](../bootstrap/prototypes/hosted-heap.patch) is retained as
 historical evidence.
 

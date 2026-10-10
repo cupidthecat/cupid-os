@@ -7,8 +7,9 @@ OS release fails. `tests.test_hosted_heap` builds the actual runtime and its
 positive/failure callers entirely with verified Cupid tools, then runs strict
 CupidDis checks. Both Windows startup profiles run these contracts, including
 a Unicode filename beyond 260 characters. Both hosts finish matching prepared
-stage-three/stage-four cohorts. Seed adoption still requires paired source qualification and
-replacement-tool consumer acceptance. See the
+stage-three/stage-four cohorts. Both complete source qualifications now pass for
+committed `1d852023`, with all 99 producer inputs bound to their Git blobs.
+Seed adoption still requires replacement-tool consumer acceptance. See the
 [heap record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/HOSTED-HEAP.md).
 
 CupidC builds CupidBuild as part of the promoted Linux and Windows six-tool

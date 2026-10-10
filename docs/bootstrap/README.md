@@ -10,8 +10,11 @@ least 64 KiB. Tests build the actual runtimes with checked Cupid tools; the
 original Windows runtime fails both 65,536-allocation controls at 32,547.
 Both hosts finish source preparations with 97 complete stage-three/stage-four
 pairs and the same 99-input snapshot. Tests also use the actual normal Windows
-UTF-8 runtime profile. Named-commit behavior qualification and replacement-seed
-consumer acceptance remain required. The normal graph still has 449 CupidBuild
+UTF-8 runtime profile. Both complete [named-commit qualifications](QUALIFIED-HOSTED-HEAP-SEEDS.md)
+pass for `1d852023`; independent checks bind 291 staged files, 97 complete final
+pairs, 7,761 published files and all 99 committed inputs. Private candidate
+consumers verify the complete pair and start from zero production objects.
+Replacement-seed consumer acceptance remains required. The normal graph still has 449 CupidBuild
 actions and three Python
 coordinators across 452 transforms.
 

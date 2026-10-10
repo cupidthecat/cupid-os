@@ -6,8 +6,9 @@ Shared runtime source has size-bin free-block search on both hosts and shared
 Windows regions for small allocations. Checked Cupid-built contracts exercise
 allocation density, sixteen-byte alignment, mixed-size mutation, coalescing,
 overflow and recovery after OS allocation/release failures. Complete platform
-runtime contracts use the same ordinary allocator object. Installed seed
-adoption remains a separate qualification and consumer gate. See
+runtime contracts use the same ordinary allocator object. Both complete
+producer qualifications pass for committed `1d852023`. Installed seed adoption
+awaits replacement-tool consumer acceptance. See
 [the heap record](HOSTED-HEAP.md).
 
 ## Hosted wide pointer offsets, 2026-10-07
