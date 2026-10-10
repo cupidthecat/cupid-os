@@ -94,10 +94,12 @@ checked private image. [OS source evidence](evidence/hosted-heap-os-20261010.jso
 records this boundary separately from producer qualification.
 
 The qualified replacement tools now also pass a complete cold Windows normal
-image build, fresh user build, ABI checks, sixteen artifact gates and both strict
-boots. All 429 objects and the complete 200 MiB image match the source-accepted
-products. Linux's replacement-tool cold build and the full paired SDK/public
-consumer queue remain in progress. The [qualification record](QUALIFIED-HOSTED-HEAP-SEEDS.md)
+image builds on both hosts, fresh user builds, ABI checks, sixteen artifact
+gates per host and all four strict boots. All 429 complete object pairs, six
+user pairs and the complete 200 MiB image pair match the source-accepted
+products. The full Linux compatibility replay also passes all 367 selections
+with 26 declared platform skips. Windows compatibility and the full paired
+SDK/public consumer queue remain in progress. The [qualification record](QUALIFIED-HOSTED-HEAP-SEEDS.md)
 also records the historical fixture correction and its thirty-two passing
 original release-operation selections.
 

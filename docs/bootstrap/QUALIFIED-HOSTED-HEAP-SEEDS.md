@@ -66,7 +66,12 @@ all sixteen artifact gates and both strict four-CPU ls/SMP and ISO boots under
 the original 150-second bounds. Independent rereading checks all 429 objects,
 three kernel products, six user products and 431 inspection inputs. The complete
 200 MiB image matches the earlier source-accepted image; all 199,229,440 FAT
-suffix bytes remain equal. Linux's cold consumer build is running.
+suffix bytes remain equal. Linux's complete cold build, user/ABI checks, artifact
+gates and both strict boots now pass too. Paired independent rereading accepts
+all 429 complete object pairs, three kernel pairs, six user pairs, fifteen
+candidate seed files and the complete image pair. It rechecks all 1,762
+source/control files on each host in 9.209 seconds. [Paired OS evidence](evidence/hosted-heap-paired-consumers-20261010.json)
+retains the actual commands, artifact identities, ABI and four boot receipts.
 
 The broad Linux compatibility selection first blocks two optional host-oracle
 setups because it inherits the normal build's forbidden `CC`. A repeat allows
@@ -83,9 +88,13 @@ with no skips: Windows takes 149.390 seconds and Linux 117.973. Failed controls
 and their source receipts remain retained. Separate test copies keep the original
 OS source/control snapshots stable. [Consumer progress evidence](evidence/hosted-heap-consumer-progress-20261010.json)
 records the accepted Windows products and both complete fixture selections.
+The complete Linux compatibility replay then passes all 367 original selections
+in 231.176 seconds, with 26 declared platform skips and no failures. The serial
+queue continues with native Windows compatibility, all four SDK profiles,
+original public methods and both actual Make bootstraps.
 
-The remaining paired OS and user products, strict boots, four complete SDK
-profiles, original public methods and both actual Make bootstraps remain
+The remaining Windows compatibility, four complete SDK profiles, original
+public methods and both actual Make bootstraps remain
 required before installed seed adoption. The normal graph remains 449
 CupidBuild actions and three Python coordinators across 452 transforms.
 TempleOS stays read-only and excluded.

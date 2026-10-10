@@ -17,9 +17,11 @@ consumers verify the complete pair and start from zero production objects.
 Replacement-seed consumer acceptance remains required. The normal graph still has 449 CupidBuild
 actions and three Python
 coordinators across 452 transforms.
-The replacement cohort passes the cold Windows normal image build, fresh user
-and ABI checks, all sixteen artifact gates and both strict boots. All 429 objects
-and the complete image match the accepted source products. The original
+The replacement cohort passes cold normal image builds, fresh user and ABI
+checks, all sixteen artifact gates per host and four strict boots on both hosts.
+All 429 object pairs and the complete image pair match the accepted source
+products. Full Linux compatibility passes all 367 selections with 26 declared
+platform skips. The original
 release-operation fixtures now use their recognized pre-ISO no-context contract;
 all sixteen unchanged methods pass on both hosts. Full paired consumers remain
 in progress.

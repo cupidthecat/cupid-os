@@ -21,11 +21,12 @@ coordinators remain. The
 [heap record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/HOSTED-HEAP.md)
 contains the implementation and verification scope.
 
-The replacement tools also pass a cold Windows normal image build, fresh user
-and ABI checks, all sixteen artifact gates and both strict four-CPU ls/SMP and
-ISO boots. Independent rereading checks all 429 objects and the complete 200 MiB
-image against the source-accepted products. Linux's cold build and the full
-paired consumer queue remain in progress. The existing historical release
+The replacement tools also pass cold normal image builds, fresh user and ABI
+checks, all sixteen artifact gates per host and four strict four-CPU ls/SMP and
+ISO boots on Windows and Linux. Independent paired rereading checks all 429
+object pairs, six user pairs and the complete 200 MiB image pair against the
+source-accepted products. Full Linux compatibility passes all 367 selections
+with 26 declared platform skips. Remaining paired consumers continue. The existing historical release
 fixtures keep their recognized pre-ISO no-context contract; all sixteen unchanged
 methods pass on each host.
 
