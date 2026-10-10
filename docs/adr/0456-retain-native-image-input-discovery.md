@@ -7,6 +7,21 @@ source-plan integration, producer qualification and recipe adoption remain open.
 
 ## Context
 
+### Current reproducible prerequisites, 2026-10-10
+
+The [argument owner](../bootstrap/NATIVE-IMAGE-ARGUMENT-OWNER.md) and
+[observer-path extension](../bootstrap/NATIVE-OBSERVER-PATHS.md) now have current
+held patches and repository replays. The observer extension supplies quotas,
+retained streams, captured identities, first absences, ordinary UNC roots and
+Unicode/long directory resolution. Four callers pass 388 API calls, including
+all 4,096 distinct present and missing flat/nested inputs. The complete input
+owner below still needs current implementation and integrated acceptance;
+the historical private `cp7` products are absent. Normal source and recipe
+ownership remain unchanged.
+
+Both installed-seed observer replays pass every original outcome again, with
+all 24 checked objects and twelve complete programs equal to the original builds.
+
 Native image options describe pathnames but do not retain filesystem observations.
 The normal command can select required inputs and optional stages outside the
 repository, follow parent aliases and retain missing stages. The publisher needs

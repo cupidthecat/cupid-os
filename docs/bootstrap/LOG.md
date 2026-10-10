@@ -1,5 +1,36 @@
 # Bootstrapping log
 
+## 2026-10-10: Reproduce optional-path and UNC observer prerequisites
+
+The [current observer-path patch](NATIVE-OBSERVER-PATHS.md) retains first absences,
+opens ordinary UNC roots and resolves Unicode/long directories. It includes the
+earlier quota, retained-stream and captured-identity extension. Four native/Cupid
+callers pass 388 API calls, including all 4,096 distinct present and missing
+flat/nested inputs under the original sixty-second and Linux memory/descriptor
+bounds. Both full legacy selections pass 340 methods with twelve platform skips;
+all 48 original alias methods pass. Six whole shared contract objects agree and
+all 36 strict object/program checks pass.
+
+The original nested UNC timeout exposes duplicate absolute-root binding walks.
+Checking the complete chain once per request retains every descendant check and
+makes the complete request pass under its original deadline. Separate native and
+default-runtime probes establish the existing Windows adapter's Unicode and
+long-path requirements. The resolver supplies the internal extended prefix
+through existing codecs without adding imports or changing the runtime profile.
+Failed headers, platform predicates, transport buffers, fixtures and diagnostics
+remain preserved with their original receipts.
+
+The unapplied source, seven portable helpers and complete compressed receipts
+are held in the repository. Both installed-seed replays pass every complete
+selection again; all 24 checked objects and twelve programs equal the original
+qualified-tool builds byte for byte.
+The complete native pathname selector and image input owner remain open; all
+99 normal producer inputs, fifteen installed seed files and normal recipe
+ownership are unchanged. The heap cohort separately passes all four original
+SDK profiles and a full comparison of 616 stage files and 88 published programs.
+Original public tests and actual Make bootstraps still precede heap seed adoption.
+TempleOS is untouched and excluded.
+
 ## 2026-10-10: Integrate hosted heap regions and free-block search
 
 Work starts from bootstrap commit `cf5976b8`; the primary checkout retains unrelated

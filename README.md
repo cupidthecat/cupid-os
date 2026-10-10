@@ -26,19 +26,20 @@ rereads all 616 stage files and 88 published programs; every complete stream
 agrees. Original public methods and both actual Make bootstraps remain in
 progress before replacement-seed adoption.
 
-## Retained observer prerequisites, 2026-10-10
+## Optional input observations and UNC roots, 2026-10-10
 
-The [reproducible observer extension](docs/bootstrap/NATIVE-RETAINED-OBSERVER.md)
-adds explicit entry quotas, streaming through retained file records and captured
-identity comparisons for native image discovery. Four native/Cupid callers pass
-170 API calls, including all 4,096 distinct flat and nested files under the
+The [reproducible observer extension](docs/bootstrap/NATIVE-OBSERVER-PATHS.md)
+retains first absences, opens ordinary Windows UNC roots and resolves long
+Unicode directories. It includes explicit quotas, retained streaming and
+captured identity comparisons. Four native/Cupid callers pass 388 API calls,
+including all 4,096 distinct present and missing flat/nested inputs under the
 original bounds. Both complete legacy selections pass 340 methods with twelve
-declared skips; all 24 strict checks pass and three complete shared object
-pairs agree. The held patch leaves the 99-input cohort unchanged. Native path
-selection and complete image discovery still precede normal command adoption;
-three Python coordinators remain.
-Both installed-seed repository replays pass every outcome and reproduce all
-eighteen complete objects and six checked programs byte for byte.
+declared skips, and all 48 original alias methods pass. Six complete shared
+object pairs agree; all 36 strict checks pass. The held patch leaves the
+99-input cohort unchanged. Both installed-seed replays pass every outcome again;
+all 24 complete checked objects and twelve programs equal the original builds.
+Native pathname selection and complete image discovery still precede normal
+command adoption; three Python coordinators remain.
 
 ## Native image argument owner, 2026-10-10
 

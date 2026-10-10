@@ -7,6 +7,23 @@ complete producer qualification and native image discovery remain open.
 
 ## Context
 
+### Current reproduction, 2026-10-10
+
+The [observer-path record](../bootstrap/NATIVE-OBSERVER-PATHS.md) supplies a
+current unapplied patch and repository replay; the earlier private `cp7`
+products are absent. Four native/Cupid callers pass 388 API calls, including
+full 4,096-entry UNC absence cases through both Windows callers. Complete legacy
+and alias selections and all 36 strict checks pass. Directory resolution returns
+ordinary UNC physical names and uses the existing internal extended-prefix
+codec for Unicode/long paths through both native and default Cupid runtimes.
+It adds no import or normal runtime profile change. Normal source inputs and
+installed seeds remain unchanged; complete discovery and command adoption
+remain open.
+
+Both installed-seed repository replays pass the complete selections again.
+Independent rereading confirms all 24 checked objects and twelve complete
+programs equal the original qualified-tool builds.
+
 The image command can select external Windows paths. The retained observer
 previously resolves its root but accepts only a drive anchor, even though the
 existing UTF-8 Windows adapter supports ordinary UNC paths. Native discovery

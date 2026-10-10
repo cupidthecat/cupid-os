@@ -2361,6 +2361,12 @@ Linux products. ADR 0454 records this private capability; normal image discovery
 whole publisher integration and committed qualification remain open.
 _Avoid_: network-share authority grant, device namespace, native image adoption
 
+**Retained first absence**:
+An observation of the first missing component in a valid optional pathname,
+beneath an existing retained directory. Its validity depends on confirmed
+absence and an unchanged original parent binding.
+_Avoid_: missing file identity, cached absence, resolved file
+
 **Borrowed publication observer**:
 A retained observer bound once to a transaction with the same root identity,
 before any publication attempt. The caller keeps it alive through transaction

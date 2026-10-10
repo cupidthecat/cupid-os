@@ -34,10 +34,20 @@ The first legacy runner incorrectly applies the new API's memory bound to
 older frozen-transaction tests. The unmodified host control reproduces the
 same 512-to-528 allocation failure. Restoring those tests' original process
 limits makes the full selection pass; the new API bounds remain unchanged.
-This current proof covers observer prerequisites. Missing-stage observations,
-UNC roots, pathname selection and the complete image input owner still need
-reproducible implementation and acceptance. Normal producer inputs and recipe
-ownership remain unchanged.
+The later [observer-path extension](../bootstrap/NATIVE-OBSERVER-PATHS.md) adds
+retained first absences, ordinary UNC roots and Unicode/long directory resolution.
+Its four callers pass 388 API calls, including complete distinct missing cases
+and all four 4,096-entry UNC cases on Windows. Complete legacy and alias methods,
+six shared object pairs and 36 strict checks pass. Path classification validates
+the complete root binding once per request while retaining every descendant
+check; this repairs the original full nested UNC timeout without changing its
+deadline or capacity. Pathname selection and the complete image input owner
+still need current implementation and acceptance. Normal producer inputs and
+recipe ownership remain unchanged.
+
+Both installed-seed observer replays pass every complete selection again.
+Independent rereading accepts all 24 complete checked objects and twelve
+complete programs against the original qualified-tool builds byte for byte.
 
 ADR 0456 accepts 4,096 repeated stages, which does not prove 4,096 distinct files
 or directories. Its observer's 4,096-entry quota includes ancestors, file leaves

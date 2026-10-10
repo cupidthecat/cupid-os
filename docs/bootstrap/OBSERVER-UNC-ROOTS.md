@@ -1,5 +1,24 @@
 # Retained Windows UNC observer roots
 
+## Current reproducible implementation, 2026-10-10
+
+The [observer-path extension](NATIVE-OBSERVER-PATHS.md) now supplies a repository
+patch and replay for ordinary UNC roots, retained first absences and Unicode/long
+directory resolution. Four native/Cupid callers pass 388 API calls, including
+all 4,096 distinct missing UNC paths through both Windows callers. Complete
+legacy and alias selections pass under their original limits. The default
+Windows resolver constructs its internal extended prefix through existing
+codecs and imports; the normal runtime profile remains unchanged. All 99 normal
+producer inputs and fifteen installed seed files are unchanged. Complete native
+input ownership and normal command integration remain open.
+Both installed-seed repository replays pass every outcome again; all 24 checked
+objects and twelve complete programs equal the original qualified-tool builds.
+
+## Earlier private implementation
+
+The following records describe the earlier `cp7` copies. Those products are
+absent from the current worktree and do not establish current integration.
+
 The separate source under `C:/Users/admin/cp7/observer-unc-source2` extends
 observer opening to ordinary Windows UNC shares. Linux retains the exact source
 under `/var/tmp/observer-unc-source2`. ADR 0454 records the anchor decision.

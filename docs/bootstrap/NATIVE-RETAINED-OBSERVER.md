@@ -1,5 +1,18 @@
 # Retained observer prerequisites for native image discovery
 
+## Optional paths and UNC follow-up, 2026-10-10
+
+The [current observer-path extension](NATIVE-OBSERVER-PATHS.md) includes this
+patch's quota, retained-stream and captured-identity APIs, then adds retained
+first absences, ordinary UNC roots and Unicode/long directory resolution.
+Its four callers pass 388 API calls, the same complete legacy selections and
+all 48 original alias methods. Six shared object pairs and 36 strict checks
+pass. Its patch applies directly to normal source; the earlier patch below
+remains independently reproducible. Both installed-seed replays pass every
+outcome again and reproduce all 24 checked objects and twelve complete programs.
+Native pathname selection and the complete
+image input owner still precede normal command adoption.
+
 ## Current result, 2026-10-10
 
 The held host extension gives image discovery an explicit entry budget, streams
@@ -18,9 +31,10 @@ pairs agree. The original builds pass all 24 strict object/program checks.
 
 This restores a reproducible prerequisite from the historical private discovery
 work. The old `cp7` products are absent from the current worktree and do not
-establish this result. Native pathname selection, missing-stage observation,
-Windows UNC roots and the full image input owner still require implementation
-and integrated acceptance. The normal graph retains 449 CupidBuild actions and
+establish this result. The current follow-up above supplies missing-stage
+observation and Windows UNC roots. Native pathname selection and the full image
+input owner still require implementation and integrated acceptance.
+The normal graph retains 449 CupidBuild actions and
 three Python coordinators across 452 transforms.
 
 ## API and lifetime rules

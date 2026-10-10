@@ -33,20 +33,20 @@ rereads all 616 raw stage files and 88 published programs; every complete stream
 agrees across both hosts and profiles. Original public methods and both actual
 Make bootstraps remain in progress before installed-seed adoption.
 
-## Retained observer prerequisites, 2026-10-10
+## Optional input observations and UNC roots, 2026-10-10
 
-The [held observer extension](NATIVE-RETAINED-OBSERVER.md) restores explicit
-entry quotas, streaming through existing retained records and captured identity
-comparisons for native image discovery. All four native/Cupid callers complete
-the full 4,096 distinct flat and nested inputs: 170 API calls under the original
-deadlines and Linux memory/descriptor bounds. Both complete legacy selections
-pass 340 methods with twelve declared skips across 352 selections; three
-complete shared object pairs agree and all 24 strict checks pass. The unapplied
-patch, original failures and a repository replay are retained. Native pathname
-selection, missing inputs, UNC roots and the full discovery owner remain open.
+The [held observer extension](NATIVE-OBSERVER-PATHS.md) supplies retained first
+absences, ordinary Windows UNC roots and Unicode/long directory resolution,
+alongside quotas, retained streaming and captured identity comparisons. Four
+native/Cupid callers pass 388 API calls, including all 4,096 distinct present
+and missing flat/nested inputs under the original deadlines and Linux bounds.
+Both complete legacy selections pass 340 methods with twelve declared skips
+across 352 selections; all 48 original alias methods pass. Six complete shared
+object pairs agree and all 36 strict checks pass. The unapplied patch, original
+failures and repository replay are retained. Both installed-seed replays pass
+every outcome again; all 24 complete checked objects and twelve programs equal
+the original builds. Native pathname selection and the full discovery owner remain open.
 The 99-input producer cohort and normal recipe ownership are unchanged.
-Both installed-seed repository replays also pass all outcomes again; their
-eighteen complete objects and six programs equal the original builds.
 
 ## Native image argument owner, 2026-10-10
 

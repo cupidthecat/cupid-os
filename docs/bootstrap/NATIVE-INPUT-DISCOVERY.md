@@ -10,12 +10,13 @@ image publication still uses Python. The discovery, option and quota extensions
 described below remain private implementations. Their `cp7` products are absent
 from the current linked worktree and cannot establish current integration.
 
-The current [argument owner](NATIVE-IMAGE-ARGUMENT-OWNER.md) and
-[observer prerequisites](NATIVE-RETAINED-OBSERVER.md) now have held source patches
-and repository replays. The observer proof completes all 4,096 distinct flat
-and nested inputs through four callers under the original bounds. It supplies
-the quota, retained-stream and captured-identity APIs; the complete discovery
-owner, missing-stage observation, UNC roots and pathname selection below still
+The current [argument owner](NATIVE-IMAGE-ARGUMENT-OWNER.md),
+[retained observer prerequisites](NATIVE-RETAINED-OBSERVER.md) and
+[observer-path extension](NATIVE-OBSERVER-PATHS.md) have held patches and repository
+replays. Four callers complete all 4,096 distinct present and missing flat/nested
+inputs under the original bounds. Current APIs supply quotas, retained streaming,
+captured identities, first absences, ordinary UNC roots and Unicode/long directory
+resolution. The complete discovery owner and pathname selection below still
 need current implementation and integrated acceptance.
 
 The private source at `C:/Users/admin/cp7/input-discovery-source4` owns the
