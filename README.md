@@ -15,8 +15,11 @@ also cover the normal Windows UTF-8 startup and a Unicode long-path runtime call
 The qualified replacement tools pass cold normal image builds, user and ABI
 checks, all sixteen artifact gates per host and four strict boots on Windows and
 Linux. All 429 object pairs and the complete image pair agree with the
-source-accepted products. Full Linux compatibility also passes. Remaining
-paired consumer acceptance remains in progress.
+source-accepted products. Both hosts pass the same compatibility selection of
+367 methods, with 705 passes and 29 declared platform skips across both runs.
+Independent review rechecks every outcome, all 99 committed producer inputs and
+the unchanged installed seeds. The four SDK profiles, original public methods
+and both Make bootstraps remain in progress.
 
 ## Qualified wide pointer seeds, 2026-10-07
 

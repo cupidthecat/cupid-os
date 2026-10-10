@@ -93,13 +93,15 @@ forced normal all rerun passes; its published image matches every byte of the
 checked private image. [OS source evidence](evidence/hosted-heap-os-20261010.json)
 records this boundary separately from producer qualification.
 
-The qualified replacement tools now also pass a complete cold Windows normal
-image builds on both hosts, fresh user builds, ABI checks, sixteen artifact
+The qualified replacement tools now also pass complete cold normal image
+builds on both hosts, fresh user builds, ABI checks, sixteen artifact
 gates per host and all four strict boots. All 429 complete object pairs, six
 user pairs and the complete 200 MiB image pair match the source-accepted
-products. The full Linux compatibility replay also passes all 367 selections
-with 26 declared platform skips. Windows compatibility and the full paired
-SDK/public consumer queue remain in progress. The [qualification record](QUALIFIED-HOSTED-HEAP-SEEDS.md)
+products. Both full compatibility replays pass all 367 selections per host, with
+705 passes and 29 declared platform skips in total. Independent review rechecks
+every result, all 99 raw committed inputs and the unchanged installed seeds.
+The four SDK profiles, original public methods and both Make bootstraps remain
+in progress. The [qualification record](QUALIFIED-HOSTED-HEAP-SEEDS.md)
 also records the historical fixture correction and its thirty-two passing
 original release-operation selections.
 

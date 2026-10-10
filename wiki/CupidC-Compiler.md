@@ -14,8 +14,11 @@ Seed adoption still requires replacement-tool consumer acceptance. See the
 
 The qualified replacement tools pass cold normal OS builds and all four strict
 boots on both hosts. All 429 complete object pairs and the complete image pair
-match the source-accepted products. Full Linux compatibility also passes.
-Remaining paired consumer acceptance stays open.
+match the source-accepted products. Both full compatibility selections pass all
+367 methods per host, with 705 passes and 29 declared platform skips in total.
+Independent review rechecks all outcomes, 99 committed inputs and unchanged
+installed seeds. The four SDK profiles, original public methods and both Make
+bootstraps remain in progress.
 
 CupidC builds CupidBuild as part of the promoted Linux and Windows six-tool
 cohorts. The normal ISR, context-switch, bootloader, SMP-trampoline, JPEG, and

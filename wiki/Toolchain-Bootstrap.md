@@ -25,8 +25,11 @@ The replacement tools also pass cold normal image builds, fresh user and ABI
 checks, all sixteen artifact gates per host and four strict four-CPU ls/SMP and
 ISO boots on Windows and Linux. Independent paired rereading checks all 429
 object pairs, six user pairs and the complete 200 MiB image pair against the
-source-accepted products. Full Linux compatibility passes all 367 selections
-with 26 declared platform skips. Remaining paired consumers continue. The existing historical release
+source-accepted products. Both full compatibility selections pass all 367 methods
+per host: 341 passes and 26 declared skips on Linux, 364 passes and three skips
+on Windows. Independent checks reread every outcome, all 99 committed inputs,
+the complete candidate pair and unchanged installed seeds. The four SDK profiles,
+original public methods and both Make bootstraps continue. The existing historical release
 fixtures keep their recognized pre-ISO no-context contract; all sixteen unchanged
 methods pass on each host.
 

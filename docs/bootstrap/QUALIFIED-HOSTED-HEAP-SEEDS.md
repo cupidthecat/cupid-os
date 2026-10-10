@@ -88,13 +88,32 @@ with no skips: Windows takes 149.390 seconds and Linux 117.973. Failed controls
 and their source receipts remain retained. Separate test copies keep the original
 OS source/control snapshots stable. [Consumer progress evidence](evidence/hosted-heap-consumer-progress-20261010.json)
 records the accepted Windows products and both complete fixture selections.
-The complete Linux compatibility replay then passes all 367 original selections
-in 231.176 seconds, with 26 declared platform skips and no failures. The serial
-queue continues with native Windows compatibility, all four SDK profiles,
-original public methods and both actual Make bootstraps.
+Both complete compatibility replays now pass the same original selection of
+367 methods. Linux takes 231.176 seconds, with 341 passes and 26 declared
+platform skips. Windows takes 1,517.515 seconds, with 364 passes and three skips.
+Neither run has a failure or setup error. Optional host comparison tests use
+Clang; their selection records retain that setting and the other eight forbidden
+conventional producer variables.
 
-The remaining Windows compatibility, four complete SDK profiles, original
-public methods and both actual Make bootstraps remain
-required before installed seed adoption. The normal graph remains 449
+The independent checks take 28.355 seconds on Linux and 13.174 on Windows.
+They reread all 1,764 controls in each separate test copy, every method outcome
+and log, the complete candidate pair and all 99 raw committed producer inputs.
+All fifteen root seed files remain unchanged. A paired reread takes 41.043
+seconds. [Paired compatibility evidence](evidence/hosted-heap-paired-compatibility-20261010.json)
+retains every selected method, its result, declared skip reason and receipt
+identity. The first Linux audit rejects the Windows spelling of the linked
+worktree's Git directory. The corrected reader translates that path for WSL;
+the original consumer commands remain unchanged.
+
+Before any SDK job starts, its acceptance wrapper gains a retention hook that
+copies the complete outer SDK workspace immediately before ordinary cleanup.
+This preserves frozen inputs and all 77 raw stage pairs for subsequent review.
+The hook's copy and cleanup checks pass. Original CLI arguments, producer
+commands and deadlines remain unchanged. A separate audit queue waits for each
+original consumer to close, checks its complete retained products, and stops
+on any failure. The command queue has started Linux SDK default.
+
+The four complete SDK profiles, original public methods and both actual Make
+bootstraps remain required before installed seed adoption. The normal graph remains 449
 CupidBuild actions and three Python coordinators across 452 transforms.
 TempleOS stays read-only and excluded.

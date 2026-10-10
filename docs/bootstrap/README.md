@@ -20,11 +20,13 @@ coordinators across 452 transforms.
 The replacement cohort passes cold normal image builds, fresh user and ABI
 checks, all sixteen artifact gates per host and four strict boots on both hosts.
 All 429 object pairs and the complete image pair match the accepted source
-products. Full Linux compatibility passes all 367 selections with 26 declared
-platform skips. The original
+products. Full compatibility passes all 367 selections on each host: 341 passes
+and 26 declared skips on Linux, 364 passes and three skips on Windows. Independent
+review checks every outcome, all 99 committed inputs and the unchanged installed
+seeds. The original
 release-operation fixtures now use their recognized pre-ISO no-context contract;
-all sixteen unchanged methods pass on both hosts. Full paired consumers remain
-in progress.
+all sixteen unchanged methods pass on both hosts. The four SDK profiles, original
+public methods and both Make bootstraps remain in progress.
 
 ## Qualified mixed width seed installation, 2026-10-09
 
