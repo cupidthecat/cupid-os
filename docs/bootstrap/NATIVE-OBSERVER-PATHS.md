@@ -167,6 +167,13 @@ source copies, helper identities, installed tools and unchanged normal inputs.
 The [replay evidence](evidence/native-observer-paths-replay-20261010.json)
 binds both complete [replay receipts](evidence/native-observer-paths-replays-20261010.json.gz).
 
+The separate [source spelling component](NATIVE-SOURCE-PATHS.md) now preserves
+lexical paths before following filesystem aliases. Four native/Cupid callers
+pass 354 calls covering actual Python spellings and useful C failures. Both
+complete repository replays retain all cases and matching complete products.
+Combining that component with retained observations still requires the complete
+physical pathname selector and its original-request revalidation.
+
 Source integration waits for the hosted heap cohort's remaining original public
 and Make consumers and seed adoption. The complete input owner still needs
 original pathname revalidation, final construction checks and borrowed observer

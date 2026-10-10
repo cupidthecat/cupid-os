@@ -27,6 +27,18 @@ agrees. The original Linux public bootstrap selection also passes, with its
 Windows-only boundary skip and complete independent review. Windows public
 methods and both actual Make bootstraps remain in progress before seed adoption.
 
+## Native image source spellings, 2026-10-10
+
+The [source spelling component](docs/bootstrap/NATIVE-SOURCE-PATHS.md) preserves
+the image command's lexical pathname rules before filesystem aliases are
+resolved. Four native/Cupid callers pass 354 calls, including actual Python
+pathname oracles and useful API failures. Three complete shared object pairs
+agree; all eight strict checks pass. Both complete repository replays repeat
+every case, with six checked objects and two complete programs equal to the
+original builds. The unapplied patch preserves the 99-input cohort and installed
+seeds. Physical pathname selection and complete native image discovery remain
+open; three Python coordinators remain.
+
 ## Optional input observations and UNC roots, 2026-10-10
 
 The [reproducible observer extension](docs/bootstrap/NATIVE-OBSERVER-PATHS.md)

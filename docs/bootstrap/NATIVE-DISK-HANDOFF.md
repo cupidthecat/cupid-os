@@ -9,6 +9,11 @@ extension supplies quotas, retained streams, captured identities, first
 absences, ordinary UNC roots and Unicode/long directory resolution. Four
 callers pass 388 API calls under the original bounds; every complete checked
 object and program agrees with the original builds after installed-seed replay.
+The [source spelling component](NATIVE-SOURCE-PATHS.md) also has an unapplied
+patch and complete paired replays. Its four callers pass 354 calls covering
+actual Python lexical spellings and useful C failures. All three whole shared
+object pairs agree, and the six replay objects and two programs retain the
+original bytes. Physical file selection remains a separate input-owner step.
 The older private `cp7` discovery and publisher products below are absent from
 the current worktree. Complete native pathname selection, input ownership and
 image-command publication still require current integration and acceptance.
@@ -16,7 +21,7 @@ image-command publication still require current integration and acceptance.
 The normal shared heap source separately passes both qualifications, cold OS
 builds and boots, full compatibility, all four original SDK profiles and Linux
 public bootstrap acceptance. Windows public methods and both actual Make
-bootstraps remain in their original queue before seed adoption. All 99 producer
+bootstraps remain pending before seed adoption. All 99 producer
 inputs and fifteen installed seeds are unchanged. Three normal Python
 coordinators remain.
 

@@ -41,7 +41,11 @@ and all four 4,096-entry UNC cases on Windows. Complete legacy and alias methods
 six shared object pairs and 36 strict checks pass. Path classification validates
 the complete root binding once per request while retaining every descendant
 check; this repairs the original full nested UNC timeout without changing its
-deadline or capacity. Pathname selection and the complete image input owner
+deadline or capacity. The separate
+[source spelling component](../bootstrap/NATIVE-SOURCE-PATHS.md) passes 354
+native/Cupid calls covering actual Python lexical rules and useful C failures;
+both complete repository replays preserve all cases and whole products.
+Physical pathname selection and the complete image input owner
 still need current implementation and acceptance. Normal producer inputs and
 recipe ownership remain unchanged.
 

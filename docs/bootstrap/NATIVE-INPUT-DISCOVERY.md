@@ -16,8 +16,12 @@ The current [argument owner](NATIVE-IMAGE-ARGUMENT-OWNER.md),
 replays. Four callers complete all 4,096 distinct present and missing flat/nested
 inputs under the original bounds. Current APIs supply quotas, retained streaming,
 captured identities, first absences, ordinary UNC roots and Unicode/long directory
-resolution. The complete discovery owner and pathname selection below still
-need current implementation and integrated acceptance.
+resolution. The [source spelling component](NATIVE-SOURCE-PATHS.md) now passes
+354 calls covering actual Python spellings and useful API failures through four
+native/Cupid callers. It normalizes lexical paths before aliases are resolved
+and retains an unapplied patch and repository replay. Physical pathname
+selection and the complete discovery owner
+below still need current implementation and integrated acceptance.
 
 The private source at `C:/Users/admin/cp7/input-discovery-source4` owns the
 path strings and read-only observers needed by an interpreted image request.

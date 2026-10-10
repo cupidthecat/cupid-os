@@ -191,5 +191,9 @@ the Python image coordinator. TempleOS remains excluded.
 The [reproduced observer prerequisites](NATIVE-RETAINED-OBSERVER.md) now retain
 explicit quotas, streaming through existing records and captured identity
 comparisons. All four callers complete the full 4,096 distinct flat and nested
-inputs, and both full legacy selections pass. Missing-stage observation, UNC
-roots, pathname selection and the complete discovery owner remain open.
+inputs, and both full legacy selections pass. The
+[observer-path extension](NATIVE-OBSERVER-PATHS.md) now supplies first absences,
+ordinary UNC roots and Unicode/long directory resolution. The
+[source spelling component](NATIVE-SOURCE-PATHS.md) passes 354 calls covering
+actual Python lexical rules and useful C failures, with complete paired replays.
+Physical pathname selection and the complete discovery owner remain open.

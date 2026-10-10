@@ -1,5 +1,32 @@
 # Bootstrapping log
 
+## 2026-10-10: Reproduce native image source spellings
+
+The [held source spelling component](NATIVE-SOURCE-PATHS.md) produces lexical
+image input paths before filesystem aliases are resolved. Actual Windows
+Python 3.14.3 and Linux Python 3.12.3 supply the original spelling oracles.
+Four native/Cupid callers pass 354 calls: 314 successful spellings and forty
+useful API/size failures. Three whole shared checked object pairs agree and
+all eight strict checks pass. Required/optional filesystem decisions are also
+captured for later integration; this component compares their spelling field.
+
+The retained failures expose empty-path handling, Windows trailing separators,
+drive-relative paths, incomplete UNC strings and extended share roots. Separate
+argv/stdout probes establish ANSI argument loss and text-mode CRLF conversion
+in the native comparison fixture. Wide argv, the existing UTF-8 codec and binary
+stdout repair that transport. All five source generations and their failures
+remain preserved. Both complete installed-seed repository replays pass every
+original and expanded case again; all six checked objects and two complete
+programs equal the original products. Independent rereading accepts every
+complete outcome and original bound.
+
+The patch, six public replay scripts and full compressed receipts are retained
+in the repository. All 99 normal producer inputs and fifteen installed seed
+files stay unchanged. Physical pathname selection, original-request custody,
+complete input ownership and image publication still require integration.
+Normal ownership remains 449 CupidBuild actions and three Python coordinators
+across 452 transforms. TempleOS is untouched and excluded.
+
 ## 2026-10-10: Reproduce optional-path and UNC observer prerequisites
 
 The [current observer-path patch](NATIVE-OBSERVER-PATHS.md) retains first absences,

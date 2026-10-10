@@ -36,6 +36,18 @@ accepts all 4,338 published files, 132 stage files and 44 complete fixed-point
 pairs. Windows public methods and both actual Make bootstraps remain in progress
 before installed-seed adoption.
 
+## Native image source spellings, 2026-10-10
+
+The [held C spelling component](NATIVE-SOURCE-PATHS.md) follows the actual image
+command's lexical pathname rules before filesystem aliases are resolved. Four
+native/Cupid callers pass 354 calls, including empty requests, other-drive paths,
+ordinary/incomplete/extended UNC spellings, POSIX colon and backslash names, and
+the 8,191-byte boundary. All three complete checked object pairs and eight strict
+checks pass. Both installed-seed replays repeat every case successfully. The
+unapplied source, original failures, Python oracles and repository replay are
+retained. Physical pathname selection and the complete discovery owner remain
+open; the 99-input producer cohort and normal recipe ownership are unchanged.
+
 ## Optional input observations and UNC roots, 2026-10-10
 
 The [held observer extension](NATIVE-OBSERVER-PATHS.md) supplies retained first

@@ -14,8 +14,12 @@ The [argument owner](../bootstrap/NATIVE-IMAGE-ARGUMENT-OWNER.md) and
 held patches and repository replays. The observer extension supplies quotas,
 retained streams, captured identities, first absences, ordinary UNC roots and
 Unicode/long directory resolution. Four callers pass 388 API calls, including
-all 4,096 distinct present and missing flat/nested inputs. The complete input
-owner below still needs current implementation and integrated acceptance;
+all 4,096 distinct present and missing flat/nested inputs. The separate
+[source spelling component](../bootstrap/NATIVE-SOURCE-PATHS.md) now preserves
+the original lexical path rules before aliases are resolved. Four native/Cupid
+callers pass 354 calls, and both complete repository replays retain every case
+and matching whole products. The complete input owner below still needs current
+implementation and integrated acceptance;
 the historical private `cp7` products are absent. Normal source and recipe
 ownership remain unchanged.
 

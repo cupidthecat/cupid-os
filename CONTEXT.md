@@ -26,6 +26,12 @@ _Avoid_: directory (a cohort may cross directories), individual file count
 A mapping from a host source file to an absolute guest path in a Cupid OS disk image. Its host pathname and guest pathname belong to separate namespaces.
 _Avoid_: guest source file, host destination path
 
+**Image source spelling**:
+The lexical host pathname selected for an image input before filesystem aliases
+are resolved. Its spelling alone establishes neither file identity nor retained
+source authority.
+_Avoid_: physical input path, observed source
+
 **Toolchain job**:
 An owned, bounded lifetime for deterministic Cupid Toolchain arena, buffer, logical-path, source, and diagnostic state.
 _Avoid_: global compiler state, platform context
