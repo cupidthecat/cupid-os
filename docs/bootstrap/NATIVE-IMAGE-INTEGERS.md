@@ -11,7 +11,7 @@ bytes, both actual integer oracles and the complete compiled results.
 
 This work supplies a numeric component for the option owner described in
 [ADR 0455](../adr/0455-own-native-image-option-interpretation.md). The normal
-image recipe still uses Python. Complete argv interpretation, native path
+image recipe still uses Python. Normal argv handoff, native path
 discovery, observer lifetimes, image publication and recipe adoption remain
 open. The earlier private `cp7` option and discovery sources are absent from
 the current worktree; the retained patch gives this component a current,
@@ -22,8 +22,8 @@ The active producer cohort remains the exact 99 inputs committed at
 `4ae98403b0896b24e50b81b11b213b8117207421b9152e95d0500e00e612d07e`.
 All fifteen installed seed files retain the `acbbd834` cohort. Cold OS builds,
 boots and full compatibility have accepted the qualified heap replacement.
-Its Linux default SDK passes the complete publication and independent audit;
-the other three SDK profiles, original public methods and actual Make bootstraps
+Both Linux SDK profiles pass complete publication and independent audits;
+both Windows SDK profiles, original public methods and actual Make bootstraps
 remain under their original consumer queue. The normal graph still has
 449 CupidBuild actions and three Python coordinators across 452 transforms.
 

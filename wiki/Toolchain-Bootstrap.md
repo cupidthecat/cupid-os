@@ -28,10 +28,12 @@ object pairs, six user pairs and the complete 200 MiB image pair against the
 source-accepted products. Both full compatibility selections pass all 367 methods
 per host: 341 passes and 26 declared skips on Linux, 364 passes and three skips
 on Windows. Independent checks reread every outcome, all 99 committed inputs,
-the complete candidate pair and unchanged installed seeds. The original Linux
-default SDK also passes its complete publication and independent 77-pair audit,
-with 22 programs and 104 SDK inputs. The other three SDK profiles,
-original public methods and both Make bootstraps continue. The existing historical release
+the complete candidate pair and unchanged installed seeds. Both original Linux
+SDK profiles also pass complete publication and independent 77-pair audits,
+with 22 programs and 104 SDK inputs each. Paired rereading verifies all 308 raw
+stage files and 44 published programs; every complete stream agrees. Both
+Windows SDK profiles, original public methods and both Make bootstraps continue.
+The existing historical release
 fixtures keep their recognized pre-ISO no-context contract; all sixteen unchanged
 methods pass on each host.
 

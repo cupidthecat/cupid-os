@@ -25,10 +25,12 @@ and 26 declared skips on Linux, 364 passes and three skips on Windows. Independe
 review checks every outcome, all 99 committed inputs and the unchanged installed
 seeds. The original
 release-operation fixtures now use their recognized pre-ISO no-context contract;
-all sixteen unchanged methods pass on both hosts. The original Linux default
-SDK also passes its complete publication and independent audit of all 22
-programs, 104 SDK inputs and 77 stage pairs. The other three SDK profiles,
-original public methods and both Make bootstraps remain in progress.
+all sixteen unchanged methods pass on both hosts. Both original Linux SDK
+profiles also pass complete publication and independent audits of all 22
+programs, 104 SDK inputs and 77 stage pairs each. Complete paired rereading
+checks all 308 raw stage files and 44 published programs; their bytes agree.
+Both Windows SDK profiles, original public methods and both Make bootstraps
+remain in progress.
 
 ## Native image argument owner, 2026-10-10
 

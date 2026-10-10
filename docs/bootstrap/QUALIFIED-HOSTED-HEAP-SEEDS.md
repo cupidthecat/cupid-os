@@ -125,10 +125,31 @@ The default SDK bootstrap captures 98 inputs under its supported plan, while
 the qualified paired producer closure still contains 99. [SDK progress evidence](evidence/hosted-heap-sdk-linux-default-progress-20261010.json)
 records the original command/audit jobs, every stage pair and all publication
 identities. Its [compressed complete audit](evidence/hosted-heap-sdk-linux-default-20261010.json.gz)
-restores the exact original independent receipt. The original queue has
-advanced to Linux SDK long; no producer restart is used for this acceptance.
+restores the exact original independent receipt. No producer restart is used
+for this acceptance.
 
-The other three complete SDK profiles, original public methods and both actual Make
+The original Linux long-profile SDK and its independent audit also pass.
+Its two commands take 3,903.546 seconds; the original queue job closes in
+4,212.829 seconds. Independent checking takes 29.867 seconds. The audit accepts
+all 22 published programs, 23 publication files, 104 SDK inputs and 77 complete
+stage pairs, rereads 4,558 retained files and reconstructs the complete
+70,395,254-byte author request. This profile captures all 99 bootstrap inputs,
+adding `utf8_long_path_start.asm` to the default profile's 98. Every original
+CLI flag, deadline and producer sentinel remains unchanged. The original queue
+now runs Windows default; its audit companion waits for that original job.
+
+[Long-profile progress evidence](evidence/hosted-heap-sdk-linux-long-progress-20261010.json)
+and the [complete compressed audit](evidence/hosted-heap-sdk-linux-long-20261010.json.gz)
+retain the exact original jobs and receipts. A [separate paired check](evidence/hosted-heap-paired-linux-sdk-20261010.json)
+rereads all 308 complete stage files across both profiles and generations plus
+all 44 published programs. Every full stream agrees across the profiles. It
+also rechecks all 99 committed producer inputs and fifteen installed seed files.
+The first progress recorder copied the default profile's 98-input assumption;
+its failure remains recorded. Requiring the long profile's actual 99 inputs and
+its exact additional startup source corrects that checker without changing any
+execution receipt or raw input predicate.
+
+Both Windows SDK profiles, original public methods and both actual Make
 bootstraps remain required before installed seed adoption. The normal graph remains 449
 CupidBuild actions and three Python coordinators across 452 transforms.
 TempleOS stays read-only and excluded.
