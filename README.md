@@ -1,5 +1,16 @@
 # cupid-os
 
+## Retained image-stage requests, 2026-10-10
+
+The held [image-stage owner](docs/bootstrap/NATIVE-SOURCE-STAGE.md) now
+preserves the normal image command's missing-path rules through copied
+requests and revalidated borrowed views. All 312 new native/Cupid calls
+and both complete repository replays pass, including every distinct
+4,096-missing-request case. Existing required and optional owners keep
+their original contracts. Full image discovery, physical-root sharing
+and publication remain open; normal source, installed seeds and the
+three Python coordinators retain their existing ownership.
+
 ## Hosted allocator seeds, 2026-10-10
 
 The shared hosted runtime now groups small Windows allocations into regions and

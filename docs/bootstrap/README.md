@@ -1,5 +1,25 @@
 # Cupid Toolchain bootstrap
 
+## Retained image-stage requests, 2026-10-10
+
+The held [image-stage owner](NATIVE-SOURCE-STAGE.md) copies a complete
+original request and preserves the normal image command's missing-path
+rules. Present regular files retain the optional file owner's observations.
+Missing views expose only the requested name. Parents may appear or change
+while the final leaf stays absent; an appearing leaf rejects. Children of
+broken parent aliases remain missing on both hosts. File-parent children
+remain missing on Windows and reject on Linux. Failed views stay rejected.
+
+Four native/Cupid callers pass 312 new calls, including 36 complete
+4,096-distinct-missing-request cases. Both repository replays preserve all
+2,054 current API outcomes, 340 legacy passes with twelve declared skips
+and all 48 alias methods. Complete checked objects and programs equal their
+originals; all 69 strict checks pass. The supplemental review corrects the
+first summary's omitted alias object and four checks while preserving its
+archive. Complete discovery, root interning, present-stage capacity and
+publication remain open. Normal source, seeds and the three Python
+coordinators retain their existing ownership.
+
 ## OS manual acceptance for retained source files, 2026-10-10
 
 The OS manual now records the held required and optional source-file owners,

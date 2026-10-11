@@ -1,5 +1,12 @@
 # ADR 0460: Retain distinct image input capacity
 
+## Image-stage follow-up, 2026-10-10
+
+The separate [image-stage owner](../bootstrap/NATIVE-SOURCE-STAGE.md) supplies the normal
+command's complete missing-path predicate without changing this optional
+owner. Its 312 new calls and both complete repository replays pass. Full
+discovery, physical-root interning and present-stage capacity remain open.
+
 ## Status
 
 Implemented in separate private source-five through source-seven copies on

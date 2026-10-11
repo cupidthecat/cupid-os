@@ -65,6 +65,13 @@ complete root-metadata validation. Python compatibility gaps and native image
 integration remain separate; ADR 0462 records the boundary.
 _Avoid_: optional payload freeze, complete image discovery, production owner
 
+**Image-stage owner**:
+A held owner of one complete image-stage request, with retained file
+observations for a present regular file or only the original pathname
+for a missing stage. Its borrowed views follow the image command's
+missing-path rules and remain rejected after a failed revalidation.
+_Avoid_: optional file owner, complete image discovery, publication authority
+
 **Toolchain job**:
 An owned, bounded lifetime for deterministic Cupid Toolchain arena, buffer, logical-path, source, and diagnostic state.
 _Avoid_: global compiler state, platform context

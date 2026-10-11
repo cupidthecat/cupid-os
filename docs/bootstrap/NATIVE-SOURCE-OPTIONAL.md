@@ -1,5 +1,12 @@
 # Optional source-file owners
 
+## Image-stage follow-up, 2026-10-10
+
+The separate [image-stage owner](NATIVE-SOURCE-STAGE.md) supplies the normal
+command's complete missing-path predicate without changing this optional
+owner. Its 312 new calls and both complete repository replays pass. Full
+discovery, physical-root interning and present-stage capacity remain open.
+
 The held source-file owner can select a regular input or retain a missing
 suffix beneath its nearest existing parent. It copies the lexical request,
 resolved parent and complete logical suffix while retaining the original

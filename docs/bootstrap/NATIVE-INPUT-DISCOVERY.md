@@ -1,5 +1,12 @@
 # Native image input discovery
 
+## Image-stage compatibility, 2026-10-10
+
+The separate [image-stage owner](NATIVE-SOURCE-STAGE.md) supplies the normal
+command's complete missing-path predicate without changing this optional
+owner. Its 312 new calls and both complete repository replays pass. Full
+discovery, physical-root interning and present-stage capacity remain open.
+
 ## Optional source-file follow-up, 2026-10-10
 
 The later [optional source-file owner](NATIVE-SOURCE-OPTIONAL.md) retains
@@ -32,9 +39,10 @@ resolution. The [source spelling component](NATIVE-SOURCE-PATHS.md) now passes
 native/Cupid callers. It normalizes lexical paths before aliases are resolved
 and retains an unapplied patch and repository replay. The later required-file
 owner supplies regular-file selection. The later optional owner supplies
-nearest-existing-parent and missing-suffix retention. Python parent-path
-compatibility and the complete discovery owner below still need integrated
-acceptance.
+nearest-existing-parent and missing-suffix retention. The image-stage owner
+separately preserves the normal command's full-path missing rules. Complete
+discovery, physical-root interning and present-stage capacity still need
+integrated acceptance.
 
 The [source observer profile](NATIVE-SOURCE-OBSERVER.md) also has a direct held
 patch and complete paired replays. It retains the POSIX colon/backslash names
@@ -51,8 +59,9 @@ and both repository replays pass. The full selection preserves all 1,360 current
 API outcomes, every original legacy/alias result and all 35 whole checked objects
 and eighteen programs. The later optional owner passes its complete paired
 replays and is documented in the [accepted OS manual](SOURCE-OWNER-MANUAL.md).
-Python parent-path compatibility, physical-root interning and the complete
-owner below remain open.
+The image-stage owner separately supplies the command's missing-path
+semantics. Physical-root interning, distinct present-stage capacity and
+the complete owner below remain open.
 
 The private source at `C:/Users/admin/cp7/input-discovery-source4` owns the
 path strings and read-only observers needed by an interpreted image request.
