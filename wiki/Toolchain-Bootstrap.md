@@ -12,8 +12,8 @@ strict checks and 23 whole portable object pairs. Four unchanged-copy controls
 pass and 152 altered-evidence controls reject. Eleven malformed-patch or
 invalid-output controls reject before compiler or runtime commands.
 
-Six native-reference diagnostic calls each save 1,030 initial metadata helper
-reads for 512 staged inputs. Four Windows comparisons also record 1,030 fewer
+Three native-reference comparisons, covering six calls, record 1,030 fewer
+initial metadata helper reads for 512 staged inputs. Four Windows comparisons also record 1,030 fewer
 direct handle-information calls, while sixteen other instrumented API counters
 retain their values. These counters cover specific modules and call sites.
 They do not establish complete platform work or a capacity speedup.
