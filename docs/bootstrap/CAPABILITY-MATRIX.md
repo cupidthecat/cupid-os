@@ -1,5 +1,22 @@
 # Cupid Toolchain capability matrix
 
+## Retained file stream groups, 2026-10-11
+
+The held host API supplies serialized capture of retained regular files, with
+complete validation at both group boundaries and immediate parent, no-follow
+leaf, metadata and digest checks for every member. Callback bytes remain
+provisional; failed capture clears all results and poisons the observer. Active
+capture rejects revalidation, closure, recursive capture and transaction borrowing.
+An existing borrower cannot validate during capture. Original-request binding
+reuses validated parent metadata without dropping fresh name or leaf checks.
+
+Both complete replays pass 144 new cases and all 2,916 preceding outcomes.
+All 87 strict checks pass; independent review rereads every whole product and
+complete runtime result. The fresh complete input-owner probe still exceeds
+sixty seconds on both Windows UNC callers. See
+[the record](NATIVE-RETAINED-STREAM-GROUP.md). Normal source and seeds retain
+their ownership.
+
 The current [OS manual acceptance](SOURCE-SELECTION-MANUAL.md) passes paired
 normal builds, complete product comparison and six strict boots. The manual
 and raw-kernel exact policy change; producer source, seeds and the three

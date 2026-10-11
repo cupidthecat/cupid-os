@@ -1,5 +1,16 @@
 # Shared source selection and retained file bindings
 
+## Retained group follow-up, 2026-10-11
+
+The later [group capture packet](NATIVE-RETAINED-STREAM-GROUP.md) includes these
+selection and binding APIs and adds serialized retained-file capture. Its
+original-request check reuses already validated final directory metadata from
+both parent resolutions; name, identity, metadata and fresh regular-leaf checks
+remain required. Both complete replays preserve all 2,916 outcomes recorded
+below and pass 144 additional cases. Complete input ownership remains
+unqualified on Windows. This earlier packet retains its own checkpoint and
+replay guards.
+
 The held source-selection APIs let a complete input owner resolve an original
 request without rebuilding the same physical ancestor chain for every file.
 They keep the selected parent and leaf, and permanently reject publication

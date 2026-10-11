@@ -1,5 +1,21 @@
 # Cupid Toolchain bootstrap
 
+## Retained file stream groups, 2026-10-11
+
+The held [group capture API](NATIVE-RETAINED-STREAM-GROUP.md) streams already retained regular files with
+complete observer validation before and after the group. Every member keeps
+its immediate parent, no-follow leaf, metadata and digest checks. Callback bytes
+remain provisional until success; failure clears all results and poisons the
+observer. Active capture rejects observer revalidation, closure and transaction
+borrowing, including validation through an existing borrower.
+
+Both complete repository replays pass 144 new cases and all 2,916 preceding
+API outcomes, with 87 strict checks and twenty whole object pairs. Independent
+whole-product and runtime review passes; forty altered-evidence controls reject.
+A fresh complete-owner probe still times out on both Windows UNC callers at
+sixty seconds. That owner remains outside acceptance. The 99 producer inputs,
+fifteen installed seed files and three Python coordinators retain their ownership.
+
 ## Source selection manual acceptance, 2026-10-11
 
 The OS manual now records temporary source selection, captured file and

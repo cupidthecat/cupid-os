@@ -1,5 +1,45 @@
 # Bootstrapping log
 
+## 2026-10-11: Qualify retained file stream groups
+
+The held [group capture API](NATIVE-RETAINED-STREAM-GROUP.md) validates the
+complete retained observer before and after serialized payload capture.
+Members retain parent, no-follow leaf, metadata and digest checks. Copied
+bytes remain provisional until success. Failure clears all results and
+poisons the observer. Active capture rejects revalidation, closure, recursion,
+new borrowing and validation through existing borrowers. Original single-file
+streaming retains its ancestor checks. Request binding reuses directory
+metadata already checked by each of its two parent resolutions.
+
+Both complete repository replays pass 144 new cases and every one of the
+2,916 preceding API outcomes, with 340 legacy passes, twelve declared skips,
+48 alias methods and 87 strict checks. Whole-product and runtime review checks
+29 Windows objects, 24 Linux objects and seventeen complete checked programs
+per host. Twenty whole object pairs agree. Four unchanged-copy controls pass;
+forty altered-product, stream, case, bound, publication and mutation controls
+reject. Complete 22-file patch extraction passes; seven malformed-patch and
+invalid-output controls reject before compilation or runtime calls.
+
+Debug-only counters identify repeated ancestor work in old single-file capture.
+All four Windows measurements share 38 directory stats, eighteen directory
+child opens and 22 ancestor steps per file. Instrumentation is absent from the
+accepted source. The fresh complete-owner probe passes both Linux and Windows
+drive callers with 4,096 distinct flat stages, but both UNC callers exceed the
+unchanged sixty-second bound. It uses fixture required files. Complete input
+ownership remains unqualified and excluded from the accepted patch.
+
+Archives preserve failed zero-directory transaction setup, ordinary UNC
+publication preflight, the corrected physical publication-root argument,
+borrower-before-observer cleanup, the WSL PowerShell execution failure and
+Bash-helper correction, and the first wrong-archive public preflight. The final
+144 group cases use the corrected lifetime fixture. No runtime bound changes.
+Missing earlier private receipts are not claimed as recovered evidence.
+
+The patch contains 35 logical sources and 26 helpers. Normal source, all fifteen
+installed seed files and the 449 CupidBuild/three-Python ownership split remain
+unchanged. The 74,594-byte live manual and exact kernel policy retain their
+preceding acceptance until the separate group manual build completes.
+
 ## 2026-10-11: Accept the source selection OS manual
 
 The OS manual now records temporary source selection, captured file and

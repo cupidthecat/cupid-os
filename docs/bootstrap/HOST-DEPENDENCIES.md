@@ -1,5 +1,18 @@
 # Host dependency inventory
 
+## Retained file stream groups, 2026-10-11
+
+The held group API reuses the existing host observer and filesystem services.
+It adds no normal runtime import or code-producing host dependency. Checked
+callers use the installed Cupid seed with conventional producers blocked; Clang
+is the separately recorded native comparison. Both full repository replays,
+whole-product review and all 87 strict checks pass.
+
+Complete input ownership remains unqualified on Windows UNC paths. Python still
+coordinates disk publication, hosted contract publication and verification.
+The graph remains 449 CupidBuild actions and three Python coordinators. See
+[the group record](NATIVE-RETAINED-STREAM-GROUP.md).
+
 The current [OS manual acceptance](SOURCE-SELECTION-MANUAL.md) passes paired
 normal builds, complete product comparison and six strict boots. The manual
 and raw-kernel exact policy change; producer source, seeds and the three

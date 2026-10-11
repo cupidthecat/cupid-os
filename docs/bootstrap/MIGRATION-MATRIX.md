@@ -1,5 +1,18 @@
 # Toolchain ownership migration matrix
 
+## Retained file stream groups, 2026-10-11
+
+The held combined patch adds group capture and directory-metadata reuse without
+changing the 99 active producer inputs or fifteen installed seed files. Its new
+`.cc` fixture builds through checked CupidC, CupidASM and CupidLD. Both complete
+repository replays pass 3,060 API outcomes and 87 strict CupidDis checks;
+independent whole-product, stream and mutation review passes.
+
+The complete input-discovery module is excluded after both fresh Windows UNC
+probes exceed sixty seconds. Ownership remains 449 CupidBuild actions and three
+Python coordinators across 452 transforms. No active `.c` source is renamed by
+this held component. See [the implementation record](NATIVE-RETAINED-STREAM-GROUP.md).
+
 The current [OS manual acceptance](SOURCE-SELECTION-MANUAL.md) passes paired
 normal builds, complete product comparison and six strict boots. The manual
 and raw-kernel exact policy change; producer source, seeds and the three

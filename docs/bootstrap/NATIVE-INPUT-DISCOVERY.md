@@ -1,5 +1,22 @@
 # Native image input discovery
 
+## Group capture follow-up, 2026-10-11
+
+The held [retained file stream group](NATIVE-RETAINED-STREAM-GROUP.md) brackets
+serialized payload capture with complete observer validation and keeps every
+member's immediate parent, leaf, metadata and digest checks. Both complete
+repository replays preserve all 2,916 preceding outcomes and add 144 cases.
+Whole-product and runtime review passes, including forty verifier rejection
+controls. The accepted patch excludes the complete input-discovery module.
+
+A fresh six-call owner probe captures 4,096 distinct flat present stages as one
+group. Both Linux and both Windows drive callers pass. Both Windows UNC callers
+exceed sixty seconds after construction and the first view; their recorded
+phases still spend most of that bound before capture completes. The fixture
+uses dummy required files rather than a qualified release manifest. These
+results remain diagnostic evidence. Complete discovery, physical-root ownership
+and normal publication still need acceptance.
+
 ## Shared selection follow-up, 2026-10-10
 
 The current held [selection and binding packet](NATIVE-SOURCE-SELECTION.md)

@@ -84,6 +84,15 @@ checked against the original requested path. Identity equality alone does
 not establish current metadata or payload validity.
 _Avoid_: pathname equality, payload identity, publication authority
 
+**Retained file stream group**:
+Serialized capture of already retained regular files with complete observer
+validation before and after the group, plus parent, leaf, metadata and digest
+checks for each member. Callback bytes remain provisional until success.
+Failure clears results and poisons the observer. The group creates no
+observations and grants no publication authority. The observer must outlive
+any borrowing transaction.
+_Avoid_: publication batch, frozen input set, complete image discovery
+
 **Toolchain job**:
 An owned, bounded lifetime for deterministic Cupid Toolchain arena, buffer, logical-path, source, and diagnostic state.
 _Avoid_: global compiler state, platform context
