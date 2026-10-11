@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## 2026-10-11: Record fresh complete-owner capacity and metadata diagnosis
+
+Fresh Windows flat calls pass for native and Cupid-built callers on drive and
+UNC paths. Both distinct-parent drive calls pass; both distinct-parent UNC
+calls reach the original sixty-second deadline. The complete owner remains
+outside accepted native image discovery and publication.
+
+Native diagnosis attributes all 39,243 measured metadata queries in a
+512-parent caller. Whole-observer revalidation contributes 20,748 queries.
+`FileStatInformation` rejects UNC queries. `FileAllInformation` returns the
+tested fields but takes longer. Source, custody checks and capacity bounds
+retain their contracts. Normal ownership remains 449 CupidBuild actions and
+three Python coordinators.
+
+The user confirmed that all cleanup and WSL restarts had stopped before
+this fresh replay. [The record](NATIVE-OWNER-CAPACITY-FOLLOWUP.md) keeps the
+remaining UNC failures separate from accepted source and OS manual changes.
+
 ## 2026-10-11: Accept the Windows full-path storage OS manual
 
 The OS manual records the Windows full-path output allocation and its bounded

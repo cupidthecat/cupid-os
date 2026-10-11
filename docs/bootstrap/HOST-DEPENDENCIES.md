@@ -1,5 +1,21 @@
 # Host dependency inventory
 
+## Complete input owner capacity follow-up, 2026-10-11
+
+Fresh Windows flat calls pass for native and Cupid-built callers on drive and
+UNC paths. Both distinct-parent drive calls pass; both distinct-parent UNC
+calls reach the original sixty-second deadline. The complete owner remains
+outside accepted native image discovery and publication.
+
+Native diagnosis attributes all 39,243 measured metadata queries in a
+512-parent caller. Whole-observer revalidation contributes 20,748 queries.
+`FileStatInformation` rejects UNC queries. `FileAllInformation` returns the
+tested fields but takes longer. Source, custody checks and capacity bounds
+retain their contracts. Normal ownership remains 449 CupidBuild actions and
+three Python coordinators.
+
+[The follow-up record](NATIVE-OWNER-CAPACITY-FOLLOWUP.md) preserves every capacity result and rejected experiment.
+
 ## Windows full-path storage manual acceptance, 2026-10-11
 
 The OS manual records the Windows full-path output allocation and its bounded

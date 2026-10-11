@@ -1,5 +1,14 @@
 # Windows full-path output storage
 
+## Complete-owner capacity follow-up, 2026-10-11
+
+The [fresh Windows replay](NATIVE-OWNER-CAPACITY-FOLLOWUP.md) passes all four
+flat calls and both distinct-parent drive calls. Both distinct-parent UNC
+callers still time out at sixty seconds. Native diagnosis attributes
+the metadata queries. The tested replacement APIs either reject UNC queries
+or take longer. Complete
+input ownership and publication remain unqualified.
+
 ## Windows full-path storage manual acceptance, 2026-10-11
 
 The [OS manual acceptance](FULLPATH-STORAGE-MANUAL.md) passes both complete
