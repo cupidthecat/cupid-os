@@ -16,10 +16,10 @@ remains unqualified: both final 4,096-input UNC phase processes time out at
 sixty seconds. The combined shared-API patch excludes this owner. Full image
 discovery, physical-root interning and publication therefore remain open.
 
-The [image-stage manual acceptance](SOURCE-STAGE-MANUAL.md) installs the
-73,655-byte manual after paired and normal-root builds, whole-product checks
-and six strict boots. Stage APIs remain held, and full image discovery and
-publication remain open.
+The later [source selection manual acceptance](SOURCE-SELECTION-MANUAL.md)
+installs the 74,594-byte manual and 9,303,840-byte raw kernel after paired and
+normal-root builds, whole-product checks and six strict boots. Source APIs
+remain held, and full image discovery and publication remain open.
 
 ## Image-stage compatibility, 2026-10-10
 

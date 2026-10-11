@@ -182,7 +182,9 @@ embedded-output controls reject. Five malformed-patch and invalid-output
 preflights also reject. The archive preserves the originally frozen proof
 and the later verifier refinement after both replays close.
 
-Use this packet's prototype commit before a later manual or policy change.
+Use `4dab700c` for this packet's replay. The later
+[manual acceptance](SOURCE-SELECTION-MANUAL.md) changes its guarded manual and
+policy while retaining the prototype's original source projection.
 The public runner and independent verifier use fresh direct children of `build`:
 
 ```powershell

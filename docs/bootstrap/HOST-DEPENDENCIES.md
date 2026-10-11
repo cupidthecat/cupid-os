@@ -1,5 +1,10 @@
 # Host dependency inventory
 
+The current [OS manual acceptance](SOURCE-SELECTION-MANUAL.md) passes paired
+normal builds, complete product comparison and six strict boots. The manual
+and raw-kernel exact policy change; producer source, seeds and the three
+Python coordinators retain their accepted ownership.
+
 ## Shared source selection and bindings, 2026-10-10
 
 Held selection and binding APIs reuse existing host filesystem services and

@@ -1,5 +1,9 @@
 # OS manual acceptance for image-stage requests
 
+This record retains the earlier image-stage manual acceptance. The later
+[source selection refresh](SOURCE-SELECTION-MANUAL.md) installs the current
+74,594-byte manual and 9,303,840-byte raw kernel.
+
 The OS manual now records the held image-stage owner, including the normal
 image command's complete missing-path checks, copied request names, borrowed
 views and permanent rejection after failed validation. It distinguishes

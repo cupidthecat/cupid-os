@@ -52,6 +52,19 @@ while the final leaf stays absent. Children of broken parent aliases remain miss
 regular-file parents remain missing on Windows and reject on Linux.
 The caller must revalidate each stage before consuming it and after use.
 A failed view stays rejected even if the path later becomes missing again.
+
+Held temporary source selectors retain the original request, selected parent
+and leaf without repeating complete physical ancestor capture. They reject
+publication borrowing. Their captured file and parent identities must match
+complete retained observers validated before and after use. Combined constructors
+return the first borrowed view at successful validation; failed views stay rejected.
+Cached identity comparisons add no observations and do not validate metadata
+or payloads. Fresh request checks resolve the original parent twice and check
+the retained regular leaf. Complete payload validation still brackets those checks.
+Indexed lookup keeps stale older observations in full validation. Checked Windows
+paths use existing wide host calls with unchanged UTF-8 and normalized names.
+The complete input owner remains unqualified on Windows at its sixty-second
+UNC capacity bound. The normal image coordinator still uses Python.
 The image recipe still requires its complete native input owner
 and publication handoff; its normal coordinator currently uses Python.
 

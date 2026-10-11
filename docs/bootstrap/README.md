@@ -1,5 +1,26 @@
 # Cupid Toolchain bootstrap
 
+## Source selection manual acceptance, 2026-10-11
+
+The OS manual now records temporary source selection, captured file and
+parent comparisons, first-view construction and fresh original-request checks.
+It preserves the boundary between selection and complete publication custody.
+The complete input owner remains unqualified on Windows.
+
+Both complete host builds and normal-root acceptance pass. Independent review
+compares all 429 whole object pairs, four linked products, six user products and
+all 209,715,200 image bytes. All six strict boots, sixteen exact artifact gates
+per build and seventeen root artifact-policy methods pass. Only the embedded
+manual object changes; the other 428 objects retain their previous bytes.
+
+The manual grows by 939 bytes to 74,594 bytes. The raw kernel grows by 940 bytes
+to 9,303,840 bytes, including one byte of layout alignment. Both ELF sizes stay
+unchanged. Only the raw-kernel policy row changes. The shared selection replay
+remains reproducible at `4dab700c`. The 99 producer inputs, installed seeds and
+three Python coordinators retain their accepted ownership.
+
+The [acceptance record](SOURCE-SELECTION-MANUAL.md) carries complete receipts and preserved failures.
+
 ## Shared source selection and bindings, 2026-10-10
 
 The held [selection and binding APIs](NATIVE-SOURCE-SELECTION.md) retain an
