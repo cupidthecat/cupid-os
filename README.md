@@ -1,5 +1,25 @@
 # cupid-os
 
+## Path observation group manual acceptance, 2026-10-11
+
+The OS manual records retained path observation groups, provisional callback
+kinds, permanent failure and borrower lifetime. Both complete host builds and
+normal-root acceptance pass. Independent review compares all 429 whole objects,
+four linked products, six user products and every byte of the 209,715,200-byte
+image. All six strict SMP boots, sixteen exact artifact gates per build and
+seventeen root artifact-policy methods pass.
+
+The manual grows by 1,839 bytes to 77,802 bytes. The raw kernel grows by
+1,840 bytes to 9,307,048 bytes. One byte of layout padding accounts for the difference between raw-kernel
+and manual growth.
+Three measured kernel policy rows change. Only the embedded manual object changes;
+the other 428 objects retain their preceding bytes. The held path-group replay
+keeps `cf52cd12` and its original manual and policy. Complete native input
+ownership remains unqualified on Windows UNC paths. Normal ownership stays
+at 449 CupidBuild actions and three Python coordinators.
+
+The [acceptance record](docs/bootstrap/PATH-OBSERVATION-GROUP-MANUAL.md) carries the measured sizes and complete paired and root receipts.
+
 ## Retained path observation groups, 2026-10-11
 
 The held host API captures ordinary file, directory and first-absence observations
@@ -18,8 +38,8 @@ as the sources of repeated parent-directory resolution.
 
 The 99 active producer inputs, fifteen installed seeds and three Python
 coordinators retain their ownership. Normal ownership remains 449 CupidBuild
-actions across 452 transforms. The OS manual retains its accepted 75,963-byte
-baseline and the raw kernel its 9,305,208-byte baseline.
+actions across 452 transforms. This component checkpoint keeps its accepted
+75,963-byte manual and 9,305,208-byte raw kernel.
 
 [The component record](docs/bootstrap/NATIVE-PATH-OBSERVATION-GROUP.md) carries the held patch, complete receipts and constructor diagnosis.
 

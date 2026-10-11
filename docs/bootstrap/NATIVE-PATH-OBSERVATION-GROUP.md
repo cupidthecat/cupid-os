@@ -1,5 +1,14 @@
 # Retained path observation groups
 
+## Path observation group manual acceptance, 2026-10-11
+
+The current [OS manual acceptance](PATH-OBSERVATION-GROUP-MANUAL.md) passes both
+complete host builds and normal-root verification, including all six strict
+SMP boots. The manual has 77,802 bytes and the raw kernel 9,307,048 bytes.
+Complete native input ownership remains unqualified on Windows UNC paths;
+normal image publication still uses Python. Held component replay keeps its
+recorded source, manual and policy checkpoint.
+
 The held host API captures ordinary file, directory and first-absence observations
 as one serialized group. Complete observer validation brackets capture, avoiding
 a repeated full ancestor walk for every path. Each path retains root-metadata,

@@ -1,5 +1,14 @@
 # Native image input discovery
 
+## Path observation group manual acceptance, 2026-10-11
+
+The current [OS manual acceptance](PATH-OBSERVATION-GROUP-MANUAL.md) passes both
+complete host builds and normal-root verification, including all six strict
+SMP boots. The manual has 77,802 bytes and the raw kernel 9,307,048 bytes.
+Complete native input ownership remains unqualified on Windows UNC paths;
+normal image publication still uses Python. Held component replay keeps its
+recorded source, manual and policy checkpoint.
+
 ## Path observation group follow-up, 2026-10-11
 
 The held [path observation group](NATIVE-PATH-OBSERVATION-GROUP.md) supplies serialized ordinary path capture with complete validation before and after the group. It preserves root metadata, immediate-parent and fresh no-follow leaf checks, provisional kinds and permanent failure. Both complete repository replays pass 168 new cases and all 3,060 preceding outcomes, with 91 strict checks and 21 whole object pairs. Independent whole-product and runtime review passes; sixty altered-evidence controls reject.
@@ -8,7 +17,7 @@ The separate complete owner preserves copied options, both views, original-reque
 
 ## Retained stream group manual acceptance, 2026-10-11
 
-The current [OS manual acceptance](RETAINED-STREAM-GROUP-MANUAL.md) passes
+The preceding [OS manual acceptance](RETAINED-STREAM-GROUP-MANUAL.md) passes
 paired builds, complete product comparison and six strict SMP boots. The
 manual has 75,963 bytes; the raw kernel has 9,305,208 bytes. Native input
 discovery remains held and unqualified on Windows UNC paths. The normal

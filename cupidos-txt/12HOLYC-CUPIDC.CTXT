@@ -88,6 +88,31 @@ resolution while retaining their name, identity and regular-leaf rechecks.
 Complete input ownership remains unqualified on Windows: both fresh UNC callers
 exceed sixty seconds. The normal image coordinator still uses Python.
 
+>h2 Retained path observation groups
+The held host API captures ordinary file, directory and first-absence observations
+as one serialized group. It validates every normalized UTF-8 name before the first
+callback and checks complete observer custody before and after capture. Every
+path keeps current root metadata, immediate-parent and fresh no-follow leaf checks.
+Earlier observations, memberships and streamed payload digests remain validated.
+Callback kinds stay provisional until the whole group succeeds. Failure clears
+every result and poisons the observer; a corrected retry stays rejected. Zero
+count accepts null arrays while still validating custody. Overflow rejects before
+array access or output writes. A null callback captures without notification.
+Observer revalidation, closure, recursive groups, path capture and streaming
+reject during a callback. New borrowing rejects permanently then. An established
+borrower also rejects validation during capture and keeps its transaction error;
+that error alone does not revoke the established binding after capture. Invalid
+new borrowing revokes the binding permanently. Owners must outlive borrowers.
+Callbacks may compare historical bindings through a separate temporary selector
+and close it after comparison. Temporary selectors still reject publication
+borrowing. Group capture grants no publication authority. Image-stage missing
+selection retains its separate contract, and ordinary single-path capture keeps
+its full ancestor checks. Paired native and Cupid-built cases cover 4,096 distinct
+names, mixed kinds, quota exhaustion, reentry, changed metadata and earlier digests.
+The separate complete input owner preserves copied options, both views and payload
+capture, but both Windows UNC callers still exceed sixty seconds. Normal image
+publication remains Python-owned.
+
 >h2 Shared compiler block assertions
 The shared bootstrap compiler at source head accepts C11 _Static_assert
 inside function compounds. It checks local names and target layout at compile

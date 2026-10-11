@@ -1,5 +1,14 @@
 # OS manual acceptance for retained file stream groups
 
+## Path observation group manual acceptance, 2026-10-11
+
+The current [OS manual acceptance](PATH-OBSERVATION-GROUP-MANUAL.md) passes both
+complete host builds and normal-root verification, including all six strict
+SMP boots. The manual has 77,802 bytes and the raw kernel 9,307,048 bytes.
+Complete native input ownership remains unqualified on Windows UNC paths;
+normal image publication still uses Python. Held component replay keeps its
+recorded source, manual and policy checkpoint.
+
 The OS manual records group capture of already retained files, complete observer
 checks at both boundaries, provisional callback bytes and permanent rejection
 after failure. It covers callback and borrowing restrictions, result clearing,

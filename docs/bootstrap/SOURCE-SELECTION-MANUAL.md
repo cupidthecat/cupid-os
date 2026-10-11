@@ -1,7 +1,16 @@
 # OS manual acceptance for shared source selection
 
+## Path observation group manual acceptance, 2026-10-11
+
+The current [OS manual acceptance](PATH-OBSERVATION-GROUP-MANUAL.md) passes both
+complete host builds and normal-root verification, including all six strict
+SMP boots. The manual has 77,802 bytes and the raw kernel 9,307,048 bytes.
+Complete native input ownership remains unqualified on Windows UNC paths;
+normal image publication still uses Python. Held component replay keeps its
+recorded source, manual and policy checkpoint.
+
 The later [retained stream group refresh](RETAINED-STREAM-GROUP-MANUAL.md)
-contains the current manual and raw-kernel acceptance. This record preserves
+contains the preceding manual and raw-kernel acceptance. This record preserves
 the preceding source-selection measurements and their original receipts.
 
 The OS manual now records temporary source selection, captured file and
