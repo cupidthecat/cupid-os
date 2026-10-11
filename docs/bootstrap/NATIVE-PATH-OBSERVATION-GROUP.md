@@ -1,5 +1,15 @@
 # Retained path observation groups
 
+## Source selection group follow-up, 2026-10-11
+
+The held [source selection observation group](NATIVE-SOURCE-SELECTION-GROUP.md)
+preserves this component and all 3,438 preceding API outcomes. Both complete
+repository replays add 192 cases, pass 99 strict checks and preserve 23 whole
+object pairs. Independent review and 152 rejection controls pass. Temporary
+selection observers reject publication borrowing, and complete input custody
+stays with the retained owner. Complete owner and publication acceptance remain
+open; the private owner implementation is excluded from this held patch.
+
 ## Original file-request group manual acceptance, 2026-10-11
 
 The [OS manual acceptance](FILE-REQUEST-GROUP-MANUAL.md) passes both complete

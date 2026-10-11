@@ -1,5 +1,32 @@
 # Bootstrapping log
 
+## 2026-10-11: Qualify temporary source selection groups
+
+The held host API captures source path kinds through a temporary selection
+observer. Selection validation brackets capture; source-root identity follows
+the optional selection contract, while captured descendants and leaves retain
+their existing checks. The ordinary path group keeps full root metadata.
+Temporary selectors permanently reject publication borrowing.
+
+Both complete repository replays pass 192 new cases and all 3,438 preceding
+outcomes, with 99 strict checks and 23 whole object pairs. Independent review
+rereads every whole product and runtime stream. Four unchanged-copy controls
+pass; 152 altered-evidence controls reject. Eleven patch and output preflights
+reject before compiler or runtime calls.
+
+Separate private owner probes pass six flat capacity calls and 236 lifetime
+processes. A temporary-observer release change fixes the 4,096-parent Linux
+descriptor failure under the original bounds, but a native Windows UNC timeout
+remains preserved and complete owner qualification stays open. Neither owner
+implementation is included in the held component patch.
+
+The 99 producer inputs, fifteen installed seeds and three Python coordinators
+retain their ownership. Normal ownership remains 449 CupidBuild actions across
+452 transforms. This component keeps the accepted 80,111-byte manual and
+9,309,356-byte raw kernel at `f64b6382`.
+
+[The component record](NATIVE-SOURCE-SELECTION-GROUP.md) carries the held patch, portable receipts and preserved failures.
+
 ## 2026-10-11: Accept the original file-request group OS manual
 
 The OS manual records retained original file-request binding groups, parent

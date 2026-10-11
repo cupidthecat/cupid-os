@@ -34,6 +34,15 @@
 
 ## Toolchain bootstrap
 
+Temporary source selection groups capture path kinds while retaining the
+optional selection profile and permanent publication-borrowing rejection.
+Both repository replays pass 192 new cases and all 3,438 preceding outcomes,
+with 99 strict checks, 23 whole object pairs and 152 rejection controls.
+Complete input-owner and publication qualification remain open.
+
+[The component record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-SOURCE-SELECTION-GROUP.md)
+carries the held patch, portable receipts and preserved failures.
+
 Retained original file-request binding groups share parent resolution while
 keeping fresh file metadata checks and complete caller root and payload custody.
 Both repository replays pass 210 new cases and all 3,228 preceding outcomes,

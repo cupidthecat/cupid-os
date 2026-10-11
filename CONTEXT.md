@@ -106,6 +106,13 @@ requests. Callback results remain provisional, and the caller retains complete
 root and payload custody.
 _Avoid_: complete payload validation, complete image discovery, publication authority
 
+**Source selection observation group**:
+A serialized capture of path kinds by a temporary source selection observer.
+Its results remain provisional, while a separate retained input owner holds
+complete source custody.
+_Avoid_: publication batch, retained payload set, complete image discovery
+
+
 **Toolchain job**:
 An owned, bounded lifetime for deterministic Cupid Toolchain arena, buffer, logical-path, source, and diagnostic state.
 _Avoid_: global compiler state, platform context
