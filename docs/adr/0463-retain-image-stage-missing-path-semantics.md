@@ -5,7 +5,8 @@
 Implemented as a held patch on 2026-10-10. All 312 new native/Cupid calls and
 both complete repository replays pass. Normal source, seeds and recipe
 ownership remain unchanged. Complete image discovery and publication remain
-open.
+open. The later [OS manual acceptance](../bootstrap/SOURCE-STAGE-MANUAL.md)
+records this held API after paired and normal-root builds and strict boots.
 
 ## Context
 

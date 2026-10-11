@@ -1,5 +1,26 @@
 # Bootstrapping log
 
+## Image-stage manual acceptance, 2026-10-10
+
+The OS manual now records the held image-stage owner, including the normal
+image command's complete missing-path checks, copied request names, borrowed
+views and permanent rejection after failed validation. It distinguishes
+that contract from the optional file owner's first-absence contract.
+
+Both complete host builds pass user and ABI checks, all sixteen exact
+artifact gates and four strict boots. Independent review compares all
+429 whole object pairs, four linked products, six user products and all
+209,715,200 image bytes. Only the embedded manual object changes. The
+normal root repeats its build and both strict boots, produces the same
+complete products, and passes all seventeen artifact-policy methods.
+
+The manual grows by 624 bytes to 73,655 bytes; the raw kernel becomes
+9,302,900 bytes. Both ELF sizes stay unchanged. Only the raw-kernel
+policy row changes; the other fifteen rows retain their exact sizes.
+The [acceptance record](SOURCE-STAGE-MANUAL.md) carries complete receipts.
+The held stage replay remains reproducible at `7765296f`. The 99 producer
+inputs, installed seeds and three Python coordinators remain unchanged.
+
 ## 2026-10-10: Retain complete image-stage requests
 
 The held [image-stage owner](NATIVE-SOURCE-STAGE.md) copies a complete

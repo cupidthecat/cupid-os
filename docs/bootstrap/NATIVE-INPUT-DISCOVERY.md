@@ -1,5 +1,10 @@
 # Native image input discovery
 
+The [image-stage manual acceptance](SOURCE-STAGE-MANUAL.md) installs the
+73,655-byte manual after paired and normal-root builds, whole-product checks
+and six strict boots. Stage APIs remain held, and full image discovery and
+publication remain open.
+
 ## Image-stage compatibility, 2026-10-10
 
 The separate [image-stage owner](NATIVE-SOURCE-STAGE.md) supplies the normal

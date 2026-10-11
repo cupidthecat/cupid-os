@@ -3,6 +3,8 @@
 This record retains the heap promotion and its 72,415-byte manual. The
 later [source-owner manual acceptance](SOURCE-OWNER-MANUAL.md) installs
 73,031 bytes after complete paired and normal-root builds and strict boots.
+The subsequent [image-stage manual acceptance](SOURCE-STAGE-MANUAL.md)
+installs 73,655 bytes after fresh paired and normal-root builds and boots.
 The installed tools and 99-input producer cohort retain their accepted
 bytes.
 

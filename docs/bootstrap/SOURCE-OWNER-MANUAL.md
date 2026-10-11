@@ -1,5 +1,9 @@
 # OS manual acceptance for retained source files
 
+This record retains the earlier 73,031-byte manual and its complete
+acceptance. The later [image-stage manual acceptance](SOURCE-STAGE-MANUAL.md)
+installs 73,655 bytes after fresh paired and normal-root builds and boots.
+
 The installed OS manual records the held required/optional source-file
 constructors, original parent binding, borrowed lifetimes, metadata limits
 and retained streaming. It also records the unresolved Python

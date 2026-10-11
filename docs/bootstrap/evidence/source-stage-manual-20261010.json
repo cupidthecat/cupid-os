@@ -1,0 +1,134 @@
+{
+  "artifact_gates_per_host": 16,
+  "artifact_policy": {
+    "sha256": "1bec44a840005270381be0561a0c7d3879c71f67c9a84c0d00545d03e4d631b0",
+    "size": 3384
+  },
+  "changed_objects": [
+    "cupidos-txt/12HOLYC-CUPIDC.o"
+  ],
+  "checkpoint": "7765296f58ff1a52912a3d4e5b709544c640e68c",
+  "fat_bytes_preserved": 199229440,
+  "hosts": {
+    "linux": {
+      "closed": {
+        "sha256": "89086f1d04a3973accd5fb000691be9217bc7a0499f2df0189adf497e08a0fc2",
+        "size": 102791
+      },
+      "seconds": 1289.0374226620006
+    },
+    "windows": {
+      "closed": {
+        "sha256": "82a26922c635b0749031c143dae871d47fa5483513221036137dd860345b3045",
+        "size": 104050
+      },
+      "seconds": 1844.7151666999562
+    }
+  },
+  "image": {
+    "sha256": "8aa9bd989750e60b4b3e7a1957c3d55e740254d7c64478b2eaea2ce9159a61c0",
+    "size": 209715200
+  },
+  "image_bytes_compared": 209715200,
+  "independent_review_seconds": 29.600941300042905,
+  "kernel_policy_measurements": {
+    "kernel/kernel.bin": {
+      "artifact": {
+        "sha256": "dcd7f3b681f582d2fe815c74e35da1520c97d7263a7234e59c63eb4cc7c6b128",
+        "size": 9302900
+      },
+      "measured_exact_bytes": 9302900,
+      "previous_exact_bytes": 9302276
+    },
+    "kernel/kernel.elf": {
+      "artifact": {
+        "sha256": "c636f87830b29a610dcd2624ddd774d4d5bc7d2130335b198c54d2cc6e63d4e3",
+        "size": 9531836
+      },
+      "measured_exact_bytes": 9531836,
+      "previous_exact_bytes": 9531836
+    },
+    "kernel/kernel.elf.pass1": {
+      "artifact": {
+        "sha256": "501fd00492c2fd5c2759fd7ae458f3545f5d554b7603f4686386b74deb44486d",
+        "size": 9400764
+      },
+      "measured_exact_bytes": 9400764,
+      "previous_exact_bytes": 9400764
+    }
+  },
+  "manual": {
+    "sha256": "e36d1a1f4aa5501236725d268feab10dd59d42fc69f72dcf21122e7fa4d0d9d9",
+    "size": 73655
+  },
+  "normal_source_inputs_unchanged": 99,
+  "original_receipts_archive": {
+    "sha256": "c0983e248f40abfeec82729a60292c20703983bc43d1f77a42ce80c4745b87d5",
+    "size": 650521
+  },
+  "original_receipts_uncompressed": {
+    "sha256": "cd60122c986d9613f5cb3d9cfefc96bb5a7ba7a06da257a1ff048c1a2e7c65d5",
+    "size": 2455320
+  },
+  "raw_kernel": {
+    "sha256": "dcd7f3b681f582d2fe815c74e35da1520c97d7263a7234e59c63eb4cc7c6b128",
+    "size": 9302900
+  },
+  "root_adoption": {
+    "application": {
+      "sha256": "ea38df7cae04756170c6705afb83f687e97c31649d3bc5fd565126fea70e95ba",
+      "size": 20255
+    },
+    "artifact_policy_regression_methods": 17,
+    "closed": {
+      "sha256": "9b6bf2c5ac42b73a83ebd42ebfbfdea7d7c1786b67a8c0688bf80237d9d7854b",
+      "size": 7148
+    },
+    "exact_artifact_gates": 16,
+    "fat_bytes_preserved": 199229440,
+    "image": {
+      "sha256": "8aa9bd989750e60b4b3e7a1957c3d55e740254d7c64478b2eaea2ce9159a61c0",
+      "size": 209715200
+    },
+    "image_bytes_compared": 209715200,
+    "independent_review_seconds": 4.626784099964425,
+    "manual": {
+      "sha256": "e36d1a1f4aa5501236725d268feab10dd59d42fc69f72dcf21122e7fa4d0d9d9",
+      "size": 73655
+    },
+    "measured_kernel_policy_rows": 3,
+    "normal_root_seconds": 1462.459146899986,
+    "normal_source_inputs_unchanged": 99,
+    "raw_kernel": {
+      "sha256": "dcd7f3b681f582d2fe815c74e35da1520c97d7263a7234e59c63eb4cc7c6b128",
+      "size": 9302900
+    },
+    "root_files_changed": 2,
+    "root_receipts_archive": {
+      "sha256": "de6080c3878d7c547fec909271cdf5efeb8b1506d2cb0f69f252bf02ee182098",
+      "size": 118871
+    },
+    "root_receipts_uncompressed": {
+      "sha256": "0a0ef2581abf454a38a1be8c7ea607a3ca71a68da3635a3136ce3e7ccf4bc3bc",
+      "size": 533386
+    },
+    "schema": "cupid.source-stage-manual-root-review.v1",
+    "status": "pass",
+    "strict_boots": 2,
+    "user_abi_fields": 103,
+    "user_abi_providers": 101,
+    "whole_linked_outputs_equal_paired_consumers": 4,
+    "whole_objects_equal_paired_consumers": 429,
+    "whole_user_outputs_equal_paired_consumers": 6
+  },
+  "schema": "cupid.source-stage-manual-paired-review.v1",
+  "source_revision": "1d852023df98c03481c4b3979dccb398288b7115",
+  "status": "pass",
+  "strict_boots": 4,
+  "unchanged_objects": 428,
+  "user_abi_fields": 103,
+  "user_abi_providers": 101,
+  "whole_linked_products_equal": 4,
+  "whole_objects_equal": 429,
+  "whole_user_products_equal": 6
+}

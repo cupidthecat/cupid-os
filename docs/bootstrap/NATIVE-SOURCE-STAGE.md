@@ -113,8 +113,9 @@ their original bytes. The separate repository verifier repeats that review.
 
 ## Repository replay and ownership
 
-From this packet's committed repository root, use a fresh direct child of
-`build` on each host:
+Use this packet from commit `7765296f`, before the subsequent
+[image-stage manual acceptance](SOURCE-STAGE-MANUAL.md). From that committed
+repository root, use a fresh direct child of `build` on each host:
 
 ```powershell
 python docs/bootstrap/prototypes/replay-native-source-stage.py --output build/source-stage-review
@@ -130,7 +131,8 @@ Use different fresh destinations when both hosts share the same worktree.
 Both occupied-output and out-of-tree checks reject before writing into the
 destination. The replay guards twenty root files, including the 73,031-byte
 manual and its measured artifact policy, and the committed `72a02d85` basis.
-A subsequent manual change needs this packet's original checkpoint for replay.
+The later 73,655-byte manual changes two guarded files. Replay at
+`7765296f` to retain the packet's original controls.
 
 The patch supplies seventeen patched sources and four fixture/runtime
 supplements, twenty-one logical files in total. Nine argument-owner sources

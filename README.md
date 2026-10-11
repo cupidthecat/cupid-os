@@ -1,5 +1,26 @@
 # cupid-os
 
+## Image-stage manual acceptance, 2026-10-10
+
+The OS manual now records the held image-stage owner, including the normal
+image command's complete missing-path checks, copied request names, borrowed
+views and permanent rejection after failed validation. It distinguishes
+that contract from the optional file owner's first-absence contract.
+
+Both complete host builds pass user and ABI checks, all sixteen exact
+artifact gates and four strict boots. Independent review compares all
+429 whole object pairs, four linked products, six user products and all
+209,715,200 image bytes. Only the embedded manual object changes. The
+normal root repeats its build and both strict boots, produces the same
+complete products, and passes all seventeen artifact-policy methods.
+
+The manual grows by 624 bytes to 73,655 bytes; the raw kernel becomes
+9,302,900 bytes. Both ELF sizes stay unchanged. Only the raw-kernel
+policy row changes; the other fifteen rows retain their exact sizes.
+The [acceptance record](docs/bootstrap/SOURCE-STAGE-MANUAL.md) carries complete receipts.
+The held stage replay remains reproducible at `7765296f`. The 99 producer
+inputs, installed seeds and three Python coordinators remain unchanged.
+
 ## Retained image-stage requests, 2026-10-10
 
 The held [image-stage owner](docs/bootstrap/NATIVE-SOURCE-STAGE.md) now
@@ -45,9 +66,10 @@ adoption](docs/bootstrap/HOSTED-HEAP-ADOPTION.md) and its final paired cold
 builds and boots pass. The normal checkout also passes complete build,
 seed-reader/release-operation and strict boot checks; all products equal the
 accepted pair. The later [manual refresh](docs/bootstrap/SOURCE-OWNER-MANUAL.md)
-also passes paired builds and strict boots. The installed manual is 73,031
-bytes, and the raw kernel is 9,302,276 bytes. The three Python coordinators
-remain.
+also passes paired builds and strict boots. The subsequent
+[image-stage manual refresh](docs/bootstrap/SOURCE-STAGE-MANUAL.md) installs
+73,655 bytes after complete paired and normal-root acceptance. The raw kernel
+is 9,302,900 bytes. The three Python coordinators remain.
 
 ## Optional source-file owners, 2026-10-10
 
