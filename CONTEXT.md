@@ -39,6 +39,13 @@ backslash filename bytes while preserving UTF-8, component and path bounds.
 Ordinary observers and output-name rules retain their separate contracts.
 _Avoid_: pathname selector, namespace authority, output-name policy
 
+**Windows full-path output storage**:
+Scratch storage owned by the checked Windows UTF-8 adapter for one API
+result. The API fills it before conversion; only successful returned units
+inside its fixed bound enter the scalar codec. It requires no initial value.
+[ADR 0470](docs/adr/0470-allocate-windows-full-path-output-without-an-initial-clear.md) records its allocation and error contracts.
+_Avoid_: cached pathname, retained source authority
+
 **Initial source leaf snapshot**:
 The kind and metadata captured from a source leaf when it first enters
 retained observation. Later binding and payload custody establish its

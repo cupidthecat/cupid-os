@@ -1,5 +1,20 @@
 # cupid-os
 
+## Windows full-path output storage, 2026-10-11
+
+The Windows UTF-8 adapter built by CupidC allocates its full-path output
+without an initial 65,536-byte clear. The API fills the same bounded buffer
+before conversion. Length checks, errors, cleanup and source custody keep
+their contracts. Dirty-storage and failure tests pass on both hosts.
+
+Normal-root verification passes all sixteen artifact gates and both strict
+four-CPU boots. All 429 objects, four linked products, six user products and
+the complete 209,715,200-byte image match the preceding acceptance.
+Installed execution seeds are unchanged. Normal ownership remains at
+449 CupidBuild actions and three Python coordinators. Complete native input ownership and publication remain open.
+
+[The acceptance record](docs/bootstrap/NATIVE-FULLPATH-STORAGE.md) contains the measurements and preserved failures.
+
 ## Initial leaf metadata manual acceptance, 2026-10-11
 
 The OS manual records initial source-leaf kind and metadata capture from one

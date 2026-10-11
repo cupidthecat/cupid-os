@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 static unsigned int last_error;
 static unsigned int fail_allocation;
 static unsigned int allocation_index;
@@ -6,6 +7,19 @@ static unsigned int query_mode;
 static unsigned int query_calls;
 static unsigned int live_allocations;
 void *runtime_calloc(size_t count, size_t size);
+void *runtime_malloc(size_t size);
+static unsigned int dirty_output_queries;
+void *malloc(size_t size) {
+  void *result;
+  allocation_index++;
+  if (allocation_index == fail_allocation) return (void *)0;
+  result = runtime_malloc(size);
+  if (result != (void *)0) {
+    (void)memset(result, 0xd3, size);
+    live_allocations++;
+  }
+  return result;
+}
 void *calloc(size_t count, size_t size) {
   void *result;
   allocation_index++;
@@ -72,6 +86,7 @@ unsigned int cupid_windows_create_process_wide(
 static unsigned int query(unsigned short *output, unsigned short **part) {
   unsigned short text[] = {'C', ':', 92, 'c', 'a', 'f', 0xe9, 92, 'f', 'i', 'l', 'e', 0};
   query_calls++;
+  if (output[0] == 0xd3d3u && output[32767u] == 0xd3d3u) dirty_output_queries++;
   if (query_mode == 1u) { last_error = 5u; return 0u; }
   if (query_mode == 2u) return 32768u;
   if (query_mode == 3u) { output[0] = 0xdc00u; output[1] = 0u; return 1u; }
@@ -174,7 +189,27 @@ static int fullpath_cases(int argc, char **argv) {
         last_error != expected || live_allocations != 0u) return 7;
   }
   query_mode = 0u;
-  if (tested_full_path("file", sizeof(buffer), buffer, &part) != 13u || live_allocations != 0u) return 8;
+  before = dirty_output_queries;
+  (void)memset(buffer, 0x5a, sizeof(buffer));
+  if (tested_full_path("file", sizeof(buffer), buffer, &part) != 13u ||
+      strcmp(buffer, "C:\134caf\303\251\134file") != 0 || buffer[14] != 0x5a ||
+      part != buffer + 9u || dirty_output_queries != before + 1u ||
+      live_allocations != 0u || last_error != 0u) return 8;
+  query_mode = 1u;
+  (void)memset(buffer, 0x5a, sizeof(buffer));
+  part = buffer + 1u;
+  if (tested_full_path("file", sizeof(buffer), buffer, &part) != 0u ||
+      buffer[0] != 0 || buffer[1] != 0x5a || part != (char *)0 ||
+      last_error != 5u || live_allocations != 0u) return 10;
+  query_mode = 2u;
+  if (tested_full_path("file", sizeof(buffer), buffer, &part) != 0u ||
+      buffer[0] != 0 || buffer[1] != 0x5a || part != (char *)0 ||
+      last_error != 122u || live_allocations != 0u) return 11;
+  query_mode = 0u;
+  if (tested_full_path("file", 13u, buffer, &part) != 14u ||
+      buffer[0] != 0 || buffer[1] != 0x5a || part != (char *)0 ||
+      last_error != 122u || live_allocations != 0u) return 12;
+  if (tested_full_path("file", sizeof(buffer), buffer, &part) != 13u || live_allocations != 0u) return 13;
   if (tested_current_directory(sizeof(buffer), buffer) != 13u || live_allocations != 0u) return 9;
   return 0;
 }

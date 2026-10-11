@@ -179,7 +179,7 @@ unsigned int cupid_windows_get_full_path_name(const char *path,
   if (output != (char *)0 && capacity != 0u) output[0] = 0;
   input = path_utf16(path);
   if (input == (unsigned short *)0) return 0u;
-  wide = (unsigned short *)calloc(32768u, sizeof(unsigned short));
+  wide = (unsigned short *)malloc(32768u * sizeof(unsigned short));
   if (wide == (unsigned short *)0) {
     free(input);
     cupid_windows_set_last_error(8u);

@@ -49,7 +49,7 @@ class CheckedWindowsUtf8Tests(unittest.TestCase):
         objects = {}
         for name, logical, definitions in (
             ("runtime", "toolchain/hosted/" + host + "/runtime.cc",
-             ["calloc=runtime_calloc"] + (["_WIN32=1"] if os.name == "nt" else [])),
+             ["calloc=runtime_calloc", "malloc=runtime_malloc"] + (["_WIN32=1"] if os.name == "nt" else [])),
             ("codec", "toolchain/path_encoding.cc", []),
             ("contract", "toolchain/tests/windows_utf8_contract.cc", ["_WIN32=1"]),
         ):
@@ -85,7 +85,10 @@ class CheckedWindowsUtf8Tests(unittest.TestCase):
     def test_checked_long_path_errors_allocations_and_codec_boundaries(self):
         host = "i386-windows" if os.name == "nt" else "i386-linux"
         start = self.source / "start.o"
-        runtime = self.source / "runtime.o"
+        runtime = self.source / "auxiliary-runtime.o"
+        contract._compile_source(self.seed, self.runner, self.source,
+            "toolchain/hosted/" + host + "/runtime.cc", runtime,
+            ["calloc=runtime_calloc"] + (["_WIN32=1"] if os.name == "nt" else []), True, 600)
         codec = self.source / "codec.o"
         for name, definitions in (("windows_long_path_contract", ["_WIN32=1"]),
                                   ("path_encoding_contract", [])):

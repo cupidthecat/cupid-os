@@ -1,5 +1,14 @@
 # Initial leaf kind and metadata reuse
 
+## Windows full-path allocation follow-up, 2026-10-11
+
+The [checked Windows adapter](NATIVE-FULLPATH-STORAGE.md) now allocates its
+full-path output without an initial clear. Conversion, allocation failures,
+API errors and cleanup pass their dirty-storage contracts on both hosts.
+This does not change retained metadata, path bindings or payload custody.
+The private complete owner retains its unresolved UNC deadline and stays
+outside normal image discovery and publication.
+
 ## Initial leaf metadata manual acceptance, 2026-10-11
 
 The [OS manual acceptance](KIND-METADATA-MANUAL.md) passes both complete

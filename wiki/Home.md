@@ -1,5 +1,20 @@
 # cupid-os Wiki
 
+## Windows full-path output storage, 2026-10-11
+
+The Windows UTF-8 adapter built by CupidC allocates its full-path output
+without an initial 65,536-byte clear. The API fills the same bounded buffer
+before conversion. Length checks, errors, cleanup and source custody keep
+their contracts. Dirty-storage and failure tests pass on both hosts.
+
+Normal-root verification passes all sixteen artifact gates and both strict
+four-CPU boots. All 429 objects, four linked products, six user products and
+the complete 209,715,200-byte image match the preceding acceptance.
+Installed execution seeds are unchanged. Normal ownership remains at
+449 CupidBuild actions and three Python coordinators. Complete native input ownership and publication remain open.
+
+[The acceptance record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-FULLPATH-STORAGE.md) contains the measured scope.
+
 **cupid-os** is a 32-bit operating system written in C and x86 assembly. Its ring-0 execution model and desktop draw on TempleOS and OsakaOS. The system does not isolate programs from the kernel.
 
 ---
