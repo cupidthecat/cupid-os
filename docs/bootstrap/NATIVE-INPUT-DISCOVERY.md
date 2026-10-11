@@ -1,5 +1,11 @@
 # Native image input discovery
 
+## Path observation group follow-up, 2026-10-11
+
+The held [path observation group](NATIVE-PATH-OBSERVATION-GROUP.md) supplies serialized ordinary path capture with complete validation before and after the group. It preserves root metadata, immediate-parent and fresh no-follow leaf checks, provisional kinds and permanent failure. Both complete repository replays pass 168 new cases and all 3,060 preceding outcomes, with 91 strict checks and 21 whole object pairs. Independent whole-product and runtime review passes; sixty altered-evidence controls reject.
+
+The separate complete owner preserves copied options, both views, original-request checks and payload capture, but both UNC callers still exceed sixty seconds. A fresh 512-input query diagnosis reduces constructor directory stats from 13,971 to 5,771 and directory child opens from 4,666 to 563. Remaining temporary selection and original-request validation need further work. Normal image publication remains Python-owned.
+
 ## Retained stream group manual acceptance, 2026-10-11
 
 The current [OS manual acceptance](RETAINED-STREAM-GROUP-MANUAL.md) passes

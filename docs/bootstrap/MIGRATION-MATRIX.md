@@ -1,5 +1,28 @@
 # Toolchain ownership migration matrix
 
+## Retained path observation groups, 2026-10-11
+
+The held host API captures ordinary file, directory and first-absence observations
+as one serialized group. Complete validation brackets capture, while every path
+keeps root metadata, immediate-parent and fresh no-follow leaf checks. Callback
+kinds remain provisional; failure clears results and poisons the observer.
+Active capture rejects revalidation, closure, reentry and transaction borrowing.
+
+Both complete repository replays pass 168 new cases and all 3,060 preceding API
+outcomes, with 91 strict checks and 21 whole object pairs. Independent review
+rereads every whole product and runtime result. Four unchanged-copy controls pass; sixty altered-evidence controls
+reject. The complete owner still times out on both Windows UNC callers at
+sixty seconds. Its separate query diagnosis preserves both views and payload
+checks while identifying temporary selection and original-request validation
+as the sources of repeated parent-directory resolution.
+
+The 99 active producer inputs, fifteen installed seeds and three Python
+coordinators retain their ownership. Normal ownership remains 449 CupidBuild
+actions across 452 transforms. The OS manual retains its accepted 75,963-byte
+baseline and the raw kernel its 9,305,208-byte baseline.
+
+[The component record](NATIVE-PATH-OBSERVATION-GROUP.md) carries the held patch, complete receipts and constructor diagnosis.
+
 ## Retained file stream groups, 2026-10-11
 
 The held combined patch adds group capture and directory-metadata reuse without

@@ -1,5 +1,9 @@
 # Retained file stream groups
 
+## Path observation follow-up, 2026-10-11
+
+The later held [path observation group](NATIVE-PATH-OBSERVATION-GROUP.md) captures ordinary file, directory and first-absence observations with complete validation at both boundaries. It preserves this retained-stream component and all 3,060 preceding outcomes. Both complete repository replays add 168 cases, pass 91 strict checks and preserve 21 whole object pairs. Independent review passes; sixty altered-evidence controls reject. Complete input discovery remains outside acceptance after both Windows UNC owner probes exceed sixty seconds.
+
 The held host API captures already retained regular files as one serialized
 group. Complete observer validation brackets the group; each member keeps its
 immediate parent, no-follow leaf, metadata and payload checks. This avoids

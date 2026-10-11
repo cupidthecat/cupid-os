@@ -34,6 +34,16 @@
 
 ## Toolchain bootstrap
 
+The held path observation group captures ordinary file, directory and first-absence
+observations with complete validation before and after the group. Both complete repository
+replays pass 168 new cases and all 3,060 preceding outcomes, with 91 strict
+checks and 21 whole object pairs. All sixty altered-evidence controls reject. Complete
+native input ownership remains unqualified on Windows UNC paths; normal image
+publication still uses Python.
+
+[The component record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-PATH-OBSERVATION-GROUP.md)
+contains the held patch, complete receipts and constructor query diagnosis.
+
 The held retained-file group API passes both complete repository replays,
 3,060 API outcomes and 87 strict checks. Group capture preserves per-file
 parent, metadata and payload checks, with complete observer validation at both

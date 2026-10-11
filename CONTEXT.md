@@ -93,6 +93,13 @@ observations and grants no publication authority. The observer must outlive
 any borrowing transaction.
 _Avoid_: publication batch, frozen input set, complete image discovery
 
+**Retained path observation group**:
+Serialized capture of source-file, directory and first-absence observations,
+with complete custody validation before and after the group. Callback kinds
+remain provisional until success; capture grants no publication authority and
+retains the observer's owner and borrower lifetimes.
+_Avoid_: publication batch, image-stage selection, frozen payload set
+
 **Toolchain job**:
 An owned, bounded lifetime for deterministic Cupid Toolchain arena, buffer, logical-path, source, and diagnostic state.
 _Avoid_: global compiler state, platform context
