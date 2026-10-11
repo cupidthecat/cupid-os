@@ -1,5 +1,25 @@
 # Toolchain bootstrap
 
+## Original file-request group manual acceptance, 2026-10-11
+
+The OS manual records retained original file-request binding groups, parent
+validation modes, provisional callbacks and caller root and payload custody.
+Both complete host builds and normal-root acceptance pass. Independent review
+compares all 429 whole objects, four linked products, six user products and
+every byte of the 209,715,200-byte image. All six strict SMP boots, sixteen
+exact artifact gates per build and seventeen root artifact-policy methods pass.
+
+The manual grows by 2,309 bytes to 80,111 bytes. The raw
+kernel grows by 2,308 bytes to 9,309,356 bytes.
+Layout padding shrinks by 1 byte. Only the raw-kernel exact policy row changes.
+Only the embedded manual object changes; the other 428 objects retain their
+preceding bytes. The held file-request replay keeps `29929d49` and its original
+manual and policy. Complete native input ownership and publication remain open.
+Normal ownership stays at 449 CupidBuild actions and three Python coordinators.
+
+[The manual record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FILE-REQUEST-GROUP-MANUAL.md)
+contains measured sizes and complete paired and root receipts.
+
 ## Retained original file-request binding groups, 2026-10-11
 
 The held host API groups file-binding metadata checks by original parent

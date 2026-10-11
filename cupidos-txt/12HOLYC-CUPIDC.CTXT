@@ -113,6 +113,38 @@ The separate complete input owner preserves copied options, both views and paylo
 capture, but both Windows UNC callers still exceed sixty seconds. Normal image
 publication remains Python-owned.
 
+>h2 Retained original file-request binding groups
+The held host API rechecks retained regular files against their original absolute
+requests. Identical original parent spellings share two directory resolutions.
+Different aliases remain separate even when they resolve to the same physical
+directory. Each member checks the expected physical parent, captured parent
+identity and fresh no-follow file metadata before and after its callback.
+Required inputs retain parent-metadata bookends; optional stages retain their
+parent-identity contract. Directory metadata already read from the exact
+resolution handle replaces an immediate duplicate stat.
+The group creates no observations. Complete root and payload validation must
+bracket it, as with ordinary single-request validation. Callback results stay
+provisional until success. Request arrays, names and callback context must stay
+valid and stable throughout the call. Callbacks receive original array indices;
+members of one original parent keep their original order.
+Failure poisons the observer. Complete revalidation, closure, recursive groups,
+path or stream capture and new borrowing reject during an active callback.
+Ordinary single-request metadata validation keeps its existing contract.
+Established borrowers retain their lifetime and sticky-error rules. Owners must
+outlive borrowing transactions. A valid observer accepts zero requests with null
+storage; count overflow rejects before array access. A null callback still checks
+every binding. The group grants no publication authority.
+Metadata alone permits a same-size payload edit with restored modification time.
+The complete caller frame rejects its changed digest, including when the edit
+affects an earlier member. Paired native and Cupid-built contracts cover 4,096
+members, multiple parents, repeated and empty groups, invalid requests, callback
+failure, reentry, file changes and original-parent or root retargeting.
+The archived request-group owner experiment passes five of six 4,096-stage probes. Its
+Cupid-built Windows UNC caller still exceeds sixty seconds. Copied options,
+both views and complete payload checks remain required. Normal image publication
+still uses Python, and normal ownership remains 449 CupidBuild actions across
+452 transforms with three Python coordinators.
+
 >h2 Shared compiler block assertions
 The shared bootstrap compiler at source head accepts C11 _Static_assert
 inside function compounds. It checks local names and target layout at compile

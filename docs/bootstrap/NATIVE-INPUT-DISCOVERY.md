@@ -1,5 +1,13 @@
 # Native image input discovery
 
+## Original file-request group manual acceptance, 2026-10-11
+
+The [OS manual acceptance](FILE-REQUEST-GROUP-MANUAL.md) passes both complete
+host builds and normal-root verification, including all six strict SMP boots.
+The manual has 80,111 bytes and the raw kernel 9,309,356 bytes. Complete
+native input and publication qualification remain open. Held component replay
+keeps its recorded source, manual and policy checkpoint.
+
 ## Original-request group follow-up, 2026-10-11
 
 The held [original file-request binding group](NATIVE-FILE-REQUEST-GROUP.md)

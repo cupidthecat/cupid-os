@@ -73,18 +73,16 @@ preserving all 2,916 current API outcomes and 83 strict checks. Temporary
 selectors reject publication borrowing; complete retained observers own
 custody. Full input-owner acceptance remains open after the final Windows
 UNC phase timeouts.
-The current 77,802-byte manual covers held file, image-stage, source
-selection, retained-stream and path observation groups after paired and
-normal-root acceptance. All 429 whole object pairs and every byte of the complete
-image agree. All six strict SMP boots, sixteen exact artifact gates per build
-and seventeen root policy methods pass. The raw kernel has 9,307,048 bytes.
-Three measured kernel policy rows change. Held path-group replay keeps
-`cf52cd12`; retained-stream replay
-keeps `c2eabb95` and shared selection `4dab700c`, each with its original manual
-and policy. Complete native input ownership and image publication remain open.
+The current 80,111-byte manual covers held file, image-stage, source
+selection, stream, path observation and original file-request groups after
+paired and normal-root acceptance. All 429 whole object pairs and every byte
+of the complete image agree. All six strict SMP boots, sixteen exact artifact
+gates per build and seventeen root policy methods pass. The raw kernel has
+9,309,356 bytes. Only the raw-kernel exact policy row changes. Held file-request replay keeps `29929d49`
+and path-group replay `cf52cd12`, each with its original manual and policy.
+Complete native input ownership and image publication remain open.
 [The bootstrap record](Toolchain-Bootstrap) contains complete receipts and
-remaining work. TempleOS stays read-only reference material and remains excluded
-from progress counts.
+remaining work. TempleOS remains read-only and excluded from progress counts.
 
 ## System at a Glance
 
