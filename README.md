@@ -1,5 +1,26 @@
 # cupid-os
 
+## Initial leaf metadata manual acceptance, 2026-10-11
+
+The OS manual records initial source-leaf kind and metadata capture from one
+opened handle. Later path bindings, root and parent validation, payload
+custody and provisional callbacks retain their existing contracts. Both host
+builds and normal root verification pass. Independent review compares all
+429 whole objects, four linked products, six user products and every byte of
+the 209,715,200-byte image.
+All six strict SMP boots, sixteen exact artifact gates per build and seventeen
+root artifact-policy methods pass.
+
+The manual grows by 1,391 bytes to 83,721 bytes. The raw
+kernel grows by 1,392 bytes to 9,312,968 bytes.
+Layout padding grows by 1 byte. Only the raw-kernel exact policy row changes.
+Only the embedded manual object changes; the other 428 objects retain their preceding bytes.
+The held metadata-reuse component keeps `53041192` and its original manual
+and policy. Complete native input ownership and publication remain open. Normal
+ownership stays at 449 CupidBuild actions and three Python coordinators.
+
+[The acceptance record](docs/bootstrap/KIND-METADATA-MANUAL.md) contains measured sizes and complete paired and root receipts.
+
 ## Initial source leaf metadata reuse, 2026-10-11
 
 The held source observer captures an unknown leaf's kind and first metadata
@@ -13,8 +34,9 @@ pass and 152 altered-evidence controls reject. Eleven malformed-patch or
 invalid-output controls reject before compiler or runtime commands.
 
 Three native-reference comparisons, covering six calls, record 1,030 fewer
-initial metadata helper reads for 512 staged inputs. Four Windows comparisons also record 1,030 fewer
-direct handle-information calls, while sixteen other instrumented API counters
+initial metadata helper reads for 512 staged inputs. Two Windows namespace
+comparisons, covering four native calls, also record 1,030 fewer direct
+handle-information calls, while sixteen other instrumented API counters
 retain their values. These counters cover specific modules and call sites.
 They do not establish complete platform work or a capacity speedup.
 

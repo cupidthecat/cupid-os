@@ -1,5 +1,13 @@
 # Initial leaf kind and metadata reuse
 
+## Initial leaf metadata manual acceptance, 2026-10-11
+
+The [OS manual acceptance](KIND-METADATA-MANUAL.md) passes both complete
+host builds and normal-root verification, including all six strict SMP boots.
+The manual has 83,721 bytes and the raw kernel 9,312,968 bytes. Complete
+native input and publication qualification remain open. Held component replay
+keeps its recorded source, manual and policy checkpoint.
+
 The source observer takes an unknown leaf's kind and first metadata snapshot
 from one query of its newly opened handle. It uses that snapshot when adding
 the leaf to retained observations. This removes a second query of the same

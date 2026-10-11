@@ -1,5 +1,13 @@
 # OS manual acceptance for temporary source selection groups
 
+## Initial leaf metadata manual acceptance, 2026-10-11
+
+The [OS manual acceptance](KIND-METADATA-MANUAL.md) passes both complete
+host builds and normal-root verification, including all six strict SMP boots.
+The manual has 83,721 bytes and the raw kernel 9,312,968 bytes. Complete
+native input and publication qualification remain open. Held component replay
+keeps its recorded source, manual and policy checkpoint.
+
 The OS manual records grouped path-kind capture through a temporary selection
 observer. Selection validation brackets capture; source-root identity follows
 the optional-source contract. Captured descendants, parents, leaves and earlier

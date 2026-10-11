@@ -178,6 +178,30 @@ remain outside the held component patch. The normal image coordinator still
 uses Python, with 449 CupidBuild actions and three Python coordinators across
 452 transforms.
 
+>h2 Initial source-leaf kind and metadata
+The held source observer captures an unknown leaf's ordinary kind and first
+metadata snapshot from the same newly opened handle. It passes that snapshot
+to retained observation creation during ordinary walking and grouped path-kind
+capture. Known-type checks keep their rules; unsupported kinds reject before
+retention, and failed queries clear the metadata and kind results.
+>p
+The initial snapshot keeps the leaf's identity, type, size, link count and
+modification time together. Later fresh pathname bindings, captured parents,
+root validation and complete payload streaming remain required. Temporary
+selection observers retain their permanent publication-borrowing rejection,
+and group callbacks remain provisional until the group succeeds.
+>p
+Component acceptance replays all 3,630 existing outcomes on Windows and Linux,
+including the 192 source selection group cases. Whole generated products,
+runtime streams, case plans and original resource bounds are reviewed. Native
+query counters measure selected construction call sites; they do not establish
+a complete platform query count or a capacity speedup.
+>p
+The separate complete input owner remains outside this held component. Its
+Windows UNC capacity deadline and complete publication qualification remain
+open. Normal image discovery and publication retain their Python coordinators.
+
+
 >h2 Shared compiler block assertions
 The shared bootstrap compiler at source head accepts C11 _Static_assert
 inside function compounds. It checks local names and target layout at compile
