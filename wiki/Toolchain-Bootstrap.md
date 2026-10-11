@@ -1,5 +1,26 @@
 # Toolchain bootstrap
 
+## Windows full-path storage manual acceptance, 2026-10-11
+
+The OS manual records the Windows full-path output allocation and its bounded
+conversion, errors and cleanup. Dirty-storage tests and the allocation's source
+acceptance retain their measured scope. Complete native input ownership and
+publication remain open.
+
+Both complete host builds and normal-root verification pass. All 429 objects,
+four linked products, six user products and every byte of the 209,715,200-byte
+image agree. All six strict four-CPU boots, sixteen exact artifact gates per
+build and seventeen root artifact-policy methods pass.
+
+The manual grows by 1,168 bytes to 84,889 bytes. The
+raw kernel grows by 1,168 bytes to 9,314,136 bytes.
+Raw-kernel and manual growth agree exactly. The raw-kernel and pass-one ELF exact policy rows change.
+Only the embedded manual object changes; the other 428 objects retain their preceding bytes. Normal ownership remains 449 CupidBuild actions and three
+Python coordinators. The 99 producer inputs and installed seeds retain their
+allocation acceptance bytes.
+
+[The manual record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FULLPATH-STORAGE-MANUAL.md) contains the complete measured acceptance.
+
 ## Windows full-path output storage, 2026-10-11
 
 The Windows UTF-8 adapter built by CupidC allocates its full-path output

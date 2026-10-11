@@ -1,5 +1,14 @@
 # Windows full-path output storage
 
+## Windows full-path storage manual acceptance, 2026-10-11
+
+The [OS manual acceptance](FULLPATH-STORAGE-MANUAL.md) passes both complete
+host builds and normal-root verification, including six strict four-CPU boots.
+The manual has 84,889 bytes and the raw kernel 9,314,136 bytes. The
+allocation component retains its accepted tests and source bytes. Its private
+capacity measurements do not qualify complete native input ownership or
+publication.
+
 The checked Windows UTF-8 adapter now allocates its full-path output buffer
 without clearing it first. The buffer still holds 32,768 UTF-16 units. The
 adapter calls the same wide API and converts only a successful result whose

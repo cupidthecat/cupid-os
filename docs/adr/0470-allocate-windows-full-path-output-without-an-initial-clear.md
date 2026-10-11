@@ -42,3 +42,9 @@ Windows documents the API's successful output and returned-length contract in
 
 [The acceptance record](../bootstrap/NATIVE-FULLPATH-STORAGE.md) contains
 the complete measurements, limits and preserved failed attempts.
+
+The separate [OS manual acceptance](../bootstrap/FULLPATH-STORAGE-MANUAL.md)
+passes complete builds on both hosts and normal-root verification. Its measured
+kernel policy and all six strict four-CPU boots pass. The 84,889-byte manual
+records this allocation's scope; complete native input ownership and publication
+remain open.

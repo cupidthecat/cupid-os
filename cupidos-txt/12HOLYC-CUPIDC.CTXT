@@ -1481,3 +1481,23 @@ they do not prove QEMU throughput or full Doom runtime acceptance.
 The Linux user syscall ABI recipe selects the same long profile as publication.
 The API and CLI retain default-profile behavior unless explicitly selected.
 Non-Boolean API profile requests fail before a native tool can run.
+>h2 Windows full-path output storage
+The Windows UTF-8 adapter built by CupidC reserves 32,768 UTF-16 units
+for a full-path result. The Windows API fills this storage before conversion,
+so the adapter allocates it without an initial 65,536-byte clear. It converts
+only a successful result whose returned length fits the existing buffer.
+The allocation size, API call and strict scalar conversion keep their rules.
+>p
+Allocation failures leave empty output and a null file-part result, retain the
+memory error and release the input buffer. Failed API calls, oversized results,
+malformed UTF-16 and small UTF-8 output buffers keep their errors and cleanup.
+Dirty-storage contracts check the returned bytes, file-part offset and output
+guard bytes under Cupid-built Windows and Linux callers.
+>p
+This change removes work from path conversion. It adds no retained source
+authority. Fresh path bindings, root and parent validation, file metadata,
+payload hashing and provisional callbacks remain required. Complete
+native input ownership and image publication still need qualification. Normal
+image ownership remains 449 CupidBuild actions and three Python coordinators.
+
+
