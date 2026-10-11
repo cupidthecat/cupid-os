@@ -1,5 +1,13 @@
 # Retained path observation groups
 
+## Source selection group manual acceptance, 2026-10-11
+
+The [OS manual acceptance](SOURCE-SELECTION-GROUP-MANUAL.md) passes both complete
+host builds and normal-root verification, including all six strict SMP boots.
+The manual has 82,330 bytes and the raw kernel 9,311,576 bytes. Complete
+native input and publication qualification remain open. Held component replay
+keeps its recorded source, manual and policy checkpoint.
+
 ## Source selection group follow-up, 2026-10-11
 
 The held [source selection observation group](NATIVE-SOURCE-SELECTION-GROUP.md)

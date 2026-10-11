@@ -1,5 +1,25 @@
 # Bootstrapping log
 
+## 2026-10-11: Accept the source selection group OS manual
+
+The OS manual records temporary source selection observation groups, their
+optional-source validation profile, provisional callbacks and permanent
+publication-borrowing rejection. Both complete host builds and normal-root
+acceptance pass. Independent review compares all 429 whole objects, four linked
+products, six user products and every byte of the 209,715,200-byte image.
+All six strict SMP boots, sixteen exact artifact gates per build and seventeen
+root artifact-policy methods pass.
+
+The manual grows by 2,219 bytes to 82,330 bytes. The raw
+kernel grows by 2,220 bytes to 9,311,576 bytes.
+Layout padding grows by 1 byte. 3 measured kernel policy rows change.
+Only the embedded manual object changes; the other 428 objects retain their preceding bytes.
+The held source selection group keeps `f64b6382` and its original manual and
+policy. Complete native input ownership and publication remain open. Normal
+ownership stays at 449 CupidBuild actions and three Python coordinators.
+
+[The manual record](SOURCE-SELECTION-GROUP-MANUAL.md) retains the measurements, build and boot receipts, and ownership limits.
+
 ## 2026-10-11: Qualify temporary source selection groups
 
 The held host API captures source path kinds through a temporary selection

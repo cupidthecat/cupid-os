@@ -145,6 +145,39 @@ both views and complete payload checks remain required. Normal image publication
 still uses Python, and normal ownership remains 449 CupidBuild actions across
 452 transforms with three Python coordinators.
 
+>h2 Temporary source selection observation groups
+The held host API captures several path kinds through a temporary source
+selection observer. Selection validation brackets the serialized group.
+Source-root identity follows the optional-source contract, which permits
+uncaptured sibling changes. Captured descendants, parents, leaves and earlier
+payload digests keep their existing checks. Ordinary path observation groups
+retain complete root-metadata validation.
+Only a temporary selection observer may use the new API. Complete retained
+observers reject it. Temporary selectors permanently reject publication
+borrowing, and a separate input owner retains complete source custody.
+Selected parent and file identities must match that retained owner. Cached
+identity equality alone does not validate current metadata or payloads.
+Callback kinds remain provisional until the group succeeds. Arrays, names
+and callback context must remain stable throughout capture. Failure clears
+the output kinds and poisons the observer. Zero count accepts null arrays
+on a live selection observer; an overflowing count rejects before array
+access. A null callback still captures and validates the paths.
+Active capture rejects closure, complete revalidation, recursive groups,
+ordinary path or stream reentry and new transaction borrowing. Repeated
+capture retains earlier observations, so a changed earlier file still rejects.
+Paired native and Cupid-built contracts cover 4,096 paths, mixed kinds, quotas,
+invalid storage and names, callback failure and reentry, original-root
+retargeting and restored-time payload edits. Source-root metadata and uncaptured
+sibling controls retain optional selection behavior; ordinary root-metadata
+controls remain strict.
+The archived selection-owner experiment passes six flat 4,096-stage probes
+and 236 lifetime processes. A separate private observer-release change fixes
+the Linux many-parent descriptor failure under its original bounds. Complete
+owner qualification remains open on Windows UNC paths. Both owner changes
+remain outside the held component patch. The normal image coordinator still
+uses Python, with 449 CupidBuild actions and three Python coordinators across
+452 transforms.
+
 >h2 Shared compiler block assertions
 The shared bootstrap compiler at source head accepts C11 _Static_assert
 inside function compounds. It checks local names and target layout at compile
