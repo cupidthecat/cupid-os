@@ -39,6 +39,12 @@ backslash filename bytes while preserving UTF-8, component and path bounds.
 Ordinary observers and output-name rules retain their separate contracts.
 _Avoid_: pathname selector, namespace authority, output-name policy
 
+**Initial source leaf snapshot**:
+The kind and metadata captured from a source leaf when it first enters
+retained observation. Later binding and payload custody establish its
+continued authority.
+_Avoid_: frozen payload, publication authority, complete revalidation
+
 **Retained original source root**:
 A source directory owner that copies its original absolute request and resolved
 physical name while the first resolution handle remains open. Complete

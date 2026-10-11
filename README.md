@@ -1,5 +1,33 @@
 # cupid-os
 
+## Initial source leaf metadata reuse, 2026-10-11
+
+The held source observer captures an unknown leaf's kind and first metadata
+snapshot from the same opened handle. Ordinary walking and grouped path-kind
+capture use that snapshot when retaining the leaf. Later path bindings, parent
+and root checks, payload custody and provisional callbacks keep their contracts.
+
+Both complete repository replays pass all 3,630 existing outcomes, with 99
+strict checks and 23 whole portable object pairs. Four unchanged-copy controls
+pass and 152 altered-evidence controls reject. Eleven malformed-patch or
+invalid-output controls reject before compiler or runtime commands.
+
+Six native-reference diagnostic calls each save 1,030 initial metadata helper
+reads for 512 staged inputs. Four Windows comparisons also record 1,030 fewer
+direct handle-information calls, while sixteen other instrumented API counters
+retain their values. These counters cover specific modules and call sites.
+They do not establish complete platform work or a capacity speedup.
+
+The separate private complete owner passes 236 lifetime processes and all 192
+existing selection-group cases. Four Linux capacity calls and four Windows
+drive calls pass; four Windows UNC calls reach their original sixty-second
+deadline. The cause remains unproven, and the complete owner stays outside the
+held component. Normal ownership remains 449 CupidBuild actions and three
+Python coordinators. The component captures the 82,330-byte manual and
+9,311,576-byte raw kernel at `53041192`.
+
+[The component record](docs/bootstrap/NATIVE-KIND-METADATA.md) contains the complete receipts and preserved failures.
+
 ## Source selection group manual acceptance, 2026-10-11
 
 The OS manual records temporary source selection observation groups, their

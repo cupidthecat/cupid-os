@@ -1,5 +1,14 @@
 # Native image input discovery
 
+## Initial leaf metadata reuse follow-up, 2026-10-11
+
+The held [initial leaf metadata reuse](NATIVE-KIND-METADATA.md) preserves this
+component's validation and custody rules. Both complete repository replays pass
+all 3,630 existing outcomes, 99 strict checks, 23 whole object pairs and 152
+altered-evidence controls. The public header and API signatures retain their
+accepted bytes. Complete input ownership and publication remain open; the
+private complete owner is excluded from the held source cohort.
+
 ## Source selection group manual acceptance, 2026-10-11
 
 The [OS manual acceptance](SOURCE-SELECTION-GROUP-MANUAL.md) passes both complete

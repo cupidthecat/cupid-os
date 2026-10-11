@@ -34,6 +34,15 @@
 
 ## Toolchain bootstrap
 
+Initial source leaf capture reuses kind and metadata from the same opened
+handle while preserving later validation and payload custody. Both repository
+replays pass 3,630 existing outcomes, 99 strict checks, 23 whole object pairs
+and 152 altered-evidence controls. Complete native input ownership and
+publication remain open.
+
+[The component record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-KIND-METADATA.md)
+contains the complete receipts and preserved failures.
+
 Temporary source selection groups capture path kinds while retaining the
 optional selection profile and permanent publication-borrowing rejection.
 Both repository replays pass 192 new cases and all 3,438 preceding outcomes,
