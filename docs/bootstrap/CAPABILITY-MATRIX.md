@@ -1,5 +1,23 @@
 # Cupid Toolchain capability matrix
 
+## Shared source selection and bindings, 2026-10-10
+
+Held host, source-file and image-stage APIs supply temporary original-request
+selection, a validated first borrowed view, captured file/parent comparison
+and fresh binding checks against retained regular files. Temporary observers
+permanently reject publication borrowing. Complete retained roots and payload
+checks remain required. Indexed lookup preserves stale older observations;
+checked Windows paths use existing wide calls with their original normalized
+name and UTF-8 limits.
+
+Both complete repository replays pass 862 new API calls, every preceding
+outcome and 83 strict checks. Independent whole-product and runtime review
+passes, including twenty useful verifier rejection controls. Complete discovery and
+distinct present-stage capacity remain unqualified on Windows, whose final
+two 4,096-input UNC phase processes exceed sixty seconds. See
+[the record](NATIVE-SOURCE-SELECTION.md). Normal source and seeds retain their
+existing ownership.
+
 ## Hosted allocator, 2026-10-10
 
 Shared runtime source has size-bin free-block search on both hosts and shared

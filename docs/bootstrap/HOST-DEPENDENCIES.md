@@ -1,5 +1,19 @@
 # Host dependency inventory
 
+## Shared source selection and bindings, 2026-10-10
+
+Held selection and binding APIs reuse existing host filesystem services and
+the checked Windows runtime's wide entry points. They add no normal runtime
+import or code-producing host dependency. Clang remains a separately recorded
+comparison path. Temporary observers cannot borrow publication transactions;
+complete retained observers still supply custody.
+
+Both complete shared-API repository replays and independent whole-product
+and runtime checks pass. Complete input-owner acceptance remains open. Normal disk publication still uses Python,
+as do hosted contract publication and verification. The graph remains
+449 CupidBuild actions and three Python coordinators. See
+[the selection record](NATIVE-SOURCE-SELECTION.md).
+
 ## Hosted allocator source, 2026-10-10
 
 The Linux and Windows hosted runtime source now uses free-block size bins;

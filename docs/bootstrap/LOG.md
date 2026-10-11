@@ -1,5 +1,41 @@
 # Bootstrapping log
 
+## 2026-10-10: Share source selection and retained bindings
+
+The held [selection and binding APIs](NATIVE-SOURCE-SELECTION.md) separate
+temporary pathname selection from complete publication custody. Selectors
+retain the original request, selected parent and regular leaf. Transaction
+borrowing permanently rejects these observers. Full retained roots and payload
+checks must bracket their use. Ordinary constructors keep their earlier contracts.
+
+The combined first-view constructors remove duplicate immediate validation.
+Captured parent/file comparisons add no observations. Direct request rechecks
+resolve the original parent twice and check retained regular-file metadata.
+The 256-bucket index preserves all older owning observations. Checked Windows
+resolution uses existing wide host entry points while retaining strict UTF-8,
+byte limits and normalized physical names. The opened-name flag diagnostic
+changes case/alias controls and remains rejected.
+
+Both complete repository replays pass 862 new calls and all 2,054 preceding
+API outcomes, 340 legacy passes with twelve skips, 48 alias methods and all
+83 strict checks. Complete review rereads 28 checked objects on Windows,
+23 on Linux and sixteen checked programs per host; nineteen whole object
+pairs agree. Independent review also checks every complete runtime result,
+stream and original case plan. All twenty altered-product, stream, case,
+scope and deadline controls reject. Four unchanged-copy controls pass.
+The complete fresh replays take 758.508 seconds on Windows and 1218.317
+on Linux; runtime limits stay unchanged. The complete private input
+owner remains outside acceptance. Its thirty Linux capacity calls and 222
+owner-allocation fault checks pass, but both last Windows 4,096-input UNC
+phase processes exceed the unchanged sixty-second deadline.
+
+Complete archives preserve eleven private source generations, closed failed
+attempts, the DrvFS FIFO fixture failure, Unicode decoding corrections and
+wrong-generation preflight/aggregate corrections. No accepted runtime bound
+changes. The combined patch supplies 21 mapped files and excludes the complete
+input owner. Normal ownership remains 449 CupidBuild actions and three Python
+coordinators; all 99 producer inputs and fifteen installed seed files remain.
+
 ## Image-stage manual acceptance, 2026-10-10
 
 The OS manual now records the held image-stage owner, including the normal

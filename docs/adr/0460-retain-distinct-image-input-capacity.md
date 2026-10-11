@@ -1,5 +1,17 @@
 # ADR 0460: Retain distinct image input capacity
 
+## Shared selection follow-up, 2026-10-10
+
+The [shared selection and binding APIs](../bootstrap/NATIVE-SOURCE-SELECTION.md)
+retain temporary original-request selections without duplicating physical
+ancestor capture. Their observers permanently reject publication borrowing;
+complete retained observers still own custody. Original qualification passes
+862 new calls and every preceding outcome. Both complete repository replays
+and independent whole-product and runtime checks also pass.
+The complete private input owner passes thirty Linux capacity calls, but its
+two final Windows 4,096-input UNC phase processes exceed sixty seconds.
+That owner remains outside the accepted patch and normal command ownership.
+
 ## Image-stage follow-up, 2026-10-10
 
 The separate [image-stage owner](../bootstrap/NATIVE-SOURCE-STAGE.md) supplies the normal

@@ -1,5 +1,20 @@
 # Toolchain ownership migration matrix
 
+## Shared source selection and bindings, 2026-10-10
+
+The held combined patch adds selection and binding APIs to the host and file
+components without applying them to active producer source. New `.cc` callers
+build through checked CupidC, CupidASM and CupidLD, with complete CupidDis
+checks. Both complete repository replays preserve all 2,916 current API
+outcomes and 83 strict checks. Independent whole-product and runtime review
+passes; the complete input owner
+remains outside acceptance after its Windows UNC phase timeouts.
+
+The 99 producer inputs and fifteen installed seed files remain unchanged.
+Ownership stays 449 CupidBuild actions and three Python coordinators across
+452 transforms. Full disk publication still needs integration and acceptance.
+See [the implementation record](NATIVE-SOURCE-SELECTION.md).
+
 ## Hosted allocator source, 2026-10-10
 
 The shared hosted runtime contains the region and free-bin allocator previously

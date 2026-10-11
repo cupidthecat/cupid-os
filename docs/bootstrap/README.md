@@ -1,5 +1,24 @@
 # Cupid Toolchain bootstrap
 
+## Shared source selection and bindings, 2026-10-10
+
+The held [selection and binding APIs](NATIVE-SOURCE-SELECTION.md) retain an
+original request's selected parent and leaf without repeating full physical
+ancestor capture. Temporary selectors permanently reject publication borrowing.
+Complete retained observers still own root, metadata and payload validation.
+Historical file/parent comparisons and fresh original-request checks add no
+observations. Indexed lookup keeps stale older records visible to full validation.
+
+Both complete repository replays pass 862 new API calls and all 2,054 preceding
+outcomes, with 340 legacy passes, twelve declared skips and 48 alias methods.
+All 83 strict checks pass; nineteen whole object pairs agree across hosts.
+Independent review rereads every whole product and complete runtime result.
+All twenty altered-product, stream, case, scope and deadline controls reject. The separate complete input owner remains
+unqualified: its final two 4,096-input UNC phase processes exceed sixty seconds.
+Normal source, installed seeds and the three Python coordinators retain their
+ownership. [ADR 0464](../adr/0464-separate-source-selection-from-publication-custody.md)
+records the publication boundary.
+
 ## Image-stage manual acceptance, 2026-10-10
 
 The OS manual now records the held image-stage owner, including the normal

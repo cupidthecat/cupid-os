@@ -1,5 +1,21 @@
 # Native image input discovery
 
+## Shared selection follow-up, 2026-10-10
+
+The current held [selection and binding packet](NATIVE-SOURCE-SELECTION.md)
+supplies temporary selectors that retain the original parent and leaf but
+permanently reject publication borrowing. Complete observers retain custody.
+Captured parent/file comparisons and fresh original-request checks add no
+observations. Both complete repository replays preserve all 862 new API calls
+and 2,054 preceding outcomes. Independent whole-product, stream and runtime
+review passes, including twenty verifier rejection controls.
+
+The separate complete input owner now passes thirty Linux capacity calls and
+222 deterministic owner-allocation failure checks across both hosts. Windows
+remains unqualified: both final 4,096-input UNC phase processes time out at
+sixty seconds. The combined shared-API patch excludes this owner. Full image
+discovery, physical-root interning and publication therefore remain open.
+
 The [image-stage manual acceptance](SOURCE-STAGE-MANUAL.md) installs the
 73,655-byte manual after paired and normal-root builds, whole-product checks
 and six strict boots. Stage APIs remain held, and full image discovery and

@@ -1,5 +1,21 @@
 # cupid-os
 
+## Shared source selection and bindings, 2026-10-10
+
+The held [selection and binding APIs](docs/bootstrap/NATIVE-SOURCE-SELECTION.md)
+retain an original request's selected parent and leaf without repeating full
+physical ancestor capture. Temporary selectors permanently reject publication
+borrowing. Complete retained observers still own root, metadata and payload
+validation. Indexed lookup preserves every older observation for full validation.
+
+Both complete repository replays pass 862 new API calls and all 2,054 preceding
+outcomes, 340 legacy passes with twelve skips, 48 alias methods and 83 strict
+checks. Independent review checks every whole product and runtime result. The complete input owner remains
+unqualified after its final two Windows 4,096-input UNC phase timeouts.
+Normal source, installed seeds and the three Python coordinators retain their
+ownership. [ADR 0464](docs/adr/0464-separate-source-selection-from-publication-custody.md)
+records the publication boundary.
+
 ## Image-stage manual acceptance, 2026-10-10
 
 The OS manual now records the held image-stage owner, including the normal

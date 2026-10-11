@@ -72,6 +72,18 @@ for a missing stage. Its borrowed views follow the image command's
 missing-path rules and remain rejected after a failed revalidation.
 _Avoid_: optional file owner, complete image discovery, publication authority
 
+**Source selection observer**:
+A temporary source observer of an original request and its selected parent
+and leaf. Its observations can be compared with complete retained custody,
+but it cannot be borrowed by a publication transaction.
+_Avoid_: publication observer, complete source root, frozen input
+
+**Retained file binding**:
+The captured relationship between a regular file and its physical parent,
+checked against the original requested path. Identity equality alone does
+not establish current metadata or payload validity.
+_Avoid_: pathname equality, payload identity, publication authority
+
 **Toolchain job**:
 An owned, bounded lifetime for deterministic Cupid Toolchain arena, buffer, logical-path, source, and diagnostic state.
 _Avoid_: global compiler state, platform context
