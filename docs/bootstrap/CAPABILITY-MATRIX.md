@@ -17,9 +17,10 @@ sixty seconds on both Windows UNC callers. See
 [the record](NATIVE-RETAINED-STREAM-GROUP.md). Normal source and seeds retain
 their ownership.
 
-The current [OS manual acceptance](SOURCE-SELECTION-MANUAL.md) passes paired
-normal builds, complete product comparison and six strict boots. The manual
-and raw-kernel exact policy change; producer source, seeds and the three
+The current [OS manual acceptance](RETAINED-STREAM-GROUP-MANUAL.md) passes
+paired normal builds, complete product comparison and six strict SMP boots.
+The manual is 75,963 bytes and the raw kernel is 9,305,208 bytes. Only the
+raw-kernel exact policy row changes; producer source, seeds and the three
 Python coordinators retain their accepted ownership.
 
 ## Shared source selection and bindings, 2026-10-10

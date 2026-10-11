@@ -1,5 +1,13 @@
 # Native image input discovery
 
+## Retained stream group manual acceptance, 2026-10-11
+
+The current [OS manual acceptance](RETAINED-STREAM-GROUP-MANUAL.md) passes
+paired builds, complete product comparison and six strict SMP boots. The
+manual has 75,963 bytes; the raw kernel has 9,305,208 bytes. Native input
+discovery remains held and unqualified on Windows UNC paths. The normal
+image coordinator still uses Python.
+
 ## Group capture follow-up, 2026-10-11
 
 The held [retained file stream group](NATIVE-RETAINED-STREAM-GROUP.md) brackets
@@ -33,7 +41,7 @@ remains unqualified: both final 4,096-input UNC phase processes time out at
 sixty seconds. The combined shared-API patch excludes this owner. Full image
 discovery, physical-root interning and publication therefore remain open.
 
-The later [source selection manual acceptance](SOURCE-SELECTION-MANUAL.md)
+The earlier [source selection manual acceptance](SOURCE-SELECTION-MANUAL.md)
 installs the 74,594-byte manual and 9,303,840-byte raw kernel after paired and
 normal-root builds, whole-product checks and six strict boots. Source APIs
 remain held, and full image discovery and publication remain open.

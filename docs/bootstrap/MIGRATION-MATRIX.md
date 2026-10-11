@@ -13,9 +13,10 @@ probes exceed sixty seconds. Ownership remains 449 CupidBuild actions and three
 Python coordinators across 452 transforms. No active `.c` source is renamed by
 this held component. See [the implementation record](NATIVE-RETAINED-STREAM-GROUP.md).
 
-The current [OS manual acceptance](SOURCE-SELECTION-MANUAL.md) passes paired
-normal builds, complete product comparison and six strict boots. The manual
-and raw-kernel exact policy change; producer source, seeds and the three
+The current [OS manual acceptance](RETAINED-STREAM-GROUP-MANUAL.md) passes
+paired normal builds, complete product comparison and six strict SMP boots.
+The manual is 75,963 bytes and the raw kernel is 9,305,208 bytes. Only the
+raw-kernel exact policy row changes; producer source, seeds and the three
 Python coordinators retain their accepted ownership.
 
 ## Shared source selection and bindings, 2026-10-10

@@ -1,5 +1,27 @@
 # Bootstrapping log
 
+## 2026-10-11: Accept the retained stream group OS manual
+
+The OS manual records retained file stream groups, provisional callback bytes,
+permanent failure, borrower lifetime and directory-metadata reuse. Both complete
+host builds and normal-root acceptance pass. Independent review compares all
+429 whole objects, four linked products, six user products and every byte of the
+209,715,200-byte image. All six strict SMP boots, sixteen exact artifact gates
+per build and seventeen root artifact-policy methods pass.
+
+The manual grows by 1,369 bytes to 75,963 bytes. The raw kernel grows by
+1,368 bytes to 9,305,208 bytes because layout padding shrinks by one byte.
+Both ELF sizes stay unchanged. Only the raw-kernel policy row and embedded
+manual object change; the other 428 objects retain their preceding bytes.
+The held group replay uses `c2eabb95` with its original manual and policy.
+Complete native input ownership remains unqualified on Windows UNC paths.
+Normal ownership stays at 449 CupidBuild actions and three Python coordinators.
+
+Paired independent review also checks the preserved boot and FAT regions.
+The root archive records the rejected clean-worktree preflight and its exact
+evidence-path correction. The [manual record](RETAINED-STREAM-GROUP-MANUAL.md)
+contains all measured sizes, timings and receipt archives.
+
 ## 2026-10-11: Qualify retained file stream groups
 
 The held [group capture API](NATIVE-RETAINED-STREAM-GROUP.md) validates the

@@ -1,5 +1,24 @@
 # Cupid Toolchain bootstrap
 
+## Retained stream group manual acceptance, 2026-10-11
+
+The OS manual records retained file stream groups, provisional callback bytes,
+permanent failure, borrower lifetime and directory-metadata reuse. Both complete
+host builds and normal-root acceptance pass. Independent review compares all
+429 whole objects, four linked products, six user products and every byte of the
+209,715,200-byte image. All six strict SMP boots, sixteen exact artifact gates
+per build and seventeen root artifact-policy methods pass.
+
+The manual grows by 1,369 bytes to 75,963 bytes. The raw kernel grows by
+1,368 bytes to 9,305,208 bytes because layout padding shrinks by one byte.
+Both ELF sizes stay unchanged. Only the raw-kernel policy row and embedded
+manual object change; the other 428 objects retain their preceding bytes.
+The held group replay uses `c2eabb95` with its original manual and policy.
+Complete native input ownership remains unqualified on Windows UNC paths.
+Normal ownership stays at 449 CupidBuild actions and three Python coordinators.
+
+The [acceptance record](RETAINED-STREAM-GROUP-MANUAL.md) carries the complete paired and root receipts.
+
 ## Retained file stream groups, 2026-10-11
 
 The held [group capture API](NATIVE-RETAINED-STREAM-GROUP.md) streams already retained regular files with

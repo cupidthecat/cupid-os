@@ -1,6 +1,207 @@
 # Toolchain bootstrap
 
-## Hosted heap source, 2026-10-10
+## Retained stream group manual acceptance, 2026-10-11
+
+The OS manual records retained file stream groups, provisional callback bytes,
+permanent failure, borrower lifetime and directory-metadata reuse. Both complete
+host builds and normal-root acceptance pass. Independent review compares all
+429 whole objects, four linked products, six user products and every byte of the
+209,715,200-byte image. All six strict SMP boots, sixteen exact artifact gates
+per build and seventeen root artifact-policy methods pass.
+
+The manual grows by 1,369 bytes to 75,963 bytes. The raw kernel grows by
+1,368 bytes to 9,305,208 bytes because layout padding shrinks by one byte.
+Both ELF sizes stay unchanged. Only the raw-kernel policy row and embedded
+manual object change; the other 428 objects retain their preceding bytes.
+The held group replay uses `c2eabb95` with its original manual and policy.
+Complete native input ownership remains unqualified on Windows UNC paths.
+Normal ownership stays at 449 CupidBuild actions and three Python coordinators.
+
+[The manual record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/RETAINED-STREAM-GROUP-MANUAL.md)
+contains the measured sizes and complete paired and root receipts.
+
+## Retained file stream groups, 2026-10-11
+
+The held host API captures retained regular files as one serialized group.
+Complete observer validation runs before and after capture; every file keeps
+its immediate parent, no-follow leaf, metadata and digest checks. Callback bytes
+remain provisional until success. Failure clears results and poisons the
+observer. Active capture rejects revalidation, closure, recursion and transaction
+borrowing, including validation through an existing borrower. Owners must
+outlive their borrowing transactions.
+
+Both complete Windows and Linux repository replays pass 144 new cases and all
+2,916 preceding API outcomes, with 340 legacy passes, twelve declared skips,
+48 alias methods and 87 strict checks. Independent review rereads every whole
+product and complete runtime result; twenty whole object pairs agree. Four
+unchanged-copy controls pass, forty altered-evidence controls reject, and seven
+malformed-patch or invalid-output preflights reject before compilation.
+
+The combined patch includes 35 logical sources and 26 helpers. Its fresh
+complete-owner probe still exceeds sixty seconds on both Windows UNC callers;
+that owner remains outside acceptance. Normal ownership remains 449 CupidBuild
+actions and three Python coordinators, with the same 99 producer inputs and
+fifteen installed seed files. Group replay uses `c2eabb95` and its original
+74,594-byte manual and exact kernel policy.
+[The implementation record](https://github.com/cupidthecat/cupid-os/blob/c2eabb95a088f938a66ec779fc4e94b1ce04844d/docs/bootstrap/NATIVE-RETAINED-STREAM-GROUP.md) carries source, complete receipts and
+reproduction commands.
+
+## Source selection manual acceptance, 2026-10-11
+
+The preceding OS manual refresh records temporary source selection, captured file and
+parent comparisons, first-view construction and fresh original-request checks.
+Complete publication custody remains with retained observers. The complete
+input owner remains unqualified on Windows.
+
+Both complete host builds and normal-root acceptance pass. Independent review
+compares all 429 whole object pairs, four linked products, six user products and
+all 209,715,200 image bytes. All six strict boots, sixteen exact artifact gates
+per build and seventeen root policy methods pass. Only the embedded manual
+object changes; the other 428 objects retain their preceding bytes.
+
+The manual grows by 939 bytes to 74,594 bytes. The raw kernel grows by 940 bytes
+to 9,303,840 bytes, including one byte of layout alignment. Both ELF sizes stay
+unchanged. Only the raw-kernel policy row changes. The complete archives retain
+the failed execute-mode and alignment assumptions, twelve successful original
+measurement commands, corrections and full continued acceptance. Shared
+selection replays retain `4dab700c` for their original manual/policy guards.
+All 99 producer inputs, fifteen installed seed files and the three Python
+coordinators retain their accepted ownership.
+[The manual acceptance](https://github.com/cupidthecat/cupid-os/blob/9c4105c68f9823f76ac103757dbf70287ea881d5/docs/bootstrap/SOURCE-SELECTION-MANUAL.md) carries complete evidence.
+
+## Shared source selection and bindings, 2026-10-10
+
+The held source-selection APIs retain an original request, selected parent
+and regular leaf without repeating full physical ancestor capture. They
+permanently reject publication borrowing. Complete retained observers still
+own root, metadata and payload validation. Captured file/parent comparisons
+and fresh request checks add no observations. Indexed lookup preserves
+older observations for full validation; checked Windows resolution reuses
+the existing wide calls with strict UTF-8 and normalized physical names.
+
+Both complete repository replays pass 862 new calls and all 2,054 preceding
+outcomes, for 2,916 current API calls. They preserve 340 legacy passes,
+twelve declared skips and 48 alias methods. All 83 strict checks pass.
+Independent review rereads 28 whole checked objects on Windows, 23 on Linux
+and sixteen checked programs per host. Nineteen whole object pairs agree.
+Complete runtime output, streams and case plans pass independent review;
+all twenty altered-product, stream, case, deadline and scope controls reject.
+
+The complete private input owner remains unqualified. Thirty Linux capacity
+calls and 222 owner-allocation failure checks pass, but both final Windows
+4,096-input UNC phase processes exceed sixty seconds. The accepted shared
+patch excludes that owner. All 99 producer inputs, fifteen installed seed
+files and the three Python coordinators retain their existing ownership.
+[The selection record](https://github.com/cupidthecat/cupid-os/blob/4dab700cb9f75ffbaabbe152d7a6aeb617683347/docs/bootstrap/NATIVE-SOURCE-SELECTION.md) keeps the complete
+patch, original receipts, fresh replays and failed investigation.
+
+## Image-stage manual acceptance, 2026-10-10
+
+The installed manual now documents the held image-stage owner, its complete
+missing-path checks, copied request names, borrowed views and permanent
+rejection after failed validation. It distinguishes that contract from
+the optional file owner's first-absence contract.
+
+Windows, Linux and the normal root pass complete builds, users/ABI, all
+sixteen exact artifact gates and six strict boots. Every whole object,
+linked product, user product and complete 200 MiB image agrees. Only the
+embedded manual object changes; all 428 other production objects and
+six user products retain their previous bytes. The root also passes all
+seventeen unchanged artifact-policy methods.
+
+The manual grows by 624 bytes to 73,655 bytes and the raw kernel to
+9,302,900 bytes. Both ELF sizes stay unchanged. Only the raw-kernel
+policy row changes; the other fifteen rows remain exact. Complete
+[manual acceptance](https://github.com/cupidthecat/cupid-os/blob/b0dfb62a833cb063df713a6fb7c806aeef772f71/docs/bootstrap/SOURCE-STAGE-MANUAL.md) retains the paired
+and root receipts. The stage replay retains `7765296f`; the optional
+replay retains `76f345f9`. Installed tools, all 99 producer inputs and
+the three Python coordinators remain unchanged. Full input discovery
+and native image publication remain open.
+
+## Retained image-stage requests, 2026-10-10
+
+The held image-stage owner copies the complete original request. Present
+regular files retain the optional file owner's observations; missing views
+expose only the requested name. Missing parents may appear or change while
+the final leaf stays absent. Children of broken parent aliases remain
+missing on both hosts; children of regular-file parents remain missing
+on Windows and reject on Linux. Every borrowed view revalidates, and a
+failed view remains rejected after the earlier path state returns.
+
+Four native/Cupid callers pass 312 new calls: 150 successes and 162
+rejections. Thirty-six capacity calls retain all 4,096 distinct missing
+requests each. Both fresh repository replays preserve all 2,054 current
+API outcomes, 340 legacy passes with twelve declared skips and 48 alias
+methods. Twenty-four whole checked objects on Windows and nineteen on
+Linux, twelve complete checked programs per host, fifteen shared object
+pairs and all 69 strict checks pass independent review. The first
+summary's omitted alias object and four checks have a separate correction;
+its archive and original receipts retain their original bytes.
+
+The [implementation record](https://github.com/cupidthecat/cupid-os/blob/7765296f58ff1a52912a3d4e5b709544c640e68c/docs/bootstrap/NATIVE-SOURCE-STAGE.md)
+contains the combined unapplied patch, complete archives, reproduction
+commands and separate product verifier. Existing file-owner contracts,
+sixty-second runtime deadlines and Linux's 32 MiB/10,240-descriptor limits
+remain. Complete input discovery, root interning, distinct present-stage
+capacity and publication remain open. All 99 normal inputs, fifteen seed
+files, 449 CupidBuild actions and three Python coordinators keep their
+existing ownership. TempleOS stays read-only reference material.
+
+## OS manual acceptance for retained source files, 2026-10-10
+
+The installed manual records the held required/optional source-file APIs,
+original parent bindings, borrowed lifetimes and retained-stream payload
+checks. It keeps the unresolved Python parent-path differences explicit.
+Both host builds pass users/ABI, all sixteen artifact gates and four strict
+boots. All 429 whole object pairs, four linked products, six user products
+and every byte of both 200 MiB images agree. Fresh normal-root build and
+both strict boots also pass with the same whole products.
+
+The manual grows to 73,031 bytes and the raw kernel to 9,302,276 bytes.
+Both kernel ELFs grow by one page. Three measured kernel policy rows
+change; the thirteen other rows remain exact. Original failed harness
+receipts, ELF measurements and complete corrected commands remain in the
+[manual acceptance record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-MANUAL.md). Optional replays
+retain their `76f345f9` checkpoint; earlier packets retain `ffdbc419`.
+Installed tools, all 99 producer inputs and the three Python coordinators
+remain unchanged.
+
+## Optional source-file owners, 2026-10-10
+
+The held source-file owner selects regular inputs or retains their first
+absence beneath the nearest existing parent. It keeps original parent
+bindings, copied requests and complete logical suffixes. Optional views
+permit uncaptured sibling changes in that parent; required-file metadata
+checks and captured membership remain strict. The existing five-field
+view remains unchanged.
+
+Four native/Cupid callers pass 382 new contracts: 170 successes and 212
+rejections, with 294 actual Python oracles. Both fresh repository replays
+preserve all 1,742 current API calls, 340 legacy passes with twelve declared
+skips and 48 alias methods. All 37 distinct whole checked objects and twenty
+programs equal their originals; thirteen whole shared object pairs agree.
+All 59 strict checks and the original runtime bounds remain.
+
+Original UNC oracle, host-profile, capacity-timeout and Python boundary
+failures remain archived. The full UNC retry and all four unchanged-capacity
+controls pass; the first timeout's cause is unproven. Python treats broken
+parent children as missing on both hosts and file-parent children as missing
+on Windows. The held owner rejects those parent forms. Those compatibility
+differences and complete native image integration remain open. The 99-input
+normal cohort and three Python coordinators remain unchanged. The
+[implementation record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-SOURCE-OPTIONAL.md) retains complete
+source, original and replay evidence. Earlier held replays retain their
+`ffdbc419` checkpoint. This combined packet uses the adopted heap seeds
+at `76f345f9`, before the later manual/policy refresh.
+
+The later [missing-path diagnostic](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/evidence/native-source-missing-revalidation-20261010.json)
+compares twenty unchanged native/Cupid calls. Python permits missing
+ancestors to appear while the leaf stays absent; the held owner rejects
+that change. Eight calls differ and twelve controls agree. These calls
+evaluate the publication predicate without authoring a complete image.
+The existing first-absence contract remains unchanged.
+
+## Hosted heap seed adoption, 2026-10-10
 
 The shared runtime for Cupid-built host commands now searches free blocks by
 size on Linux and Windows. Small Windows allocations share regions of at least
@@ -15,9 +216,9 @@ Run `python -m unittest -v tests.test_hosted_heap` to reproduce the current-host
 checks. Both complete source qualifications pass for committed `1d852023`.
 Independent checks reread 291 staged files, 97 complete final-generation pairs,
 7,761 published files and all 99 committed inputs. Both private candidate pairs
-verify and start from zero production objects. Installed seeds retain the
-preceding runtime while replacement-tool acceptance runs. Three normal Python
-coordinators remain. The
+verify and start from zero production objects. The installed pair now carries
+the qualified heap after complete consumer and normal-root acceptance. Three
+normal Python coordinators remain. The
 [heap record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/HOSTED-HEAP.md)
 contains the implementation and verification scope.
 
@@ -28,36 +229,129 @@ object pairs, six user pairs and the complete 200 MiB image pair against the
 source-accepted products. Both full compatibility selections pass all 367 methods
 per host: 341 passes and 26 declared skips on Linux, 364 passes and three skips
 on Windows. Independent checks reread every outcome, all 99 committed inputs,
-the complete candidate pair and unchanged installed seeds. Both original Linux
-SDK profiles and Windows default also pass complete publication and independent
-77-pair audits, with 22 programs and 104 SDK inputs each. Paired rereading verifies all 308 raw
-stage files and 44 published programs; every complete stream agrees. Both
-default hosts also agree on all 308 complete stage files and 44 published
-program streams. Windows long-path SDK, original public methods and both Make
-bootstraps continue.
+the complete candidate pair and unchanged installed seeds. All four original
+SDK profiles pass complete publication and independent 77-pair audits, with 22
+programs and 104 SDK inputs each. A
+[four-profile comparison](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/evidence/hosted-heap-all-four-sdk-20261010.json)
+rereads all 616 raw stage files and 88 published programs; every complete stream
+agrees across Linux and Windows, with both default and long-path profiles.
+The original Linux public selection also passes with its Windows-only boundary
+skip. Independent review accepts all 4,338 published files, 132 stage files,
+44 fixed-point pairs and 1,823 complete named behavior pairs. The fresh
+[Windows public selection](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/HOSTED-HEAP-PUBLIC-WINDOWS.md)
+passes both methods without skips after correcting two stale runtime-image byte
+locks. Independent review accepts all 4,351 published files, the same 44 complete
+fixed-point pairs, thirteen native objects and three matching full PE relinks.
+Both [actual Make consumers](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/HOSTED-HEAP-MAKE.md)
+and complete independent audits now pass. Linux checks 4,338 published files,
+132 staged products, 44 whole fixed-point pairs and 1,823 behavior pairs.
+Native Windows checks 3,423 files, 159 products, 53 whole pairs and 1,366
+behavior pairs. The unchanged Windows diagnostic replay passes after the first
+run loses its private CupidDis copy; that disappearance has no established
+cause. A separate audit selects the native Windows report schema and preserves
+every other predicate. Both failures and complete read/cleanup traces are
+retained in commit `d833e690`. Both fresh seed/manual cold consumers now pass
+independent audits of all 1,764 controls, 429 objects, six user products, sixteen
+artifact gates and two strict boots per host. The final 72,415-byte manual
+passes complete paired builds and boots. All 429 whole objects, four linked
+outputs, six user products and the complete 209,715,200-byte image agree across
+the pair. The twenty-file root projection is installed. Normal-root build,
+user/ABI, artifact checks, all 170 unchanged seed-reader/release-operation
+methods and both strict boots also pass. Exact method-name review combines
+153 retained seed-reader passes with seventeen native comparison passes after
+correcting their inherited producer sentinels. Every complete product equals the
+accepted pair. The raw kernel is 9,301,660 bytes. The
+[adoption record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/HOSTED-HEAP-ADOPTION.md) retains paired and root receipts.
+Earlier held observer and source-owner replays retain their `ffdbc419`
+checkpoint and original seed/reader guards.
 The existing historical release
 fixtures keep their recognized pre-ISO no-context contract; all sixteen unchanged
 methods pass on each host.
 
-## Retained observer prerequisites, 2026-10-10
+## Required source-file owners, 2026-10-10
 
-The [held observer extension](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-RETAINED-OBSERVER.md)
-restores explicit entry quotas, streaming through retained file records and
-captured root/file identity comparisons. Four native/Cupid callers pass 170 API
-calls, including all 4,096 distinct flat and nested files under the original
-deadlines and Linux memory/descriptor bounds. Both complete legacy selections
-pass 340 methods with twelve declared skips across 352 selections. All 24
-strict checks pass and three complete shared object pairs agree.
+The [required source-file owner](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-SOURCE-FILE.md) retains a
+lexical request, original parent binding, physical parent and regular leaf.
+Views revalidate before exposing borrowed strings and an observer. Retained
+streams add payload custody; metadata alone accepts restored-time edits.
+Four native/Cupid callers pass 232 new contracts: 102 successes and 130 useful
+rejections. Both complete repository replays preserve all 1,360 current API
+outcomes, 340 original legacy methods with twelve declared skips and 48 alias
+methods. All 35 whole checked objects and eighteen programs equal their originals;
+twelve whole cross-host object pairs agree. The first Windows sparse-file timeout
+has no established cause; its unchanged controls and the fresh complete prerequisite
+pass. The first Linux prerequisite passes before an incorrect outer source-copy
+directory rejects. The corrected runner copies the complete product-source
+directory and validates any reused prerequisite run. All first failures and exact
+corrections remain archived. Optional missing-parent selection, complete discovery
+and native image publication remain open; three Python coordinators remain.
 
-The source remains an unapplied patch with its original receipts and a
-repository replay. The first legacy runner's added memory limit produces the
-same allocation failure in unmodified host source; restoring the original
-legacy process limits repairs that runner without changing the new API bounds.
-Native pathname selection, missing inputs, UNC roots and complete image
-discovery still precede normal command adoption. The 99-input cohort and three
-normal Python coordinators are unchanged.
-Both installed-seed repository replays pass every API and legacy outcome again;
-all eighteen complete objects and six checked programs equal the original builds.
+## Retained original source roots, 2026-10-10
+
+The [held source-root constructor](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-SOURCE-ROOT.md)
+keeps the first directory resolution handle through observer construction,
+copies the original absolute request and physical name, then rechecks that
+request during complete validation and borrowed publication. Four native/Cupid
+callers pass 176 new calls, including retargeted aliases whose first physical
+payload remains intact. All 952 preceding API calls, 340 legacy methods with
+twelve declared skips and 48 alias methods also pass. Eight whole shared object
+pairs agree; all 44 strict checks pass.
+
+Both full repository replays repeat every outcome. Independent review accepts
+all 28 whole checked objects and sixteen complete programs against the original
+products. The patch, ten public scripts and complete compressed receipts are
+committed at `6b5174b9` on the bootstrap branch. Per-file original requests,
+optional missing-parent selection and complete image discovery remain open.
+The 99-input producer cohort and normal recipe ownership are unchanged.
+
+## Source observer name profiles, 2026-10-10
+
+The [held source observer](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-SOURCE-OBSERVER.md)
+accepts literal POSIX colon and backslash input names through file, retained
+stream, membership and revalidation checks. Windows keeps its preceding name
+policy; ordinary observers and output-name rules remain unchanged. Four
+native/Cupid callers pass 564 new calls and every original observer selection.
+Seven complete shared object pairs agree and all forty strict checks pass.
+Both complete repository replays reproduce every result. Independent review
+compares all 26 whole checked objects and fourteen complete programs with their
+original builds. The exact patch, nine public scripts and full compressed
+receipts are committed at `9c75676b` on the bootstrap branch.
+
+Physical selection, original-request custody and complete image ownership remain
+open. All 99 normal producer inputs and fifteen installed seeds are unchanged;
+normal ownership remains 449 CupidBuild actions and three Python coordinators.
+
+## Native image source spellings, 2026-10-10
+
+The [held C spelling component](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-SOURCE-PATHS.md)
+preserves the image command's lexical host paths before filesystem aliases are
+resolved. Four native/Cupid callers pass 354 calls covering actual Python
+spellings and useful C failures. Three complete shared object pairs agree, and
+all eight strict checks pass. Both complete repository replays repeat every
+case; their six checked objects and two complete programs equal the originals.
+The unapplied patch, actual host oracles, failed source generations and full
+receipt archives are retained. Physical pathname selection and complete native
+image discovery remain open. The 99-input cohort, installed seeds and three
+Python coordinators are unchanged.
+
+## Optional input observations and UNC roots, 2026-10-10
+
+The [held observer extension](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-OBSERVER-PATHS.md)
+retains first absences, opens ordinary Windows UNC roots and resolves Unicode/long
+directories, alongside quotas, retained streams and captured identities. Four
+native/Cupid callers pass 388 API calls, including all 4,096 distinct present
+and missing flat/nested inputs under the original deadlines and Linux bounds.
+Both complete legacy selections pass 340 methods with twelve declared skips;
+all 48 original alias methods pass. Six complete shared object pairs agree and
+all 36 strict checks pass.
+
+The unapplied patch, complete original receipts, failed probes and repository
+replay are retained. Both installed-seed replays pass every outcome again; all
+24 complete checked objects and twelve programs equal the original builds.
+The Windows resolver uses existing codecs and imports; the default runtime profile remains
+unchanged. Native pathname selection and complete image discovery still precede
+normal command adoption. The 99-input cohort and three normal Python
+coordinators are unchanged.
 
 ## Native image argument owner, 2026-10-10
 
@@ -70,7 +364,7 @@ their actual host's complete original parser output. Allocation probes verify
 failure unwinding and borrowed pathname/owned destination lifetimes.
 
 The source remains an unapplied patch outside the normal 99-input cohort. Native
-path normalization, discovery, observers, complete diagnostics and publication
+physical pathname selection, discovery, observers, complete diagnostics and publication
 still precede normal recipe adoption. The Linux fixture's mounted-filesystem
 timeout is repaired with 64 KiB I/O buffers under the original bounds; failed
 receipts and the filesystem diagnostic remain recorded. Three normal Python
@@ -94,6 +388,470 @@ installed seed files remain unchanged. Complete argv interpretation, native
 discovery, observer lifetimes and publication still precede the normal image
 recipe handoff. Three Python coordinators remain.
 
+## Qualified mixed width seed installation, 2026-10-09
+
+This section records the preceding installed cohort. The 2026-10-10 heap
+adoption above carries its successors.
+
+The exact qualified `acbbd834` seed cohort is installed and pushed in
+commit `cf5976b8`. All fifteen files bind the twelve qualified tools, both
+manifests and reviewed release to the unchanged 99 committed producer inputs.
+The tools carry hosted byte output, unsigned conversion, line/EOF state and
+wide computation before narrow compound-assignment stores. Private host,
+observer, heap and publisher follow-ups remain outside this installed cohort.
+
+All four ordinary/long-path SDK profiles, complete public bootstrap methods
+and both actual Make bootstraps pass their complete original independent checks.
+Qualification retains 291 staged products, 97 whole fixed-point pairs and
+7,761 published files. The final adoption audit rereads 1,757 source/control
+files per host and verifies exact root seed bytes, reader pins and the measured
+native runtime fixture.
+
+The revised 181,994-byte manual passes fresh current normal image and user
+builds on Windows and Linux. All four ls/SMP and feature 17 ISO boots pass with
+four max-model CPUs, e1000, private images, required completion and the original
+150-second limit. Independent comparison checks all 429 objects, 431 inspection
+inputs, sixteen artifacts, six user products, the 103-field/101-provider ABI and
+the complete paired images. The raw kernel measures 9,300,124 bytes.
+
+Both complete 200 MiB images have SHA-256
+`3ad5400a92a761e5a654c8f0dc1cff2dfb15d872e366a5bff73d667d4c61d3da`.
+The entire baseline FAT suffix remains preserved. Both actual Make negative
+gates reject the earlier kernel length before the new measured policy is
+applied. Original policy fields and producer bounds remain intact. Earlier
+cold acceptance remains separate from the current accepted-object refresh.
+
+The deliberate private combination of required-file capture and POSIX discovery
+passes all twelve actual native/Cupid builders. Its complete discovery and
+legacy observer review accepts 270 discovery executions, 476 discovery calls,
+128 identity comparisons and all 100 legacy executions with 106 calls.
+Twenty actual full eight-MiB path-case images are independently reconstructed
+from raw inputs. The empty-script false pass and the verifier's corrected
+publication-count predicate remain explicitly recorded. Complete combined
+handoff regressions and their original independent verifier are still queued.
+
+The original required-file large cohort and six guest boots continue with the
+original eight cases, 600-second limits and Linux 32 MiB bound. The separate
+external-seed capture source is prepared with all original same-root tests
+retained; its four actual caller profiles and independent acceptance are pending.
+These private results do not qualify or install a native image command.
+
+The normal graph remains 449 CupidBuild operations and three Python coordinators
+across 452 transforms. Full native image ownership, both SDK coordinator
+retirements, all remaining C migrations, Doom/vendor runtime and in-OS tools
+remain in scope. TempleOS stays read-only and excluded. PR 33 remains open as
+a draft; the bootstrap branch is not merged into main.
+
+## Hosted heap proofs and completed consumer checks, 2026-10-09
+
+The private hosted heap now shares Windows allocation regions and searches free
+blocks on both hosts. The original Windows allocator exhausts address placement
+near 32,500 live requests; Linux's old search inspects 523,776 allocated blocks
+for 1,024 live requests. Actual process maps and Cupid-built work counters retain
+those causes. The new runtime accepts 65,536 one-byte and 64-byte allocations,
+alignment/reuse checks, useful failure cases and both complete original runtime
+contracts. The implementation and regression fixture are retained as an
+unapplied prototype in ADR 0461 and `docs/bootstrap/HOSTED-HEAP.md`.
+
+Guarded cohort ten passes all four complete discovery selections with the
+original sixty-second runtime limits, Linux 32 MiB bound, two-worker checked
+builds and nine forbidden host producers. Paired independent review accepts
+256 selected methods, 242 executions, fourteen declared skips and 410 discovery
+calls. It rereads 206 controls, 109 private inputs, five whole object pairs,
+128 direct identity comparisons and all 100 legacy observer executions with
+106 calls. Every checked object except the runtime retains its source-seven
+bytes on each host. Initial missed sentinels, allocator failures, nested timeout
+and corrected checker assumptions remain preserved. Named-commit qualification
+and normal CLI integration remain open.
+
+The original Linux Make bootstrap and both native Windows public methods pass
+complete current independent review. Linux Make retains 132 staged products,
+4,338 files and 1,867 complete generation pairs. Windows public review retains
+4,351 files, 132 stage products, 132 behavior pairs and its separate native
+boundary with three complete PE relinks. The final original Windows Make build
+passes in 1,974.688 seconds; its current independent review accepts 159 staged
+artifacts, 3,423 files and 1,419 generation pairs in 153.300 seconds. All four
+SDK profiles, complete public selections and both actual Make consumers are now
+accepted. Linux retains its declared Windows-method skip. Earlier-cohort checker
+validation is kept separate from these current results.
+
+All 99 normal producer inputs still match committed `acbbd834`. The fifteen
+installed seed files still match that committed parent release, whose producer
+revision is `a1cc8f3a`. Seed and manual adoption require their separate audit.
+The separate 200 MiB checked Linux reuse failure, complete required-file image
+acceptance and strict boots remain open. All three Python coordinators, full
+Doom/vendor work, in-OS tools and remaining C migrations stay in the mission.
+TempleOS remains read-only and excluded. The bootstrap branch is pushed; PR 33
+stays open as a draft and is not merged.
+
+## Distinct-input limits and completed SDK checks, 2026-10-09
+
+The coalesced required-file handoff passes all four complete native/Cupid runtime
+selections. Independent checking accepts all 664 selections, 652 calls and
+23 complete checked object pairs, including full image/FAT reconstruction and
+preserved negative bytes, timestamps and namespaces. Seven of eight original
+200 MiB cases pass. Checked Linux reuse still times out at 600 seconds with
+32 MiB, so complete large-image, independent boot and adoption acceptance stays
+open. The original failed attempts remain preserved.
+
+The separate distinct-input prototype adds explicit observer quotas, retained-file
+streaming and complete validation before discovery exposes a view. Both native
+callers pass all 64 methods, including 4,096 distinct present, missing and nested
+inputs. All four builders and all 100 ordinary/UNC observer regression executions
+pass. Construction-time kernel and parent-binding changes reject before return.
+Checked Windows still rejects four capacity cases during allocation; checked Linux
+still exceeds its original bound in four cases. The unchanged Windows missing-stage
+replay passes at 3,607 inputs and rejects at 3,608. Full paired acceptance remains
+open without reducing input capacity, deadlines or memory limits.
+
+All four original replacement-seed SDK profiles now pass complete independent
+review of 104 SDK inputs, 77 whole stage pairs and 22 published images per profile.
+The original Linux public bootstrap selection also passes with its Windows skip.
+Independent rereading accepts all 4,338 retained files, 99 committed inputs,
+132 stage products, 44 final-stage pairs and 132 complete behavior pairs. The original actual Linux Make
+bootstrap is running, followed by the native Windows public and Make consumers.
+Separate predecessor validations accept the new public-boundary and Make checkers;
+those records do not accept the pending current consumers. Their unretained
+producer-command, private-kernel-output and internal-timestamp limits stay explicit.
+
+Commit `43459f3a` records the evidence and retained failures in seven documents,
+including ADR 0460; `fd1a1873` records independent Linux public acceptance.
+All 99 normal producer inputs, fifteen installed parent files
+and the held manual remain unchanged. Root seed/manual adoption, native image
+command ownership and retirement of the three Python coordinators remain open.
+TempleOS stays read-only and excluded.
+
+## Frozen-input validation and entry guards, 2026-10-09
+
+Commit `8163b77a` records the frozen-input work counts and compiler entry-guard
+controls in [ADR 0459](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0459-coalesce-required-frozen-input-revalidation.md)
+and the [required-file handoff record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/REQUIRED-DISK-HANDOFF.md).
+
+The clean source-four copies pass all four five-program builds and both complete
+native regression selections. Windows closes in 323.663 seconds and Linux in
+270.108 seconds. Both checked selections, complete independent acceptance,
+all eight clean-source large cases and strict guest boots remain required.
+The source-three acceptance still retains all 664 selections and 652 calls.
+
+One live-input validation now walks the entire required frozen set once after
+ordinary observations. The actual FAT-reuse feedback rejects duplicate or
+missing passes. Its checked Linux diagnostic reduces whole 200 MiB digest
+passes from 49 to 44 and closes in 542.555 seconds under the original
+600-second and 32 MiB limits, with the same complete image. Instrumented timing
+does not establish a stable ratio or accept the original failed large cohort.
+
+The separate literal-transfer prototype passes 32 regular controls through
+native and Cupid-built callers. A legal caller-saved ECX clobber exposes both
+isolated entry-guard mutants as wrong runtime results on both hosts. Their
+unaffected modes and malformed-IR rejection remain exact; strict disassembly
+accepts both wrong programs. Independent rereading checks all 32 verdicts,
+four wrong-runtime cases and complete object comparisons. Full compiler
+qualification and normal source integration remain open.
+
+The first clean Windows runtime stops on explicit disk-full errors; its fresh
+complete retry passes. The original Windows long-path SDK attempt stops on a
+compiler output I/O error and retains its partial workspace. Its fresh retry
+preserves the three independently accepted SDK profiles and original bounds.
+The checked regressions and SDK retry are running; public methods and actual
+Make bootstraps retain their place in the original consumer queue.
+
+Nine explicitly selected closed large fixtures are compressed without deletion.
+Complete hashes, lengths and modification times remain unchanged. Concurrent
+filesystem activity means the volume-space change is not exact recovered storage.
+
+All 99 normal producer inputs still match committed `acbbd834` and the fifteen
+installed seed files retain parent revision `a1cc8f3a`. Ownership remains
+449 CupidBuild and three Python actions across 452 transforms. Root seed and
+manual adoption await complete replacement-tool consumers. Full command
+ownership, qualification, coordinator retirement, Doom/runtime acceptance and
+in-OS tools remain open. TempleOS stays read-only and excluded.
+
+## Required-file handoff and byte input, 2026-10-09
+
+The private required-file handoff now carries selected external bootloader and
+kernel files through retained observers, checked template production and one
+guarded publication transaction. Complete small-image and legacy acceptance
+passes on Windows and Linux. This work is recorded in
+[7e80ba98](https://github.com/cupidthecat/cupid-os/commit/7e80ba98b152b483f0326eb4dd2385c658b2118b);
+the normal command, source integration and producer qualification remain open.
+
+Independent review checks all 664 selections, 646 executions, eighteen platform
+skips and 652 actual calls across four native/Cupid callers. It rereads 209
+source/support controls, 109 private producer inputs and 23 complete checked
+object pairs. Every positive eight-MiB image is reconstructed independently;
+raw FAT memberships, mirrors, chains and padding, negative prior bytes,
+timestamps and cleanup are checked. Existing template, external publisher and
+ordinary/UNC observer regressions remain included. The
+[handoff record](https://github.com/cupidthecat/cupid-os/blob/7e80ba98b152b483f0326eb4dd2385c658b2118b/docs/bootstrap/REQUIRED-DISK-HANDOFF.md)
+keeps exact source, caller and authority bindings.
+
+The same private shared runtime supplies standard `fgetc` and `getchar` through
+the existing stream state. All four callers pass byte values including 255,
+EOF, rewind, indicator reset and write-only read errors. Both runtime objects
+pass strict disassembly. The
+[byte-input record](https://github.com/cupidthecat/cupid-os/blob/7e80ba98b152b483f0326eb4dd2385c658b2118b/docs/bootstrap/HOSTED-BYTE-INPUT.md)
+retains the specific native Windows errno difference.
+
+All four native 200 MiB fresh/reuse cases and both checked fresh cases pass.
+Both checked reuse cases still time out at the original 600-second limit;
+Linux retains 32 MiB of address space. Separate unchanged-library traces reach
+close after publication returns. A literal-transfer compiler experiment reaches
+a limited emitter fixed point on both hosts and passes its capability controls.
+Its single-object Windows diagnostic reuse closes in 589.996 seconds, while
+Linux still times out. Complete branch-entry controls, producer qualification,
+large-image acceptance and subsequent strict guest boots remain open.
+
+Both Linux replacement-seed SDK profiles and the Windows default profile now
+pass independent review: 104 SDK inputs, 77 complete stage pairs and all 22
+published artifacts per profile. The default profiles retain 98 bootstrap
+inputs; Linux long-path publication retains 99. Windows long-path SDK, full
+public methods and actual Make bootstraps continue in the original serial queue.
+All 99 normal producer inputs and fifteen installed parent seed files remain
+unchanged. Root seed/manual adoption awaits the remaining consumer checks.
+Ownership stays at 449 CupidBuild and three Python actions across 452 measured
+transformations. TempleOS remains read-only and excluded.
+
+## Hosted library runtime and retained external stages, 2026-10-08
+
+[`b64dd829`](https://github.com/cupidthecat/cupid-os/commit/b64dd8292bed14208699afe7025ecd01da153c02)
+provides standard hosted `putchar` through `fputc` and the current stdout stream.
+Both methods pass through native and Cupid-built callers on both hosts, for eight
+executions. They check all 768 signed arguments, exact byte returns, complete
+output, read-only errors and preservation of the original file and timestamp.
+
+The preceding committed 178,330-byte manual passes fresh normal kernel, image and user builds
+on both hosts with conventional producers forbidden. Complete paired comparison
+checks all 429 objects, sixteen artifacts, six user products and the full
+103-field/101-provider syscall ABI. Only the manual wrapper changes. Both complete
+200 MiB images have SHA-256
+`301da60d5ec6166a3740dbd57d4bf8ee0e0957d9120e5d47be3172917b92ea2f`,
+with every baseline FAT suffix byte preserved. The measured raw kernel is
+9,296,460 bytes. All four strict four-CPU max/e1000 ls/SMP and ISO boots pass
+at the original 150-second bounds.
+
+Both full preparations pass for the new 99-input producer snapshot
+`682eb4d8c80fb348280e42db3e6a43f0292258c137017265b39d9741797a0be2`.
+Both complete qualifications pass against that committed source and the retained
+preparations. Windows takes 2,464.580 seconds and Linux 2,756.732. Independent
+checks cover all 291 staged products, 97 complete fixed-point pairs, 7,761
+published regular files, 99 committed producer inputs and fifteen unchanged
+installed parent files. Seed carriage remains open; installed seeds retain their
+earlier qualified identities. The
+[runtime record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/HOSTED-PUTCHAR.md)
+gives the commands, source controls and retained failed recipes.
+
+[`84ae3852`](https://github.com/cupidthecat/cupid-os/commit/84ae3852923a18dd6dab3f2a659f1f1d8ef684c0)
+adds hosted `strtoull`, `fgets`, `feof` and `clearerr`. All 34 conversion,
+line/state and putchar methods pass through native and Cupid-built callers on
+both hosts, for 136 fresh executions without skips. Independent checking
+separately verifies the 128 conversion and line/state executions, 103 source
+controls, 99 producer inputs and 5,856 conversion inputs.
+
+The committed 179,862-byte manual passes both normal kernel/image builds, fresh
+user checks and all four strict private four-CPU max/E1000 boots. Independent
+checking compares every byte of all 429 objects, sixteen artifacts, six user
+products, the 103-field/101-provider ABI and both complete 200 MiB images.
+Both images have SHA-256
+`beb2df2cd69eb2290486564a598fe8bfb6f4acfb52f0f0c5882ca14a25736b79`,
+with the baseline FAT suffix preserved. The raw kernel measures 9,297,992 bytes;
+only the manual wrapper changes from the preceding image.
+
+Both complete preparations pass with 291 products and 97 complete fixed-point
+pairs. Independent checking binds all 99 producer files to exact committed Git
+blobs and both retained preparations. Both complete library qualifications now pass,
+in 2,413.305 seconds on Windows and 2,580.462 on Linux. Independent checking
+verifies 291 staged products, 97 complete fixed-point pairs, 7,761 published
+files and all 99 raw committed inputs. Seed carriage and acceptance through
+replacement tools remain open; the fifteen installed files still belong to
+the accepted `a1cc8f3a` cohort. The
+[library record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/HOSTED-UNSIGNED-LINE-INPUT.md)
+retains commands, source controls and failed attempts.
+
+The separate optional publisher retains its 236 passing executions and one
+broader Windows standalone cleanup failure whose cause remains unproven.
+A separate external-root observer passes 72 cases. The private external frozen
+input API passes 200 selections, with 196 executions and four platform skips.
+Independent checking binds 117 source controls, 106 private producer paths,
+complete frozen outputs and the original bounds, including 200 MiB transfers
+with 32 MiB on Linux. External stage capture then passes 220 selections, with
+212 executions and eight platform skips, across 119 captured controls.
+
+The next private external publisher stages authorized external payloads into
+complete eight-MiB FAT images. Four native and Cupid callers pass 176 selections,
+with 172 executions and four platform skips. Independent checking reconstructs
+complete images, reads final FAT payloads and verifies prior bytes/timestamps,
+external archives, all 188 source controls, 106 producer inputs and actual
+objects and callers. Each invocation retains 180 seconds and each Linux caller
+retains its 32 MiB limit. Required and optional callers pass another 106
+executions without skips. Independent checking reconstructs their complete
+positive images, reads FAT payloads and verifies preservation facts, actual
+standalone programs, source/compiler bindings and unchanged installed seeds.
+
+All four native and Cupid external publisher callers now also pass both
+normal-geometry methods, for eight complete 200 MiB publications without skips.
+They use actual accepted OS bootloader/kernel bytes and external synthetic
+eight-MiB WAD-shaped payloads. Independent reconstruction verifies every whole
+image, FAT mirrors/chains/padding and all previous regular files on reuse. The
+check binds 190 controls, 106 producer inputs, actual compilers and receipts,
+external archives and unchanged installed files. Each invocation retains the
+full-image 600-second limit and Linux 32 MiB bound; the small cases retain
+180 seconds. Six strict private four-CPU boots pass for these accepted
+images: fresh/reused ls/SMP and reused ISO completion on both hosts, under the
+original 150-second bound. Independent review verifies actual commands, serial
+contracts, driver sources and complete preserved images. These images carry
+the preceding 179,862-byte manual and kernel. Synthetic WAD payloads do not prove
+Doom runtime acceptance.
+
+[Commit acbbd834](https://github.com/cupidthecat/cupid-os/commit/acbbd8342d8901169c5484742b168277ce9bbdd1)
+accepts wide integer compound calculations before converting and storing narrow
+destinations. The original publisher expression is preserved. All ten operators,
+narrow widths/enums, wide divisors/remainders, single operand evaluation,
+chained results, volatile exact stores and adjacent bit fields pass execution
+checks. Atomic/boolean mutation, wide counts and partial volatile bit fields
+retain their useful rejections and preserve prior output. Exactly two normal
+producer files change; private host and publisher extensions remain separate.
+
+Both complete preparations pass with 291 products and 97 fixed-point pairs.
+Native and new Cupid callers pass all forty methods and twelve native IR/object
+contracts; fresh bootstrap-worktree checks repeat that complete selection.
+Independent checking compares complete emitted objects and same-host linked
+products. All 99 producer files match exact committed Git blobs and both
+retained preparations. Both complete qualifications now pass for committed
+`acbbd834`, in 2,158.125 seconds on Windows and 2,252.197 on Linux. Conventional
+producers remain blocked, with two workers and the original bounds. Independent
+rereading verifies all 291 staged products, 97 complete fixed-point pairs,
+7,761 published files, 99 exact committed inputs and twelve reviewed final
+tool identities. Both behavior generations pass their original success,
+rejection and help groups.
+
+The qualified fifteen-file replacement is projected into two fresh private OS
+consumers. Each starts with 1,743 complete source/control files, zero objects
+and the complete accepted 200 MiB image. Both installed-pair verifiers pass;
+the Windows plan binding names the actual replacement Linux manifest while
+retaining its qualified parent lineage.
+
+Both 277-method compatibility selections pass, with 534 executions and twenty
+expected platform skips. Both cold kernels, complete image builds and fresh
+user checks pass through the replacement tools. Independent rereading compares
+all 429 objects, sixteen artifacts, six user products, fifteen candidate files,
+the complete 103-field/101-provider syscall ABI and both complete 200 MiB images.
+Both images have SHA-256
+`e549ca8a89e1c5edb95e91888aee03fa2bc17b3094752ea4699cc468436bb754`,
+with every baseline FAT suffix byte preserved. The complete pending 181,631-byte
+manual occurs once as nonexecuting data. All four strict private four-CPU
+max/e1000 ls/SMP and ISO boots pass under their original 150-second bounds.
+
+The four SDK profiles, complete public-bootstrap methods and actual Make
+bootstraps remain in their serial queue. Root seed adoption and the manual
+commit await those checks; the ordinary installed fifteen files retain the
+qualified `a1cc8f3a` identities. All earlier accepted consumer files remain
+preserved. [The seed candidate record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/QUALIFIED-MIXED-WIDE-SEEDS.md)
+binds the exact private projection, complete source observations and remaining
+consumer checks. The earlier committed manual retains its acceptance below.
+
+The first separate native image-option owner passes all 25 methods through four
+native/Cupid callers, for 100 executions and 780 actual invocations. Complete
+independent rereading checks 113 source/support controls, all output sequences
+and four whole checked object pairs. Native and Cupid output bytes agree on
+each host. Required values, repeated options, explicit stages before the final
+WAD group, both basename profiles, Unicode decimal input and the full 4,096-stage
+capacity are covered. The new source stays outside the normal 99-input producer
+closure while the consumer queue runs. Complete CLI compatibility, path
+discovery, observer lifetimes and publisher integration remain open; the normal
+image recipe still uses Python. [The native option record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-IMAGE-OPTIONS.md)
+keeps the exact evidence and both retained fixture corrections.
+
+A subsequent private option copy preserves unknown/help order, short help
+clusters, option-like paths with spaces and both installed commands' ambiguity
+timing. Its grammar profile is independent of basename rules. All four callers
+pass the complete expanded 30-method suite, for 120 executions and 1,032 actual
+invocations. Independent review checks 168 complete original-help oracle
+records, all 113 controls, every repeated output sequence and four whole checked
+object pairs. Native and Cupid bytes agree on each host; twelve shared
+cross-host argument keys also agree. The preceding source and its complete
+780-call acceptance remain preserved. [Commit 594980f2](https://github.com/cupidthecat/cupid-os/commit/594980f2cbb39a4a9200240c56b3306cc89718cf)
+records that evidence while the normal producer snapshot and installed seeds
+remain unchanged. Full native command and whole publication still remain open.
+
+The separate native input-discovery owner now retains required and optional
+paths, physical roots, original parent bindings and owned strings after the
+options/argv storage is released. Four native/Cupid callers select forty methods
+each, execute 148 and retain twelve platform skips. All 236 actual calls pass,
+including 48 direct file-identity calls. Those comparisons reject unobserved
+files, invalid paths, null arguments, metadata drift and streamed digest drift.
+Complete independent review checks 206 source/support controls, every result
+and five whole checked object pairs. The changed host also passes all 100
+ordinary/UNC regression executions and 106 actual calls. The preceding complete
+188-call acceptance stays preserved. [Commit 2d4a8e54](https://github.com/cupidthecat/cupid-os/commit/2d4a8e5489c8e26bb8fe9a294e480c726c8c7f11)
+and [the discovery record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-INPUT-DISCOVERY.md)
+retain exact source, tools, profiles, failed fixtures and checker corrections.
+All 99 normal producer inputs and fifteen installed seeds remain unchanged.
+Complete seed/output authority, external required-file freezing, output-parent
+preparation, unique-input capacity, full CLI compatibility and whole publisher
+handoff remain open. The 4,096-stage case repeats one source; it does not claim
+4,096 distinct retained observations. Source integration and qualification still
+precede normal recipe adoption.
+
+The replacement-seed Linux default SDK consumer passes in 4,588.616 seconds.
+Its original independent review passes in 63.093 seconds and checks all 104 SDK
+inputs, 98 bootstrap inputs, 77 complete stage pairs and 22 published images.
+The Linux long-path SDK profile has started; the two Windows SDK profiles,
+complete public methods and actual Make bootstraps remain in their serial queue.
+Root seed adoption and the pending manual commit still await those remaining
+consumer gates. The full self-hosting mission and its runtime requirements
+remain open.
+
+The new normal-source compilers build all four private publisher programs per
+host. Every actual object and eight complete same-host program pairs match
+the preceding accepted builds byte for byte. Their preceding checked execution
+scope covers 198 selections, 196 executions and two platform skips; this byte
+comparison adds no fresh runtime count. Independent review binds 190 caller
+controls, 106 private producer inputs and the actual normal-source compilers.
+
+The complete committed 181,453-byte manual passes both normal kernel/image
+builds, fresh normal user checks and all four strict private four-CPU max/e1000
+ls/SMP and ISO boots under the original 150-second bounds. Complete independent
+comparison checks all 429 objects, sixteen artifacts, six user products, fifteen
+seed files, the 103-field/101-provider ABI and both 200 MiB images. Their SHA-256
+is `8869c891beafa901eeb9b9adae791831659de0b16e22683deb812a2fdce9d158`,
+with the baseline FAT suffix preserved. Only the manual object changes; the raw
+kernel measures 9,299,584 bytes, and only that measured policy row changes.
+Canonical ownership generation/checking and useful policy regressions pass
+after four exact fixture entries are added; no source is removed.
+
+Separate native stage interpretation passes 32 methods and 464 actual
+invocations through four callers, preserving the existing Python drive-colon
+and WAD alias behavior. Retained physical-root comparison selects 56 methods,
+executes 52 and skips four Windows-only cases on Linux. Its negative cases
+retain metadata, streamed-payload and absence checks. Complete independent
+review verifies both scopes, actual tools, source copies and result bytes.
+A subsequent private observer copy now opens ordinary Windows UNC share
+anchors while retaining the existing no-reparse descendant walk and complete
+metadata, streamed-payload and absence checks. Native and Cupid Windows callers
+pass all 24 UNC methods each, for 48 method executions and 54 actual invocations.
+Real local shares cover long Unicode paths, share-only anchors, drive/share and
+server aliases, and useful file/junction/device/unavailable-root rejections.
+The ordinary four-caller selection also passes all 52 executions with four
+expected platform skips. Independent checking verifies all 193 controls, actual
+compiler preparations, exact profiles, complete results and original bounds.
+Every Linux checked object and the complete program match the preceding accepted
+comparison build byte for byte. All 99 normal producer inputs and fifteen
+installed seed files remain unchanged. The first junction fixture resolves the
+path before invocation; preserving its absolute spelling repairs the test
+without changing C/header bytes. Failed source copies and receipts remain
+retained. [ADR 0454](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0454-open-retained-windows-unc-share-roots.md)
+and [the UNC observer record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/OBSERVER-UNC-ROOTS.md)
+describe this separate implementation and its acceptance.
+
+Full option parsing, path discovery, observer lifetime and whole-publisher
+integration, the other accepted large geometries, committed qualification of
+the changed host copy and normal recipe adoption remain open. The [mutation record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/MIXED-WIDE-MUTATION.md)
+and [native disk handoff](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-DISK-HANDOFF.md)
+retain the exact acceptance boundaries. The
+[external publisher record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/EXTERNAL-DISK-PUBLISH.md)
+keeps these scopes and failed copies. The normal disk recipe and two SDK
+coordinators still use Python.
+
 ## Qualified hosted wide-offset seed pair, 2026-10-07
 
 Both complete qualifications pass for committed `a1cc8f3a` and its 99-input
@@ -116,7 +874,7 @@ complete behavior artifact pairs. Both complete Windows public methods also
 pass in 2,672.293 seconds. Independent rereading checks all 4,351 retained files,
 99 committed inputs, 132 staged products and 132 complete behavior pairs.
 The actual Windows Make bootstrap also passes in 1,988.571 seconds.
-The current 177,436-byte manual
+The preceding 177,436-byte manual
 passes both normal image builds and all four strict boots. Both complete
 209,715,200-byte images have SHA-256
 `10f5995aa214346c34fe4c45e4ca3c278f145266f8e7fc08f4d8b84a7388829b`;

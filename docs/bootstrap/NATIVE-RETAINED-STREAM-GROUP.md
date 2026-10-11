@@ -155,7 +155,10 @@ receipts are not presented as recovered evidence.
 
 ## Replay and normal ownership
 
-Run both commands from this packet's committed checkpoint, using a fresh direct
+The later [OS manual acceptance](RETAINED-STREAM-GROUP-MANUAL.md) changes the
+embedded manual and exact policy after complete paired and root verification.
+Replay this held packet at `c2eabb95a088f938a66ec779fc4e94b1ce04844d`, using its original
+manual and policy. Run both commands from that checkpoint with a fresh direct
 child of `build`:
 
 ```powershell

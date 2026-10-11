@@ -32,6 +32,41 @@
 
 ---
 
+## Toolchain bootstrap
+
+The held retained-file group API passes both complete repository replays,
+3,060 API outcomes and 87 strict checks. Group capture preserves per-file
+parent, metadata and payload checks, with complete observer validation at both
+boundaries. Callback bytes remain provisional until success. The fresh complete
+input owner still exceeds sixty seconds on both Windows UNC callers and remains
+outside acceptance. [The group record](https://github.com/cupidthecat/cupid-os/blob/c2eabb95a088f938a66ec779fc4e94b1ce04844d/docs/bootstrap/NATIVE-RETAINED-STREAM-GROUP.md) includes complete evidence and
+replay instructions at `c2eabb95`.
+
+Cupid OS builds its active source with checked Cupid tools. The normal graph
+contains 449 CupidBuild actions and three Python coordinators across 452
+transforms. The installed `1d852023` seed pair carries the shared hosted heap
+after paired cold builds, complete product comparisons and strict boots.
+Normal-root build, seed-reader/release-operation and strict boot checks also
+pass. The held optional source-file owner passes both complete repository
+replays, preserving 382 new contracts and that packet's 1,742 API outcomes.
+The held shared-selection packet passes both complete repository replays,
+preserving all 2,916 current API outcomes and 83 strict checks. Temporary
+selectors reject publication borrowing; complete retained observers own
+custody. Full input-owner acceptance remains open after the final Windows
+UNC phase timeouts.
+The current 75,963-byte manual covers held file, image-stage, source selection
+and retained stream group interfaces after paired and normal-root acceptance.
+All 429 whole object pairs and every byte of the complete image agree. All six
+strict SMP boots, sixteen exact artifact gates per build and seventeen root
+policy methods pass. The raw kernel has 9,305,208 bytes. Its growth is 1,368 bytes
+for 1,369 bytes of new text because padding shrinks by one byte. Only its exact
+policy row changes. Held group replays retain `c2eabb95`; shared-selection
+replays retain `4dab700c` for their original manual and policy guards.
+Complete image discovery, retained root sharing and native publication remain
+open. [The bootstrap record](Toolchain-Bootstrap) contains complete receipts,
+reproduction commands and remaining work. TempleOS stays read-only reference
+material and remains excluded from progress counts.
+
 ## System at a Glance
 
 ```

@@ -68,6 +68,26 @@ UNC capacity bound. The normal image coordinator still uses Python.
 The image recipe still requires its complete native input owner
 and publication handoff; its normal coordinator currently uses Python.
 
+>h2 Retained file stream groups
+The held host API streams previously retained regular files as one serialized
+group. Complete observer validation checks all retained roots, ancestors,
+entries, memberships and earlier payload digests before and after the group.
+Each file keeps its no-follow leaf, immediate parent, metadata and digest checks.
+No observation is added, and original single-file streaming keeps its existing
+ancestor validation.
+Callback bytes remain provisional until the group succeeds. Failure clears all
+results, poisons the observer and requires those bytes to be discarded. Callback
+revalidation, closure, recursive capture and transaction borrowing reject.
+An existing borrower cannot validate during capture. Borrowing transactions must
+close before their observer. Zero-count capture still validates the observer;
+an overflowing count rejects before accessing request or result arrays.
+The paired native and Cupid-built contracts cover 4,096 distinct inputs, empty
+files, multiple chunks, byte limits, restored-time edits and root retargeting.
+Original-request checks reuse validated directory metadata from each parent
+resolution while retaining their name, identity and regular-leaf rechecks.
+Complete input ownership remains unqualified on Windows: both fresh UNC callers
+exceed sixty seconds. The normal image coordinator still uses Python.
+
 >h2 Shared compiler block assertions
 The shared bootstrap compiler at source head accepts C11 _Static_assert
 inside function compounds. It checks local names and target layout at compile

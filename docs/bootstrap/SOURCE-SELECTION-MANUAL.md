@@ -1,5 +1,9 @@
 # OS manual acceptance for shared source selection
 
+The later [retained stream group refresh](RETAINED-STREAM-GROUP-MANUAL.md)
+contains the current manual and raw-kernel acceptance. This record preserves
+the preceding source-selection measurements and their original receipts.
+
 The OS manual now records temporary source selection, captured file and
 parent comparisons, first-view construction and fresh original-request checks.
 It preserves the boundary between selection and complete publication custody.
