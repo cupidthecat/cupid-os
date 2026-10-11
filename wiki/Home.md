@@ -34,6 +34,15 @@
 
 ## Toolchain bootstrap
 
+Retained original file-request binding groups share parent resolution while
+keeping fresh file metadata checks and complete caller root and payload custody.
+Both repository replays pass 210 new cases and all 3,228 preceding outcomes,
+with 95 strict checks, 22 whole object pairs and one hundred rejection controls.
+Complete input ownership remains unqualified on the Cupid-built UNC caller.
+
+[The component record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-FILE-REQUEST-GROUP.md)
+carries the held patch, portable receipts and preserved failures.
+
 The held path observation group captures ordinary file, directory and first-absence
 observations with complete validation before and after the group. Both complete repository
 replays pass 168 new cases and all 3,060 preceding outcomes, with 91 strict

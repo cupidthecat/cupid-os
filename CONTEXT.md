@@ -100,6 +100,12 @@ remain provisional until success; capture grants no publication authority and
 retains the observer's owner and borrower lifetimes.
 _Avoid_: publication batch, image-stage selection, frozen payload set
 
+**Retained original file-request binding group**:
+A serialized metadata check of retained file bindings against their original
+requests. Callback results remain provisional, and the caller retains complete
+root and payload custody.
+_Avoid_: complete payload validation, complete image discovery, publication authority
+
 **Toolchain job**:
 An owned, bounded lifetime for deterministic Cupid Toolchain arena, buffer, logical-path, source, and diagnostic state.
 _Avoid_: global compiler state, platform context

@@ -1,5 +1,15 @@
 # Retained path observation groups
 
+## Original-request group follow-up, 2026-10-11
+
+The held [original file-request binding group](NATIVE-FILE-REQUEST-GROUP.md)
+retains this component and all 3,228 preceding API outcomes. Both complete
+repository replays add 210 cases, pass 95 strict checks and preserve 22 whole
+object pairs. Independent review and one hundred rejection controls pass.
+Complete root and payload validation remains outside the metadata group.
+The separate complete owner still times out on the Cupid-built UNC caller;
+normal image publication remains Python-owned.
+
 ## Path observation group manual acceptance, 2026-10-11
 
 The current [OS manual acceptance](PATH-OBSERVATION-GROUP-MANUAL.md) passes both

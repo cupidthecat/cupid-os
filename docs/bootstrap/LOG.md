@@ -1,5 +1,34 @@
 # Bootstrapping log
 
+## 2026-10-11: Qualify original file-request binding groups
+
+The held host API groups file-binding metadata checks by original parent
+spelling. It retains both parent resolutions, captured parent identities and
+fresh no-follow file checks before and after each callback. Complete root and
+payload validation remains the caller's responsibility. Callback results stay
+provisional; failure poisons the observer. Directory metadata reuse removes
+duplicate stats from the same resolution handles.
+
+Both complete repository replays pass 210 new cases and all 3,228 preceding
+outcomes, with 95 strict checks and 22 whole object pairs. Independent review
+rereads every whole product and runtime stream. Four unchanged-copy controls
+pass; one hundred altered-evidence controls reject. Seven patch or output
+preflights reject before compiler or runtime calls.
+
+The separate complete owner passes five of six 4,096-stage probes but still
+times out on the Cupid-built Windows UNC caller. A 512-stage diagnosis reduces
+constructor directory stats from 4,735 to 3,709 and directory resolutions from
+2,066 to 1,040 while retaining all 515 original-request checks. Per-file opens,
+metadata checks and both views remain intact. The old single-request counter
+excludes the new groups.
+
+The 99 producer inputs, fifteen installed seeds and three Python coordinators
+retain their ownership. Normal ownership remains 449 CupidBuild actions across
+452 transforms. This component keeps the accepted 77,802-byte manual and
+9,307,048-byte raw kernel.
+
+[The component record](NATIVE-FILE-REQUEST-GROUP.md) carries the held patch, portable receipts and preserved failures.
+
 ## 2026-10-11: Accept the path observation group OS manual
 
 The OS manual records retained path observation groups, provisional callback
