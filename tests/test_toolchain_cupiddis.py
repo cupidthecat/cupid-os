@@ -932,6 +932,13 @@ class CupidDisContractTests(unittest.TestCase):
 
     def test_cli_inspects_and_strictly_checks_all_windows_seeds(self):
         seed_root = REPO_ROOT / "bootstrap" / "seeds" / "i386-windows"
+        seed = bootstrap_toolchain.verify_seed_inputs(seed_root / "manifest.json")
+        profile = seed.manifest["provenance"]
+        self.assertEqual(profile["source_input_count"], 99)
+        self.assertEqual(
+            profile["native_build_plan_sha256"],
+            "754895566b00e6e53b045a1414e7b734872f04d4f0c84d62e3dfcf8dd9bc57ab",
+        )
         expected_names = {
             "cupidasm.exe",
             "cupidc.exe",
@@ -943,7 +950,9 @@ class CupidDisContractTests(unittest.TestCase):
         seeds = sorted(seed_root.glob("*.exe"))
         self.assertEqual({path.name for path in seeds}, expected_names)
         for path in seeds:
-            expected_imports = bootstrap_toolchain._windows_imports(path.stem)
+            expected_imports = bootstrap_toolchain._windows_utf8_imports(
+                path.stem, long_paths=True, user_link_aliases=True
+            )
             bootstrap_toolchain._validate_static_i386_pe32(
                 path,
                 0x00401000,

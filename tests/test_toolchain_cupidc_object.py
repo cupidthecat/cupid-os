@@ -143,25 +143,24 @@ CUPID_TOOLCHAIN_FIXED_POINT_LINKS = (
 DOOM_TREE_FRONTIER_FAILURES = {}
 DOOM_COMPAT_OBJECTS = {
     "/kernel/doom/dglibc.cc": (
-        93332,
-        "e2496b01c93a7858a0c035b53aea0ad8"
-        "34d95d2be3f7ae49574d1759ebec34d6",
-    ),
+                                  88972,
+                                  "11ebab6f151eab5290e19d0eede7bddb"
+                                  "3dd351da306726bba6390daeb094300b",
+                              ),
     "/kernel/doom/doom_libc_stubs.cc": (
-        17084,
-        "a2cef82df789e5770dc91bbe5bb7b4a4"
-        "1dfcbe788f587eec6fc0f6265433c319",
-    ),
+                                           16136,
+                                           "8ac1971586b322ff112291c45251b74f"
+                                           "34da8e5b9199ddeb8beb32b9b66e96d1",
+                                       ),
     "/kernel/doom/doomgeneric_cupidos.cc": (
-        10484,
-        "8a15d86da5a31e57e9b11f75d47daa90"
-        "f6bddb43994ebf6a7c315eae9639fafe",
-    ),
+                                               10156,
+                                               "be4c857c2c6cc32e34dd567ef3d5c777"
+                                               "84be2b68eec6613eddf5c4cbd6bc8bb7",
+                                           ),
 }
-DOOM_I_VIDEO_OBJECT_SIZE = 9288
+DOOM_I_VIDEO_OBJECT_SIZE = 9088
 DOOM_I_VIDEO_OBJECT_SHA256 = (
-    "d04e91844763391d4224d14aefce64ec"
-    "e02a95c9a99c604e9ef5b1392974dd20"
+    "ed30a9e3a00d10b98ce6ca4f2da4cad216a73ea971f7da15254434dc296834b7"
 )
 LIBM_SOURCE_SIZE = 43736
 LIBM_SOURCE_SHA256 = (
@@ -1265,9 +1264,9 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(
                 (len(objects[0]), digest),
                 (
-                    6760,
-                    "3c2c6f0e00e5edec1ca16cba91e9fc593d1c42e24f4ebd"
-                    "3591e5f574fb0dd772",
+                    6632,
+                    "c9ccaa9a23a5e1f9b3076ca81c2971a9"
+                    "02fa85b7ae78a409ec37e7b93253f956",
                 ),
                 (
                     "percpu object lock changed: "
@@ -1349,9 +1348,9 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(
                 (len(objects[0]), digest),
                 (
-                    6620,
-                    "14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210"
-                    "aa69d64ed8c8a5cb",
+                    6484,
+                    "d732a346a4db31320379bfc7f48d1056"
+                    "bd5a37e164d33588b3c3b7ca9490a622",
                 ),
                 f"FPU object lock changed: {len(objects[0])} {digest}",
             )
@@ -1559,9 +1558,9 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(
                 (len(objects[0]), digest),
                 (
-                    14460,
-                    "d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e"
-                    "30ededd6c5c2a577",
+                    13820,
+                    "b748de8c4a5f1f5ab4a15c567686d989"
+                    "86bf62ad6014eba8c703d5053f579a7d",
                 ),
                 (
                     "unchanged string object lock changed: "
@@ -1643,9 +1642,9 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(
                 (len(objects[0]), digest),
                 (
-                    25972,
-                    "90fc64e3e92e2a1fac573c7f983f272"
-                    "70ab5b47c5eba6164b5703ad317003ed6",
+                    25384,
+                    "dbc62ff2103e9afcdf92a421820b22c0"
+                    "d4e7b301aa7aee8b052c6154e84b3663",
                 ),
                 (
                     "kernel object lock changed: "
@@ -1727,9 +1726,9 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(
                 (len(objects[0]), digest),
                 (
-                    16164,
-                    "c0911732361f2e1ea78aa778f834719ba12208cc2d9f0a3"
-                    "12455a5e6a38a75b4",
+                    16004,
+                    "91cb378447c48e9aac0d94ea858257b2"
+                    "d5c44540ea77a78ed8abfb1ae83bcf36",
                 ),
                 (
                     "active libm object lock changed: "
@@ -1983,9 +1982,9 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(
                 (len(objects[0]), digest),
                 (
-                    8444,
-                    "bd3189b2a1a6d15728c559172f5d6acc"
-                    "a0889103428085cec8cc1024742a22d1",
+                    8032,
+                    "c21b0097d625494a1a9a536a0a491b8b"
+                    "6bdde2ea5d81f0eb46c4f23558c25e75",
                 ),
                 f"SMP object lock changed: {len(objects[0])} {digest}",
             )

@@ -214,7 +214,7 @@ def _frontier_command_outputs():
             "PASS jpeg_decode_mem baseline 8x8 gray128\n"
             "PASS glyph_rasterize Liberation Mono Q size37 "
             "width=22 cache=22\n"
-            "PASS feature17_binding calls=8 bytes=8\n"
+            "PASS feature17_binding calls=9 bytes=8\n"
             "PASS feature17_iso\n"
             "[cupidc] JIT execution complete\n"
         ),
@@ -3294,7 +3294,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
 
     def test_storage_commands_require_each_native_binding_probe(self):
         cases = (
-            ("/bin/feature17_iso.cc", "PASS feature17_binding calls=8 bytes=8"),
+            ("/bin/feature17_iso.cc", "PASS feature17_binding calls=9 bytes=8"),
             ("/bin/feature18_swap.cc", "PASS feature18_binding sizes=1 handles=5 bytes=8"),
         )
         for command, marker in cases:
@@ -3308,6 +3308,9 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                     )
                 self.assertIsNotNone(re.search(expected, sample, re.S | re.M))
                 self.assertIsNone(re.search(expected, sample.replace(marker + "\n", ""), re.S | re.M))
+                if "feature17" in command:
+                    stale_count = sample.replace("calls=9 bytes=8", "calls=8 bytes=8")
+                    self.assertIsNone(re.search(expected, stale_count, re.S | re.M))
 
     def test_iso_command_requires_the_jpeg_and_glyph_markers(self):
         expected = _frontier_command(

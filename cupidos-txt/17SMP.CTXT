@@ -451,6 +451,27 @@ this_cpu() users. Loading GS with 0x10 before that call would make GS:0 read
 linear address zero and turn the first per-CPU access into a recursive fault.
 >endtree
 
+>h2 Serial Output Under Contention
+>tree open Serial Output Under Contention
+
+After BKL initialization, one serial_write_string call holds the recursive
+kernel lock for its complete string. serial_write_char holds it for the
+character and any CRLF expansion. serial_printf and klog keep their existing
+formatted-record lock. Early boot can emit the same UART bytes before the
+lock is initialized.
+
+Separate public calls have separate output boundaries. A message assembled
+through several calls can still have another writer between those calls.
+
+Fatal diagnostics can use serial_write_string_emergency and
+serial_write_char_emergency. These writers do not acquire the BKL, so a panic
+header can emit while another CPU retains that lock. Both panic entries emit
+that literal header before invoking console callbacks. Their bytes can interleave
+with other writers, and they still wait for UART readiness. The panic path's
+formatted dumps retain their existing lock requirement.
+
+>endtree
+
 >h2 IPIs
 >tree open IPIs
 

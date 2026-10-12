@@ -121,28 +121,28 @@ static const binding_oracle_t binding_oracles[] = {
     {"blkdev_index_limit", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 36u, 0u},
     {"blkdev_read", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 37u, 0u},
     {"blkdev_write", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 38u, 0u},
-    {"mbr_partition_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 35u, 0u},
-    {"mbr_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 41u, 0u},
-    {"fat16_boot_sector_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 58u, 0u},
-    {"fat16_dir_entry_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 74u, 0u},
-    {"fat16_fs_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 90u, 0u},
-    {"fat16_file_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 100u, 0u},
-    {"fat16_enum_callback_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 104u, 0u},
-    {"fat16_init", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 108u, 0u},
-    {"fat16_is_initialized", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 109u, 0u},
-    {"fat16_open", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 110u, 0u},
-    {"fat16_read", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 111u, 0u},
-    {"fat16_close", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 112u, 0u},
-    {"fat16_list_root", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 113u, 0u},
-    {"fat16_write_file", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 114u, 0u},
-    {"fat16_delete_file", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 115u, 0u},
-    {"fat16_set_output", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 116u, 0u},
-    {"fat16_enumerate_root", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 117u, 0u},
-    {"fat16_mkdir", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 118u, 0u},
-    {"fat16_is_dir", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 119u, 0u},
-    {"fat16_enumerate_subdir", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 120u, 0u},
-    {"fat16_total_bytes", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 124u, 0u},
-    {"fat16_free_bytes", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 125u, 0u}};
+    {"mbr_partition_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 36u, 0u},
+    {"mbr_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 42u, 0u},
+    {"fat16_boot_sector_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 59u, 0u},
+    {"fat16_dir_entry_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 75u, 0u},
+    {"fat16_fs_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 91u, 0u},
+    {"fat16_file_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 101u, 0u},
+    {"fat16_enum_callback_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 105u, 0u},
+    {"fat16_init", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 109u, 0u},
+    {"fat16_is_initialized", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 110u, 0u},
+    {"fat16_open", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 111u, 0u},
+    {"fat16_read", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 112u, 0u},
+    {"fat16_close", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 113u, 0u},
+    {"fat16_list_root", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 114u, 0u},
+    {"fat16_write_file", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 115u, 0u},
+    {"fat16_delete_file", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 116u, 0u},
+    {"fat16_set_output", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 117u, 0u},
+    {"fat16_enumerate_root", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 118u, 0u},
+    {"fat16_mkdir", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 119u, 0u},
+    {"fat16_is_dir", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 120u, 0u},
+    {"fat16_enumerate_subdir", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 121u, 0u},
+    {"fat16_total_bytes", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 125u, 0u},
+    {"fat16_free_bytes", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/fat16.h", 126u, 0u}};
 
 typedef struct {
   const char *binding;
@@ -656,15 +656,15 @@ static int validate_fat16_tape(const ctool_c_pp_result_t *tape) {
       !string_equal(tape->tokens[337].spelling, "typedef") ||
       !dual_location_matches(&tape->tokens[337].location,
                              &tape->tokens[337].physical_location,
-                             "/kernel/fs/fat16.h", 28u) ||
+                             "/kernel/fs/fat16.h", 29u) ||
       !string_equal(tape->tokens[492].spelling, ";") ||
       !dual_location_matches(&tape->tokens[492].location,
                              &tape->tokens[492].physical_location,
-                             "/kernel/fs/fat16.h", 74u) ||
+                             "/kernel/fs/fat16.h", 75u) ||
       !string_equal(tape->tokens[493].spelling, "typedef") ||
       !dual_location_matches(&tape->tokens[493].location,
                              &tape->tokens[493].physical_location,
-                             "/kernel/fs/fat16.h", 78u)) {
+                             "/kernel/fs/fat16.h", 79u)) {
     (void)fprintf(stderr, "fat16: preprocessing tape anchors differ\n");
     return 1;
   }
@@ -7947,9 +7947,9 @@ static int validate_toolchain_frontier(const char *host_root) {
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
       {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 270u, 7627u,
-       70617u, 1004u, 369u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 368u, 9323u,
-       77764u, 1132u, 755u, 0u, 0u},
+       70653u, 1004u, 369u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 374u, 9581u,
+       80894u, 1191u, 796u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 463u,
        17781u, 116583u, 2650u, 1599u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 91u, 3379u,

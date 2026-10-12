@@ -1,5 +1,63 @@
 # Bootstrapping log
 
+## 2026-10-12: Accept serial recovery and refresh compiler verification
+
+Direct serial strings and characters hold BKL for their complete output once
+the lock is initialized. Private unlocked helpers keep the formatted writer
+inside its existing record. Fatal-only public writers bypass BKL, retain UART
+readiness polling and permit interleaving. Both panic entries emit their
+literal header before console callbacks. Contention, early-boot and panic
+contracts check exact bytes and held-lock behavior.
+
+Feature 17 removes the directory created by its VFS binding probe. Its marker
+now requires nine calls; the guest evidence runs it twice in one guest before
+the complete 28-command frontier. The Windows and Linux normal consumers
+reproduce all 439 whole product pairs and the complete 200 MiB image. Their
+source controls match the accepted serial, panic and Feature 17 files.
+
+The kernel frontier selects the checked host-native compiler by default.
+Explicit Linux selection on Windows keeps WSL; invalid native verification
+does not fall back. ADR 0471 records selection, private capture, rejection and
+the complete paired forty-method passes. Each covers 156 sources, two
+emissions per source, all 478 inputs and the original 2,340-second deadline.
+
+Measured contract repairs retain complete instruction arrays, object locks,
+semantic rejection, immutable inputs and recovery. The historical CUPSIZE2
+tests use frozen reviewed parent manifests and still reject the newer parent.
+Independent review rereads 1,029 archived members across current-wave,
+complete-frontier, historical-policy and guest evidence, and finds no required
+Standards or Spec change. The paired build and guest indexes preserve their
+original products and failure history.
+
+A fresh 165-method selection covers serial records, native seed selection,
+WSL directory rejection and the complete GUI harness. Windows passes in
+50.938 unittest seconds with thirteen expected POSIX skips; Linux passes all
+165 in 16.086 seconds. These are focused replays. The protected 3,463-test
+run remains failed, and a new complete-suite acceptance is still required.
+
+The Windows long-path SDK attempt has no terminal result and its recorded
+process no longer exists. All 2,243 controlled inputs on each consumer host
+are rechecked without drift before a fresh retained run. Both default SDK
+profiles have passed; the remaining long-path profiles and independent
+checking still precede installed-seed adoption. The original seed images
+remain installed. The separate halfword and initializer candidates remain
+outside the active compiler until complete OS qualification.
+
+The README, wiki and installed SMP manual describe serial ownership and its
+fatal-output limits. Source ownership remains 449 CupidBuild actions and
+three Python coordinators. TempleOS remains read-only and excluded.
+
+The final audit first rejects its generated records. A separate regeneration
+identifies the native frontier verifier hash and the two repaired hosted
+contract sources as stale inputs. The measured source hashes, the object
+contract's shorter line count and one conditional-evidence location replace
+those records. No source capability or ownership count changes to repair the
+audit.
+
+The subsequent canonical audit check passes. Two clean historical worktrees
+whose commits are already ancestors of the bootstrap branch are removed;
+three historical worktrees with uncommitted changes remain intact.
+
 ## 2026-10-12: Execute private i386 compiler tests natively on Windows
 
 The Windows private compiler oracle runs the existing emitted bytes and ABI

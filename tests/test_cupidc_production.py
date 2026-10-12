@@ -2020,9 +2020,9 @@ class ProductionBuildContractTests(unittest.TestCase):
             self.assertEqual(
                 link_transform["tools"],
                 [
+                    "cupid_builder",
                     "cupid_disassembler",
                     "cupid_linker",
-                    "host_python",
                 ],
             )
             self.assertIn(

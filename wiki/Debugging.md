@@ -26,6 +26,19 @@ qemu-system-i386 -serial stdio ...
 
 This prints all kernel debug output to your host terminal.
 
+### Serial record ownership
+
+After the kernel lock is initialized, `serial_write_string` holds it for the
+complete string, and `serial_write_char` holds it for the character and any
+CRLF expansion. `serial_printf` and `klog` retain their formatted-record
+ownership. Separate calls can still have another writer between them.
+
+Fatal diagnostics use `serial_write_string_emergency` or
+`serial_write_char_emergency` to bypass that lock. Both panic entry points
+emit their literal header before console callbacks. Emergency bytes may
+interleave with other writers and still wait for UART readiness; formatted
+panic dumps retain their existing lock requirement.
+
 ---
 
 ## Debug Macros

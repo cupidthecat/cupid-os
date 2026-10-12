@@ -51,7 +51,7 @@ int serial_read_char(void) {
     return (int)inb(SERIAL_DATA(SERIAL_COM1));
 }
 
-void serial_write_char(char c) {
+static void serial_write_char_unlocked(char c) {
     while (!serial_transmit_ready()) { /* spin */ }
     if (c == '\n') {
         outb(SERIAL_DATA(SERIAL_COM1), '\r');
@@ -60,9 +60,31 @@ void serial_write_char(char c) {
     outb(SERIAL_DATA(SERIAL_COM1), (uint8_t)c);
 }
 
+void serial_write_char(char c) {
+    bool take = bkl_is_initialized();
+    if (take) bkl_lock();
+    serial_write_char_unlocked(c);
+    if (take) bkl_unlock();
+}
+
 void serial_write_string(const char *str) {
+    bool take = bkl_is_initialized();
+    if (take) bkl_lock();
     while (*str) {
-        serial_write_char(*str);
+        serial_write_char_unlocked(*str);
+        str++;
+    }
+    if (take) bkl_unlock();
+}
+
+/* Fatal diagnostics retain their original lock-independent UART path. */
+void serial_write_char_emergency(char c) {
+    serial_write_char_unlocked(c);
+}
+
+void serial_write_string_emergency(const char *str) {
+    while (*str) {
+        serial_write_char_unlocked(*str);
         str++;
     }
 }
@@ -81,7 +103,7 @@ static void serial_print_hex(uint32_t num) {
 
 static void vserial_printf(const char *fmt, __builtin_va_list ap) {
     while (*fmt) {
-        if (*fmt != '%') { serial_write_char(*fmt); fmt++; continue; }
+        if (*fmt != '%') { serial_write_char_unlocked(*fmt); fmt++; continue; }
         fmt++;
 
         /* Optional '0' pad flag + decimal width; width applies to d/u/x.
@@ -123,13 +145,13 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
             else while (uv > 0) { tmp[t++] = (char)('0' + (uv % 10)); uv /= 10; }
             int total = t + (neg ? 1 : 0);
             if (pad_ch == '0' && neg) {
-                serial_write_char('-');
-                while (total < width) { serial_write_char('0'); total++; }
+                serial_write_char_unlocked('-');
+                while (total < width) { serial_write_char_unlocked('0'); total++; }
             } else {
-                while (total < width) { serial_write_char(pad_ch); total++; }
-                if (neg) serial_write_char('-');
+                while (total < width) { serial_write_char_unlocked(pad_ch); total++; }
+                if (neg) serial_write_char_unlocked('-');
             }
-            while (t > 0) serial_write_char(tmp[--t]);
+            while (t > 0) serial_write_char_unlocked(tmp[--t]);
             break;
         }
         case 'u': {
@@ -138,8 +160,8 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
             if (uv == 0) tmp[t++] = '0';
             else while (uv > 0) { tmp[t++] = (char)('0' + (uv % 10)); uv /= 10; }
             int total = t;
-            while (total < width) { serial_write_char(pad_ch); total++; }
-            while (t > 0) serial_write_char(tmp[--t]);
+            while (total < width) { serial_write_char_unlocked(pad_ch); total++; }
+            while (t > 0) serial_write_char_unlocked(tmp[--t]);
             break;
         }
         case 'x': {
@@ -150,15 +172,15 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
                 if (xv == 0) tmp[t++] = '0';
                 else while (xv > 0) { tmp[t++] = hex[xv & 0xF]; xv >>= 4; }
                 int total = t;
-                while (total < width) { serial_write_char(pad_ch); total++; }
-                while (t > 0) serial_write_char(tmp[--t]);
+                while (total < width) { serial_write_char_unlocked(pad_ch); total++; }
+                while (t > 0) serial_write_char_unlocked(tmp[--t]);
             } else {
                 serial_print_hex(xv);
             }
             break;
         }
         case 'p': serial_print_hex((uint32_t)__builtin_va_arg(ap, void *)); break;
-        case 'c': serial_write_char((char)__builtin_va_arg(ap, int));       break;
+        case 'c': serial_write_char_unlocked((char)__builtin_va_arg(ap, int));       break;
         case 'f': {
             /* Phase D: %f and %.Nf via shared fmt_f in kernel/core/string.cc.
              * Max len ≈ 1 sign + 20 int digits + '.' + 17 frac digits = 39.*/
@@ -166,7 +188,7 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
             char buf[48];
             int w = fmt_f(buf, (int)sizeof(buf), v, prec);
             for (int i = 0; i < w; i++) {
-                serial_write_char(buf[i]);
+                serial_write_char_unlocked(buf[i]);
             }
             break;
         }
@@ -177,7 +199,7 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
             char buf[48];
             int w = fmt_e(buf, (int)sizeof(buf), v, prec);
             for (int i = 0; i < w; i++) {
-                serial_write_char(buf[i]);
+                serial_write_char_unlocked(buf[i]);
             }
             break;
         }
@@ -188,32 +210,32 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
             char buf[48];
             int w = fmt_g(buf, (int)sizeof(buf), v, prec >= 0 ? prec : 6);
             for (int i = 0; i < w; i++) {
-                serial_write_char(buf[i]);
+                serial_write_char_unlocked(buf[i]);
             }
             break;
         }
-        case '%': serial_write_char('%'); break;
+        case '%': serial_write_char_unlocked('%'); break;
         default:
-            serial_write_char('%');
-            if (pad_ch == '0') serial_write_char('0');
+            serial_write_char_unlocked('%');
+            if (pad_ch == '0') serial_write_char_unlocked('0');
             if (width > 0) {
                 char tmp[12]; int tl = 0;
                 int ww = width;
                 while (ww > 0) { tmp[tl++] = (char)('0' + (ww % 10)); ww /= 10; }
-                while (tl > 0) { serial_write_char(tmp[--tl]); }
+                while (tl > 0) { serial_write_char_unlocked(tmp[--tl]); }
             }
             if (prec >= 0) {
                 /* Replay "." and digits we consumed so the output isn't lossy. */
-                serial_write_char('.');
+                serial_write_char_unlocked('.');
                 char tmp[12]; int tl = 0;
                 int pp = prec;
                 if (pp == 0) tmp[tl++] = '0';
                 else {
                     while (pp > 0) { tmp[tl++] = (char)('0' + (pp % 10)); pp /= 10; }
                 }
-                while (tl > 0) { serial_write_char(tmp[--tl]); }
+                while (tl > 0) { serial_write_char_unlocked(tmp[--tl]); }
             }
-            serial_write_char(*fmt);
+            serial_write_char_unlocked(*fmt);
             break;
         }
         if (*fmt) fmt++;

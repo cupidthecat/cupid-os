@@ -148,8 +148,8 @@ class WindowsUserLinkPublicationTests(unittest.TestCase):
         with artifact_size_policy._PinnedRepository(ROOT) as reader:
             short = verifier._bootstrap_input_logical_paths(reader, linux)
             long = verifier._bootstrap_input_logical_paths(reader, linux, windows_user_link_aliases=True)
-            self.assertEqual(len(short), 76)
-            self.assertEqual(len(long), 77)
+            self.assertEqual(len(short), 97)
+            self.assertEqual(len(long), 98)
             self.assertNotIn(SHIM, short)
             self.assertEqual(set(long) - set(short), {SHIM})
             reader.require_unchanged()
@@ -180,7 +180,7 @@ class WindowsUserLinkPublicationTests(unittest.TestCase):
             changed = bootstrap._retarget_native_windows_behavior_seed(native, digest, linux, snapshot,
                 utf8=True, long_paths=long_paths, user_link_aliases=True, parent_plan_seed=parent)
             provenance = changed.manifest["provenance"]
-            self.assertEqual(provenance["source_input_count"], 78 if long_paths else 77)
+            self.assertEqual(provenance["source_input_count"], 99 if long_paths else 98)
             self.assertEqual(provenance["native_build_plan_sha256"], digest)
             same_profile = native.manifest["provenance"]["native_build_plan_sha256"] == digest and (
                 native.manifest["provenance"]["source_snapshot_sha256"] == bootstrap._source_snapshot_sha256(snapshot))

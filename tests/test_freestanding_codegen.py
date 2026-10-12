@@ -38,9 +38,10 @@ def _make_compile_command(make_root, target, source):
     )
     if result.returncode != 0:
         raise AssertionError(result.stderr)
+    logical_output = re.sub(r"\\\r?\n[ \t]*", " ", result.stdout)
     commands = [
         line
-        for line in result.stdout.splitlines()
+        for line in logical_output.splitlines()
         if source in line and target in line
     ]
     if not commands:
@@ -76,11 +77,10 @@ class KernelFpuCodeGenerationContractTests(unittest.TestCase):
                 object_path,
             )
             object_image = object_path.read_bytes()
-            self.assertEqual(len(object_image), 6620)
+            self.assertEqual(len(object_image), 6484)
             self.assertEqual(
                 hashlib.sha256(object_image).hexdigest(),
-                "14c3ea232b7d4455ceabd561c69293cc5"
-                "849abae24d9f210aa69d64ed8c8a5cb",
+                "d732a346a4db31320379bfc7f48d1056bd5a37e164d33588b3c3b7ca9490a622",
             )
 
             with tempfile.TemporaryDirectory(
@@ -163,9 +163,8 @@ class FreestandingCodeGenerationPolicyTests(unittest.TestCase):
             "kernel/doom/src/am_map.o",
             "kernel/doom/src/am_map.cc",
         )
-        self.assertIn("tools/cupidc_kernel_compile.py", arguments)
-        self.assertIn("--profile", arguments)
-        self.assertIn("doom-tree", arguments)
+        self.assertTrue(arguments[0].endswith(("/cupidbuild.exe", "/cupidbuild.elf")))
+        self.assertIn("compile-doom", arguments)
         self.assertNotIn("-fno-asynchronous-unwind-tables", arguments)
         self.assertNotIn("-fno-unwind-tables", arguments)
 
@@ -175,7 +174,8 @@ class FreestandingCodeGenerationPolicyTests(unittest.TestCase):
             "kernel/core/kernel.o",
             "kernel/core/kernel.cc",
         )
-        self.assertIn("tools/cupidc_kernel_compile.py", arguments)
+        self.assertTrue(arguments[0].endswith(("/cupidbuild.exe", "/cupidbuild.elf")))
+        self.assertIn("compile-kernel", arguments)
         self.assertNotIn("-fno-asynchronous-unwind-tables", arguments)
         self.assertNotIn("-fno-unwind-tables", arguments)
 
@@ -185,9 +185,8 @@ class FreestandingCodeGenerationPolicyTests(unittest.TestCase):
             "build/hello.o",
             "examples/hello.cc",
         )
-        self.assertIn("../tools/cupidc_production_compile.py", arguments)
-        self.assertIn("--cohort", arguments)
-        self.assertIn("user", arguments)
+        self.assertTrue(arguments[0].endswith(("/cupidbuild.exe", "/cupidbuild.elf")))
+        self.assertIn("compile-user", arguments)
         self.assertNotIn("-fno-asynchronous-unwind-tables", arguments)
 
 

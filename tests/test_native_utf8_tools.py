@@ -56,8 +56,16 @@ class NativeUtf8ToolTests(unittest.TestCase):
                 execution, bootstrap._build_plan_sha256(plan), linux, sources.inventory, utf8=True,
                 long_paths=windows_long_paths, user_link_aliases=True,
                 parent_plan_seed=parent_plan)
+            from tests.artifact_release_fixtures import released_behavior_fixture
+            behavior, _ = released_behavior_fixture(
+                ROOT, stage, behavior, bootstrap.ToolRunner(sources.root))
             cls.seed = bootstrap._materialize_behavior_seed(
                 behavior, cls.root, "candidate-seed", stage).parent
+        else:
+            selected = cls.root / "candidate-seed"
+            shutil.copytree(cls.seed, selected)
+            shutil.copy2(ROOT / "bootstrap/seeds/release.json", selected / "seed-release.json")
+            cls.seed = selected
 
     def invoke(self, programs, role, arguments, cwd, expected=0):
         result = subprocess.run(
@@ -91,9 +99,9 @@ class NativeUtf8ToolTests(unittest.TestCase):
         if os.name == "nt":
             import json
             profile = json.loads((self.seed / "manifest.json").read_bytes())["provenance"]
-            self.assertEqual(profile["source_input_count"], 78)
+            self.assertEqual(profile["source_input_count"], 99)
             self.assertEqual(profile["native_build_plan_sha256"],
-                             "2dc92702e1e6e823b0c43fd48427d66bd021563925fe2b8b418451206768f8ff")
+                             "754895566b00e6e53b045a1414e7b734872f04d4f0c84d62e3dfcf8dd9bc57ab")
             for role in ROLES:
                 self.invoke(self.seed, role, ["--help"], self.root)
         expected_artifacts = None
@@ -129,7 +137,8 @@ class NativeUtf8ToolTests(unittest.TestCase):
                 self.invoke(programs, "cupidld", ["-m", "elf_i386", "--text-address", "0x08048000",
                                                 "--entry", "entry", "-o", linked, assembled], directory)
                 self.invoke(programs, "cupidbuild", ["assemble-cupidasm-object", "--seed-manifest",
-                           local_seed / "manifest.json", "--root", directory, "--source", assembly,
+                           local_seed / "manifest.json", "--seed-release",
+                           local_seed / "seed-release.json", "--root", directory, "--source", assembly,
                            "--output", guarded], directory)
                 outputs = {item: (directory / item).read_bytes()
                            for item in (compiled, assembled, wrapped, linked, guarded)}

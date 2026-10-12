@@ -45060,7 +45060,7 @@
             },
             {
               "directive": "if",
-              "line": 33562,
+              "line": 33557,
               "path": "toolchain/tests/cupidc_object_contract.cc",
               "text": "#if defined(_WIN32)"
             }
@@ -52225,7 +52225,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 45191
+      "occurrences": 45196
     },
     {
       "category": "control",
@@ -53026,7 +53026,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3088
+      "occurrences": 3089
     },
     {
       "category": "declaration",
@@ -53330,12 +53330,12 @@
           "text": "int t5_first(int x, ...) {"
         },
         {
-          "line": 225,
+          "line": 247,
           "path": "drivers/serial.cc",
           "text": "void serial_printf(const char *fmt, ...) {"
         },
         {
-          "line": 325,
+          "line": 347,
           "path": "drivers/serial.cc",
           "text": "void klog(log_level_t level, const char *fmt, ...) {"
         }
@@ -53931,17 +53931,17 @@
       "category": "extension",
       "examples": [
         {
-          "line": 113,
+          "line": 135,
           "path": "drivers/serial.cc",
           "text": "const char *s = __builtin_va_arg(ap, const char *);"
         },
         {
-          "line": 118,
+          "line": 140,
           "path": "drivers/serial.cc",
           "text": "int v = __builtin_va_arg(ap, int);"
         },
         {
-          "line": 136,
+          "line": 158,
           "path": "drivers/serial.cc",
           "text": "uint32_t uv = __builtin_va_arg(ap, uint32_t);"
         }
@@ -53978,17 +53978,17 @@
       "category": "extension",
       "examples": [
         {
-          "line": 270,
+          "line": 292,
           "path": "drivers/serial.cc",
           "text": "__builtin_va_end(ap);"
         },
         {
-          "line": 517,
+          "line": 539,
           "path": "drivers/serial.cc",
           "text": "__builtin_va_end(ap);"
         },
         {
-          "line": 178,
+          "line": 187,
           "path": "kernel/core/panic.cc",
           "text": "__builtin_va_end(ap);"
         }
@@ -54005,23 +54005,23 @@
         "toolchain/tests/hosted_i386_runtime_contract.cc"
       ],
       "id": "c.extension.builtin.va_end",
-      "occurrences": 16
+      "occurrences": 15
     },
     {
       "category": "extension",
       "examples": [
         {
-          "line": 82,
+          "line": 104,
           "path": "drivers/serial.cc",
           "text": "static void vserial_printf(const char *fmt, __builtin_va_list ap) {"
         },
         {
-          "line": 267,
+          "line": 289,
           "path": "drivers/serial.cc",
           "text": "__builtin_va_list ap;"
         },
         {
-          "line": 373,
+          "line": 395,
           "path": "drivers/serial.cc",
           "text": "__builtin_va_list ap;"
         }
@@ -54044,17 +54044,17 @@
       "category": "extension",
       "examples": [
         {
-          "line": 268,
+          "line": 290,
           "path": "drivers/serial.cc",
           "text": "__builtin_va_start(ap, fmt);"
         },
         {
-          "line": 374,
+          "line": 396,
           "path": "drivers/serial.cc",
           "text": "__builtin_va_start(ap, fmt);"
         },
         {
-          "line": 172,
+          "line": 181,
           "path": "kernel/core/panic.cc",
           "text": "__builtin_va_start(ap, fmt);"
         }
@@ -54071,7 +54071,7 @@
         "toolchain/tests/hosted_i386_runtime_contract.cc"
       ],
       "id": "c.extension.builtin.va_start",
-      "occurrences": 14
+      "occurrences": 13
     },
     {
       "category": "extension",
@@ -55258,17 +55258,17 @@
       "category": "preprocessor",
       "examples": [
         {
-          "line": 53,
+          "line": 58,
           "path": "drivers/serial.h",
           "text": "#define KDEBUG(fmt, ...) klog(LOG_DEBUG, \"[DEBUG] \" fmt, ##__VA_ARGS__)"
         },
         {
-          "line": 54,
+          "line": 59,
           "path": "drivers/serial.h",
           "text": "#define KINFO(fmt, ...)  klog(LOG_INFO,  \"[INFO]  \" fmt, ##__VA_ARGS__)"
         },
         {
-          "line": 55,
+          "line": 60,
           "path": "drivers/serial.h",
           "text": "#define KWARN(fmt, ...)  klog(LOG_WARN,  \"[WARN]  \" fmt, ##__VA_ARGS__)"
         }
@@ -56422,17 +56422,17 @@
       "category": "preprocessor",
       "examples": [
         {
-          "line": 53,
+          "line": 58,
           "path": "drivers/serial.h",
           "text": "#define KDEBUG(fmt, ...) klog(LOG_DEBUG, \"[DEBUG] \" fmt, ##__VA_ARGS__)"
         },
         {
-          "line": 54,
+          "line": 59,
           "path": "drivers/serial.h",
           "text": "#define KINFO(fmt, ...)  klog(LOG_INFO,  \"[INFO]  \" fmt, ##__VA_ARGS__)"
         },
         {
-          "line": 55,
+          "line": 60,
           "path": "drivers/serial.h",
           "text": "#define KWARN(fmt, ...)  klog(LOG_WARN,  \"[WARN]  \" fmt, ##__VA_ARGS__)"
         }
@@ -56497,17 +56497,17 @@
       "category": "preprocessor",
       "examples": [
         {
-          "line": 53,
+          "line": 58,
           "path": "drivers/serial.h",
           "text": "#define KDEBUG(fmt, ...) klog(LOG_DEBUG, \"[DEBUG] \" fmt, ##__VA_ARGS__)"
         },
         {
-          "line": 54,
+          "line": 59,
           "path": "drivers/serial.h",
           "text": "#define KINFO(fmt, ...)  klog(LOG_INFO,  \"[INFO]  \" fmt, ##__VA_ARGS__)"
         },
         {
-          "line": 55,
+          "line": 60,
           "path": "drivers/serial.h",
           "text": "#define KWARN(fmt, ...)  klog(LOG_WARN,  \"[WARN]  \" fmt, ##__VA_ARGS__)"
         }
@@ -56928,7 +56928,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 18709
+      "occurrences": 18712
     },
     {
       "category": "qualifier",
@@ -57491,7 +57491,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10825
+      "occurrences": 10827
     },
     {
       "category": "type",
@@ -57970,7 +57970,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 12238
+      "occurrences": 12244
     },
     {
       "category": "type",
@@ -60462,7 +60462,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 16221
+      "occurrences": 16227
     },
     {
       "category": "declaration",
@@ -61377,7 +61377,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "14ccaa62f6d6946afb00adfa2ab8e1894351d9e685d3ed52ef5dd8f5088f726d",
+    "active_source_digest": "98fa09da3e8074e2bc38dd0e6370301b9e3758567253c9f40e5b798ecc2ecf8a",
     "control_files": [
       {
         "path": "Makefile",
@@ -61401,7 +61401,7 @@
       },
       {
         "path": "tools/kernel_cupidc_frontier.py",
-        "sha256": "c90770f9d403b87e0008a452eb253c7a3c113184884a178e2dc31b7a26529308"
+        "sha256": "d270186fb240d6a4b40b9b963747cd73cfcbb8d61e249c16c975a8cd0b402248"
       },
       {
         "path": "tools/bootstrap_toolchain.py",
@@ -63806,12 +63806,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 380,
+      "lines": 381,
       "origin": "tracked",
       "path": "bin/feature17_iso.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "5cc1fa30e9645b944c92a16592e4ecb83fcba1f2b347b328ff6a6662a26728fd"
+      "sha256": "f59ba3a070d23463508b9f4176027792237d7c2ff9d6dd795fc792ecc601458f"
     },
     {
       "build_owners": [
@@ -67382,12 +67382,12 @@
         "kernel/smp/bkl.h"
       ],
       "language": "cupid_c",
-      "lines": 523,
+      "lines": 545,
       "origin": "tracked",
       "path": "drivers/serial.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c3220bafa858ecec9241e2fa986b844be9e7f54e130eac8a312cb9171099f206"
+      "sha256": "6ccf18f7712142bf875c704544c757e56d6070576d92610e71ac12965bd880bb"
     },
     {
       "build_owners": [
@@ -67420,12 +67420,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 58,
+      "lines": 63,
       "origin": "tracked",
       "path": "drivers/serial.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "76c7e114bfc246313adbd2bee3540ec74e6eda12105dbbe32ca88bc58cff1d42"
+      "sha256": "75cde4c5ae97c61d6306f2d7c3e4e20fabd0950dc304b485c61b0401426d126c"
     },
     {
       "build_owners": [
@@ -68561,12 +68561,12 @@
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 234,
+      "lines": 231,
       "origin": "tracked",
       "path": "kernel/core/panic.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "78548be1841766aaea153fc182a715d0b6a55cfdadffb70229878d608caee9ad"
+      "sha256": "d744249e6157cd51165063c2348e1afe50e7c38866661ed3eb5fa29a5de1c1ae"
     },
     {
       "build_owners": [
@@ -89563,7 +89563,7 @@
       "path": "toolchain/tests/cupidc_frontend_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ccf19151f4cd05a69fb045c9caaa8e13e22a29738682eb8fbefb3a475e3a6f61"
+      "sha256": "ce3ce191d2047fbd3eba58475876b5ecdca4090e12d97dccf62bd901607275a4"
     },
     {
       "build_owners": [
@@ -89716,12 +89716,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 52662,
+      "lines": 52619,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_object_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f9b0d01286a15150ae7d6101931f09a1e1191e0110fa9454eee6a5608a4000dd"
+      "sha256": "02541c17b8aec0992ff385a4c797d08f2c94defccb7a2e61d59d62b23e54d0df"
     },
     {
       "build_owners": [

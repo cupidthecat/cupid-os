@@ -12,6 +12,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SOURCE = REPO_ROOT / "toolchain/tests/artifact_size_policy_contract.cc"
 MAGIC = b"CUPSIZE2"
+LEGACY_FIXTURES = Path(__file__).resolve().parent / "fixtures"
 MANIFEST_PATH = "bootstrap/seeds/i386-linux/manifest.json"
 WINDOWS_MANIFEST_PATH = "bootstrap/seeds/i386-windows/manifest.json"
 SOURCE_REVISION = "1" * 40
@@ -373,8 +374,9 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         self.assertEqual(second.stdout, first.stdout)
 
     def promoted_request(self, mutate=None):
-        manifest = json.loads((REPO_ROOT / MANIFEST_PATH).read_text())
-        windows = json.loads((REPO_ROOT / WINDOWS_MANIFEST_PATH).read_text())
+        # CUPSIZE2 retains its reviewed historical parent boundary.
+        manifest = json.loads((LEGACY_FIXTURES / "artifact-policy-legacy-linux.json").read_bytes())
+        windows = json.loads((LEGACY_FIXTURES / "artifact-policy-legacy-windows.json").read_bytes())
         if mutate is not None:
             mutate(manifest, windows)
         windows["provenance"]["plan_seed_manifest_sha256"] = hashlib.sha256(
@@ -391,12 +393,12 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
                 entry["exact_bytes"] = sizes[entry["path"]]
         return _request(policy=policy, manifest=manifest, windows_manifest=windows)
 
-    def test_installed_promoted_seed_pair_is_accepted(self):
+    def test_reviewed_legacy_seed_pair_is_accepted(self):
         result = self.run_request(self.promoted_request())
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)["artifact_count"], 16)
 
-    def test_installed_seed_pair_requires_each_qualified_parent_field(self):
+    def test_reviewed_legacy_seed_pair_requires_each_qualified_parent_field(self):
         fields = (
             (0, "parent_seed_source_revision"),
             (0, "parent_seed_manifest_sha256"),
@@ -417,7 +419,7 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
                     restored = self.run_request(self.promoted_request())
                     self.assertEqual(restored.returncode, 0, restored.stderr)
 
-    def test_installed_seed_pair_rejects_unknown_counts_and_mixed_plans(self):
+    def test_reviewed_legacy_seed_pair_rejects_unknown_counts_and_mixed_plans(self):
         for count in (78, 98, 100):
             with self.subTest(count=count):
                 def mutate(manifest, windows):
@@ -433,6 +435,30 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
                     self.assert_contract_failure(self.promoted_request(mutate))
         restored = self.run_request(self.promoted_request())
         self.assertEqual(restored.returncode, 0, restored.stderr)
+
+    def test_legacy_policy_rejects_new_parent_and_recovers(self):
+        def select_new_parent(manifest, windows):
+            revision = "1d852023df98c03481c4b3979dccb398288b7115"
+            linux_digest = "9cae50a046fb1cb22b9dba6276201ec683070be192b2376e3fa0ff555734bab8"
+            windows_digest = "e1eabbcfd8c1b53c5976ed98d3116804532d5e761c41f0d00d998d499489e471"
+            manifest["provenance"].update(
+                parent_seed_source_revision=revision,
+                parent_seed_manifest_sha256=linux_digest,
+            )
+            windows["provenance"].update(
+                parent_execution_seed_source_revision=revision,
+                parent_execution_seed_manifest_sha256=windows_digest,
+                parent_plan_seed_source_revision=revision,
+                parent_plan_seed_manifest_sha256=linux_digest,
+            )
+
+        rejected = self.run_request(self.promoted_request(select_new_parent))
+        self.assertEqual(rejected.returncode, 1, rejected.stdout + rejected.stderr)
+        self.assertEqual(rejected.stdout, "")
+        self.assertIn("seed manifest parent provenance differs", rejected.stderr)
+        restored = self.run_request(self.promoted_request())
+        self.assertEqual(restored.returncode, 0, restored.stderr)
+        self.assertEqual(json.loads(restored.stdout)["artifact_count"], 16)
 
     def next_parent_request(self, *, long_paths, mutate=None):
         from tests.test_seed_manifest import next_parent_manifest

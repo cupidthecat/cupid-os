@@ -391,6 +391,14 @@ _Avoid_: dynamically allocated user memory, CupidC region, CupidASM region
 The checked-in TempleOS source consulted for design understanding but excluded from Cupid OS source, builds, and progress measures.
 _Avoid_: vendored Cupid OS source, Cupid OS source
 
+### Runtime diagnostics
+
+**Emergency serial output**:
+A Cupid OS output mode for fatal diagnostics that does not wait for ordinary
+serial record ownership. It retains UART readiness waits and permits concurrent
+interleaving.
+_Avoid_: panic-safe serial, guaranteed panic output
+
 ### Languages and tools
 
 **Cupid Toolchain**:

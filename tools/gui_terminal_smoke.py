@@ -309,7 +309,7 @@ FRONTIER_RUNTIME_COMMANDS = (
             r".*?PASS glyph_rasterize Liberation Mono Q size37 "
             r"width=(?P<glyph_width>[1-9][0-9]*) "
             r"cache=(?P=glyph_width)"
-            r".*?PASS feature17_binding calls=8 bytes=8"
+            r".*?PASS feature17_binding calls=9 bytes=8"
             rf".*?PASS feature17_iso.*?{CUPIDC_COMPLETION_PATTERN}"
         ),
     ),

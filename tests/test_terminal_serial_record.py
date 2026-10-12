@@ -102,6 +102,31 @@ static void *peer(void *unused) {
   (void)pthread_cond_broadcast(&event);(void)pthread_mutex_unlock(&events);
   return NULL;
 }
+static int emergency_owner_ready, emergency_owner_release;
+static void *emergency_owner(void *unused) {
+  (void)unused;
+  if (pthread_mutex_lock(&bkl) != 0) abort();
+  (void)pthread_mutex_lock(&events);
+  emergency_owner_ready = 1;
+  (void)pthread_cond_broadcast(&event);
+  while (!emergency_owner_release) (void)pthread_cond_wait(&event, &events);
+  (void)pthread_mutex_unlock(&events);
+  if (pthread_mutex_unlock(&bkl) != 0) abort();
+  return NULL;
+}
+static void panic_console_print(const char *text) {
+  while (*text) serial_write_char(*text++);
+}
+static void (*panic_print)(const char *) = panic_console_print;
+struct registers;
+#include "panic_entry.cc"
+static void *panic_entry(void *unused) {
+  (void)unused;
+  if (strcmp(case_name,"panic-registers")==0)
+    kernel_panic_regs(NULL,"retained literal message");
+  else kernel_panic("retained literal message");
+  return NULL;
+}
 int main(int argc,char **argv) {
   pthread_mutexattr_t attributes;
   const char *prefix, *suffix;
@@ -112,6 +137,26 @@ int main(int argc,char **argv) {
   (void)pthread_mutexattr_settype(&attributes,PTHREAD_MUTEX_RECURSIVE);
   (void)pthread_mutex_init(&bkl,&attributes);
   first_thread=pthread_self();
+  if (strncmp(case_name,"panic-",6u)==0) {
+    int failed;
+    gate=1;
+    if (pthread_mutex_lock(&bkl)!=0) abort();
+    if (pthread_create(&peer_thread,NULL,panic_entry,NULL)!=0) return 2;
+    (void)pthread_mutex_lock(&events);
+    while (!peer_waiting) (void)pthread_cond_wait(&event,&events);
+    failed=strcmp(wire,"[PANIC] retained literal message\r\n")!=0 || lock_calls!=1;
+    (void)pthread_mutex_unlock(&events);
+    if (pthread_mutex_unlock(&bkl)!=0) abort();
+    (void)pthread_join(peer_thread,NULL);
+    if (failed) {
+      (void)fprintf(stderr,"panic entry reached a blocked console before its emergency header\n");
+      return 1;
+    }
+    prefix=strstr(wire,"[PANIC] ");
+    if (prefix==NULL || strstr(prefix+1,"[PANIC] ")!=NULL) return 1;
+    (void)puts("actual panic entry emits its single literal header before blocked console output");
+    return 0;
+  }
   if (strcmp(case_name,"idle-shell")==0) {
     gate=1;gui_pending_command_state=0;
     if (shell_gui_run_pending_command()!=0 || used!=0 || lock_calls!=0 ||
@@ -123,6 +168,21 @@ int main(int argc,char **argv) {
     serial_write_string("boot\n");serial_write_char('!');serial_printf(" pid=%u\n",4u);
     if (strcmp(wire,"boot\r\n! pid=4\r\n")!=0 || lock_calls!=0) return 1;
     (void)puts("boot serial works before BKL initialization");return 0;
+  }
+  if (strcmp(case_name,"emergency")==0) {
+    gate=1;
+    if (pthread_create(&peer_thread,NULL,emergency_owner,NULL)!=0) return 2;
+    (void)pthread_mutex_lock(&events);
+    while (!emergency_owner_ready) (void)pthread_cond_wait(&event,&events);
+    (void)pthread_mutex_unlock(&events);
+    serial_write_string_emergency("[PANIC] retained literal message");
+    serial_write_char_emergency('\n');
+    if (strcmp(wire,"[PANIC] retained literal message\r\n")!=0 || lock_calls!=0) return 1;
+    (void)pthread_mutex_lock(&events);
+    emergency_owner_release=1;(void)pthread_cond_broadcast(&event);
+    (void)pthread_mutex_unlock(&events);
+    (void)pthread_join(peer_thread,NULL);
+    (void)puts("emergency serial emits exact bytes while remote BKL remains held");return 0;
   }
   if (pthread_create(&peer_thread,NULL,peer,NULL)!=0) return 2;
   if (strcmp(case_name,"checksum-shell")==0) {
@@ -174,6 +234,31 @@ class TerminalSerialRecordTests(unittest.TestCase):
         if len(bodies) != 1:
             raise AssertionError("expected one actual pending-command implementation")
         (folder / "pending.cc").write_text(bodies[0] + "\n", encoding="utf-8")
+        panic = (ROOT / "kernel/core/panic.cc").read_text(encoding="utf-8")
+        def function(name, required=True):
+            matches = re.findall(
+                r"^(?:static )?void " + name + r"\([^{}]*\) \{.*?^\}",
+                panic, re.MULTILINE | re.DOTALL,
+            )
+            if len(matches) > 1 or (required and len(matches) != 1):
+                raise AssertionError("unexpected actual panic function: " + name)
+            return matches[0] if matches else ""
+        panic_parts = [function("dual_print"), function("print_separator"),
+                       function("panic_serial_message", required=False)]
+        for name, boundary in (("kernel_panic", "    /* Grab current EBP/EIP for a trace */"),
+                               ("kernel_panic_regs", "    if (regs) {")):
+            body = function(name)
+            if body.count(boundary) != 1:
+                raise AssertionError("unexpected actual panic entry boundary")
+            prefix = body.split(boundary)[0]
+            privileged = '    __asm__ volatile("cli");'
+            if prefix.count(privileged) != 1:
+                raise AssertionError("unexpected actual panic CLI")
+            prefix = prefix.replace(privileged, "    /* CLI omitted in the hosted ordering fixture. */")
+            if name == "kernel_panic_regs":
+                prefix += "    (void)regs;\n"
+            panic_parts.append(prefix + "}\n")
+        (folder / "panic_entry.cc").write_text("\n".join(panic_parts), encoding="utf-8")
         (folder / "contract.cc").write_text(CONTRACT, encoding="utf-8")
         cls.binary = folder / "contract"
         result = subprocess.run(
@@ -203,6 +288,30 @@ class TerminalSerialRecordTests(unittest.TestCase):
 
     def test_formatted_records_remain_serialized(self):
         self.check_case("printf-printf")
+
+    def test_direct_string_remains_atomic_against_formatted_output(self):
+        self.check_case("string-printf")
+
+    def test_formatted_record_remains_atomic_against_direct_string(self):
+        self.check_case("printf-string")
+
+    def test_direct_strings_remain_atomic_against_each_other(self):
+        self.check_case("string-string")
+
+    def test_direct_character_cannot_split_a_string_record(self):
+        self.check_case("string-char")
+
+    def test_direct_character_cannot_split_a_formatted_record(self):
+        self.check_case("printf-char")
+
+    def test_emergency_output_preserves_bytes_without_acquiring_a_held_lock(self):
+        self.check_case("emergency")
+
+    def test_panic_entry_emits_its_header_before_a_blocked_console(self):
+        self.check_case("panic-literal")
+
+    def test_register_panic_entry_emits_its_header_before_a_blocked_console(self):
+        self.check_case("panic-registers")
 
     def test_serial_output_works_before_lock_initialization(self):
         self.check_case("boot")

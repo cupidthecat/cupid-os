@@ -4,6 +4,21 @@ Private i386 compiler tests now run directly on Windows; the paired focused
 replays pass. [The native oracle record](docs/bootstrap/NATIVE-WINDOWS-PRIVATE-ORACLE.md)
 records execution, rejection controls and development dependencies.
 
+## Serial diagnostics and compiler verification, 2026-10-12
+
+Serial strings and characters now share the formatted logger's recursive
+kernel lock. Fatal headers use an emergency writer before console callbacks;
+that writer still waits for the UART and permits interleaving. Feature 17
+removes its temporary directory and passes twice in the same guest.
+
+The kernel compiler frontier selects the checked native Windows or Linux
+compiler. Both complete forty-method runs pass, covering all 156 sources and
+duplicate emissions under the original deadline. Focused contract repairs
+retain their exact byte, failure and recovery checks. The earlier complete
+suite remains a failed run; long-path SDK qualification and seed adoption
+remain open. [The verification record](docs/bootstrap/VERIFICATION-CURRENT-SOURCE-DRIFT.md)
+contains the original failures and accepted evidence.
+
 ## Private VFS and swap call signatures, 2026-10-11
 
 Private CupidC now publishes fixed native signatures for eight VFS calls and

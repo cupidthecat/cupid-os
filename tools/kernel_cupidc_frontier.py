@@ -105,9 +105,10 @@ def _wsl_path(wsl, path):
 
 
 @contextmanager
-def _default_seed_execution(root):
-    seed_directory = root / "bootstrap" / "seeds" / "i386-linux"
-    manifest_path = seed_directory / "manifest.json"
+def _default_seed_execution(root, manifest_path=None):
+    if manifest_path is None:
+        platform = "i386-windows" if os.name == "nt" else "i386-linux"
+        manifest_path = root / "bootstrap" / "seeds" / platform / "manifest.json"
     with tempfile.TemporaryDirectory(
         prefix="cupid-kernel-seed-"
     ) as temporary:
@@ -125,6 +126,11 @@ def _default_seed_execution(root):
             "checked-seed",
             seed_manifest_sha256=seed_inputs.manifest_sha256,
         )
+        if seed.suffix.lower() == ".exe":
+            if os.name != "nt":
+                raise FrontierError("Windows seed requires a Windows host")
+            yield [str(seed)], str(root), provenance
+            return
         if os.name != "nt":
             yield [str(seed)], str(root), provenance
             return
@@ -247,6 +253,11 @@ def _parse_arguments(argv):
         help="host path to the Cupid OS repository",
     )
     parser.add_argument(
+        "--seed-manifest",
+        type=Path,
+        help="explicit checked seed; defaults to the matching native host cohort",
+    )
+    parser.add_argument(
         "--compiler",
         help="compiler path as seen by the runner",
     )
@@ -275,7 +286,13 @@ def _parse_arguments(argv):
         required=True,
         help="empty host directory inside the repository for audit artifacts",
     )
-    return parser.parse_args(argv)
+    arguments = parser.parse_args(argv)
+    if arguments.seed_manifest is not None and (
+        arguments.compiler is not None or arguments.compiler_host_path is not None
+        or arguments.runner is not None or arguments.runner_arg
+    ):
+        parser.error("--seed-manifest cannot be combined with explicit compiler or runner options")
+    return arguments
 
 
 def _inside_root(root, path):
@@ -670,7 +687,7 @@ def _run_frontier(arguments):
     output = _prepare_output(root, arguments.output_dir)
     input_snapshot = _capture_input_snapshot(root)
     execution_context = (
-        _default_seed_execution(root)
+        _default_seed_execution(root, arguments.seed_manifest)
         if (
             arguments.compiler is None
             and arguments.compiler_host_path is None

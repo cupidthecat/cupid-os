@@ -5,9 +5,53 @@
 Private i386 compiler tests now execute directly in a Windows PE32 process.
 All 503 integrated methods pass on Windows. Linux passes the same selections
 with eight Windows-only skips. Package-qualified discovery and the ABI
-fixture's missing include closure are also repaired. The complete suite
-remains pending. [The oracle record](NATIVE-WINDOWS-PRIVATE-ORACLE.md) preserves
+fixture's missing include closure are also repaired. The protected complete
+suite runs all 3,463 tests and records 49 failures, one error and 64 skips.
+[The follow-up record](VERIFICATION-CURRENT-SOURCE-DRIFT.md) tracks their repairs.
+Focused expectation repairs now pass on both hosts, including thirteen small
+object methods, the goto method, eight kernel/Doom object methods and all
+three Unicode-path methods. The final-source storage and serial projection
+passes paired complete builds and guest frontiers and is adopted privately.
+Fresh paired producer qualification also passes for the separately authored
+99-input candidate. The register-snapshot repair also passes its original method
+on both hosts. The kernel frontier now selects the host's checked native compiler
+by default; explicit Linux selection on Windows retains its WSL route.
+[ADR 0471](../adr/0471-select-the-host-native-seed-for-kernel-frontier-verification.md)
+records the adapter and rejection controls. Installed seeds remain unchanged.
+The measured self-host contract repair passes paired native candidate modes
+and all thirteen independent Cupid-built API object comparisons. Its original
+Python method also passes on both hosts. Both complete forty-method kernel
+frontier modules now pass with all 156 sources and the original deadline.
+The unchanged original public-bootstrap method also passes on both hosts
+against the private qualified seed projection. Both actual Make bootstraps also
+pass: independent checking rereads all 291 stage products and verifies all 97
+complete fixed-point pairs. Both cold normal OS builds also pass their native
+ABI and artifact gates. Independent checking finds all 439 complete product
+pairs and the 200 MiB image unchanged from the accepted storage build. Both
+guest runs pass all 28 frontier commands and two Feature 17 executions in the
+same guest. The first Windows SDK profile also passes; independent checking
+rereads all 104 source inputs, 77 complete stage pairs and 22 published ELF
+files. The other three SDK profiles still precede seed adoption and the next
+complete-suite acceptance claim.
+Historical `CUPSIZE2` policy tests now use frozen reviewed manifests, so a
+later seed promotion cannot change their positive fixtures. All sixty legacy
+methods and two release-aware public methods pass on both hosts. The strict
+historical verifier still rejects the new parent tuple and recovers afterward.
+[The oracle record](NATIVE-WINDOWS-PRIVATE-ORACLE.md) preserves
 the implementation, failure controls, development dependencies and receipts.
+
+The separate [halfword candidate](PRIVATE-HALFWORD-TYPES.md) gives private
+`U16`, `I16` and C `short` values real two-byte storage and four-byte cdecl
+slots. Twenty-four new capability methods and both complete 517-test
+integration selections pass. Five gaps found during review have red and
+green regressions. The checked Windows seed compiles both changed kernel
+units. The candidate remains unadopted pending complete OS and guest
+qualification.
+Its separate [native network follow-up](PRIVATE-HALFWORD-BINDINGS.md) qualifies
+eight more declarations with independent halfword stack and return oracles.
+Both 524-test integrations pass, including signed and unsigned native results
+through class-method syntax. The combined guest probe and fresh OS roots are
+prepared; their actual OS and runtime qualification remain pending.
 
 ## Private VFS and swap call signatures, 2026-10-11
 
@@ -33,6 +77,16 @@ Fresh Windows flat calls pass for native and Cupid-built callers on drive and
 UNC paths. Both distinct-parent drive calls pass; both distinct-parent UNC
 calls reach the original sixty-second deadline. The complete owner remains
 outside accepted native image discovery and publication.
+
+Fresh private metadata-concurrency experiments also reach the original
+4,096-parent scope within sixty seconds on native and Cupid-built callers.
+Mutation tests reject those first designs: their reordered checks can miss
+root drift, absence appearance or restored-time payload changes. The current
+probe keeps payloads and directory checks in their original serial order and
+overlaps only regular-file metadata queries, but still times out. A later
+private serial fallback repairs its reproduced metadata-only ordering gap.
+Cupid tools build that repair, but its complete UNC caller still times out
+during the final view. Complete owner acceptance and promotion remain pending.
 
 Native diagnosis attributes all 39,243 measured metadata queries in a
 512-parent caller. Whole-observer revalidation contributes 20,748 queries.

@@ -18,9 +18,15 @@ void panic_set_output(void (*print_fn)(const char*), void (*putchar_fn)(char)) {
     if (putchar_fn) panic_putchar = putchar_fn;
 }
 
+static void panic_serial_message(const char *fmt) {
+    serial_write_string_emergency("[PANIC] ");
+    serial_write_string_emergency(fmt);
+    serial_write_char_emergency('\n');
+}
+
 static void dual_print(const char *s) {
     panic_print(s);
-    serial_write_string(s);
+    serial_write_string_emergency(s);
 }
 
 static void print_separator(void) {
@@ -163,6 +169,9 @@ void panic_fpu(const char *msg, uint32_t eip) {
 void kernel_panic(const char *fmt, ...) {
     __asm__ volatile("cli");
 
+    /* Console callbacks can wait on a remote owner; emit the literal first. */
+    panic_serial_message(fmt);
+
     print_separator();
     dual_print("                          KERNEL PANIC\n");
     print_separator();
@@ -175,17 +184,6 @@ void kernel_panic(const char *fmt, ...) {
     panic_print(fmt);
     panic_print("\n");
 
-    __builtin_va_end(ap);
-
-    /* Serial - formatted */
-    __builtin_va_start(ap, fmt);
-    serial_write_string("[PANIC] ");
-    /* We re-do the format expansion via serial_printf
-       but va_list forwarding across vfuncs is tricky in
-       freestanding C.  Print the fmt string literally for
-       reliability, then add a stack trace.*/
-    serial_write_string(fmt);
-    serial_write_char('\n');
     __builtin_va_end(ap);
 
     /* Grab current EBP/EIP for a trace */
@@ -205,6 +203,8 @@ void kernel_panic(const char *fmt, ...) {
 void kernel_panic_regs(struct registers *regs, const char *fmt, ...) {
     __asm__ volatile("cli");
 
+    panic_serial_message(fmt);
+
     print_separator();
     dual_print("                          KERNEL PANIC\n");
     print_separator();
@@ -214,9 +214,6 @@ void kernel_panic_regs(struct registers *regs, const char *fmt, ...) {
     __builtin_va_start(ap, fmt);
     panic_print(fmt);
     panic_print("\n");
-    serial_write_string("[PANIC] ");
-    serial_write_string(fmt);
-    serial_write_char('\n');
     __builtin_va_end(ap);
 
     if (regs) {

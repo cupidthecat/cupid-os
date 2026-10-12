@@ -34,6 +34,11 @@ int serial_read_char(void);
 /* Write null-terminated string to serial */
 void serial_write_string(const char *str);
 
+/* Fatal-only raw writes: never acquire BKL; UART readiness still polls.
+ * The caller accepts possible interleaving with other serial output. */
+void serial_write_char_emergency(char c);
+void serial_write_string_emergency(const char *str);
+
 /* Formatted serial output, including space and zero widths for d, u, and x. */
 void serial_printf(const char *fmt, ...);
 

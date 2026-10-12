@@ -623,8 +623,8 @@ class DoomCupidCProductionTests(unittest.TestCase):
         self.assertEqual(
             (len(image), hashlib.sha256(image).hexdigest()),
             (
-                52004,
-                "51aff2138ff2ee51bae9cc18e1dcc415567c6be1699ef0ef6f1ed2b009c30df1",
+                50552,
+                "fcb257cd9a2727ac1b928366b07a9ff2b4328c01c889a5de00546dca91ccd23b",
             ),
         )
 
@@ -2292,6 +2292,11 @@ class DoomCupidCProductionTests(unittest.TestCase):
             f"cupidbuild{seed_suffix}",
         ):
             shutil.copy2(checked_seed_root / name, seed_root / name)
+
+        shutil.copy2(
+            REPO_ROOT / "bootstrap/seeds/release.json",
+            root / "bootstrap/seeds/release.json",
+        )
 
         manifest_target = "build/bootstrap/doom-cupidc-inputs.json"
         first = subprocess.run(

@@ -250,7 +250,8 @@ int check_vfs_binding_conversions() {
     if (!str_eq_n(bytes, loaded, 8)) ok = 0;
     if (vfs_rename(old_path, new_path) != 0) ok = 0;
     if (vfs_unlink(new_path) != 0) ok = 0;
-    if (ok) serial_printf("PASS feature17_binding calls=8 bytes=8\n");
+    if (vfs_unlink("/feature17-binding") != 0) ok = 0;
+    if (ok) serial_printf("PASS feature17_binding calls=9 bytes=8\n");
     return ok;
 }
 
