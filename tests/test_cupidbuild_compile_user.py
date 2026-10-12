@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+from tests.artifact_release_fixtures import released_behavior_fixture
 import re
 import shutil
 import subprocess
@@ -77,6 +78,7 @@ class CupidBuildCompileUserTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         shutil.copytree(SEED, self.root / 'seed')
+        shutil.copyfile(ROOT / 'bootstrap/seeds/release.json', self.root / 'release.json')
         for name in (*USER_SOURCES, 'user/cupid.h'):
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -87,6 +89,7 @@ class CupidBuildCompileUserTests(unittest.TestCase):
                     extra=(), env=None, root=None, cwd=ROOT):
         return subprocess.run(list(map(str, [cli or self.cli, 'compile-user',
             '--root', root or self.root, '--seed-manifest', 'seed/manifest.json',
+            '--seed-release', 'release.json',
             '--source', source, '--output', output, *extra])), cwd=cwd, env=env,
             capture_output=True, text=True, timeout=190)
 
@@ -164,7 +167,8 @@ class CupidBuildCompileUserTests(unittest.TestCase):
                 self.root / 'staged-cohort', self.checked, long_paths=True)
         behavior = self.root / 'staged-behavior'
         behavior.mkdir()
-        _check_cupidbuild_compile_user_behavior(ToolRunner(ROOT), behavior, stage, stage,
+        seed_inputs, runner = released_behavior_fixture(ROOT, stage, seed_inputs, ToolRunner(ROOT))
+        _check_cupidbuild_compile_user_behavior(runner, behavior, stage, stage,
                                                seed_inputs, 'checked caller ')
         self.assert_clean()
 
@@ -208,6 +212,7 @@ class CupidBuildCompileUserTests(unittest.TestCase):
         long_root = self.root / ('r' * 180) / ('s' * 90)
         long_root.mkdir(parents=True)
         shutil.copytree(self.root / 'seed', long_root / 'seed')
+        shutil.copyfile(self.root / 'release.json', long_root / 'release.json')
         shutil.copytree(self.root / 'user', long_root / 'user')
         self.assertGreater(len(str(long_root)), 260)
         for cli in self.callers:

@@ -1501,3 +1501,30 @@ native input ownership and image publication still need qualification. Normal
 image ownership remains 449 CupidBuild actions and three Python coordinators.
 
 
+>h2 Fixed VFS and swap native signatures
+Private CupidC uses fixed native signatures for vfs_open, vfs_close,
+vfs_read, vfs_write, vfs_seek, vfs_mkdir, vfs_unlink and vfs_rename.
+Read and write take a signed descriptor, buffer pointer and unsigned count.
+Open takes a character pathname and unsigned flags. Seek takes three signed
+words. The other calls retain their declared character pointers or descriptor.
+>p
+The five swap calls also carry fixed signatures. swap_init takes a character
+pathname and unsigned pool size. swap_kmalloc takes an unsigned size and
+returns an unsigned handle. swap_pin takes that handle and returns a pointer;
+swap_unpin and swap_free take a handle and return no value.
+>p
+Calls convert each fixed argument before forming its four-byte native slot.
+A double descriptor or size therefore cannot shift later arguments. Unsigned
+conversion retains values above INT_MAX. The existing Cupid convention for
+carrying object addresses in integer parameters still applies. Too few or too
+many arguments, floating values in pointer slots and vectors in scalar slots
+receive the existing typed-call diagnostics.
+>p
+Feature 17 checks eight VFS calls and an exact eight-byte RamFS round trip.
+Feature 18 checks a size conversion and five handle calls across unpin and
+repin. Their binding markers are required by the runtime frontier. vfs_stat
+and vfs_readdir keep their legacy record-pointer contracts. Other unreviewed
+native APIs and complete Cupid language coverage remain open. This changes
+private JIT and AOT calls without transferring a normal build action.
+
+

@@ -1140,19 +1140,23 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   /* VFS file operations */
   int (*p_vfs_open)(const char *, uint32_t) = vfs_open;
-  BIND_T("vfs_open", p_vfs_open, 2, TYPE_INT);
+  BIND_FIXED("vfs_open", p_vfs_open, 2, TYPE_INT, TYPE_CHAR_PTR,
+             TYPE_UINT);
 
   int (*p_vfs_close)(int) = vfs_close;
-  BIND_T("vfs_close", p_vfs_close, 1, TYPE_INT);
+  BIND_FIXED("vfs_close", p_vfs_close, 1, TYPE_INT, TYPE_INT);
 
   int (*p_vfs_read)(int, void *, uint32_t) = vfs_read;
-  BIND_T("vfs_read", p_vfs_read, 3, TYPE_INT);
+  BIND_FIXED("vfs_read", p_vfs_read, 3, TYPE_INT, TYPE_INT, TYPE_PTR,
+             TYPE_UINT);
 
   int (*p_vfs_write)(int, const void *, uint32_t) = vfs_write;
-  BIND_T("vfs_write", p_vfs_write, 3, TYPE_INT);
+  BIND_FIXED("vfs_write", p_vfs_write, 3, TYPE_INT, TYPE_INT, TYPE_PTR,
+             TYPE_UINT);
 
   int (*p_vfs_seek)(int, int32_t, int) = vfs_seek;
-  BIND_T("vfs_seek", p_vfs_seek, 3, TYPE_INT);
+  BIND_FIXED("vfs_seek", p_vfs_seek, 3, TYPE_INT, TYPE_INT, TYPE_INT,
+             TYPE_INT);
 
   int (*p_vfs_stat)(const char *, vfs_stat_t *) = vfs_stat;
   BIND_T("vfs_stat", p_vfs_stat, 2, TYPE_INT);
@@ -1161,29 +1165,31 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND_T("vfs_readdir", p_vfs_readdir, 2, TYPE_INT);
 
   int (*p_vfs_mkdir)(const char *) = vfs_mkdir;
-  BIND_T("vfs_mkdir", p_vfs_mkdir, 1, TYPE_INT);
+  BIND_FIXED("vfs_mkdir", p_vfs_mkdir, 1, TYPE_INT, TYPE_CHAR_PTR);
 
   int (*p_vfs_unlink)(const char *) = vfs_unlink;
-  BIND_T("vfs_unlink", p_vfs_unlink, 1, TYPE_INT);
+  BIND_FIXED("vfs_unlink", p_vfs_unlink, 1, TYPE_INT, TYPE_CHAR_PTR);
 
   int (*p_vfs_rename)(const char *, const char *) = vfs_rename;
-  BIND_T("vfs_rename", p_vfs_rename, 2, TYPE_INT);
+  BIND_FIXED("vfs_rename", p_vfs_rename, 2, TYPE_INT, TYPE_CHAR_PTR,
+             TYPE_CHAR_PTR);
 
   /* Swap API bindings (opt-in disk-backed swap via handles) */
   int (*p_swap_init)(const char *, uint32_t) = swap_init;
-  BIND_T("swap_init", p_swap_init, 2, TYPE_INT);
+  BIND_FIXED("swap_init", p_swap_init, 2, TYPE_INT, TYPE_CHAR_PTR,
+             TYPE_UINT);
 
   swap_handle_t (*p_swap_kmalloc)(uint32_t) = swap_kmalloc;
-  BIND_T("swap_kmalloc", p_swap_kmalloc, 1, TYPE_UINT);
+  BIND_FIXED("swap_kmalloc", p_swap_kmalloc, 1, TYPE_UINT, TYPE_UINT);
 
   void *(*p_swap_pin)(swap_handle_t) = swap_pin;
-  BIND_T("swap_pin", p_swap_pin, 1, TYPE_PTR);
+  BIND_FIXED("swap_pin", p_swap_pin, 1, TYPE_PTR, TYPE_UINT);
 
   void (*p_swap_unpin)(swap_handle_t) = swap_unpin;
-  BIND("swap_unpin", p_swap_unpin, 1);
+  BIND_FIXED("swap_unpin", p_swap_unpin, 1, TYPE_VOID, TYPE_UINT);
 
   void (*p_swap_free)(swap_handle_t) = swap_free;
-  BIND("swap_free", p_swap_free, 1);
+  BIND_FIXED("swap_free", p_swap_free, 1, TYPE_VOID, TYPE_UINT);
 
   /* USB API bindings (read-only introspection for feature19_usb.cc) */
   int (*p_usb_device_count)(void) = usb_device_count;

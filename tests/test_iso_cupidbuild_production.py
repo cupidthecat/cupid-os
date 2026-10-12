@@ -41,6 +41,10 @@ class IsoCupidBuildProductionTests(unittest.TestCase):
             Path(selected).resolve() if selected else checked / "manifest.json"
         )
         shutil.copy2(manifest, seed / "manifest.json")
+        selected_release = os.environ.get("CUPIDBUILD_TEST_SEED_RELEASE")
+        release = (Path(selected_release).resolve() if selected_release else
+                   manifest.parent.parent / "release.json")
+        shutil.copy2(release, seed.parent / "release.json")
         for tool in (
             "cupidc", "cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidbuild"
         ):

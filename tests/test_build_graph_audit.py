@@ -2950,9 +2950,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 449)
+            self.assertEqual(contract["if_occurrences"], 452)
             self.assertEqual(contract["elif_occurrences"], 24)
-            self.assertEqual(contract["expression_occurrences"], 473)
+            self.assertEqual(contract["expression_occurrences"], 476)
             self.assertEqual(contract["unique_expressions"], 61)
             self.assertEqual(contract["directive_expression_pairs"], 64)
             executable_contract = CUPIDC_PP_CONTRACT.read_text(encoding="utf-8")
@@ -10373,7 +10373,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "active_sources": 786,
                     "features": 255,
                     "transforms": 452,
-                    "unreachable_sources": 69,
+                    "unreachable_sources": 77,
                 },
             )
             features = {
@@ -10397,8 +10397,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ):
                 self.assertEqual(unreachable[fixture], "host_fixture")
             expected_c_expression_inventory = {
-                "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (7100, 191),
+                "c.declaration.static_assert": (30, 6),
+                "c.expression.sizeof": (7111, 191),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }

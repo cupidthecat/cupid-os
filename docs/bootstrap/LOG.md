@@ -1,5 +1,33 @@
 # Bootstrapping log
 
+## 2026-10-12: Execute private i386 compiler tests natively on Windows
+
+The Windows private compiler oracle runs the existing emitted bytes and ABI
+stubs in a fresh PE32 process. Its integrated replay passes all 503 methods
+without skips. Linux passes the same selections with eight Windows-only
+skips. The first prototype's stack setup failure remains archived.
+Package-qualified discovery and the fresh ABI fixture's include closure
+are repaired. [The oracle record](NATIVE-WINDOWS-PRIVATE-ORACLE.md) records
+the implementation, negative cases and unchanged production ownership.
+
+## 2026-10-11: Publish private VFS and swap call signatures
+
+Private CupidC now publishes fixed native signatures for eight VFS calls and
+all five swap calls. Arguments convert to their declared four-byte lanes;
+floating descriptors, flags, sizes and handles can no longer shift later
+arguments. JIT and AOT cases check exact stack words, result channels and
+useful arity and type errors. The guest ISO and swap programs exercise the
+real storage bindings.
+
+Both complete host builds and normal-root acceptance pass. All 429 objects,
+four linked products, six user products and every byte of the 209,715,200-byte
+image agree. Each host also passes the complete 28-command runtime frontier.
+The manual has 86,475 bytes. Normal ownership remains 449 CupidBuild actions
+and three Python coordinators; installed seeds are unchanged.
+
+[The storage record](PRIVATE-STORAGE-BINDINGS.md) contains the paired builds, guest probes and measured sizes.
+[The verification record](VERIFICATION-RELEASE-FIXTURES.md) records the separate conditional-count, compatibility-policy and release-fixture repairs. That projection changes one hosted producer input and does not promote a seed.
+
 ## 2026-10-11: Record fresh complete-owner capacity and metadata diagnosis
 
 Fresh Windows flat calls pass for native and Cupid-built callers on drive and

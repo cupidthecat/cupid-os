@@ -46156,13 +46156,13 @@
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
         "residual_c_sources": 17,
         "runtime_delivery_sources": 130,
-        "sha256": "0e4d6582f6078d55442152bc68dbf7634fa6ed83df0a33e5052e1b9240681342",
-        "unreachable_cupid_c_sources": 53
+        "sha256": "ee298fad92a0a0a422737f886e235097b1988bf2c2501db94bfe2d75b0ec3ac6",
+        "unreachable_cupid_c_sources": 54
       },
       "proven_cupidc_owned_tracked_cupid_c_sources": 426,
       "status": "pass",
       "tracked_c_sources": 17,
-      "tracked_cupid_c_sources": 479,
+      "tracked_cupid_c_sources": 480,
       "unreachable": [
         {
           "classification": "historical_copy",
@@ -46247,6 +46247,11 @@
         {
           "classification": "superseded",
           "path": "demos/paint.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
+          "path": "tests/support/windows_i386_oracle.cc",
           "policy": "source_suffix_policy"
         },
         {
@@ -46501,7 +46506,7 @@
         }
       ],
       "unreachable_tracked_c_sources": 17,
-      "unreachable_tracked_cupid_c_sources": 53
+      "unreachable_tracked_cupid_c_sources": 54
     },
     "cupid_toolchain_fixed_point": {
       "checked_seed_publication": "complete-bundle",
@@ -51436,7 +51441,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5687
+      "occurrences": 5688
     },
     {
       "category": "control",
@@ -52220,7 +52225,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 45172
+      "occurrences": 45191
     },
     {
       "category": "control",
@@ -52613,7 +52618,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28017
+      "occurrences": 28024
     },
     {
       "category": "control",
@@ -53021,7 +53026,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3087
+      "occurrences": 3088
     },
     {
       "category": "declaration",
@@ -53314,7 +53319,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 3074
+      "occurrences": 3077
     },
     {
       "category": "declarator",
@@ -56923,7 +56928,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 18703
+      "occurrences": 18709
     },
     {
       "category": "qualifier",
@@ -57486,7 +57491,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10822
+      "occurrences": 10825
     },
     {
       "category": "type",
@@ -57965,7 +57970,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 12227
+      "occurrences": 12238
     },
     {
       "category": "type",
@@ -57997,6 +58002,8 @@
         "bin/feature13_double.cc",
         "bin/feature14_simd.cc",
         "bin/feature15_libm.cc",
+        "bin/feature17_iso.cc",
+        "bin/feature18_swap.cc",
         "bin/test_fpaug.cc",
         "drivers/serial.cc",
         "kernel/core/string.cc",
@@ -58017,7 +58024,7 @@
         "toolchain/tests/hosted_i386_runtime_contract.cc"
       ],
       "id": "c.type.double",
-      "occurrences": 564
+      "occurrences": 572
     },
     {
       "category": "type",
@@ -58773,7 +58780,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 25965
+      "occurrences": 25971
     },
     {
       "category": "type",
@@ -61303,6 +61310,7 @@
         "bin/browser/net.cc",
         "bin/ctxt.cc",
         "bin/curl.cc",
+        "bin/feature18_swap.cc",
         "bin/feature1_types.cc",
         "bin/feature20_smp.cc",
         "bin/feature21_net.cc",
@@ -61319,7 +61327,7 @@
         "bin/wget.cc"
       ],
       "id": "cupid_c.type.u32",
-      "occurrences": 50
+      "occurrences": 51
     },
     {
       "category": "type",
@@ -61369,11 +61377,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "c2c750dbffe545b80d1d3f95efec27651c7b6a9416355cbee9357bd93464e813",
+    "active_source_digest": "14ccaa62f6d6946afb00adfa2ab8e1894351d9e685d3ed52ef5dd8f5088f726d",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "82b12e2c7ae327bc766515a0ff58f3c62c686a880dbf915852276e35937e670c"
+        "sha256": "41a8780046aef24bce12ee5ec4c92948bb1f9e635701dae2fecf29c7d1993c79"
       },
       {
         "path": "user/Makefile",
@@ -61385,7 +61393,7 @@
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
-        "sha256": "0e4d6582f6078d55442152bc68dbf7634fa6ed83df0a33e5052e1b9240681342"
+        "sha256": "ee298fad92a0a0a422737f886e235097b1988bf2c2501db94bfe2d75b0ec3ac6"
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
@@ -61397,11 +61405,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "3e296ee302e859494ec224da8c8741498f3f0de748b307e2d1e7c192d81ccfc3"
+        "sha256": "4584a7e121d988d9e782ae6d2155a196848480456a7208a494703fbbeb42403a"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
-        "sha256": "e496a0fb2e36e74bc04a4ef3e1923c25a805fb1342035c32eb1c4eba20ba5bcf"
+        "sha256": "e1eabbcfd8c1b53c5976ed98d3116804532d5e761c41f0d00d998d499489e471"
       }
     ],
     "generator": {
@@ -63791,18 +63799,19 @@
         "c.control.while",
         "c.qualifier.const",
         "c.type.char",
+        "c.type.double",
         "c.type.int",
         "c.type.void",
         "cupid_c.delivery.embedded_source"
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 346,
+      "lines": 380,
       "origin": "tracked",
       "path": "bin/feature17_iso.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b59d8a9ea766183005555e9dfea8eecb9258aa4937d46133513db2b765a4d24a"
+      "sha256": "5cc1fa30e9645b944c92a16592e4ecb83fcba1f2b347b328ff6a6662a26728fd"
     },
     {
       "build_owners": [
@@ -63819,18 +63828,20 @@
         "c.control.return",
         "c.control.while",
         "c.type.char",
+        "c.type.double",
         "c.type.int",
         "c.type.void",
-        "cupid_c.delivery.embedded_source"
+        "cupid_c.delivery.embedded_source",
+        "cupid_c.type.u32"
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 153,
+      "lines": 178,
       "origin": "tracked",
       "path": "bin/feature18_swap.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "51ba63397c765e16b9a7a47962caa415a31496cb1e1debcc4a18233729f2586c"
+      "sha256": "7d0341838dc9735aeb578f635395b3b4b920df74c17e56fbce797de718c64aed"
     },
     {
       "build_owners": [
@@ -81992,12 +82003,12 @@
         "kernel/util/calendar.h"
       ],
       "language": "cupid_c",
-      "lines": 4237,
+      "lines": 4243,
       "origin": "tracked",
       "path": "kernel/lang/cupidc.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "7751edc7b566088e3cd2836202df210b3214be8d0f011377810468a61d72c97e"
+      "sha256": "74f767477a51ebf41dc450f990e101d3507c4268680b8e9833272c41f03321c3"
     },
     {
       "build_owners": [
@@ -85842,12 +85853,12 @@
         "toolchain/contract_parse_internal.h"
       ],
       "language": "cupid_c",
-      "lines": 1907,
+      "lines": 1927,
       "origin": "tracked",
       "path": "toolchain/artifact_size_policy.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "702b4ac437fc89297bc6291f06f5e2f704c80ffa21a4ef652a6b6b6e576ba7cb"
+      "sha256": "1c24676cff73eaf689d5c53bc8988c9d92a23e021ca10ccb24afecf3d126036e"
     },
     {
       "build_owners": [
@@ -88913,7 +88924,7 @@
       "path": "toolchain/hosted/i386-windows/windows_utf8.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9dd8d79c1cd796f8fa71226d4f5ef1009d94a3b5121c5456794713d281a4487d"
+      "sha256": "e4bc69f37422bde4350163f2c8906b7f7505ac5433ebf390d96f598908451b50"
     },
     {
       "build_owners": [
@@ -89757,7 +89768,7 @@
       "path": "toolchain/tests/cupidc_pp_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "8bcb5cac769f0bf70b5b1c7d48903407d0a1681c56920bef39614297685429b2"
+      "sha256": "54d6170863c4b33aefab7c1a4d0010cd63d4776d174451311a6dc75920b12e0a"
     },
     {
       "build_owners": [
@@ -90603,7 +90614,7 @@
     "active_sources": 786,
     "features": 255,
     "transforms": 452,
-    "unreachable_sources": 75
+    "unreachable_sources": 77
   },
   "supplemental_builds": [
     {
@@ -91471,6 +91482,26 @@
       "sha256": "2995286f54f196e0678e0086336818d7e50917397c566a032e9f47acf36a230e"
     },
     {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 140,
+      "path": "tests/support/windows_i386_oracle.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "cf08eb38dbc88c6bd8dccafcb076a4abec78d3670fe8a261ac49de5e46a39d3d"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "assembly",
+      "lines": 19,
+      "path": "tests/support/windows_i386_stack.S",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "3d0b60ebd775448b51fbc3e4e068b8699a8c1d82fa669b4b4a49fa1b0cccd347"
+    },
+    {
       "classification": "host_fixture",
       "duplicate_of": [],
       "language": "c",
@@ -91994,11 +92025,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 199,
+      "lines": 234,
       "path": "toolchain/tests/windows_utf8_contract.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "18dc42abc6ad8b2fc2d14d09bc9095065b072cc85a751e1f9111a538afaf8b19"
+      "sha256": "c4a3061fb812d7a4243fb8ef1678db3a03f1e901acbedc626027f3d4cafbe8f3"
     },
     {
       "classification": "not_reached",

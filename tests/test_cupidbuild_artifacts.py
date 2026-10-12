@@ -16,7 +16,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCES = ("cupidbuild_artifacts", "artifact_size_policy", "contract_parse_internal",
            "user_syscall_abi", "cupidbuild_user_abi",
            "seed_manifest", "seed_release", "cupidbuild", "cupidbuild_host",
-           "ctool", "ctool_host", "elf32", "path_encoding")
+           "ctool", "ctool_host", "elf32", "path_encoding",
+           "cupidbuild_iso", "cupidbuild_iso_capture", "cupidbuild_iso_image",
+           "cupidbuild_iso_publication", "iso_fixture_bundle")
 
 class Request(ctypes.Structure):
     _fields_ = [(name, ctypes.c_char_p) for name in ("root", "policy", "manifest")]

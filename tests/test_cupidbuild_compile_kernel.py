@@ -11,6 +11,8 @@ import time
 import unittest
 from pathlib import Path
 
+from tests.artifact_release_fixtures import released_behavior_fixture, replace_fixture_tool
+
 from tools.bootstrap_toolchain import (
     _candidate_build_plan,
     SeedInputs, Stage, _check_cupidbuild_compile_kernel_behavior,
@@ -127,15 +129,13 @@ int main(int argc, char **argv) {
         self.seed = self.root / "seed"
         shutil.copytree(SEED, self.seed)
         self.manifest = self.seed / "manifest.json"
+        self.release = self.root / "release.json"
+        shutil.copyfile(ROOT / "bootstrap/seeds/release.json", self.release)
         self.replace_compiler(self.compiler.read_bytes())
 
     def replace_compiler(self, contents):
-        path = self.seed / ("cupidc" + SUFFIX)
-        path.write_bytes(contents)
-        document = json.loads(self.manifest.read_text())
-        entry = next(item for item in document["artifacts"] if item["name"] == "cupidc")
-        entry.update(size=len(contents), sha256=hashlib.sha256(contents).hexdigest())
-        self.manifest.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
+        replace_fixture_tool(self.manifest, self.release, "cupidc",
+                             "pe32" if os.name == "nt" else "elf32", contents)
 
     def closure(self, source="kernel/cpu/ksyms_data.cc", contents=None):
         for logical in (source, *FROZEN_KERNEL_INPUT_CLOSURES[source]):
@@ -150,6 +150,7 @@ int main(int argc, char **argv) {
         return subprocess.run(
             [str(cli or self.cli), "compile-kernel", "--root", str(self.root),
              "--seed-manifest", "seed/manifest.json", "--source", source,
+             "--seed-release", "release.json",
              "--output", output or source[:-2] + "o"],
             capture_output=True, text=True,
             timeout=610 if source == "kernel/cpu/ksyms_data.cc" else 190, env=env,
@@ -284,8 +285,9 @@ int main(int argc, char **argv) {
                 self.root / 'staged-cohort', coordinator)
         behavior = self.root / "paired-behavior"
         behavior.mkdir()
+        inputs, runner = released_behavior_fixture(ROOT, stage, inputs, NativeRunner())
         _check_cupidbuild_compile_kernel_behavior(
-            NativeRunner(), behavior, stage, stage, inputs, "contract ",
+            runner, behavior, stage, stage, inputs, "contract ",
         )
 
     def test_compiler_error_and_missing_header_preserve_output(self):

@@ -309,6 +309,7 @@ FRONTIER_RUNTIME_COMMANDS = (
             r".*?PASS glyph_rasterize Liberation Mono Q size37 "
             r"width=(?P<glyph_width>[1-9][0-9]*) "
             r"cache=(?P=glyph_width)"
+            r".*?PASS feature17_binding calls=8 bytes=8"
             rf".*?PASS feature17_iso.*?{CUPIDC_COMPLETION_PATTERN}"
         ),
     ),
@@ -316,6 +317,7 @@ FRONTIER_RUNTIME_COMMANDS = (
         "/bin/feature18_swap.cc",
         (
             r"\[cupidc\] JIT compile: /bin/feature18_swap\.cc"
+            r".*?PASS feature18_binding sizes=1 handles=5 bytes=8"
             rf".*?PASS feature18_swap.*?{CUPIDC_COMPLETION_PATTERN}"
         ),
     ),

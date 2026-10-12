@@ -35,6 +35,7 @@ class CupidBuiltUserAbiCommandTests(unittest.TestCase):
         ]) if row["name"] in order]
         paths = {ROOT / row["path"].lstrip("/") for row in (*rows, *assembly)}
         paths.update((ROOT / "toolchain").glob("*.h"))
+        paths.update((ROOT / "toolchain").glob("*.inc"))
         paths.update(path for path in (ROOT / "toolchain/hosted").rglob("*") if path.is_file())
         captures = {path: path.read_bytes() for path in paths}
         for path, payload in captures.items():

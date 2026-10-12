@@ -1,5 +1,60 @@
 """Synthetic release claims with real installed images for verifier boundary tests."""
 import hashlib
+import json
+
+
+def released_behavior_fixture(root, stage, inputs, runner):
+    """Authorize observed test-stage bytes without promoting installed seeds."""
+    from dataclasses import replace
+    from tools import bootstrap_toolchain as bootstrap
+    from tools.bootstrap_stage_release import BehaviorRelease
+
+    record = json.loads((root / "bootstrap/seeds/release.json").read_bytes())
+    provenance = inputs.manifest["provenance"]
+    tool_format = "pe32" if inputs.manifest["schema"].startswith("cupid.execution-") else "elf32"
+    for key in ("source_revision", "source_snapshot_sha256", "source_input_count"):
+        record[key] = provenance[key]
+    linux = bootstrap._candidate_build_plan(json.loads(
+        (root / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"])
+    record["linux_plan_sha256"] = bootstrap._build_plan_sha256(linux)
+    if tool_format == "pe32":
+        record.update(
+            windows_plan_sha256=provenance["native_build_plan_sha256"],
+            parent_source_revision=provenance["parent_execution_seed_source_revision"],
+            parent_linux_manifest_sha256=provenance["parent_plan_seed_manifest_sha256"],
+            parent_windows_manifest_sha256=provenance["parent_execution_seed_manifest_sha256"])
+    else:
+        record.update(parent_source_revision=provenance["parent_seed_source_revision"],
+                      parent_linux_manifest_sha256=provenance["parent_seed_manifest_sha256"])
+    rows = []
+    assert set(stage.tools) == set(bootstrap.CANDIDATE_TOOL_NAMES)
+    for selected_format, host in (("elf32", "linux"), ("pe32", "windows")):
+        seed_root = root / ("bootstrap/seeds/i386-" + host)
+        manifest = json.loads((seed_root / "manifest.json").read_bytes())
+        for row in manifest["artifacts"]:
+            contents = (stage.tools[row["name"]] if selected_format == tool_format else
+                        seed_root / row["file"]).read_bytes()
+            rows.append({"name": row["name"], "format": selected_format,
+                         "size": len(contents), "sha256": hashlib.sha256(contents).hexdigest()})
+    record["artifacts"] = rows
+    encode = lambda value: (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    authority = BehaviorRelease(encode(record), record, tool_format, encode(linux))
+    return replace(inputs, behavior_release=authority), authority.runner(runner)
+
+
+def replace_fixture_tool(manifest_path, release_path, name, tool_format, contents):
+    """Bind a test-owned tool image in its manifest and explicit release."""
+    manifest = json.loads(manifest_path.read_bytes())
+    artifact = next(row for row in manifest["artifacts"] if row["name"] == name)
+    record = json.loads(release_path.read_bytes())
+    released = next(row for row in record["artifacts"]
+                    if row["name"] == name and row["format"] == tool_format)
+    facts = {"size": len(contents), "sha256": hashlib.sha256(contents).hexdigest()}
+    (manifest_path.parent / artifact["file"]).write_bytes(contents)
+    artifact.update(facts)
+    released.update(facts)
+    for path, value in ((manifest_path, manifest), (release_path, record)):
+        path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def install_future_fixture(root, *, new_parent=False):

@@ -396,6 +396,44 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)["artifact_count"], 16)
 
+    def test_installed_seed_pair_requires_each_qualified_parent_field(self):
+        fields = (
+            (0, "parent_seed_source_revision"),
+            (0, "parent_seed_manifest_sha256"),
+            (1, "parent_execution_seed_source_revision"),
+            (1, "parent_execution_seed_manifest_sha256"),
+            (1, "parent_plan_seed_source_revision"),
+            (1, "parent_plan_seed_manifest_sha256"),
+        )
+        for side, key in fields:
+            for replacement in ("0", "a"):
+                with self.subTest(side=side, key=key, replacement=replacement):
+                    def mutate(manifest, windows):
+                        provenance = (manifest, windows)[side]["provenance"]
+                        changed = replacement * len(provenance[key])
+                        self.assertNotEqual(provenance[key], changed)
+                        provenance[key] = changed
+                    self.assert_contract_failure(self.promoted_request(mutate))
+                    restored = self.run_request(self.promoted_request())
+                    self.assertEqual(restored.returncode, 0, restored.stderr)
+
+    def test_installed_seed_pair_rejects_unknown_counts_and_mixed_plans(self):
+        for count in (78, 98, 100):
+            with self.subTest(count=count):
+                def mutate(manifest, windows):
+                    manifest["provenance"]["source_input_count"] = count
+                    windows["provenance"]["source_input_count"] = count
+                self.assert_contract_failure(self.promoted_request(mutate))
+        for key in ("linux_candidate_build_plan_sha256", "native_build_plan_sha256"):
+            for replacement in ("0" * 64, "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5"):
+                with self.subTest(key=key, replacement=replacement):
+                    def mutate(manifest, windows):
+                        self.assertNotEqual(windows["provenance"][key], replacement)
+                        windows["provenance"][key] = replacement
+                    self.assert_contract_failure(self.promoted_request(mutate))
+        restored = self.run_request(self.promoted_request())
+        self.assertEqual(restored.returncode, 0, restored.stderr)
+
     def next_parent_request(self, *, long_paths, mutate=None):
         from tests.test_seed_manifest import next_parent_manifest
         def select(manifest, windows):

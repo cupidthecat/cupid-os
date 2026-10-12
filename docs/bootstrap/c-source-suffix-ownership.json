@@ -155,6 +155,7 @@
     "bin/old_cc2.cc": "explicitly_excluded",
     "bin/old_cc2_single.cc": "explicitly_excluded",
     "demos/paint.cc": "superseded",
+    "tests/support/windows_i386_oracle.cc": "not_reached",
     "toolchain/native_utf8.cc": "not_reached",
     "toolchain/native_utf8_entry.cc": "not_reached",
     "toolchain/tests/artifact_size_policy_contract.cc": "not_reached",

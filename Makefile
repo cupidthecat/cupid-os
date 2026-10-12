@@ -1719,7 +1719,7 @@ BOOTSTRAP_LINUX_BASELINE ?= docs/bootstrap/baselines/linux-x86_64.json
 BOOTSTRAP_HOST_COMPARISON ?= docs/bootstrap/baselines/windows-linux.json
 
 test: test-generated-cupidc-frontier test-user-cupidc-frontier
-	$(PYTHON) -m unittest discover -s tests -p "test_*.py"
+	$(PYTHON) -m unittest discover -s tests -t . -p "test_*.py"
 	$(PYTHON) tools/build_graph_audit.py --root . $(BOOTSTRAP_AUDIT_BUILDS) \
 	  --output docs/bootstrap/audits/active-build.json \
 	  --summary docs/bootstrap/ACTIVE-SOURCE-AUDIT.md \

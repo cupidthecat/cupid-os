@@ -44,6 +44,7 @@ class CupidBuildCompileDoomTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         shutil.copytree(SEED, self.root / "seed")
+        shutil.copyfile(ROOT / "bootstrap/seeds/release.json", self.root / "release.json")
         for logical, contents in self.inputs.items():
             path = self.root / logical
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -52,7 +53,7 @@ class CupidBuildCompileDoomTests(unittest.TestCase):
 
     def arguments(self, source=SOURCE, output=None, cli=None):
         return list(map(str, [cli or self.cli, "compile-doom", "--root", self.root,
-                             "--seed-manifest", "seed/manifest.json", "--source", source,
+                             "--seed-manifest", "seed/manifest.json", "--seed-release", "release.json", "--source", source,
                              "--output", output or Path(source).with_suffix(".o").as_posix()]))
 
     def run_compile(self, source=SOURCE, output=None, cli=None, env=None, extra=()):

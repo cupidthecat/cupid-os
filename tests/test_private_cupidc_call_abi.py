@@ -1,5 +1,5 @@
 import os
-import shlex
+import re
 import shutil
 import struct
 import subprocess
@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 from tests.test_private_cupidc_float_truth_emitter import _compiler_command
+from tests.windows_i386_oracle import WindowsI386Oracle
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +17,88 @@ LEXER_SOURCE = REPO_ROOT / "kernel" / "lang" / "cupidc_lex.cc"
 PARSER_SOURCE = REPO_ROOT / "kernel" / "lang" / "cupidc_parse.cc"
 ELF_SOURCE = REPO_ROOT / "kernel" / "lang" / "cupidc_elf.cc"
 KERNEL_LANG = REPO_ROOT / "kernel" / "lang"
+
+STORAGE_BINDING_NAMES = (
+    "vfs_open", "vfs_close", "vfs_read", "vfs_write", "vfs_seek",
+    "vfs_mkdir", "vfs_unlink", "vfs_rename",
+    "swap_init", "swap_kmalloc", "swap_pin", "swap_unpin", "swap_free",
+)
+
+
+def _storage_binding_registration():
+    """Run the real registrations against fixed-address native ABI oracles."""
+    source = (KERNEL_LANG / "cupidc.cc").read_text(encoding="utf-8")
+    start = source.index("#define BIND_LEGACY_RESULT(")
+    end = source.index("  /* Console output */", start)
+    fragments = [source[start:end]]
+    for index, name in enumerate(STORAGE_BINDING_NAMES):
+        pointer = "p_" + name
+        declaration = re.search(
+            rf"(?m)^  (?P<result>[^\n;]+?)\s*\(\*{pointer}\)"
+            rf"\((?P<parameters>[^;]+?)\) = [^;]+;",
+            source,
+        )
+        registration = re.search(
+            rf'(?m)^  BIND(?:_T|_FIXED)?\("{name}",\s*{pointer},[^;]+;',
+            source,
+        )
+        if declaration is None or registration is None:
+            raise AssertionError(f"missing native declaration for {name}")
+        result = declaration.group("result").strip()
+        parameters = declaration.group("parameters")
+        address = 0x01001400 + 0x80 * index
+        fragments.append(
+            f"  {result} (*{pointer})({parameters}) = "
+            f"({result} (*)({parameters}))(uintptr_t)0x{address:08x}u;\n"
+            + registration.group(0)
+        )
+    fragments.extend(
+        "#undef " + name
+        for name in (
+            "BIND_RETAINED", "BIND_VARIADIC", "BIND_FIXED", "BIND_SIGNATURE",
+            "BIND", "BIND_T", "BIND_LEGACY_VOID", "BIND_LEGACY_RESULT",
+        )
+    )
+    return (
+        "typedef uint32_t swap_handle_t;\n"
+        "static void bind_storage_kernels(cc_state_t *cc) {\n"
+        + "\n".join(fragments) + "\n}\n"
+    )
+
+
+def _storage_native_assembly():
+    cases = (
+        ("movl 4(%esp), %ecx\n  cmpb $47, (%ecx)\n  jne 9f\n"
+         "  cmpl $0x80000001, 8(%esp)\n  jne 9f", 31),
+        ("cmpl $31, 4(%esp)\n  jne 9f", 0),
+        ("cmpl $31, 4(%esp)\n  jne 9f\n"
+         "  movl 8(%esp), %ecx\n  cmpb $53, (%ecx)\n  jne 9f\n"
+         "  cmpl $0x80000002, 12(%esp)\n  jne 9f", 43),
+        ("cmpl $31, 4(%esp)\n  jne 9f\n"
+         "  movl 8(%esp), %ecx\n  cmpb $53, (%ecx)\n  jne 9f\n"
+         "  cmpl $1, 12(%esp)\n  jne 9f", 1),
+        ("cmpl $31, 4(%esp)\n  jne 9f\n"
+         "  cmpl $-7, 8(%esp)\n  jne 9f\n"
+         "  cmpl $2, 12(%esp)\n  jne 9f", 42),
+        ("movl 4(%esp), %ecx\n  cmpb $47, (%ecx)\n  jne 9f", 0),
+        ("movl 4(%esp), %ecx\n  cmpb $47, (%ecx)\n  jne 9f", 0),
+        ("movl 4(%esp), %ecx\n  cmpb $98, 1(%ecx)\n  jne 9f\n"
+         "  movl 8(%esp), %ecx\n  cmpb $97, 1(%ecx)\n  jne 9f", 0),
+        ("movl 4(%esp), %ecx\n  cmpb $47, (%ecx)\n  jne 9f\n"
+         "  cmpl $0x80000003, 8(%esp)\n  jne 9f", 0),
+        ("cmpl $500, 4(%esp)\n  jne 9f", "0x80000001"),
+        ("cmpl $0x80000001, 4(%esp)\n  jne 9f", "test_heap"),
+        ("cmpl $0x80000001, 4(%esp)\n  jne 9f\n"
+         "  incl test_free_calls", 0),
+        ("cmpl $0x80000001, 4(%esp)\n  jne 9f\n"
+         "  addl $2, test_free_calls", 0),
+    )
+    return "\n".join(
+        f".org 0x{0x1400 + index * 0x80:x}\n"
+        f"test_{STORAGE_BINDING_NAMES[index]}:\n  {checks}\n"
+        f"  movl ${result}, %eax\n  ret\n9:\n  movl $-71, %eax\n  ret\n"
+        for index, (checks, result) in enumerate(cases)
+    )
 
 
 class PrivateCupidCCallAbiTests(unittest.TestCase):
@@ -34,12 +117,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         command[0] = compiler or command[0]
         cls.compiler_command = command
 
-        if os.name == "nt":
-            if shutil.which("wsl") is None:
-                raise unittest.SkipTest(
-                    "WSL is required to execute the i386 runtime oracle"
-                )
-        elif shutil.which("as") is None or shutil.which("ld") is None:
+        if os.name != "nt" and (shutil.which("as") is None or shutil.which("ld") is None):
             raise unittest.SkipTest(
                 "GNU as and ld are required to execute the i386 runtime oracle"
             )
@@ -48,6 +126,9 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             prefix="private-cupidc-call-driver-", ignore_cleanup_errors=True
         )
         cls.driver_root = Path(cls.driver_directory.name)
+        cls.addClassCleanup(cls.driver_directory.cleanup)
+        if os.name == "nt":
+            cls.windows_oracle = WindowsI386Oracle(cls.driver_root)
         cls.driver = cls._build_compiler_driver()
 
     @classmethod
@@ -819,6 +900,15 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         executable = cls.driver_root / (
             "driver.exe" if os.name == "nt" else "driver"
         )
+        harness_source = harness.read_text(encoding="utf-8")
+        harness_source = harness_source.replace(
+            "static void bind_feature13_kernels(cc_state_t *cc) {",
+            _storage_binding_registration()
+            + "\nstatic void bind_feature13_kernels(cc_state_t *cc) {\n"
+            + "  bind_storage_kernels(cc);",
+            1,
+        )
+        harness.write_text(harness_source, encoding="utf-8")
         result = subprocess.run(
             [
                 *cls.compiler_command,
@@ -1160,6 +1250,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   movl test_free_calls, %eax
                   ret
 
+                {_storage_native_assembly()}
+
                 .section .testruntime,"aw",@progbits
                 test_heap_next:
                   .long test_heap
@@ -1207,17 +1299,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             "./runner"
         )
         if os.name == "nt":
-            drive, tail = os.path.splitdrive(str(root.resolve()))
-            self.assertTrue(drive and len(drive) == 2, str(root))
-            wsl_root = "/mnt/" + drive[0].lower() + tail.replace("\\", "/")
-            invocation = [
-                "wsl",
-                "sh",
-                "-lc",
-                f"cd {shlex.quote(wsl_root)} && {command}",
-            ]
-        else:
-            invocation = ["sh", "-lc", command]
+            return self.windows_oracle.run(root, entry_offset)
+        invocation = ["sh", "-c", command]
         return subprocess.run(
             invocation,
             cwd=root,
@@ -1298,6 +1381,181 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             )
             entry_offset = int(compile_result.stdout.strip())
             return self._run_i386(root, entry_offset)
+
+    def test_vfs_bindings_convert_arguments_to_native_slots_in_jit_and_aot(self):
+        source = """
+            int main(void) {
+              double flags = 2147483649.0;
+              double count = 2147483650.0;
+              double descriptor = 31.0;
+              double offset = -7.0;
+              float origin = 2.0f;
+              char bytes[2];
+              int index = 0;
+              bytes[0] = 53;
+              bytes[1] = 0;
+              if (vfs_open("/file", flags) != 31) return 1;
+              while (index < 1000) {
+                if (vfs_read(descriptor, bytes, count) != 43) return 2;
+                if (vfs_write(descriptor, bytes, 1.0) != 1) return 3;
+                index += 1;
+              }
+              if (vfs_seek(descriptor, offset, origin) != 42) return 4;
+              if (vfs_mkdir("/directory") != 0) return 5;
+              if (vfs_unlink("/file") != 0) return 6;
+              if (vfs_rename("/before", "/after") != 0) return 7;
+              if (vfs_close(descriptor) != 0) return 8;
+              if (bytes[0] != 53 || bytes[1] != 0) return 9;
+              return 0;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_vfs_bindings_reject_arity_and_incompatible_arguments(self):
+        calls = {
+            "vfs_open": ['"/file"', "0"],
+            "vfs_close": ["31"],
+            "vfs_read": ["31", '"bytes"', "5"],
+            "vfs_write": ["31", '"bytes"', "5"],
+            "vfs_seek": ["31", "-7", "2"],
+            "vfs_mkdir": ['"/directory"'],
+            "vfs_unlink": ['"/file"'],
+            "vfs_rename": ['"/before"', '"/after"'],
+        }
+        failures = []
+        for name, arguments in calls.items():
+            for args, detail in (
+                (arguments[:-1], "too few"),
+                ([*arguments, "0"], "too many"),
+            ):
+                failures.append((
+                    f"int main(void) {{ return {name}({', '.join(args)}); }}",
+                    f"kernel binding call has {detail} arguments",
+                ))
+        failures.extend((
+            ('int main(void) { return vfs_open(1.0, 0); }',
+             "cdecl argument type does not match fixed parameter"),
+            ('int main(void) { return vfs_read(31, 1.0, 5); }',
+             "cdecl argument type does not match fixed parameter"),
+            ('int main(void) { float4 value = {1, 2, 3, 4}; '
+             'return vfs_close(value); }',
+             "cdecl argument type does not match fixed parameter"),
+        ))
+        for source, diagnostic in failures:
+            for aot in (False, True):
+                with self.subTest(source=source, aot=aot):
+                    with tempfile.TemporaryDirectory(
+                        prefix="private-cupidc-vfs-negative-",
+                        ignore_cleanup_errors=True,
+                    ) as temporary:
+                        result, _code, _data = self._compile(
+                            Path(temporary), source, aot=aot
+                        )
+                    self.assertEqual(result.returncode, 2)
+                    self.assertIn(diagnostic, result.stderr)
+
+    def test_vfs_binding_failure_recovers_in_the_same_compiler_state(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-vfs-recovery-", ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_two_failures(
+                root,
+                "int main(void) { return vfs_read(31); }",
+                "int main(void) { return vfs_read(31, 1.0, 5); }",
+                "int main(void) { return vfs_seek(31.0, -7.0, 2.0) - 42; }",
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("kernel binding call has too few arguments", result.stderr)
+            self.assertIn("cdecl argument type does not match fixed parameter", result.stderr)
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_swap_bindings_convert_sizes_and_handles_in_jit_and_aot(self):
+        source = """
+            int main(void) {
+              double pool = 2147483651.0;
+              double size = 500.0;
+              double handle_argument = 2147483649.0;
+              U32 handle;
+              char *bytes;
+              if (swap_init("/swap", pool) != 0) return 1;
+              handle = swap_kmalloc(size);
+              if (handle != (U32)0x80000001) return 2;
+              if (handle < 0) return 3;
+              bytes = (char *)swap_pin(handle_argument);
+              if (!bytes) return 4;
+              bytes[0] = 53;
+              if (bytes[0] != 53) return 5;
+              swap_unpin(handle_argument);
+              swap_free(handle_argument);
+              if (native_free_count() != 3) return 6;
+              return 0;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_swap_bindings_reject_arity_and_incompatible_arguments(self):
+        calls = {
+            "swap_init": ['"/swap"', "500"],
+            "swap_kmalloc": ["500"],
+            "swap_pin": ["1"],
+            "swap_unpin": ["1"],
+            "swap_free": ["1"],
+        }
+        failures = []
+        for name, arguments in calls.items():
+            for args, detail in (
+                (arguments[:-1], "too few"),
+                ([*arguments, "0"], "too many"),
+            ):
+                failures.append((
+                    f"int main(void) {{ {name}({', '.join(args)}); return 0; }}",
+                    f"kernel binding call has {detail} arguments",
+                ))
+        failures.extend((
+            ('int main(void) { swap_init(1.0, 500); return 0; }',
+             "cdecl argument type does not match fixed parameter"),
+            ('int main(void) { float4 value = {1, 2, 3, 4}; '
+             'swap_pin(value); return 0; }',
+             "cdecl argument type does not match fixed parameter"),
+        ))
+        for source, diagnostic in failures:
+            for aot in (False, True):
+                with self.subTest(source=source, aot=aot):
+                    with tempfile.TemporaryDirectory(
+                        prefix="private-cupidc-swap-negative-",
+                        ignore_cleanup_errors=True,
+                    ) as temporary:
+                        result, _code, _data = self._compile(
+                            Path(temporary), source, aot=aot
+                        )
+                    self.assertEqual(result.returncode, 2)
+                    self.assertIn(diagnostic, result.stderr)
+
+    def test_swap_binding_failure_recovers_in_the_same_compiler_state(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-swap-recovery-", ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_two_failures(
+                root,
+                "int main(void) { swap_pin(1, 2); return 0; }",
+                "int main(void) { float4 value = {1, 2, 3, 4}; "
+                "swap_pin(value); return 0; }",
+                "int main(void) { return swap_pin(2147483649.0) == 0; }",
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("kernel binding call has too many arguments", result.stderr)
+            self.assertIn("cdecl argument type does not match fixed parameter", result.stderr)
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
 
     def test_typed_kernel_bindings_convert_and_lay_out_fixed_arguments(self):
         source = """

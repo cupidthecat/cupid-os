@@ -21,13 +21,16 @@ _NATIVE_CALLER = '#define main cupidbuild_cli_entry\n#include "cupidbuild_main.c
 
 class CupidBuildUserLinkCliTests(alias.CupidBuildUserLinkAliasOperationTests):
     native_modules_extra = ('artifact_size_policy', 'cupidbuild_artifacts',
-                            'user_syscall_abi', 'cupidbuild_user_abi')
+                            'user_syscall_abi', 'cupidbuild_user_abi', 'cupidbuild_iso',
+                            'cupidbuild_iso_capture', 'cupidbuild_iso_image',
+                            'cupidbuild_iso_publication', 'iso_fixture_bundle')
     caller_source = ('#include "cupidbuild_main.cc"\n'
                     if os.environ.get('CUPIDBUILD_USER_LINK_CHECKED') == '1' else _NATIVE_CALLER)
 
     def command(self, source='user/build/hello.o', output='user/build/hello', root=None):
         return list(map(str, [self.program, 'link-user', '--root', root or self.root,
-            '--seed-manifest', 'seed/manifest.json', '--source', source, '--output', output]))
+            '--seed-manifest', 'seed/manifest.json', '--seed-release', 'release.json',
+            '--source', source, '--output', output]))
 
     def run_link(self, source='user/build/hello.o', output='user/build/hello', env=None):
         return subprocess.run(self.command(source, output), cwd=physical.ROOT, env=env,

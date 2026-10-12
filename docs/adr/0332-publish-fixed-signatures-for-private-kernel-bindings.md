@@ -69,3 +69,23 @@ kernel binding publishes one at this boundary. Aggregate results and
 unreviewed binding parameters remain outside the typed cohort. This private
 compiler change does not alter the standalone checked seeds or transfer a
 production source owner. `TempleOS/` remains read-only reference material.
+
+## VFS and swap follow-up, 2026-10-11
+
+The reviewed cohort now includes eight VFS bindings and all five swap
+bindings. It uses the same fixed-signature descriptor and conversion path.
+Native implementations and parser rules retain their existing contracts.
+`vfs_stat` and `vfs_readdir` keep their legacy record-pointer interfaces
+until their native record identities are reviewed.
+
+Independent i386 JIT and AOT oracles check declared argument widths, signed
+and unsigned values, pointer and void results, repeated calls, arity errors
+and incompatible types. Real guest ISO and swap probes pass in both full
+28-command host frontiers. Paired complete OS builds and normal-root
+acceptance pass with all whole objects, linked products, user products and
+image bytes equal across hosts.
+
+[The storage record](../bootstrap/PRIVATE-STORAGE-BINDINGS.md) binds the
+implementation, preserved failures, focused tests, runtime frontiers and
+measured kernel policy changes. This follow-up does not promote an installed
+seed or transfer a normal build owner.

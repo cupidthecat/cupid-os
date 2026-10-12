@@ -1,6 +1,5 @@
 """Retained physical user-link boundary, before the alias/CLI handoff."""
 
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -11,6 +10,7 @@ import threading
 import time
 import unittest
 
+from tests.artifact_release_fixtures import replace_fixture_tool
 from tests.test_cupidbuild_compile_kernel import ROOT, SEED, SUFFIX, checked_run
 from tools import bootstrap_toolchain as bootstrap
 from tools.cupidc_production_compile import USER_I386_ARGUMENTS, USER_SOURCES
@@ -55,6 +55,10 @@ int main(int argc, char **argv) {
 }
 '''
 
+RELEASE_CALLER = CALLER.replace('argc != 5', 'argc != 6').replace(
+    'cupidbuild_link_user_object(&request)',
+    'cupidbuild_link_user_object_with_release(&request, argv[5])')
+
 
 class CupidBuildUserLinkTests(unittest.TestCase):
     @classmethod
@@ -63,7 +67,7 @@ class CupidBuildUserLinkTests(unittest.TestCase):
         cls.addClassCleanup(cls.build.cleanup)
         directory = Path(cls.build.name)
         caller = directory / 'caller.cc'
-        caller.write_text(getattr(cls, 'caller_source', CALLER), encoding='ascii')
+        caller.write_text(getattr(cls, 'caller_source', RELEASE_CALLER), encoding='ascii')
         cls.program = directory / ('caller.exe' if os.name == 'nt' else 'caller')
         if os.environ.get('CUPIDBUILD_USER_LINK_CHECKED') == '1':
             cls.build_checked_tool(directory, 'cupidbuild', cls.program, 'target', caller)
@@ -134,14 +138,10 @@ class CupidBuildUserLinkTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         shutil.copytree(SEED, self.root / 'seed')
-        target = self.root / 'seed' / ('cupidld' + SUFFIX)
-        shutil.copyfile(self.linker, target)
-        manifest = self.root / 'seed/manifest.json'
-        document = json.loads(manifest.read_bytes())
-        for row in document['artifacts']:
-            if row['name'] == 'cupidld':
-                row.update(size=target.stat().st_size, sha256=hashlib.sha256(target.read_bytes()).hexdigest())
-        manifest.write_text(json.dumps(document, indent=2) + '\n', encoding='utf-8')
+        release = self.root / 'release.json'
+        shutil.copyfile(ROOT / 'bootstrap/seeds/release.json', release)
+        replace_fixture_tool(self.root / 'seed/manifest.json', release, 'cupidld',
+                             'pe32' if os.name == 'nt' else 'elf32', self.linker.read_bytes())
         self.parent = self.root / 'user/build'
         self.parent.mkdir(parents=True)
         self.object = self.parent / 'hello.o'
@@ -150,7 +150,7 @@ class CupidBuildUserLinkTests(unittest.TestCase):
 
     def run_link(self, source='user/build/hello.o', output='user/build/hello', env=None):
         return subprocess.run(list(map(str, [self.program, self.root, 'seed/manifest.json',
-                                            source, output])), cwd=ROOT, env=env,
+                                            source, output, 'release.json'])), cwd=ROOT, env=env,
                               capture_output=True, text=True, timeout=150)
 
     def previous(self):
@@ -292,7 +292,7 @@ class CupidBuildUserLinkTests(unittest.TestCase):
         for root in roots:
             with self.subTest(root=root):
                 result = subprocess.run(list(map(str, [self.program, root,
-                    'seed/manifest.json', 'user/build/hello.o', 'user/build/hello'])),
+                    'seed/manifest.json', 'user/build/hello.o', 'user/build/hello', 'release.json'])),
                     cwd=self.root.parent, capture_output=True, text=True, timeout=150)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertTrue(result.stderr)

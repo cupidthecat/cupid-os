@@ -1,4 +1,3 @@
-import hashlib
 import json
 import os
 import re
@@ -9,6 +8,7 @@ import threading
 import time
 import unittest
 from pathlib import Path
+from tests.artifact_release_fixtures import released_behavior_fixture, replace_fixture_tool
 from tests.test_cupidbuild_compile_kernel import ROOT, SEED, SUFFIX, checked_run
 from tools.bootstrap_toolchain import _candidate_build_plan, _windows_build_plan, _windows_link_arguments
 from tools.cupidc_kernel_compile import KERNEL_I386_ARGUMENTS, validate_i386_relocatable_bytes
@@ -39,6 +39,7 @@ class CupidBuildCompileProductionTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         shutil.copytree(SEED, self.root / 'seed')
+        shutil.copyfile(ROOT / 'bootstrap/seeds/release.json', self.root / 'release.json')
         for logical, contents in self.contents.items():
             path = self.root / logical
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -48,6 +49,7 @@ class CupidBuildCompileProductionTests(unittest.TestCase):
     def run_compile(self, source=SOURCE, output=None, env=None, extra=(), cli=None):
         return subprocess.run(list(map(str, [cli or self.cli, 'compile-production', '--root', self.root,
                               '--seed-manifest', 'seed/manifest.json', '--source', source,
+                              '--seed-release', 'release.json',
                               '--output', output or Path(source).with_suffix('.o').as_posix()])) + list(extra),
                               capture_output=True, text=True, timeout=190, env=env)
 
@@ -290,13 +292,9 @@ int main(int argc, char **argv) {
                            '-o', executable, *[objects[name] for name in order]])
         checked_run([SEED / ('cupidld' + SUFFIX), *arguments])
         contents = executable.read_bytes()
-        seed_compiler = self.root / "seed" / ("cupidc" + SUFFIX)
-        seed_compiler.write_bytes(contents)
         manifest = self.root / "seed/manifest.json"
-        document = json.loads(manifest.read_text())
-        entry = next(item for item in document["artifacts"] if item["name"] == "cupidc")
-        entry.update(size=len(contents), sha256=hashlib.sha256(contents).hexdigest())
-        manifest.write_text(json.dumps(document, indent=2) + "\n")
+        replace_fixture_tool(manifest, self.root / "release.json", "cupidc",
+                             "pe32" if os.name == "nt" else "elf32", contents)
         before = self.previous()
         result = self.run_compile()
         self.assertNotEqual(result.returncode, 0)
@@ -373,8 +371,9 @@ int main(int argc, char **argv) {
                 self.root / 'staged-cohort', coordinator)
         behavior = self.root / "paired-behavior"
         behavior.mkdir()
+        inputs, runner = released_behavior_fixture(ROOT, stage, inputs, NativeRunner())
         _check_cupidbuild_compile_production_behavior(
-            NativeRunner(), behavior, stage, stage, inputs, "contract ",
+            runner, behavior, stage, stage, inputs, "contract ",
         )
 
 

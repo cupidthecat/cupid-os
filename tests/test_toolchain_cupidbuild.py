@@ -13,6 +13,9 @@ import time
 import unittest
 from pathlib import Path
 
+from tests.artifact_release_fixtures import replace_fixture_tool
+from tests.test_seed_manifest import historical_manifest
+
 from tools.bootstrap_toolchain import (
     _CUPIDBUILD_BOOTLOADER_BEHAVIOR_SOURCE,
     _CUPIDBUILD_ISO_PATTERN_BEHAVIOR_SOURCE,
@@ -3410,6 +3413,23 @@ int main(int argc, char **argv) {
         platform = "i386-windows" if os.name == "nt" else "i386-linux"
         return REPO_ROOT / "bootstrap" / "seeds" / platform / "manifest.json"
 
+    def _production_release(self):
+        selected = os.environ.get("CUPIDBUILD_TEST_SEED_RELEASE")
+        return (Path(selected).resolve() if selected else
+                self._production_manifest().parent.parent / "release.json")
+
+    def _select_fixture_release(self, manifest, release):
+        if not hasattr(self, "_fixture_releases"):
+            self._fixture_releases = {}
+        self._fixture_releases[Path(manifest)] = release
+
+    def _seed_release_arguments(self, manifest=None):
+        selected = Path(manifest or self._production_manifest())
+        default = (selected.parent.parent / "release.json" if manifest else
+                   self._production_release())
+        release = getattr(self, "_fixture_releases", {}).get(selected, default)
+        return [] if release is None else ["--seed-release", str(release)]
+
     def _production_tool(self, name):
         manifest = self._production_manifest()
         document = json.loads(manifest.read_text(encoding="utf-8"))
@@ -3459,6 +3479,7 @@ int main(int argc, char **argv) {
             "run",
             "--seed-manifest",
             str(manifest or self._production_manifest()),
+            *self._seed_release_arguments(manifest),
             "--root",
             str(root),
             "--tool",
@@ -3486,6 +3507,7 @@ int main(int argc, char **argv) {
             operation,
             "--seed-manifest",
             str(manifest or self._production_manifest()),
+            *self._seed_release_arguments(manifest),
             "--root",
             str(root),
             "--source",
@@ -3550,6 +3572,7 @@ int main(int argc, char **argv) {
                 "flatten-kernel",
                 "--seed-manifest",
                 str(seed_manifest),
+                *self._seed_release_arguments(seed_manifest),
                 "--root",
                 str(root),
                 "--input-manifest",
@@ -3579,6 +3602,7 @@ int main(int argc, char **argv) {
                 "generate-profile-manifest",
                 "--seed-manifest",
                 str(manifest or self._production_manifest()),
+                *self._seed_release_arguments(manifest),
                 "--root",
                 str(root),
                 "--output",
@@ -3756,40 +3780,27 @@ int main(int argc, char **argv) {
                 production_seed / f"{tool}{suffix}",
                 destination / f"{tool}{suffix}",
             )
-        return destination / "manifest.json"
+        manifest = destination / "manifest.json"
+        release = destination.parent / "release.json"
+        shutil.copy2(self._production_release(), release)
+        self._select_fixture_release(manifest, release)
+        return manifest
 
     def _replace_seed_tool(self, manifest, name, executable):
-        document = json.loads(manifest.read_text(encoding="utf-8"))
-        artifact = next(
-            artifact
-            for artifact in document["artifacts"]
-            if artifact["name"] == name
-        )
-        destination = manifest.parent / artifact["file"]
-        shutil.copy2(executable, destination)
-        payload = destination.read_bytes()
-        artifact["size"] = len(payload)
-        artifact["sha256"] = hashlib.sha256(payload).hexdigest()
-        manifest.write_text(
-            json.dumps(document, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        self._replace_seed_tool_bytes(manifest, name, Path(executable).read_bytes())
 
     def _replace_seed_tool_bytes(self, manifest, name, payload):
+        release = self._seed_release_arguments(manifest)
+        if release:
+            replace_fixture_tool(manifest, Path(release[1]), name,
+                                 "pe32" if os.name == "nt" else "elf32", payload)
+            return
         document = json.loads(manifest.read_text(encoding="utf-8"))
-        artifact = next(
-            artifact
-            for artifact in document["artifacts"]
-            if artifact["name"] == name
-        )
-        destination = manifest.parent / artifact["file"]
-        destination.write_bytes(payload)
-        artifact["size"] = len(payload)
-        artifact["sha256"] = hashlib.sha256(payload).hexdigest()
-        manifest.write_text(
-            json.dumps(document, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        artifact = next(row for row in document["artifacts"] if row["name"] == name)
+        (manifest.parent / artifact["file"]).write_bytes(payload)
+        artifact.update(size=len(payload), sha256=hashlib.sha256(payload).hexdigest())
+        manifest.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n",
+                            encoding="utf-8")
 
     def _rewrite_manifest(self, manifest, change, *, compact=False):
         document = json.loads(manifest.read_text(encoding="utf-8"))
@@ -3803,84 +3814,16 @@ int main(int argc, char **argv) {
         manifest.write_text(encoded, encoding="utf-8")
 
     def _promote_seed_contract(self, manifest):
-        document = json.loads(manifest.read_text(encoding="utf-8"))
-        revision = "abcdef0123456789abcdef0123456789abcdef01"
-        snapshot = "2" * 64
-        if os.name == "nt":
-            document["schema"] = "cupid.execution-seed.v2"
-            document["provenance"] = {
-                "artifact_generation": (
-                    "paired-stage-four-six-tool-native-windows"
-                ),
-                "fixed_point_command": "make bootstrap-windows-from-seed",
-                "fixed_point_result": "pass",
-                "linux_candidate_build_plan_sha256": (
-                    "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd"
-                ),
-                "native_build_plan_sha256": (
-                    "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669"
-                ),
-                "plan_seed_manifest_sha256": "3" * 64,
-                "parent_execution_seed_manifest_sha256": (
-                    "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590"
-                ),
-                "parent_execution_seed_source_revision": (
-                    "83d00ce70e5607dc5c011bb97c6478121f24a21c"
-                ),
-                "parent_plan_seed_manifest_sha256": (
-                    "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
-                ),
-                "parent_plan_seed_source_revision": (
-                    "83d00ce70e5607dc5c011bb97c6478121f24a21c"
-                ),
-                "producer_lineage": document["provenance"][
-                    "producer_lineage"
-                ],
-                "source_input_count": 59,
-                "source_revision": revision,
-                "source_snapshot_sha256": snapshot,
-            }
-        else:
-            document["schema"] = "cupid.bootstrap-seed.v2"
-            plan = document["build_plan"]
-            # Match the historical source/link plan to the 59/61-input contract.
-            removed = {"seed_manifest", "seed_release", "contract_parse_internal",
-                       "artifact_size_policy", "cupidbuild_artifacts"}
-            plan["sources"] = [row for row in plan["sources"]
-                               if row["name"] not in removed]
-            plan["links"]["cupidbuild"] = [name for name in plan["links"]["cupidbuild"]
-                                          if name not in removed]
-            encoded_plan = json.dumps(
-                plan,
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=True,
-            ).encode("ascii")
-            document["build_plan_sha256"] = hashlib.sha256(
-                encoded_plan
-            ).hexdigest()
-            document["provenance"] = {
-                "artifact_generation": "paired-stage-four-six-tool",
-                "fixed_point_command": "make bootstrap-from-seed",
-                "fixed_point_result": "pass",
-                "parent_seed_manifest_sha256": (
-                    "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
-                ),
-                "parent_seed_source_revision": (
-                    "83d00ce70e5607dc5c011bb97c6478121f24a21c"
-                ),
-                "producer_lineage": document["provenance"][
-                    "producer_lineage"
-                ],
-                "seed_generation": "stage-four",
-                "source_input_count": 59,
-                "source_revision": revision,
-                "source_snapshot_sha256": snapshot,
-            }
-        manifest.write_text(
-            json.dumps(document, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        artifacts = json.loads(manifest.read_bytes())["artifacts"]
+        document = historical_manifest(2 if os.name == "nt" else 1)
+        document["artifacts"] = artifacts
+        document["provenance"].update(
+            source_revision="abcdef0123456789abcdef0123456789abcdef01",
+            source_snapshot_sha256="2" * 64)
+        # Historical parser controls retain their frozen plan without a release.
+        self._select_fixture_release(manifest, None)
+        manifest.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n",
+                            encoding="utf-8")
         return document
 
     @staticmethod
@@ -3915,7 +3858,8 @@ int main(int argc, char **argv) {
             }
         else:
             legacy["schema"] = "cupid.bootstrap-seed.v1"
-            plan = legacy["build_plan"]
+            plan = historical_manifest(1)["build_plan"]
+            legacy["build_plan"] = plan
             candidate_sources = {
                 "cupidbuild",
                 "cupidbuild_host",
@@ -4844,6 +4788,7 @@ int main(int argc, char **argv) {
             manifest = self._copy_checked_assembly_seed(root / "seed")
             document = json.loads(manifest.read_text(encoding="utf-8"))
             legacy = self._legacy_seed_contract(document)
+            self._select_fixture_release(manifest, None)
             for artifact in document["artifacts"]:
                 if artifact["name"] == "cupidbuild":
                     (manifest.parent / artifact["file"]).unlink()
@@ -5226,12 +5171,13 @@ int main(int argc, char **argv) {
                 self.assertEqual(result.stdout + result.stderr, "")
                 self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
 
-    def test_unsupported_seed_schema_is_rejected_before_assembly(self):
+    def test_historical_unsupported_seed_schema_is_rejected_before_assembly(self):
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-object-schema-", dir=REPO_ROOT
         ) as temporary:
             root = Path(temporary)
             manifest = self._copy_checked_assembly_seed(root / "seed")
+            self._promote_seed_contract(manifest)
             source = root / "input.asm"
             output = root / "output.o"
             source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")
@@ -5276,12 +5222,13 @@ int main(int argc, char **argv) {
             self.assertIn("target contract differs", result.stderr)
             self.assertEqual(output.read_bytes(), original)
 
-    def test_seed_provenance_failure_is_rejected_before_assembly(self):
+    def test_historical_seed_provenance_failure_is_rejected_before_assembly(self):
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-object-provenance-", dir=REPO_ROOT
         ) as temporary:
             root = Path(temporary)
             manifest = self._copy_checked_assembly_seed(root / "seed")
+            self._promote_seed_contract(manifest)
             source = root / "input.asm"
             output = root / "output.o"
             source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")
@@ -5302,12 +5249,13 @@ int main(int argc, char **argv) {
             self.assertIn("fixed-point provenance differs", result.stderr)
             self.assertEqual(output.read_bytes(), original)
 
-    def test_seed_producer_role_drift_is_rejected_before_assembly(self):
+    def test_historical_seed_producer_role_drift_is_rejected_before_assembly(self):
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-object-producer-role-", dir=REPO_ROOT
         ) as temporary:
             root = Path(temporary)
             manifest = self._copy_checked_assembly_seed(root / "seed")
+            self._promote_seed_contract(manifest)
             source = root / "input.asm"
             output = root / "output.o"
             source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")

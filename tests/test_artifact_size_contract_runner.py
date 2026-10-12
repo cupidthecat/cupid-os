@@ -1060,7 +1060,11 @@ class ArtifactSizeMakeOrderTests(unittest.TestCase):
         checked_targets = build_graph_audit._reachable_rules(
             self.rules, "verify-artifact-sizes"
         )
-        self.assertEqual(all_targets - checked_targets, {"all", "cupidos.img"})
+        # Only image publication reads the host coordinator source.
+        self.assertEqual(
+            all_targets - checked_targets,
+            {"all", "cupidos.img", "tools/hostbuild.py"},
+        )
 
     def _parallel_fixture(self, *, fail_iso=False, remove_barrier=False):
         temporary = tempfile.TemporaryDirectory(prefix="cupid-size-make-order-")

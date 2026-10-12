@@ -9,8 +9,8 @@ from tools.cupidld_user_link import validate_user_executable_bytes
 
 
 class CupidBuildUserLinkAliasOperationTests(physical.CupidBuildUserLinkTests):
-    caller_source = physical.CALLER.replace('cupidbuild_link_user_object(',
-                                           'cupidbuild_link_user(')
+    caller_source = physical.RELEASE_CALLER.replace('cupidbuild_link_user_object_with_release(',
+                                                   'cupidbuild_link_user_with_release(')
 
     def alias(self, path, destination):
         if os.name == 'nt':
@@ -22,7 +22,7 @@ class CupidBuildUserLinkAliasOperationTests(physical.CupidBuildUserLinkTests):
 
     def test_relative_repository_root_is_rejected_before_publication(self):
         result = subprocess.run(list(map(str, [self.program, self.root.name,
-            'seed/manifest.json', 'user/build/hello.o', 'user/build/hello'])),
+            'seed/manifest.json', 'user/build/hello.o', 'user/build/hello', 'release.json'])),
             cwd=self.root.parent, capture_output=True, text=True, timeout=150)
         self.assertEqual(result.returncode, 0, result.stderr)
         validate_user_executable_bytes(self.output.read_bytes())
@@ -79,7 +79,7 @@ class CupidBuildUserLinkAliasOperationTests(physical.CupidBuildUserLinkTests):
         self.addCleanup(alias.rmdir if os.name == 'nt' else alias.unlink)
         for root in (alias, alias.parent / '..' / alias.parent.name / alias.name):
             result = subprocess.run(list(map(str, [self.program, root, 'seed/manifest.json',
-                'user/build/hello.o', 'user/build/hello'])), capture_output=True,
+                'user/build/hello.o', 'user/build/hello', 'release.json'])), capture_output=True,
                 text=True, timeout=150)
             self.assertEqual(result.returncode, 0, result.stderr)
             validate_user_executable_bytes(self.output.read_bytes())

@@ -225,6 +225,35 @@ int check_glyph_raster() {
     return 1;
 }
 
+int check_vfs_binding_conversions() {
+    const char *old_path = "/feature17-binding/file";
+    const char *new_path = "/feature17-binding/renamed";
+    double flags = 770.0;
+    double count = 8.0;
+    char bytes[8];
+    char loaded[8];
+    int index = 0;
+    while (index < 8) {
+        bytes[index] = 40 + index;
+        loaded[index] = 0;
+        index += 1;
+    }
+    if (vfs_mkdir("/feature17-binding") != 0) return 0;
+    int fd = vfs_open(old_path, flags);
+    if (fd < 0) return 0;
+    double descriptor = (double)fd;
+    int ok = 1;
+    if (vfs_write(descriptor, bytes, count) != 8) ok = 0;
+    if (vfs_seek(descriptor, 0.0, 0.0f) != 0) ok = 0;
+    if (vfs_read(descriptor, loaded, count) != 8) ok = 0;
+    if (vfs_close(descriptor) != 0) ok = 0;
+    if (!str_eq_n(bytes, loaded, 8)) ok = 0;
+    if (vfs_rename(old_path, new_path) != 0) ok = 0;
+    if (vfs_unlink(new_path) != 0) ok = 0;
+    if (ok) serial_printf("PASS feature17_binding calls=8 bytes=8\n");
+    return ok;
+}
+
 void main() {
     int ok = 1;
 
@@ -335,6 +364,11 @@ void main() {
     shell_execute_line("umount /iso_2");
     shell_execute_line("umount /iso_3");
     shell_execute_line("umount /iso_4");
+
+    if (!check_vfs_binding_conversions()) {
+        serial_printf("[feature17] FAIL native binding conversion\n");
+        ok = 0;
+    }
 
     if (ok) {
         serial_printf("PASS feature17_iso\n");
