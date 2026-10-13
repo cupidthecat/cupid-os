@@ -322,6 +322,40 @@ FRONTIER_RUNTIME_COMMANDS = (
         ),
     ),
     TerminalCommand(
+        "/bin/feature23_full_access.cc",
+        (
+            r"\[cupidc\] JIT compile: /bin/feature23_full_access\.cc"
+            r".*?PASS feature23_binding bindings=20 slots=4 unsigned=4 peer=1 halfwords=8 guards=2"
+            r".*?PASS feature23_initializers arrays=5 calls=2"
+            r".*?PASS feature23_halfword_types strides=2 rows=3 broadcasts=4 casts=2"
+            r".*?\[feature23\] PASS"
+            rf".*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+    ),
+    TerminalCommand(
+        "ccc /bin/feature23_full_access.cc -o /feature23_binding_aot",
+        (
+            r"\[cupidc\] AOT compile: /bin/feature23_full_access\.cc -> "
+            r"/feature23_binding_aot"
+            r".*?\[cupidc\] Wrote ELF: /feature23_binding_aot "
+            r"\([1-9][0-9]* bytes code, [0-9]+ bytes data, "
+            r"entry=0x(?:0x)?[0-9A-Fa-f]+, total=[1-9][0-9]* bytes\)"
+        ),
+        timeout_seconds=180.0,
+    ),
+    TerminalCommand(
+        "exec /feature23_binding_aot",
+        (
+            r"\[elf\] Loaded /feature23_binding_aot as PID (?P<pid>[1-9][0-9]*)"
+            r".*?PASS feature23_binding bindings=20 slots=4 unsigned=4 peer=1 halfwords=8 guards=2"
+            r".*?PASS feature23_initializers arrays=5 calls=2"
+            r".*?PASS feature23_halfword_types strides=2 rows=3 broadcasts=4 casts=2"
+            r".*?\[feature23\] PASS"
+            r'.*?\[PROCESS\] PID (?P=pid) "/feature23_binding_aot" exiting'
+        ),
+        timeout_seconds=180.0,
+    ),
+    TerminalCommand(
         "ccc /bin/gfxgui_test.cc -o /gfxgui_test",
         (
             r"\[cupidc\] AOT compile: /bin/gfxgui_test\.cc -> "
@@ -568,6 +602,9 @@ FRONTIER_STORAGE_READY_PATTERN = (
 )
 
 FRONTIER_RUNTIME_REJECTED_MARKERS = (
+    "FAIL feature23_binding",
+    "FAIL feature23_initializers",
+    "FAIL feature23_halfword_types",
     "KERNEL PANIC",
     "[PANIC] CPU Exception",
     "Heap corruption",

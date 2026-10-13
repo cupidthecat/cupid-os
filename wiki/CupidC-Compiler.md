@@ -1,5 +1,58 @@
 # CupidC Compiler
 
+## Private halfword storage and constant array data
+
+`short` and `I16` use signed two-byte storage; `unsigned short` and `U16` use
+unsigned two-byte storage. Objects align to two bytes. Pointers and fixed
+native cdecl argument slots remain four bytes. Signed loads and results
+sign-extend; unsigned values zero-extend. Both halfword types promote to `int`
+for default arguments. The existing unsigned-word conversions remain intact.
+
+Scalar pointer arithmetic uses the two-byte element stride. Dereferenced fixed
+arrays retain their remaining row shape for `sizeof`, and `_mm_set1_ps` and
+`_mm_set1_pd` accept halfword scalar arguments. Explicit halfword casts accept
+arithmetic scalars and represented object or function addresses; vector, record
+and void operands receive errors.
+
+Fixed signatures cover `htons`, `ntohs`, `bind`, `connect`, `accept`, `sendto`,
+`recvfrom` and `udp_send_raw`. Port outputs use `U16 *` and write two bytes.
+Named native calls, record callbacks and class methods normalize their halfword
+results even if the callee leaves unrelated bits in upper EAX. Arity and
+incompatible-argument errors preserve recovery in the same compiler state.
+
+Global, block-static and persistent REPL integer arrays accept flat constant
+brace lists using their declared one-, two- or four-byte elements. Omitted
+elements remain zero, and block-static array data initializes once. Excess
+elements, nonconstant calls and division by zero receive errors. A failed
+REPL declaration restores earlier data and names and permits reuse of its name.
+
+[The private qualification record](../docs/bootstrap/PRIVATE-INTEGER-ARRAY-QUALIFICATION.md)
+records the measured candidate and completed working-tree adoption, with bounded final
+engineering acceptance in the [final five-test proof](../docs/bootstrap/evidence/verification-final-root-combined-five-test-acceptance-20261013.json.gz). General scalar
+and aggregate initialization, nested lists, inferred bounds, pointer difference
+and indirect integer updates require their separate qualification.
+
+## Current working-tree qualification
+
+The separately qualified seventeen-file seed transition is applied in the
+engineering working tree, and both installed root verifiers pass. Its actual
+Make, public-method, normal/guest and four SDK consumer records remain separate
+from final acceptance of the engineering checkout. Each SDK profile retains
+104 source inputs, 77 complete stage pairs and 22 published ELF programs.
+[The seed record](../docs/bootstrap/QUALIFIED-CURRENT-POLICY-SEEDS.md) and
+[protected baseline record](../docs/bootstrap/PROTECTED-BASELINE-SEED-TRANSITION.md)
+retain the consumer evidence and failed baseline.
+
+The private halfword and array candidate passes paired ordinary/runtime checks
+and both complete original frontier modules. The 32-member module archive and exact source/lock working-tree guards pass. Bounded final engineering acceptance passes in the [final five-test proof](../docs/bootstrap/evidence/verification-final-root-combined-five-test-acceptance-20261013.json.gz).
+Windows combines eight retained build/guest commands with one fresh
+complete suite; Linux freshly rebuilds normal products and checks guest
+runtime, without a complete Linux suite. Full self-hosting and
+source-ownership transfer remain unfinished.
+
+## Earlier hosted-runtime qualification checkpoint
+
+
 The shared hosted runtime source now uses size bins for free storage on both
 hosts and shared Windows regions for small allocations. The allocator retains
 sixteen-byte alignment and failed-realloc data, and keeps storage reusable when

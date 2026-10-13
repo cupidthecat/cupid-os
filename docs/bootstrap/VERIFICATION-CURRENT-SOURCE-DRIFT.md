@@ -1,5 +1,38 @@
 # Verify current source and retained compiler output
 
+## Protected DAC baseline and reviewed working-tree transition, 2026-10-12
+
+The later protected `dac07150` run closes with 3,476 tests, one failure and 72
+skips. All 2,260 controlled inputs remain unchanged during that run. Its original
+public-bootstrap method reports `behavior stage tools differ from reviewed seed
+cohort`; the separate complete static fixed-point method passes. This failed
+run and the earlier 3,463-test failure both remain failed records.
+
+The unchanged public method passes on both hosts against the same qualified
+capture, with Linux executing through WSL. The test and 99 producer inputs match,
+but broader checkout differences prevent a seventeen-file-only suite claim.
+Six fast controls run the unchanged production authorization for retained ELF
+and PE payloads; they do not rebuild stages or recover the failed run's deleted
+tools. The first PE harness failure and corrected six-case run remain preserved.
+
+The reviewed gate permits an exact reversible working-tree transition, with
+all original comparison rules and final acceptance requirements intact. The
+seventeen-file seed transition is applied and both root verifiers pass. The
+private compiler and six measured constants now pass working-tree adoption
+with their paired 32-member module archive and exact before/after guards. Bounded final engineering acceptance passes in the [final five-test proof](evidence/verification-final-root-combined-five-test-acceptance-20261013.json.gz).
+The Windows complete suite is fresh; its eight preceding normal/guest
+commands remain retained. Linux freshly rebuilds normal products and
+runs the original guest checks, without a complete Linux suite. [The baseline record](PROTECTED-BASELINE-SEED-TRANSITION.md)
+retains the original logs, source archive and bounded diagnosis.
+
+The [restoration index](evidence/verification-source-readback-restorations-20261012.json.gz)
+retains three absent-copy guards and bounded source recovery. It does not
+recreate original filesystem identities, Git metadata or prior products, and
+claims no fresh build, runtime or producer qualification.
+
+The later final engineering qualification has its own [final five-test proof](evidence/verification-final-root-combined-five-test-acceptance-20261013.json.gz);
+it does not change the earlier restoration-only scope.
+
 The protected suite at `4cb7bc80` completes all 3,463 tests in 17,433.624
 seconds. It records 49 failures, one error and 64 skips. All 2,225 controlled
 files remain unchanged. The independently verified originals archive has

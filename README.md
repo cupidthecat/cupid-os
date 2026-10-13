@@ -1,5 +1,19 @@
 # cupid-os
 
+## Private integer storage and initializer candidate
+
+The private candidate has real two-byte halfwords, fixed native network
+signatures and flat integer lists in global, block-static and persistent
+REPL arrays. Paired ordinary builds, runtime checks, standalone emissions
+and full frontier modules pass. Source and six-constant lock adoption now pass their working-tree guards;
+Final engineering acceptance passes within the Windows retained-prefix plus
+fresh-suite and Linux forced-native normal/guest scopes in the
+[final five-test proof](docs/bootstrap/evidence/verification-final-root-combined-five-test-acceptance-20261013.json.gz). Full self-hosting remains unfinished.
+The separate seventeen-file seed transition is applied and verified.
+
+[The qualification record](docs/bootstrap/PRIVATE-INTEGER-ARRAY-QUALIFICATION.md)
+retains the measured outputs, failed attempts and remaining language scope.
+
 Private i386 compiler tests now run directly on Windows; the paired focused
 replays pass. [The native oracle record](docs/bootstrap/NATIVE-WINDOWS-PRIVATE-ORACLE.md)
 records execution, rejection controls and development dependencies.

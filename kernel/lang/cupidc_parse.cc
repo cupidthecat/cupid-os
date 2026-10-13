@@ -199,6 +199,71 @@ static void emit_movzx_eax_al(cc_state_t *cc) {
   emit8(cc, 0xC0);
 }
 
+static int cc_is_halfword_type(cc_type_t type) {
+  return type == TYPE_SHORT || type == TYPE_USHORT;
+}
+
+static int cc_is_integer_scalar_type(cc_type_t type) {
+  return type == TYPE_INT || type == TYPE_UINT || type == TYPE_CHAR ||
+         cc_is_halfword_type(type);
+}
+
+/* Both halfword types use a normalized EAX value and a full cdecl slot. */
+static void emit_normalize_halfword(cc_state_t *cc, cc_type_t type) {
+  emit8(cc, 0x0F);
+  emit8(cc, type == TYPE_SHORT ? 0xBF : 0xB7);
+  emit8(cc, 0xC0); /* movsx/movzx eax, ax */
+}
+
+static void emit_deref_halfword(cc_state_t *cc, cc_type_t type) {
+  emit8(cc, 0x0F);
+  emit8(cc, type == TYPE_SHORT ? 0xBF : 0xB7);
+  emit8(cc, 0x00); /* movsx/movzx eax, word [eax] */
+}
+
+static void emit_store_halfword_ptr(cc_state_t *cc) {
+  emit8(cc, 0x66);
+  emit8(cc, 0x89);
+  emit8(cc, 0x18); /* mov word [eax], bx */
+}
+
+static void emit_load_local_halfword(cc_state_t *cc, int32_t offset,
+                                     cc_type_t type) {
+  emit8(cc, 0x0F);
+  emit8(cc, type == TYPE_SHORT ? 0xBF : 0xB7);
+  emit8(cc, 0x85);
+  emit32(cc, (uint32_t)offset);
+}
+
+static void emit_store_local_halfword(cc_state_t *cc, int32_t offset) {
+  emit8(cc, 0x66);
+  emit8(cc, 0x89);
+  emit8(cc, 0x85);
+  emit32(cc, (uint32_t)offset);
+}
+
+static void emit_load_halfword_symbol(cc_state_t *cc, cc_symbol_t *sym) {
+  if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+    emit_load_local_halfword(cc, sym->offset, sym->type);
+  } else {
+    emit8(cc, 0x0F);
+    emit8(cc, sym->type == TYPE_SHORT ? 0xBF : 0xB7);
+    emit8(cc, 0x05);
+    emit32(cc, sym->address);
+  }
+}
+
+static void emit_store_halfword_symbol(cc_state_t *cc, cc_symbol_t *sym) {
+  emit_normalize_halfword(cc, sym->type);
+  if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+    emit_store_local_halfword(cc, sym->offset);
+  } else {
+    emit8(cc, 0x66);
+    emit8(cc, 0xA3);
+    emit32(cc, sym->address);
+  }
+}
+
 /* mov [eax], bl (store byte through pointer) */
 static void emit_store_byte_ptr(cc_state_t *cc) {
   emit8(cc, 0x88); /* mov [eax], bl */
@@ -899,9 +964,13 @@ static int cc_patch_data32(cc_state_t *cc, uint32_t offset,
   return 1;
 }
 
+static int cc_coerce_cdecl_argument(cc_state_t *cc, cc_type_t target_type);
+
 static int cc_coerce_unsigned_conversion(cc_state_t *cc,
                                          cc_type_t target_type,
                                          cc_type_t source_type) {
+  if (cc_is_halfword_type(target_type))
+    return cc_coerce_cdecl_argument(cc, target_type);
   if (target_type == TYPE_UINT &&
       (source_type == TYPE_FLOAT || source_type == TYPE_DOUBLE)) {
     emit_cvtfp_to_ui32(cc, source_type == TYPE_DOUBLE);
@@ -914,6 +983,14 @@ static int cc_coerce_unsigned_assignment(cc_state_t *cc,
                                          cc_type_t target_type,
                                          cc_type_t source_type,
                                          cc_token_type_t operation) {
+  if (cc_is_halfword_type(target_type) && operation != CC_TOK_EQ) {
+    if (!cc_is_integer_scalar_type(source_type) &&
+        source_type != TYPE_FLOAT && source_type != TYPE_DOUBLE) {
+      cc_error(cc, "halfword compound assignment requires an integer operand");
+      return 0;
+    }
+    return 1;
+  }
   if (target_type == TYPE_UINT && operation != CC_TOK_EQ &&
       (source_type == TYPE_FLOAT || source_type == TYPE_DOUBLE)) {
     cc_error(cc,
@@ -1645,12 +1722,17 @@ static int cc_reject_incomplete_simd_row(cc_state_t *cc) {
 
 static int cc_is_object_pointer_type(cc_type_t type) {
   return type == TYPE_PTR || type == TYPE_INT_PTR ||
-         type == TYPE_UINT_PTR ||
+         type == TYPE_UINT_PTR || type == TYPE_SHORT_PTR ||
+         type == TYPE_USHORT_PTR ||
          type == TYPE_CHAR_PTR || type == TYPE_STRUCT_PTR ||
          type == TYPE_FLOAT_PTR || type == TYPE_DOUBLE_PTR;
 }
 
 static cc_type_t cc_pointed_object_type(cc_type_t type) {
+  if (type == TYPE_SHORT_PTR)
+    return TYPE_SHORT;
+  if (type == TYPE_USHORT_PTR)
+    return TYPE_USHORT;
   if (type == TYPE_CHAR_PTR)
     return TYPE_CHAR;
   if (type == TYPE_STRUCT_PTR)
@@ -1667,6 +1749,10 @@ static cc_type_t cc_pointed_object_type(cc_type_t type) {
 }
 
 static cc_type_t cc_object_pointer_type(cc_type_t type) {
+  if (type == TYPE_SHORT)
+    return TYPE_SHORT_PTR;
+  if (type == TYPE_USHORT)
+    return TYPE_USHORT_PTR;
   if (type == TYPE_CHAR)
     return TYPE_CHAR_PTR;
   if (type == TYPE_STRUCT)
@@ -1683,6 +1769,46 @@ static cc_type_t cc_object_pointer_type(cc_type_t type) {
 }
 
 static int cc_parse_const_int_expr(cc_state_t *cc, int32_t *out);
+
+static int cc_parse_integer_array_initializer(cc_state_t *cc,
+                                               cc_symbol_t *symbol,
+                                               cc_type_t element_type) {
+  int32_t index = 0;
+  int32_t width = cc_is_halfword_type(element_type) ? 2 :
+                  element_type == TYPE_CHAR ? 1 : 4;
+  int32_t count;
+  uint32_t offset;
+
+  if (!cc_match(cc, CC_TOK_EQ))
+    return 1;
+  if (!symbol || !cc_is_integer_scalar_type(element_type)) {
+    cc_error(cc, "global array initializer requires integer elements");
+    return 0;
+  }
+  count = symbol->array_object_size / width;
+  offset = symbol->address - cc->data_base;
+  if (!cc_expect(cc, CC_TOK_LBRACE))
+    return 0;
+  while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE) {
+    int32_t value;
+    int32_t byte;
+    uint32_t bits;
+    if (index >= count) {
+      cc_error(cc, "too many integer array initializers");
+      return 0;
+    }
+    if (!cc_parse_const_int_expr(cc, &value))
+      return 0;
+    bits = (uint32_t)value;
+    for (byte = 0; byte < width; byte++)
+      cc->data[offset + (uint32_t)(index * width + byte)] =
+          (uint8_t)(bits >> (uint32_t)(8 * byte));
+    index++;
+    if (!cc_match(cc, CC_TOK_COMMA))
+      break;
+  }
+  return cc_expect(cc, CC_TOK_RBRACE);
+}
 
 static cc_type_t cc_apply_pointer_declarator(cc_state_t *cc,
                                              cc_type_t base,
@@ -1750,7 +1876,10 @@ static void cc_seed_pointer_subscript_metadata(cc_state_t *cc,
                                                int struct_index) {
   cc_reset_expr_subscript_metadata();
   cc_last_expr_struct_index = struct_index;
-  if (type == TYPE_CHAR_PTR) {
+  if (type == TYPE_SHORT_PTR || type == TYPE_USHORT_PTR) {
+    cc_last_expr_elem_size = 2;
+    cc_last_expr_array_elem_type = cc_pointed_object_type(type);
+  } else if (type == TYPE_CHAR_PTR) {
     cc_last_expr_elem_size = 1;
     cc_last_expr_array_elem_type = TYPE_CHAR;
   } else if (type == TYPE_FLOAT_PTR) {
@@ -2055,9 +2184,9 @@ static int cc_parse_const_int_value_primary(cc_state_t *cc,
     return cc_apply_const_int_negate(cc, value, out);
   }
   cc_token_t t = cc_next(cc);
-  if (t.type == CC_TOK_NUMBER) {
+  if (t.type == CC_TOK_NUMBER || t.type == CC_TOK_CHAR_LIT) {
     out->value = t.int_value;
-    out->is_unsigned = t.int_is_unsigned;
+    out->is_unsigned = t.type == CC_TOK_NUMBER && t.int_is_unsigned;
     return 1;
   }
   if (t.type == CC_TOK_IDENT) {
@@ -2292,6 +2421,8 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
   cc_type_t base;
   int saw_signed = 0;
   int saw_unsigned = 0;
+  int saw_short = 0;
+  int saw_long = 0;
   cc_last_type_struct_index = -1;
   cc_last_type_base = TYPE_INT;
   cc_last_type_pointer_depth = 0;
@@ -2310,6 +2441,15 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
       tok = cc_next(cc);
       continue;
     }
+    if (tok.type == CC_TOK_SHORT) {
+      if (saw_short) {
+        cc_error(cc, "short specifier may appear only once");
+        return TYPE_INT;
+      }
+      saw_short = 1;
+    }
+    else if (tok.type == CC_TOK_LONG)
+      saw_long = 1;
     if (tok.type == CC_TOK_CONST)
       cc_last_type_is_const_qualified = 1;
     else if (tok.type == CC_TOK_SIGNED)
@@ -2466,6 +2606,15 @@ have_base:
   /* Allow trailing qualifiers after base type (e.g. char const *). */
   while (cc_is_type_prefix(cc_peek(cc).type)) {
     cc_token_type_t prefix = cc_peek(cc).type;
+    if (prefix == CC_TOK_SHORT) {
+      if (saw_short) {
+        cc_error(cc, "short specifier may appear only once");
+        return TYPE_INT;
+      }
+      saw_short = 1;
+    }
+    else if (prefix == CC_TOK_LONG)
+      saw_long = 1;
     if (prefix == CC_TOK_CONST)
       cc_last_type_is_const_qualified = 1;
     else if (prefix == CC_TOK_SIGNED)
@@ -2482,10 +2631,19 @@ have_base:
       cc_next(cc);
   }
 
+  if (saw_short) {
+    if (saw_long || (base != TYPE_INT && base != TYPE_UINT)) {
+      cc_error(cc, "short requires an integer type without long");
+      return TYPE_INT;
+    }
+    base = saw_unsigned ? TYPE_USHORT : TYPE_SHORT;
+  }
   if (saw_unsigned) {
-    if (base == TYPE_INT)
+    if (base == TYPE_SHORT)
+      base = TYPE_USHORT;
+    else if (base == TYPE_INT)
       base = TYPE_UINT;
-    else if (base != TYPE_UINT && base != TYPE_CHAR) {
+    else if (base != TYPE_UINT && base != TYPE_CHAR && base != TYPE_USHORT) {
       cc_error(cc, "unsigned requires an integer type");
       return TYPE_INT;
     }
@@ -2522,6 +2680,9 @@ static int32_t cc_align_up(int32_t value, int32_t align) {
 
 static int32_t cc_type_align(cc_state_t *cc, cc_type_t type, int struct_index) {
   switch (type) {
+  case TYPE_SHORT:
+  case TYPE_USHORT:
+    return 2;
   case TYPE_CHAR:
     return 1;
   case TYPE_STRUCT:
@@ -2536,6 +2697,9 @@ static int32_t cc_type_align(cc_state_t *cc, cc_type_t type, int struct_index) {
 
 static int32_t cc_type_size(cc_state_t *cc, cc_type_t type, int struct_index) {
   switch (type) {
+  case TYPE_SHORT:
+  case TYPE_USHORT:
+    return 2;
   case TYPE_CHAR:
     return 1;
   case TYPE_VOID:
@@ -2614,6 +2778,10 @@ static int32_t cc_cdecl_slot_size(cc_type_t type) {
   switch (type) {
   case TYPE_INT:
   case TYPE_UINT:
+  case TYPE_SHORT:
+  case TYPE_USHORT:
+  case TYPE_SHORT_PTR:
+  case TYPE_USHORT_PTR:
   case TYPE_CHAR:
   case TYPE_PTR:
   case TYPE_INT_PTR:
@@ -2676,12 +2844,10 @@ static int cc_coerce_cdecl_argument(cc_state_t *cc, cc_type_t target_type) {
   if (target_type == TYPE_UINT &&
       (source_type == TYPE_FLOAT || source_type == TYPE_DOUBLE))
     return cc_coerce_unsigned_conversion(cc, target_type, source_type);
-  if ((source_type == TYPE_INT || source_type == TYPE_UINT ||
-       source_type == TYPE_CHAR) &&
+  if ((cc_is_integer_scalar_type(source_type)) &&
       target_type == TYPE_FLOAT) {
     cc_emit_integer_to_fp(cc, source_type, target_type, 0);
-  } else if ((source_type == TYPE_INT || source_type == TYPE_UINT ||
-              source_type == TYPE_CHAR) &&
+  } else if ((cc_is_integer_scalar_type(source_type)) &&
              target_type == TYPE_DOUBLE) {
     cc_emit_integer_to_fp(cc, source_type, target_type, 0);
   } else if (source_type == TYPE_FLOAT && target_type == TYPE_DOUBLE) {
@@ -2689,20 +2855,15 @@ static int cc_coerce_cdecl_argument(cc_state_t *cc, cc_type_t target_type) {
   } else if (source_type == TYPE_DOUBLE && target_type == TYPE_FLOAT) {
     emit_cvtsd2ss(cc, 0, 0);
   } else if (source_type == TYPE_FLOAT &&
-             (target_type == TYPE_INT || target_type == TYPE_UINT ||
-              target_type == TYPE_CHAR)) {
+             (cc_is_integer_scalar_type(target_type))) {
     emit_cvttss2si(cc, 0);
   } else if (source_type == TYPE_DOUBLE &&
-             (target_type == TYPE_INT || target_type == TYPE_UINT ||
-              target_type == TYPE_CHAR)) {
+             (cc_is_integer_scalar_type(target_type))) {
     emit_cvttsd2si(cc, 0);
-  } else if ((source_type == TYPE_INT || source_type == TYPE_UINT ||
-              source_type == TYPE_CHAR) &&
-             (target_type == TYPE_INT || target_type == TYPE_UINT ||
-              target_type == TYPE_CHAR)) {
+  } else if ((cc_is_integer_scalar_type(source_type)) &&
+             (cc_is_integer_scalar_type(target_type))) {
     /* Both private integer spellings use one four-byte cdecl slot. */
-  } else if ((source_type == TYPE_INT || source_type == TYPE_UINT ||
-              source_type == TYPE_CHAR ||
+  } else if ((cc_is_integer_scalar_type(source_type) ||
               cc_is_object_pointer_type(source_type) ||
               source_type == TYPE_FUNC_PTR) &&
              (cc_is_object_pointer_type(target_type) ||
@@ -2716,6 +2877,8 @@ static int cc_coerce_cdecl_argument(cc_state_t *cc, cc_type_t target_type) {
     return 0;
   }
 
+  if (cc_is_halfword_type(target_type))
+    emit_normalize_halfword(cc, target_type);
   cc_last_expr_type = target_type;
   if (target_type == TYPE_FLOAT || target_type == TYPE_DOUBLE)
     cc_last_xmm = 0;
@@ -2783,7 +2946,7 @@ static int cc_emit_call_argument_push(cc_state_t *cc,
       slot_type = TYPE_DOUBLE;
       cc_last_expr_type = TYPE_DOUBLE;
       cc_last_xmm = 0;
-    } else if (slot_type == TYPE_CHAR) {
+    } else if (slot_type == TYPE_CHAR || cc_is_halfword_type(slot_type)) {
       slot_type = TYPE_INT;
       cc_last_expr_type = TYPE_INT;
     }
@@ -2822,14 +2985,15 @@ static int cc_bind_cdecl_parameter(cc_state_t *cc, const char *name,
 }
 
 static int cc_is_arithmetic_scalar_type(cc_type_t type) {
-  return type == TYPE_INT || type == TYPE_UINT || type == TYPE_CHAR ||
+  return cc_is_integer_scalar_type(type) ||
          type == TYPE_FLOAT || type == TYPE_DOUBLE;
 }
 
 static int cc_is_scalar_truth_type(cc_type_t type) {
-  return type == TYPE_INT || type == TYPE_UINT || type == TYPE_CHAR ||
+  return cc_is_integer_scalar_type(type) ||
          type == TYPE_PTR || type == TYPE_INT_PTR ||
-         type == TYPE_UINT_PTR ||
+         type == TYPE_UINT_PTR || type == TYPE_SHORT_PTR ||
+         type == TYPE_USHORT_PTR ||
          type == TYPE_CHAR_PTR || type == TYPE_STRUCT_PTR ||
          type == TYPE_FLOAT_PTR || type == TYPE_DOUBLE_PTR ||
          type == TYPE_FUNC_PTR || type == TYPE_FLOAT ||
@@ -2854,9 +3018,10 @@ static int cc_is_simd_value_type(cc_type_t type) {
 }
 
 static int cc_is_direct_update_type(cc_type_t type) {
-  return type == TYPE_INT || type == TYPE_UINT || type == TYPE_CHAR ||
+  return cc_is_integer_scalar_type(type) ||
          type == TYPE_PTR || type == TYPE_INT_PTR ||
-         type == TYPE_UINT_PTR ||
+         type == TYPE_UINT_PTR || type == TYPE_SHORT_PTR ||
+         type == TYPE_USHORT_PTR ||
          type == TYPE_CHAR_PTR || type == TYPE_STRUCT_PTR ||
          type == TYPE_FLOAT_PTR || type == TYPE_DOUBLE_PTR ||
          type == TYPE_FLOAT || type == TYPE_DOUBLE ||
@@ -2890,6 +3055,8 @@ static int cc_validate_variable_update(cc_state_t *cc, cc_symbol_t *sym) {
 }
 
 static int32_t cc_variable_update_step(cc_state_t *cc, cc_symbol_t *sym) {
+  if (sym->type == TYPE_SHORT_PTR || sym->type == TYPE_USHORT_PTR)
+    return 2;
   if (sym->type == TYPE_CHAR_PTR || sym->type == TYPE_PTR)
     return 1;
   if (sym->type == TYPE_INT_PTR || sym->type == TYPE_UINT_PTR ||
@@ -3013,7 +3180,9 @@ static int cc_emit_variable_update(cc_state_t *cc, cc_symbol_t *sym,
     int32_t update_step = cc_variable_update_step(cc, sym);
     if (update_step <= 0)
       return 0;
-    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+    if (cc_is_halfword_type(sym->type)) {
+      emit_load_halfword_symbol(cc, sym);
+    } else if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
       emit_load_local(cc, sym->offset);
     } else {
       emit8(cc, 0xA1);
@@ -3029,7 +3198,9 @@ static int cc_emit_variable_update(cc_state_t *cc, cc_symbol_t *sym,
       emit32(cc, (uint32_t)update_step);
     }
 
-    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+    if (cc_is_halfword_type(sym->type)) {
+      emit_store_halfword_symbol(cc, sym);
+    } else if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
       emit_store_local(cc, sym->offset);
     } else {
       emit8(cc, 0xA3);
@@ -3122,8 +3293,8 @@ static cc_type_t cc_promote(cc_state_t *cc, cc_type_t a, cc_type_t b) {
     return TYPE_DOUBLE;
   if (a == TYPE_FLOAT || b == TYPE_FLOAT)
     return TYPE_FLOAT;
-  if ((a == TYPE_INT || a == TYPE_UINT || a == TYPE_CHAR) &&
-      (b == TYPE_INT || b == TYPE_UINT || b == TYPE_CHAR))
+  if ((cc_is_integer_scalar_type(a)) &&
+      (cc_is_integer_scalar_type(b)))
     return a == TYPE_UINT || b == TYPE_UINT ? TYPE_UINT : TYPE_INT;
   /* Preserve the existing pointer-shaped result for integer-only paths. */
   return a;
@@ -3340,16 +3511,19 @@ static int32_t cc_sizeof_symbol_deref(cc_state_t *cc, cc_symbol_t *sym,
         is_array = 0;
         continue;
       }
-      if (type == TYPE_UINT_PTR) {
+      if (type == TYPE_UINT_PTR || type == TYPE_SHORT_PTR ||
+          type == TYPE_USHORT_PTR) {
+        cc_type_t scalar_type = cc_pointed_object_type(type);
+        int scalar_size = cc_type_size(cc, scalar_type, -1);
         if (last)
-          return elem_size > 0 ? elem_size : 4;
+          return elem_size > 0 ? elem_size : scalar_size;
         if (array_rank > 1) {
-          elem_size = array_rank > 2 ? dim2 : 4;
+          elem_size = array_rank > 2 ? dim2 : scalar_size;
           dim2 = 0;
           array_rank--;
           continue;
         }
-        type = TYPE_UINT;
+        type = scalar_type;
         is_array = 0;
         continue;
       }
@@ -3374,7 +3548,8 @@ static int32_t cc_sizeof_symbol_deref(cc_state_t *cc, cc_symbol_t *sym,
       type = type == TYPE_UINT_PTR ? TYPE_UINT : TYPE_INT;
       continue;
     }
-    if (type == TYPE_FLOAT_PTR || type == TYPE_DOUBLE_PTR) {
+    if (type == TYPE_SHORT_PTR || type == TYPE_USHORT_PTR ||
+        type == TYPE_FLOAT_PTR || type == TYPE_DOUBLE_PTR) {
       if (last)
         return cc_type_size(cc, cc_pointed_object_type(type), -1);
       type = cc_pointed_object_type(type);
@@ -3460,7 +3635,7 @@ static int cc_validate_kernel_binding_signature(
     return 0;
   }
   if (signature->return_type < TYPE_INT ||
-      signature->return_type > TYPE_UINT_PTR ||
+      signature->return_type > TYPE_USHORT_PTR ||
       signature->return_type == TYPE_STRUCT ||
       signature->return_type == TYPE_FUNC_PTR) {
     cc_error(cc, "kernel binding result type is not supported");
@@ -3498,7 +3673,7 @@ static int cc_validate_kernel_binding_signature(
         (cc_type_t)signature->param_types[parameter_index];
     int record_or_signature =
         signature->param_struct_indices[parameter_index];
-    if (parameter_type < TYPE_INT || parameter_type > TYPE_UINT_PTR ||
+    if (parameter_type < TYPE_INT || parameter_type > TYPE_USHORT_PTR ||
         cc_cdecl_slot_size(parameter_type) == 0) {
       cc_error(cc, "kernel binding parameter type is not supported");
       return 0;
@@ -3529,7 +3704,7 @@ int cc_register_kernel_binding_legacy(
     cc_error(cc, "too many legacy kernel binding parameters");
     return 0;
   }
-  if (return_type < TYPE_INT || return_type > TYPE_UINT_PTR ||
+  if (return_type < TYPE_INT || return_type > TYPE_USHORT_PTR ||
       return_type == TYPE_STRUCT || return_type == TYPE_FUNC_PTR ||
       return_type == TYPE_STRUCT_PTR) {
     cc_error(cc, "legacy kernel binding result type is not supported");
@@ -3723,6 +3898,7 @@ static void cc_resolve_labels(cc_state_t *cc) {
 static void cc_parse_statement(cc_state_t *cc);
 static void cc_parse_block(cc_state_t *cc);
 static void cc_parse_expression(cc_state_t *cc, int min_prec);
+static void cc_emit_scale_eax_by_stride(cc_state_t *cc, int32_t stride);
 static void cc_parse_expression_impl(cc_state_t *cc, int min_prec);
 static void cc_parse_primary(cc_state_t *cc);
 static int cc_parse_function_pointer_local_initializer(
@@ -4235,7 +4411,7 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
   if (intr->flags & CC_INTR_SET1) {
     if (is_pd) {
       /* _mm_set1_pd - broadcast a scalar double into both 64-bit lanes. */
-      if (cc_last_expr_type == TYPE_INT || cc_last_expr_type == TYPE_UINT) {
+      if (cc_is_integer_scalar_type(cc_last_expr_type)) {
         cc_emit_integer_to_fp(cc, cc_last_expr_type, TYPE_DOUBLE, 0);
         cc_last_expr_type = TYPE_DOUBLE;
       }
@@ -4262,7 +4438,7 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
       return;
     }
     /* _mm_set1_ps */
-    if (cc_last_expr_type == TYPE_INT || cc_last_expr_type == TYPE_UINT) {
+    if (cc_is_integer_scalar_type(cc_last_expr_type)) {
       cc_emit_integer_to_fp(cc, cc_last_expr_type, TYPE_FLOAT, 0);
       cc_last_expr_type = TYPE_FLOAT;
     }
@@ -4518,6 +4694,8 @@ static int cc_emit_retained_postfix_call(cc_state_t *cc,
   emit_add_esp(cc, (int32_t)total_arg_bytes + 4);
 
   cc_last_expr_type = return_type;
+  if (cc_is_halfword_type(return_type))
+    emit_normalize_halfword(cc, return_type);
   if (return_type == TYPE_FLOAT || return_type == TYPE_DOUBLE ||
       return_type == TYPE_FLOAT4 || return_type == TYPE_DOUBLE2)
     cc_last_xmm = 0;
@@ -4724,6 +4902,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       /* Floating and packed results live in XMM0. Other ordinary results
        * use EAX. */
       cc_last_expr_type = call_ret_type;
+      if (cc_is_halfword_type(call_ret_type))
+        emit_normalize_halfword(cc, call_ret_type);
       if (call_ret_type == TYPE_FLOAT || call_ret_type == TYPE_DOUBLE ||
           call_ret_type == TYPE_FLOAT4 || call_ret_type == TYPE_DOUBLE2) {
         cc_last_xmm = 0;
@@ -4780,6 +4960,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
           !cc_extract_simd_lane(cc, sym->type))
         return;
       return;
+    } else if (cc_is_halfword_type(sym->type)) {
+      emit_load_local_halfword(cc, sym->offset, sym->type);
     } else {
       emit_load_local(cc, sym->offset);
     }
@@ -4796,7 +4978,10 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     else if ((sym->type == TYPE_STRUCT_PTR || sym->type == TYPE_STRUCT) &&
              sym->struct_index >= 0 && sym->struct_index < cc->struct_count)
       cc_last_expr_elem_size = cc->structs[sym->struct_index].total_size;
-    else if (sym->type == TYPE_CHAR_PTR || sym->type == TYPE_CHAR)
+    else if (sym->type == TYPE_SHORT_PTR || sym->type == TYPE_USHORT_PTR) {
+      cc_last_expr_elem_size = 2;
+      cc_last_expr_array_elem_type = cc_pointed_object_type(sym->type);
+    } else if (sym->type == TYPE_CHAR_PTR || sym->type == TYPE_CHAR)
       cc_last_expr_elem_size = 1;
     else if (sym->type == TYPE_FLOAT_PTR) {
       cc_last_expr_elem_size = 4;
@@ -4824,6 +5009,11 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     } else if (sym->type == TYPE_FLOAT4 || sym->type == TYPE_DOUBLE2) {
       emit_movups_xmm_disp32(cc, 0, sym->address);
       cc_last_xmm = 0;
+    } else if (cc_is_halfword_type(sym->type)) {
+      emit8(cc, 0x0F);
+      emit8(cc, sym->type == TYPE_SHORT ? 0xBF : 0xB7);
+      emit8(cc, 0x05);
+      emit32(cc, sym->address);
     } else {
       /* Scalar: load value from memory */
       emit8(cc, 0xA1); /* mov eax, [addr] */
@@ -4842,7 +5032,10 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     else if ((sym->type == TYPE_STRUCT_PTR || sym->type == TYPE_STRUCT) &&
              sym->struct_index >= 0 && sym->struct_index < cc->struct_count)
       cc_last_expr_elem_size = cc->structs[sym->struct_index].total_size;
-    else if (sym->type == TYPE_CHAR_PTR || sym->type == TYPE_CHAR)
+    else if (sym->type == TYPE_SHORT_PTR || sym->type == TYPE_USHORT_PTR) {
+      cc_last_expr_elem_size = 2;
+      cc_last_expr_array_elem_type = cc_pointed_object_type(sym->type);
+    } else if (sym->type == TYPE_CHAR_PTR || sym->type == TYPE_CHAR)
       cc_last_expr_elem_size = 1;
     else if (sym->type == TYPE_FLOAT_PTR) {
       cc_last_expr_elem_size = 4;
@@ -5078,6 +5271,14 @@ static void cc_parse_primary(cc_state_t *cc) {
           cc_last_expr_is_integer_constant_expression;
       uint32_t source_integer_constant =
           cc_last_expr_integer_constant_value;
+      if (cc_is_halfword_type(cast_type) &&
+          !cc_is_integer_scalar_type(src_type) &&
+          src_type != TYPE_FLOAT && src_type != TYPE_DOUBLE &&
+          !cc_is_object_pointer_type(src_type) && src_type != TYPE_FUNC_PTR) {
+        cc_error(cc,
+                 "halfword cast requires an arithmetic scalar or explicit address value");
+        break;
+      }
       /* Integer <-> float <-> double explicit casts. Character values use
        * the same EAX representation as integers after byte loads, so their
        * FP conversions use the scalar integer CVT instructions too. */
@@ -5087,7 +5288,7 @@ static void cc_parse_primary(cc_state_t *cc) {
           if (!cc_coerce_unsigned_conversion(cc, cast_type, src_type))
             break;
         } else if (cast_type == TYPE_UINT &&
-                   src_type != TYPE_INT && src_type != TYPE_CHAR &&
+                   !cc_is_integer_scalar_type(src_type) &&
                    !cc_is_object_pointer_type(src_type) &&
                    src_type != TYPE_FUNC_PTR) {
           cc_error(cc,
@@ -5098,22 +5299,22 @@ static void cc_parse_primary(cc_state_t *cc) {
                     cast_type == TYPE_FUNC_PTR)) {
           cc_error(cc, "floating to pointer conversion is not supported");
           break;
-        } else if ((src_type == TYPE_INT || src_type == TYPE_UINT ||
-             src_type == TYPE_CHAR) &&
+        } else if ((cc_is_integer_scalar_type(src_type)) &&
             cast_type == TYPE_FLOAT) {
           cc_emit_integer_to_fp(cc, src_type, cast_type, 0);
           cc_last_xmm = 0;
-        } else if ((src_type == TYPE_INT || src_type == TYPE_UINT ||
-                    src_type == TYPE_CHAR) &&
+        } else if ((cc_is_integer_scalar_type(src_type)) &&
                    cast_type == TYPE_DOUBLE) {
           cc_emit_integer_to_fp(cc, src_type, cast_type, 0);
           cc_last_xmm = 0;
         } else if (src_type == TYPE_FLOAT &&
-                   (cast_type == TYPE_INT || cast_type == TYPE_CHAR)) {
+                   (cast_type == TYPE_INT || cast_type == TYPE_CHAR ||
+                    cc_is_halfword_type(cast_type))) {
           /* float in XMM0 -> integer value in EAX (truncating) */
           emit_cvttss2si(cc, 0);
         } else if (src_type == TYPE_DOUBLE &&
-                   (cast_type == TYPE_INT || cast_type == TYPE_CHAR)) {
+                   (cast_type == TYPE_INT || cast_type == TYPE_CHAR ||
+                    cc_is_halfword_type(cast_type))) {
           emit_cvttsd2si(cc, 0);
         } else if (src_type == TYPE_FLOAT && cast_type == TYPE_DOUBLE) {
           emit_cvtss2sd(cc, 0, 0);
@@ -5131,6 +5332,8 @@ static void cc_parse_primary(cc_state_t *cc) {
         cc_error(cc, "cast target cannot be an array type");
         break;
       }
+      if (cc_is_halfword_type(cast_type))
+        emit_normalize_halfword(cc, cast_type);
       cc_seed_pointer_subscript_metadata(cc, cast_type, cast_si);
       cc_last_expr_type = cast_type;
       cc_last_expr_struct_index = cast_si;
@@ -5138,11 +5341,15 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_clear_expr_callable_provenance();
       cc_last_expr_function_signature_erased = cast_type == TYPE_PTR;
       if (source_is_integer_constant &&
-          (cast_type == TYPE_INT || cast_type == TYPE_UINT ||
-           cast_type == TYPE_CHAR)) {
+          (cc_is_integer_scalar_type(cast_type))) {
         uint32_t cast_value = source_integer_constant;
         if (cast_type == TYPE_CHAR)
           cast_value &= 0xffu;
+        else if (cc_is_halfword_type(cast_type)) {
+          cast_value &= 0xffffu;
+          if (cast_type == TYPE_SHORT && (cast_value & 0x8000u) != 0)
+            cast_value |= 0xffff0000u;
+        }
         cc_publish_integer_constant_expression(
             cast_value, cast_type == TYPE_UINT);
       }
@@ -5270,6 +5477,10 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_last_expr_elem_size = cc->structs[sym->struct_index].total_size;
     else if (sym->type == TYPE_CHAR || sym->type == TYPE_CHAR_PTR)
       cc_last_expr_elem_size = 1;
+    else if (cc_is_halfword_type(sym->type)) {
+      cc_last_expr_elem_size = 2;
+      cc_last_expr_array_elem_type = sym->type;
+    }
     else if (sym->type == TYPE_FLOAT) {
       cc_last_expr_elem_size = 4;
       cc_last_expr_array_elem_type = TYPE_FLOAT;
@@ -5323,8 +5534,7 @@ static void cc_parse_primary(cc_state_t *cc) {
     if (cc_reject_incomplete_simd_row(cc))
       break;
     cc_type_t operand_type = cc_last_expr_type;
-    if (operand_type != TYPE_INT && operand_type != TYPE_UINT &&
-        operand_type != TYPE_CHAR) {
+    if (!cc_is_integer_scalar_type(operand_type)) {
       cc_error(cc, "bitwise not requires an integer operand");
       return;
     }
@@ -5366,9 +5576,7 @@ static void cc_parse_primary(cc_state_t *cc) {
       if (negate)
         emit_negate_xmm0_scalar(cc, 1);
       cc_last_xmm = 0;
-    } else if (cc_last_expr_type == TYPE_INT ||
-               cc_last_expr_type == TYPE_UINT ||
-               cc_last_expr_type == TYPE_CHAR) {
+    } else if (cc_is_integer_scalar_type(cc_last_expr_type)) {
       cc_type_t result_type = cc_last_expr_type == TYPE_UINT
                                   ? TYPE_UINT
                                   : TYPE_INT;
@@ -5696,6 +5904,8 @@ static void cc_parse_primary(cc_state_t *cc) {
             mret_si = msym2->struct_index;
           }
           cc_last_expr_type = mret;
+          if (cc_is_halfword_type(mret))
+            emit_normalize_halfword(cc, mret);
           if (mret == TYPE_FLOAT || mret == TYPE_DOUBLE ||
               mret == TYPE_FLOAT4 || mret == TYPE_DOUBLE2) {
             cc_last_xmm = 0;
@@ -5906,6 +6116,28 @@ static void cc_parse_primary(cc_state_t *cc) {
           cc_last_expr_array_object_size = 0;
           cc_last_expr_array_elem_type = TYPE_INT;
         }
+      } else if ((base_type == TYPE_SHORT_PTR ||
+                  base_type == TYPE_USHORT_PTR) && base_array_rank > 1) {
+        cc_last_expr_type = base_type;
+        cc_last_expr_elem_size = base_dim2 > 0 ? base_dim2 : 2;
+        cc_last_expr_dim2 = 0;
+        cc_last_expr_array_rank = base_array_rank - 1;
+        cc_last_expr_array_object_size = base_elem_size;
+        cc_last_expr_array_elem_type = cc_pointed_object_type(base_type);
+      } else if (base_type == TYPE_SHORT_PTR ||
+                 base_type == TYPE_USHORT_PTR ||
+                 cc_is_halfword_type(base_array_elem_type)) {
+        cc_type_t element_type = cc_is_halfword_type(base_array_elem_type)
+                                    ? base_array_elem_type
+                                    : cc_pointed_object_type(base_type);
+        if (!address_of_array_element)
+          emit_deref_halfword(cc, element_type);
+        cc_last_expr_type = element_type;
+        cc_last_expr_elem_size = 0;
+        cc_last_expr_dim2 = 0;
+        cc_last_expr_array_rank = 0;
+        cc_last_expr_array_object_size = 0;
+        cc_last_expr_array_elem_type = TYPE_INT;
       } else if ((base_type == TYPE_INT_PTR ||
                   base_type == TYPE_UINT_PTR) && base_array_rank > 1) {
         /* Multi-D integer first subscript: pointer to row. */
@@ -5941,7 +6173,8 @@ static void cc_parse_primary(cc_state_t *cc) {
           cc_peek(cc).type != CC_TOK_LBRACK) {
         cc_type_t selected_type = cc_last_expr_type;
         int selected_struct_index = cc_last_expr_struct_index;
-        if (selected_type == TYPE_CHAR || selected_type == TYPE_INT ||
+        if (cc_is_halfword_type(selected_type) ||
+            selected_type == TYPE_CHAR || selected_type == TYPE_INT ||
             selected_type == TYPE_UINT ||
             selected_type == TYPE_FLOAT || selected_type == TYPE_DOUBLE ||
             selected_type == TYPE_STRUCT) {
@@ -6034,6 +6267,11 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
     cc_next(cc); /* consume operator */
 
     cc_type_t left_type = cc_last_expr_type;
+    int32_t left_pointer_stride = cc_last_expr_elem_size;
+    int left_struct_index = cc_last_expr_struct_index;
+    int left_array_rank = cc_last_expr_array_rank;
+    int32_t left_array_dim2 = cc_last_expr_dim2;
+    cc_type_t left_array_element_type = cc_last_expr_array_elem_type;
     int left_is_integer_constant =
         cc_last_expr_is_integer_constant_expression;
     uint32_t left_integer_constant =
@@ -6061,6 +6299,11 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
     }
     cc_parse_expression(cc, prec + 1);
     cc_type_t right_type = cc_last_expr_type;
+    int32_t right_pointer_stride = cc_last_expr_elem_size;
+    int right_struct_index = cc_last_expr_struct_index;
+    int right_array_rank = cc_last_expr_array_rank;
+    int32_t right_array_dim2 = cc_last_expr_dim2;
+    cc_type_t right_array_element_type = cc_last_expr_array_elem_type;
     int right_is_integer_constant =
         cc_last_expr_is_integer_constant_expression;
     uint32_t right_integer_constant =
@@ -6246,6 +6489,55 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
       continue; /* skip the int binop path below */
     }
 
+    if ((op.type == CC_TOK_PLUS || op.type == CC_TOK_MINUS) &&
+        cc_is_object_pointer_type(left_type) &&
+        cc_is_integer_scalar_type(right_type)) {
+      int32_t stride = left_type == TYPE_PTR ? 1 : left_pointer_stride;
+      if (stride <= 0)
+        stride = cc_type_size(cc, cc_pointed_object_type(left_type),
+                              left_struct_index);
+      if (stride <= 0) {
+        cc_error(cc, "pointer arithmetic requires a complete pointed-to type");
+        return;
+      }
+      cc_emit_scale_eax_by_stride(cc, stride);
+      cc_emit_binop(cc, op.type, TYPE_INT);
+      cc_last_expr_type = left_type;
+      cc_seed_pointer_subscript_metadata(cc, left_type, left_struct_index);
+      if (left_array_rank > 0) {
+        cc_last_expr_elem_size = left_pointer_stride;
+        cc_last_expr_array_rank = left_array_rank;
+        cc_last_expr_dim2 = left_array_dim2;
+        cc_last_expr_array_elem_type = left_array_element_type;
+      }
+      continue;
+    }
+    if (op.type == CC_TOK_PLUS && cc_is_integer_scalar_type(left_type) &&
+        cc_is_object_pointer_type(right_type)) {
+      int32_t stride = right_type == TYPE_PTR ? 1 : right_pointer_stride;
+      if (stride <= 0)
+        stride = cc_type_size(cc, cc_pointed_object_type(right_type),
+                              right_struct_index);
+      if (stride <= 0) {
+        cc_error(cc, "pointer arithmetic requires a complete pointed-to type");
+        return;
+      }
+      emit_pop_ebx(cc);
+      emit8(cc, 0x93); /* xchg eax, ebx: preserve pointer while scaling index */
+      cc_emit_scale_eax_by_stride(cc, stride);
+      emit8(cc, 0x01);
+      emit8(cc, 0xD8); /* add eax, ebx */
+      cc_last_expr_type = right_type;
+      cc_seed_pointer_subscript_metadata(cc, right_type, right_struct_index);
+      if (right_array_rank > 0) {
+        cc_last_expr_elem_size = right_pointer_stride;
+        cc_last_expr_array_rank = right_array_rank;
+        cc_last_expr_dim2 = right_array_dim2;
+        cc_last_expr_array_elem_type = right_array_element_type;
+      }
+      continue;
+    }
+
     cc_type_t integer_operation_type = cc_integer_operation_type(
         cc, op.type, left_type, right_type);
     cc_emit_binop(cc, op.type, integer_operation_type);
@@ -6354,10 +6646,8 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
 
     /* End of ternary expression. */
     patch32(cc, jmp_off + 1, (uint32_t)(cc->code_pos - (jmp_off + 5)));
-    if ((true_type == TYPE_INT || true_type == TYPE_UINT ||
-         true_type == TYPE_CHAR) &&
-        (false_type == TYPE_INT || false_type == TYPE_UINT ||
-         false_type == TYPE_CHAR)) {
+    if ((cc_is_integer_scalar_type(true_type)) &&
+        (cc_is_integer_scalar_type(false_type))) {
       cc_last_expr_type = cc_promote(cc, true_type, false_type);
     } else if (cc_is_object_pointer_type(true_type) &&
                false_is_null_pointer_constant) {
@@ -6440,9 +6730,7 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
     cc_last_expr_integer_constant_is_unsigned = 0;
     if (condition_is_integer_constant &&
         true_is_integer_constant && false_is_integer_constant &&
-        (cc_last_expr_type == TYPE_INT ||
-         cc_last_expr_type == TYPE_UINT ||
-         cc_last_expr_type == TYPE_CHAR)) {
+        (cc_is_integer_scalar_type(cc_last_expr_type))) {
       if (condition_integer_constant != 0) {
         cc_publish_integer_constant_expression(
             true_integer_constant, true_integer_constant_is_unsigned);
@@ -6574,13 +6862,10 @@ static void cc_emit_compound_from_rhs_old(cc_state_t *cc, cc_token_type_t op,
 static int cc_coerce_fp_assignment(cc_state_t *cc, cc_type_t target_type) {
   if (cc_last_expr_type == target_type)
     return 1;
-  if ((cc_last_expr_type == TYPE_INT || cc_last_expr_type == TYPE_UINT ||
-       cc_last_expr_type == TYPE_CHAR) &&
+  if ((cc_is_integer_scalar_type(cc_last_expr_type)) &&
       target_type == TYPE_FLOAT) {
     cc_emit_integer_to_fp(cc, cc_last_expr_type, target_type, 0);
-  } else if ((cc_last_expr_type == TYPE_INT ||
-              cc_last_expr_type == TYPE_UINT ||
-              cc_last_expr_type == TYPE_CHAR) &&
+  } else if ((cc_is_integer_scalar_type(cc_last_expr_type)) &&
              target_type == TYPE_DOUBLE) {
     cc_emit_integer_to_fp(cc, cc_last_expr_type, target_type, 0);
   } else if (cc_last_expr_type == TYPE_FLOAT && target_type == TYPE_DOUBLE) {
@@ -6597,13 +6882,42 @@ static int cc_coerce_fp_assignment(cc_state_t *cc, cc_type_t target_type) {
   return 1;
 }
 
+/* Combine normalized integer EAX with floating RHS XMM0 before narrowing. */
+static int cc_emit_halfword_fp_compound(cc_state_t *cc,
+                                        cc_type_t target_type,
+                                        cc_type_t source_type,
+                                        cc_token_type_t operation) {
+  uint8_t opcode;
+  switch (operation) {
+  case CC_TOK_PLUSEQ: opcode = 0x58; break;
+  case CC_TOK_MINUSEQ: opcode = 0x5C; break;
+  case CC_TOK_STAREQ: opcode = 0x59; break;
+  case CC_TOK_SLASHEQ: opcode = 0x5E; break;
+  default:
+    cc_error(cc, "halfword floating compound requires +=, -=, *=, or /=");
+    return 0;
+  }
+  cc_emit_integer_to_fp(cc, target_type, source_type, 1);
+  emit_sse_scalar_op(cc, source_type == TYPE_DOUBLE, opcode, 1, 0);
+  emit_movaps_xmm_xmm(cc, 0, 1);
+  if (source_type == TYPE_DOUBLE)
+    emit_cvttsd2si(cc, 0);
+  else
+    emit_cvttss2si(cc, 0);
+  emit_normalize_halfword(cc, target_type);
+  cc_last_expr_type = target_type;
+  return 1;
+}
+
 /* Load one scalar object through the address in EAX. Integer values stay in
  * EAX. Floating values use XMM0, which is the private compiler's scalar lane. */
 static int cc_emit_indirect_scalar_load(cc_state_t *cc,
                                         cc_type_t object_type) {
   int struct_index = cc_last_expr_struct_index;
 
-  if (object_type == TYPE_CHAR) {
+  if (cc_is_halfword_type(object_type)) {
+    emit_deref_halfword(cc, object_type);
+  } else if (object_type == TYPE_CHAR) {
     emit_deref_byte(cc);
   } else if (object_type == TYPE_FLOAT) {
     emit_movss_xmm_eax(cc, 0);
@@ -6629,7 +6943,9 @@ static int cc_emit_indirect_scalar_load(cc_state_t *cc,
  * arrive in EBX because EAX owns the address. Floating payloads stay in XMM0. */
 static int cc_emit_indirect_scalar_store(cc_state_t *cc,
                                          cc_type_t object_type) {
-  if (object_type == TYPE_CHAR) {
+  if (cc_is_halfword_type(object_type)) {
+    emit_store_halfword_ptr(cc);
+  } else if (object_type == TYPE_CHAR) {
     emit_store_byte_ptr(cc);
   } else if (object_type == TYPE_FLOAT) {
     emit_movss_eax_xmm(cc, 0);
@@ -6736,10 +7052,18 @@ static int cc_finish_indirect_assignment(cc_state_t *cc,
       return 0;
   }
   if (op != CC_TOK_EQ) {
-    cc_type_t operation_type = cc_integer_operation_type(
-        cc, op, object_type, cc_last_expr_type);
-    emit_pop_ebx(cc);
-    cc_emit_compound_from_rhs_old(cc, op, operation_type);
+    if (cc_is_halfword_type(object_type) &&
+        (cc_last_expr_type == TYPE_FLOAT || cc_last_expr_type == TYPE_DOUBLE)) {
+      cc_type_t source_type = cc_last_expr_type;
+      emit_pop_eax(cc);
+      if (!cc_emit_halfword_fp_compound(cc, object_type, source_type, op))
+        return 0;
+    } else {
+      cc_type_t operation_type = cc_integer_operation_type(
+          cc, op, object_type, cc_last_expr_type);
+      emit_pop_ebx(cc);
+      cc_emit_compound_from_rhs_old(cc, op, operation_type);
+    }
   }
 
   emit8(cc, 0x89);
@@ -6948,11 +7272,34 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
 
   /* Handle compound assignment */
   if (op.type != CC_TOK_EQ) {
+    if (cc_is_halfword_type(sym->type) &&
+        (cc_last_expr_type == TYPE_FLOAT || cc_last_expr_type == TYPE_DOUBLE)) {
+      cc_type_t source_type = cc_last_expr_type;
+      emit_load_halfword_symbol(cc, sym);
+      if (!cc_emit_halfword_fp_compound(cc, sym->type, source_type, op.type))
+        return;
+      emit_store_halfword_symbol(cc, sym);
+      return;
+    }
+    if (cc_is_object_pointer_type(sym->type) &&
+        (op.type == CC_TOK_PLUSEQ || op.type == CC_TOK_MINUSEQ)) {
+      int32_t stride;
+      if (!cc_is_integer_scalar_type(cc_last_expr_type)) {
+        cc_error(cc, "pointer compound assignment requires an integer index");
+        return;
+      }
+      stride = cc_variable_update_step(cc, sym);
+      if (stride <= 0)
+        return;
+      cc_emit_scale_eax_by_stride(cc, stride);
+    }
     cc_type_t operation_type = cc_integer_operation_type(
         cc, op.type, sym->type, cc_last_expr_type);
     /* Load current value into ebx */
     emit_push_eax(cc); /* save RHS */
-    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+    if (cc_is_halfword_type(sym->type)) {
+      emit_load_halfword_symbol(cc, sym);
+    } else if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
       emit_load_local(cc, sym->offset);
     } else if (sym->kind == SYM_GLOBAL) {
       emit8(cc, 0xA1);
@@ -6965,7 +7312,9 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
   }
 
   /* Store result */
-  if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+  if (cc_is_halfword_type(sym->type)) {
+    emit_store_halfword_symbol(cc, sym);
+  } else if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
     emit_store_local(cc, sym->offset);
   } else if (sym->kind == SYM_GLOBAL) {
     emit8(cc, 0xA3);
@@ -7257,7 +7606,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
     }
   }
   /* Descend through remaining floating or SIMD array rows. */
-  else if ((is_fp || is_simd) &&
+  else if ((is_fp || is_simd || cc_is_halfword_type(elem_type)) &&
            array_rank_remaining > 0 &&
            cc_peek(cc).type == CC_TOK_LBRACK) {
     int scalar_size = cc_type_size(cc, elem_type, -1);
@@ -7440,7 +7789,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
     return;
   }
 
-  if (is_fp) {
+  if (is_fp || cc_is_halfword_type(elem_type)) {
     (void)cc_finish_indirect_assignment(
         cc, elem_type, assign_op.type,
         "bitwise/shift compound assignment not valid on FP arrays", -1);
@@ -8102,7 +8451,10 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
       memset(cc->data + cc->data_pos, 0, (size_t)total_bytes);
       cc->data_pos += (uint32_t)total_bytes;
     }
-    if (cc_match(cc, CC_TOK_EQ)) {
+    if (cc_is_integer_scalar_type(type)) {
+      if (!cc_parse_integer_array_initializer(cc, sym, type))
+        return;
+    } else if (cc_match(cc, CC_TOK_EQ)) {
       if (!cc_skip_brace_initializer(cc))
         return;
     }
@@ -8431,9 +8783,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
         cc_parse_expression(cc, 1);
         /* Coerce element into the lane's scalar FP type. */
         if (elem_type == TYPE_FLOAT) {
-          if (cc_last_expr_type == TYPE_INT ||
-              cc_last_expr_type == TYPE_UINT ||
-              cc_last_expr_type == TYPE_CHAR) {
+          if (cc_is_integer_scalar_type(cc_last_expr_type)) {
             cc_emit_integer_to_fp(cc, cc_last_expr_type, TYPE_FLOAT, 0);
           } else if (cc_last_expr_type == TYPE_DOUBLE) {
             emit_cvtsd2ss(cc, 0, 0);
@@ -8445,9 +8795,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
           cc_last_xmm = 0;
           emit_movss_local_xmm(cc, 0, local_slot + i * elem_size);
         } else {
-          if (cc_last_expr_type == TYPE_INT ||
-              cc_last_expr_type == TYPE_UINT ||
-              cc_last_expr_type == TYPE_CHAR) {
+          if (cc_is_integer_scalar_type(cc_last_expr_type)) {
             cc_emit_integer_to_fp(cc, cc_last_expr_type, TYPE_DOUBLE, 0);
           } else if (cc_last_expr_type == TYPE_FLOAT) {
             emit_cvtss2sd(cc, 0, 0);
@@ -8540,9 +8888,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
       return;
     if (type == TYPE_FLOAT) {
       /* Coerce initializer into float if needed. */
-      if (cc_last_expr_type == TYPE_INT ||
-          cc_last_expr_type == TYPE_UINT ||
-          cc_last_expr_type == TYPE_CHAR) {
+      if (cc_is_integer_scalar_type(cc_last_expr_type)) {
         cc_emit_integer_to_fp(cc, cc_last_expr_type, TYPE_FLOAT, 0);
         cc_last_xmm = 0;
       } else if (cc_last_expr_type == TYPE_DOUBLE) {
@@ -8554,9 +8900,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
       }
       emit_movss_local_xmm(cc, 0, local_slot);
     } else if (type == TYPE_DOUBLE) {
-      if (cc_last_expr_type == TYPE_INT ||
-          cc_last_expr_type == TYPE_UINT ||
-          cc_last_expr_type == TYPE_CHAR) {
+      if (cc_is_integer_scalar_type(cc_last_expr_type)) {
         cc_emit_integer_to_fp(cc, cc_last_expr_type, TYPE_DOUBLE, 0);
         cc_last_xmm = 0;
       } else if (cc_last_expr_type == TYPE_FLOAT) {
@@ -8567,6 +8911,8 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
                      " (non-scalar initializer not supported)");
       }
       emit_movsd_local_xmm(cc, 0, local_slot);
+    } else if (cc_is_halfword_type(type)) {
+      emit_store_local_halfword(cc, local_slot);
     } else {
       emit_store_local(cc, local_slot);
     }
@@ -12382,6 +12728,8 @@ void cc_parse_program(cc_state_t *cc) {
             memset(cc->data + cc->data_pos, 0, (size_t)total_bytes);
             cc->data_pos += (uint32_t)total_bytes;
           }
+          if (!cc_parse_integer_array_initializer(cc, gsym, gtype))
+            break;
           cc_expect(cc, CC_TOK_SEMICOLON);
         }
         /* Global struct variable */
@@ -13157,6 +13505,9 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
         memset(cc->data + cc->data_pos, 0, (size_t)total_bytes);
         cc->data_pos += (uint32_t)total_bytes;
       }
+      if (cc_is_integer_scalar_type(gtype) &&
+          !cc_parse_integer_array_initializer(cc, gsym, gtype))
+        return;
       cc_expect(cc, CC_TOK_SEMICOLON);
       return;
     }

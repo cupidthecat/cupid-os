@@ -121,7 +121,7 @@ def _registration_body(source):
     raise AssertionError("kernel binding registration has no closing brace")
 
 
-def _expected_cupid_type(return_type):
+def _expected_cupid_type(return_type, legacy_result_only=False):
     compact = re.sub(r"\s+", "", return_type)
     if compact == "void":
         return "TYPE_VOID"
@@ -135,6 +135,8 @@ def _expected_cupid_type(return_type):
         return "TYPE_PTR"
     if compact in ("uint32_t", "size_t", "swap_handle_t"):
         return "TYPE_UINT"
+    if compact == "uint16_t":
+        return "TYPE_INT" if legacy_result_only else "TYPE_USHORT"
     return "TYPE_INT"
 
 
@@ -208,7 +210,7 @@ def _binding_contract(source):
             )
             continue
 
-        expected = _expected_cupid_type(declared_type)
+        expected = _expected_cupid_type(declared_type, binding["macro"] == "BIND_T")
         if expected == "TYPE_VOID":
             if binding["macro"] == "BIND_T":
                 violations.append(
@@ -248,6 +250,27 @@ def _binding_contract(source):
 
 
 class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
+    def test_halfword_network_bindings_publish_native_widths(self):
+        source = BINDING_SOURCE.read_text(encoding="utf-8")
+        _declarations, bindings, violations = _binding_contract(source)
+        self.assertEqual(violations, [])
+        expected = {
+            "htons": ("TYPE_USHORT", ["TYPE_USHORT"]),
+            "ntohs": ("TYPE_USHORT", ["TYPE_USHORT"]),
+            "bind": ("TYPE_INT", ["TYPE_INT", "TYPE_UINT", "TYPE_USHORT"]),
+            "connect": ("TYPE_INT", ["TYPE_INT", "TYPE_UINT", "TYPE_USHORT"]),
+            "accept": ("TYPE_INT", ["TYPE_INT", "TYPE_UINT_PTR", "TYPE_USHORT_PTR"]),
+            "sendto": ("TYPE_INT", ["TYPE_INT", "TYPE_PTR", "TYPE_UINT", "TYPE_UINT", "TYPE_USHORT"]),
+            "recvfrom": ("TYPE_INT", ["TYPE_INT", "TYPE_PTR", "TYPE_UINT", "TYPE_UINT_PTR", "TYPE_USHORT_PTR"]),
+            "udp_send_raw": ("TYPE_INT", ["TYPE_UINT", "TYPE_USHORT", "TYPE_USHORT", "TYPE_CHAR_PTR", "TYPE_UINT"]),
+        }
+        for name, (result, parameters) in expected.items():
+            with self.subTest(name=name):
+                self.assertEqual(bindings["p_" + name], {
+                    "macro": "BIND_FIXED", "name": name, "return_type": result,
+                    "parameter_count": len(parameters), "parameter_types": parameters,
+                })
+
     def test_guest_allocator_wrapper_owns_provenance_and_one_argument_abi(self):
         source = BINDING_SOURCE.read_text(encoding="utf-8")
         self.assertRegex(
@@ -302,13 +325,14 @@ class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
             published_types,
             Counter(
                 {
-                    "TYPE_INT": 208,
+                    "TYPE_INT": 206,
                     "TYPE_VOID": 231,
                     "TYPE_UINT": 41,
                     "TYPE_DOUBLE": 25,
                     "TYPE_FLOAT": 25,
                     "TYPE_CHAR_PTR": 19,
                     "TYPE_PTR": 8,
+                    "TYPE_USHORT": 2,
                 }
             ),
         )
@@ -320,13 +344,38 @@ class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
         self.assertEqual(
             bindings["p_htonl"],
             {
-                "macro": "BIND_T",
+                "macro": "BIND_FIXED",
                 "name": "htonl",
                 "parameter_count": 1,
                 "return_type": "TYPE_UINT",
-                "parameter_types": [],
+                "parameter_types": ["TYPE_UINT"],
             },
         )
+
+    def test_network_bindings_publish_declared_fixed_word_and_pointer_lanes(self):
+        source = BINDING_SOURCE.read_text(encoding="utf-8")
+        _declarations, bindings, violations = _binding_contract(source)
+        self.assertEqual(violations, [])
+        expected = {
+            "socket": ("TYPE_INT", ["TYPE_INT"]),
+            "listen": ("TYPE_INT", ["TYPE_INT", "TYPE_INT"]),
+            "send": ("TYPE_INT", ["TYPE_INT", "TYPE_PTR", "TYPE_UINT"]),
+            "recv": ("TYPE_INT", ["TYPE_INT", "TYPE_PTR", "TYPE_UINT"]),
+            "close": ("TYPE_INT", ["TYPE_INT"]),
+            "setsockopt": ("TYPE_INT", ["TYPE_INT", "TYPE_INT", "TYPE_INT", "TYPE_PTR", "TYPE_UINT"]),
+            "sock_avail": ("TYPE_INT", ["TYPE_INT"]),
+            "sock_state": ("TYPE_INT", ["TYPE_INT"]),
+            "htonl": ("TYPE_UINT", ["TYPE_UINT"]),
+            "ntohl": ("TYPE_UINT", ["TYPE_UINT"]),
+            "dns_resolve": ("TYPE_INT", ["TYPE_CHAR_PTR", "TYPE_UINT_PTR"]),
+            "ip_parse": ("TYPE_INT", ["TYPE_CHAR_PTR", "TYPE_UINT_PTR"]),
+        }
+        for name, (result, parameters) in expected.items():
+            with self.subTest(name=name):
+                self.assertEqual(bindings["p_" + name], {
+                    "macro": "BIND_FIXED", "name": name, "return_type": result,
+                    "parameter_count": len(parameters), "parameter_types": parameters,
+                })
 
     def test_gfxgui_frontier_has_the_exact_native_binding_contract(self):
         source = BINDING_SOURCE.read_text(encoding="utf-8")
@@ -381,7 +430,8 @@ class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
                 self.assertIn(
                     declarations[pointer].strip(), ("uint8_t", "uint16_t")
                 )
-                self.assertEqual(bindings[pointer]["return_type"], "TYPE_INT")
+                expected = "TYPE_USHORT" if pointer in ("p_htons", "p_ntohs") else "TYPE_INT"
+                self.assertEqual(bindings[pointer]["return_type"], expected)
 
     def test_libm_bindings_publish_fixed_floating_signatures(self):
         source = BINDING_SOURCE.read_text(encoding="utf-8")

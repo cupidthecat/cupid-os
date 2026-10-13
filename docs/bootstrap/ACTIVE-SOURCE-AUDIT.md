@@ -31,10 +31,10 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `boot_assembly` | 1 | 298 |
 | `cupid_asm_demo` | 22 | 1470 |
 | `cupid_c_browser_fragment` | 22 | 15958 |
-| `cupid_c_program` | 108 | 20613 |
+| `cupid_c_program` | 108 | 20713 |
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 10891 |
-| `cupidc` | 8 | 20004 |
+| `cupidc` | 8 | 20369 |
 | `cupiddis` | 5 | 6018 |
 | `doom_port` | 7 | 3989 |
 | `driver` | 22 | 3888 |
@@ -100,16 +100,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1484 |
 | `asm.relocation` | 1 | 94 |
-| `c.control` | 12 | 96402 |
+| `c.control` | 12 | 96622 |
 | `c.declaration` | 1 | 30 |
 | `c.declarator` | 4 | 4170 |
-| `c.expression` | 2 | 7153 |
+| `c.expression` | 2 | 7164 |
 | `c.extension` | 19 | 427 |
 | `c.initializer` | 1 | 690 |
 | `c.preprocessor` | 18 | 8536 |
 | `c.qualifier` | 2 | 18974 |
-| `c.storage` | 4 | 11677 |
-| `c.type` | 15 | 63845 |
+| `c.storage` | 4 | 11695 |
+| `c.type` | 15 | 63868 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
@@ -117,7 +117,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_c.extension` | 1 | 9 |
 | `cupid_c.output` | 1 | 246 |
 | `cupid_c.storage` | 2 | 487 |
-| `cupid_c.type` | 12 | 267 |
+| `cupid_c.type` | 12 | 304 |
 
 The JSON companion records stable feature IDs, occurrence counts, files, and representative source locations.
 
@@ -148,7 +148,7 @@ It is also a declared Make prerequisite.
 | 6 | `cupidasm_encoding_and_raw_parity` - Reach byte parity for boot and trampoline binaries | 25 |
 | 7 | `cupidasm_symbols_and_relocations` - Emit ELF32 sections, symbols, and i386 relocations | 13 |
 | 8 | `cupidc_preprocessor` - Implement the active C and Cupid C preprocessing contract | 603 |
-| 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 709 |
+| 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 710 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 60 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 204 |
 | 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 382 |

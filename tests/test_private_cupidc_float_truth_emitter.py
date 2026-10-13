@@ -222,8 +222,13 @@ int main(void) {{
 
     def _compile_truth_type_classifier(self):
         parser_source = PARSER_SOURCE.read_text(encoding="utf-8")
-        classifier = _extract_function(
-            parser_source, "cc_is_scalar_truth_type"
+        classifier = "\n\n".join(
+            _extract_function(parser_source, name)
+            for name in (
+                "cc_is_halfword_type",
+                "cc_is_integer_scalar_type",
+                "cc_is_scalar_truth_type",
+            )
         )
         harness = f"""
 #include <stdio.h>
@@ -245,14 +250,18 @@ typedef enum {{
   TYPE_FLOAT_PTR,
   TYPE_DOUBLE_PTR,
   TYPE_UINT,
-  TYPE_UINT_PTR
+  TYPE_UINT_PTR,
+  TYPE_SHORT,
+  TYPE_USHORT,
+  TYPE_SHORT_PTR,
+  TYPE_USHORT_PTR
 }} cc_type_t;
 
 {classifier}
 
 int main(void) {{
   int type;
-  for (type = TYPE_INT; type <= TYPE_UINT_PTR; type++)
+  for (type = TYPE_INT; type <= TYPE_USHORT_PTR; type++)
     printf("%d\\n", cc_is_scalar_truth_type((cc_type_t)type));
   return 0;
 }}
@@ -312,6 +321,8 @@ int main(void) {{
         functions = "\n\n".join(
             _extract_function(parser_source, name)
             for name in (
+                "cc_is_halfword_type",
+                "cc_is_integer_scalar_type",
                 "cc_is_scalar_truth_type",
                 "cc_materialize_scalar_truth",
             )
@@ -336,7 +347,11 @@ typedef enum {{
   TYPE_FLOAT_PTR,
   TYPE_DOUBLE_PTR,
   TYPE_UINT,
-  TYPE_UINT_PTR
+  TYPE_UINT_PTR,
+  TYPE_SHORT,
+  TYPE_USHORT,
+  TYPE_SHORT_PTR,
+  TYPE_USHORT_PTR
 }} cc_type_t;
 
 typedef struct {{
@@ -487,6 +502,10 @@ int main(void) {{
                 1,  # double pointer
                 1,  # unsigned int
                 1,  # unsigned int pointer
+                1,  # short
+                1,  # unsigned short
+                1,  # short pointer
+                1,  # unsigned short pointer
             ),
         )
 

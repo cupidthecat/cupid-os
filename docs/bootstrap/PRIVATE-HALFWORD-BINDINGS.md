@@ -1,5 +1,15 @@
 # Private network halfword bindings
 
+## Current combined qualification, 2026-10-12
+
+The [combined halfword and array record](PRIVATE-INTEGER-ARRAY-QUALIFICATION.md)
+passes paired ordinary OS/guest checks, all 537 integrated selections and both
+complete forty-method frontier modules. Source and six measured constants are
+applied in the engineering working tree. Bounded final root acceptance passes in the [final five-test proof](evidence/verification-final-root-combined-five-test-acceptance-20261013.json.gz).
+Windows retains eight earlier command results and newly runs the complete
+suite; Linux freshly rebuilds normal products and checks guest runtime. The sections below preserve this earlier stage's
+tests, failures and limits; they are historical checkpoints.
+
 The isolated follow-up to the [halfword type candidate](PRIVATE-HALFWORD-TYPES.md)
 publishes fixed native signatures for eight more network functions: `htons`,
 `ntohs`, `bind`, `connect`, `accept`, `sendto`, `recvfrom` and `udp_send_raw`.
@@ -66,11 +76,11 @@ snapshots, failures, assembly oracles, reviews and logs. The archive has
 `6697bfbc275314b66ee4c8f0a414bbaeac7d83843747447273a2bbeac6442576`.
 
 Seven files differ from the preserved type-only candidate. The 99 standalone
-producer inputs and engineering checkout's active compiler remain unchanged.
+producer inputs and engineering checkout's active compiler remained unchanged at this checkpoint.
 Separate Windows and Linux OS roots contain the candidate and the same
 qualified seventeen-file seed/pin/policy projection. Cold kernel measurements
 are queued after the four SDK profiles to preserve the existing producer
-timing bounds. Complete normal builds, ABI and artifact gates, and all 31
-network-aware guest commands remain required before adoption. No installed
+timing bounds. At this checkpoint, complete normal builds, ABI and artifact gates, and all 31
+network-aware guest commands remained required before adoption. No installed
 seed change, source-owner transfer or complete C support is claimed.
 `TempleOS/` remains read-only reference material.

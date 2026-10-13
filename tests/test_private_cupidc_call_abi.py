@@ -23,19 +23,26 @@ STORAGE_BINDING_NAMES = (
     "vfs_mkdir", "vfs_unlink", "vfs_rename",
     "swap_init", "swap_kmalloc", "swap_pin", "swap_unpin", "swap_free",
 )
+NETWORK_BINDING_NAMES = (
+    "close", "dns_resolve", "htonl", "ip_parse", "listen", "ntohl",
+    "recv", "send", "setsockopt", "sock_avail", "sock_state", "socket",
+)
+HALFWORD_BINDING_NAMES = (
+    "htons", "ntohs", "bind", "connect", "accept", "sendto", "recvfrom", "udp_send_raw",
+)
 
 
-def _storage_binding_registration():
+def _native_binding_registration(names, address_base, function_name):
     """Run the real registrations against fixed-address native ABI oracles."""
     source = (KERNEL_LANG / "cupidc.cc").read_text(encoding="utf-8")
     start = source.index("#define BIND_LEGACY_RESULT(")
     end = source.index("  /* Console output */", start)
     fragments = [source[start:end]]
-    for index, name in enumerate(STORAGE_BINDING_NAMES):
+    for index, name in enumerate(names):
         pointer = "p_" + name
         declaration = re.search(
             rf"(?m)^  (?P<result>[^\n;]+?)\s*\(\*{pointer}\)"
-            rf"\((?P<parameters>[^;]+?)\) = [^;]+;",
+            rf"\((?P<parameters>[^;]+?)\)\s*=\s*[^;]+;",
             source,
         )
         registration = re.search(
@@ -46,7 +53,7 @@ def _storage_binding_registration():
             raise AssertionError(f"missing native declaration for {name}")
         result = declaration.group("result").strip()
         parameters = declaration.group("parameters")
-        address = 0x01001400 + 0x80 * index
+        address = address_base + 0x80 * index
         fragments.append(
             f"  {result} (*{pointer})({parameters}) = "
             f"({result} (*)({parameters}))(uintptr_t)0x{address:08x}u;\n"
@@ -60,9 +67,115 @@ def _storage_binding_registration():
         )
     )
     return (
-        "typedef uint32_t swap_handle_t;\n"
-        "static void bind_storage_kernels(cc_state_t *cc) {\n"
+        f"static void {function_name}(cc_state_t *cc) {{\n"
         + "\n".join(fragments) + "\n}\n"
+    )
+
+
+def _storage_binding_registration():
+    return "typedef uint32_t swap_handle_t;\n" + _native_binding_registration(
+        STORAGE_BINDING_NAMES, 0x01001400, "bind_storage_kernels"
+    )
+
+
+def _network_binding_registration():
+    return _native_binding_registration(
+        NETWORK_BINDING_NAMES, 0x01002000, "bind_network_kernels"
+    )
+
+
+def _halfword_binding_registration():
+    registration = _native_binding_registration(
+        HALFWORD_BINDING_NAMES, 0x01002800, "bind_halfword_kernels"
+    )
+    return registration.replace("#undef BIND_FIXED", '''
+  uint16_t (*p_Device_ReadPort)(void *) = (uint16_t (*)(void *))(uintptr_t)0x01002c00u;
+  BIND_FIXED("Device_ReadPort", p_Device_ReadPort, 1, TYPE_USHORT, TYPE_PTR);
+  int16_t (*p_Device_ReadSigned)(void *) = (int16_t (*)(void *))(uintptr_t)0x01002c80u;
+  BIND_FIXED("Device_ReadSigned", p_Device_ReadSigned, 1, TYPE_SHORT, TYPE_PTR);
+#undef BIND_FIXED''')
+
+
+def _halfword_native_assembly():
+    # Read complete cdecl slots independently of the descriptors, and poison
+    # unused return bits so uint16_t result conversion cannot pass by accident.
+    swap = "cmpl $4660, 4(%esp)\n  jne 9f\n  movl $0xa5a53412, %eax\n  ret"
+    endpoint = ("cmpl $31, 4(%esp)\n  jne 9f\n"
+                "  cmpl $0x80000001, 8(%esp)\n  jne 9f\n"
+                "  cmpl $4660, 12(%esp)\n  jne 9f")
+    peer = ("movl 8(%esp), %ecx\n  movl $0x80000002, (%ecx)\n"
+            "  movl 12(%esp), %ecx\n  movw $65000, (%ecx)")
+    recv_peer = ("movl 16(%esp), %ecx\n  movl $0x80000003, (%ecx)\n"
+                 "  movl 20(%esp), %ecx\n  movw $65001, (%ecx)")
+    cases = (
+        (swap, None), (swap, None), (endpoint, -7), (endpoint, -8),
+        ("cmpl $31, 4(%esp)\n  jne 9f\n  " + peer, 43),
+        ("cmpl $31, 4(%esp)\n  jne 9f\n  cmpl $0x80000003, 12(%esp)\n  jne 9f\n"
+         "  cmpl $0x80000001, 16(%esp)\n  jne 9f\n  cmpl $4660, 20(%esp)\n  jne 9f\n"
+         "  movl 8(%esp), %ecx\n  cmpb $53, (%ecx)\n  jne 9f", 47),
+        ("cmpl $31, 4(%esp)\n  jne 9f\n  cmpl $0x80000004, 12(%esp)\n  jne 9f\n"
+         "  movl 8(%esp), %ecx\n  cmpb $53, (%ecx)\n  jne 9f\n  movb $67, (%ecx)\n  " + recv_peer, -9),
+        ("cmpl $0x80000001, 4(%esp)\n  jne 9f\n  cmpl $4660, 8(%esp)\n  jne 9f\n"
+         "  cmpl $65535, 12(%esp)\n  jne 9f\n  cmpl $0x80000005, 20(%esp)\n  jne 9f\n"
+         "  movl 16(%esp), %ecx\n  cmpb $53, (%ecx)\n  jne 9f", -10),
+    )
+    return "\n".join(
+        f".org 0x{0x2800 + index * 0x80:x}\nhalfword_{name}:\n  {checks}\n"
+        + (f"  movl ${result}, %eax\n  ret\n" if result is not None else "")
+        + "9:\n  movl $-71, %eax\n  ret\n"
+        for index, (name, (checks, result)) in enumerate(zip(HALFWORD_BINDING_NAMES, cases))
+    ) + '''
+.org 0x2c00
+halfword_device_readport:
+  movl 4(%esp), %ecx
+  cmpl $4951, (%ecx)
+  jne 9f
+  movl $0xa5a5fde8, %eax
+  ret
+9:
+  movl $-71, %eax
+  ret
+.org 0x2c80
+halfword_device_readsigned:
+  movl 4(%esp), %ecx
+  cmpl $4951, (%ecx)
+  jne 9f
+  movl $0xa5a5ffff, %eax
+  ret
+9:
+  movl $-71, %eax
+  ret
+'''
+
+
+def _network_native_assembly():
+    # Offsets and widths come from the native i386 declarations, independently
+    # of the fixed descriptors copied into the compiler driver above.
+    cases = (
+        ("cmpl $31, 4(%esp)\n  jne 9f", 0),
+        ("movl 4(%esp), %ecx\n  cmpb $101, (%ecx)\n  jne 9f\n"
+         "  movl 8(%esp), %ecx\n  movl $0x80000002, (%ecx)", 0),
+        ("movl 4(%esp), %eax\n  bswap %eax\n  ret", None),
+        ("movl 4(%esp), %ecx\n  cmpb $49, (%ecx)\n  jne 9f\n"
+         "  movl 8(%esp), %ecx\n  movl $0x80000003, (%ecx)", 0),
+        ("cmpl $31, 4(%esp)\n  jne 9f\n  cmpl $3, 8(%esp)\n  jne 9f", 0),
+        ("movl 4(%esp), %eax\n  bswap %eax\n  ret", None),
+        ("cmpl $31, 4(%esp)\n  jne 9f\n  cmpl $0x80000002, 12(%esp)\n  jne 9f\n"
+         "  movl 8(%esp), %ecx\n  cmpb $53, (%ecx)\n  jne 9f\n  movb $67, (%ecx)", -7),
+        ("cmpl $31, 4(%esp)\n  jne 9f\n  cmpl $0x80000003, 12(%esp)\n  jne 9f\n"
+         "  movl 8(%esp), %ecx\n  cmpb $53, (%ecx)\n  jne 9f", 43),
+        ("cmpl $31, 4(%esp)\n  jne 9f\n  cmpl $-1, 8(%esp)\n  jne 9f\n"
+         "  cmpl $2, 12(%esp)\n  jne 9f\n  cmpl $0x80000004, 20(%esp)\n  jne 9f\n"
+         "  movl 16(%esp), %ecx\n  cmpb $53, (%ecx)\n  jne 9f", -9),
+        ("cmpl $31, 4(%esp)\n  jne 9f", 2147483647),
+        ("cmpl $31, 4(%esp)\n  jne 9f", -3),
+        ("cmpl $2, 4(%esp)\n  jne 9f", 31),
+    )
+    return "\n".join(
+        f".org 0x{0x2000 + index * 0x80:x}\nnetwork_{name}:\n  {checks}\n"
+        + (f"  movl ${result}, %eax\n  ret\n" if result is not None else "")
+        + "9:\n  movl $-71, %eax\n  ret\n"
+        for index, (name, (checks, result)) in enumerate(zip(NETWORK_BINDING_NAMES, cases))
     )
 
 
@@ -102,6 +215,591 @@ def _storage_native_assembly():
 
 
 class PrivateCupidCCallAbiTests(unittest.TestCase):
+    def test_halfword_scalar_addresses_use_declared_strides(self):
+        self._assert_halfword_runtime('''
+            U16 global_unsigned; I16 global_signed;
+            int check(U16 parameter_unsigned, I16 parameter_signed) {
+                U16 local_unsigned; I16 local_signed;
+                static U16 static_unsigned; static I16 static_signed;
+                if ((U32)(&local_unsigned + 1) - (U32)&local_unsigned != 2) return 1;
+                if ((U32)(1 + &local_signed) - (U32)&local_signed != 2) return 2;
+                if ((U32)(&parameter_unsigned + 1) - (U32)&parameter_unsigned != 2) return 3;
+                if ((U32)(&parameter_signed - 1) - (U32)&parameter_signed != 4294967294u) return 4;
+                if ((U32)(&static_unsigned + 1) - (U32)&static_unsigned != 2) return 5;
+                if ((U32)(&static_signed + 1) - (U32)&static_signed != 2) return 6;
+                if ((U32)(&global_unsigned + 1) - (U32)&global_unsigned != 2) return 7;
+                if ((U32)(&global_signed + 1) - (U32)&global_signed != 2) return 8;
+                return 0;
+            }
+            int main() { return check(1, -1); }
+        ''')
+
+    def test_halfword_array_sizeof_descends_through_rows(self):
+        self._assert_halfword_runtime('''
+            int main() {
+                U16 grid[2][3]; I16 cube[2][3][4];
+                if (sizeof(*grid) != 6 || sizeof(**grid) != 2) return 1;
+                if (sizeof(*cube) != 24 || sizeof(**cube) != 8 || sizeof(***cube) != 2) return 2;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_simd_broadcasts_convert_signed_and_unsigned_values(self):
+        self._assert_halfword_runtime('''
+            int main() {
+                U16 u = 65535; I16 s = -2;
+                float4 uf; float4 sf; double2 ud; double2 sd;
+                uf = _mm_set1_ps(u); sf = _mm_set1_ps(s);
+                ud = _mm_set1_pd(u); sd = _mm_set1_pd(s);
+                if (uf.x != 65535.0f || uf.w != 65535.0f) return 1;
+                if (sf.x != -2.0f || sf.w != -2.0f) return 2;
+                if (ud.x != 65535.0 || ud.y != 65535.0) return 3;
+                if (sd.x != -2.0 || sd.y != -2.0) return 4;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_casts_reject_vectors_records_and_void(self):
+        operands = (
+            ('float4 value = {1.0f, 2.0f, 3.0f, 4.0f};', 'value'),
+            ('double2 value = {1.0, 2.0};', 'value'),
+            ('struct Pair value;', 'value'),
+            ('', 'nothing()'),
+        )
+        for target in ('U16', 'I16'):
+            for declaration, expression in operands:
+                for aot in (False, True):
+                    with self.subTest(target=target, expression=expression, declaration=declaration, aot=aot):
+                        source = ('struct Pair { int x; }; void nothing() {} int main() { ' + declaration
+                                  + ' return (' + target + ')' + expression + '; }')
+                        with tempfile.TemporaryDirectory(prefix='private-halfword-cast-negative-') as temporary:
+                            result, _code, _data = self._compile(Path(temporary), source, aot=aot)
+                        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                        self.assertIn('halfword cast requires', result.stdout + result.stderr)
+
+    def test_halfword_cast_failure_recovers_and_keeps_explicit_address_casts(self):
+        for target in ('U16', 'I16'):
+            with self.subTest(target=target):
+                with tempfile.TemporaryDirectory(prefix='private-halfword-cast-recovery-') as temporary:
+                    root = Path(temporary)
+                    result, _code, _data = self._compile_after_failure(
+                        root,
+                        'int main() { float4 value = {1.0f, 2.0f, 3.0f, 4.0f}; return (' + target + ')value; }',
+                        '''U16 global;
+                           int main() {
+                               if ((U16)&global != ((U32)&global & 65535u)) return 1;
+                               if ((I16)&global != (I16)((U32)&global & 65535u)) return 2;
+                               if ((U16)65537 != 1 || (I16)65535 != -1) return 3;
+                               return 0;
+                           }''',
+                        same_state=True,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    executed = self._run_i386(root, int(result.stdout.strip()))
+                    self.assertEqual(executed.returncode, 0, executed.stdout + executed.stderr)
+
+    def test_halfword_native_class_methods_normalize_signed_and_unsigned_results(self):
+        self._assert_halfword_runtime('''
+            class Device { I32 marker; };
+            int main() {
+                Device device;
+                device.marker = 4951;
+                if (device.ReadPort() != 65000) return 1;
+                if (device.ReadSigned() != -1) return 2;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_native_results_through_named_and_record_callbacks(self):
+        self._assert_halfword_runtime('''
+            typedef U16 (*Convert)(U16);
+            struct Slot { Convert convert; };
+            int main() {
+                Convert direct = htons;
+                Slot slot;
+                slot.convert = ntohs;
+                if (direct(70196.75) != 13330) return 1;
+                if (slot.convert(70196.75) != 13330) return 2;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_native_network_slots_and_results(self):
+        cases = {
+            "htons": "if (htons(70196.75) != 13330) return 1;",
+            "ntohs": "if (ntohs(70196.75) != 13330) return 2;",
+            "bind": "if (bind(31.0, 2147483649.0, 70196.75) != -7) return 3;",
+            "connect": "if (connect(31.0, 2147483649.0, 70196.75) != -8) return 4;",
+            "accept": "if (accept(31.0, &ip, &ports[0]) != 43 || ip != 2147483650u || ports[0] != 65000 || ports[1] != 1234) return 5;",
+            "sendto": "if (sendto(31.0, bytes, 2147483651.0, 2147483649.0, 70196.75) != 47) return 6;",
+            "recvfrom": "if (recvfrom(31.0, bytes, 2147483652.0, &ip, &ports[0]) != -9 || ip != 2147483651u || ports[0] != 65001 || ports[1] != 1234 || bytes[0] != 67) return 7;",
+            "udp_send_raw": "if (udp_send_raw(2147483649.0, 70196.75, -1.0, bytes, 2147483653.0) != -10) return 8;",
+        }
+        for name, body in cases.items():
+            with self.subTest(name=name):
+                self._assert_halfword_runtime(
+                    "int main() { U32 ip=0; U16 ports[2]; char bytes[2]; int i=0; "
+                    "while (i < 1000) { ports[0]=0; ports[1]=1234; bytes[0]=53; "
+                    + body + " i+=1; } return 0; }")
+
+    def test_halfword_native_bindings_reject_arity_and_bad_types(self):
+        calls = {
+            "htons": ["4660"], "ntohs": ["4660"],
+            "bind": ["31", "1", "2"], "connect": ["31", "1", "2"],
+            "accept": ["31", "0", "0"], "sendto": ["31", "0", "8", "1", "2"],
+            "recvfrom": ["31", "0", "8", "0", "0"], "udp_send_raw": ["1", "2", "3", "0", "8"],
+        }
+        failures = []
+        for name, arguments in calls.items():
+            for selected, detail in ((arguments[:-1], "too few"), ([*arguments, "0"], "too many")):
+                failures.append((f"int main() {{ return {name}({', '.join(selected)}); }}",
+                                 f"kernel binding call has {detail} arguments"))
+        for call in ('accept(31, 1.0, 0)', 'accept(31, 0, 1.0)',
+                     'sendto(31, 1.0, 8, 1, 2)', 'recvfrom(31, 1.0, 8, 0, 0)',
+                     'recvfrom(31, 0, 8, 0, 1.0)', 'udp_send_raw(1, 2, 3, 1.0, 8)'):
+            failures.append((f"int main() {{ return {call}; }}",
+                             "cdecl argument type does not match fixed parameter"))
+        failures.extend((f"int main() {{ float4 v={{1,2,3,4}}; return {name}(v); }}",
+                         "cdecl argument type does not match fixed parameter") for name in ('htons', 'ntohs'))
+        for source, diagnostic in failures:
+            for aot in (False, True):
+                with self.subTest(source=source, aot=aot):
+                    with tempfile.TemporaryDirectory(prefix='private-halfword-native-negative-') as temporary:
+                        result, _code, _data = self._compile(Path(temporary), source, aot=aot)
+                    self.assertEqual(result.returncode, 2)
+                    self.assertIn(diagnostic, result.stderr)
+
+    def test_halfword_native_failures_recover_same_state(self):
+        with tempfile.TemporaryDirectory(prefix='private-halfword-native-recovery-') as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_two_failures(root,
+                'int main() { return bind(31); }',
+                'int main() { return accept(31, 0, 1.0); }',
+                'int main() { return htons(70196.75) == 13330 ? 0 : 1; }')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            executed = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(executed.returncode, 0, executed.stdout + executed.stderr)
+
+    def test_halfword_global_integer_initializers_accept_character_constants(self):
+        self._assert_halfword_runtime(r'''
+            U16 values[4] = {'A', '\n', 'B' + 1, 65537};
+            I16 signed_values[3] = {-'A', '\t', 65535};
+            char bytes[3] = {'C', 0, 'D' - 1};
+            int words[2] = {'E' * 2, ('F')};
+            int main() {
+                if (values[0] != 65 || values[1] != 10 || values[2] != 67 || values[3] != 1) return 1;
+                if (signed_values[0] != -65 || signed_values[1] != 9 || signed_values[2] != -1) return 2;
+                if (bytes[0] != 67 || bytes[1] != 0 || bytes[2] != 67) return 3;
+                if (words[0] != 138 || words[1] != 70) return 4;
+                return 0;
+            }
+        ''')
+
+    def _assert_halfword_runtime(self, source):
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_static_integer_arrays_keep_typed_constant_initializers(self):
+        self._assert_halfword_runtime(r'''
+            int step() {
+                static U16 ports[3] = {65537, 54321,};
+                static I16 signed_words[2] = {65535, -32768};
+                static char bytes[3] = {'A', '\n'};
+                static unsigned int words[2] = {2147483648u, 4294967295u};
+                if (ports[1] != 54321 || ports[2] != 0) return 1;
+                if (signed_words[0] != -1 || signed_words[1] != -32768) return 2;
+                if (bytes[0] != 65 || bytes[1] != 10 || bytes[2] != 0) return 3;
+                if (words[0] != 2147483648u || words[1] != 4294967295u) return 4;
+                int previous = ports[0];
+                ports[0] += 1;
+                return previous;
+            }
+            int main() {
+                if (step() != 1 || step() != 2 || step() != 3) return 5;
+                return 0;
+            }
+        ''')
+
+    def test_static_integer_array_typedefs_keep_constant_data(self):
+        self._assert_halfword_runtime('''
+            typedef U16 Ports[3];
+            int main() {
+                static Ports ports = {65537, 65535};
+                if (sizeof(ports) != 6 || ports[0] != 1 || ports[1] != 65535 || ports[2] != 0) return 1;
+                return 0;
+            }
+        ''')
+
+    def test_repl_integer_arrays_keep_typed_initializers_across_units(self):
+        result = self._compile_repl_and_run((
+            r"U16 ports[3] = {65537, 54321,}; I16 signed_words[2] = {65535, -32768};",
+            r"char bytes[3] = {'A', '\n'}; unsigned int words[2] = {2147483648u, 4294967295u};",
+            '''int main() {
+                if (ports[0] != 1 || ports[1] != 54321 || ports[2] != 0) return 1;
+                if (signed_words[0] != -1 || signed_words[1] != -32768) return 2;
+                if (bytes[0] != 65 || bytes[1] != 10 || bytes[2] != 0) return 3;
+                if (words[0] != 2147483648u || words[1] != 4294967295u) return 4;
+                return 0;
+            }''',
+        ))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_repl_integer_array_typedefs_keep_constant_data(self):
+        result = self._compile_repl_and_run((
+            "typedef I16 Samples[3];",
+            "Samples values = {65535, -32768,};",
+            "int main() { return values[0] != -1 || values[1] != -32768 || values[2] != 0; }",
+        ))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_static_and_repl_integer_lists_reject_bad_constants(self):
+        failures = (
+            ("U16 values[1] = {1, 2};", "too many integer array initializers"),
+            ("I16 values[1] = {1 / 0};", "division by zero"),
+            ("U16 values[1] = {native_mixed(1, 2, 3, 4)};", "constant"),
+        )
+        for declaration, diagnostic in failures:
+            for context, repl, aot in (
+                ("static JIT", False, False),
+                ("static AOT", False, True),
+                ("persistent REPL", True, False),
+            ):
+                source = declaration if repl else (
+                    "int main() { static " + declaration + " return 0; }")
+                with self.subTest(declaration=declaration, context=context):
+                    with tempfile.TemporaryDirectory(prefix="private-integer-list-negative-") as temporary:
+                        result, _code, _data = self._compile(Path(temporary), source, repl=repl, aot=aot)
+                    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                    self.assertIn(diagnostic, result.stderr)
+
+    def test_repl_integer_list_failure_restores_data_and_names(self):
+        with tempfile.TemporaryDirectory(prefix="private-integer-list-recovery-") as temporary:
+            root = Path(temporary)
+            result, _code, data = self._compile_repl_after_struct_failure(root, (
+                "U16 baseline[2] = {31, 53};",
+                "U16 poisoned[2] = {1, 2, 3};",
+                "U16 poisoned[2] = {65537, 65535};",
+                "int main() { return baseline[0] != 31 || baseline[1] != 53 || poisoned[0] != 1 || poisoned[1] != 65535; }",
+            ))
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(data.stat().st_size, 8)
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_halfword_sizes_and_fixed_array_typedefs(self):
+        self._assert_halfword_runtime('''
+            typedef unsigned short Ports[3];
+            int main() {
+                Ports ports;
+                if (sizeof(U16) != 2 || sizeof(I16) != 2 || sizeof(short) != 2) return 1;
+                if (sizeof(unsigned short) != 2 || sizeof(Ports) != 6 || sizeof(ports) != 6) return 2;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_casts_and_function_results_normalize(self):
+        self._assert_halfword_runtime('''
+            U16 unsigned_result() { return 65537; }
+            I16 signed_result() { return 65535; }
+            int main() {
+                if ((U16)65537 != 1 || (I16)65535 != -1) return 1;
+                if (unsigned_result() != 1 || signed_result() != -1) return 2;
+                if ((unsigned short)70000 != 4464 || (short)32768 != -32768) return 3;
+                if ((U16)65535.75 != 65535 || (I16)-32768.75 != -32768) return 4;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_initializers_and_float_assignments_convert(self):
+        self._assert_halfword_runtime('''
+            int main() {
+                U16 u = 65537; I16 s = 65535;
+                if (u != 1 || s != -1) return 1;
+                u = 65535.75; s = -32768.75;
+                if (u != 65535 || s != -32768) return 2;
+                unsigned short second = 12345.75;
+                short third = -12345.75;
+                if (second != 12345 || third != -12345) return 3;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_fixed_calls_preserve_order_and_complete_word_slots(self):
+        self._assert_halfword_runtime('''
+            int check(U16 u, double d, I16 s, int tail) {
+                if (u != 65535 || d != 3.5 || s != -2 || tail != 31) return 1;
+                return 0;
+            }
+            int main() {
+                int i = 0;
+                while (i < 3) {
+                    if (check(65535.0, 3.5, 65534.0, 31.0) != 0) return 2;
+                    i++;
+                }
+                return 0;
+            }
+        ''')
+
+    def test_halfword_integer_promotions_remain_signed_word_operations(self):
+        self._assert_halfword_runtime('''
+            int main() {
+                U16 u = 65535; I16 s = -1;
+                if (u + 1 != 65536 || u + s != 65534 || ~u != -65536) return 1;
+                if (u < -1 || u / 2 != 32767 || s * 3 != -3) return 2;
+                if ((u >> 1) != 32767 || ((I16)-32768 >> 1) != -16384) return 3;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_prefix_postfix_and_compound_stores_normalize(self):
+        self._assert_halfword_runtime('''
+            int main() {
+                U16 u = 65535; I16 s = 32767;
+                int old = u++;
+                if (old != 65535 || u != 0) return 1;
+                int before = --u;
+                if (before != 65535 || u != 65535) return 2;
+                int signed_before = ++s;
+                if (signed_before != -32768 || s != -32768) return 3;
+                u = 2; u /= 65536;
+                if (u != 0) return 4;
+                s = 32767; s += 1;
+                if (s != -32768) return 5;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_array_writes_preserve_neighboring_elements(self):
+        self._assert_halfword_runtime('''
+            int main() {
+                U16 words[3];
+                words[1] = 12345; words[2] = 54321; words[0] = 65537;
+                if (words[0] != 1 || words[1] != 12345 || words[2] != 54321) return 1;
+                words[0] += 65535;
+                if (words[0] != 0 || words[1] != 12345) return 2;
+                words[1] = 2; words[1] /= 65536;
+                if (words[1] != 0 || words[2] != 54321) return 3;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_pointer_stride_and_dereference_compounds(self):
+        self._assert_halfword_runtime('''
+            int main() {
+                I16 words[3]; words[0] = -2; words[1] = 31; words[2] = -32768;
+                I16 *p = words;
+                if (sizeof(*p) != 2 || *p != -2) return 1;
+                p++;
+                if (*p != 31) return 2;
+                p = p + 1;
+                if (*p != -32768) return 3;
+                p--; *p = 2; *p /= 65536;
+                if (words[1] != 0 || words[0] != -2 || words[2] != -32768) return 4;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_records_have_two_byte_fields_and_alignment(self):
+        self._assert_halfword_runtime('''
+            struct Pair { U16 a; I16 b; int tail; };
+            int main() {
+                struct Pair p;
+                p.b = -2; p.tail = 31; p.a = 65537;
+                if (sizeof(struct Pair) != 8 || p.a != 1 || p.b != -2 || p.tail != 31) return 1;
+                p.a += 65535;
+                if (p.a != 0 || p.b != -2 || p.tail != 31) return 2;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_global_and_static_array_initializers(self):
+        self._assert_halfword_runtime('''
+            U16 global_words[2] = {65537, 65535};
+            I16 global_value = 65535;
+            int main() {
+                static U16 local_words[2];
+                local_words[0] = 65537; local_words[1] = 54321;
+                if (sizeof(global_words) != 4 || global_words[0] != 1 || global_words[1] != 65535) return 1;
+                if (global_value != -1 || sizeof(local_words) != 4 || local_words[0] != 1 || local_words[1] != 54321) return 2;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_two_and_three_dimensional_arrays(self):
+        self._assert_halfword_runtime('''
+            int main() {
+                U16 grid[2][3]; I16 cube[2][2][2];
+                grid[0][2] = 65537; grid[1][0] = 54321;
+                cube[0][1][1] = 65535; cube[1][0][0] = 32768;
+                if (sizeof(grid) != 12 || sizeof(cube) != 16) return 1;
+                if (grid[0][2] != 1 || grid[1][0] != 54321) return 2;
+                if (cube[0][1][1] != -1 || cube[1][0][0] != -32768) return 3;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_typedef_callback_parameter_and_return_types(self):
+        self._assert_halfword_runtime('''
+            typedef I16 (*Adjust)(U16, I16, int);
+            I16 adjust(U16 u, I16 s, int tail) { return u + s + tail; }
+            int main() {
+                Adjust callback = adjust;
+                if (callback(65535.0, -2.0, 31.0) != 28) return 1;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_rejects_invalid_short_declarations(self):
+        for declaration in ('short float value;', 'short double value;', 'short char value;',
+                            'long short value;', 'signed unsigned short value;',
+                            'short short int value;', 'int short short value;'):
+            for aot in (False, True):
+                with self.subTest(declaration=declaration, aot=aot):
+                    with tempfile.TemporaryDirectory(prefix='private-halfword-negative-') as temporary:
+                        result, _code, _data = self._compile(Path(temporary), declaration, aot=aot)
+                    self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertIn('short' if 'signed unsigned' not in declaration else 'both signed and unsigned',
+                                  result.stdout + result.stderr)
+
+    def test_halfword_fixed_calls_reject_pointer_and_simd_arguments(self):
+        for expression in ('"address"', '(int *)31', '(float4){1.0, 2.0, 3.0, 4.0}'):
+            for aot in (False, True):
+                with self.subTest(expression=expression, aot=aot):
+                    source = 'int check(U16 value) { return value; } int main() { return check(' + expression + '); }'
+                    with tempfile.TemporaryDirectory(prefix='private-halfword-call-negative-') as temporary:
+                        result, _code, _data = self._compile(Path(temporary), source, aot=aot)
+                    self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertIn('argument type', result.stdout + result.stderr)
+
+    def test_halfword_pointer_addition_matches_other_object_widths(self):
+        self._assert_halfword_runtime('''
+            struct Pair { int a; int b; };
+            int main() {
+                int integers[3]; double doubles[3]; struct Pair records[2];
+                integers[1] = 31; doubles[1] = 3.5; records[1].a = 43;
+                int *ip = integers; double *dp = doubles; struct Pair *rp = records;
+                ip = 1 + ip; dp = dp + 1; rp = rp + 1;
+                if (*ip != 31 || *dp != 3.5 || rp->a != 43) return 1;
+                U16 halves[3]; halves[1] = 54321;
+                U16 *hp = halves; hp = 1 + hp;
+                if (*hp != 54321) return 2;
+                hp = hp - 1;
+                if (hp != halves) return 3;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_pointer_compound_addition_scales_indices(self):
+        self._assert_halfword_runtime('''
+            int main() {
+                U16 halves[3]; halves[1] = 54321;
+                int words[3]; words[1] = 31;
+                U16 *hp = halves; int *ip = words;
+                hp += 1; ip += 1;
+                if (*hp != 54321 || *ip != 31) return 1;
+                hp -= 1; ip -= 1;
+                if (hp != halves || ip != words) return 2;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_global_integer_initializer_list_bounds(self):
+        self._assert_halfword_runtime('''
+            U16 halves[3] = {65537, 65535,};
+            int words[3] = {31, -2, 43};
+            char bytes[3] = {65, 66, 0};
+            int main() {
+                if (halves[0] != 1 || halves[1] != 65535 || halves[2] != 0) return 1;
+                if (words[0] != 31 || words[1] != -2 || words[2] != 43) return 2;
+                if (bytes[0] != 65 || bytes[1] != 66 || bytes[2] != 0) return 3;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_global_initializer_rejects_excess_and_nonconstants(self):
+        cases = (
+            ('U16 values[1] = {1, 2};', 'too many integer array initializers'),
+            ('U16 values[2] = {1 / 0};', 'division by zero'),
+            ('int value() { return 1; } U16 values[2] = {value()};', 'constant'),
+        )
+        for source, diagnostic in cases:
+            for aot in (False, True):
+                with self.subTest(source=source, aot=aot):
+                    with tempfile.TemporaryDirectory(prefix='private-halfword-initializer-negative-') as temporary:
+                        result, _code, _data = self._compile(Path(temporary), source, aot=aot)
+                    self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertIn(diagnostic, result.stdout + result.stderr)
+
+    def test_halfword_trailing_width_qualifiers_match_prefix_spelling(self):
+        self._assert_halfword_runtime('''
+            int main() {
+                int short signed a = 65535;
+                unsigned int short b = 65537;
+                if (sizeof(a) != 2 || sizeof(b) != 2 || a != -1 || b != 1) return 1;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_floating_compounds_compute_before_narrow_store(self):
+        self._assert_halfword_runtime('''
+            struct Pair { I16 a; U16 b; };
+            int main() {
+                I16 scalar = 1;
+                scalar += -0.75;
+                if (scalar != 0) return 1;
+                U16 values[2]; values[0] = 3; values[1] = 54321;
+                values[0] *= 0.5;
+                if (values[0] != 1 || values[1] != 54321) return 2;
+                struct Pair p; p.a = -3; p.b = 31;
+                p.a /= 2.0;
+                if (p.a != -1 || p.b != 31) return 3;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_explicit_unsigned_word_widening(self):
+        self._assert_halfword_runtime('''
+            int main() {
+                U16 u = 65535; I16 s = -1;
+                if ((U32)u != 65535u || (unsigned int)u != 65535u) return 1;
+                if ((U32)s != 4294967295u || (unsigned int)s != 4294967295u) return 2;
+                return 0;
+            }
+        ''')
+
+    def test_halfword_constant_metadata_matches_typed_null_values(self):
+        self._assert_halfword_runtime('''
+            typedef int (*Transform)(int);
+            int main() {
+                Transform first = (U16)65536;
+                Transform second = (I16)65535 + 1;
+                if (first != 0 || second != 0) return 1;
+                return 0;
+            }
+        ''')
+        for expression in ('(U16)65537', '(I16)65535'):
+            with self.subTest(expression=expression):
+                with tempfile.TemporaryDirectory(prefix='private-halfword-null-negative-') as temporary:
+                    source = 'typedef int (*Transform)(int); int main() { Transform value = ' + expression + '; return 0; }'
+                    result, _code, _data = self._compile(Path(temporary), source)
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn('function-pointer', result.stdout + result.stderr)
+
+    def test_halfword_pointer_arithmetic_preserves_multidimensional_shape(self):
+        self._assert_halfword_runtime('''
+            int main() {
+                U16 grid[3][3]; double lattice[3][2];
+                grid[1][2] = 31; grid[2][1] = 54321; lattice[2][1] = 3.5;
+                if ((grid + 1)[0][2] != 31) return 1;
+                if (((grid + 1) + 1)[0][1] != 54321) return 2;
+                if ((1 + grid)[0][2] != 31) return 3;
+                if (((lattice + 1) + 1)[0][1] != 3.5) return 4;
+                return 0;
+            }
+        ''')
+
     @classmethod
     def setUpClass(cls):
         command = _compiler_command()
@@ -904,8 +1602,10 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         harness_source = harness_source.replace(
             "static void bind_feature13_kernels(cc_state_t *cc) {",
             _storage_binding_registration()
+            + _network_binding_registration()
+            + _halfword_binding_registration()
             + "\nstatic void bind_feature13_kernels(cc_state_t *cc) {\n"
-            + "  bind_storage_kernels(cc);",
+            + "  bind_storage_kernels(cc);\n  bind_network_kernels(cc);\n  bind_halfword_kernels(cc);",
             1,
         )
         harness.write_text(harness_source, encoding="utf-8")
@@ -1251,6 +1951,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   ret
 
                 {_storage_native_assembly()}
+                {_network_native_assembly()}
+                {_halfword_native_assembly()}
 
                 .section .testruntime,"aw",@progbits
                 test_heap_next:
@@ -1381,6 +2083,89 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             )
             entry_offset = int(compile_result.stdout.strip())
             return self._run_i386(root, entry_offset)
+
+    def test_network_bindings_convert_native_slots_in_jit_and_aot(self):
+        cases = {
+            "socket": "if (socket(2.0) != 31) return 1;",
+            "listen": "if (listen(31.0, 3.0) != 0) return 2;",
+            "send": "if (send(31.0, bytes, 2147483651.0) != 43) return 3;",
+            "recv": "if (recv(31.0, bytes, 2147483650.0) != -7 || bytes[0] != 67) return 4;",
+            "setsockopt": "if (setsockopt(31.0, -1.0, 2.0, bytes, 2147483652.0) != -9) return 5;",
+            "sock_avail": "if (sock_avail(31.0) != 2147483647) return 6;",
+            "sock_state": "if (sock_state(31.0) != -3) return 7;",
+            "close": "if (close(31.0) != 0) return 8;",
+            "htonl": "if (htonl(2147483649.0) != 16777344u || htonl(16777344.0) != 2147483649u) return 9;",
+            "ntohl": "if (ntohl(2147483649.0) != 16777344u || ntohl(16777344.0) != 2147483649u) return 10;",
+            "dns_resolve": 'if (dns_resolve("example", &ip) != 0 || ip != 2147483650u) return 11;',
+            "ip_parse": 'if (ip_parse("10.0.2.15", &ip) != 0 || ip != 2147483651u) return 12;',
+        }
+        for name, body in cases.items():
+            source = ("int main(void) { unsigned int ip = 0; char bytes[8]; int i = 0; "
+                      "while (i < 1000) { bytes[0] = 53; " + body + " i += 1; } return 0; }")
+            for aot in (False, True):
+                with self.subTest(name=name, aot=aot):
+                    result = self._compile_and_run(source, aot=aot)
+                    self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+
+    def test_network_bindings_preserve_signed_peer_ip_pointers(self):
+        source = """
+            int main(void) {
+              int ip = 0;
+              if (dns_resolve("example", &ip) != 0 || ip != -2147483646) return 1;
+              if (ip_parse("10.0.2.15", &ip) != 0 || ip != -2147483645) return 2;
+              return 0;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+
+    def test_network_bindings_reject_arity_and_incompatible_arguments(self):
+        calls = {
+            "socket": ["2"], "listen": ["31", "3"],
+            "send": ["31", '"bytes"', "8"], "recv": ["31", '"bytes"', "8"],
+            "close": ["31"], "setsockopt": ["31", "1", "1", '"bytes"', "8"],
+            "sock_avail": ["31"], "sock_state": ["31"],
+            "htonl": ["1"], "ntohl": ["1"],
+            "dns_resolve": ['"example"', "0"], "ip_parse": ['"10.0.2.15"', "0"],
+        }
+        failures = []
+        for name, arguments in calls.items():
+            for selected, detail in ((arguments[:-1], "too few"), ([*arguments, "0"], "too many")):
+                failures.append((f"int main(void) {{ return {name}({', '.join(selected)}); }}",
+                                 f"kernel binding call has {detail} arguments"))
+        for call in ('send(31, 1.0, 8)', 'recv(31, 1.0, 8)',
+                     'dns_resolve("example", 1.0)', 'ip_parse("10.0.2.15", 1.0)'):
+            failures.append((f"int main(void) {{ return {call}; }}",
+                             "cdecl argument type does not match fixed parameter"))
+        failures.append(("int main(void) { float4 v = {1, 2, 3, 4}; return socket(v); }",
+                         "cdecl argument type does not match fixed parameter"))
+        for source, diagnostic in failures:
+            for aot in (False, True):
+                with self.subTest(source=source, aot=aot):
+                    with tempfile.TemporaryDirectory(prefix="private-cupidc-network-negative-",
+                                                     ignore_cleanup_errors=True) as temporary:
+                        result, _code, _data = self._compile(Path(temporary), source, aot=aot)
+                    self.assertEqual(result.returncode, 2)
+                    self.assertIn(diagnostic, result.stderr)
+
+    def test_network_binding_failures_recover_in_the_same_compiler_state(self):
+        failures = (
+            ("int main(void) { return socket(); }", "int main(void) { return socket(2, 3); }"),
+            ("int main(void) { return send(31, 1.0, 8); }",
+             "int main(void) { float4 v = {1, 2, 3, 4}; return socket(v); }"),
+        )
+        for first, second in failures:
+            with self.subTest(first=first):
+                with tempfile.TemporaryDirectory(prefix="private-cupidc-network-recovery-",
+                                                 ignore_cleanup_errors=True) as temporary:
+                    root = Path(temporary)
+                    result, _code, _data = self._compile_after_two_failures(
+                        root, first, second, "int main(void) { return socket(2.0) - 31; }")
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    executed = self._run_i386(root, int(result.stdout.strip()))
+                    self.assertEqual((executed.returncode, executed.stdout, executed.stderr), (0, "", ""))
 
     def test_vfs_bindings_convert_arguments_to_native_slots_in_jit_and_aot(self):
         source = """
@@ -3089,11 +3874,11 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 "higher-order fixed argument",
                 """
                 void wrong(int slot, void (*drawer)(double)) { (void)slot; }
-                void accept(void (*binding)(int, void (*)(int, int))) {
+                void accept_callback(void (*binding)(int, void (*)(int, int))) {
                   (void)binding;
                 }
                 int main() {
-                  accept(wrong);
+                  accept_callback(wrong);
                   return 0;
                 }
                 """,
@@ -3107,12 +3892,12 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 void wrong(int slot, void (*drawer)(struct Two *)) {
                   (void)slot;
                 }
-                void accept(
+                void accept_callback(
                     void (*binding)(int, void (*)(struct One *))) {
                   (void)binding;
                 }
                 int main() {
-                  accept(wrong);
+                  accept_callback(wrong);
                   return 0;
                 }
                 """,
@@ -3122,11 +3907,11 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 "variadic boundary",
                 """
                 void wrong(int slot, void (*drawer)(int)) { (void)slot; }
-                void accept(void (*binding)(int, void (*)(int, ...))) {
+                void accept_callback(void (*binding)(int, void (*)(int, ...))) {
                   (void)binding;
                 }
                 int main() {
-                  accept(wrong);
+                  accept_callback(wrong);
                   return 0;
                 }
                 """,
@@ -3135,9 +3920,9 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             (
                 "prototype definition",
                 """
-                void accept(
+                void accept_callback(
                     void (*setter)(int, void (*)(int, int)));
-                void accept(
+                void accept_callback(
                     void (*setter)(int, void (*)(double))) {
                   (void)setter;
                 }
@@ -3148,8 +3933,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             (
                 "nested prototype state",
                 """
-                void accept(void (*setter)(int (*)()));
-                void accept(void (*setter)(int (*)(void))) {
+                void accept_callback(void (*setter)(int (*)()));
+                void accept_callback(void (*setter)(int (*)(void))) {
                   (void)setter;
                 }
                 int main() { return 0; }

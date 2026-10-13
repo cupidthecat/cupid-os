@@ -1,5 +1,59 @@
 # Bootstrapping log
 
+## 2026-10-13: Close bounded final five-test engineering acceptance
+
+Windows aggregate acceptance combines eight retained normal/guest command
+results with one fresh original 3,526-method suite, PASS with 72 skips
+in 16,274.214 unittest seconds. Linux freshly rebuilds the normal
+products with forced native seeds and passes the original guest gates.
+Its 439-product comparison uses the held engineering snapshot captured
+after Windows aggregate PASS. The prefix itself records three kernels
+and the image. No complete Linux suite or cold build is claimed.
+
+Both hosts keep the accepted 2,265-control five-test after map, CTXT
+and all 99 producer inputs unchanged. The collector retains all 439 raw
+snapshot products, kernel payloads and GUI contract; image and USB fixture
+payloads are omitted. The [final five-test proof](evidence/verification-final-root-combined-five-test-acceptance-20261013.json.gz)
+records receipt identities, distinct command origins and archive limits.
+
+The protected baseline, first kernel measurement, input-delivery attempts,
+prefix reader, ten-failure suite, first adopter, incomplete Linux inventory
+run and earlier Linux normal failures remain failed. Three earlier missing
+source-copy guards retain unknown causes and bounded byte restoration;
+original filesystem/Git identities and earlier products are not restored.
+The checkpoint entries below retain their original measurements and
+pending statements as historical facts. Normal ownership stays at 449
+CupidBuild actions plus three Python coordinators. Full self-hosting is
+unfinished; exact source/documentation closure still precedes a commit.
+
+## 2026-10-12: Prepare the halfword and array integration
+
+The private compiler uses two-byte signed and unsigned halfword objects with
+four-byte native lanes, fixed network signatures and flat typed integer lists
+for global, block-static and persistent REPL arrays. Positive and useful
+negative tests retain initialized-once data and rejection recovery. Paired
+ordinary outputs and runtime checks pass. Both 156-source duplicate-emission
+frontiers and full forty-method modules pass; the 32-member module archive and source/six-constant-lock working-tree guards
+also pass. Final engineering acceptance remains separate.
+
+The protected baseline closes with one failure and 72 skips among 3,476 tests,
+without changing its 2,260 inputs. The failed original public method rejects
+behavior-stage tools against the reviewed installed cohort. The original stage
+payloads are gone. Six production-authorization controls preserve the exact
+rejection and accept the qualified release; the unchanged public method already
+passes on both hosts against the same qualified capture. Broader checkout
+differences remain recorded.
+
+The independently reviewed reversible working-tree transition applies seventeen
+seed/pin/policy files and preserves all 99 producer inputs. Both root verifiers
+pass. Compiler-source and lock adoption pass with the module archive and exact
+source maps. Windows 2,238-source, Linux 2,260-source and qualified 117-control
+readbacks are restored within their accepted byte boundaries. All three absent-
+copy guards remain recorded; causes are unknown, and original filesystem/Git
+metadata and build/image products are not reconstructed. Final root build, suite and guest acceptance
+still precede a coherent commit. See the combined qualification, frontier,
+protected baseline and current-policy seed records for exact receipts.
+
 ## 2026-10-12: Accept serial recovery and refresh compiler verification
 
 Direct serial strings and characters hold BKL for their complete output once

@@ -153,6 +153,8 @@ int main(void) {{
         functions = "\n\n".join(
             _extract_function(parser_source, name)
             for name in (
+                "cc_is_halfword_type",
+                "cc_is_integer_scalar_type",
                 "cc_is_simd_value_type",
                 "cc_is_direct_update_type",
                 "cc_error_simd_update_target",
@@ -179,7 +181,11 @@ typedef enum {{
   TYPE_FLOAT_PTR,
   TYPE_DOUBLE_PTR,
   TYPE_UINT,
-  TYPE_UINT_PTR
+  TYPE_UINT_PTR,
+  TYPE_SHORT,
+  TYPE_USHORT,
+  TYPE_SHORT_PTR,
+  TYPE_USHORT_PTR
 }} cc_type_t;
 
 typedef enum {{
@@ -235,6 +241,17 @@ int main(void) {{
       cc_validate_variable_update(&const_vector_state, &const_vector);
   printf("%d:%d:%s\\n", const_vector_result, const_vector_state.error,
          const_vector_state.message);
+
+  for (int type = TYPE_SHORT; type <= TYPE_USHORT_PTR; type++) {{
+    cc_state_t halfword_state = {{0}};
+    cc_symbol_t halfword = {{SYM_LOCAL, (cc_type_t)type, 0, 0}};
+    int result = cc_validate_variable_update(&halfword_state, &halfword);
+    printf("%d:%d\\n", result, halfword_state.error);
+  }}
+  cc_state_t array_state = {{0}};
+  cc_symbol_t array = {{SYM_LOCAL, TYPE_SHORT, 1, 0}};
+  int array_result = cc_validate_variable_update(&array_state, &array);
+  printf("%d:%d:%s\\n", array_result, array_state.error, array_state.message);
   return 0;
 }}
 """
@@ -297,6 +314,11 @@ int main(void) {{
                 "1:0",
                 "0:1:SIMD increment or decrement requires a modifiable "
                 "whole-vector lvalue",
+                "1:0",  # short
+                "1:0",  # unsigned short
+                "1:0",  # short pointer
+                "1:0",  # unsigned short pointer
+                "0:1:increment or decrement requires a scalar variable",
             ),
         )
 

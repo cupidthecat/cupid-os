@@ -1210,37 +1210,46 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   /* Networking (P6) */
   int (*p_socket)(int) = socket_create;
-  BIND_T("socket", p_socket, 1, TYPE_INT);
+  BIND_FIXED("socket", p_socket, 1, TYPE_INT, TYPE_INT);
   int (*p_bind)(int, uint32_t, uint16_t) = socket_bind;
-  BIND_T("bind", p_bind, 3, TYPE_INT);
+  BIND_FIXED("bind", p_bind, 3, TYPE_INT, TYPE_INT, TYPE_UINT,
+             TYPE_USHORT);
   int (*p_listen)(int, int) = socket_listen;
-  BIND_T("listen", p_listen, 2, TYPE_INT);
+  BIND_FIXED("listen", p_listen, 2, TYPE_INT, TYPE_INT, TYPE_INT);
   int (*p_accept)(int, uint32_t *, uint16_t *) = socket_accept;
-  BIND_T("accept", p_accept, 3, TYPE_INT);
+  BIND_FIXED("accept", p_accept, 3, TYPE_INT, TYPE_INT, TYPE_UINT_PTR,
+             TYPE_USHORT_PTR);
   int (*p_connect)(int, uint32_t, uint16_t) = socket_connect;
-  BIND_T("connect", p_connect, 3, TYPE_INT);
+  BIND_FIXED("connect", p_connect, 3, TYPE_INT, TYPE_INT, TYPE_UINT,
+             TYPE_USHORT);
   int (*p_send)(int, const void *, uint32_t) = socket_send;
-  BIND_T("send", p_send, 3, TYPE_INT);
+  BIND_FIXED("send", p_send, 3, TYPE_INT, TYPE_INT, TYPE_PTR,
+             TYPE_UINT);
   int (*p_recv)(int, void *, uint32_t) = socket_recv;
-  BIND_T("recv", p_recv, 3, TYPE_INT);
+  BIND_FIXED("recv", p_recv, 3, TYPE_INT, TYPE_INT, TYPE_PTR,
+             TYPE_UINT);
   int (*p_close)(int) = socket_close;
-  BIND_T("close", p_close, 1, TYPE_INT);
+  BIND_FIXED("close", p_close, 1, TYPE_INT, TYPE_INT);
   int (*p_setsockopt)(int, int, int, const void *, uint32_t) = socket_setsockopt;
-  BIND_T("setsockopt", p_setsockopt, 5, TYPE_INT);
+  BIND_FIXED("setsockopt", p_setsockopt, 5, TYPE_INT, TYPE_INT,
+             TYPE_INT, TYPE_INT, TYPE_PTR, TYPE_UINT);
   int (*p_sock_avail)(int) = socket_avail;
-  BIND_T("sock_avail", p_sock_avail, 1, TYPE_INT);
+  BIND_FIXED("sock_avail", p_sock_avail, 1, TYPE_INT, TYPE_INT);
   int (*p_sock_state)(int) = socket_state;
-  BIND_T("sock_state", p_sock_state, 1, TYPE_INT);
+  BIND_FIXED("sock_state", p_sock_state, 1, TYPE_INT, TYPE_INT);
   int (*p_sendto)(int, const void *, uint32_t, uint32_t, uint16_t) = socket_sendto;
-  BIND_T("sendto", p_sendto, 5, TYPE_INT);
+  BIND_FIXED("sendto", p_sendto, 5, TYPE_INT, TYPE_INT, TYPE_PTR,
+             TYPE_UINT, TYPE_UINT, TYPE_USHORT);
   int (*p_recvfrom)(int, void *, uint32_t, uint32_t *, uint16_t *) = socket_recvfrom;
-  BIND_T("recvfrom", p_recvfrom, 5, TYPE_INT);
+  BIND_FIXED("recvfrom", p_recvfrom, 5, TYPE_INT, TYPE_INT, TYPE_PTR,
+             TYPE_UINT, TYPE_UINT_PTR, TYPE_USHORT_PTR);
   int (*p_dns_resolve)(const char *, uint32_t *) = dns_resolve;
-  BIND_T("dns_resolve", p_dns_resolve, 2, TYPE_INT);
+  BIND_FIXED("dns_resolve", p_dns_resolve, 2, TYPE_INT, TYPE_CHAR_PTR,
+             TYPE_UINT_PTR);
   uint16_t (*p_htons)(uint16_t) = htons;
-  BIND_T("htons", p_htons, 1, TYPE_INT);
+  BIND_FIXED("htons", p_htons, 1, TYPE_USHORT, TYPE_USHORT);
   uint32_t (*p_htonl)(uint32_t) = htonl;
-  BIND_T("htonl", p_htonl, 1, TYPE_UINT);
+  BIND_FIXED("htonl", p_htonl, 1, TYPE_UINT, TYPE_UINT);
 
   /* SSH crypto primitives */
   void (*p_sha256)(const uint8_t *, uint32_t, uint8_t *) = sha256;
@@ -2670,7 +2679,8 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND_T("net_tx_errors", p_net_txe, 0, TYPE_UINT);
 
   int  (*p_ip_parse)(const char *, uint32_t *)                           = ip_parse;
-  BIND_T("ip_parse", p_ip_parse, 2, TYPE_INT);
+  BIND_FIXED("ip_parse", p_ip_parse, 2, TYPE_INT, TYPE_CHAR_PTR,
+             TYPE_UINT_PTR);
   int  (*p_ipv4_send)(uint32_t, uint8_t, const uint8_t *, uint32_t)      = ipv4_send;
   BIND_T("ipv4_send", p_ipv4_send, 4, TYPE_INT);
   int  (*p_arp_resolve)(uint32_t, uint8_t *)                             = (int (*)(uint32_t, uint8_t *))arp_resolve;
@@ -2684,12 +2694,13 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int  (*p_icmp_wait)(uint32_t, uint16_t, uint16_t, uint32_t)            = icmp_wait_reply;
   BIND_T("icmp_wait_reply", p_icmp_wait, 4, TYPE_INT);
   int  (*p_udp_send_raw)(uint32_t, uint16_t, uint16_t, const uint8_t *, uint32_t) = udp_send_raw;
-  BIND_T("udp_send_raw", p_udp_send_raw, 5, TYPE_INT);
+  BIND_FIXED("udp_send_raw", p_udp_send_raw, 5, TYPE_INT, TYPE_UINT,
+             TYPE_USHORT, TYPE_USHORT, TYPE_CHAR_PTR, TYPE_UINT);
 
   uint16_t (*p_ntohs)(uint16_t) = htons;   /* htons == ntohs on LE */
-  BIND_T("ntohs", p_ntohs, 1, TYPE_INT);
+  BIND_FIXED("ntohs", p_ntohs, 1, TYPE_USHORT, TYPE_USHORT);
   uint32_t (*p_ntohl)(uint32_t) = htonl;
-  BIND_T("ntohl", p_ntohl, 1, TYPE_UINT);
+  BIND_FIXED("ntohl", p_ntohl, 1, TYPE_UINT, TYPE_UINT);
 
   uint32_t (*p_proto_icmp)(void) = cc_proto_icmp;
   BIND_T("IP_PROTO_ICMP", p_proto_icmp, 0, TYPE_UINT);

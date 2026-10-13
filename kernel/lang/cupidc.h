@@ -221,7 +221,11 @@ typedef enum {
   TYPE_FLOAT_PTR,  /* float* */
   TYPE_DOUBLE_PTR, /* double* */
   TYPE_UINT,       /* 32-bit unsigned int */
-  TYPE_UINT_PTR    /* unsigned int* */
+  TYPE_UINT_PTR,   /* unsigned int* */
+  TYPE_SHORT,      /* signed 16-bit integer */
+  TYPE_USHORT,     /* unsigned 16-bit integer */
+  TYPE_SHORT_PTR,  /* signed 16-bit integer* */
+  TYPE_USHORT_PTR  /* unsigned 16-bit integer* */
 } cc_type_t;
 
 typedef struct {
@@ -234,14 +238,13 @@ typedef struct {
   int is_variadic;
 } cc_function_pointer_signature_t;
 
-/* HolyC-style type aliases (kept as aliases for full backward compatibility)
-*/
+/* HolyC-style scalar spellings share the represented C types. */
 #define TYPE_U0 TYPE_VOID
 #define TYPE_U8 TYPE_CHAR
-#define TYPE_U16 TYPE_INT
+#define TYPE_U16 TYPE_USHORT
 #define TYPE_U32 TYPE_UINT
 #define TYPE_I8 TYPE_CHAR
-#define TYPE_I16 TYPE_INT
+#define TYPE_I16 TYPE_SHORT
 #define TYPE_I32 TYPE_INT
 #define TYPE_BOOL TYPE_INT
 

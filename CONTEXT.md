@@ -681,6 +681,16 @@ _Avoid_: scalar alias, multidimensional array typedef, pointer to array
 A four-byte unsigned value retained by the in-kernel compiler through objects, pointers, calls, kernel binding results, enum symbols, unary and conditional expressions, `sizeof`, usual arithmetic conversion, scalar returns, and conversion to or from `float` and `double` within C's defined ranges. Relations, division, remainder, and right shift use unsigned i386 behavior. `/=`, `%=`, and `>>=` keep that rule and evaluate their destination once. The Browser array-length lane uses this type through the ECMAScript maximum length.
 _Avoid_: signed int bits, wide integer value, defined out-of-range floating conversion
 
+**Private halfword type**:
+A private CupidC signed or unsigned sixteen-bit integer whose object layout
+occupies two bytes while its native cdecl argument slot occupies four bytes.
+_Avoid_: word alias, sixteen-bit argument slot
+
+**Private constant integer array initializer**:
+A flat constant list interpreted using a private CupidC array's declared
+integer element width, with omitted elements retaining zero values.
+_Avoid_: general scalar initializer, nested aggregate initializer
+
 **Block enumerator**:
 An enum constant whose ordinary identifier lives in one C block scope. Its frontend binding keeps the evaluated target value and type but owns no storage, address, symbol, relocation, or runtime declaration work.
 _Avoid_: local constant object, file enumerator

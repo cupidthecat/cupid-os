@@ -162,8 +162,13 @@ class PrivateCupidCFloatCompareEmitterTests(unittest.TestCase):
         compiler_command[0] = compiler or compiler_command[0]
 
         parser_source = PARSER_SOURCE.read_text(encoding="utf-8")
-        classifier = _extract_function(
-            parser_source, "cc_is_arithmetic_scalar_type"
+        classifier = "\n\n".join(
+            _extract_function(parser_source, name)
+            for name in (
+                "cc_is_halfword_type",
+                "cc_is_integer_scalar_type",
+                "cc_is_arithmetic_scalar_type",
+            )
         )
         harness = f"""
 #include <stdio.h>
@@ -185,14 +190,18 @@ typedef enum {{
   TYPE_FLOAT_PTR,
   TYPE_DOUBLE_PTR,
   TYPE_UINT,
-  TYPE_UINT_PTR
+  TYPE_UINT_PTR,
+  TYPE_SHORT,
+  TYPE_USHORT,
+  TYPE_SHORT_PTR,
+  TYPE_USHORT_PTR
 }} cc_type_t;
 
 {classifier}
 
 int main(void) {{
   int type;
-  for (type = TYPE_INT; type <= TYPE_UINT_PTR; type++)
+  for (type = TYPE_INT; type <= TYPE_USHORT_PTR; type++)
     printf("%d\\n", cc_is_arithmetic_scalar_type((cc_type_t)type));
   return 0;
 }}
@@ -480,6 +489,10 @@ int main(void) {{
                 0,  # double pointer
                 1,  # unsigned int
                 0,  # unsigned int pointer
+                1,  # short
+                1,  # unsigned short
+                0,  # short pointer
+                0,  # unsigned short pointer
             ),
         )
 

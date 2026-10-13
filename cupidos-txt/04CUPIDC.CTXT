@@ -14,6 +14,28 @@ Verified against source on: 2026-09-27
 >rule
 >sprite /docs/image.bmp 64 64 | open:11CTXT.CTXT
 
+>h2 Private integer storage and array lists
+>tree open Private integer storage and array lists
+The private compiler gives short, I16 and U16 two-byte storage. Fixed native
+arguments still occupy four-byte cdecl slots. Signed loads and results
+sign-extend; unsigned values zero-extend.
+
+Scalar addresses advance by two bytes. Dereferenced fixed arrays retain their
+row sizes for sizeof. SIMD broadcasts accept halfword scalar arguments.
+Explicit halfword casts accept arithmetic scalars and represented addresses;
+vectors, records and void values receive errors.
+
+Global, block-static and persistent REPL integer arrays accept constant brace
+lists. Elements use their declared one-, two- or four-byte widths. Omitted
+elements remain zero; trailing commas and character constants are accepted.
+A block-static list initializes once, so later calls retain modifications.
+
+Excess elements, nonconstant calls and division by zero receive errors. A
+failed REPL declaration restores the preceding data and names. Flat lists
+retain the existing integer constant parser's scope; nested lists and indirect
+integer increment or decrement remain separate compiler requirements.
+>endtree
+
 >h2 Native disk foundations
 >tree open Native disk foundations
 Private native and Cupid-built host contracts now exercise bounded FAT16

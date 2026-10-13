@@ -1,9 +1,19 @@
 # Private CupidC halfword candidate
 
+## Current combined qualification, 2026-10-12
+
+The [combined halfword and array record](PRIVATE-INTEGER-ARRAY-QUALIFICATION.md)
+passes paired ordinary OS/guest checks, all 537 integrated selections and both
+complete forty-method frontier modules. Source and six measured constants are
+applied in the engineering working tree. Bounded final root acceptance passes in the [final five-test proof](evidence/verification-final-root-combined-five-test-acceptance-20261013.json.gz).
+Windows retains eight earlier command results and newly runs the complete
+suite; Linux freshly rebuilds normal products and checks guest runtime. The sections below preserve this earlier stage's
+tests, failures and limits; they are historical checkpoints.
+
 This candidate gives the private i386 compiler real two-byte `short`,
 `unsigned short`, `I16` and `U16` objects. They previously occupied the
-compiler's four-byte integer representation. The candidate remains outside
-the engineering checkout's active compiler while OS qualification is pending.
+compiler's four-byte integer representation. At this type-only checkpoint, the candidate remained outside
+the engineering checkout's active compiler pending OS qualification.
 The standalone checked compiler and its 99 producer inputs are unchanged.
 
 ## Representation and conversion
@@ -74,7 +84,7 @@ parser object has 485,792 bytes and the binding object has 299,688 bytes. The
 [source-build index](evidence/private-short-checked-source-20261012.json.gz)
 binds both complete objects and logs in a 363,215-byte archive, SHA-256
 `1676d96124e3b2b8c93c4e566c427fbed527d72e79decbb3b33ae712bc9fa4a6`.
-All six members are reread. Complete paired OS builds and guest execution
-remain required before adoption. No
+All six members are reread. At this checkpoint, complete paired OS builds and guest execution
+remained required before adoption. No
 source owner transfers, installed seed changes or `.c` naming transfers are
 claimed here. `TempleOS/` remains read-only reference material.

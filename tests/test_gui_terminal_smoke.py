@@ -225,6 +225,27 @@ def _frontier_command_outputs():
             "[cupidc] JIT execution complete\n"
         ),
         (
+            "[cupidc] JIT compile: /bin/feature23_full_access.cc\n"
+            "PASS feature23_binding bindings=20 slots=4 unsigned=4 peer=1 halfwords=8 guards=2\n"
+            "PASS feature23_initializers arrays=5 calls=2\n"
+            "PASS feature23_halfword_types strides=2 rows=3 broadcasts=4 casts=2\n"
+            "[feature23] PASS\n"
+            "[cupidc] JIT execution complete\n"
+        ),
+        (
+            "[cupidc] AOT compile: /bin/feature23_full_access.cc -> /feature23_binding_aot\n"
+            "[cupidc] Wrote ELF: /feature23_binding_aot "
+            "(4096 bytes code, 512 bytes data, entry=0x01100000, total=12288 bytes)\n"
+        ),
+        (
+            "[elf] Loaded /feature23_binding_aot as PID 17\n"
+            "PASS feature23_binding bindings=20 slots=4 unsigned=4 peer=1 halfwords=8 guards=2\n"
+            "PASS feature23_initializers arrays=5 calls=2\n"
+            "PASS feature23_halfword_types strides=2 rows=3 broadcasts=4 casts=2\n"
+            "[feature23] PASS\n"
+            '[PROCESS] PID 17 "/feature23_binding_aot" exiting\n'
+        ),
+        (
             "[cupidc] AOT compile: /bin/gfxgui_test.cc -> "
             "/gfxgui_test\n"
             "Compiled: 4096 bytes code, 512 bytes data\n"
@@ -1703,6 +1724,9 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "/bin/feature15_libm.cc",
                 "/bin/feature17_iso.cc",
                 "/bin/feature18_swap.cc",
+                "/bin/feature23_full_access.cc",
+                "ccc /bin/feature23_full_access.cc -o /feature23_binding_aot",
+                "exec /feature23_binding_aot",
                 "ccc /bin/gfxgui_test.cc -o /gfxgui_test",
                 "/bin/gfxgui_test.cc",
                 "ccc /bin/gfxhandoff_exit.cc -o /gfxhandoff_exit",
@@ -3291,6 +3315,51 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
         self.assertIsNotNone(rule)
         self.assertIn("test_iso/hello.iso", rule.group(1).split())
+
+    def test_network_jit_and_aot_commands_require_the_native_binding_probe(self):
+        marker = "PASS feature23_binding bindings=20 slots=4 unsigned=4 peer=1 halfwords=8 guards=2"
+        for command in ("/bin/feature23_full_access.cc", "exec /feature23_binding_aot"):
+            with self.subTest(command=command):
+                expected = _frontier_command(command).expected_pattern
+                sample = _frontier_command_output(command)
+                self.assertIsNotNone(re.search(expected, sample, re.S | re.M))
+                self.assertIsNone(re.search(expected, sample.replace(marker, ""), re.S | re.M))
+                self.assertIsNone(re.search(expected, sample.replace("bindings=20", "bindings=19"), re.S | re.M))
+
+    def test_network_guest_requires_halfword_and_neighbor_guard_counts(self):
+        for command in ("/bin/feature23_full_access.cc", "exec /feature23_binding_aot"):
+            with self.subTest(command=command):
+                expected = _frontier_command(command).expected_pattern
+                sample = _frontier_command_output(command)
+                self.assertIsNone(re.search(expected, sample.replace("halfwords=8", "halfwords=7"), re.S | re.M))
+                self.assertIsNone(re.search(expected, sample.replace("guards=2", "guards=1"), re.S | re.M))
+
+    def test_network_guest_requires_static_integer_initializer_evidence(self):
+        marker = "PASS feature23_initializers arrays=5 calls=2"
+        for command in ("/bin/feature23_full_access.cc", "exec /feature23_binding_aot"):
+            with self.subTest(command=command):
+                expected = _frontier_command(command).expected_pattern
+                sample = _frontier_command_output(command)
+                self.assertIsNotNone(re.search(expected, sample, re.S | re.M))
+                for replacement in ("", "PASS feature23_initializers arrays=4 calls=2", "PASS feature23_initializers arrays=5 calls=1"):
+                    self.assertIsNone(re.search(expected, sample.replace(marker, replacement), re.S | re.M))
+
+    def test_network_guest_requires_each_halfword_type_probe_count(self):
+        marker = "PASS feature23_halfword_types strides=2 rows=3 broadcasts=4 casts=2"
+        replacements = (
+            "",
+            marker.replace("strides=2", "strides=1"),
+            marker.replace("rows=3", "rows=2"),
+            marker.replace("broadcasts=4", "broadcasts=3"),
+            marker.replace("casts=2", "casts=1"),
+        )
+        for command in ("/bin/feature23_full_access.cc", "exec /feature23_binding_aot"):
+            with self.subTest(command=command):
+                expected = _frontier_command(command).expected_pattern
+                sample = _frontier_command_output(command)
+                self.assertIsNotNone(re.search(expected, sample, re.S | re.M))
+                for replacement in replacements:
+                    self.assertIsNone(re.search(expected, sample.replace(marker, replacement), re.S | re.M))
 
     def test_storage_commands_require_each_native_binding_probe(self):
         cases = (

@@ -1,5 +1,41 @@
 # CupidC Language Reference
 
+## Private halfword integers and array lists
+
+`short` and `I16` are signed two-byte integers; `unsigned short` and `U16` are
+unsigned two-byte integers. Their alignment is two bytes. Pointers and fixed
+cdecl argument slots occupy four bytes. Both halfword types promote to `int`
+for default arguments. Loads and results extend according to signedness;
+stores and explicit halfword conversions retain the low sixteen bits.
+
+Pointer arithmetic on a halfword scalar address advances by two bytes.
+Dereferenced fixed arrays retain their remaining row size for `sizeof`.
+`_mm_set1_ps` and `_mm_set1_pd` accept halfword scalar arguments. Explicit
+halfword casts accept arithmetic scalars and represented object or function
+addresses. Vector, record and void operands receive errors.
+
+Integer arrays declared globally, with block `static` storage, or in the
+persistent REPL accept flat constant brace lists. Lists use the declared one-,
+two- or four-byte element width and may contain arithmetic constants, character
+constants, escapes and a trailing comma. Array typedefs use the same rules.
+Unlisted elements remain zero. Block-static array data initializes once and
+retains later writes; persistent REPL data survives subsequent input units.
+
+```c
+U16 ports[3] = {65537, 54321,};
+```
+
+The elements contain `1`, `54321` and `0`. Excess elements, nonconstant calls
+and division by zero receive errors. A rejected REPL declaration restores
+previous data and names and allows the same name to be declared afterward.
+
+These rules cover flat integer lists. General scalar and aggregate initializer
+semantics, nested lists and inferred bounds require separate qualification.
+Pointer difference and indirect integer `++` or `--` remain separate work;
+supported compound assignment and direct scalar updates keep their behavior.
+Native callback signatures retain complete four-byte lanes for halfword
+arguments and normalize results by their declared signedness.
+
 CupidC is a C-like language for cupid-os. Its JIT compiler emits x86 machine code.
 
 The language accepts the common C and HolyC spellings used by the shipped

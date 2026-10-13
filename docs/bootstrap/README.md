@@ -1,6 +1,51 @@
 # Cupid Toolchain bootstrap
 
+## Private halfword storage and integer array lists, 2026-10-12
+
+The private candidate has real two-byte `short`, `unsigned short`, `I16` and
+`U16` storage, four-byte cdecl slots and default promotion to `int`. Fixed
+native network calls and callbacks preserve signed and unsigned results.
+Flat integer lists retain declared one-, two- or four-byte elements in global,
+block-static and persistent REPL arrays, with initialized-once static data and
+REPL rejection recovery.
+
+Both final four-module selections pass 537 methods; Linux retains eight
+Windows-only skips. Paired ordinary builds reproduce 439 complete products
+and the 200 MiB image. Both guests pass all 31 commands, two Feature 17 runs
+in the same guest and both occurrences of every Feature 23 marker. The Linux
+guest retains its diagnostic-image provenance; ordinary Linux R3 separately
+qualifies the same image bytes. Both earlier normal failures remain recorded.
+
+Both native 156-source frontiers pass within 2,340 seconds. All 624 emissions
+agree with the ordinary objects. The reviewed locks change six constants and
+preserve all other assertions. Both full forty-method modules and their 32-member archive pass. Source and
+six-constant lock adoption now pass their exact working-tree guards. The separate
+seventeen-file seed transition is applied and both root seed verifiers pass.
+The failed protected baseline remains failed. Bounded final engineering acceptance passes in the [final five-test proof](evidence/verification-final-root-combined-five-test-acceptance-20261013.json.gz).
+Windows combines eight retained commands with one fresh complete suite;
+Linux performs a fresh forced-native normal rebuild and guest checks.
+Its 439-product comparison uses the held engineering snapshot captured
+after Windows aggregate PASS, separately from the earlier private pair.
+Final source/documentation closure still precedes a coherent commit.
+Full self-hosting remains unfinished.
+
+[The combined qualification](PRIVATE-INTEGER-ARRAY-QUALIFICATION.md),
+[frontier record](HALFWORD-ARRAY-FRONTIER-QUALIFICATION.md) and
+[baseline record](PROTECTED-BASELINE-SEED-TRANSITION.md) retain the evidence
+and remaining scope. Nested lists, inferred bounds, general initializer
+semantics, pointer difference and indirect integer updates remain separate
+work. The 99 hosted producer inputs and normal ownership remain unchanged.
+TempleOS is read-only reference material and excluded from the counts.
+
+The three missing-copy guards and bounded source restorations retain unknown
+absence causes and claim no fresh qualification. See the
+[restoration index](evidence/verification-source-readback-restorations-20261012.json.gz).
+
 ## Native Windows private compiler validation, 2026-10-12
+
+The following paragraphs retain the earlier validation checkpoint. The current
+combined and working-tree status is recorded above; later acceptance does not
+change these historical run results.
 
 Private i386 compiler tests now execute directly in a Windows PE32 process.
 All 503 integrated methods pass on Windows. Linux passes the same selections
