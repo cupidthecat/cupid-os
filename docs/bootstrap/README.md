@@ -1,5 +1,18 @@
 # Cupid Toolchain bootstrap
 
+## Saved raw image inspection, 2026-10-16
+
+Source-head shell `dis` accepts saved raw images with an explicit 16-bit or
+32-bit mode/base, or a CupidASM v1/v2 range map. The map supplies the origin
+and code/data boundaries and must match the image size. `--require-known`
+checks selected code before rendering. Hosted and kernel adapters share the
+map text parser; its arrays are arena-owned and failures rewind allocations.
+
+The [raw-file record](RAW-FILE-DISASSEMBLY.md) tracks validation, limits,
+review fixes, and guest qualification. ADR 0473 records parser ownership and
+the shell interface. Installed seeds and the 449 CupidBuild/three Python
+normal action counts are unchanged.
+
 ## Private halfword storage and integer array lists, 2026-10-12
 
 The private candidate has real two-byte `short`, `unsigned short`, `I16` and

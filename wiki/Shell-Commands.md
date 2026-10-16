@@ -112,6 +112,21 @@ Color values: 0=Black, 1=Blue, 2=Green, 3=Cyan, 4=Red, 5=Magenta, 6=Brown, 7=Lig
 
 ### Debug Commands
 
+`dis FILE` lists an ELF binary or compiles a `.cc` source listing. Saved raw
+images require an explicit mode and origin, or the map written by CupidASM:
+
+```text
+dis --raw --mode 16 --base 0x7c00 boot.bin
+dis --raw --range-map boot.map --require-known boot.bin
+```
+
+The map supplies the origin and code16, code32, or data boundaries. Both
+`cupid.raw-map.v1` and `v2` are accepted. Its recorded size must match the
+image. `--require-known` rejects unknown, invalid, or truncated code before
+printing a listing; declared data remains `db` rows. Paths resolve against
+the current directory and use unquoted tokens. Mode/base options and a map
+cannot be combined. `exec -d FILE` keeps its ELF or `.cc` form.
+
 | Command | Usage | Description |
 |---------|-------|-------------|
 | `memdump` | `memdump <hex_addr> [length]` | Hex + ASCII dump of memory (default 64 bytes, max 512) _(CupidC)_ |

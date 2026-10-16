@@ -38,4 +38,31 @@ void dis_disassemble(const uint8_t *buf, uint32_t size, uint32_t base_addr,
 
 int dis_elf(const char *path, dis_output_fn out_fn);
 
+/* A saved raw image has either an explicit fixed mode/base or a map path.
+ * Map requests use CTOOL_DIS_RAW_RANGE_MAP and a zero base here; the map
+ * supplies the actual origin and keeps its job-owned storage until return. */
+typedef struct {
+    ctool_x86_mode_t mode;
+    uint32_t base_address;
+    const char *range_map_path;
+    ctool_bool require_known;
+} dis_raw_file_request_t;
+
+int dis_raw_file(const char *path, const dis_raw_file_request_t *request,
+                 dis_output_fn out_fn);
+
+typedef struct {
+    ctool_string_t input;
+    ctool_string_t range_map;
+    ctool_bool raw;
+    ctool_bool require_known;
+    ctool_x86_mode_t mode;
+    ctool_u32 base_address;
+} dis_command_t;
+
+/* Parse shell arguments without opening files. Strings borrow the argument
+ * buffer. Failed parsing clears the result. Paths use unquoted shell tokens. */
+ctool_status_t dis_command_parse(ctool_string_t arguments,
+                                 dis_command_t *command_out);
+
 #endif /* DIS_H */

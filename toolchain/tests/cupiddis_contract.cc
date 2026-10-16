@@ -4192,6 +4192,483 @@ static int run_errors(void) {
   return 0;
 }
 
+static int raw_map_is_empty(const ctool_dis_raw_map_t *map) {
+  return map->image_size == 0u && map->base_address == 0u &&
+         map->ranges == (const ctool_dis_raw_range_t *)0 &&
+         map->range_count == 0u &&
+         map->edges == (const ctool_dis_raw_edge_t *)0 &&
+         map->edge_count == 0u && map->edge_metadata_present == CTOOL_FALSE;
+}
+
+static int raw_map_mark_matches(ctool_arena_mark_t left,
+                                ctool_arena_mark_t right) {
+  return left.owner == right.owner && left.block == right.block &&
+         left.used == right.used && left.generation == right.generation;
+}
+
+static int expect_raw_map_parse_failure(ctool_job_t *job, ctool_bytes_t text,
+                                       ctool_status_t expected,
+                                       const char *expected_message,
+                                       const char *operation) {
+  static const char recovery[] =
+      "cupid.raw-map.v1\nsize 1\nbase 0\nrange 0 code32";
+  ctool_arena_t *arena = ctool_job_arena(job);
+  ctool_arena_mark_t mark = ctool_arena_mark(arena);
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(job);
+  ctool_dis_raw_map_t map;
+  const char *message = "previous map message";
+  ctool_status_t status;
+  (void)memset(&map, 0xa5, sizeof(map));
+  status = ctool_dis_parse_raw_map(job, text, &map, &message);
+  if (!check_status(status, expected, operation) || !raw_map_is_empty(&map) ||
+      message == (const char *)0 ||
+      strcmp(message, expected_message) != 0 ||
+      !raw_map_mark_matches(mark, ctool_arena_mark(arena)) ||
+      ctool_job_diagnostic_count(job) != diagnostic_count) {
+    (void)fprintf(stderr, "%s: output, message, or rollback differs\n",
+                  operation);
+    return 0;
+  }
+  status = ctool_dis_parse_raw_map(
+      job, ctool_bytes(recovery, (ctool_u32)sizeof(recovery) - 1u), &map,
+      &message);
+  if (!check_status(status, CTOOL_OK, "raw map same-job recovery") ||
+      message != (const char *)0 || map.image_size != 1u ||
+      map.base_address != 0u || map.range_count != 1u ||
+      map.ranges == (const ctool_dis_raw_range_t *)0 ||
+      map.ranges[0].offset != 0u ||
+      map.ranges[0].kind != CTOOL_DIS_RAW_RANGE_CODE32 ||
+      map.edges != (const ctool_dis_raw_edge_t *)0 || map.edge_count != 0u ||
+      map.edge_metadata_present != CTOOL_FALSE ||
+      ctool_job_diagnostic_count(job) != diagnostic_count) {
+    return 0;
+  }
+  status = ctool_arena_rewind(arena, mark);
+  return check_status(status, CTOOL_OK, "raw map recovery rewind") &&
+         raw_map_mark_matches(mark, ctool_arena_mark(arena));
+}
+
+typedef struct {
+  ctool_allocator_t backing;
+  ctool_u32 calls;
+  ctool_u32 fail_at;
+} raw_map_allocator_t;
+
+static void *raw_map_allocate(void *context, ctool_u32 bytes) {
+  raw_map_allocator_t *allocator = (raw_map_allocator_t *)context;
+  allocator->calls++;
+  if (allocator->fail_at != 0u && allocator->calls == allocator->fail_at) {
+    return (void *)0;
+  }
+  return allocator->backing.allocate(allocator->backing.context, bytes);
+}
+
+static void raw_map_release(void *context, void *allocation, ctool_u32 bytes) {
+  raw_map_allocator_t *allocator = (raw_map_allocator_t *)context;
+  allocator->backing.release(allocator->backing.context, allocation, bytes);
+}
+
+static const char raw_map_v2_fixture[] =
+    "cupid.raw-map.v2\n"
+    "size 16\n"
+    "base 0x1000\n"
+    "range 0 code16\n"
+    "range 4 data\n"
+    "range 8 code32\n"
+    "edges 4\n"
+    "edge 0 relative local 2 0x1002 16 0\n"
+    "edge 2 far local 8 0x1008 32 8\n"
+    "edge 8 far external - 0xffffffff 32 8\n"
+    "edge 10 indirect unprovable - - unknown -\n";
+
+static int run_raw_map_resource_failure(ctool_bool fail_allocation) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_job_t *job = (ctool_job_t *)0;
+  raw_map_allocator_t allocator;
+  ctool_u8 *sentinel = (ctool_u8 *)0;
+  ctool_status_t status = ctool_host_adapter_init(&adapter, ".");
+  if (!check_status(status, CTOOL_OK, "raw map resource adapter")) {
+    return 1;
+  }
+  limits.arena_block_bytes = 32u;
+  limits.arena_bytes = fail_allocation == CTOOL_TRUE ? 256u : 32u;
+  config = ctool_host_job_config(&adapter, limits);
+  allocator.backing = config.allocator;
+  allocator.calls = 0u;
+  allocator.fail_at = 0u;
+  if (fail_allocation == CTOOL_TRUE) {
+    config.allocator.context = &allocator;
+    config.allocator.allocate = raw_map_allocate;
+    config.allocator.release = raw_map_release;
+  }
+  status = ctool_job_open(&config, &job);
+  if (status == CTOOL_OK) {
+    status = ctool_arena_alloc(ctool_job_arena(job), 4u, 1u,
+                               (void **)&sentinel);
+  }
+  if (!check_status(status, CTOOL_OK, "raw map retained arena allocation")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  (void)memset(sentinel, 0x5a, 4u);
+  if (fail_allocation == CTOOL_TRUE) {
+    allocator.fail_at = allocator.calls + 1u;
+  }
+  /* The three ranges fit after the sentinel; the edge array needs a new block. */
+  if (!expect_raw_map_parse_failure(
+          job, ctool_bytes(raw_map_v2_fixture,
+                           (ctool_u32)sizeof(raw_map_v2_fixture) - 1u),
+          fail_allocation == CTOOL_TRUE ? CTOOL_ERR_NO_MEMORY : CTOOL_ERR_LIMIT,
+          "raw range map exceeds the host limit",
+          fail_allocation == CTOOL_TRUE ? "raw map edge allocation failure"
+                                       : "raw map edge arena limit") ||
+      sentinel[0] != 0x5au || sentinel[1] != 0x5au ||
+      sentinel[2] != 0x5au || sentinel[3] != 0x5au ||
+      (fail_allocation == CTOOL_TRUE && allocator.calls != allocator.fail_at)) {
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  return 0;
+}
+
+#define TEST_RAW_MAP_V1 "cupid.raw-map.v1\nsize 8\nbase 0x1000\n"
+#define TEST_RAW_MAP_V2 "cupid.raw-map.v2\nsize 8\nbase 0x1000\n"
+
+static int run_raw_map_text(void) {
+  static const struct {
+    const char *operation;
+    const char *text;
+    const char *message;
+  } failures[] = {
+      {"empty raw map text", "", "raw range map has an unsupported schema"},
+      {"unsupported raw map schema", "cupid.raw-map.v3\n",
+       "raw range map has an unsupported schema"},
+      {"raw map schema must be first", "size 8\ncupid.raw-map.v1\n",
+       "raw range map has an unsupported schema"},
+      {"extra schema field", "cupid.raw-map.v1 extra\n",
+       "raw range map has an unsupported schema"},
+      {"missing map size", "cupid.raw-map.v1\nbase 0\nrange 0 code32",
+       "raw range map requires one size"},
+      {"zero map size", "cupid.raw-map.v1\nsize 0\n",
+       "raw range map requires one nonzero size"},
+      {"overflow map size", "cupid.raw-map.v1\nsize 4294967296\n",
+       "raw range map requires one nonzero size"},
+      {"signed map size", "cupid.raw-map.v1\nsize -1\n",
+       "raw range map requires one nonzero size"},
+      {"missing hexadecimal digits", "cupid.raw-map.v1\nsize 0x\n",
+       "raw range map requires one nonzero size"},
+      {"duplicate map size", TEST_RAW_MAP_V1 "size 8\nrange 0 code32",
+       "raw range map requires one nonzero size"},
+      {"extra size field", "cupid.raw-map.v1\nsize 8 extra\n",
+       "raw range map requires one nonzero size"},
+      {"missing map base", "cupid.raw-map.v1\nsize 8\nrange 0 code32",
+       "raw range map requires one base address"},
+      {"overflow map base", "cupid.raw-map.v1\nbase 0x100000000\n",
+       "raw range map requires one base address"},
+      {"duplicate map base", TEST_RAW_MAP_V1 "base 0\nrange 0 code32",
+       "raw range map requires one base address"},
+      {"blank map line", TEST_RAW_MAP_V1 "\nrange 0 code32",
+       "raw range map contains an invalid line"},
+      {"too many map fields", TEST_RAW_MAP_V1 "range 0 code32 a b c d e f",
+       "raw range map contains an invalid line"},
+      {"unknown map record", TEST_RAW_MAP_V1 "label 0 name",
+       "raw range map contains an unknown record"},
+      {"missing map ranges", TEST_RAW_MAP_V1,
+       "raw range map requires at least one range"},
+      {"missing range kind", TEST_RAW_MAP_V1 "range 0",
+       "raw range map contains an invalid range start"},
+      {"invalid range number", TEST_RAW_MAP_V1 "range 0xg code32",
+       "raw range map contains an invalid range start"},
+      {"invalid range kind", TEST_RAW_MAP_V1 "range 0 code64",
+       "raw range kind must be code16, code32, or data"},
+      {"nonzero first range", TEST_RAW_MAP_V1 "range 1 code32",
+       "raw range map must start at offset zero"},
+      {"range at image end", TEST_RAW_MAP_V1 "range 0 code32\nrange 8 data",
+       "raw range start is outside the mapped image"},
+      {"duplicate range start", TEST_RAW_MAP_V1 "range 0 code32\nrange 0 data",
+       "raw range starts must increase"},
+      {"decreasing range start", TEST_RAW_MAP_V1
+       "range 0 code32\nrange 4 data\nrange 2 code16",
+       "raw range starts must increase"},
+      {"v1 edge count", TEST_RAW_MAP_V1 "range 0 code32\nedges 0",
+       "raw range map v2 requires one edge count"},
+      {"v1 edge record", TEST_RAW_MAP_V1
+       "range 0 code32\nedge 0 relative local 2 0x1002 32 0",
+       "raw range map contains an invalid edge source"},
+      {"v2 missing edge count", TEST_RAW_MAP_V2 "range 0 code32",
+       "raw range map v2 requires one edge count"},
+      {"v2 duplicate edge count", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 0\nedges 0",
+       "raw range map v2 requires one edge count"},
+      {"v2 overflowing edge count", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 4294967296",
+       "raw range map v2 requires one edge count"},
+      {"v2 missing edge record", TEST_RAW_MAP_V2 "range 0 code32\nedges 1",
+       "raw range map edge count does not match its records"},
+      {"v2 excess edge record", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 0\nedge 0 relative local 2 0x1002 32 0",
+       "raw range map edge count does not match its records"},
+      {"invalid edge source number", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge -1 relative local 2 0x1002 32 0",
+       "raw range map contains an invalid edge source"},
+      {"missing edge field", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 0 relative local 2 0x1002 32",
+       "raw range map contains an invalid edge source"},
+      {"invalid edge kind", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 0 return local 2 0x1002 32 0",
+       "raw edge kind must be relative, far, or indirect"},
+      {"invalid edge class", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 0 relative inferred 2 0x1002 32 0",
+       "raw edge class must be local, external, or unprovable"},
+      {"invalid edge mode", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 0 relative local 2 0x1002 64 0",
+       "raw range map contains an invalid edge target"},
+      {"overflowing edge address", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 0 far external - 0x100000000 32 8",
+       "raw range map contains an invalid edge target"},
+      {"unknown local target", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 0 relative local - 0x1002 32 0",
+       "raw range map edge fields disagree with their class"},
+      {"duplicate edge sources", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 2\nedge 0 relative local 2 0x1002 32 0\n"
+       "edge 0 relative local 2 0x1002 32 0",
+       "raw edge sources must increase without overlap"},
+      {"decreasing edge sources", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 2\nedge 2 relative local 2 0x1002 32 0\n"
+       "edge 1 relative local 2 0x1002 32 0",
+       "raw edge sources must increase without overlap"},
+      {"edge source at image end", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 8 relative local 2 0x1002 32 0",
+       "raw edge source is outside the mapped image"},
+      {"edge source in data", TEST_RAW_MAP_V2
+       "range 0 data\nedges 1\nedge 0 relative local 2 0x1002 32 0",
+       "raw edge source must be inside code"},
+      {"local address mismatch", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 0 relative local 2 0x1003 32 0",
+       "raw local edge target is inconsistent"},
+      {"local target at image end", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 0 relative local 8 0x1008 32 0",
+       "raw local edge target is inconsistent"},
+      {"local address overflow", "cupid.raw-map.v2\nsize 8\nbase 0xffffffff\n"
+       "range 0 code32\nedges 1\nedge 0 relative local 1 0 32 0",
+       "raw local edge target is inconsistent"},
+      {"local target in data", TEST_RAW_MAP_V2
+       "range 0 code32\nrange 4 data\nedges 1\n"
+       "edge 0 relative local 4 0x1004 32 0",
+       "raw local edge target mode disagrees with ranges"},
+      {"local target mode mismatch", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 0 relative local 2 0x1002 16 0",
+       "raw local edge target mode disagrees with ranges"},
+      {"relative local segment", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 0 relative local 2 0x1002 32 8",
+       "raw local edge segment is inconsistent"},
+      {"external target offset", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 0 far external 0 0x2000 32 8",
+       "raw range map edge fields disagree with their class"},
+      {"external target inside image", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 0 far external - 0x1002 32 8",
+       "raw external edge target is inside the mapped image"},
+      {"relative external segment", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 0 relative external - 0x2000 32 8",
+       "raw external edge target is inconsistent"},
+      {"unprovable direct edge", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 0 relative unprovable - - unknown -",
+       "raw unprovable edge target must be unknown"},
+      {"unprovable known address", TEST_RAW_MAP_V2
+       "range 0 code32\nedges 1\nedge 0 indirect unprovable - 0x2000 unknown -",
+       "raw range map edge fields disagree with their class"}};
+  static char maximum_text[CTOOL_DIS_RAW_MAP_MAX_BYTES + 1u];
+  static const char maximum_prefix[] =
+      "cupid.raw-map.v1\nsize 1\nbase 0\nrange 0 code32";
+  static const char embedded_nul[] =
+      "cupid.raw-map.v1\nsize 8\nbase 0\nrange 0 code32\0extra";
+  char v1_text[] = "\tcupid.raw-map.v1 \r\nsize\t8\r\nbase 0X7C00\r\n"
+                   "range 0 code16\r\nrange 2 data\r\nrange 4 code32";
+  static const char v2_empty[] =
+      "cupid.raw-map.v2\nrange 0 data\nbase 4294967295\nsize 1\nedges 0";
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_dis_raw_map_t v1;
+  ctool_dis_raw_map_t v2;
+  ctool_dis_raw_map_t map;
+  ctool_arena_mark_t mark;
+  const char *message = "previous map message";
+  ctool_status_t status;
+  ctool_u32 index;
+  if (!open_job(&adapter, &job)) {
+    return 1;
+  }
+  status = ctool_dis_parse_raw_map(
+      job, ctool_bytes(v1_text, (ctool_u32)sizeof(v1_text) - 1u), &v1, &message);
+  if (!check_status(status, CTOOL_OK, "v1 CRLF map without final newline") ||
+      message != (const char *)0 || v1.image_size != 8u ||
+      v1.base_address != 0x7c00u || v1.range_count != 3u ||
+      v1.ranges == (const ctool_dis_raw_range_t *)0 ||
+      v1.ranges[0].offset != 0u ||
+      v1.ranges[0].kind != CTOOL_DIS_RAW_RANGE_CODE16 ||
+      v1.ranges[1].offset != 2u ||
+      v1.ranges[1].kind != CTOOL_DIS_RAW_RANGE_DATA ||
+      v1.ranges[2].offset != 4u ||
+      v1.ranges[2].kind != CTOOL_DIS_RAW_RANGE_CODE32 ||
+      v1.edges != (const ctool_dis_raw_edge_t *)0 || v1.edge_count != 0u ||
+      v1.edge_metadata_present != CTOOL_FALSE) {
+    ctool_job_close(job);
+    return 1;
+  }
+  (void)memset(v1_text, 'x', sizeof(v1_text));
+  status = ctool_dis_parse_raw_map(
+      job, ctool_bytes(raw_map_v2_fixture,
+                       (ctool_u32)sizeof(raw_map_v2_fixture) - 1u), &v2,
+      &message);
+  if (!check_status(status, CTOOL_OK, "v2 mixed ranges and all edge classes") ||
+      message != (const char *)0 || v2.image_size != 16u ||
+      v2.base_address != 0x1000u || v2.range_count != 3u ||
+      v2.ranges == (const ctool_dis_raw_range_t *)0 || v2.edge_count != 4u ||
+      v2.edges == (const ctool_dis_raw_edge_t *)0 ||
+      v2.edge_metadata_present != CTOOL_TRUE ||
+      v2.ranges[0].offset != 0u ||
+      v2.ranges[0].kind != CTOOL_DIS_RAW_RANGE_CODE16 ||
+      v2.ranges[1].offset != 4u ||
+      v2.ranges[1].kind != CTOOL_DIS_RAW_RANGE_DATA ||
+      v2.ranges[2].offset != 8u ||
+      v2.ranges[2].kind != CTOOL_DIS_RAW_RANGE_CODE32 ||
+      v2.edges[0].source_offset != 0u ||
+      v2.edges[0].kind != CTOOL_DIS_RAW_EDGE_RELATIVE ||
+      v2.edges[0].class_id != CTOOL_DIS_RAW_EDGE_LOCAL ||
+      v2.edges[0].target_offset != 2u ||
+      v2.edges[0].target_address != 0x1002u ||
+      v2.edges[0].target_mode != CTOOL_X86_MODE_16 ||
+      v2.edges[0].target_segment != 0u ||
+      v2.edges[1].source_offset != 2u ||
+      v2.edges[1].kind != CTOOL_DIS_RAW_EDGE_FAR ||
+      v2.edges[1].class_id != CTOOL_DIS_RAW_EDGE_LOCAL ||
+      v2.edges[1].target_offset != 8u ||
+      v2.edges[1].target_address != 0x1008u ||
+      v2.edges[1].target_mode != CTOOL_X86_MODE_32 ||
+      v2.edges[1].target_segment != 8u ||
+      v2.edges[2].source_offset != 8u ||
+      v2.edges[2].kind != CTOOL_DIS_RAW_EDGE_FAR ||
+      v2.edges[2].class_id != CTOOL_DIS_RAW_EDGE_EXTERNAL ||
+      v2.edges[2].target_offset != CTOOL_DIS_RAW_EDGE_NO_TARGET ||
+      v2.edges[2].target_address != 0xffffffffu ||
+      v2.edges[2].target_mode != CTOOL_X86_MODE_32 ||
+      v2.edges[2].target_segment != 8u ||
+      v2.edges[3].source_offset != 10u ||
+      v2.edges[3].kind != CTOOL_DIS_RAW_EDGE_INDIRECT ||
+      v2.edges[3].class_id != CTOOL_DIS_RAW_EDGE_UNPROVABLE ||
+      v2.edges[3].target_offset != CTOOL_DIS_RAW_EDGE_NO_TARGET ||
+      v2.edges[3].target_address != CTOOL_DIS_RAW_EDGE_NO_TARGET ||
+      v2.edges[3].target_mode != (ctool_x86_mode_t)0 ||
+      v2.edges[3].target_segment != CTOOL_DIS_RAW_EDGE_NO_TARGET) {
+    ctool_job_close(job);
+    return 1;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_dis_parse_raw_map(
+      job, ctool_bytes(v2_empty, (ctool_u32)sizeof(v2_empty) - 1u), &map,
+      &message);
+  if (!check_status(status, CTOOL_OK, "v2 zero edges and unordered headers") ||
+      message != (const char *)0 || map.image_size != 1u ||
+      map.base_address != 0xffffffffu || map.range_count != 1u ||
+      map.ranges == (const ctool_dis_raw_range_t *)0 ||
+      map.ranges[0].kind != CTOOL_DIS_RAW_RANGE_DATA ||
+      map.edges != (const ctool_dis_raw_edge_t *)0 || map.edge_count != 0u ||
+      map.edge_metadata_present != CTOOL_TRUE ||
+      !check_status(ctool_arena_rewind(ctool_job_arena(job), mark), CTOOL_OK,
+                    "zero-edge map rewind")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 0u; index < (ctool_u32)(sizeof(failures) / sizeof(failures[0]));
+       index++) {
+    if (!expect_raw_map_parse_failure(
+            job, ctool_bytes(failures[index].text,
+                             (ctool_u32)strlen(failures[index].text)),
+            CTOOL_ERR_INPUT, failures[index].message,
+            failures[index].operation)) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  if (!expect_raw_map_parse_failure(
+          job, ctool_bytes(embedded_nul, (ctool_u32)sizeof(embedded_nul) - 1u),
+          CTOOL_ERR_INPUT, "raw range kind must be code16, code32, or data",
+          "embedded NUL in bounded map text") ||
+      !expect_raw_map_parse_failure(
+          job, ctool_bytes((const void *)0, 1u), CTOOL_ERR_INVALID_ARGUMENT,
+          "invalid raw range map request", "null nonempty map text")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  (void)memset(&map, 0xa5, sizeof(map));
+  message = "previous map message";
+  status = ctool_dis_parse_raw_map(
+      (ctool_job_t *)0, ctool_bytes(maximum_prefix, 1u), &map, &message);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT, "null raw map job") ||
+      !raw_map_is_empty(&map) || message == (const char *)0 ||
+      strcmp(message, "invalid raw range map request") != 0) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_dis_parse_raw_map(job, ctool_bytes(maximum_prefix, 1u),
+                                   (ctool_dis_raw_map_t *)0, &message);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT, "null raw map output") ||
+      message == (const char *)0 ||
+      strcmp(message, "invalid raw range map request") != 0) {
+    ctool_job_close(job);
+    return 1;
+  }
+  (void)memset(&map, 0xa5, sizeof(map));
+  status = ctool_dis_parse_raw_map(job, ctool_bytes(maximum_prefix, 1u), &map,
+                                   (const char **)0);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT, "null map message output") ||
+      !raw_map_is_empty(&map)) {
+    ctool_job_close(job);
+    return 1;
+  }
+  (void)memset(maximum_text, ' ', sizeof(maximum_text));
+  (void)memcpy(maximum_text, maximum_prefix, sizeof(maximum_prefix) - 1u);
+  status = ctool_dis_parse_raw_map(
+      job, ctool_bytes(maximum_text, CTOOL_DIS_RAW_MAP_MAX_BYTES), &map,
+      &message);
+  if (!check_status(status, CTOOL_OK, "raw map exact maximum text size") ||
+      message != (const char *)0 || map.range_count != 1u ||
+      map.ranges == (const ctool_dis_raw_range_t *)0 || map.image_size != 1u ||
+      !check_status(ctool_arena_rewind(ctool_job_arena(job), mark), CTOOL_OK,
+                    "maximum map rewind") ||
+      !expect_raw_map_parse_failure(
+          job, ctool_bytes(maximum_text, CTOOL_DIS_RAW_MAP_MAX_BYTES + 1u),
+          CTOOL_ERR_LIMIT, "raw range map exceeds the host limit",
+          "raw map maximum text plus one")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  if (v1.ranges[0].kind != CTOOL_DIS_RAW_RANGE_CODE16 ||
+      v1.ranges[1].offset != 2u ||
+      v1.ranges[2].kind != CTOOL_DIS_RAW_RANGE_CODE32 ||
+      v2.edges[2].target_address != 0xffffffffu ||
+      v2.edges[3].class_id != CTOOL_DIS_RAW_EDGE_UNPROVABLE ||
+      !raw_map_mark_matches(mark, ctool_arena_mark(ctool_job_arena(job))) ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr, "raw map retained job-owned arrays changed\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  if (run_raw_map_resource_failure(CTOOL_FALSE) != 0 ||
+      run_raw_map_resource_failure(CTOOL_TRUE) != 0) {
+    return 1;
+  }
+  (void)puts("map: ok");
+  return 0;
+}
+
+#undef TEST_RAW_MAP_V1
+#undef TEST_RAW_MAP_V2
+
 int main(int argc, char **argv) {
   if (argc != 2) {
     (void)fprintf(stderr, "usage: cupiddis-contract MODE\n");
@@ -4199,6 +4676,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "raw") == 0) {
     return run_raw();
+  }
+  if (strcmp(argv[1], "map") == 0) {
+    return run_raw_map_text();
   }
   if (strcmp(argv[1], "indexed") == 0) {
     return run_indexed();

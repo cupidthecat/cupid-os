@@ -401,6 +401,11 @@ static void ctool_kernel_dis_put_le32(uint8_t *bytes, uint32_t offset,
 
 static void ctool_kernel_cupiddis_selftest(void) {
   static const char object_name[] = "/tmp/ctool-cupiddis-selftest.elf";
+  static const char raw_name[] = "/tmp/ctool-cupiddis-selftest.bin";
+  static const char map_name[] = "/tmp/ctool-cupiddis-selftest.map";
+  static const char map_text[] =
+      "cupid.raw-map.v2\nsize 10\nbase 0x8000\nedges 0\n"
+      "range 0 code16\nrange 3 data\nrange 4 code32\n";
   static const ctool_u8 code[] = {0xb8u, 0x78u, 0x56u, 0x34u,
                                   0x12u, 0xc3u};
   static const ctool_u8 mapped_code[] = {
@@ -416,6 +421,7 @@ static void ctool_kernel_cupiddis_selftest(void) {
   uint8_t image[90];
   ctool_kernel_dis_capture_t capture;
   dis_raw_request_t raw_request;
+  dis_raw_file_request_t file_request;
   int status;
 
   memset(&capture, 0, (uint32_t)sizeof(capture));
@@ -468,6 +474,50 @@ static void ctool_kernel_cupiddis_selftest(void) {
       strstr(capture.bytes, "[disassembly raw]") != (char *)0) {
     kernel_panic("CupidDis kernel strict-code self-test failed");
   }
+
+  if (vfs_write_all(raw_name, mapped_code, (uint32_t)sizeof(mapped_code)) !=
+          (int)sizeof(mapped_code) ||
+      vfs_write_all(map_name, map_text, (uint32_t)sizeof(map_text) - 1u) !=
+          (int)sizeof(map_text) - 1) {
+    kernel_panic("CupidDis kernel raw-file fixture write failed");
+  }
+  file_request.mode = CTOOL_DIS_RAW_RANGE_MAP;
+  file_request.base_address = 0u;
+  file_request.range_map_path = map_name;
+  file_request.require_known = CTOOL_TRUE;
+  memset(&capture, 0, (uint32_t)sizeof(capture));
+  ctool_kernel_dis_capture_active = &capture;
+  status = dis_raw_file(raw_name, &file_request,
+                         ctool_kernel_dis_capture_write);
+  ctool_kernel_dis_capture_active = (ctool_kernel_dis_capture_t *)0;
+  if (status != VFS_OK || capture.overflowed ||
+      strstr(capture.bytes, "mov ax, 0x1234") == (char *)0 ||
+      strstr(capture.bytes, "db 0x90") == (char *)0 ||
+      strstr(capture.bytes, "mov eax, 0x12345678") == (char *)0 ||
+      strstr(capture.bytes, "nop") != (char *)0) {
+    kernel_panic("CupidDis kernel mapped raw-file self-test failed");
+  }
+  if (vfs_write_all(raw_name, truncated_code,
+                     (uint32_t)sizeof(truncated_code)) !=
+      (int)sizeof(truncated_code)) {
+    kernel_panic("CupidDis kernel strict-file fixture write failed");
+  }
+  file_request.mode = CTOOL_X86_MODE_32;
+  file_request.range_map_path = (const char *)0;
+  memset(&capture, 0, (uint32_t)sizeof(capture));
+  ctool_kernel_dis_capture_active = &capture;
+  status = dis_raw_file(raw_name, &file_request,
+                         ctool_kernel_dis_capture_write);
+  ctool_kernel_dis_capture_active = (ctool_kernel_dis_capture_t *)0;
+  if (vfs_unlink(raw_name) != VFS_OK || vfs_unlink(map_name) != VFS_OK) {
+    kernel_panic("CupidDis kernel raw-file fixture cleanup failed");
+  }
+  if (status != VFS_EINVAL || capture.overflowed ||
+      strstr(capture.bytes, "code check failed") == (char *)0 ||
+      strstr(capture.bytes, "[disassembly raw]") != (char *)0) {
+    kernel_panic("CupidDis kernel strict raw-file self-test failed");
+  }
+  KINFO("CupidDis kernel raw-file self-test passed");
 
   memset(image, 0, (uint32_t)sizeof(image));
   image[0] = 0x7fu;

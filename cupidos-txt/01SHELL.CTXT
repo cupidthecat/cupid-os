@@ -97,7 +97,7 @@ Language / compiler:
 - reset      clear persistent REPL state
 - as         JIT-run .asm, or as -o
 - cupidasm   assemble .asm to ELF
-- dis        disassemble ELF binary or .cc file
+- dis        disassemble ELF, .cc, or explicitly described raw files
 - holyc      alias for cc (HolyC-style REPL)
 
 Applications:

@@ -974,10 +974,21 @@ Useful inspection commands:
 - exec -d /home/hello
 - dis file.elf
 - dis file.cc
+- dis --raw --mode 16 --base 0x7c00 boot.bin
+- dis --raw --range-map boot.map --require-known boot.bin
 - cc -d file.cc
 
-CupidASM therefore uses the same source and binary inspection commands as
-CupidC.
+The raw form reads saved images without executing them. Use an explicit
+16-bit or 32-bit mode and a decimal or hexadecimal base, or use the map
+written by as -f bin --map. The map supplies the origin, code16, code32,
+and data ranges, and must record the image's exact size. Both v1 and v2
+maps are accepted. Data renders as db rows.
+
+--require-known rejects unknown, invalid, or truncated code before printing
+a listing. It does not impose the hosted local-target or source-edge policy.
+Mode and base cannot be combined with --range-map. Paths resolve against
+the current directory and use unquoted tokens. The older ELF and .cc forms
+and exec -d remain available.
 >endtree
 
 >h2 Demo Sources

@@ -1354,7 +1354,7 @@ static struct shell_command commands[] = {
     {"reset", "Reset the CupidC REPL state", shell_reset_cmd},
     {"as", "Assemble and run .asm file", shell_asm_cmd},
     {"cupidasm", "Assemble .asm to ELF binary", shell_cupidasm_cmd},
-    {"dis", "Disassemble ELF binary or .cc file", shell_dis_cmd},
+    {"dis", "Disassemble ELF, .cc, or explicitly mapped raw files", shell_dis_cmd},
     {"theme", "Set GUI theme (win95|pastel|dark|contrast|amber|vapor|temple)", shell_theme_cmd},
     {"temple", "Invoke TempleOS look: red/yellow/white on black", shell_temple_cmd},
     {"adam", "TempleOS-style task tree under Adam (PID 1)", shell_adam_cmd},
@@ -2358,7 +2358,7 @@ static void shell_asm_usage(const char *name) {
   shell_print("  The older -o form still writes a linked executable.\n");
 }
 
-static int shell_asm_copy_token(ctool_string_t token, char *output) {
+static int shell_tool_copy_path(ctool_string_t token, char *output) {
   ctool_u32 index;
   if (token.data == (const char *)0 || token.size == 0u ||
       token.size >= VFS_MAX_PATH) {
@@ -2405,7 +2405,7 @@ static void shell_asm_dispatch(const char *name,
   if (args == (const char *)0) args = "";
   status = as_command_parse(frontend, ctool_string(args), &command);
   if (status != CTOOL_OK ||
-      !shell_asm_copy_token(command.source, source)) {
+      !shell_tool_copy_path(command.source, source)) {
     shell_asm_usage(name);
     return;
   }
@@ -2415,7 +2415,7 @@ static void shell_asm_dispatch(const char *name,
     return;
   }
   if (command.output.size != 0u) {
-    if (!shell_asm_copy_token(command.output, output)) {
+    if (!shell_tool_copy_path(command.output, output)) {
       shell_asm_usage(name);
       return;
     }
@@ -2425,7 +2425,7 @@ static void shell_asm_dispatch(const char *name,
   }
   shell_resolve_path(output, resolved_output);
   if (command.map.size != 0u) {
-    if (!shell_asm_copy_token(command.map, map)) {
+    if (!shell_tool_copy_path(command.map, map)) {
       shell_asm_usage(name);
       return;
     }
@@ -2446,30 +2446,58 @@ static void shell_cupidasm_cmd(const char *args) {
   shell_asm_dispatch("cupidasm", AS_COMMAND_CUPIDASM, args);
 }
 
+static void shell_dis_usage(void) {
+  shell_print("Usage: dis <file.elf|file.cc>\n");
+  shell_print("       dis --raw --mode 16|32 --base <address> [--require-known] <file>\n");
+  shell_print("       dis --raw --range-map <map> [--require-known] <file>\n");
+}
+
+static int shell_dis_resolve_path(const char *path, char *resolved) {
+  uint32_t prefix = 0u;
+  uint32_t path_size = strlen(path);
+  if (path[0] != '/') {
+    prefix = strlen(shell_cwd);
+    if (prefix != 0u && shell_cwd[prefix - 1u] != '/') prefix++;
+  }
+  if (path_size >= VFS_MAX_PATH || prefix >= VFS_MAX_PATH - path_size) {
+    shell_print("dis: path is too long\n");
+    return 0;
+  }
+  shell_resolve_path(path, resolved);
+  return 1;
+}
+
 static void shell_dis_cmd(const char *args) {
+  dis_command_t command;
   char path[VFS_MAX_PATH];
   char rpath[VFS_MAX_PATH];
-  int ai = 0;
-  int pi = 0;
+  char map[VFS_MAX_PATH];
+  char rmap[VFS_MAX_PATH];
   int len;
-
-  if (!args || args[0] == '\0') {
-    shell_print("Usage: dis <file.elf|file.cc>\n");
+  if (args == (const char *)0) args = "";
+  if (dis_command_parse(ctool_string(args), &command) != CTOOL_OK ||
+      !shell_tool_copy_path(command.input, path)) {
+    shell_dis_usage();
     return;
   }
-
-  while (args[ai] == ' ')
-    ai++;
-  while (args[ai] && args[ai] != ' ' && pi < VFS_MAX_PATH - 1) {
-    path[pi++] = args[ai++];
-  }
-  path[pi] = '\0';
-
-  if (path[0] == '\0') {
-    shell_print("Usage: dis <file.elf|file.cc>\n");
+  if (command.raw != CTOOL_FALSE) {
+    dis_raw_file_request_t request;
+    if (!shell_dis_resolve_path(path, rpath)) return;
+    request.mode = command.mode;
+    request.base_address = command.base_address;
+    request.range_map_path = (const char *)0;
+    request.require_known = command.require_known;
+    if (command.range_map.size != 0u) {
+      if (!shell_tool_copy_path(command.range_map, map)) {
+        shell_dis_usage();
+        return;
+      }
+      if (!shell_dis_resolve_path(map, rmap)) return;
+      request.range_map_path = rmap;
+    }
+    (void)dis_raw_file(rpath, &request, shell_dis_print);
     return;
   }
-
   shell_resolve_path(path, rpath);
   len = (int)strlen(rpath);
   if (len >= 3 && rpath[len - 3] == '.' && rpath[len - 2] == 'c' &&

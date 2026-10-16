@@ -1,5 +1,27 @@
 # Bootstrapping log
 
+## 2026-10-16: Inspect saved raw files in the shell
+
+`dis --raw` reads a saved image with an explicit 16-bit or 32-bit mode/base,
+or with the v1/v2 map written by CupidASM. Hosted and kernel adapters share
+the arena-owned map parser. Strict-known selection rejects decode failures
+before rendering; legacy ELF, source and permissive JIT adapters retain
+their behavior.
+
+The public adapter and map contracts pass. The CupidDis module has 37 passing
+tests and one expected Windows skip, and checked CupidC compiles all four
+changed units. Complete normal kernel production reaches only a stale-size
+rejection. Three measured exact sizes and the documented four-option image
+completion then pass all 16 artifact checks without rebuilding that cohort.
+The guest saves and reopens the raw image/map, completes fixed-mode and
+malformed-command recovery checks, and repeats strict mixed-map inspection.
+Both DEBUG boot markers pass. The earlier build timeout, size rejection and
+short guest deadline remain failed records.
+
+The [raw-file record](RAW-FILE-DISASSEMBLY.md) carries limits, review fixes,
+measurements and guest evidence. No seed is promoted and normal ownership
+remains 449 CupidBuild actions plus three Python coordinators.
+
 ## 2026-10-13: Close bounded final five-test engineering acceptance
 
 Windows aggregate acceptance combines eight retained normal/guest command

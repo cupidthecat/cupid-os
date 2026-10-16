@@ -240,50 +240,6 @@ static int cupiddis_append_input(cupiddis_cli_t *cli, const char *input) {
   return 1;
 }
 
-typedef struct {
-  const char *data;
-  size_t size;
-} cupiddis_span_t;
-
-static int cupiddis_span_equal(cupiddis_span_t span, const char *text) {
-  size_t text_size = strlen(text);
-  return span.size == text_size &&
-                 memcmp(span.data, text, text_size) == 0
-             ? 1
-             : 0;
-}
-
-static int cupiddis_tokenize_line(const char *line, size_t line_size,
-                                  cupiddis_span_t *tokens,
-                                  size_t token_capacity,
-                                  size_t *token_count_out) {
-  size_t cursor = 0u;
-  size_t count = 0u;
-  while (cursor < line_size) {
-    size_t start;
-    while (cursor < line_size &&
-           (line[cursor] == ' ' || line[cursor] == '\t')) {
-      cursor++;
-    }
-    if (cursor == line_size) {
-      break;
-    }
-    if (count == token_capacity) {
-      return 0;
-    }
-    start = cursor;
-    while (cursor < line_size && line[cursor] != ' ' &&
-           line[cursor] != '\t') {
-      cursor++;
-    }
-    tokens[count].data = line + start;
-    tokens[count].size = cursor - start;
-    count++;
-  }
-  *token_count_out = count;
-  return 1;
-}
-
 static int cupiddis_read_range_map(const char *path, char **contents_out,
                                    size_t *size_out) {
   FILE *stream;
@@ -306,7 +262,8 @@ static int cupiddis_read_range_map(const char *path, char **contents_out,
     return 0;
   }
   length = ftell(stream);
-  if (length < 0l || length > 1048576l || fseek(stream, 0l, 0) != 0) {
+  if (length < 0l || length > (long)CTOOL_DIS_RAW_MAP_MAX_BYTES ||
+      fseek(stream, 0l, 0) != 0) {
     (void)fclose(stream);
     return 0;
   }
@@ -335,424 +292,73 @@ static int cupiddis_read_range_map(const char *path, char **contents_out,
   return 1;
 }
 
-static int cupiddis_map_kind(cupiddis_span_t token,
-                             ctool_dis_raw_range_kind_t *kind_out) {
-  if (cupiddis_span_equal(token, "code16")) {
-    *kind_out = CTOOL_DIS_RAW_RANGE_CODE16;
-    return 1;
-  }
-  if (cupiddis_span_equal(token, "code32")) {
-    *kind_out = CTOOL_DIS_RAW_RANGE_CODE32;
-    return 1;
-  }
-  if (cupiddis_span_equal(token, "data")) {
-    *kind_out = CTOOL_DIS_RAW_RANGE_DATA;
-    return 1;
-  }
-  return 0;
-}
-
-static int cupiddis_map_edge_kind(cupiddis_span_t token,
-                                  ctool_dis_raw_edge_kind_t *kind_out) {
-  if (cupiddis_span_equal(token, "relative")) {
-    *kind_out = CTOOL_DIS_RAW_EDGE_RELATIVE;
-    return 1;
-  }
-  if (cupiddis_span_equal(token, "far")) {
-    *kind_out = CTOOL_DIS_RAW_EDGE_FAR;
-    return 1;
-  }
-  if (cupiddis_span_equal(token, "indirect")) {
-    *kind_out = CTOOL_DIS_RAW_EDGE_INDIRECT;
-    return 1;
-  }
-  return 0;
-}
-
-static int cupiddis_map_edge_class(
-    cupiddis_span_t token, ctool_dis_raw_edge_class_t *class_out) {
-  if (cupiddis_span_equal(token, "local")) {
-    *class_out = CTOOL_DIS_RAW_EDGE_LOCAL;
-    return 1;
-  }
-  if (cupiddis_span_equal(token, "external")) {
-    *class_out = CTOOL_DIS_RAW_EDGE_EXTERNAL;
-    return 1;
-  }
-  if (cupiddis_span_equal(token, "unprovable")) {
-    *class_out = CTOOL_DIS_RAW_EDGE_UNPROVABLE;
-    return 1;
-  }
-  return 0;
-}
-
-static int cupiddis_map_u32_or_none(cupiddis_span_t token,
-                                    ctool_u32 *value_out) {
-  if (cupiddis_span_equal(token, "-")) {
-    *value_out = CTOOL_DIS_RAW_EDGE_NO_TARGET;
-    return 1;
-  }
-  return cupiddis_parse_u32_span(token.data, token.size, value_out);
-}
-
-static int cupiddis_map_mode_or_unknown(cupiddis_span_t token,
-                                        ctool_x86_mode_t *mode_out) {
-  ctool_u32 value;
-  if (cupiddis_span_equal(token, "unknown")) {
-    *mode_out = (ctool_x86_mode_t)0;
-    return 1;
-  }
-  if (!cupiddis_parse_u32_span(token.data, token.size, &value) ||
-      (value != 16u && value != 32u)) {
-    return 0;
-  }
-  *mode_out = (ctool_x86_mode_t)value;
-  return 1;
-}
-
 static int cupiddis_load_range_map(cupiddis_cli_t *cli,
-                                   const char **message_out) {
+                                    const char **message_out) {
   char *contents = (char *)0;
   size_t contents_size = 0u;
-  size_t cursor = 0u;
-  ctool_bool have_schema = CTOOL_FALSE;
-  ctool_bool schema_v2 = CTOOL_FALSE;
-  ctool_bool have_size = CTOOL_FALSE;
-  ctool_bool have_base = CTOOL_FALSE;
-  ctool_bool have_edge_count = CTOOL_FALSE;
-  ctool_u32 expected_size = 0u;
-  ctool_u32 expected_edge_count = 0u;
-  ctool_u32 base = 0u;
+  ctool_host_adapter_t adapter;
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_dis_raw_map_t map;
   ctool_dis_raw_range_t *ranges = (ctool_dis_raw_range_t *)0;
-  ctool_u32 range_count = 0u;
-  ctool_u32 range_capacity = 0u;
   ctool_dis_raw_edge_t *edges = (ctool_dis_raw_edge_t *)0;
-  ctool_u32 edge_count = 0u;
-  ctool_u32 edge_capacity = 0u;
+  size_t allocation_size;
+  ctool_status_t status;
   int success = 0;
   *message_out = "raw range map could not be read";
-  if (!cupiddis_read_range_map(cli->range_map, &contents,
-                               &contents_size)) {
+  if (!cupiddis_read_range_map(cli->range_map, &contents, &contents_size)) {
     return 0;
   }
-  while (cursor < contents_size) {
-    size_t line_start = cursor;
-    size_t line_size;
-    cupiddis_span_t tokens[8];
-    size_t token_count = 0u;
-    while (cursor < contents_size && contents[cursor] != '\n') {
-      cursor++;
-    }
-    line_size = cursor - line_start;
-    if (line_size != 0u && contents[line_start + line_size - 1u] == '\r') {
-      line_size--;
-    }
-    if (cursor < contents_size) {
-      cursor++;
-    }
-    if (!cupiddis_tokenize_line(contents + line_start, line_size, tokens,
-                                8u, &token_count) || token_count == 0u) {
-      *message_out = "raw range map contains an invalid line";
+  limits.arena_bytes = CUPIDDIS_HOST_ARENA_BYTES;
+  limits.source_bytes = CTOOL_DIS_RAW_MAP_MAX_BYTES;
+  status = ctool_host_adapter_init(&adapter, ".");
+  if (status == CTOOL_OK) {
+    config = ctool_host_job_config(&adapter, limits);
+    status = ctool_job_open(&config, &job);
+  }
+  if (status != CTOOL_OK) {
+    *message_out = "raw range map exceeds the host limit";
+    goto done;
+  }
+  status = ctool_dis_parse_raw_map(
+      job, ctool_bytes(contents, (ctool_u32)contents_size), &map, message_out);
+  if (status != CTOOL_OK) {
+    goto done;
+  }
+  allocation_size = (size_t)map.range_count * sizeof(*ranges);
+  if (allocation_size / sizeof(*ranges) != (size_t)map.range_count) {
+    *message_out = "raw range map has too many ranges";
+    goto done;
+  }
+  ranges = (ctool_dis_raw_range_t *)malloc(allocation_size);
+  if (ranges == (ctool_dis_raw_range_t *)0) {
+    *message_out = "raw range map exceeds the host limit";
+    goto done;
+  }
+  (void)memcpy(ranges, map.ranges, allocation_size);
+  if (map.edge_count != 0u) {
+    allocation_size = (size_t)map.edge_count * sizeof(*edges);
+    if (allocation_size / sizeof(*edges) != (size_t)map.edge_count) {
+      *message_out = "raw range map has too many edges";
       goto done;
     }
-    if (have_schema == CTOOL_FALSE) {
-      if (token_count != 1u ||
-          (!cupiddis_span_equal(tokens[0], "cupid.raw-map.v1") &&
-           !cupiddis_span_equal(tokens[0], "cupid.raw-map.v2"))) {
-        *message_out = "raw range map has an unsupported schema";
-        goto done;
-      }
-      schema_v2 = cupiddis_span_equal(tokens[0], "cupid.raw-map.v2")
-                      ? CTOOL_TRUE
-                      : CTOOL_FALSE;
-      have_schema = CTOOL_TRUE;
-      continue;
+    edges = (ctool_dis_raw_edge_t *)malloc(allocation_size);
+    if (edges == (ctool_dis_raw_edge_t *)0) {
+      *message_out = "raw range map exceeds the host limit";
+      goto done;
     }
-    if (cupiddis_span_equal(tokens[0], "size")) {
-      if (token_count != 2u || have_size == CTOOL_TRUE ||
-          !cupiddis_parse_u32_span(tokens[1].data, tokens[1].size,
-                                   &expected_size) ||
-          expected_size == 0u) {
-        *message_out = "raw range map requires one nonzero size";
-        goto done;
-      }
-      have_size = CTOOL_TRUE;
-      continue;
-    }
-    if (cupiddis_span_equal(tokens[0], "base")) {
-      if (token_count != 2u || have_base == CTOOL_TRUE ||
-          !cupiddis_parse_u32_span(tokens[1].data, tokens[1].size,
-                                   &base)) {
-        *message_out = "raw range map requires one base address";
-        goto done;
-      }
-      have_base = CTOOL_TRUE;
-      continue;
-    }
-    if (cupiddis_span_equal(tokens[0], "edges")) {
-      if (schema_v2 == CTOOL_FALSE || token_count != 2u ||
-          have_edge_count == CTOOL_TRUE ||
-          !cupiddis_parse_u32_span(tokens[1].data, tokens[1].size,
-                                   &expected_edge_count)) {
-        *message_out = "raw range map v2 requires one edge count";
-        goto done;
-      }
-      have_edge_count = CTOOL_TRUE;
-      continue;
-    }
-    if (cupiddis_span_equal(tokens[0], "range")) {
-      ctool_dis_raw_range_t range;
-      ctool_dis_raw_range_t *resized;
-      ctool_u32 capacity;
-      size_t allocation_size;
-      if (token_count != 3u ||
-          !cupiddis_parse_u32_span(tokens[1].data, tokens[1].size,
-                                   &range.offset)) {
-        *message_out = "raw range map contains an invalid range start";
-        goto done;
-      }
-      if (!cupiddis_map_kind(tokens[2], &range.kind)) {
-        *message_out =
-            "raw range kind must be code16, code32, or data";
-        goto done;
-      }
-      if (range_count != 0u &&
-          range.offset <= ranges[range_count - 1u].offset) {
-        *message_out = "raw range starts must increase";
-        goto done;
-      }
-      if (range_count == 4294967295u) {
-        *message_out = "raw range map has too many ranges";
-        goto done;
-      }
-      if (range_count == range_capacity) {
-        capacity = range_capacity == 0u ? 4u : range_capacity;
-        if (capacity > 2147483647u) {
-          capacity = range_count + 1u;
-        } else {
-          capacity *= 2u;
-        }
-        allocation_size = (size_t)capacity * sizeof(*resized);
-        if (allocation_size / sizeof(*resized) != (size_t)capacity) {
-          *message_out = "raw range map has too many ranges";
-          goto done;
-        }
-        resized = (ctool_dis_raw_range_t *)realloc(ranges,
-                                                    allocation_size);
-        if (resized == (ctool_dis_raw_range_t *)0) {
-          *message_out = "raw range map exceeds the host limit";
-          goto done;
-        }
-        ranges = resized;
-        range_capacity = capacity;
-      }
-      ranges[range_count++] = range;
-      continue;
-    }
-    if (cupiddis_span_equal(tokens[0], "edge")) {
-      ctool_dis_raw_edge_t edge;
-      ctool_dis_raw_edge_t *resized;
-      ctool_u32 capacity;
-      size_t allocation_size;
-      if (schema_v2 == CTOOL_FALSE || token_count != 8u ||
-          !cupiddis_parse_u32_span(tokens[1].data, tokens[1].size,
-                                   &edge.source_offset)) {
-        *message_out = "raw range map contains an invalid edge source";
-        goto done;
-      }
-      if (!cupiddis_map_edge_kind(tokens[2], &edge.kind)) {
-        *message_out = "raw edge kind must be relative, far, or indirect";
-        goto done;
-      }
-      if (!cupiddis_map_edge_class(tokens[3], &edge.class_id)) {
-        *message_out =
-            "raw edge class must be local, external, or unprovable";
-        goto done;
-      }
-      if (!cupiddis_map_u32_or_none(tokens[4], &edge.target_offset) ||
-          !cupiddis_map_u32_or_none(tokens[5], &edge.target_address) ||
-          !cupiddis_map_mode_or_unknown(tokens[6], &edge.target_mode) ||
-          !cupiddis_map_u32_or_none(tokens[7], &edge.target_segment)) {
-        *message_out = "raw range map contains an invalid edge target";
-        goto done;
-      }
-      if ((edge.class_id == CTOOL_DIS_RAW_EDGE_LOCAL &&
-           (cupiddis_span_equal(tokens[4], "-") ||
-            cupiddis_span_equal(tokens[5], "-") ||
-            cupiddis_span_equal(tokens[6], "unknown") ||
-            cupiddis_span_equal(tokens[7], "-"))) ||
-          (edge.class_id == CTOOL_DIS_RAW_EDGE_EXTERNAL &&
-           (!cupiddis_span_equal(tokens[4], "-") ||
-            cupiddis_span_equal(tokens[5], "-") ||
-            cupiddis_span_equal(tokens[6], "unknown") ||
-            cupiddis_span_equal(tokens[7], "-"))) ||
-          (edge.class_id == CTOOL_DIS_RAW_EDGE_UNPROVABLE &&
-           (!cupiddis_span_equal(tokens[4], "-") ||
-            !cupiddis_span_equal(tokens[5], "-") ||
-            !cupiddis_span_equal(tokens[6], "unknown") ||
-            !cupiddis_span_equal(tokens[7], "-")))) {
-        *message_out =
-            "raw range map edge fields disagree with their class";
-        goto done;
-      }
-      if (edge_count != 0u &&
-          edge.source_offset <= edges[edge_count - 1u].source_offset) {
-        *message_out = "raw edge sources must increase without overlap";
-        goto done;
-      }
-      if (edge_count == 4294967295u) {
-        *message_out = "raw range map has too many edges";
-        goto done;
-      }
-      if (edge_count == edge_capacity) {
-        capacity = edge_capacity == 0u ? 4u : edge_capacity;
-        if (capacity > 2147483647u) {
-          capacity = edge_count + 1u;
-        } else {
-          capacity *= 2u;
-        }
-        allocation_size = (size_t)capacity * sizeof(*resized);
-        if (allocation_size / sizeof(*resized) != (size_t)capacity) {
-          *message_out = "raw range map has too many edges";
-          goto done;
-        }
-        resized = (ctool_dis_raw_edge_t *)realloc(edges, allocation_size);
-        if (resized == (ctool_dis_raw_edge_t *)0) {
-          *message_out = "raw range map exceeds the host limit";
-          goto done;
-        }
-        edges = resized;
-        edge_capacity = capacity;
-      }
-      edges[edge_count++] = edge;
-      continue;
-    }
-    *message_out = "raw range map contains an unknown record";
-    goto done;
-  }
-  if (have_schema == CTOOL_FALSE) {
-    *message_out = "raw range map has an unsupported schema";
-    goto done;
-  }
-  if (have_size == CTOOL_FALSE) {
-    *message_out = "raw range map requires one size";
-    goto done;
-  }
-  if (have_base == CTOOL_FALSE) {
-    *message_out = "raw range map requires one base address";
-    goto done;
-  }
-  if (schema_v2 == CTOOL_TRUE && have_edge_count == CTOOL_FALSE) {
-    *message_out = "raw range map v2 requires one edge count";
-    goto done;
-  }
-  if (schema_v2 == CTOOL_FALSE && edge_count != 0u) {
-    *message_out = "raw range map v1 cannot contain edge records";
-    goto done;
-  }
-  if (schema_v2 == CTOOL_TRUE && edge_count != expected_edge_count) {
-    *message_out = "raw range map edge count does not match its records";
-    goto done;
-  }
-  if (range_count == 0u) {
-    *message_out = "raw range map requires at least one range";
-    goto done;
-  }
-  if (ranges[0].offset != 0u) {
-    *message_out = "raw range map must start at offset zero";
-    goto done;
-  }
-  if (ranges[range_count - 1u].offset >= expected_size) {
-    *message_out = "raw range start is outside the mapped image";
-    goto done;
-  }
-  {
-    ctool_u32 edge_index;
-    for (edge_index = 0u; edge_index < edge_count; edge_index++) {
-      const ctool_dis_raw_edge_t *edge = &edges[edge_index];
-      ctool_dis_raw_range_kind_t source_kind = CTOOL_DIS_RAW_RANGE_DATA;
-      ctool_u32 range_index;
-      if (edge->source_offset >= expected_size) {
-        *message_out = "raw edge source is outside the mapped image";
-        goto done;
-      }
-      for (range_index = 0u; range_index < range_count; range_index++) {
-        if (ranges[range_index].offset > edge->source_offset) {
-          break;
-        }
-        source_kind = ranges[range_index].kind;
-      }
-      if (source_kind == CTOOL_DIS_RAW_RANGE_DATA) {
-        *message_out = "raw edge source must be inside code";
-        goto done;
-      }
-      if (edge->class_id == CTOOL_DIS_RAW_EDGE_LOCAL) {
-        ctool_dis_raw_range_kind_t target_kind = CTOOL_DIS_RAW_RANGE_DATA;
-        if (edge->kind == CTOOL_DIS_RAW_EDGE_INDIRECT ||
-            edge->target_offset == CTOOL_DIS_RAW_EDGE_NO_TARGET ||
-            (edge->target_mode != CTOOL_X86_MODE_16 &&
-             edge->target_mode != CTOOL_X86_MODE_32) ||
-            edge->target_offset >= expected_size ||
-            base > 4294967295u - edge->target_offset ||
-            base + edge->target_offset != edge->target_address) {
-          *message_out = "raw local edge target is inconsistent";
-          goto done;
-        }
-        for (range_index = 0u; range_index < range_count; range_index++) {
-          if (ranges[range_index].offset > edge->target_offset) {
-            break;
-          }
-          target_kind = ranges[range_index].kind;
-        }
-        if (target_kind == CTOOL_DIS_RAW_RANGE_DATA ||
-            (target_kind == CTOOL_DIS_RAW_RANGE_CODE16
-                 ? CTOOL_X86_MODE_16
-                 : CTOOL_X86_MODE_32) != edge->target_mode) {
-          *message_out = "raw local edge target mode disagrees with ranges";
-          goto done;
-        }
-        if ((edge->kind == CTOOL_DIS_RAW_EDGE_RELATIVE &&
-             edge->target_segment != 0u) ||
-            edge->target_segment == CTOOL_DIS_RAW_EDGE_NO_TARGET) {
-          *message_out = "raw local edge segment is inconsistent";
-          goto done;
-        }
-      } else if (edge->class_id == CTOOL_DIS_RAW_EDGE_EXTERNAL) {
-        if (edge->kind == CTOOL_DIS_RAW_EDGE_INDIRECT ||
-            edge->target_offset != CTOOL_DIS_RAW_EDGE_NO_TARGET ||
-            (edge->target_mode != CTOOL_X86_MODE_16 &&
-             edge->target_mode != CTOOL_X86_MODE_32) ||
-            edge->target_segment == CTOOL_DIS_RAW_EDGE_NO_TARGET ||
-            (edge->kind == CTOOL_DIS_RAW_EDGE_RELATIVE &&
-             edge->target_segment != 0u)) {
-          *message_out = "raw external edge target is inconsistent";
-          goto done;
-        }
-        if (edge->target_address >= base &&
-            edge->target_address - base < expected_size) {
-          *message_out =
-              "raw external edge target is inside the mapped image";
-          goto done;
-        }
-      } else if (edge->kind != CTOOL_DIS_RAW_EDGE_INDIRECT ||
-                 edge->target_offset != CTOOL_DIS_RAW_EDGE_NO_TARGET ||
-                 edge->target_address != CTOOL_DIS_RAW_EDGE_NO_TARGET ||
-                 edge->target_mode != (ctool_x86_mode_t)0 ||
-                 edge->target_segment != CTOOL_DIS_RAW_EDGE_NO_TARGET) {
-        *message_out = "raw unprovable edge target must be unknown";
-        goto done;
-      }
-    }
+    (void)memcpy(edges, map.edges, allocation_size);
   }
   cli->raw_ranges = ranges;
-  cli->range_capacity = range_capacity;
-  cli->range_boundary_count = range_count - 1u;
+  cli->range_capacity = map.range_count;
+  cli->range_boundary_count = map.range_count - 1u;
   cli->mapped_ranges = CTOOL_TRUE;
-  cli->range_map_size = expected_size;
-  cli->base_address = base;
+  cli->range_map_size = map.image_size;
+  cli->base_address = map.base_address;
   cli->raw_edges = edges;
-  cli->raw_edge_count = edge_count;
-  cli->raw_edge_metadata_present = schema_v2;
+  cli->raw_edge_count = map.edge_count;
+  cli->raw_edge_metadata_present = map.edge_metadata_present;
   ranges = (ctool_dis_raw_range_t *)0;
   edges = (ctool_dis_raw_edge_t *)0;
   success = 1;
@@ -760,6 +366,9 @@ static int cupiddis_load_range_map(cupiddis_cli_t *cli,
 done:
   free(ranges);
   free(edges);
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
   free(contents);
   return success;
 }

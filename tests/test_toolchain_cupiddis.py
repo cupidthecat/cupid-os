@@ -373,6 +373,9 @@ class CupidDisContractTests(unittest.TestCase):
         relative_build = build_path.relative_to(TOOLCHAIN_ROOT)
         suffix = ".exe" if os.name == "nt" else ""
         cls.contract_path = build_path / ("cupiddis-contract" + suffix)
+        cls.kernel_adapter_path = build_path / (
+            "cupiddis-kernel-adapter-contract" + suffix
+        )
         cls.elf_contract_path = build_path / ("elf32-contract" + suffix)
         cls.cli_path = build_path / ("cupiddis" + suffix)
         cls.asm_path = build_path / ("cupidasm" + suffix)
@@ -385,6 +388,7 @@ class CupidDisContractTests(unittest.TestCase):
                 str(TOOLCHAIN_ROOT),
                 f"BUILD_DIR={relative_build}",
                 f"{relative_prefix}/cupiddis-contract{suffix}",
+                f"{relative_prefix}/cupiddis-kernel-adapter-contract{suffix}",
                 f"{relative_prefix}/elf32-contract{suffix}",
                 f"{relative_prefix}/cupiddis{suffix}",
                 f"{relative_prefix}/cupidasm{suffix}",
@@ -861,6 +865,20 @@ class CupidDisContractTests(unittest.TestCase):
 
     def test_raw_16_and_32_bit_decode_and_recovery(self):
         self.run_contract("raw")
+
+    def test_saved_raw_map_parser_lifetime_limits_and_recovery(self):
+        self.run_contract("map")
+
+    def test_kernel_raw_file_and_shell_argument_contract(self):
+        result = subprocess.run(
+            [str(self.kernel_adapter_path)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(result.stderr, "")
 
     def test_prepared_decoder_is_reused_across_indexed_inspections(self):
         self.run_contract("indexed")

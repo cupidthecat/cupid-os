@@ -79,3 +79,8 @@ ELF code-anchor policies through the raw adapter. The `dis` and `exec -d` ELF
 commands are unchanged. It transfers no build owner, removes no host
 dependency, changes no object format, and qualifies no source for a suffix
 rename. `TempleOS/` remains read-only reference material.
+
+ADR 0473 adds saved raw-file shell syntax and a shared v1/v2 text-map parser.
+The typed buffer adapter and its permissive legacy entry point retain this
+decision's behavior. Hosted local-target and code-anchor policies remain
+outside the raw shell interface.

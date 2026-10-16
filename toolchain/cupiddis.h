@@ -98,6 +98,28 @@ typedef struct {
   ctool_u32 target_segment;
 } ctool_dis_raw_edge_t;
 
+#define CTOOL_DIS_RAW_MAP_MAX_BYTES 1048576u
+
+/* Parsed v1/v2 text metadata. Arrays belong to the parsing job's arena and
+ * remain valid until that arena is rewound or the job closes. The text bytes
+ * are not borrowed. Callers must match image_size to the raw image they load. */
+typedef struct {
+  ctool_u32 image_size;
+  ctool_u32 base_address;
+  const ctool_dis_raw_range_t *ranges;
+  ctool_u32 range_count;
+  const ctool_dis_raw_edge_t *edges;
+  ctool_u32 edge_count;
+  ctool_bool edge_metadata_present;
+} ctool_dis_raw_map_t;
+
+/* On failure map_out is zero and operation allocations are rewound.
+ * message_out receives a static error string, or null on success. */
+ctool_status_t ctool_dis_parse_raw_map(ctool_job_t *job,
+                                      ctool_bytes_t contents,
+                                      ctool_dis_raw_map_t *map_out,
+                                      const char **message_out);
+
 /* Decode counts cover code regions selected for disassembly.  Bytes in
  * declared raw DATA ranges and non-executable object regions are not decoded
  * or counted. Relocation counts cover relocations whose targets are executable
