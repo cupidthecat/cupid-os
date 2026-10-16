@@ -1,5 +1,20 @@
 # Bootstrapping log
 
+## 2026-10-16: Record the Windows file-ID platform gap
+
+The native i386 SDK oracle passes 18 assertion events, including genuine
+layout/alignment, three nonempty file lanes, identity joins, retained by-ID
+move/move-back, repeated calls and negative API cases. Checked CupidC then
+rejects the shared contract at `108:22` with `CTD000003`. Three profile unit
+tests pass, but Cupid-built execution and actual PE profile rejection cases
+are not reached. The complete invocation fails 1 with a null controller error
+and cleanup0. Both independent DATA reviews validate the closed evidence.
+
+The [platform experiment record](WINDOWS-FILE-ID-API-PROBE.md) preserves exact
+receipts and scope. The API source, cohort handoff and SDK publication remain
+unqualified and unadopted. No compiler follow-up, source workaround, seed
+promotion or ownership transfer is made. This entry changes documentation only.
+
 ## 2026-10-16: Inspect saved raw files in the shell
 
 `dis --raw` reads a saved image with an explicit 16-bit or 32-bit mode/base,

@@ -1,5 +1,13 @@
 # Cupid Toolchain bootstrap
 
+## Windows file-ID qualification gap, 2026-10-16
+
+The [platform experiment](WINDOWS-FILE-ID-API-PROBE.md) passes its native i386
+SDK assertions on local NTFS, then stops at checked CupidC `CTD000003` while
+compiling the shared contract. Cupid-built API and cohort qualification remain
+incomplete. The private source is unadopted; normal build ownership and installed
+seeds are unchanged.
+
 ## Saved raw image inspection, 2026-10-16
 
 Source-head shell `dis` accepts saved raw images with an explicit 16-bit or
