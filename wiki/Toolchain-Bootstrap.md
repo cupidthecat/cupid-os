@@ -1,5 +1,48 @@
 # Toolchain bootstrap
 
+## Bounded templates and directory discovery, 2026-10-16
+
+CupidObj source can produce a complete pristine disk prefix through bounded
+callbacks with 64-bit source sizes and positions. Native and Cupid-built callers
+on Windows and Linux validate every byte of a 4,295,132,672-byte synthetic
+prefix, buffered parity, admission failures and recovery after partial output.
+The buffered CLI retains its limits; a hosted streaming adapter remains open.
+
+The ordinary hosted observer can discover names through retained directory
+handles and return immutable copied snapshot tokens. Access revalidates the
+complete observer. Literal UTF-8 names remain separate from child kind and
+payload observations. Each focused Windows caller passes 21 methods with three
+POSIX skips. Linux regression selections pass 111 native methods with three
+skips and 112 Cupid-built methods with two skips. Both include all 24 snapshot
+methods and allocation-failure recovery. Installed commands, seeds and the
+three Python coordinators retain their existing behavior.
+
+The [streaming record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/STREAMED-DISK-TEMPLATE.md)
+and [directory record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-OBSERVER-DIRECTORY-SNAPSHOT.md)
+contain the interfaces, limits, failed attempts and passing evidence for both hosts.
+
+The bounded API source also has separate Windows OS evidence. A fresh private
+copy reuses 451 compiled products, passes all sixteen exact artifact checks and
+publishes a 209,715,200-byte image through the existing coordinator. Its stock
+four-CPU `ls` boot passes all 62 TLS checks and the ordered compile, JIT and
+terminal completion checks. The three kernel-size policy rows now match those
+measured outputs. Linux API tests pass; its separate OS completion stops before
+Make when a retained loader-configuration model changes. That OS run remains
+unqualified. The [saved OS evidence](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/evidence/bounded-host-api-windows-os-qualification-20261016.json.gz)
+contains the accepted Windows records and failed Linux record.
+
+## Saved raw image inspection, 2026-10-16
+
+Shell `dis --raw` opens saved raw images with an explicit 16-bit or 32-bit
+mode/base, or a CupidASM v1/v2 range map. Maps retain code/data boundaries and
+must match the image size. Strict-known selection rejects decoding failures
+before rendering. Hosted and kernel adapters share the arena-owned map parser.
+The focused disassembler tests and private guest inspection pass. Installed
+seeds and normal build ownership retain their existing values.
+
+The [raw-file record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/RAW-FILE-DISASSEMBLY.md)
+preserves build, guest and failure evidence.
+
 ## Complete input owner capacity follow-up, 2026-10-11
 
 Fresh Windows flat calls pass for native and Cupid-built callers on drive and

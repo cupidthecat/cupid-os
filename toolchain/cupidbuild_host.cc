@@ -12525,11 +12525,21 @@ typedef struct cupidbuild_observer_entry {
   unsigned char digest[32];
 } cupidbuild_observer_entry_t;
 
+struct cupidbuild_host_directory_snapshot {
+  struct cupidbuild_host_directory_snapshot *next;
+  char **names;
+  size_t count;
+  size_t capacity;
+};
+
 struct cupidbuild_host_observer {
   cupidbuild_observer_entry_t *entries;
   cupidbuild_observer_entry_t *root;
   size_t count;
   size_t member_count;
+  cupidbuild_host_directory_snapshot_t *snapshots;
+  size_t snapshot_count;
+  size_t snapshot_name_count;
   cupidbuild_observation_issue_t last_issue;
   char error[CUPIDBUILD_HOST_ERROR_BYTES];
 };
@@ -13168,26 +13178,34 @@ int cupidbuild_host_observer_files(cupidbuild_host_observer_t *observer,
   return ok;
 }
 
-static int cupidbuild_observer_member(cupidbuild_observer_entry_t *entry,
-                                      const char *name, unsigned char *seen) {
+typedef int (*cupidbuild_observer_member_sink_t)(void *context,
+                                                const char *name);
+typedef struct {
+  cupidbuild_observer_entry_t *entry;
+  unsigned char *seen;
+} cupidbuild_observer_members_context_t;
+
+static int cupidbuild_observer_member(void *context, const char *name) {
+  cupidbuild_observer_members_context_t *members =
+      (cupidbuild_observer_members_context_t *)context;
+  cupidbuild_observer_entry_t *entry = members->entry;
   size_t index;
   if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) return 1;
   if (!cupidbuild_observer_name_valid(name)) return 0;
   for (index = 0u; index < entry->member_count; index++) {
     if (strcmp(name, entry->members[index]) == 0) {
-      if (seen[index]) return 0;
-      seen[index] = 1u;
+      if (members->seen[index]) return 0;
+      members->seen[index] = 1u;
       return 1;
     }
   }
   return 0;
 }
 
-static int cupidbuild_observer_members(cupidbuild_observer_entry_t *entry) {
-  unsigned char *seen = (unsigned char *)calloc(entry->member_count + 1u, 1u);
-  size_t index;
-  int valid = seen != (unsigned char *)0;
-  if (!valid) return 0;
+static int cupidbuild_observer_enumerate(cupidbuild_observer_entry_t *entry,
+                                         cupidbuild_observer_member_sink_t sink,
+                                         void *context) {
+  int valid = 1;
 #if defined(_WIN32)
   int restart = 1;
   while (valid) {
@@ -13234,7 +13252,7 @@ static int cupidbuild_observer_members(cupidbuild_observer_entry_t *entry) {
       }
     }
     name[length] = 0;
-    if (valid) valid = cupidbuild_observer_member(entry, name, seen);
+    if (valid) valid = sink(context, name);
   }
 #elif defined(CUPIDBUILD_CUSTOM_LINUX)
   if (cupid_linux_syscall3(19u, (unsigned int)entry->handle, 0u, 0u) != 0) valid = 0;
@@ -13254,8 +13272,8 @@ static int cupidbuild_observer_members(cupidbuild_observer_entry_t *entry) {
       if (length < 20u || length > (size_t)count - offset) { valid = 0; break; }
       end = 19u;
       while (end < length && buffer[offset + end] != 0u) end++;
-      if (end == length || !cupidbuild_observer_member(entry,
-          (const char *)(buffer + offset + 19u), seen)) { valid = 0; break; }
+      if (end == length || !sink(context,
+          (const char *)(buffer + offset + 19u))) { valid = 0; break; }
       offset += length;
     }
   }
@@ -13272,14 +13290,25 @@ static int cupidbuild_observer_members(cupidbuild_observer_entry_t *entry) {
       errno = 0;
       item = readdir(directory);
       if (item == (struct dirent *)0) { if (errno != 0) valid = 0; break; }
-      valid = cupidbuild_observer_member(entry, item->d_name, seen);
+      valid = sink(context, item->d_name);
     }
     if (closedir(directory) != 0) valid = 0;
   }
 #endif
+  return valid;
+}
+
+static int cupidbuild_observer_members(cupidbuild_observer_entry_t *entry) {
+  cupidbuild_observer_members_context_t members;
+  size_t index;
+  int valid;
+  members.entry = entry;
+  members.seen = (unsigned char *)calloc(entry->member_count + 1u, 1u);
+  if (members.seen == (unsigned char *)0) return 0;
+  valid = cupidbuild_observer_enumerate(entry, cupidbuild_observer_member, &members);
   for (index = 0u; valid && index < entry->member_count; index++)
-    if (!seen[index]) valid = 0;
-  free(seen);
+    if (!members.seen[index]) valid = 0;
+  free(members.seen);
   return valid;
 }
 
@@ -13331,6 +13360,196 @@ int cupidbuild_host_observer_directory(cupidbuild_host_observer_t *observer,
   entry->membership = 1;
   if (!cupidbuild_observer_members(entry))
     return cupidbuild_observer_fail(observer, "directory membership differs from expected set");
+  return 1;
+}
+
+#if defined(CUPIDBUILD_DIRECTORY_SNAPSHOT_TEST)
+/* Linked only by the separate fault caller; ordinary and supplied callers do
+ * not contain this hook. A nonzero return injects a failed capture step. */
+int cupidbuild_directory_snapshot_test_checkpoint(unsigned int phase);
+#endif
+
+static int cupidbuild_directory_snapshot_checkpoint(unsigned int phase) {
+#if defined(CUPIDBUILD_DIRECTORY_SNAPSHOT_TEST)
+  return cupidbuild_directory_snapshot_test_checkpoint(phase);
+#else
+  (void)phase;
+  return 0;
+#endif
+}
+
+static void *cupidbuild_directory_snapshot_allocate(size_t count, size_t size) {
+  if (cupidbuild_directory_snapshot_checkpoint(1u)) return (void *)0;
+  return calloc(count, size);
+}
+
+static void cupidbuild_directory_snapshot_release(
+    cupidbuild_host_directory_snapshot_t *snapshot) {
+  size_t index;
+  if (snapshot == (cupidbuild_host_directory_snapshot_t *)0) return;
+  for (index = 0u; index < snapshot->count; index++) free(snapshot->names[index]);
+  free(snapshot->names);
+  free(snapshot);
+}
+
+typedef struct {
+  cupidbuild_host_directory_snapshot_t *snapshot;
+  size_t limit;
+} cupidbuild_directory_snapshot_capture_t;
+
+static int cupidbuild_directory_snapshot_member(void *context, const char *name) {
+  cupidbuild_directory_snapshot_capture_t *capture =
+      (cupidbuild_directory_snapshot_capture_t *)context;
+  cupidbuild_host_directory_snapshot_t *snapshot = capture->snapshot;
+  char *copy;
+  size_t index;
+  if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) return 1;
+  if (!cupidbuild_observer_name_valid(name) || snapshot->count >= capture->limit ||
+      cupidbuild_directory_snapshot_checkpoint(2u)) return 0;
+  for (index = 0u; index < snapshot->count; index++)
+    if (strcmp(name, snapshot->names[index]) == 0) return 0;
+  if (snapshot->count == snapshot->capacity) {
+    size_t capacity = snapshot->capacity == 0u ? 1u : snapshot->capacity * 2u;
+    char **names;
+    if (capacity > capture->limit) capacity = capture->limit;
+    names = (char **)cupidbuild_directory_snapshot_allocate(capacity, sizeof(char *));
+    if (names == (char **)0) return 0;
+    for (index = 0u; index < snapshot->count; index++) names[index] = snapshot->names[index];
+    free(snapshot->names);
+    snapshot->names = names;
+    snapshot->capacity = capacity;
+  }
+  copy = (char *)cupidbuild_directory_snapshot_allocate(strlen(name) + 1u, 1u);
+  if (copy == (char *)0) return 0;
+  (void)strcpy(copy, name);
+  snapshot->names[snapshot->count++] = copy;
+  return 1;
+}
+
+static void cupidbuild_directory_snapshot_sort(
+    cupidbuild_host_directory_snapshot_t *snapshot) {
+  size_t index;
+  for (index = 1u; index < snapshot->count; index++) {
+    char *name = snapshot->names[index];
+    size_t position = index;
+    while (position != 0u && strcmp(snapshot->names[position - 1u], name) > 0) {
+      snapshot->names[position] = snapshot->names[position - 1u];
+      position--;
+    }
+    snapshot->names[position] = name;
+  }
+}
+
+static int cupidbuild_directory_snapshot_bind(
+    cupidbuild_host_observer_t *observer, cupidbuild_observer_entry_t *entry,
+    const cupidbuild_host_directory_snapshot_t *snapshot) {
+  char **members = (char **)0;
+  size_t index;
+  if (entry->membership) {
+    if (entry->member_count != snapshot->count) return 0;
+    for (index = 0u; index < snapshot->count; index++) {
+      size_t other;
+      for (other = 0u; other < entry->member_count; other++)
+        if (strcmp(snapshot->names[index], entry->members[other]) == 0) break;
+      if (other == entry->member_count) return 0;
+    }
+    return 1;
+  }
+  if (snapshot->count > CUPIDBUILD_OBSERVER_ENTRIES - observer->member_count)
+    return 0;
+  if (snapshot->count != 0u) {
+    members = (char **)cupidbuild_directory_snapshot_allocate(
+        snapshot->count, sizeof(char *));
+    if (members == (char **)0) return 0;
+    for (index = 0u; index < snapshot->count; index++) {
+      members[index] = (char *)cupidbuild_directory_snapshot_allocate(
+          strlen(snapshot->names[index]) + 1u, 1u);
+      if (members[index] == (char *)0) {
+        size_t previous;
+        for (previous = 0u; previous < index; previous++) free(members[previous]);
+        free(members);
+        return 0;
+      }
+      (void)strcpy(members[index], snapshot->names[index]);
+    }
+  }
+  entry->members = members;
+  entry->member_count = snapshot->count;
+  entry->membership = 1;
+  observer->member_count += snapshot->count;
+  return 1;
+}
+
+int cupidbuild_host_observer_directory_snapshot(
+    cupidbuild_host_observer_t *observer, const char *logical,
+    const cupidbuild_host_directory_snapshot_t **snapshot_out) {
+  cupidbuild_observer_entry_t *entry;
+  cupidbuild_directory_snapshot_capture_t capture;
+  cupidbuild_host_directory_snapshot_t *snapshot;
+  size_t remaining;
+  if (snapshot_out != (const cupidbuild_host_directory_snapshot_t **)0)
+    *snapshot_out = (const cupidbuild_host_directory_snapshot_t *)0;
+  if (observer == (cupidbuild_host_observer_t *)0 || observer->error[0] != 0)
+    return 0;
+  if (logical == (const char *)0 ||
+      snapshot_out == (const cupidbuild_host_directory_snapshot_t **)0)
+    return cupidbuild_observer_fail(observer, "invalid directory snapshot arguments");
+  if (!cupidbuild_host_observer_require_unchanged(observer)) return 0;
+  if (observer->snapshot_count >= CUPIDBUILD_OBSERVER_ENTRIES)
+    return cupidbuild_observer_fail(observer, "directory snapshot token limit exceeded");
+  entry = logical[0] != 0
+      ? cupidbuild_observer_walk(observer, observer->root, logical, 1, 0)
+      : observer->root;
+  if (entry == (cupidbuild_observer_entry_t *)0)
+    return cupidbuild_observer_fail(observer, "unsafe or unavailable snapshot directory");
+  snapshot = (cupidbuild_host_directory_snapshot_t *)
+      cupidbuild_directory_snapshot_allocate(1u, sizeof(*snapshot));
+  if (snapshot == (cupidbuild_host_directory_snapshot_t *)0)
+    return cupidbuild_observer_fail(observer, "directory snapshot allocation failed");
+  capture.snapshot = snapshot;
+  capture.limit = CUPIDBUILD_OBSERVER_ENTRIES - observer->snapshot_name_count;
+  remaining = entry->membership ? entry->member_count
+      : CUPIDBUILD_OBSERVER_ENTRIES - observer->member_count;
+  if (remaining < capture.limit) capture.limit = remaining;
+  if (!cupidbuild_observer_enumerate(entry,
+          cupidbuild_directory_snapshot_member, &capture) ||
+      cupidbuild_directory_snapshot_checkpoint(3u)) goto failed;
+  cupidbuild_directory_snapshot_sort(snapshot);
+  if (!cupidbuild_directory_snapshot_bind(observer, entry, snapshot) ||
+      cupidbuild_directory_snapshot_checkpoint(4u) ||
+      !cupidbuild_host_observer_require_unchanged(observer)) goto failed;
+  /* All counters were bounded before allocation and calls are serialized.
+   * Link the immutable token only after its complete final observer check. */
+  snapshot->next = observer->snapshots;
+  observer->snapshots = snapshot;
+  observer->snapshot_count++;
+  observer->snapshot_name_count += snapshot->count;
+  *snapshot_out = snapshot;
+  return 1;
+failed:
+  cupidbuild_directory_snapshot_release(snapshot);
+  return cupidbuild_observer_fail(observer, "directory snapshot capture failed");
+}
+
+int cupidbuild_host_observer_directory_snapshot_names(
+    cupidbuild_host_observer_t *observer,
+    const cupidbuild_host_directory_snapshot_t *snapshot,
+    const char *const **names_out, size_t *count_out) {
+  const cupidbuild_host_directory_snapshot_t *known;
+  if (names_out != (const char *const **)0) *names_out = (const char *const *)0;
+  if (count_out != (size_t *)0) *count_out = 0u;
+  if (observer == (cupidbuild_host_observer_t *)0 || observer->error[0] != 0)
+    return 0;
+  if (names_out == (const char *const **)0 || count_out == (size_t *)0)
+    return cupidbuild_observer_fail(observer, "invalid directory snapshot view outputs");
+  for (known = observer->snapshots;
+       known != (const cupidbuild_host_directory_snapshot_t *)0; known = known->next)
+    if (known == snapshot) break;
+  if (known == (const cupidbuild_host_directory_snapshot_t *)0)
+    return cupidbuild_observer_fail(observer, "directory snapshot does not belong to observer");
+  if (!cupidbuild_host_observer_require_unchanged(observer)) return 0;
+  *names_out = (const char *const *)known->names;
+  *count_out = known->count;
   return 1;
 }
 
@@ -13441,6 +13660,12 @@ int cupidbuild_host_observer_close(cupidbuild_host_observer_t *observer) {
   int valid = 1;
   if (observer != (cupidbuild_host_observer_t *)0) {
     cupidbuild_observer_entry_t *entry = observer->entries;
+    cupidbuild_host_directory_snapshot_t *snapshot = observer->snapshots;
+    while (snapshot != (cupidbuild_host_directory_snapshot_t *)0) {
+      cupidbuild_host_directory_snapshot_t *next = snapshot->next;
+      cupidbuild_directory_snapshot_release(snapshot);
+      snapshot = next;
+    }
     while (entry != (cupidbuild_observer_entry_t *)0) {
       cupidbuild_observer_entry_t *next = entry->next;
       size_t index;

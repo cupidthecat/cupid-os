@@ -1,5 +1,103 @@
 # Bootstrapping log
 
+## 2026-10-16: Complete the Windows image and stock boot check
+
+The bounded callback and directory APIs retain their passing native and
+Cupid-built selections on Windows and Linux. A fresh ordinary Windows OS copy
+then completes the existing sixteen-artifact gate and image publisher using
+451 retained compiled products. The completion trace contains those two
+commands and their success records, with no compile, link or regeneration.
+The published 200 MiB image is
+`7707a8cd57ad7997cdd5b5d015708b8cf6a1b113575074d65f673abeb866a3b0`.
+Full readback checks boot/kernel placement and the staged ISO/FAT chain.
+
+Its separate private-image stock `ls` check passes with e1000, four CPUs and
+CPU max under the existing 300-second harness bound. All 62 TLS checks and
+CPU/FPU markers pass; compilation, JIT and terminal completion occur once in
+order. Child and qualification statuses are zero, the error is null, Windows
+cleanup has no active processes or errors, and private TEMP is empty. The
+receipt records 79.865 seconds. Independent Spec and Standards DATA readers
+close successfully after full poststdout guards (`52495c` and `afc783`).
+
+The artifact policy now records measured sizes of 9,405,468 bytes for
+kernel.bin, 9,635,472 for kernel.elf and 9,504,400 for kernel.elf.pass1. Only
+these three integers change. The other thirteen rows and twelve seeds remain
+unchanged. The earlier plain Windows2/Linux2 Make failures remain recorded;
+this run qualifies copied-output completion and the Windows stock guest.
+
+Fresh Linux preparation succeeds with 2,722 copied payloads, six controls and
+separate original-plan and mapped-mirror creation identities. Completion then
+fails retained validation of /etc/ld.so.conf.d/ld.wsl.conf before launching its
+supervisor or Make. The failure retains all 2,722 file models and eighty
+directory observations from preparation. It supplies no current resource model,
+so the changed field and cause remain unknown. Linux OS completion and guest
+qualification remain open. The normal stdlib WSL diagnostic session closes
+successfully before its fixed lifetime; that fact does not classify the drift.
+
+The separate Linux QEMU metadata collection fails while resolving a masked
+service alias to /dev/null during library namespace discovery. Its request,
+attempts, raw log and failed receipt remain preserved. It produces no report
+or QEMU availability result. A fresh source-only reader is under review; no
+failed request is retried and no old expected model changes.
+
+Root's first two Windows readback helpers incorrectly added a period to the
+expected harness line. The saved 27-byte line is `GUI terminal smoke passed`
+followed by CRLF. Correcting only that reader passes the unchanged raw record;
+the guest is not rerun. A separate Root admission helper used the wrong Python
+constant after writing the closed-preparation admission. A later successful
+reader validates that original admission and writes the separate actual
+admission without replacing it. Both helper failures remain recorded.
+
+The [portable OS evidence](evidence/bounded-host-api-windows-os-qualification-20261016.json.gz)
+contains raw receipts/logs/serial, full models, policy measurements and thirteen
+source-body joins. The 185,047-byte LF manual already describes both APIs and
+retains its qualified bytes. Normal ownership remains 449 CupidBuild actions
+and three Python actions across 452 transforms. Hosted streaming integration
+and SDK publication remain open; TempleOS stays read-only and excluded.
+
+## 2026-10-16: Qualify bounded disk streaming on Windows and Linux
+
+Fresh native and Cupid-built callers pass the complete streaming contract on
+both hosts. Windows passes 19 native methods and all 11 supplied-program stream
+methods; all 16 checked commands succeed. Linux passes all 11 stream methods in
+each lane, plus separate buffered regressions. Its native three-command and
+checked twelve-command sequences return zero. Both hosts retain null controller
+errors and complete cleanup; Linux and Windows cleanup remain separate facts.
+
+The retained Linux GCC 13 setup failure came from an uninitialized boot fixture.
+The standalone caller now uses `ctool_u8 memory[2560] = {0};`, a six-byte test
+change. Every selector, assertion, logical extent, production implementation and
+deadline remains unchanged. The authoritative caller is 20,102 bytes, SHA-256
+`976ee90667023ec9e89252af4d5e68c79b531f7e6c9f146055e566a4f6d3fbab`.
+
+Every byte of the 4,295,132,672-byte wide output is checked, including the
+4,295,095,808-byte synthetic kernel. Read and write positions cross 32 bits.
+Six buffered parity fixtures, eleven admission rejections with recovery, three
+sink-failure trials and two source-failure trials pass. Linux native and checked
+stream selections take 5.610 and 92.644 unittest seconds; complete invocations
+take 103.027 and 445.417 seconds. They generate no multi-gigabyte output file.
+
+Final independent Spec and Standards DATA checks pass for both fresh Linux
+exports (`2a30af` and `8040c7`), after the fresh Windows checks (`ee3f66` and
+`530e31`). The Linux checks join 407 unchanged original inputs, 34 copied inputs,
+six seed roles and all 104 raw artifacts, totaling 15,922,519 body bytes. Known
+exclusive creation identities remain recorded; unknown native writers remain
+null. The earlier timeout, GCC setup failure, lost raw evidence and historical
+held-handle metadata continuity HOLD remain preserved.
+
+Directory discovery's Linux regression selections separately pass 111 native
+methods with three skips and 112 Cupid-built methods with two skips. Both
+include all 24 snapshot methods, allocation-failure indices zero through seven
+and recovery. Windows's revised native selection passes 105 methods with nine
+skips; the focused Cupid-built selection passes 21 with three POSIX skips.
+The component records describe the exact saved qualification scopes.
+
+README and wiki summaries now record both hosts. The domain glossary and OS
+manual already describe these interfaces and need no semantic change. Hosted
+streaming integration, installed seeds and normal coordinator ownership remain
+unchanged. OS copied-output completion and boot checks are still pending; no
+new ordinary source-build or image publication result is claimed here.
+
 ## 2026-10-16: Record the Windows file-ID platform gap
 
 The native i386 SDK oracle passes 18 assertion events, including genuine
@@ -47478,3 +47576,95 @@ under `wide-adopted-final-audit-check1`; the actual Make target selects
 `cupidc_pp_active_cases.inc` and passes under
 `wide-adopted-final-audit-check2`. No inventory predicate or producer source
 changes to repair that launcher error.
+
+## Bounded disk templates and retained directory names, 2026-10-16
+
+CupidObj can emit a pristine disk template through bounded callbacks. The
+interface uses fixed 65,536-byte and 512-byte buffers, checks geometry and
+overflow before callbacks, and keeps source and output offsets at 64 bits.
+Chunks are contiguous and nonempty. Failure clears the reported byte count;
+callers discard any partial output. The contract compares emitted bytes
+with the buffered path and its own expected-byte model. The CLI retains its existing size limit.
+
+The ordinary CupidBuild observer can discover directory names through an opaque
+retained token. Each token owns immutable, byte-sorted UTF-8 names until its
+observer closes. Complete observer validation brackets capture and precedes
+access. Capture preserves the existing membership baseline and poisons the
+observer on failure. Separate token and copied-name budgets each allow 4,096
+entries. Discovery supplies names; consumers still observe child kinds and
+payloads through the existing interfaces.
+
+Windows streaming qualification passes all 19 native methods and all 16 checked
+commands, including 11 new checked methods. Six cases compare every emitted
+byte with the buffered oracle. The wide case writes 4,295,132,672 bytes and
+crosses UINT32_MAX in both source reads and sink offsets. Admission negatives,
+source and sink failures, cleared results and fresh recovery all pass. The
+first checked attempt timed out during its wide case after commands 1 through
+15 passed. Its failed receipt remains. The revised test caller walks contiguous
+expected-byte spans; it keeps every-byte checks, extents, assertions and bounds.
+
+Directory qualification passes 21 methods with three declared POSIX skips among
+24 selected methods in both native and Cupid-built Windows runs. Both selections
+exercise all eight allocation-failure indices. The existing ordinary observer
+and kind regressions pass 105 methods with nine skips among 114 selected methods.
+A fresh native run repeats that result after the three Python drivers gain CC
+selection, POSIX cc defaults and Clang-only --no-default-config handling. Their
+114 test methods, assertions, supplied-program selectors and deadlines are
+unchanged. The checked fixture initially called an undeclared hosted atoi;
+strict strtoull parsing fixes that fixture without changing compiler or runtime
+interfaces. The failed predecessor remains recorded.
+
+Fresh Linux directory qualification passes 111 native methods with three
+declared skips and 112 supplied Cupid-built methods with two Windows junction
+skips, from 114 selected methods in each run. All 24 snapshot methods, all eight
+allocation-failure indices and recovery pass. The checked selection completes
+14 commands and retains 13 i386 products. Independent reading passes the saved
+raw bodies, fixtures, product identities and custody joins. The native libc
+fread(NULL) case remains a declared native skip and passes in the checked run.
+
+Fresh Linux streaming qualification fails during test setup. GCC 13 rejects the
+contract's uninitialized 2,560-byte boot fixture array under the existing
+-Werror=maybe-uninitialized flag. The buffered regression passes; no streaming
+API selector runs. A separately retained source correction initializes that
+array with {0}; independent source reviews pass, while fresh execution remains
+pending. No compiler, runtime, ABI or production source changes follow from
+this fixture error.
+
+An older streaming failure remains unclassified because its original /tmp
+evidence disappeared after a WSL restart. Those originals and plans have not
+been restored or re-enrolled. The user confirmed restarting WSL after the
+interrupted verification. A separate directory attempt rejected a changed
+/etc/ld.so.cache identity before importing the owned helper or starting a
+compiler or test. Its cache bytes matched, but inode and timestamps differed.
+These failed predecessors remain separate from the fresh /var/tmp results.
+
+The current manual contains both API descriptions and has 185,047 LF bytes.
+The stock Windows make -j2 all compiled and linked, then failed its exact-size
+gate on three measured outputs: kernel.bin 9,405,468 bytes, kernel.elf 9,635,472
+bytes and kernel.elf.pass1 9,504,400 bytes. All 451 products remain frozen. The
+Linux stock build reaches the same three-row size gate. Independent review
+finds all 451 selected products, totaling 50,320,477 bytes, identical between
+hosts. This includes boot.bin and all three kernel products. Two Linux Make
+auxiliary outputs sit outside that parity set and retain their own models.
+Both failed builds remain preserved; no image or guest boot is qualified yet.
+The reviewed completion design reuses those products and requires a trace
+containing only the sixteen-artifact gate and image publisher.
+
+Before policy adoption, a later Windows check finds 790 frozen models changed
+only in held-handle ctime_ns. Contents, SHA-256, named metadata, parents and
+other held fields still match. The three policy integers remain unchanged.
+Old admission graphs stay on HOLD; no timestamp is restored or normalized and
+no old expected model is replaced. The successful saved test and parity
+results remain historical evidence. Fresh private cohorts need their own
+creation identities and admission before qualification or image completion
+continues. The stdlib-only WSL lease closes cleanly with no child processes.
+
+These interfaces retain the installed seeds and normal build ownership:
+449 CupidBuild actions and three Python actions across 452 transforms. The
+SDK verifier, publisher and normal image coordinator keep their current owners.
+No source is pruned or rewritten to avoid a toolchain requirement. TempleOS
+remains read-only reference material and stays outside the progress counts.
+
+Interface contracts and focused evidence are recorded in
+[STREAMED-DISK-TEMPLATE.md](STREAMED-DISK-TEMPLATE.md) and
+[NATIVE-OBSERVER-DIRECTORY-SNAPSHOT.md](NATIVE-OBSERVER-DIRECTORY-SNAPSHOT.md).

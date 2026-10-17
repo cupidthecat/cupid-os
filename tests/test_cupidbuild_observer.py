@@ -369,10 +369,12 @@ class CupidBuildObserverTests(unittest.TestCase):
         if os.environ.get("CUPIDBUILD_OBSERVER_CHECKED") == "1":
             cls.build_checked(directory)
             return
-        compiler = shutil.which("clang")
+        requested = os.environ.get("CC", "clang" if os.name == "nt" else "cc")
+        compiler = shutil.which(requested)
         if not compiler:
-            raise RuntimeError("Clang is required for the native observer contract")
-        command = [compiler, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
+            raise RuntimeError("native observer compiler unavailable: " + requested)
+        config = ["--no-default-config"] if Path(compiler).resolve(strict=True).name.lower().startswith("clang") else []
+        command = [compiler, *config, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
                    "-D_CRT_SECURE_NO_WARNINGS", "-I", str(ROOT / "toolchain"),
                    "-x", "c", str(caller), str(ROOT / "toolchain/cupidbuild_host.cc"),
                    str(ROOT / "toolchain/path_encoding.cc"),

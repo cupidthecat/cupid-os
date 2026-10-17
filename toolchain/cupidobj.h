@@ -63,6 +63,55 @@ typedef struct {
   ctool_u32 fat_start_lba;
 } ctool_obj_disk_template_request_t;
 
+#define CTOOL_OBJ_DISK_TEMPLATE_CHUNK_BYTES 65536u
+
+typedef struct {
+  void *context;
+  ctool_u64 size;
+  ctool_status_t (*read_exact)(void *context, ctool_u64 offset,
+                             ctool_u8 *bytes, ctool_u32 count);
+} ctool_obj_disk_source_t;
+
+typedef struct {
+  ctool_obj_disk_source_t bootloader;
+  ctool_obj_disk_source_t kernel;
+  ctool_u32 image_sectors;
+  ctool_u32 fat_start_lba;
+  void *output_context;
+  ctool_status_t (*write_exact)(void *context, ctool_u64 offset,
+                              const ctool_u8 *bytes, ctool_u32 count);
+} ctool_obj_disk_template_stream_request_t;
+
+typedef struct {
+  ctool_u64 bytes;
+  ctool_bool attempted_write;
+} ctool_obj_disk_template_stream_result_t;
+
+/* Produce the pristine prefix through synchronous, borrowed source/sink views.
+ * Semantic admission precedes every sink call. Reads and writes transfer exactly
+ * count bytes on CTOOL_OK; any other callback status aborts and is returned.
+ * Source reads stay within their declared u64 extents. Only a zero-size kernel
+ * may omit its reader. Sink calls are ordered, contiguous, nonempty and at most
+ * CHUNK_BYTES. Success covers the complete prefix through the empty FAT root.
+ *
+ * Failure leaves bytes zero. attempted_write is set before the first sink call,
+ * including one that fails after a partial physical write. A source read can
+ * fail after earlier writes: discard that partial output too. There is no sink
+ * rollback. Each call is independent and retains no pointers or global state.
+ *
+ * Sources must remain stable; request, source, sink and result storage must be
+ * disjoint. The callback transfer storage must not alias any of them.
+ * Calls/callbacks are serialized and must not reenter the operation or mutate
+ * its request or source views. Readers write only their requested destination;
+ * the sink must not mutate its borrowed bytes. Scratch views expire on return
+ * from each callback. Workspace is one 65536-byte transfer array, one 512-byte
+ * metadata array and fixed scalar/layout state; no arena/heap or complete image
+ * is allocated. This status-only entry has no job diagnostics. It does not
+ * capture inputs, flush files, publish an image or change buffered limits. */
+ctool_status_t ctool_obj_stream_disk_template(
+    const ctool_obj_disk_template_stream_request_t *request,
+    ctool_obj_disk_template_stream_result_t *result_out);
+
 typedef enum {
   CTOOL_OBJ_ISO_FIXTURE_DIRECTORY = 1,
   CTOOL_OBJ_ISO_FIXTURE_FILE

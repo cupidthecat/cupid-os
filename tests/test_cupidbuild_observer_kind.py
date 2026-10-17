@@ -21,7 +21,12 @@ class CupidBuildObserverKindTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix="observer-kind-build-")
         cls.addClassCleanup(temporary.cleanup)
         cls.program = Path(temporary.name) / ("caller.exe" if os.name == "nt" else "caller")
-        command = [shutil.which("clang" if os.name == "nt" else "cc"), "-std=c11", "-O2",
+        requested = os.environ.get("CC", "clang" if os.name == "nt" else "cc")
+        compiler = shutil.which(requested)
+        if not compiler:
+            raise RuntimeError("native kind observer compiler unavailable: " + requested)
+        config = ["--no-default-config"] if Path(compiler).resolve(strict=True).name.lower().startswith("clang") else []
+        command = [compiler, *config, "-std=c11", "-O2",
                    "-Wall", "-Wextra", "-Werror", "-D_CRT_SECURE_NO_WARNINGS",
                    "-I", str(ROOT / "toolchain"), "-x", "c",
                    str(ROOT / "toolchain/tests/cupidbuild_observer_kind_contract.cc"),

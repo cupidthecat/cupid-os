@@ -3135,6 +3135,40 @@ user builds and all four strict four-CPU boots also pass through the same pair.
 The retained twelve-tool release binds the source, parents and both build plans.
 >endtree
 
+>h2 Bounded hosted disk templates
+>tree
+CupidObj source provides ctool_obj_stream_disk_template for a complete pristine
+disk prefix through the empty FAT16 root. Borrowed readers and an output callback
+transfer at most 65,536 bytes at once, with 64-bit source sizes and positions.
+The producer uses fixed workspace and allocates no arena or heap storage.
+Geometry and overflow checks finish before any callback. Successful writes are
+ordered and contiguous. A failed read or write leaves a zero completed-byte
+result; attempted_write records whether a sink call was attempted. The caller
+must discard partial output after failure.
+
+The buffered transform shares CupidObj's byte author while retaining its existing
+limits. The disk-image validator and Python renderer remain independent. This
+source interface does not extend the installed disk-template command, capture
+inputs or publish an image. Normal disk coordination still uses Python.
+>endtree
+
+>h2 Retained directory snapshots
+>tree
+The ordinary hosted observer can discover names through its retained directory
+handle and return an opaque snapshot token. The observer owns immutable copied
+names, sorted by their literal UTF-8 bytes, until it closes. Snapshot access
+revalidates the complete observer, including retained identities, payloads and
+exact memberships. Failure clears results and poisons that observer lifetime.
+An empty directory returns no names and a zero count.
+
+Tokens retain separate storage when another directory observation replaces its
+membership array. Separate limits allow 4,096 tokens and 4,096 cumulative copied
+names. Membership does not establish child kinds or payload identity; those
+require their existing observations. Discovery creates no output transaction
+and grants no publication authority. The installed seeds and Python SDK
+coordinators retain their existing behavior.
+>endtree
+
 >h2 See Also
 [03CUPIDSC.CTXT - CupidScript](open:03CUPIDSC.CTXT)
 [12HOLYC-CUPIDC.CTXT - HolyC comparison](open:12HOLYC-CUPIDC.CTXT)

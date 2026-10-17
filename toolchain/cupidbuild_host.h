@@ -162,6 +162,40 @@ int cupidbuild_host_observer_directory(cupidbuild_host_observer_t *observer,
                                       const char *logical,
                                       const char *const *expected,
                                       size_t expected_count);
+typedef struct cupidbuild_host_directory_snapshot
+    cupidbuild_host_directory_snapshot_t;
+/* Discover every directory name through its retained handle. Empty logical
+ * paths select the root. The observer owns the opaque token and independent,
+ * immutable copies of its names until observer_close; there is no token close.
+ * Tokens remain valid across ordinary directory(expected) calls. Capture and
+ * names access both require the complete ordinary observer unchanged.
+ * Names are literal strict UTF-8, sorted by unsigned byte spelling, excluding
+ * dot and parent entries. The existing ordinary name grammar applies on every
+ * host, including its colon/backslash rejection on POSIX. No normalization or
+ * suffix filtering occurs. Names establish neither child kinds nor payloads.
+ *
+ * At most 4096 tokens and 4096 copied token names per observer, in addition to
+ * the existing 4096 retained-handle and 4096 membership-name bounds. Repeated
+ * captures consume these budgets; even empty tokens consume a token slot.
+ * Failure clears snapshot_out and permanently poisons a supplied observer.
+ * Failed partial captures remain reclaimable by observer_close.
+ */
+int cupidbuild_host_observer_directory_snapshot(
+    cupidbuild_host_observer_t *observer, const char *logical,
+    const cupidbuild_host_directory_snapshot_t **snapshot_out);
+/* Validate this token's ownership and the whole observer before exposing its
+ * immutable view. Unknown/foreign/null tokens fail without dereferencing them.
+ * Empty snapshots return names_out == NULL and count_out == 0 on success.
+ * Both outputs are required and clear before argument or poison checks.
+ * All request/output storage must be valid and disjoint. Calls are serialized;
+ * callers must not reenter, modify returned names or close an observer in use.
+ * Neither a valid token nor a successful access promises an atomic filesystem
+ * snapshot after the last sequential check or grants publication authority.
+ */
+int cupidbuild_host_observer_directory_snapshot_names(
+    cupidbuild_host_observer_t *observer,
+    const cupidbuild_host_directory_snapshot_t *snapshot,
+    const char *const **names_out, size_t *count_out);
 int cupidbuild_host_observer_require_unchanged(
     cupidbuild_host_observer_t *observer);
 const char *cupidbuild_host_observer_error(

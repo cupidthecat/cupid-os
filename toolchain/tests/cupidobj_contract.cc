@@ -1705,6 +1705,25 @@ static int run_disk_template(void) {
   ctool_buffer_clear(first);
   disk_request->image_sectors = SMALL_IMAGE_SECTORS;
   disk_request->fat_start_lba = SMALL_FAT_START_LBA;
+  disk_request->kernel = (const ctool_source_t *)0;
+  boot_source.contents = ctool_bytes((const ctool_u8 *)0, 1u);
+  disk_request->fat_start_lba = 0u;
+  ok &= expect_failure_message(
+      job, first, &request, CTOOL_ERR_INVALID_ARGUMENT,
+      CTOOL_OBJ_DIAG_INVALID_REQUEST,
+      "CupidObj disk template kernel is required",
+      "disk-template missing kernel precedes byte and geometry errors");
+  disk_request->kernel = &kernel_source;
+  ok &= expect_failure_message(
+      job, first, &request, CTOOL_ERR_INVALID_ARGUMENT,
+      CTOOL_OBJ_DIAG_INVALID_INPUT, "CupidObj bootloader bytes are invalid",
+      "disk-template invalid boot precedes geometry errors");
+  boot_source.contents = ctool_bytes(boot, 1u);
+  ok &= expect_failure_message(
+      job, first, &request, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_INVALID_INPUT,
+      "FAT partition must start after bootloader and kernel area",
+      "disk-template geometry precedes short boot");
+  disk_request->fat_start_lba = SMALL_FAT_START_LBA;
   boot_source.contents =
       ctool_bytes(boot, (ctool_u32)sizeof(boot) - 1u);
   ok &= expect_rewound_failure(job, first, &request, CTOOL_ERR_INPUT,
@@ -1725,7 +1744,9 @@ static int run_disk_template(void) {
   diagnostic = ctool_job_diagnostic(
       job, ctool_job_diagnostic_count(job) - 1u);
   if (diagnostic == (const ctool_diagnostic_t *)0 ||
-      !string_equal(diagnostic->path, "/overlap-kernel.bin")) {
+      !string_equal(diagnostic->path, "/overlap-kernel.bin") ||
+      !string_equal(diagnostic->message,
+                    "CupidObj kernel overlaps FAT partition at LBA 8")) {
     (void)fprintf(stderr,
                   "disk-template: kernel overlap path differs\n");
     ok = 0;

@@ -109,8 +109,13 @@ def _host_compiler():
 def _build_cli(build: Path, name: str, sources):
     suffix = ".exe" if os.name == "nt" else ""
     output = build / (name + suffix)
+    compiler = _host_compiler()
     command = [
-        _host_compiler(),
+        compiler,
+    ]
+    if Path(compiler).name.lower() in {"clang", "clang.exe"}:
+        command.append("--no-default-config")
+    command += [
         "-I",
         str(TOOLCHAIN_ROOT),
         "-std=c11",

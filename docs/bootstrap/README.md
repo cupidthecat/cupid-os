@@ -1,5 +1,33 @@
 # Cupid Toolchain bootstrap
 
+## Bounded disk templates and retained directory discovery, 2026-10-16
+
+CupidObj source supplies a bounded callback producer with u64 source and
+output positions. Native and Cupid-built callers on Windows and Linux check
+every byte of the complete 4,295,132,672-byte synthetic prefix, along with
+buffered parity, admission rejection and failure recovery. The
+[streamed-template record](STREAMED-DISK-TEMPLATE.md) preserves the earlier
+timeout and Linux setup failure alongside the fresh passing evidence.
+The buffered CLI retains its limits; hosted streaming integration remains open.
+
+The [ordinary observer](NATIVE-OBSERVER-DIRECTORY-SNAPSHOT.md) discovers names
+through retained directory handles and returns immutable copied snapshot tokens.
+Access revalidates the complete observer. Focused native and Cupid-built Windows
+runs each pass 21 methods with three POSIX skips. Linux regression selections
+pass 111 native methods with three skips and 112 Cupid-built methods with two
+skips, including all 24 snapshot methods and all allocation-failure indices.
+Normal SDK/image coordination, installed seeds and build ownership are unchanged.
+
+The bounded API source also has separate Windows OS evidence. A fresh private
+copy reuses 451 compiled products, passes all sixteen exact artifact checks and
+publishes a 209,715,200-byte image through the existing coordinator. Its stock
+four-CPU `ls` boot passes all 62 TLS checks and the ordered compile, JIT and
+terminal completion checks. The three kernel-size policy rows now match those
+measured outputs. Linux API tests pass; its separate OS completion stops before
+Make when a retained loader-configuration model changes. That OS run remains
+unqualified. The [saved OS evidence](evidence/bounded-host-api-windows-os-qualification-20261016.json.gz)
+contains the accepted Windows records and failed Linux record.
+
 ## Windows file-ID qualification gap, 2026-10-16
 
 The [platform experiment](WINDOWS-FILE-ID-API-PROBE.md) passes its native i386

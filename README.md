@@ -1,5 +1,34 @@
 # cupid-os
 
+## Bounded hosted toolchain interfaces, 2026-10-16
+
+CupidObj source can stream a pristine disk prefix through bounded callbacks
+with 64-bit source sizes and positions. Native and Cupid-built callers on
+Windows and Linux validate every byte of a complete 4 GiB-range synthetic case,
+buffered parity and failure recovery. The
+[streaming record](docs/bootstrap/STREAMED-DISK-TEMPLATE.md) records the fresh
+passing qualification and preserves the earlier timeout and Linux setup failure.
+
+The ordinary hosted observer can also return immutable directory snapshot
+tokens. Access revalidates the complete observer; names retain their literal
+UTF-8 spelling without implying child kinds or payload identity. Both focused
+Windows callers pass 21 methods with three POSIX skips. Linux passes all 24
+snapshot methods with native and Cupid-built callers, including allocation
+failures and recovery. The
+[directory record](docs/bootstrap/NATIVE-OBSERVER-DIRECTORY-SNAPSHOT.md) describes
+the full regression selections, limits and saved evidence. Installed commands,
+seeds and the three Python coordinators retain their existing behavior.
+
+The bounded API source also has separate Windows OS evidence. A fresh private
+copy reuses 451 compiled products, passes all sixteen exact artifact checks and
+publishes a 209,715,200-byte image through the existing coordinator. Its stock
+four-CPU `ls` boot passes all 62 TLS checks and the ordered compile, JIT and
+terminal completion checks. The three kernel-size policy rows now match those
+measured outputs. Linux API tests pass; its separate OS completion stops before
+Make when a retained loader-configuration model changes. That OS run remains
+unqualified. The [saved OS evidence](docs/bootstrap/evidence/bounded-host-api-windows-os-qualification-20261016.json.gz)
+contains the accepted Windows records and failed Linux record.
+
 ## Private integer storage and initializer candidate
 
 The private candidate has real two-byte halfwords, fixed native network

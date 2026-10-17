@@ -3378,6 +3378,159 @@ static ctool_bool obj_disk_choose_layout(ctool_u32 partition_sectors,
   return CTOOL_FALSE;
 }
 
+static ctool_status_t obj_disk_overlay_source(
+    const ctool_obj_disk_source_t *source, ctool_u64 source_offset,
+    ctool_u64 position, ctool_u64 length, ctool_u64 offset,
+    ctool_u8 *bytes, ctool_u32 count) {
+  ctool_u64 start = offset > position ? offset : position;
+  ctool_u64 end = offset + (ctool_u64)count;
+  ctool_u64 region_end = position + length;
+  ctool_u64 relative;
+  if (end > region_end) end = region_end;
+  if (start >= end) return CTOOL_OK;
+  relative = source_offset + start - position;
+  if (relative > source->size || end - start > source->size - relative)
+    return CTOOL_ERR_INPUT;
+  return source->read_exact(source->context, relative,
+      bytes + (ctool_u32)(start - offset), (ctool_u32)(end - start));
+}
+
+static void obj_disk_overlay_bytes(
+    ctool_u64 position, const ctool_u8 *source, ctool_u32 length,
+    ctool_u64 offset, ctool_u8 *bytes, ctool_u32 count) {
+  ctool_u64 start = offset > position ? offset : position;
+  ctool_u64 end = offset + (ctool_u64)count;
+  ctool_u64 region_end = position + (ctool_u64)length;
+  if (end > region_end) end = region_end;
+  if (start < end) {
+    obj_disk_copy(bytes, (ctool_u32)(start - offset),
+        source + (ctool_u32)(start - position), (ctool_u32)(end - start));
+  }
+}
+
+/* Both output adapters use this author's regions. disk_image.cc keeps its
+ * separate renderer and never supplies bytes to this producer. */
+static ctool_status_t obj_disk_render_range(
+    const ctool_obj_disk_source_t *boot, const ctool_obj_disk_source_t *kernel,
+    ctool_u32 image_sectors, ctool_u32 fat_start_lba,
+    const obj_disk_layout_t *layout, ctool_u64 offset,
+    ctool_u8 *bytes, ctool_u32 count) {
+  ctool_u8 metadata[CTOOL_OBJ_DISK_SECTOR_BYTES];
+  ctool_u64 fat_start = (ctool_u64)fat_start_lba * 512u;
+  ctool_u64 first_fat = fat_start + 512u;
+  ctool_u64 second_fat = first_fat + (ctool_u64)layout->sectors_per_fat * 512u;
+  ctool_u32 partition = image_sectors - fat_start_lba;
+  ctool_u16 total16 = partition < 65536u ? (ctool_u16)partition : (ctool_u16)0u;
+  ctool_status_t status;
+  obj_zero(bytes, count);
+  status = obj_disk_overlay_source(boot, 0u, 0u, 446u, offset, bytes, count);
+  if (status != CTOOL_OK) return status;
+  status = obj_disk_overlay_source(boot, 512u, 512u, 2048u, offset, bytes, count);
+  if (status != CTOOL_OK) return status;
+  status = obj_disk_overlay_source(kernel, 0u, 2560u, kernel->size,
+                                   offset, bytes, count);
+  if (status != CTOOL_OK) return status;
+
+  obj_zero(metadata, 512u);
+  metadata[446u] = 0x80u;
+  metadata[447u] = metadata[451u] = 0xfeu;
+  metadata[448u] = metadata[449u] = metadata[452u] = metadata[453u] = 0xffu;
+  metadata[450u] = 0x06u;
+  obj_disk_write_le32(metadata, 454u, fat_start_lba);
+  obj_disk_write_le32(metadata, 458u, partition);
+  metadata[510u] = 0x55u;
+  metadata[511u] = 0xaau;
+  obj_disk_overlay_bytes(446u, metadata + 446u, 66u, offset, bytes, count);
+
+  obj_zero(metadata, 512u);
+  metadata[0u] = 0xebu;
+  metadata[1u] = 0x3cu;
+  metadata[2u] = 0x90u;
+  obj_disk_copy(metadata, 3u, (const ctool_u8 *)"CUPIDOS ", 8u);
+  obj_disk_write_le16(metadata, 11u, 512u);
+  metadata[13u] = (ctool_u8)layout->sectors_per_cluster;
+  obj_disk_write_le16(metadata, 14u, 1u);
+  metadata[16u] = 2u;
+  obj_disk_write_le16(metadata, 17u, 512u);
+  obj_disk_write_le16(metadata, 19u, total16);
+  metadata[21u] = 0xf8u;
+  obj_disk_write_le16(metadata, 22u, (ctool_u16)layout->sectors_per_fat);
+  obj_disk_write_le16(metadata, 24u, 63u);
+  obj_disk_write_le16(metadata, 26u, 255u);
+  obj_disk_write_le32(metadata, 28u, fat_start_lba);
+  obj_disk_write_le32(metadata, 32u, total16 != 0u ? 0u : partition);
+  metadata[36u] = 0x80u;
+  metadata[38u] = 0x29u;
+  obj_disk_write_le32(metadata, 39u, 0x0c001d05u);
+  obj_disk_copy(metadata, 43u, (const ctool_u8 *)"CUPIDOS    ", 11u);
+  obj_disk_copy(metadata, 54u, (const ctool_u8 *)"FAT16   ", 8u);
+  metadata[510u] = 0x55u;
+  metadata[511u] = 0xaau;
+  obj_disk_overlay_bytes(fat_start, metadata, 512u, offset, bytes, count);
+  obj_disk_initialize_fat(metadata, 0u);
+  obj_disk_overlay_bytes(first_fat, metadata, 4u, offset, bytes, count);
+  obj_disk_overlay_bytes(second_fat, metadata, 4u, offset, bytes, count);
+  return CTOOL_OK;
+}
+
+ctool_status_t ctool_obj_stream_disk_template(
+    const ctool_obj_disk_template_stream_request_t *request,
+    ctool_obj_disk_template_stream_result_t *result_out) {
+  obj_disk_layout_t layout;
+  ctool_u8 bytes[CTOOL_OBJ_DISK_TEMPLATE_CHUNK_BYTES];
+  ctool_u64 fat_start;
+  ctool_u64 extent;
+  ctool_u64 offset = 0u;
+  ctool_status_t status;
+  if (result_out == (ctool_obj_disk_template_stream_result_t *)0)
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  result_out->bytes = 0u;
+  result_out->attempted_write = CTOOL_FALSE;
+  if (request == (const ctool_obj_disk_template_stream_request_t *)0 ||
+      request->write_exact == (ctool_status_t (*)(void *, ctool_u64, const ctool_u8 *, ctool_u32))0 ||
+      request->bootloader.read_exact == (ctool_status_t (*)(void *, ctool_u64, ctool_u8 *, ctool_u32))0 ||
+      (request->kernel.size != 0u &&
+       request->kernel.read_exact == (ctool_status_t (*)(void *, ctool_u64, ctool_u8 *, ctool_u32))0))
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  if (request->fat_start_lba <= 5u ||
+      request->fat_start_lba >= request->image_sectors ||
+      request->bootloader.size < 2560u)
+    return CTOOL_ERR_INPUT;
+  if (request->kernel.size > (ctool_u64)-1 - 2560u) return CTOOL_ERR_OVERFLOW;
+  fat_start = (ctool_u64)request->fat_start_lba * 512u;
+  if (request->kernel.size > fat_start - 2560u) return CTOOL_ERR_INPUT;
+  if (obj_disk_choose_layout(request->image_sectors - request->fat_start_lba,
+                              &layout) == CTOOL_FALSE)
+    return CTOOL_ERR_INPUT;
+  extent = fat_start + ((ctool_u64)CTOOL_OBJ_DISK_RESERVED_SECTORS +
+      (ctool_u64)CTOOL_OBJ_DISK_FAT_COPIES * layout.sectors_per_fat +
+      layout.root_dir_sectors) * 512u;
+  while (offset < extent) {
+    ctool_u64 remaining = extent - offset;
+    ctool_u32 count = remaining > CTOOL_OBJ_DISK_TEMPLATE_CHUNK_BYTES
+        ? CTOOL_OBJ_DISK_TEMPLATE_CHUNK_BYTES : (ctool_u32)remaining;
+    status = obj_disk_render_range(&request->bootloader, &request->kernel,
+        request->image_sectors, request->fat_start_lba, &layout,
+        offset, bytes, count);
+    if (status != CTOOL_OK) return status;
+    result_out->attempted_write = CTOOL_TRUE;
+    status = request->write_exact(request->output_context, offset, bytes, count);
+    if (status != CTOOL_OK) return status;
+    offset += count;
+  }
+  result_out->bytes = extent;
+  return CTOOL_OK;
+}
+
+static ctool_status_t obj_disk_read_memory(
+    void *context, ctool_u64 offset, ctool_u8 *bytes, ctool_u32 count) {
+  const ctool_bytes_t *source = (const ctool_bytes_t *)context;
+  if (offset > source->size || (ctool_u64)count > source->size - offset)
+    return CTOOL_ERR_INPUT;
+  obj_disk_copy(bytes, 0u, source->data + (ctool_u32)offset, count);
+  return CTOOL_OK;
+}
+
 static ctool_status_t obj_disk_template(
     ctool_job_t *job, const ctool_obj_request_t *request,
     ctool_buffer_t *output, ctool_obj_result_t *result_out) {
@@ -3391,19 +3544,14 @@ static ctool_status_t obj_disk_template(
   ctool_u64 metadata_sectors;
   ctool_u64 template_sectors;
   ctool_u64 template_bytes;
-  ctool_u64 fat_bytes_u64;
-  ctool_u64 first_fat_offset_u64;
-  ctool_u64 second_fat_offset_u64;
   ctool_u32 output_offset;
-  ctool_u32 fat_offset;
-  ctool_u32 first_fat_offset;
-  ctool_u32 second_fat_offset;
+  ctool_u32 offset;
   ctool_u32 partition_sectors;
-  ctool_u16 total_sectors_16;
-  ctool_u32 total_sectors_32;
   ctool_mut_bytes_t reserved;
-  ctool_u8 *bytes;
-  ctool_u8 *bpb;
+  ctool_bytes_t boot_contents;
+  ctool_bytes_t kernel_contents;
+  ctool_obj_disk_source_t boot_reader;
+  ctool_obj_disk_source_t kernel_reader;
   ctool_status_t status;
 
   obj_zero(&layout, (ctool_u32)sizeof(layout));
@@ -3482,74 +3630,28 @@ static ctool_status_t obj_disk_template(
     return obj_emit_failure(job, boot, status, code, 0u,
                             "CupidObj could not emit disk template");
   }
-  bytes = reserved.data;
-  fat_bytes_u64 = (ctool_u64)layout.sectors_per_fat *
-                  (ctool_u64)CTOOL_OBJ_DISK_SECTOR_BYTES;
-  first_fat_offset_u64 =
-      fat_start_bytes +
-      (ctool_u64)CTOOL_OBJ_DISK_RESERVED_SECTORS *
-          (ctool_u64)CTOOL_OBJ_DISK_SECTOR_BYTES;
-  second_fat_offset_u64 = first_fat_offset_u64 + fat_bytes_u64;
-  fat_offset = (ctool_u32)fat_start_bytes;
-
-  obj_disk_copy(bytes, 0u, boot->contents.data,
-                CTOOL_OBJ_DISK_MBR_BOOT_BYTES);
-  bytes[446u] = 0x80u;
-  bytes[447u] = 0xfeu;
-  bytes[448u] = 0xffu;
-  bytes[449u] = 0xffu;
-  bytes[450u] = 0x06u;
-  bytes[451u] = 0xfeu;
-  bytes[452u] = 0xffu;
-  bytes[453u] = 0xffu;
-  obj_disk_write_le32(bytes, 454u, disk->fat_start_lba);
-  obj_disk_write_le32(bytes, 458u, partition_sectors);
-  bytes[510u] = 0x55u;
-  bytes[511u] = 0xaau;
-  obj_disk_copy(bytes, CTOOL_OBJ_DISK_SECTOR_BYTES,
-                boot->contents.data + CTOOL_OBJ_DISK_SECTOR_BYTES,
-                (CTOOL_OBJ_DISK_BOOT_SECTORS - 1u) *
-                    CTOOL_OBJ_DISK_SECTOR_BYTES);
-  obj_disk_copy(bytes,
-                CTOOL_OBJ_DISK_BOOT_SECTORS *
-                    CTOOL_OBJ_DISK_SECTOR_BYTES,
-                kernel->contents.data, kernel->contents.size);
-
-  bpb = bytes + fat_offset;
-  bpb[0u] = 0xebu;
-  bpb[1u] = 0x3cu;
-  bpb[2u] = 0x90u;
-  obj_disk_copy(bpb, 3u, (const ctool_u8 *)"CUPIDOS ", 8u);
-  obj_disk_write_le16(bpb, 11u, (ctool_u16)CTOOL_OBJ_DISK_SECTOR_BYTES);
-  bpb[13u] = (ctool_u8)layout.sectors_per_cluster;
-  obj_disk_write_le16(bpb, 14u,
-                      (ctool_u16)CTOOL_OBJ_DISK_RESERVED_SECTORS);
-  bpb[16u] = (ctool_u8)CTOOL_OBJ_DISK_FAT_COPIES;
-  obj_disk_write_le16(bpb, 17u,
-                      (ctool_u16)CTOOL_OBJ_DISK_ROOT_ENTRIES);
-  total_sectors_16 = partition_sectors < 65536u
-                         ? (ctool_u16)partition_sectors
-                         : (ctool_u16)0u;
-  total_sectors_32 = total_sectors_16 != 0u ? 0u : partition_sectors;
-  obj_disk_write_le16(bpb, 19u, total_sectors_16);
-  bpb[21u] = 0xf8u;
-  obj_disk_write_le16(bpb, 22u, (ctool_u16)layout.sectors_per_fat);
-  obj_disk_write_le16(bpb, 24u, 63u);
-  obj_disk_write_le16(bpb, 26u, 255u);
-  obj_disk_write_le32(bpb, 28u, disk->fat_start_lba);
-  obj_disk_write_le32(bpb, 32u, total_sectors_32);
-  bpb[36u] = 0x80u;
-  bpb[38u] = 0x29u;
-  obj_disk_write_le32(bpb, 39u, 0x0c001d05u);
-  obj_disk_copy(bpb, 43u, (const ctool_u8 *)"CUPIDOS    ", 11u);
-  obj_disk_copy(bpb, 54u, (const ctool_u8 *)"FAT16   ", 8u);
-  bpb[510u] = 0x55u;
-  bpb[511u] = 0xaau;
-
-  first_fat_offset = (ctool_u32)first_fat_offset_u64;
-  second_fat_offset = (ctool_u32)second_fat_offset_u64;
-  obj_disk_initialize_fat(bytes, first_fat_offset);
-  obj_disk_initialize_fat(bytes, second_fat_offset);
+  boot_contents = boot->contents;
+  kernel_contents = kernel->contents;
+  boot_reader.context = &boot_contents;
+  boot_reader.size = boot_contents.size;
+  boot_reader.read_exact = obj_disk_read_memory;
+  kernel_reader.context = &kernel_contents;
+  kernel_reader.size = kernel_contents.size;
+  kernel_reader.read_exact = obj_disk_read_memory;
+  for (offset = 0u; offset < (ctool_u32)template_bytes;) {
+    ctool_u32 count = (ctool_u32)template_bytes - offset;
+    if (count > CTOOL_OBJ_DISK_TEMPLATE_CHUNK_BYTES) {
+      count = CTOOL_OBJ_DISK_TEMPLATE_CHUNK_BYTES;
+    }
+    status = obj_disk_render_range(
+        &boot_reader, &kernel_reader, disk->image_sectors,
+        disk->fat_start_lba, &layout, offset, reserved.data + offset, count);
+    if (status != CTOOL_OK) {
+      return obj_emit_failure(job, boot, status, CTOOL_OBJ_DIAG_OUTPUT, 0u,
+                              "CupidObj could not emit disk template");
+    }
+    offset += count;
+  }
 
   (void)output_offset;
   result_out->bytes = ctool_buffer_view(output);
