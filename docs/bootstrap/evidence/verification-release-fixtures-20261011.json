@@ -1,0 +1,780 @@
+{
+  "archives": {
+    "behavior_fixtures": {
+      "archive": "docs/bootstrap/evidence/verification-repair-behavior-fixtures-20261011.json.gz",
+      "identity": {
+        "sha256": "059e80ca6e3a5728dc3d07bed0faf6df9c83aae8e354eed1ae0b65a640cd8e7b",
+        "size": 483824
+      },
+      "review": {
+        "host": "windows",
+        "installed_seeds_unchanged": true,
+        "originals_archive": {
+          "sha256": "059e80ca6e3a5728dc3d07bed0faf6df9c83aae8e354eed1ae0b65a640cd8e7b",
+          "size": 483824
+        },
+        "originals_uncompressed": {
+          "sha256": "91da9926564ec0125a8ff1fbf1d3efb5261a161faef7fcafd67eb00bcccc76e6",
+          "size": 1688200
+        },
+        "schema": "cupid.behavior-fixture-repair-review.v1",
+        "seconds": 2007.8847175999545,
+        "source_changes": {
+          "tests/artifact_release_fixtures.py": {
+            "after": {
+              "sha256": "021c93fef2e6e51b02882be5c34daea658cb76709ad010fdc11aff925bf18321",
+              "size": 5726
+            },
+            "before": {
+              "sha256": "d8b9ccf7da9a97d2429033b1962c623f7d9298d0a2c2a2d6d90ddd909a7f4c8d",
+              "size": 3334
+            }
+          },
+          "tests/test_cupidbuild_compile_kernel.py": {
+            "after": {
+              "sha256": "bb249fdf102aef8d2fffd4e57372599ce339f02ccb004ac278f8e55c241000f0",
+              "size": 27478
+            },
+            "before": {
+              "sha256": "8166d4ef2520ac28da91ec8517682d7307d93ad0e4755b949590df3c0819cc89",
+              "size": 27371
+            }
+          },
+          "tests/test_cupidbuild_compile_production.py": {
+            "after": {
+              "sha256": "379c09c798a67236631a81002f2f651a648a9da2796e2dedbaab033cb1bf65b5",
+              "size": 19639
+            },
+            "before": {
+              "sha256": "b4ba4544174e1c2894c463e5ab9e3985034f20c0dff1be64a802c001ed9cd4c2",
+              "size": 19532
+            }
+          },
+          "tests/test_cupidbuild_compile_user.py": {
+            "after": {
+              "sha256": "cd2e144ec1583504caac31c88aa835f4a715a99297aa1d913d8accd984eb1935",
+              "size": 23345
+            },
+            "before": {
+              "sha256": "8bcaf3065c32dadad3d1fbca2f2eef156eddaa3091d5c5bdf8195f979c8aa103",
+              "size": 23105
+            }
+          }
+        },
+        "source_control_count": 2202,
+        "status": "pass",
+        "synthetic_authority_is_test_owned": true,
+        "tests": 4,
+        "whole_compile_module_replay_claimed": false,
+        "whole_repository_suite_claimed": false
+      },
+      "review_identity": {
+        "sha256": "cdc71e5faaf96cd06f71d3ef4cb54fc3150c4b69cbadb3fed5c4f2c4b45c4646",
+        "size": 1998
+      }
+    },
+    "checked_policy": {
+      "archive": "docs/bootstrap/evidence/verification-repair-checked-policy-20261011.json.gz",
+      "identity": {
+        "sha256": "81463cd9d7dd2a118c636f4e0974a1d012f6474af6bcbc0ee0967f20ff65a1ff",
+        "size": 269552
+      },
+      "review": {
+        "hosts": {
+          "linux": {
+            "executable": {
+              "sha256": "9a977e8b5eee7727da3bbf355762bddb93d1a50272574228f6f02119a9df6ec5",
+              "size": 152688
+            },
+            "seconds": 104.78585019000093
+          },
+          "windows": {
+            "executable": {
+              "sha256": "8045c5379242a4ab11aa3cb5c94b0d09f867edfb8085837a6cca9c15813ba50b",
+              "size": 139264
+            },
+            "seconds": 50.22492790000979
+          }
+        },
+        "objects": {
+          "artifact_size_policy": {
+            "sha256": "0f11df7e1e07015fb617c0295f8d49ea2b55bac7b062c550353b3fa924cdeb9b",
+            "size": 96104
+          },
+          "contract": {
+            "sha256": "4f4a431d6ad27108fdf17eabab24df6d64a849c390d9788f67e3a63898647e9d",
+            "size": 4512
+          },
+          "contract_parse_internal": {
+            "sha256": "4cfcba82a43e484e73ea0a428c3fa9b0ad25cb3fa820a3781e30c3d0f84378a4",
+            "size": 26576
+          }
+        },
+        "originals_archive": {
+          "sha256": "81463cd9d7dd2a118c636f4e0974a1d012f6474af6bcbc0ee0967f20ff65a1ff",
+          "size": 269552
+        },
+        "originals_uncompressed": {
+          "sha256": "25d94331b56820064cea52008bb5074e23d5e4fa88df206f9cb9ac6f234b5b9c",
+          "size": 1080014
+        },
+        "schema": "cupid.verification-repair-checked-policy-review.v1",
+        "semantic_tests_per_host": 59,
+        "source_controls_per_host": 2202,
+        "status": "pass",
+        "whole_shared_objects_equal": 3
+      },
+      "review_identity": {
+        "sha256": "c2c36bf009eeba692592db864a26c48127a35f2ec47e740baee592bbbbc5ae6d",
+        "size": 1352
+      }
+    },
+    "checked_user_link": {
+      "archive": "docs/bootstrap/evidence/verification-repair-checked-user-link-20261011.json.gz",
+      "identity": {
+        "sha256": "3cc92399c2e3ad4713dcbe9bd66ba8b4ea317137cd1d05d58938ea73b2f1bedf",
+        "size": 127181
+      },
+      "review": {
+        "CUPIDBUILD_USER_LINK_CHECKED": "1",
+        "host": "windows",
+        "native_race_hook_skips": 9,
+        "originals_archive": {
+          "sha256": "3cc92399c2e3ad4713dcbe9bd66ba8b4ea317137cd1d05d58938ea73b2f1bedf",
+          "size": 127181
+        },
+        "originals_uncompressed": {
+          "sha256": "a0c4915e08814682804d8615a8738d232dadb10facaf49ea9b3dd5cd5e574079",
+          "size": 436180
+        },
+        "schema": "cupid.verification-repair-checked-user-link-review.v1",
+        "seconds": 991.1546952999197,
+        "source_control_count": 2202,
+        "status": "pass",
+        "tests": 52
+      },
+      "review_identity": {
+        "sha256": "96923aa011708fee0bd292e20da8aa0a24c0f31975ceb51ed1aeb4c713e9ab4a",
+        "size": 547
+      }
+    },
+    "component_tests": {
+      "archive": "docs/bootstrap/evidence/verification-repair-test-originals-20261011.json.gz",
+      "identity": {
+        "sha256": "8d0d2b0cc2bb4306f8f851afe7ada0cb296da7de8c4a0e0d9e6d9f39e22807cf",
+        "size": 1506279
+      },
+      "review": {
+        "compile_fixture_replay_passed": false,
+        "installed_seeds_unchanged": true,
+        "originals_archive": {
+          "sha256": "8d0d2b0cc2bb4306f8f851afe7ada0cb296da7de8c4a0e0d9e6d9f39e22807cf",
+          "size": 1506279
+        },
+        "originals_uncompressed": {
+          "sha256": "f894d09816c6f33eefdc7b5f77dc62dcd025b01cc67b59fb94a86e9c7c9a9d97",
+          "size": 6783433
+        },
+        "producer_changes": {
+          "toolchain/artifact_size_policy.cc": {
+            "after": {
+              "sha256": "1c24676cff73eaf689d5c53bc8988c9d92a23e021ca10ccb24afecf3d126036e",
+              "size": 81164
+            },
+            "before": {
+              "sha256": "702b4ac437fc89297bc6291f06f5e2f704c80ffa21a4ef652a6b6b6e576ba7cb",
+              "size": 79937
+            }
+          }
+        },
+        "runs": {
+          "green-artifact-linux1": {
+            "completion": "OK",
+            "exit": 0,
+            "runner_seconds": 83.31829123600255,
+            "tests": 99,
+            "unittest_seconds": 72.343
+          },
+          "green-artifact-windows1": {
+            "completion": "OK (skipped=4)",
+            "exit": 0,
+            "runner_seconds": 63.49022319994401,
+            "tests": 99,
+            "unittest_seconds": 60.961
+          },
+          "green-audit-repairs-linux1": {
+            "completion": "FAILED (failures=1, errors=1)",
+            "exit": 1,
+            "runner_seconds": 366.1022148709999,
+            "tests": 3,
+            "unittest_seconds": 355.406
+          },
+          "green-audit-repairs-linux2": {
+            "completion": "OK",
+            "exit": 0,
+            "runner_seconds": 549.7998215009975,
+            "tests": 40,
+            "unittest_seconds": 542.31
+          },
+          "green-compile-fixtures-windows1": {
+            "completion": "FAILED (failures=1, errors=3)",
+            "exit": 1,
+            "runner_seconds": 2900.844188799965,
+            "tests": 42,
+            "unittest_seconds": 2899.793
+          },
+          "green-doom-linux1": {
+            "completion": "OK (skipped=1)",
+            "exit": 0,
+            "runner_seconds": 851.4534394210023,
+            "tests": 21,
+            "unittest_seconds": 841.777
+          },
+          "green-doom-windows1": {
+            "completion": "OK",
+            "exit": 0,
+            "runner_seconds": 1171.6785578000126,
+            "tests": 21,
+            "unittest_seconds": 1162.14
+          },
+          "green-user-link-fixtures-windows1": {
+            "completion": "OK",
+            "exit": 0,
+            "runner_seconds": 369.53674389992375,
+            "tests": 68,
+            "unittest_seconds": 368.439
+          },
+          "red-installed-seed-linux1": {
+            "completion": "FAILED (failures=14)",
+            "exit": 1,
+            "runner_seconds": 9.983796092998091,
+            "tests": 3,
+            "unittest_seconds": 1.3
+          }
+        },
+        "schema": "cupid.verification-test-repair-review.v1",
+        "source_changes": {
+          "tests/artifact_release_fixtures.py": {
+            "after": {
+              "sha256": "d8b9ccf7da9a97d2429033b1962c623f7d9298d0a2c2a2d6d90ddd909a7f4c8d",
+              "size": 3334
+            },
+            "before": {
+              "sha256": "4fc6e99102e04c966a73dc5119b1d396448a73cac9936966ec7b3c1a23e04b08",
+              "size": 2465
+            }
+          },
+          "tests/test_artifact_size_contract_runner.py": {
+            "after": {
+              "sha256": "ab5cc7bd6828887c96e7102837475d3e69c2734bd764a3d9299e9c68abc5ca02",
+              "size": 48324
+            },
+            "before": {
+              "sha256": "15f4bc7350158fe3061c164beacbd75870768d0161134ba0b898c9a833bd0c43",
+              "size": 48199
+            }
+          },
+          "tests/test_artifact_size_policy_contract.py": {
+            "after": {
+              "sha256": "1f5d4e50768e8122aac39d7cc81aacdaa24706e5e5211bd9e53eb1651a8b648c",
+              "size": 76710
+            },
+            "before": {
+              "sha256": "d7bd966726b4d6dcd0f160a2e2b41e188f21948f26c9e39e2d17ed8bd35db103",
+              "size": 74479
+            }
+          },
+          "tests/test_build_graph_audit.py": {
+            "after": {
+              "sha256": "f7e00b04bcbb9b18fd122af6d32701ec39d0679af02b69e9118a5483b7ff8c9c",
+              "size": 573416
+            },
+            "before": {
+              "sha256": "3317dd4a8fa863124d70af0f7334efe74b5e9bea75e0016ef3cb337c22a4452c",
+              "size": 573416
+            }
+          },
+          "tests/test_cupidbuild_artifacts.py": {
+            "after": {
+              "sha256": "6d7d9ceb7ddd42da39c03afc3f1addf6debccaa86e944ee6c5dc6e62cd21fc4f",
+              "size": 24737
+            },
+            "before": {
+              "sha256": "9956c30eedc73c50c8d57072eea4c1fdd31030b2bd96c8d59b4554d516342b57",
+              "size": 24595
+            }
+          },
+          "tests/test_cupidbuild_compile_doom.py": {
+            "after": {
+              "sha256": "666c95967ec0d685ed2b0f072223fbc3017cefacb3eb7ca9f0aaea943d37001e",
+              "size": 24580
+            },
+            "before": {
+              "sha256": "17eebc840f15f04226838492880035c014040ba9c51a915ce6e8ceac13905731",
+              "size": 24455
+            }
+          },
+          "tests/test_cupidbuild_compile_kernel.py": {
+            "after": {
+              "sha256": "8166d4ef2520ac28da91ec8517682d7307d93ad0e4755b949590df3c0819cc89",
+              "size": 27371
+            },
+            "before": {
+              "sha256": "2accb4ed1370bd7487dbed47960571fa53c01211ad5cc3dc5baccea52177e18e",
+              "size": 27386
+            }
+          },
+          "tests/test_cupidbuild_compile_production.py": {
+            "after": {
+              "sha256": "b4ba4544174e1c2894c463e5ab9e3985034f20c0dff1be64a802c001ed9cd4c2",
+              "size": 19532
+            },
+            "before": {
+              "sha256": "162826a1ba88210ca6930098595b206150dff2a0c9ed0c2875ab7133f2a4db37",
+              "size": 19574
+            }
+          },
+          "tests/test_cupidbuild_compile_user.py": {
+            "after": {
+              "sha256": "8bcaf3065c32dadad3d1fbca2f2eef156eddaa3091d5c5bdf8195f979c8aa103",
+              "size": 23105
+            },
+            "before": {
+              "sha256": "a323e132c63acd182ab15531412e7397277ede6632c130a67ea83f3b4163c7bc",
+              "size": 22968
+            }
+          },
+          "tests/test_cupidbuild_user_link.py": {
+            "after": {
+              "sha256": "c0743166b193f9d06c0c4bfd916a0c2100b3d3f57ff2ed5495fe76b0e63e1347",
+              "size": 18826
+            },
+            "before": {
+              "sha256": "1415dfa5591a0a649ed8bbbb0584e39b093a2bc3aec461bc59cc16f3914a658d",
+              "size": 18749
+            }
+          },
+          "tests/test_cupidbuild_user_link_alias_operation.py": {
+            "after": {
+              "sha256": "69dcc9f2d92a73c65e8f4b132051d9283cc6dbdaa13a8c77de4bdd6b76482de0",
+              "size": 5512
+            },
+            "before": {
+              "sha256": "7397e32c8e96e002107b086866ea724602ab661f2e674c34129b0018e159fc57",
+              "size": 5438
+            }
+          },
+          "tests/test_cupidbuild_user_link_cli.py": {
+            "after": {
+              "sha256": "150d2e3f4323f61d22319b5cbf66f9acf129277f3868438411b9937e60ec9bb5",
+              "size": 4574
+            },
+            "before": {
+              "sha256": "ba69dafa3b7e1f61311522c42f4c1f22dc19ca0b8fe9f186e1ab2312ec58ddb8",
+              "size": 4352
+            }
+          },
+          "toolchain/artifact_size_policy.cc": {
+            "after": {
+              "sha256": "1c24676cff73eaf689d5c53bc8988c9d92a23e021ca10ccb24afecf3d126036e",
+              "size": 81164
+            },
+            "before": {
+              "sha256": "702b4ac437fc89297bc6291f06f5e2f704c80ffa21a4ef652a6b6b6e576ba7cb",
+              "size": 79937
+            }
+          },
+          "toolchain/tests/cupidc_pp_conditional_cases.inc": {
+            "after": {
+              "sha256": "c28a8f8d18cb4baa37f1ca20de20a5e3d6612622b12f8de369370dcd81194ab1",
+              "size": 5917
+            },
+            "before": {
+              "sha256": "06ba1a218cceb168e93b81465899969d0af77fd4f53e22d5f175e3b08c4e86e0",
+              "size": 5917
+            }
+          },
+          "toolchain/tests/cupidc_pp_contract.cc": {
+            "after": {
+              "sha256": "54d6170863c4b33aefab7c1a4d0010cd63d4776d174451311a6dc75920b12e0a",
+              "size": 233963
+            },
+            "before": {
+              "sha256": "8bcb5cac769f0bf70b5b1c7d48903407d0a1681c56920bef39614297685429b2",
+              "size": 233963
+            }
+          }
+        },
+        "source_control_count": 2202,
+        "status": "focused-replays-qualified-with-four-remaining-fixture-failures",
+        "whole_repository_suite_claimed": false
+      },
+      "review_identity": {
+        "sha256": "a757a905a452b6ce30005d7086c34c8ca737a1e41e8db9c8a3e68f7434f3b321",
+        "size": 7759
+      }
+    },
+    "generic_fixtures": {
+      "archive": "docs/bootstrap/evidence/verification-repair-generic-fixtures-20261011.json.gz",
+      "identity": {
+        "sha256": "aaef9ae493abac956725e1e84fc67aac387d398c0faefbad6b880bc5373d8294",
+        "size": 814386
+      },
+      "review": {
+        "expected_platform_skips": 12,
+        "focused_seed_reader_and_iso_tests": 44,
+        "full_generic_and_large_flatten_tests": 150,
+        "historical_parser_probes": 3,
+        "host": "windows",
+        "linux_replay_complete": false,
+        "originals_archive": {
+          "sha256": "aaef9ae493abac956725e1e84fc67aac387d398c0faefbad6b880bc5373d8294",
+          "size": 814386
+        },
+        "originals_uncompressed": {
+          "sha256": "5260b44e3fbfffbaebe0d2d8fccacf75366ef8cb085b37ff164c17ace2f4e885",
+          "size": 3897177
+        },
+        "schema": "cupid.generic-fixture-repair-review.v1",
+        "seconds": 316.7847245000303,
+        "source_changes": {
+          "tests/test_iso_cupidbuild_production.py": {
+            "after": {
+              "sha256": "e6ea8ebf0524c62be24f6a98cbd903d76cde207191d753b57b679ed0ba18de0e",
+              "size": 7554
+            },
+            "before": {
+              "sha256": "a2fc7db74212b544defee1e70bb86e89209ebdf31992ceae0152bc5966e9fb42",
+              "size": 7283
+            }
+          },
+          "tests/test_toolchain_cupidbuild.py": {
+            "after": {
+              "sha256": "5ef9dd991e3569f44de1d141c12b02d03b810e75d6a2f59c8ef1595980de7478",
+              "size": 276108
+            },
+            "before": {
+              "sha256": "e45248445f305f6a49c8ef955f286da976e92f0bdff5c426ce53db8a9e990cd4",
+              "size": 277893
+            }
+          }
+        },
+        "source_control_count": 2202,
+        "status": "pass",
+        "whole_repository_suite_claimed": false
+      },
+      "review_identity": {
+        "sha256": "261b5a3ba816520192fc79657a5a3aa1cdb0da08382bce7db3537c66a520ff5f",
+        "size": 1375
+      }
+    },
+    "preprocessor": {
+      "archive": "docs/bootstrap/evidence/preprocessor-count-repair-originals-20261011.json.gz",
+      "identity": {
+        "sha256": "9b14876ab2fea0da13c5021a7a63251920d7d07b1f09441b89bd863053a5d5af",
+        "size": 342639
+      },
+      "review": {
+        "changed_source_files": {
+          "tests/test_build_graph_audit.py": {
+            "sha256": "e85e7b9f23afd2a0f77829ba8712c972341c3f03be0b4ec2b84b774dc0fbfc17",
+            "size": 573416
+          },
+          "toolchain/tests/cupidc_pp_conditional_cases.inc": {
+            "sha256": "c28a8f8d18cb4baa37f1ca20de20a5e3d6612622b12f8de369370dcd81194ab1",
+            "size": 5917
+          },
+          "toolchain/tests/cupidc_pp_contract.cc": {
+            "sha256": "54d6170863c4b33aefab7c1a4d0010cd63d4776d174451311a6dc75920b12e0a",
+            "size": 233963
+          }
+        },
+        "checked_objects_equal": 1,
+        "checked_scope": "Both checked CupidC seeds compile the corrected contract to the same ELF32 relocatable object. This does not claim a new checked runtime execution or seed promotion.",
+        "checkpoint": "579a6f6936d4526abe6d55df6c7e316b1fab85a4",
+        "counts": {
+          "directive_expression_pairs": 64,
+          "elif_occurrences": 24,
+          "expression_occurrences": 476,
+          "if_occurrences": 452,
+          "unique_expressions": 61
+        },
+        "native_tests": {
+          "linux": 40,
+          "windows": 39
+        },
+        "object": {
+          "sha256": "1559b028132a43376d7b2d15143ce2fde5940b44678c6c0a6998c097a11ccd29",
+          "size": 411540
+        },
+        "originals_archive": {
+          "sha256": "9b14876ab2fea0da13c5021a7a63251920d7d07b1f09441b89bd863053a5d5af",
+          "size": 342639
+        },
+        "originals_uncompressed": {
+          "sha256": "cd2028957e7d35e6a1ff2815bcfc4cdea5986260c4b7ee163b5d630d9922654d",
+          "size": 2143872
+        },
+        "schema": "cupid.preprocessor-count-repair-review.v1",
+        "source_controls": 2202,
+        "status": "pass"
+      },
+      "review_identity": {
+        "sha256": "8143a35ecd00e1511615715765b19a193ec45df83c340d46acbf457cd4e42230",
+        "size": 1565
+      }
+    }
+  },
+  "final_root_checks_claimed": true,
+  "final_root_verification": {
+    "archive": "docs/bootstrap/evidence/storage-verification-final-root-20261011.json.gz",
+    "identity": {
+      "sha256": "7e15ccfb5a8a2fb0df3ec7bb0c7e0d07f68d15425a59357df77f5f1fdc4590da",
+      "size": 836638
+    },
+    "review": {
+      "accepted_image": {
+        "sha256": "7bab2d2a8f5f647675bc4cb01a174c5a770ed6d1866cc822bc8b03c1f78fb45d",
+        "size": 209715200
+      },
+      "accepted_os_products_unchanged": 439,
+      "audit_regenerated_and_reproduced": true,
+      "expected_skips": 4,
+      "installed_seeds_unchanged": true,
+      "native_environment_correction_seconds": 53.79013949993532,
+      "normal_source_input_count": 99,
+      "original_environment_failure_preserved": true,
+      "originals_archive": {
+        "sha256": "7e15ccfb5a8a2fb0df3ec7bb0c7e0d07f68d15425a59357df77f5f1fdc4590da",
+        "size": 836638
+      },
+      "originals_uncompressed": {
+        "sha256": "5bf0f5ed9bb1bb634b94996a91b1a4c6ebf6c2b5b7b99b0d860cc209bbc20565",
+        "size": 8725099
+      },
+      "portable_tests": 155,
+      "producer_changes": {
+        "toolchain/artifact_size_policy.cc": {
+          "after": {
+            "sha256": "1c24676cff73eaf689d5c53bc8988c9d92a23e021ca10ccb24afecf3d126036e",
+            "size": 81164
+          },
+          "before": {
+            "sha256": "702b4ac437fc89297bc6291f06f5e2f704c80ffa21a4ef652a6b6b6e576ba7cb",
+            "size": 79937
+          }
+        }
+      },
+      "schema": "cupid.storage-verification-final-root-review.v1",
+      "seconds": 1494.5663353999844,
+      "seconds_are_sum_of_successful_commands": true,
+      "source_control_count": 2216,
+      "status": "pass",
+      "whole_repository_suite_claimed": false
+    }
+  },
+  "installed_seeds_unchanged": true,
+  "normal_source_input_count": 99,
+  "ownership": {
+    "cupidbuild": 449,
+    "python": 3,
+    "total": 452
+  },
+  "producer_changes": {
+    "toolchain/artifact_size_policy.cc": {
+      "after": {
+        "sha256": "1c24676cff73eaf689d5c53bc8988c9d92a23e021ca10ccb24afecf3d126036e",
+        "size": 81164
+      },
+      "before": {
+        "sha256": "702b4ac437fc89297bc6291f06f5e2f704c80ffa21a4ef652a6b6b6e576ba7cb",
+        "size": 79937
+      }
+    }
+  },
+  "retained_os_artifact_policy": {
+    "sha256": "f807f5ac5f3c38cf62e02b97de6d7a2b3e6fdac494a7db6fde23d3f17770c356",
+    "size": 3384
+  },
+  "root_application": {
+    "sha256": "70b293cde6e220a251c91ac177b231ebdc2c07ee6222578c6ec554293c7c0e15",
+    "size": 439281
+  },
+  "schema": "cupid.verification-release-fixture-acceptance.v1",
+  "source_changes": {
+    "tests/artifact_release_fixtures.py": {
+      "after": {
+        "sha256": "021c93fef2e6e51b02882be5c34daea658cb76709ad010fdc11aff925bf18321",
+        "size": 5726
+      },
+      "before": {
+        "sha256": "4fc6e99102e04c966a73dc5119b1d396448a73cac9936966ec7b3c1a23e04b08",
+        "size": 2465
+      }
+    },
+    "tests/test_artifact_size_contract_runner.py": {
+      "after": {
+        "sha256": "ab5cc7bd6828887c96e7102837475d3e69c2734bd764a3d9299e9c68abc5ca02",
+        "size": 48324
+      },
+      "before": {
+        "sha256": "15f4bc7350158fe3061c164beacbd75870768d0161134ba0b898c9a833bd0c43",
+        "size": 48199
+      }
+    },
+    "tests/test_artifact_size_policy_contract.py": {
+      "after": {
+        "sha256": "1f5d4e50768e8122aac39d7cc81aacdaa24706e5e5211bd9e53eb1651a8b648c",
+        "size": 76710
+      },
+      "before": {
+        "sha256": "d7bd966726b4d6dcd0f160a2e2b41e188f21948f26c9e39e2d17ed8bd35db103",
+        "size": 74479
+      }
+    },
+    "tests/test_build_graph_audit.py": {
+      "after": {
+        "sha256": "f7e00b04bcbb9b18fd122af6d32701ec39d0679af02b69e9118a5483b7ff8c9c",
+        "size": 573416
+      },
+      "before": {
+        "sha256": "3317dd4a8fa863124d70af0f7334efe74b5e9bea75e0016ef3cb337c22a4452c",
+        "size": 573416
+      }
+    },
+    "tests/test_cupidbuild_artifacts.py": {
+      "after": {
+        "sha256": "6d7d9ceb7ddd42da39c03afc3f1addf6debccaa86e944ee6c5dc6e62cd21fc4f",
+        "size": 24737
+      },
+      "before": {
+        "sha256": "9956c30eedc73c50c8d57072eea4c1fdd31030b2bd96c8d59b4554d516342b57",
+        "size": 24595
+      }
+    },
+    "tests/test_cupidbuild_compile_doom.py": {
+      "after": {
+        "sha256": "666c95967ec0d685ed2b0f072223fbc3017cefacb3eb7ca9f0aaea943d37001e",
+        "size": 24580
+      },
+      "before": {
+        "sha256": "17eebc840f15f04226838492880035c014040ba9c51a915ce6e8ceac13905731",
+        "size": 24455
+      }
+    },
+    "tests/test_cupidbuild_compile_kernel.py": {
+      "after": {
+        "sha256": "bb249fdf102aef8d2fffd4e57372599ce339f02ccb004ac278f8e55c241000f0",
+        "size": 27478
+      },
+      "before": {
+        "sha256": "2accb4ed1370bd7487dbed47960571fa53c01211ad5cc3dc5baccea52177e18e",
+        "size": 27386
+      }
+    },
+    "tests/test_cupidbuild_compile_production.py": {
+      "after": {
+        "sha256": "379c09c798a67236631a81002f2f651a648a9da2796e2dedbaab033cb1bf65b5",
+        "size": 19639
+      },
+      "before": {
+        "sha256": "162826a1ba88210ca6930098595b206150dff2a0c9ed0c2875ab7133f2a4db37",
+        "size": 19574
+      }
+    },
+    "tests/test_cupidbuild_compile_user.py": {
+      "after": {
+        "sha256": "cd2e144ec1583504caac31c88aa835f4a715a99297aa1d913d8accd984eb1935",
+        "size": 23345
+      },
+      "before": {
+        "sha256": "a323e132c63acd182ab15531412e7397277ede6632c130a67ea83f3b4163c7bc",
+        "size": 22968
+      }
+    },
+    "tests/test_cupidbuild_user_link.py": {
+      "after": {
+        "sha256": "c0743166b193f9d06c0c4bfd916a0c2100b3d3f57ff2ed5495fe76b0e63e1347",
+        "size": 18826
+      },
+      "before": {
+        "sha256": "1415dfa5591a0a649ed8bbbb0584e39b093a2bc3aec461bc59cc16f3914a658d",
+        "size": 18749
+      }
+    },
+    "tests/test_cupidbuild_user_link_alias_operation.py": {
+      "after": {
+        "sha256": "69dcc9f2d92a73c65e8f4b132051d9283cc6dbdaa13a8c77de4bdd6b76482de0",
+        "size": 5512
+      },
+      "before": {
+        "sha256": "7397e32c8e96e002107b086866ea724602ab661f2e674c34129b0018e159fc57",
+        "size": 5438
+      }
+    },
+    "tests/test_cupidbuild_user_link_cli.py": {
+      "after": {
+        "sha256": "150d2e3f4323f61d22319b5cbf66f9acf129277f3868438411b9937e60ec9bb5",
+        "size": 4574
+      },
+      "before": {
+        "sha256": "ba69dafa3b7e1f61311522c42f4c1f22dc19ca0b8fe9f186e1ab2312ec58ddb8",
+        "size": 4352
+      }
+    },
+    "tests/test_iso_cupidbuild_production.py": {
+      "after": {
+        "sha256": "e6ea8ebf0524c62be24f6a98cbd903d76cde207191d753b57b679ed0ba18de0e",
+        "size": 7554
+      },
+      "before": {
+        "sha256": "a2fc7db74212b544defee1e70bb86e89209ebdf31992ceae0152bc5966e9fb42",
+        "size": 7283
+      }
+    },
+    "tests/test_toolchain_cupidbuild.py": {
+      "after": {
+        "sha256": "5ef9dd991e3569f44de1d141c12b02d03b810e75d6a2f59c8ef1595980de7478",
+        "size": 276108
+      },
+      "before": {
+        "sha256": "e45248445f305f6a49c8ef955f286da976e92f0bdff5c426ce53db8a9e990cd4",
+        "size": 277893
+      }
+    },
+    "toolchain/artifact_size_policy.cc": {
+      "after": {
+        "sha256": "1c24676cff73eaf689d5c53bc8988c9d92a23e021ca10ccb24afecf3d126036e",
+        "size": 81164
+      },
+      "before": {
+        "sha256": "702b4ac437fc89297bc6291f06f5e2f704c80ffa21a4ef652a6b6b6e576ba7cb",
+        "size": 79937
+      }
+    },
+    "toolchain/tests/cupidc_pp_conditional_cases.inc": {
+      "after": {
+        "sha256": "c28a8f8d18cb4baa37f1ca20de20a5e3d6612622b12f8de369370dcd81194ab1",
+        "size": 5917
+      },
+      "before": {
+        "sha256": "06ba1a218cceb168e93b81465899969d0af77fd4f53e22d5f175e3b08c4e86e0",
+        "size": 5917
+      }
+    },
+    "toolchain/tests/cupidc_pp_contract.cc": {
+      "after": {
+        "sha256": "54d6170863c4b33aefab7c1a4d0010cd63d4776d174451311a6dc75920b12e0a",
+        "size": 233963
+      },
+      "before": {
+        "sha256": "8bcb5cac769f0bf70b5b1c7d48903407d0a1681c56920bef39614297685429b2",
+        "size": 233963
+      }
+    }
+  },
+  "status": "focused-replays-pass",
+  "synthetic_behavior_authority_is_test_owned": true,
+  "whole_compile_module_replay_claimed": false,
+  "whole_repository_suite_claimed": false
+}

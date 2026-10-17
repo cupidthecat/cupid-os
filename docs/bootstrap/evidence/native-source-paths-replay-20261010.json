@@ -1,0 +1,98 @@
+{
+  "calls": 354,
+  "complete_checked_objects_equal_original": 6,
+  "complete_checked_programs_equal_original": 2,
+  "hosts": {
+    "linux": {
+      "build": {
+        "sha256": "f1e80ea99d8b55bea585c0363f129408697dcf43111bb8eabf5eb0dd22cbf93b",
+        "size": 17603
+      },
+      "calls": 142,
+      "checked_program": {
+        "sha256": "23238b8d921e6d9fcf80806478f84ca0694e6829c8d5fd0548e9e93feaff2103",
+        "size": 315212
+      },
+      "complete_actual_oracle_outcomes_equal": true,
+      "complete_runtime_records_equal_after_case_root_normalization": true,
+      "negative_calls": 20,
+      "objects": {
+        "path-encoding.o": {
+          "sha256": "34ab4aeaa38aed335ac99ac3a3deccfa27e9c6ac70de3dfb8f898ec34cf03192",
+          "size": 10000
+        },
+        "source-contract.o": {
+          "sha256": "217471bd9782f91617b18f6a4d2e468cced4fcc39fc777ec0dec225c166fc204",
+          "size": 2864
+        },
+        "source-path.o": {
+          "sha256": "0b2cf52dedc89bb4fa044a4a2fd3e9f1368c75e6f631ebb03bf0a856f45e7635",
+          "size": 9132
+        }
+      },
+      "positive_calls": 122,
+      "replay": {
+        "sha256": "8f9a17756be8a8346314e282b6e43473c21247acd2709335807e30b38f1d40dc",
+        "size": 35993
+      },
+      "seconds": 168.27527814699988,
+      "strict_checks": 4
+    },
+    "windows": {
+      "build": {
+        "sha256": "ffcc492ee20d7d2a87915ba1bf9f596e89fb1f9f4db9428895fe8ea661267d63",
+        "size": 24534
+      },
+      "calls": 212,
+      "checked_program": {
+        "sha256": "9bdbc82460b3645769db0a8a9e99041e850d646018bf49b00a12db14b73e33d4",
+        "size": 308736
+      },
+      "complete_actual_oracle_outcomes_equal": true,
+      "complete_runtime_records_equal_after_case_root_normalization": true,
+      "negative_calls": 20,
+      "objects": {
+        "path-encoding.o": {
+          "sha256": "34ab4aeaa38aed335ac99ac3a3deccfa27e9c6ac70de3dfb8f898ec34cf03192",
+          "size": 10000
+        },
+        "source-contract.o": {
+          "sha256": "217471bd9782f91617b18f6a4d2e468cced4fcc39fc777ec0dec225c166fc204",
+          "size": 2864
+        },
+        "source-path.o": {
+          "sha256": "0b2cf52dedc89bb4fa044a4a2fd3e9f1368c75e6f631ebb03bf0a856f45e7635",
+          "size": 9132
+        }
+      },
+      "positive_calls": 192,
+      "replay": {
+        "sha256": "f6692046862f2ef527bf9aa157a201f8065994f57bc2f2130fa4d8ec310b9bec",
+        "size": 38018
+      },
+      "seconds": 38.02518640004564,
+      "strict_checks": 4
+    }
+  },
+  "independent_review_seconds": 3.156527300016023,
+  "installed_root_seed_files_unchanged": 15,
+  "negative_calls": 40,
+  "normal_source_inputs_unchanged": 99,
+  "original_proof": {
+    "sha256": "321ffd23db0b3ea07f2d5063340070b9634bd873466799e7203fcfd88ebdab58",
+    "size": 23770
+  },
+  "positive_calls": 314,
+  "replay_receipts_archive": {
+    "sha256": "9d07f8a17e61be2d0f1c2be973e9b9a63475d8ab6ae6a85979887b3bf13c9045",
+    "size": 47983
+  },
+  "replay_receipts_uncompressed": {
+    "sha256": "6a0f9cea34272fb45d94554df71f2bb19f1cd861b33c1c793fffc0f46ff4a791",
+    "size": 643910
+  },
+  "schema": "cupid.native-source-path-replays-independent.v1",
+  "source_revision": "1d852023df98c03481c4b3979dccb398288b7115",
+  "source_snapshot_sha256": "4ae98403b0896b24e50b81b11b213b8117207421b9152e95d0500e00e612d07e",
+  "status": "pass"
+}

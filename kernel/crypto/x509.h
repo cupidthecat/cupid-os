@@ -75,9 +75,9 @@ typedef struct {
     /* Subject Public Key Info - RSA or EC-P256. */
     x509_pubkey_t pubkey;
 
-    /* Signature algorithm - both the OID found in tbs.signatureAlg
-     * and in the outer signatureAlgorithm must be identical and one
-     * of the supported choices below.*/
+    /* The OIDs in tbs.signatureAlg and the outer signatureAlgorithm
+     * must match. Supported choices map to X509_SIG_*; other choices
+     * are retained as X509_SIG_NONE for the lenient chain checker. */
     int sig_alg;                  /* X509_SIG_* */
 
     /* SAN dNSName entries (slot 0..san_count-1 valid). */
@@ -94,8 +94,9 @@ typedef struct {
 
 /* Parse a single DER-encoded certificate. Returns 0 on success.
  * On any malformedness - non-canonical lengths, oversize allocations,
- * unknown critical extensions, unsupported pubkey/sig alg, etc. -
- * returns -1.*/
+ * mismatched signature identifiers, or unknown critical extensions -
+ * returns -1. Unsupported public-key and signature algorithms remain
+ * parseable as X509_PK_NONE and X509_SIG_NONE. */
 int x509_parse(const uint8_t *der, uint32_t der_len, x509_cert_t *out);
 
 /* Hostname matcher (RFC 6125 §6.4): exact case-insensitive ASCII match

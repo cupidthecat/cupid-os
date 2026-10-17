@@ -1,0 +1,62 @@
+{
+  "archive": {
+    "sha256": "45b73b45cccdb4c9d92dc57b49b392564f90b895ddd108a20ed21feebe63d07d",
+    "size": 21125
+  },
+  "archive_uncompressed": {
+    "sha256": "9f2cd4e9440d0ec5b03f910c35ea25d00e075c90ce75b722217f19527970cdca",
+    "size": 146827
+  },
+  "calls": 20,
+  "compatibility_differences": 8,
+  "control_calls_same_decision": 12,
+  "finding": "Python accepts new missing ancestors while the requested leaf stays absent. The held owner rejects appearance of its first absence. Both reject the requested leaf appearing and allow unchanged absence or unrelated siblings. Complete image integration must resolve this difference while preserving the existing observer/file-owner contracts.",
+  "hostbuild": {
+    "sha256": "de917e6825a84203460f26dfe753c6cfc0c176792ccb0a63373ffd0c56deb249",
+    "size": 213854
+  },
+  "hosts": {
+    "linux": {
+      "calls": 10,
+      "checked_image": {
+        "sha256": "e8a5734767721cfeb51b2725fbb20b5c0973180cf66f28cc006fadbc6aca261d",
+        "size": 336400
+      },
+      "compatibility_differences": 4,
+      "native_image": {
+        "sha256": "88befb3230e78341a7367edad1ff1ec1b7e32a0c1b4d28b0c673179c99ca4b42",
+        "size": 150384
+      },
+      "receipt": {
+        "sha256": "c2513875b2679a5520033b540881db6c57089422df13fbc5b0429a0745abc6ca",
+        "size": 13378
+      }
+    },
+    "windows": {
+      "calls": 10,
+      "checked_image": {
+        "sha256": "d7e6189e09e5c39870199dadbcbe2a64288bd2680aedda9745ffaabd4e7c55b7",
+        "size": 329216
+      },
+      "compatibility_differences": 4,
+      "native_image": {
+        "sha256": "d8c34bc07218edb15c98f85bda7fa5602f733d0a88b22551824f7190c77a4315",
+        "size": 286720
+      },
+      "receipt": {
+        "sha256": "dc1ceb0794f447048b15348b0b5a9d4b954fb68b80daac45766f1434acc2d13f",
+        "size": 19614
+      }
+    }
+  },
+  "normal_source_inputs_unchanged": 99,
+  "required_owner_or_observer_contracts_changed": false,
+  "runner": {
+    "sha256": "1b389a99c3306dd747149c3d3e9af85dad8dc085fc56b7b375448c26fa0e9dff",
+    "size": 6634
+  },
+  "schema": "cupid.native-source-missing-revalidation-review.v1",
+  "scope": "Evaluate the existing Python missing-stage publication predicate and the accepted native/Cupid source-file view. These calls do not author or publish a complete image.",
+  "source_revision": "1d852023df98c03481c4b3979dccb398288b7115",
+  "status": "diagnostic-complete-compatibility-open"
+}

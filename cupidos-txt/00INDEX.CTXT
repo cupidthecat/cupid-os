@@ -13,13 +13,13 @@ Verified against source on: 2026-05-15
 >style linkhover #0B3AA8
 >rule
 
-This manual set ships inside CupidOS at `/docs/*.ctxt`. It is source-checked
-against the current tree and uses the executable `.CTXT` DolDoc layer
-directly, so the manual is also a live workspace.
+CupidOS installs this manual set at `/docs/*.ctxt`. Each page is checked
+against the current source tree and uses the executable `.CTXT` DolDoc layer.
+Notepad can therefore render the manual as a working interface.
 
 >box
-Notepad tip: press F2 to switch between raw source and rendered manual view.
-In rendered view, links, trees, buttons, and sprites are live.
+Press F2 in Notepad to switch between raw source and rendered manual view.
+Links, trees, buttons, and sprites respond to input in rendered view.
 >endbox
 
 >h2 Quick Start
@@ -67,21 +67,21 @@ In rendered view, links, trees, buttons, and sprites are live.
 [14FPU-SSE.CTXT](open:14FPU-SSE.CTXT)  FPU + SSE2 + CupidC floats (P1)
 [15ISO9660.CTXT](open:15ISO9660.CTXT)   ISO9660 read-only mount (P2)
 [16SWAP.CTXT](open:16SWAP.CTXT)        opt-in disk-backed swap (P3)
-[17SMP.CTXT](open:17SMP.CTXT)          SMP Tier 2 — ACPI/MP, LAPIC, IOAPIC, BKL (P5)
+[17SMP.CTXT](open:17SMP.CTXT)          SMP Tier 2: ACPI/MP, LAPIC, IOAPIC, BKL (P5)
 [18NET.CTXT](open:18NET.CTXT)          Networking Tier 4 (TCP/IP, DHCP, DNS) (P6)
 >endtree
 
->tree open Current Branch Highlights
+>tree open Included Subsystems
 Browser:
-  HTML5 tree build, CSS cascade/layout/paint, HTTPS, external stylesheets,
-  @font-face web fonts, forms, and about:dump.
+  Builds HTML5 trees and handles CSS cascade, layout, paint, HTTPS, external
+  stylesheets, @font-face web fonts, forms, and about:dump.
 
 Remote terminals:
   ssh client, telnet client, and sshd server.  The GUI Terminal understands
   enough VT/xterm state for interactive remote shells and full-screen tools.
 
 Fonts/media:
-  TrueType font system with bundled Liberation fonts, fontswitch GUI,
+  Includes a TrueType font system with Liberation fonts, the fontswitch GUI,
   AC97 mixer/OPL3/MIDI audio, and DOOM/Freedoom runtime support.
 
 Compiler/tools:
@@ -104,7 +104,7 @@ Compiler/tools:
    inline action links, clickable sprites, buttons, and tree widgets all
    run inside Notepad render mode.
 
-4) Newer subsystem tracks:
+4) Other implemented subsystems:
    FPU/SSE2 + libm, ISO9660 loop-mount, opt-in swap, USB 1.1/2.0 stack,
    SMP up to 32 CPUs under BKL, TCP/IP + TLS, browser, SSH/Telnet,
    AC97/audio/DOOM, and TrueType font rendering.

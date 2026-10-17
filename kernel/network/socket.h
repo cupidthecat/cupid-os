@@ -111,7 +111,7 @@ int socket_recvfrom(int fd, void *buf, uint32_t len, uint32_t *ip, uint16_t *por
 int socket_avail   (int fd);
 int socket_state   (int fd);
 
-/* UDP ingress dispatch - called from udp.c */
+/* UDP ingress dispatch, called from udp.cc. */
 void socket_udp_deliver(uint32_t src_ip, uint16_t src_port,
                         uint16_t dst_port, const uint8_t *data, uint32_t dlen);
 

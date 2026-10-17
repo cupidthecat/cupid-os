@@ -1,10 +1,9 @@
 //help: P3 opt-in swap smoke: per-class round-trip, disk cap, nested pin, bad-handle
 //help: Usage: swapinit && feature18_swap
 
-/* CupidC doesn't have memset/memcmp; inline trivial helpers.
- * CupidC also doesn't natively recognize uint32_t - use int (32-bit) for
- * swap handles. The BIND entries in kernel/cupidc.c bind swap_kmalloc to
- * return a 32-bit handle in EAX, which lands in an int just fine.*/
+/* Keep the per-class fill and byte checks local. Native swap bindings use
+ * unsigned four-byte handles; the class tests below retain their original
+ * integer storage and the conversion probe uses U32 explicitly. */
 
 void fill_byte(char *p, int n, char v) {
     int i = 0;
@@ -20,13 +19,39 @@ int verify_byte(char *p, int n, char v) {
     return 1;
 }
 
+int check_swap_binding_conversions() {
+    double size = 500.0;
+    U32 handle = swap_kmalloc(size);
+    if (handle == 0) return 0;
+    double argument = (double)handle;
+    char *bytes = (char *)swap_pin(argument);
+    if (bytes == 0) {
+        swap_free(argument);
+        return 0;
+    }
+    fill_byte(bytes, 8, 53);
+    swap_unpin(argument);
+    bytes = (char *)swap_pin(argument);
+    int ok = bytes != 0;
+    if (ok && !verify_byte(bytes, 8, 53)) ok = 0;
+    if (bytes != 0) swap_unpin(argument);
+    swap_free(argument);
+    if (ok) serial_printf("PASS feature18_binding sizes=1 handles=5 bytes=8\n");
+    return ok;
+}
+
 void main() {
     int ok = 1;
 
     /* Keep the smoke test self-contained. If swap is already initialized,
      * swap_init rejects the duplicate setup and the existing pool remains
      * usable; if not, this creates the default 4 MB resident pool.*/
-    swap_init("/disk/swap.bin", 4194304);
+    double default_pool = 4194304.0;
+    swap_init("/disk/swap.bin", default_pool);
+    if (!check_swap_binding_conversions()) {
+        serial_printf("[feature18] FAIL native binding conversion\n");
+        ok = 0;
+    }
 
     /* 1. Per-class round trip: one handle per class, unique byte pattern.
      *    Classes are 1K / 4K / 16K / 64K; pick a size that lands in each.*/

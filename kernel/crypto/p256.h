@@ -36,7 +36,7 @@ typedef struct {
     int       infinity;   /* nonzero => point at infinity */
 } p256_aff_t;
 
-/* Curve parameters as field elements (defined in p256.c). */
+/* Curve parameters as field elements (defined in p256.cc). */
 extern const p256_fe_t P256_P;       /* prime */
 extern const p256_fe_t P256_B;       /* curve constant */
 extern const p256_fe_t P256_GX;

@@ -24,18 +24,38 @@ typedef struct heap_block {
   65536 /* 256MB initial heap */
 #define HEAP_MIN_SPLIT (sizeof(heap_block_t) + 8)
 
-/* Kernel stack moved from 0x800000-0xA00000 to 0xB00000-0xD00000
- * because the linker placed kernel BSS through the old range:
- * _bss_start (~0x4CE000) to _kernel_end (~0x8A4000) straddles
- * 0x800000.  A 16 KB BSS array (cc_pp_seen_files_storage at
- * 0x7fc820 .. 0x800820) sat right on top of the guard zone, so
- * any write into its tail cleared the magic and the next
- * stack_guard_check panicked.  0xB00000 is above _kernel_end.*/
-#define STACK_BOTTOM 0xB00000u /* Bottom of kernel stack (11 MB) */
-#define STACK_TOP 0xD00000u    /* Top of kernel stack (2 MB tall) */
+/* link.ld keeps the kernel below this fixed stack. The stack fills the two
+ * mebibytes immediately below CupidC's fixed execution arena. */
+#define STACK_BOTTOM 0xF00000u /* Bottom of kernel stack (15 MiB) */
+#define STACK_TOP 0x1100000u   /* Top of kernel stack (17 MiB) */
 #define STACK_SIZE (STACK_TOP - STACK_BOTTOM)
 #define STACK_GUARD_MAGIC 0x5741524Eu /* "WARN" in hex */
 #define STACK_GUARD_SIZE 16           /* Guard zone at bottom (bytes) */
+
+/* Fixed executable arenas are identity-mapped and permanently reserved.
+ * CupidC and CupidASM keep their existing bases. External CupidLD programs
+ * use the two mebibytes immediately after CupidASM. */
+#define CUPIDC_EXEC_ARENA_START   0x01100000u
+#define CUPIDC_EXEC_ARENA_END     0x01A00000u
+#define CUPIDASM_EXEC_ARENA_START 0x01A00000u
+#define CUPIDASM_EXEC_ARENA_END   0x01C00000u
+#define EXTERNAL_EXEC_ARENA_START 0x01C00000u
+#define EXTERNAL_EXEC_ARENA_END   0x01E00000u
+
+_Static_assert(STACK_SIZE == 2u * 1024u * 1024u,
+               "fixed kernel stack must remain 2 MiB");
+_Static_assert(STACK_TOP == CUPIDC_EXEC_ARENA_START,
+               "kernel stack and CupidC arena must be adjacent");
+_Static_assert(EXTERNAL_EXEC_ARENA_END - EXTERNAL_EXEC_ARENA_START ==
+                   2u * 1024u * 1024u,
+               "external ELF arena must remain 2 MiB");
+_Static_assert(CUPIDC_EXEC_ARENA_END == CUPIDASM_EXEC_ARENA_START,
+               "CupidC and CupidASM arenas must be adjacent");
+_Static_assert(CUPIDASM_EXEC_ARENA_END == EXTERNAL_EXEC_ARENA_START,
+               "CupidASM and external ELF arenas must be adjacent");
+_Static_assert(CUPIDASM_EXEC_ARENA_END - CUPIDASM_EXEC_ARENA_START ==
+                   2u * 1024u * 1024u,
+               "CupidASM arena must remain 2 MiB");
 
 void pmm_init(uint32_t kernel_end);
 void *pmm_alloc_page(void);
@@ -47,7 +67,8 @@ uint32_t pmm_total_pages(void);
 /**
  * pmm_reserve_region - Mark a physical address range as used.
  * pmm_release_region - Mark a physical address range as free.
- * Used by the ELF loader to reserve/free pages at specific addresses.
+ * Used for explicitly releasable fixed-address physical regions.  Permanent
+ * executable arenas above must never be passed to pmm_release_region().
 */
 void pmm_reserve_region(uint32_t start, uint32_t size);
 void pmm_release_region(uint32_t start, uint32_t size);

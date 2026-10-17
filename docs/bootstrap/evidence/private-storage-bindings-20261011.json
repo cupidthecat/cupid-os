@@ -1,0 +1,322 @@
+{
+  "archives": {
+    "focused": {
+      "archive": "docs/bootstrap/evidence/private-storage-binding-focused-20261011.json.gz",
+      "identity": {
+        "sha256": "2317d721630ae5816c98b98282fdbb9a9aef5d8767b004054f1f731ffbb46823",
+        "size": 28651
+      },
+      "review": {
+        "gui_tests_after_new_probe": 142,
+        "originals_archive": {
+          "sha256": "2317d721630ae5816c98b98282fdbb9a9aef5d8767b004054f1f731ffbb46823",
+          "size": 28651
+        },
+        "originals_uncompressed": {
+          "sha256": "eb002249005f0cac9199ee2d8d36cba927c39761a2f8d5f369c1e9cf1fc374af",
+          "size": 261640
+        },
+        "paired_private_tests_per_host": 494,
+        "runs": {
+          "full-private-linux1": {
+            "exit": 0,
+            "seconds": 8.49546333899707
+          },
+          "full-private-windows1": {
+            "exit": 0,
+            "seconds": 47.72776460007299
+          },
+          "green-guest-gates1": {
+            "exit": 0,
+            "seconds": 1.2366433000424877
+          },
+          "green-storage1": {
+            "exit": 1,
+            "seconds": 1.530179199995473
+          },
+          "green-storage2": {
+            "exit": 0,
+            "seconds": 1.5519728000508621
+          },
+          "green-storage3": {
+            "exit": 0,
+            "seconds": 1.2084089999552816
+          },
+          "green-vfs1": {
+            "exit": 0,
+            "seconds": 0.965731400065124
+          },
+          "red-guest-gates1": {
+            "exit": 1,
+            "seconds": 0.1825585999758914
+          },
+          "red-guest-gates2": {
+            "exit": 1,
+            "seconds": 0.16282239998690784
+          },
+          "red-swap1": {
+            "exit": 1,
+            "seconds": 0.9721070999512449
+          },
+          "red-vfs1": {
+            "exit": 1,
+            "seconds": 1.118438999983482
+          },
+          "red-vfs2": {
+            "exit": 1,
+            "seconds": 1.0350197999505326
+          }
+        },
+        "schema": "cupid.private-storage-binding-focused-review.v1",
+        "status": "pass"
+      }
+    },
+    "frontier": {
+      "archive": "docs/bootstrap/evidence/private-storage-binding-frontier-20261011.json.gz",
+      "identity": {
+        "sha256": "398575e89550ef9ac297c0c41d82f1f653115ba25c3c1a3e48a72f45be828422",
+        "size": 45919
+      },
+      "review": {
+        "four_cpu_boots": 2,
+        "frontier_commands_per_host": 28,
+        "hosts": {
+          "linux": {
+            "result": "GUI terminal frontier runtime passed (framebuffer=640x480, changed_pixels=104427, ac97_audio=2ch@44100Hz, frames=32674534, peak=25600, pcspk_audio=2ch@44100Hz, frames=76713, peak=24831)",
+            "seconds": 821.1083475739979,
+            "serial": {
+              "sha256": "6e225d4ed52de868e3db4a2d000efb3348a4e20c9af79bb4ab8aca444988ab30",
+              "size": 147468
+            }
+          },
+          "windows": {
+            "result": "GUI terminal frontier runtime passed (framebuffer=640x480, changed_pixels=105032, ac97_audio=2ch@44100Hz, frames=34075863, peak=25600, pcspk_audio=2ch@44100Hz, frames=76823, peak=31654)",
+            "seconds": 876.208265000023,
+            "serial": {
+              "sha256": "14a52d3caa87f0c294c5edcc3110315cc34e9849590ace2626d69bbe76cc8e47",
+              "size": 162703
+            }
+          }
+        },
+        "image": {
+          "sha256": "7bab2d2a8f5f647675bc4cb01a174c5a770ed6d1866cc822bc8b03c1f78fb45d",
+          "size": 209715200
+        },
+        "originals_archive": {
+          "sha256": "398575e89550ef9ac297c0c41d82f1f653115ba25c3c1a3e48a72f45be828422",
+          "size": 45919
+        },
+        "originals_uncompressed": {
+          "sha256": "96a9573600029d5f42656e17f557f095694ea0346c303019332d16a457a1a80b",
+          "size": 354509
+        },
+        "phase_timeout_seconds": 300,
+        "schema": "cupid.private-storage-binding-frontier-review.v1",
+        "status": "pass"
+      }
+    },
+    "paired": {
+      "archive": "docs/bootstrap/evidence/private-storage-binding-originals-20261011.json.gz",
+      "identity": {
+        "sha256": "79ea60d131e1586ccc074c974b9104042513cc9a43fba32fb2d9ce958787ca4f",
+        "size": 1446840
+      },
+      "review": {
+        "artifact_gates_per_host": 16,
+        "artifact_policy": {
+          "sha256": "f807f5ac5f3c38cf62e02b97de6d7a2b3e6fdac494a7db6fde23d3f17770c356",
+          "size": 3384
+        },
+        "changed_objects": [
+          "bin/feature17_iso.o",
+          "bin/feature18_swap.o",
+          "cupidos-txt/12HOLYC-CUPIDC.o",
+          "kernel/cpu/ksyms_data.o",
+          "kernel/lang/cupidc.o"
+        ],
+        "checkpoint": "579a6f6936d4526abe6d55df6c7e316b1fab85a4",
+        "fat_bytes_preserved": 199229440,
+        "hosts": {
+          "linux": {
+            "closed": {
+              "sha256": "e37d30a045b263343f81874df6f595d9aedaa078bb5393181df45d3bb6d37b79",
+              "size": 105995
+            },
+            "seconds": 1825.8999673199978
+          },
+          "windows": {
+            "closed": {
+              "sha256": "f3c49e0f5c54c5cbc39aede2828ee7334613340da4d6e8a028aa8da428770d84",
+              "size": 110919
+            },
+            "seconds": 2302.4575618000235
+          }
+        },
+        "image": {
+          "sha256": "7bab2d2a8f5f647675bc4cb01a174c5a770ed6d1866cc822bc8b03c1f78fb45d",
+          "size": 209715200
+        },
+        "image_bytes_compared": 209715200,
+        "kernel_policy_measurements": {
+          "kernel/kernel.bin": {
+            "artifact": {
+              "sha256": "b3c7c5a14b1801c201b4636821580d2793d5f4bc04e72e32015690ed916960dd",
+              "size": 9322944
+            },
+            "measured_exact_bytes": 9322944,
+            "previous_exact_bytes": 9314136
+          },
+          "kernel/kernel.elf": {
+            "artifact": {
+              "sha256": "6cecb2ee5c238f498e71a3f03a648155248671de4054837b5e39d7361853b76d",
+              "size": 9552316
+            },
+            "measured_exact_bytes": 9552316,
+            "previous_exact_bytes": 9540028
+          },
+          "kernel/kernel.elf.pass1": {
+            "artifact": {
+              "sha256": "5a062fd19276becbd368469b5989cd437047ffc58456f0cf048f3618cfb59aa3",
+              "size": 9421244
+            },
+            "measured_exact_bytes": 9421244,
+            "previous_exact_bytes": 9413052
+          }
+        },
+        "manual": {
+          "sha256": "be73714afa4ad70971aef31b226397f497446a35a54f0fa7dda7f82ad578a933",
+          "size": 86475
+        },
+        "normal_source_inputs_unchanged": 99,
+        "originals_archive": {
+          "sha256": "79ea60d131e1586ccc074c974b9104042513cc9a43fba32fb2d9ce958787ca4f",
+          "size": 1446840
+        },
+        "originals_uncompressed": {
+          "sha256": "1fb3338b22331e44caa08d72e707f45b0205138175f97e2a871b9722cec6cf48",
+          "size": 11977739
+        },
+        "ownership": {
+          "cupidbuild": 449,
+          "python": 3,
+          "total": 452
+        },
+        "raw_kernel": {
+          "sha256": "b3c7c5a14b1801c201b4636821580d2793d5f4bc04e72e32015690ed916960dd",
+          "size": 9322944
+        },
+        "review_seconds": 40.915701099904254,
+        "schema": "cupid.private-storage-binding-paired-review.v1",
+        "source_controls_per_host": 2202,
+        "status": "pass",
+        "strict_boots": 6,
+        "unchanged_objects": 424,
+        "user_abi_fields": 103,
+        "user_abi_providers": 101,
+        "whole_linked_products_equal": 4,
+        "whole_objects_equal": 429,
+        "whole_user_products_equal": 6
+      }
+    },
+    "root": {
+      "archive": "docs/bootstrap/evidence/private-storage-binding-root-20261011.json.gz",
+      "identity": {
+        "sha256": "803c1d5f160cfcec90e716ca1096646a3485e465bc94aec219219b6f631af532",
+        "size": 181967
+      },
+      "review": {
+        "artifact_policy_tests": 17,
+        "exact_artifact_gates": 16,
+        "image": {
+          "sha256": "7bab2d2a8f5f647675bc4cb01a174c5a770ed6d1866cc822bc8b03c1f78fb45d",
+          "size": 209715200
+        },
+        "normal_source_inputs_unchanged": 99,
+        "originals_archive": {
+          "sha256": "803c1d5f160cfcec90e716ca1096646a3485e465bc94aec219219b6f631af532",
+          "size": 181967
+        },
+        "originals_uncompressed": {
+          "sha256": "de33f9cc8a5249b05e0b98c78648ef0a2b1331e5266b7846265a45f328cd47eb",
+          "size": 752157
+        },
+        "schema": "cupid.private-storage-binding-root-review.v1",
+        "seconds": 1860.59259809996,
+        "source_control_count": 2202,
+        "status": "pass",
+        "strict_four_cpu_boots": 3,
+        "user_abi": {
+          "abi_sha256": "3e4d31320b2f56d19d37796ef679d1abbb228de9f36c9520d2dd5ec430c3c0bc",
+          "dirent_offsets": {
+            "name": 0,
+            "size": 128,
+            "type": 132
+          },
+          "dirent_size": 136,
+          "field_count": 103,
+          "first_function": "print",
+          "last_function": "sock_state",
+          "provider_count": 101,
+          "provider_sha256": "0a51ba85c93b0249215b05e54867fabe0e7206d7e58a7695911a6ecb060916f4",
+          "scalar_types": {
+            "int32_t": {
+              "bytes": 4,
+              "signed": true
+            },
+            "size_t": {
+              "bytes": 4,
+              "signed": false
+            },
+            "uint16_t": {
+              "bytes": 2,
+              "signed": false
+            },
+            "uint32_t": {
+              "bytes": 4,
+              "signed": false
+            },
+            "uint8_t": {
+              "bytes": 1,
+              "signed": false
+            }
+          },
+          "schema": "cupid.user-syscall-abi.v1",
+          "stat_offsets": {
+            "size": 0,
+            "type": 4
+          },
+          "stat_size": 8,
+          "table_size": 412,
+          "version": 5
+        },
+        "whole_linked_products_equal": 4,
+        "whole_objects_equal": 429,
+        "whole_user_products_equal": 6
+      }
+    }
+  },
+  "checkpoint": "579a6f6936d4526abe6d55df6c7e316b1fab85a4",
+  "fixed_swap_bindings": 5,
+  "fixed_vfs_bindings": 8,
+  "image": {
+    "sha256": "7bab2d2a8f5f647675bc4cb01a174c5a770ed6d1866cc822bc8b03c1f78fb45d",
+    "size": 209715200
+  },
+  "installed_seeds_unchanged": true,
+  "normal_source_inputs_unchanged_in_storage_acceptance": 99,
+  "ownership": {
+    "cupidbuild": 449,
+    "python": 3,
+    "total": 452
+  },
+  "remaining_scope": [
+    "vfs_stat and vfs_readdir record identities",
+    "other private native bindings",
+    "complete Cupid language behavior",
+    "native image input and publication ownership"
+  ],
+  "schema": "cupid.private-storage-bindings-acceptance.v1",
+  "separate_verification_source_projection": "one hosted producer input; no seed promotion",
+  "status": "pass",
+  "whole_repository_suite_claimed_by_this_index": false
+}

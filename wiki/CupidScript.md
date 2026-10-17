@@ -504,7 +504,7 @@ echo "Script started at epoch: $START"
 
 ### `$EPOCHSECONDS` Variable
 
-The special variable `$EPOCHSECONDS` expands to the current Unix timestamp (seconds since January 1, 1970) read from the hardware RTC. Unlike `$(date +epoch)`, it does not require command substitution - it expands inline like any other variable.
+The special variable `$EPOCHSECONDS` expands inline to the current Unix timestamp, measured in seconds since January 1, 1970 and read from the hardware RTC. It does not invoke command substitution.
 
 ```bash
 #!/bin/cupid
@@ -749,12 +749,12 @@ echo "First 5: ${NAME:0:5}"
 
 ### Execution Pipeline
 
-1. **Lexer** (`cupidscript_lex.c`) - Breaks source into tokens: keywords, words, strings, variables, operators, arithmetic expressions, pipes, redirections, background operators
-2. **Parser** (`cupidscript_parse.c`) - Builds an Abstract Syntax Tree (AST) from the token stream
-3. **Interpreter** (`cupidscript_exec.c`) - Walks the AST, executes commands, evaluates tests, manages control flow, handles pipelines and color builtins
-4. **Runtime** (`cupidscript_runtime.c`) - Variable storage, function registry, `$VAR` expansion engine, `${}` advanced string operations, command substitution
-5. **Streams** (`cupidscript_streams.c`) - File descriptor table, pipe creation, buffer I/O, stream redirection
-6. **Display** (`terminal_ansi.c`, `shell.c`, `terminal_app.c`) - ANSI escape parsing, per-character color tracking, colored rendering
+1. **Lexer** (`cupidscript_lex.cc`) - Breaks source into tokens: keywords, words, strings, variables, operators, arithmetic expressions, pipes, redirections, background operators
+2. **Parser** (`cupidscript_parse.cc`) - Builds an Abstract Syntax Tree (AST) from the token stream
+3. **Interpreter** (`cupidscript_exec.cc`) - Walks the AST, executes commands, evaluates tests, manages control flow, handles pipelines and color builtins
+4. **Runtime** (`cupidscript_runtime.cc`) - Variable storage, function registry, `$VAR` expansion engine, `${}` advanced string operations, command substitution
+5. **Streams** (`cupidscript_streams.cc`) - File descriptor table, pipe creation, buffer I/O, stream redirection
+6. **Display** (`kernel/gui/ansi.cc`, `shell.cc`, `terminal_app.cc`) - ANSI escape parsing, per-character color tracking, colored rendering
 
 ### Limits
 
@@ -786,15 +786,17 @@ echo "First 5: ${NAME:0:5}"
 - No heredocs (`<<EOF`)
 - No process substitution (`<(cmd)`)
 
-### Removed Limitations (Now Implemented)
+<a id="removed-limitations-now-implemented"></a>
 
-The following features were previously listed as limitations and have since been implemented:
+### Implemented shell features
 
-- ~~No pipes (`|`)~~ -> Full pipeline support with `|` operator
-- ~~No I/O redirection (`>`, `<`, `>>`)~~ -> Output, input, append, and error redirection
-- ~~No command substitution~~ -> Both `$(cmd)` and `` `cmd` `` syntax
-- ~~No arrays or associative arrays~~ -> Regular arrays and `declare -A` associative arrays
-- ~~No background jobs (`&`)~~ -> Background execution with job table tracking
+CupidScript supports these shell features:
+
+- Pipelines with the `|` operator
+- Output, input, append, and error redirection
+- Command substitution with `$(cmd)` or backticks
+- Regular arrays and `declare -A` associative arrays
+- Background execution with job table tracking
 
 ---
 

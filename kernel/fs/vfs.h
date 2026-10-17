@@ -12,6 +12,8 @@
 #define VFS_OK       0
 #define VFS_ENOENT  -2    /* No such file or directory */
 #define VFS_EACCES  -13   /* Permission denied */
+#define VFS_EBUSY   -16   /* Device or resource busy */
+#define VFS_EXDEV   -18   /* Cross-device link */
 #define VFS_EEXIST  -17   /* File exists */
 #define VFS_ENOTDIR -20   /* Not a directory */
 #define VFS_EISDIR  -21   /* Is a directory */
@@ -71,6 +73,8 @@ typedef struct {
     int (*readdir)(void *file_handle, vfs_dirent_t *dirent);
     int (*mkdir)(void *fs_private, const char *path);
     int (*unlink)(void *fs_private, const char *path);
+    int (*rename)(void *fs_private, const char *old_path,
+                  const char *new_path);
 } vfs_fs_ops_t;
 
 typedef struct vfs_mount {

@@ -1,0 +1,235 @@
+--- /dev/null
++++ b/toolchain/cupidbuild_source_path.cc
+@@ -0,0 +1,154 @@
++#include "cupidbuild_source_path.h"
++#include "cupidbuild_host.h"
++#include "path_encoding.h"
++
++#include <stdlib.h>
++#include <string.h>
++
++#define CUPIDBUILD_SOURCE_PATH_BYTES 8192u
++
++static int source_text_valid(const char *text) {
++  size_t units = 0u;
++  return text && strlen(text) < CUPIDBUILD_SOURCE_PATH_BYTES &&
++      cupidbuild_path_to_utf16(text, strlen(text), (unsigned short *)0,
++                              0u, &units);
++}
++
++static int source_separator(char value) {
++  return value == '/' || value == '\\';
++}
++
++static int source_drive(const char *text) {
++  return text && ((text[0] >= 'A' && text[0] <= 'Z') ||
++                  (text[0] >= 'a' && text[0] <= 'z')) && text[1] == ':';
++}
++
++static char source_fold_drive(char value) {
++  return value >= 'a' && value <= 'z' ? (char)(value - 'a' + 'A') : value;
++}
++
++static int source_posix_normalize(const char *joined, char *output,
++                                  size_t capacity) {
++  size_t length = strlen(joined);
++  size_t anchor = joined[0] == '/' && joined[1] == '/' && joined[2] != '/' ? 2u : 1u;
++  size_t used = anchor, cursor = anchor;
++  char *work = (char *)malloc(length + 2u);
++  int valid = 0;
++  if (!work) return 0;
++  work[0] = '/';
++  if (anchor == 2u) work[1] = '/';
++  while (cursor < length) {
++    size_t begin, component;
++    while (joined[cursor] == '/') cursor++;
++    begin = cursor;
++    while (joined[cursor] && joined[cursor] != '/') cursor++;
++    component = cursor - begin;
++    if (!component || (component == 1u && joined[begin] == '.')) continue;
++    if (component == 2u && joined[begin] == '.' && joined[begin + 1u] == '.') {
++      if (used > anchor) {
++        while (used > anchor && work[used - 1u] != '/') used--;
++        if (used > anchor) used--;
++      }
++    } else {
++      if (used > anchor) work[used++] = '/';
++      (void)memcpy(work + used, joined + begin, component);
++      used += component;
++    }
++  }
++  work[used] = 0;
++  if (used < capacity && used < CUPIDBUILD_SOURCE_PATH_BYTES) {
++    (void)memcpy(output, work, used + 1u);
++    valid = 1;
++  }
++  free(work);
++  return valid;
++}
++
++static int source_windows_finish(char *output, size_t capacity) {
++  size_t length = strlen(output), anchor;
++  if (source_drive(output) && source_separator(output[2])) anchor = 3u;
++  else if (source_separator(output[0]) && source_separator(output[1])) {
++    size_t start = 2u, cursor;
++    if (length >= 8u && output[2] == '?' && source_separator(output[3]) &&
++        source_fold_drive(output[4]) == 'U' &&
++        source_fold_drive(output[5]) == 'N' &&
++        source_fold_drive(output[6]) == 'C' && source_separator(output[7]))
++      start = 8u;
++    cursor = start;
++    while (output[cursor] && !source_separator(output[cursor])) cursor++;
++    if (!output[cursor] || !output[cursor + 1u])
++      return length < CUPIDBUILD_SOURCE_PATH_BYTES;
++    cursor++;
++    while (output[cursor] && !source_separator(output[cursor])) cursor++;
++    anchor = cursor + 1u;
++    if (!output[cursor]) {
++      if (start == 2u && (output[2] == '?' || output[2] == '.'))
++        return length < CUPIDBUILD_SOURCE_PATH_BYTES;
++      if (length + 1u >= capacity || length + 1u >= CUPIDBUILD_SOURCE_PATH_BYTES) return 0;
++      output[length++] = '\\';
++      output[length] = 0;
++    }
++  } else return 0;
++  while (length > anchor && source_separator(output[length - 1u])) output[--length] = 0;
++  return length < CUPIDBUILD_SOURCE_PATH_BYTES;
++}
++
++int cupidbuild_source_path_absolute(const char *root, const char *request,
++                                   char *output, size_t capacity) {
++  unsigned int format = cupidbuild_host_execution_format();
++  size_t root_length = 0u, request_length, prefix = 0u;
++  const char *suffix = request;
++  char *joined;
++  int absolute, valid = 0;
++  if (!output || !capacity) return 0;
++  output[0] = 0;
++  if (!source_text_valid(request) || (format != 1u && format != 2u)) return 0;
++  request_length = strlen(request);
++  absolute = format == 1u ? request[0] == '/' :
++      (source_drive(request) && source_separator(request[2])) ||
++      (source_separator(request[0]) && source_separator(request[1]));
++  if (!absolute) {
++    if (!source_text_valid(root)) return 0;
++    root_length = strlen(root);
++    if (format == 1u) {
++      if (root[0] != '/') return 0;
++      prefix = root_length;
++    } else {
++      if (source_drive(root) && source_separator(root[2])) {
++        prefix = source_separator(request[0]) ? 2u : root_length;
++      } else if (source_separator(root[0]) && source_separator(root[1])) {
++        size_t cursor = 2u;
++        while (root[cursor] && !source_separator(root[cursor])) cursor++;
++        if (!root[cursor] || !root[cursor + 1u]) return 0;
++        cursor++;
++        while (root[cursor] && !source_separator(root[cursor])) cursor++;
++        prefix = source_separator(request[0]) ? cursor : root_length;
++      } else return 0;
++      if (source_drive(request)) {
++        if (source_drive(root) && source_fold_drive(request[0]) == source_fold_drive(root[0]))
++          suffix = request + 2u;
++        else {
++          valid = cupidbuild_host_absolute_root(request, output, capacity) &&
++                  source_windows_finish(output, capacity);
++          if (!valid) output[0] = 0;
++          return valid;
++        }
++      }
++    }
++  }
++  joined = (char *)malloc(prefix + request_length + 3u);
++  if (!joined) return 0;
++  if (prefix) (void)memcpy(joined, root, prefix);
++  joined[prefix] = 0;
++  if (prefix &&
++      !(format == 1u ? joined[prefix - 1u] == '/' : source_separator(joined[prefix - 1u])) &&
++      !(format == 1u ? suffix[0] == '/' : source_separator(suffix[0])))
++    joined[prefix++] = '/';
++  (void)memcpy(joined + prefix, suffix, strlen(suffix) + 1u);
++  if (format == 1u) valid = source_posix_normalize(joined, output, capacity);
++  else valid = cupidbuild_host_absolute_root(joined, output, capacity) &&
++               source_windows_finish(output, capacity);
++  free(joined);
++  if (!valid) output[0] = 0;
++  return valid;
++}
+--- /dev/null
++++ b/toolchain/cupidbuild_source_path.h
+@@ -0,0 +1,15 @@
++#ifndef CUPID_TOOLCHAIN_BUILD_SOURCE_PATH_H
++#define CUPID_TOOLCHAIN_BUILD_SOURCE_PATH_H
++
++#include <stddef.h>
++
++/* Produce the image command's absolute lexical source spelling. Relative
++ * requests use the supplied absolute working root. This follows no aliases,
++ * observes no file and creates no namespace entry. Input strings are UTF-8;
++ * each input and the result may contain at most 8,191 bytes. Input and output
++ * buffers must not overlap. Failure clears a supplied output.
++ * The caller must retain filesystem observations before using the spelling. */
++int cupidbuild_source_path_absolute(const char *root, const char *request,
++                                   char *output, size_t capacity);
++
++#endif
+--- /dev/null
++++ b/toolchain/prototypes/native_source_path/source_path_contract.cc
+@@ -0,0 +1,57 @@
++#include "cupidbuild_source_path.h"
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#if defined(NATIVE_SOURCE_PATH_WINDOWS)
++#include "path_encoding.h"
++#include <wchar.h>
++#include <io.h>
++#include <fcntl.h>
++#endif
++
++static int invoke(int argc, char **argv) {
++  char output[8192];
++  const char *root, *request;
++  size_t capacity = sizeof(output);
++  int result;
++  if (argc != 4) return 10;
++  root = argv[2]; request = argv[3];
++  (void)memset(output, 0x5a, sizeof(output));
++  if (strcmp(argv[1], "null-root") == 0) root = (const char *)0;
++  else if (strcmp(argv[1], "null-request") == 0) request = (const char *)0;
++  else if (strcmp(argv[1], "zero-capacity") == 0) capacity = 0u;
++  else if (strcmp(argv[1], "short-capacity") == 0) capacity = 2u;
++  else if (strcmp(argv[1], "bad-request") == 0) request = "bad\xc0\xaf";
++  else if (strcmp(argv[1], "bad-root") == 0) root = "bad\xed\xa0\x80";
++  else if (strcmp(argv[1], "null-output") == 0)
++    return cupidbuild_source_path_absolute(root, request, (char *)0, capacity) ? 11 : 2;
++  else if (strcmp(argv[1], "normal") != 0) return 12;
++  result = cupidbuild_source_path_absolute(root, request, output, capacity);
++  if (!result) return capacity && output[0] ? 13 : 2;
++  if (fwrite(output, 1u, strlen(output), stdout) != strlen(output) || fflush(stdout) != 0) return 14;
++  return 0;
++}
++
++#if defined(NATIVE_SOURCE_PATH_WINDOWS)
++int wmain(int argc, wchar_t **wide) {
++  char **argv = (char **)calloc((size_t)argc + 1u, sizeof(char *));
++  int index, result = 126;
++  if (!argv) return result;
++  if (_setmode(_fileno(stdout), _O_BINARY) == -1) goto done;
++  for (index = 0; index < argc; index++) {
++    size_t bytes = 0u;
++    if (!cupidbuild_path_to_utf8((const unsigned short *)wide[index], wcslen(wide[index]),
++                                (char *)0, 0u, &bytes)) goto done;
++    argv[index] = (char *)malloc(bytes + 1u);
++    if (!argv[index] || !cupidbuild_path_to_utf8((const unsigned short *)wide[index], wcslen(wide[index]),
++                                argv[index], bytes + 1u, &bytes)) goto done;
++  }
++  result = invoke(argc, argv);
++done:
++  for (index = 0; index < argc; index++) free(argv[index]);
++  free(argv);
++  return result;
++}
++#else
++int main(int argc, char **argv) { return invoke(argc, argv); }
++#endif

@@ -1,0 +1,1268 @@
+--- a/toolchain/cupidbuild_host.cc
++++ b/toolchain/cupidbuild_host.cc
+@@ -12522,6 +12522,7 @@
+   int directory;
+   int membership;
+   int payload;
++  int absent;
+   unsigned char digest[32];
+ } cupidbuild_observer_entry_t;
+
+@@ -12531,6 +12532,8 @@
+   size_t count;
+   size_t member_count;
+   cupidbuild_observation_issue_t last_issue;
++  size_t entry_quota;
++  int source_names;
+   char error[CUPIDBUILD_HOST_ERROR_BYTES];
+ };
+
+@@ -12582,6 +12585,29 @@
+         scalar == '\\' || scalar == ':') return 0;
+   }
+   return 1;
++}
++
++
++/* Source inputs use the host's filename namespace. The ordinary build profile
++ * keeps its portable names. POSIX colon and backslash bytes are filename
++ * characters; slash, empty, dot, parent, malformed UTF-8 and byte limits still
++ * reject. Windows retains the ordinary drive/UNC component policy. */
++static int cupidbuild_observer_input_name_valid(
++    const cupidbuild_host_observer_t *observer, const char *name) {
++#if defined(_WIN32)
++  (void)observer;
++  return cupidbuild_observer_name_valid(name);
++#else
++  const char *cursor = name;
++  unsigned int scalar;
++  if (!observer || !observer->source_names)
++    return cupidbuild_observer_name_valid(name);
++  if (!name || !name[0] || strlen(name) >= CUPIDBUILD_OBSERVER_NAME ||
++      strcmp(name, ".") == 0 || strcmp(name, "..") == 0) return 0;
++  while (*cursor)
++    if (!cupidbuild_observer_scalar(&cursor, &scalar) || scalar == '/') return 0;
++  return 1;
++#endif
+ }
+
+ static int cupidbuild_observer_close_handle(cupidbuild_observer_handle_t handle) {
+@@ -12764,6 +12790,30 @@
+                                                 (long *)0);
+ }
+
++static int cupidbuild_observer_child_absent(
++    cupidbuild_observer_handle_t parent, const char *name) {
++#if defined(_WIN32)
++  long status = 0;
++  cupidbuild_observer_handle_t handle = cupidbuild_observer_open_child_status(
++      parent, name, -1, 0, &status);
++  if (handle != CUPIDBUILD_OBSERVER_INVALID) {
++    (void)cupidbuild_observer_close_handle(handle);
++    return 0;
++  }
++  return (unsigned long)status == 0xc000000fu ||
++         (unsigned long)status == 0xc0000034u ||
++         (unsigned long)status == 0xc000003au;
++#elif defined(CUPIDBUILD_CUSTOM_LINUX)
++  unsigned char information[96];
++  return cupid_linux_syscall4(CUPIDBUILD_LINUX_SYS_FSTATAT64,
++      (unsigned int)parent, (unsigned int)name, (unsigned int)information,
++      CUPIDBUILD_LINUX_AT_SYMLINK_NOFOLLOW) == -CUPIDBUILD_LINUX_ENOENT;
++#else
++  struct stat information;
++  return fstatat(parent, name, &information, AT_SYMLINK_NOFOLLOW) != 0 && errno == ENOENT;
++#endif
++}
++
+ /* Diagnose a failed capture through its retained parent. This cannot turn a
+  * failure into an observation, and a concurrent replacement may change only
+  * the diagnostic. The caller retains poison regardless of the result. */
+@@ -12822,7 +12872,7 @@
+     cupidbuild_observer_fail(observer, "cannot open observation without following links");
+     return (cupidbuild_observer_entry_t *)0;
+   }
+-  entry = observer->count < CUPIDBUILD_OBSERVER_ENTRIES
++  entry = observer->count < observer->entry_quota
+       ? (cupidbuild_observer_entry_t *)calloc(1u, sizeof(*entry))
+       : (cupidbuild_observer_entry_t *)0;
+   if (entry == (cupidbuild_observer_entry_t *)0) {
+@@ -12863,7 +12913,7 @@
+       name[length++] = *cursor++;
+     }
+     name[length] = 0;
+-    if (!cupidbuild_observer_name_valid(name)) return (cupidbuild_observer_entry_t *)0;
++    if (!cupidbuild_observer_input_name_valid(observer, name)) return (cupidbuild_observer_entry_t *)0;
+     kind = *cursor != 0 ? 1 : directory;
+     handle = cupidbuild_observer_open_child(parent->handle, name, kind, payload);
+     if (kind < 0 && handle != CUPIDBUILD_OBSERVER_INVALID) {
+@@ -12913,32 +12963,95 @@
+   return parent;
+ }
+
++static int cupidbuild_observer_open_profile(
++    const char *repository_root, size_t entry_quota, int source_names,
++    cupidbuild_host_observer_t **observer_out);
++
+ int cupidbuild_host_observer_open(const char *repository_root,
+                                  cupidbuild_host_observer_t **observer_out) {
++  return cupidbuild_host_observer_open_quota(repository_root,
++      CUPIDBUILD_OBSERVER_ENTRIES, observer_out);
++}
++
++int cupidbuild_host_observer_open_quota(const char *repository_root,
++                                       size_t entry_quota,
++                                       cupidbuild_host_observer_t **observer_out) {
++  return cupidbuild_observer_open_profile(repository_root, entry_quota, 0,
++                                           observer_out);
++}
++
++int cupidbuild_host_observer_open_source_quota(const char *repository_root,
++    size_t entry_quota, cupidbuild_host_observer_t **observer_out) {
++  return cupidbuild_observer_open_profile(repository_root, entry_quota, 1,
++                                           observer_out);
++}
++
++static int cupidbuild_observer_open_profile(const char *repository_root,
++    size_t entry_quota, int source_names,
++    cupidbuild_host_observer_t **observer_out) {
+   cupidbuild_host_observer_t *observer;
+   cupidbuild_observer_entry_t *anchor;
+   cupidbuild_observer_handle_t handle;
+   char absolute[CUPIDBUILD_HOST_PATH_BYTES];
+   const char *relative;
+ #if defined(_WIN32)
+-  char drive[4];
++  char drive[2u * CUPIDBUILD_OBSERVER_NAME + 4u];
+   size_t index;
+ #endif
+   if (observer_out == (cupidbuild_host_observer_t **)0) return 0;
+   *observer_out = (cupidbuild_host_observer_t *)0;
+-  if (repository_root == (const char *)0 || repository_root[0] == 0) return 0;
++  if (entry_quota == 0u || entry_quota == (size_t)-1 ||
++      repository_root == (const char *)0 || repository_root[0] == 0) return 0;
+ #if defined(_WIN32)
+   if (_fullpath(absolute, repository_root, sizeof(absolute)) == (char *)0 ||
+-      strlen(absolute) < 3u || absolute[1] != ':' ||
+-      (absolute[2] != '\\' && absolute[2] != '/')) return 0;
+-  drive[0] = absolute[0]; drive[1] = ':'; drive[2] = '\\'; drive[3] = 0;
+-  for (index = 3u; absolute[index] != 0; index++)
++      strlen(absolute) < 3u) return 0;
++  for (index = 0u; absolute[index] != 0; index++)
+     if (absolute[index] == '\\') absolute[index] = '/';
+-  relative = absolute + 3u;
+-  handle = CreateFileA(drive, FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES |
+-      FILE_TRAVERSE | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+-      (LPSECURITY_ATTRIBUTES)0, OPEN_EXISTING,
+-      FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, (HANDLE)0);
++  if (absolute[1] == ':' && absolute[2] == '/') {
++    drive[0] = absolute[0]; drive[1] = ':'; drive[2] = '\\'; drive[3] = 0;
++    relative = absolute + 3u;
++    handle = CreateFileA(drive, FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES |
++        FILE_TRAVERSE | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE,
++        (LPSECURITY_ATTRIBUTES)0, OPEN_EXISTING,
++        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, (HANDLE)0);
++  } else if (absolute[0] == '/' && absolute[1] == '/') {
++    char component[CUPIDBUILD_OBSERVER_NAME];
++    unsigned short wide[2u * CUPIDBUILD_OBSERVER_NAME + 4u];
++    size_t units = 0u;
++    size_t part;
++    size_t end = 2u;
++    for (part = 0u; part < 2u; part++) {
++      size_t length = 0u;
++      while (absolute[end] && absolute[end] != '/') {
++        if (length + 1u >= sizeof(component)) return 0;
++        component[length++] = absolute[end++];
++      }
++      component[length] = 0;
++      if (!cupidbuild_observer_name_valid(component) ||
++          (part == 0u && strcmp(component, "?") == 0)) return 0;
++      if (part == 0u && !absolute[end]) return 0;
++      if (part == 0u) end++;
++    }
++    if (end + 1u >= sizeof(drive)) return 0;
++    (void)memcpy(drive, absolute, end);
++    drive[end] = '\\'; drive[end + 1u] = 0;
++    for (index = 0u; index < end; index++)
++      if (drive[index] == '/') drive[index] = '\\';
++    if (!cupidbuild_path_to_utf16(drive, end + 1u, wide,
++          sizeof(wide) / sizeof(wide[0]), &units)) return 0;
++    relative = absolute + end;
++    if (*relative == '/') relative++;
++#if defined(CUPID_HOSTED_I386_WINDOWS_H)
++    /* The existing UTF-8 runtime adapter owns the wide Win32 call. */
++    handle = CreateFileA(drive,
++#else
++    handle = CreateFileW(wide,
++#endif
++        FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES |
++        FILE_TRAVERSE | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE,
++        (LPSECURITY_ATTRIBUTES)0, OPEN_EXISTING,
++        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, (HANDLE)0);
++  } else return 0;
+ #else
+   /* Root paths are absolute so no current-directory change can retarget them. */
+   if (repository_root[0] != '/' ||
+@@ -12953,6 +13066,8 @@
+       (void)cupidbuild_observer_close_handle(handle);
+     return 0;
+   }
++  observer->entry_quota = entry_quota;
++  observer->source_names = source_names;
+   anchor = cupidbuild_observer_add(observer, (cupidbuild_observer_entry_t *)0,
+                                   "", handle, 1);
+   if (anchor != (cupidbuild_observer_entry_t *)0)
+@@ -13087,6 +13202,243 @@
+   return 1;
+ }
+
++static cupidbuild_observer_entry_t *cupidbuild_observer_retained_file(
++    cupidbuild_host_observer_t *observer, const char *logical) {
++  cupidbuild_observer_entry_t *parent;
++  const char *cursor = logical;
++  char name[CUPIDBUILD_OBSERVER_NAME];
++  if (observer == (cupidbuild_host_observer_t *)0 || observer->error[0] != 0 ||
++      logical == (const char *)0 || logical[0] == 0 ||
++      strlen(logical) >= CUPIDBUILD_HOST_PATH_BYTES) return (cupidbuild_observer_entry_t *)0;
++  parent = observer->root;
++  while (*cursor != 0 && parent != (cupidbuild_observer_entry_t *)0) {
++    cupidbuild_observer_entry_t *entry;
++    size_t length = 0u;
++    int directory;
++    while (*cursor != 0 && *cursor != '/') {
++      if (length + 1u >= sizeof(name)) return (cupidbuild_observer_entry_t *)0;
++      name[length++] = *cursor++;
++    }
++    name[length] = 0;
++    if (!cupidbuild_observer_input_name_valid(observer, name)) return (cupidbuild_observer_entry_t *)0;
++    directory = *cursor != 0;
++    for (entry = observer->entries; entry != (cupidbuild_observer_entry_t *)0; entry = entry->next)
++      if (!entry->absent && entry->parent == parent && entry->directory == directory &&
++          strcmp(entry->name, name) == 0) break;
++    if (entry == (cupidbuild_observer_entry_t *)0) return entry;
++    parent = entry;
++    if (*cursor != 0 && *++cursor == 0) return (cupidbuild_observer_entry_t *)0;
++  }
++  return parent;
++}
++
++static int cupidbuild_observer_retained_bindings(
++    cupidbuild_host_observer_t *observer, cupidbuild_observer_entry_t *entry) {
++  for (; entry != (cupidbuild_observer_entry_t *)0; entry = entry->parent) {
++    cupidbuild_observer_stat_t current;
++    int identity_only = entry->directory && entry != observer->root;
++    if (!cupidbuild_observer_stat(entry->handle, entry->directory, &current) ||
++        !cupidbuild_observer_same(&entry->captured, &current, identity_only)) return 0;
++    if (entry->parent != (cupidbuild_observer_entry_t *)0) {
++      cupidbuild_observer_handle_t fresh = cupidbuild_observer_open_child(
++          entry->parent->handle, entry->name, entry->directory, 0);
++      int valid;
++      if (fresh == CUPIDBUILD_OBSERVER_INVALID) return 0;
++      valid = cupidbuild_observer_stat(fresh, entry->directory, &current) &&
++          cupidbuild_observer_same(&entry->captured, &current, identity_only);
++      if (!cupidbuild_observer_close_handle(fresh)) valid = 0;
++      if (!valid) return 0;
++    }
++  }
++  return 1;
++}
++
++int cupidbuild_host_observer_path_kind(cupidbuild_host_observer_t *observer,
++    const char *logical, cupidbuild_host_entry_kind_t *kind_out) {
++  const char *cursor;
++  char name[CUPIDBUILD_OBSERVER_NAME];
++  cupidbuild_observer_entry_t *parent;
++  if (kind_out != (cupidbuild_host_entry_kind_t *)0) *kind_out = CUPIDBUILD_ENTRY_NONE;
++  if (observer == (cupidbuild_host_observer_t *)0 || observer->error[0]) return 0;
++  if (kind_out == (cupidbuild_host_entry_kind_t *)0 || logical == (const char *)0 ||
++      !logical[0] || strlen(logical) >= CUPIDBUILD_HOST_PATH_BYTES)
++    return cupidbuild_observer_fail(observer, "invalid optional path observation");
++  /* Validate the whole suffix before a first absence can end the walk. */
++  cursor = logical;
++  for (;;) {
++    size_t length = 0u;
++    while (*cursor && *cursor != '/') {
++      if (length + 1u >= sizeof(name))
++        return cupidbuild_observer_fail(observer, "optional path component exceeds its byte limit");
++      name[length++] = *cursor++;
++    }
++    name[length] = 0;
++    if (!cupidbuild_observer_input_name_valid(observer, name))
++      return cupidbuild_observer_fail(observer, "optional path is not normalized UTF-8");
++    if (!*cursor) break;
++    cursor++;
++  }
++  cursor = logical;
++  parent = observer->root;
++  if (!parent || !cupidbuild_observer_retained_bindings(observer, parent))
++    return cupidbuild_observer_fail(observer, "optional path root binding changed");
++  for (;;) {
++    size_t length = 0u;
++    cupidbuild_observer_entry_t *entry;
++    cupidbuild_observer_handle_t fresh;
++    while (*cursor && *cursor != '/') name[length++] = *cursor++;
++    name[length] = 0;
++    if (!parent) return cupidbuild_observer_fail(observer, "optional path parent missing");
++    if (parent != observer->root) {
++      cupidbuild_observer_stat_t current_parent;
++      if (!cupidbuild_observer_stat(parent->handle, 1, &current_parent) ||
++          !cupidbuild_observer_same(&parent->captured, &current_parent, 1))
++        return cupidbuild_observer_fail(observer, "optional path parent identity changed");
++    }
++    for (entry = observer->entries; entry != (cupidbuild_observer_entry_t *)0; entry = entry->next)
++      if (entry->parent == parent && strcmp(entry->name, name) == 0) break;
++    if (entry != (cupidbuild_observer_entry_t *)0 && entry->absent) {
++      if (!cupidbuild_observer_child_absent(parent->handle, name))
++        return cupidbuild_observer_fail(observer, "retained first absence changed");
++      return 1;
++    }
++    if (cupidbuild_observer_child_absent(parent->handle, name)) {
++      if (entry != (cupidbuild_observer_entry_t *)0)
++        return cupidbuild_observer_fail(observer, "retained optional path disappeared");
++      entry = observer->count < observer->entry_quota
++          ? (cupidbuild_observer_entry_t *)calloc(1u, sizeof(*entry))
++          : (cupidbuild_observer_entry_t *)0;
++      if (!entry) return cupidbuild_observer_fail(observer, "optional path quota or allocation failure");
++      entry->name = (char *)malloc(length + 1u);
++      if (!entry->name) {
++        free(entry);
++        return cupidbuild_observer_fail(observer, "optional path name allocation failure");
++      }
++      (void)memcpy(entry->name, name, length + 1u);
++      entry->handle = CUPIDBUILD_OBSERVER_INVALID;
++      entry->absent = 1;
++      entry->parent = parent;
++      entry->next = observer->entries;
++      observer->entries = entry;
++      observer->count++;
++      return 1;
++    }
++    fresh = cupidbuild_observer_open_child(parent->handle, name, *cursor ? 1 : -1, 0);
++    if (fresh == CUPIDBUILD_OBSERVER_INVALID)
++      return cupidbuild_observer_fail(observer, "optional path is unavailable, linked or has a non-directory parent");
++    if (entry != (cupidbuild_observer_entry_t *)0) {
++      cupidbuild_observer_stat_t current;
++      int valid = cupidbuild_observer_stat(fresh, entry->directory, &current) &&
++          cupidbuild_observer_same(&entry->captured, &current, entry->directory) &&
++          (!*cursor || entry->directory);
++      if (!cupidbuild_observer_close_handle(fresh)) valid = 0;
++      if (!valid) return cupidbuild_observer_fail(observer, "retained optional path changed");
++    } else {
++      int directory = *cursor ? 1 : cupidbuild_observer_kind(fresh);
++      if (directory < 0) {
++        (void)cupidbuild_observer_close_handle(fresh);
++        return cupidbuild_observer_fail(observer, "optional path is not a regular file or directory");
++      }
++      entry = cupidbuild_observer_add(observer, parent, name, fresh, directory);
++      if (!entry) return 0;
++    }
++    if (!*cursor) {
++      *kind_out = entry->directory ? CUPIDBUILD_ENTRY_DIRECTORY : CUPIDBUILD_ENTRY_FILE;
++      return 1;
++    }
++    parent = entry;
++    cursor++;
++  }
++}
++
++int cupidbuild_host_observer_file_stream_retained(
++    cupidbuild_host_observer_t *observer, const char *logical, uint64_t limit,
++    cupidbuild_host_stream_sink_t sink, void *context,
++    cupidbuild_host_stream_observation_t *result_out) {
++  cupidbuild_observer_entry_t *entry;
++  cupidbuild_observer_entry_t streaming;
++  cupidbuild_observer_handle_t fresh = CUPIDBUILD_OBSERVER_INVALID;
++  unsigned char digest[32];
++  int valid = 0;
++  if (result_out != (cupidbuild_host_stream_observation_t *)0)
++    (void)memset(result_out, 0, sizeof(*result_out));
++  if (observer == (cupidbuild_host_observer_t *)0 || observer->error[0] != 0) return 0;
++  entry = cupidbuild_observer_retained_file(observer, logical);
++  if (result_out == (cupidbuild_host_stream_observation_t *)0 ||
++      entry == (cupidbuild_observer_entry_t *)0 || entry->directory ||
++      entry->parent == (cupidbuild_observer_entry_t *)0)
++    return cupidbuild_observer_fail(observer, "streaming requires an already retained regular file");
++  if (!cupidbuild_observer_retained_bindings(observer, entry))
++    return cupidbuild_observer_fail(observer, "retained stream bindings changed before capture");
++  fresh = cupidbuild_observer_open_child(entry->parent->handle, entry->name, 0, 1);
++  if (fresh == CUPIDBUILD_OBSERVER_INVALID)
++    return cupidbuild_observer_fail(observer, "cannot reopen retained file for streaming");
++  streaming = *entry;
++  streaming.handle = fresh;
++  valid = cupidbuild_observer_stream_read(&streaming, limit, sink, context, digest) &&
++      (!entry->payload || memcmp(digest, entry->digest, sizeof(digest)) == 0) &&
++      cupidbuild_observer_retained_bindings(observer, entry);
++  if (!valid || !cupidbuild_observer_close_handle(entry->handle)) {
++    (void)cupidbuild_observer_close_handle(fresh);
++    return cupidbuild_observer_fail(observer, "retained stream changed, exceeded its limit or failed");
++  }
++  entry->handle = fresh;
++  entry->payload = 2;
++  (void)memcpy(entry->digest, digest, sizeof(digest));
++  result_out->size = entry->captured.size;
++  (void)memcpy(result_out->sha256, digest, sizeof(digest));
++  return 1;
++}
++
++static int cupidbuild_observer_comparison_fail(cupidbuild_host_observer_t *left,
++                                               cupidbuild_host_observer_t *right) {
++  (void)cupidbuild_observer_fail(left, "invalid retained identity comparison");
++  (void)cupidbuild_observer_fail(right, "invalid retained identity comparison");
++  return 0;
++}
++
++static int cupidbuild_observer_compare(cupidbuild_host_observer_t *left,
++    const char *left_logical, cupidbuild_host_observer_t *right,
++    const char *right_logical, int root, int captured, int *same_out) {
++  cupidbuild_observer_entry_t *left_entry;
++  cupidbuild_observer_entry_t *right_entry;
++  if (same_out != (int *)0) *same_out = 0;
++  if (same_out == (int *)0 || left == (cupidbuild_host_observer_t *)0 ||
++      right == (cupidbuild_host_observer_t *)0 || left->error[0] || right->error[0])
++    return cupidbuild_observer_comparison_fail(left, right);
++  left_entry = root ? left->root : cupidbuild_observer_retained_file(left, left_logical);
++  right_entry = root ? right->root : cupidbuild_observer_retained_file(right, right_logical);
++  if (!left_entry || !right_entry || (!root && (left_entry->directory || right_entry->directory)) ||
++      (!captured && (!cupidbuild_host_observer_require_unchanged(left) ||
++                     !cupidbuild_host_observer_require_unchanged(right))))
++    return cupidbuild_observer_comparison_fail(left, right);
++  *same_out = left_entry->captured.device == right_entry->captured.device &&
++              left_entry->captured.identity == right_entry->captured.identity;
++  return 1;
++}
++
++int cupidbuild_host_observer_roots_same(cupidbuild_host_observer_t *left,
++                                       cupidbuild_host_observer_t *right, int *same_out) {
++  return cupidbuild_observer_compare(left, (const char *)0, right, (const char *)0, 1, 0, same_out);
++}
++
++int cupidbuild_host_observer_files_same(cupidbuild_host_observer_t *left,
++    const char *left_logical, cupidbuild_host_observer_t *right,
++    const char *right_logical, int *same_out) {
++  return cupidbuild_observer_compare(left, left_logical, right, right_logical, 0, 0, same_out);
++}
++
++int cupidbuild_host_observer_roots_captured_same(cupidbuild_host_observer_t *left,
++                                                cupidbuild_host_observer_t *right, int *same_out) {
++  return cupidbuild_observer_compare(left, (const char *)0, right, (const char *)0, 1, 1, same_out);
++}
++
++int cupidbuild_host_observer_files_captured_same(cupidbuild_host_observer_t *left,
++    const char *left_logical, cupidbuild_host_observer_t *right,
++    const char *right_logical, int *same_out) {
++  return cupidbuild_observer_compare(left, left_logical, right, right_logical, 0, 1, same_out);
++}
++
+ int cupidbuild_host_observer_file(cupidbuild_host_observer_t *observer,
+                                  const char *logical, size_t limit,
+                                  unsigned char **bytes_out, uint64_t *size_out) {
+@@ -13168,11 +13520,12 @@
+   return ok;
+ }
+
+-static int cupidbuild_observer_member(cupidbuild_observer_entry_t *entry,
++static int cupidbuild_observer_member(cupidbuild_host_observer_t *observer,
++                                      cupidbuild_observer_entry_t *entry,
+                                       const char *name, unsigned char *seen) {
+   size_t index;
+   if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) return 1;
+-  if (!cupidbuild_observer_name_valid(name)) return 0;
++  if (!cupidbuild_observer_input_name_valid(observer, name)) return 0;
+   for (index = 0u; index < entry->member_count; index++) {
+     if (strcmp(name, entry->members[index]) == 0) {
+       if (seen[index]) return 0;
+@@ -13183,7 +13536,8 @@
+   return 0;
+ }
+
+-static int cupidbuild_observer_members(cupidbuild_observer_entry_t *entry) {
++static int cupidbuild_observer_members(cupidbuild_host_observer_t *observer,
++                                       cupidbuild_observer_entry_t *entry) {
+   unsigned char *seen = (unsigned char *)calloc(entry->member_count + 1u, 1u);
+   size_t index;
+   int valid = seen != (unsigned char *)0;
+@@ -13234,7 +13588,7 @@
+       }
+     }
+     name[length] = 0;
+-    if (valid) valid = cupidbuild_observer_member(entry, name, seen);
++    if (valid) valid = cupidbuild_observer_member(observer, entry, name, seen);
+   }
+ #elif defined(CUPIDBUILD_CUSTOM_LINUX)
+   if (cupid_linux_syscall3(19u, (unsigned int)entry->handle, 0u, 0u) != 0) valid = 0;
+@@ -13254,7 +13608,7 @@
+       if (length < 20u || length > (size_t)count - offset) { valid = 0; break; }
+       end = 19u;
+       while (end < length && buffer[offset + end] != 0u) end++;
+-      if (end == length || !cupidbuild_observer_member(entry,
++      if (end == length || !cupidbuild_observer_member(observer, entry,
+           (const char *)(buffer + offset + 19u), seen)) { valid = 0; break; }
+       offset += length;
+     }
+@@ -13272,7 +13626,7 @@
+       errno = 0;
+       item = readdir(directory);
+       if (item == (struct dirent *)0) { if (errno != 0) valid = 0; break; }
+-      valid = cupidbuild_observer_member(entry, item->d_name, seen);
++      valid = cupidbuild_observer_member(observer, entry, item->d_name, seen);
+     }
+     if (closedir(directory) != 0) valid = 0;
+   }
+@@ -13296,7 +13650,7 @@
+       (expected_count != 0u && expected == (const char *const *)0))
+     return cupidbuild_observer_fail(observer, "invalid directory observation arguments");
+   for (index = 0u; index < expected_count; index++) {
+-    if (!cupidbuild_observer_name_valid(expected[index]))
++    if (!cupidbuild_observer_input_name_valid(observer, expected[index]))
+       return cupidbuild_observer_fail(observer, "unsafe expected directory member");
+     for (other = 0u; other < index; other++)
+       if (strcmp(expected[index], expected[other]) == 0)
+@@ -13308,7 +13662,7 @@
+   if (entry == (cupidbuild_observer_entry_t *)0)
+     return cupidbuild_observer_fail(observer, "unsafe or unavailable directory observation");
+   if (entry->membership) {
+-    if (!cupidbuild_observer_members(entry))
++    if (!cupidbuild_observer_members(observer, entry))
+       return cupidbuild_observer_fail(observer, "previous directory observation changed");
+     for (index = 0u; index < entry->member_count; index++) free(entry->members[index]);
+     free(entry->members);
+@@ -13329,7 +13683,7 @@
+     (void)strcpy(entry->members[index], expected[index]);
+   }
+   entry->membership = 1;
+-  if (!cupidbuild_observer_members(entry))
++  if (!cupidbuild_observer_members(observer, entry))
+     return cupidbuild_observer_fail(observer, "directory membership differs from expected set");
+   return 1;
+ }
+@@ -13342,6 +13696,11 @@
+        entry = entry->next) {
+     cupidbuild_observer_stat_t current;
+     int identity_only = entry->directory && (entry != observer->root || root_identity_only);
++    if (entry->absent) {
++      if (!entry->parent || !cupidbuild_observer_child_absent(entry->parent->handle, entry->name))
++        return cupidbuild_observer_fail(observer, "observed first absence appeared or became unavailable");
++      continue;
++    }
+     if (!cupidbuild_observer_stat(entry->handle, entry->directory, &current) ||
+         !cupidbuild_observer_same(&entry->captured, &current, identity_only))
+       return cupidbuild_observer_fail(observer, "retained observation changed");
+@@ -13373,7 +13732,7 @@
+       if (memcmp(digest, entry->digest, sizeof(digest)) != 0)
+         return cupidbuild_observer_fail(observer, "captured payload changed");
+     }
+-    if (entry->membership && !cupidbuild_observer_members(entry))
++    if (entry->membership && !cupidbuild_observer_members(observer, entry))
+       return cupidbuild_observer_fail(observer, "observed directory membership changed");
+   }
+   return 1;
+@@ -13444,7 +13803,7 @@
+     while (entry != (cupidbuild_observer_entry_t *)0) {
+       cupidbuild_observer_entry_t *next = entry->next;
+       size_t index;
+-      if (!cupidbuild_observer_close_handle(entry->handle)) valid = 0;
++      if (!entry->absent && !cupidbuild_observer_close_handle(entry->handle)) valid = 0;
+       for (index = 0u; index < entry->member_count; index++) free(entry->members[index]);
+       free(entry->members);
+       free(entry->name);
+@@ -13730,19 +14089,74 @@
+   DWORD units;
+   size_t bytes = 0u;
+   size_t index;
+-  handle = CreateFileA(path, FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES |
+-      FILE_TRAVERSE | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+-      (LPSECURITY_ATTRIBUTES)0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS,
+-      (HANDLE)0);
++#if defined(CUPID_HOSTED_I386_WINDOWS_H)
++  {
++    char *absolute = (char *)malloc(CUPIDBUILD_HOST_PATH_BYTES);
++    char *encoded = (char *)malloc(CUPIDBUILD_HOST_PATH_BYTES + 8u);
++    unsigned short *input = (unsigned short *)malloc(CUPIDBUILD_HOST_PATH_BYTES * sizeof(*input));
++    unsigned short *extended = (unsigned short *)malloc((CUPIDBUILD_HOST_PATH_BYTES + 8u) * sizeof(*extended));
++    size_t input_units = 0u, extended_units = 0u, encoded_bytes = 0u;
++    if (absolute && encoded && input && extended &&
++        _fullpath(absolute, path, CUPIDBUILD_HOST_PATH_BYTES) != (char *)0) {
++      for (index = 0u; absolute[index]; index++)
++        if (absolute[index] == '/') absolute[index] = '\\';
++      if (cupidbuild_path_to_utf16(absolute, strlen(absolute), input,
++              CUPIDBUILD_HOST_PATH_BYTES, &input_units) &&
++          cupidbuild_path_windows_extended(input, input_units, extended,
++              CUPIDBUILD_HOST_PATH_BYTES + 8u, &extended_units) &&
++          cupidbuild_path_to_utf8(extended, extended_units, encoded,
++              CUPIDBUILD_HOST_PATH_BYTES + 8u, &encoded_bytes))
++        handle = CreateFileA(encoded, FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES |
++            FILE_TRAVERSE | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE,
++            (LPSECURITY_ATTRIBUTES)0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS,
++            (HANDLE)0);
++    }
++    free(extended); free(input); free(encoded); free(absolute);
++  }
++#else
++  {
++    unsigned short *input = (unsigned short *)malloc(CUPIDBUILD_HOST_PATH_BYTES * sizeof(*input));
++    unsigned short *absolute = (unsigned short *)malloc(CUPIDBUILD_HOST_PATH_BYTES * sizeof(*absolute));
++    unsigned short *extended = (unsigned short *)malloc((CUPIDBUILD_HOST_PATH_BYTES + 8u) * sizeof(*extended));
++    size_t input_units = 0u, extended_units = 0u;
++    DWORD absolute_units = 0u;
++    if (input && absolute && extended &&
++        cupidbuild_path_to_utf16(path, strlen(path), input,
++            CUPIDBUILD_HOST_PATH_BYTES, &input_units)) {
++      absolute_units = GetFullPathNameW(input, CUPIDBUILD_HOST_PATH_BYTES,
++          absolute, (LPWSTR *)0);
++      if (absolute_units && absolute_units < CUPIDBUILD_HOST_PATH_BYTES) {
++        for (index = 0u; index < (size_t)absolute_units; index++)
++          if (absolute[index] == '/') absolute[index] = '\\';
++        if (cupidbuild_path_windows_extended(absolute, (size_t)absolute_units,
++            extended, CUPIDBUILD_HOST_PATH_BYTES + 8u, &extended_units))
++          handle = CreateFileW(extended, FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES |
++              FILE_TRAVERSE | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE,
++              (LPSECURITY_ATTRIBUTES)0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS,
++              (HANDLE)0);
++      }
++    }
++    free(extended); free(absolute); free(input);
++  }
++#endif
+   if (handle == CUPIDBUILD_OBSERVER_INVALID) return handle;
+   wide = (unsigned short *)malloc(CUPIDBUILD_HOST_PATH_BYTES * sizeof(*wide));
+   if (wide != (unsigned short *)0) {
+     units = GetFinalPathNameByHandleW(handle, wide, CUPIDBUILD_HOST_PATH_BYTES, 0u);
+     if (units > 4u && units < CUPIDBUILD_HOST_PATH_BYTES &&
+         wide[0] == '\\' && wide[1] == '\\' && wide[2] == '?' &&
+-        wide[3] == '\\' && wide[5] == ':') {
+-      valid = cupidbuild_path_to_utf8(wide + 4u, (size_t)units - 4u,
+-                                      physical, capacity, &bytes);
++        wide[3] == '\\') {
++      if (units > 6u && wide[5] == ':') {
++        valid = cupidbuild_path_to_utf8(wide + 4u, (size_t)units - 4u,
++                                        physical, capacity, &bytes);
++      } else if (units > 8u && wide[4] == 'U' && wide[5] == 'N' &&
++                 wide[6] == 'C' && wide[7] == '\\' && capacity > 2u) {
++        valid = cupidbuild_path_to_utf8(wide + 8u, (size_t)units - 8u,
++                                        physical + 2u, capacity - 2u, &bytes);
++        if (valid) {
++          physical[0] = '/'; physical[1] = '/'; bytes += 2u;
++        }
++      }
+       if (valid) {
+         for (index = 0u; index < bytes; index++)
+           if (physical[index] == '\\') physical[index] = '/';
+--- a/toolchain/cupidbuild_host.h
++++ b/toolchain/cupidbuild_host.h
+@@ -62,7 +62,7 @@
+ int cupidbuild_host_absolute_root(const char *root, char *output, size_t capacity);
+
+ /* Read-only observations retain live handles until close. Repository roots are
+- * absolute (drive-rooted on Windows). Logical paths are
++ * absolute (ordinary drive or UNC share roots on Windows). Logical paths are
+  * UTF-8, repository-relative, and reject empty, dot, parent and link components.
+  * Opening an observer creates no files. A failed operation poisons the observer;
+  * require_unchanged cannot subsequently succeed. Close accepts NULL and reports
+@@ -70,11 +70,24 @@
+  * are retained at open and rechecked; other directories retain identity only.
+  * Repeated ancestor directories are reused only after a fresh binding and
+  * original-handle identity check; explicit leaves remain separate observations.
+- * Limits: 4096 retained handles, 4096 expected names in
++ * Ordinary limits: 4096 retained entries, 4096 expected names in
+  * total, 8191 path bytes, and 1023 bytes per UTF-8 component.
+  */
+ int cupidbuild_host_observer_open(const char *repository_root,
+                                  cupidbuild_host_observer_t **observer_out);
++/* Explicit retained-entry budget. Records allocate only when observed. Zero
++ * and SIZE_MAX reject before resolution and clear the owner output. Ordinary
++ * open keeps its 4096-entry budget; membership and batch limits stay separate. */
++int cupidbuild_host_observer_open_quota(const char *repository_root,
++                                       size_t entry_quota,
++                                       cupidbuild_host_observer_t **observer_out);
++/* Read-only source-input names with the same retained custody, quotas,
++ * poison, UTF-8 and byte limits as ordinary open. POSIX additionally accepts
++ * colon and backslash component bytes. Windows keeps its ordinary drive/UNC
++ * policy. The selected profile stays with this owner for every observation,
++ * membership comparison and revalidation; ordinary open is unchanged. */
++int cupidbuild_host_observer_open_source_quota(const char *repository_root,
++    size_t entry_quota, cupidbuild_host_observer_t **observer_out);
+ /* With bytes_out == NULL, observe metadata without reading the payload.
+  * Otherwise read at most min(limit, 64 MiB) bytes and return caller-owned malloc
+  * storage. size_out is required; metadata-only observations retain 64-bit sizes.
+@@ -108,6 +121,40 @@
+     cupidbuild_host_observer_t *observer, const char *logical, uint64_t limit,
+     cupidbuild_host_stream_sink_t sink, void *context,
+     cupidbuild_host_stream_observation_t *result_out);
++/* Stream an already retained regular-file entry without creating another
++ * observation. Reopen through its retained parent, check all original bindings
++ * before and after streaming, preserve a previous digest, and upgrade that
++ * same record's handle only on success. Failure poisons the observer and clears
++ * result_out. Sink, limit, ownership and serialization rules are unchanged. */
++int cupidbuild_host_observer_file_stream_retained(
++    cupidbuild_host_observer_t *observer, const char *logical, uint64_t limit,
++    cupidbuild_host_stream_sink_t sink, void *context,
++    cupidbuild_host_stream_observation_t *result_out);
++
++/* Compare already retained identities after full ordinary revalidation. These
++ * operations discover no leaf and grant no authority. Failure clears same_out
++ * and poisons all supplied observers. Logical file paths must have been
++ * retained as regular-file records by the corresponding observer. */
++int cupidbuild_host_observer_roots_same(cupidbuild_host_observer_t *left,
++                                       cupidbuild_host_observer_t *right,
++                                       int *same_out);
++int cupidbuild_host_observer_files_same(cupidbuild_host_observer_t *left,
++                                       const char *left_logical,
++                                       cupidbuild_host_observer_t *right,
++                                       const char *right_logical,
++                                       int *same_out);
++/* Historical captured identities only: no metadata, digest, absence or binding
++ * revalidation. Existing poison cannot be bypassed. Intended for serialized
++ * construction followed by full observer and original-path validation before
++ * exposing the resulting owner. Later publication checks are never cached. */
++int cupidbuild_host_observer_roots_captured_same(cupidbuild_host_observer_t *left,
++                                                cupidbuild_host_observer_t *right,
++                                                int *same_out);
++int cupidbuild_host_observer_files_captured_same(cupidbuild_host_observer_t *left,
++                                                const char *left_logical,
++                                                cupidbuild_host_observer_t *right,
++                                                const char *right_logical,
++                                                int *same_out);
+ typedef enum {
+   CUPIDBUILD_ENTRY_NONE = 0,
+   CUPIDBUILD_ENTRY_FILE = 1,
+@@ -122,6 +169,13 @@
+ int cupidbuild_host_observer_kind(cupidbuild_host_observer_t *observer,
+                                  const char *logical,
+                                  cupidbuild_host_entry_kind_t *kind_out);
++/* Observe a normalized optional path. NONE is a successful retained first
++ * absence under the nearest existing no-follow parent; later appearance or
++ * lookup failure poisons the observer. Existing regular files/directories keep
++ * ordinary metadata observations. This grants no authority or whole-observer
++ * verdict. Invalid input clears kind_out and poisons the supplied observer. */
++int cupidbuild_host_observer_path_kind(cupidbuild_host_observer_t *observer,
++    const char *logical, cupidbuild_host_entry_kind_t *kind_out);
+ typedef enum {
+   CUPIDBUILD_OBSERVATION_OK = 0,
+   CUPIDBUILD_OBSERVATION_UNAVAILABLE = 1,
+--- /dev/null
++++ b/toolchain/prototypes/native_observer_paths/retained_observer_contract.cc
+@@ -0,0 +1,204 @@
++#include "cupidbuild_host.h"
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++#define REQUIRE(value) do { if (!(value)) { fprintf(stderr, "check failed at %d\n", __LINE__); return 1; } } while (0)
++
++static int unhex(const char *input, char *output, size_t capacity) {
++  size_t count = 0u;
++  while (*input != 0) {
++    unsigned int value = 0u;
++    unsigned int index;
++    for (index = 0u; index < 2u; index++) {
++      unsigned char digit = (unsigned char)*input++;
++      if (digit >= '0' && digit <= '9') value = value * 16u + digit - '0';
++      else if (digit >= 'a' && digit <= 'f') value = value * 16u + digit - 'a' + 10u;
++      else return 0;
++    }
++    if (!value || count + 1u >= capacity) return 0;
++    output[count++] = (char)value;
++  }
++  output[count] = 0;
++  return 1;
++}
++
++static int cleared(cupidbuild_host_stream_observation_t result) {
++  size_t index;
++  if (result.size) return 0;
++  for (index = 0u; index < sizeof(result.sha256); index++)
++    if (result.sha256[index]) return 0;
++  return 1;
++}
++
++static int sink(void *context, uint64_t offset, const unsigned char *bytes, size_t count) {
++  uint64_t *total = (uint64_t *)context;
++  size_t index;
++  if (offset != *total || !count || count > 65536u) return 0;
++  for (index = 0u; index < count; index++)
++    if (bytes[index] != (unsigned char)((offset + index) % 251u)) return 0;
++  *total += count;
++  return 1;
++}
++
++static int reject_sink(void *context, uint64_t offset, const unsigned char *bytes, size_t count) {
++  (void)context; (void)offset; (void)bytes; (void)count;
++  return 0;
++}
++
++static int pause(void) {
++  unsigned char resume;
++  if (fputs("ready\n", stdout) < 0 || fflush(stdout) != 0) return 0;
++  return fread(&resume, 1u, 1u, stdin) == 1u;
++}
++
++int main(int argc, char **argv) {
++  char root[8192];
++  char second[8192];
++  const char *mode;
++  cupidbuild_host_observer_t *left = (cupidbuild_host_observer_t *)0;
++  cupidbuild_host_observer_t *right = (cupidbuild_host_observer_t *)0;
++  cupidbuild_host_entry_kind_t kind;
++  cupidbuild_host_stream_observation_t result;
++  int same = 99;
++  if (argc != 4 || !unhex(argv[1], root, sizeof(root)) ||
++      !unhex(argv[3], second, sizeof(second))) return 2;
++  mode = argv[2];
++  if (strcmp(mode, "invalid-quotas") == 0) {
++    left = (cupidbuild_host_observer_t *)1;
++    REQUIRE(!cupidbuild_host_observer_open_quota(root, 0u, &left) && !left);
++    left = (cupidbuild_host_observer_t *)1;
++    REQUIRE(!cupidbuild_host_observer_open_quota(root, (size_t)-1, &left) && !left);
++    REQUIRE(!cupidbuild_host_observer_open_quota(root, 65536u, (cupidbuild_host_observer_t **)0));
++    REQUIRE(!cupidbuild_host_observer_open_quota((const char *)0, 65536u, &left) && !left);
++    REQUIRE(!cupidbuild_host_observer_open_quota(root, 1u, &left) && !left);
++  } else if (strcmp(mode, "default-limit") == 0 || strcmp(mode, "quota-flat") == 0 ||
++             strcmp(mode, "quota-nested") == 0 || strcmp(mode, "old-nested") == 0) {
++    unsigned int index;
++    unsigned int accepted = 0u;
++    int ordinary = strcmp(mode, "default-limit") == 0;
++    int nested = strcmp(mode, "quota-nested") == 0 || strcmp(mode, "old-nested") == 0;
++    REQUIRE(ordinary ? cupidbuild_host_observer_open(root, &left) :
++        cupidbuild_host_observer_open_quota(root, 65536u, &left));
++    for (index = 0u; index < 4096u; index++) {
++      char path[64];
++      snprintf(path, sizeof(path), nested ? "d%04u/payload.bin" : "f%04u.bin", index);
++      if (!cupidbuild_host_observer_kind(left, path, &kind)) break;
++      REQUIRE(kind == CUPIDBUILD_ENTRY_FILE);
++      accepted++;
++    }
++    if (ordinary) {
++      REQUIRE(accepted > 4000u && accepted < 4096u);
++      REQUIRE(!cupidbuild_host_observer_require_unchanged(left));
++      printf("capacity %u\n", accepted);
++    } else {
++      REQUIRE(accepted == 4096u);
++      for (index = 0u; index < 4096u; index++) {
++        char path[64];
++        snprintf(path, sizeof(path), nested ? "d%04u/payload.bin" : "f%04u.bin", index);
++        memset(&result, 0xff, sizeof(result));
++        if (strcmp(mode, "old-nested") == 0) {
++          if (!cupidbuild_host_observer_file_stream(left, path, 1u, (cupidbuild_host_stream_sink_t)0,
++              (void *)0, &result)) break;
++        } else REQUIRE(cupidbuild_host_observer_file_stream_retained(left, path, 1u,
++            (cupidbuild_host_stream_sink_t)0, (void *)0, &result));
++        REQUIRE(result.size == 1u);
++      }
++      if (strcmp(mode, "old-nested") == 0) {
++        REQUIRE(index < 4096u && cleared(result));
++        REQUIRE(!cupidbuild_host_observer_require_unchanged(left));
++        printf("old-stream-limit %u\n", index);
++      } else REQUIRE(cupidbuild_host_observer_require_unchanged(left));
++    }
++  } else {
++    REQUIRE(cupidbuild_host_observer_open_quota(root, 65536u, &left));
++    if (strcmp(mode, "wait-root-identity") == 0) {
++      REQUIRE(pause());
++      REQUIRE(cupidbuild_host_observer_roots_captured_same(left, left, &same) && same);
++      REQUIRE(!cupidbuild_host_observer_roots_same(left, left, &same) && !same);
++      REQUIRE(!cupidbuild_host_observer_roots_captured_same(left, left, &same) && !same);
++    } else if (strcmp(mode, "wait-file-identity") == 0) {
++      REQUIRE(cupidbuild_host_observer_kind(left, second, &kind) && kind == CUPIDBUILD_ENTRY_FILE);
++      REQUIRE(cupidbuild_host_observer_file_stream_retained(left, second, 65536u,
++          (cupidbuild_host_stream_sink_t)0, (void *)0, &result));
++      REQUIRE(pause());
++      REQUIRE(cupidbuild_host_observer_files_captured_same(left, second, left, second, &same) && same);
++      REQUIRE(!cupidbuild_host_observer_files_same(left, second, left, second, &same) && !same);
++      REQUIRE(!cupidbuild_host_observer_files_captured_same(left, second, left, second, &same) && !same);
++    } else if (strncmp(mode, "roots-", 6u) == 0) {
++      REQUIRE(cupidbuild_host_observer_open_quota(second, 65536u, &right));
++      if (strcmp(mode, "roots-invalid") == 0) {
++        REQUIRE(!cupidbuild_host_observer_roots_same(left, right, (int *)0));
++        REQUIRE(!cupidbuild_host_observer_require_unchanged(left) &&
++                !cupidbuild_host_observer_require_unchanged(right));
++      } else {
++        int expected = strcmp(mode, "roots-equal") == 0;
++        REQUIRE(cupidbuild_host_observer_roots_captured_same(left, right, &same) && same == expected);
++        REQUIRE(cupidbuild_host_observer_roots_same(left, right, &same) && same == expected);
++      }
++    } else if (strncmp(mode, "files-", 6u) == 0) {
++      REQUIRE(cupidbuild_host_observer_open_quota(root, 65536u, &right));
++      REQUIRE(cupidbuild_host_observer_kind(left, "payload.bin", &kind) && kind == CUPIDBUILD_ENTRY_FILE);
++      if (strcmp(mode, "files-unobserved") != 0)
++        REQUIRE(cupidbuild_host_observer_kind(right, second, &kind) && kind == CUPIDBUILD_ENTRY_FILE);
++      if (strcmp(mode, "files-unobserved") == 0 || strcmp(mode, "files-invalid") == 0) {
++        REQUIRE(!cupidbuild_host_observer_files_captured_same(left, "payload.bin", right,
++            strcmp(mode, "files-invalid") == 0 ? "../payload.bin" : second, &same) && !same);
++        REQUIRE(!cupidbuild_host_observer_require_unchanged(left) &&
++                !cupidbuild_host_observer_require_unchanged(right));
++      } else {
++        int expected = strcmp(mode, "files-different") != 0;
++        REQUIRE(cupidbuild_host_observer_files_captured_same(left, "payload.bin", right, second, &same) && same == expected);
++        REQUIRE(cupidbuild_host_observer_files_same(left, "payload.bin", right, second, &same) && same == expected);
++      }
++    } else if (strncmp(mode, "capture-", 8u) == 0) {
++      uint64_t total = 0u;
++      cupidbuild_host_stream_observation_t first;
++      REQUIRE(cupidbuild_host_observer_kind(left, second, &kind) && kind == CUPIDBUILD_ENTRY_FILE);
++      REQUIRE(cupidbuild_host_observer_file_stream_retained(left, second, (uint64_t)1u << 40u,
++          sink, &total, &first));
++      REQUIRE(first.size == total);
++      REQUIRE(cupidbuild_host_observer_file_stream_retained(left, second, first.size,
++          (cupidbuild_host_stream_sink_t)0, (void *)0, &result));
++      REQUIRE(result.size == first.size && memcmp(result.sha256, first.sha256, 32u) == 0);
++      REQUIRE(cupidbuild_host_observer_require_unchanged(left));
++      printf("capture %u %u ", (unsigned int)(first.size >> 32u), (unsigned int)first.size);
++      for (same = 0; same < 32; same++) printf("%02x", first.sha256[same]);
++      putchar('\n');
++    } else if (strncmp(mode, "reject-", 7u) == 0) {
++      int unobserved = strcmp(mode, "reject-unobserved") == 0;
++      if (!unobserved) REQUIRE(cupidbuild_host_observer_kind(left,
++          strcmp(mode, "reject-path") == 0 ? "payload.bin" : second, &kind));
++      memset(&result, 0xff, sizeof(result));
++      REQUIRE(!cupidbuild_host_observer_file_stream_retained(left, second,
++          strcmp(mode, "reject-limit") == 0 ? 0u : 65536u,
++          strcmp(mode, "reject-sink") == 0 ? reject_sink : (cupidbuild_host_stream_sink_t)0,
++          (void *)0, strcmp(mode, "reject-result") == 0 ?
++          (cupidbuild_host_stream_observation_t *)0 : &result));
++      if (strcmp(mode, "reject-result") != 0) REQUIRE(cleared(result));
++      REQUIRE(!cupidbuild_host_observer_require_unchanged(left));
++    } else if (strncmp(mode, "wait-", 5u) == 0) {
++      cupidbuild_host_stream_observation_t first;
++      REQUIRE(cupidbuild_host_observer_kind(left, second, &kind) && kind == CUPIDBUILD_ENTRY_FILE);
++      REQUIRE(cupidbuild_host_observer_file_stream_retained(left, second, 65536u,
++          (cupidbuild_host_stream_sink_t)0, (void *)0, &first));
++      REQUIRE(pause());
++      memset(&result, 0xff, sizeof(result));
++      if (strcmp(mode, "wait-parent-custody") == 0) {
++        REQUIRE(cupidbuild_host_observer_file_stream_retained(left, second, 65536u,
++            (cupidbuild_host_stream_sink_t)0, (void *)0, &result));
++        REQUIRE(result.size == first.size && memcmp(result.sha256, first.sha256, 32u) == 0);
++        REQUIRE(cupidbuild_host_observer_require_unchanged(left));
++      } else {
++        REQUIRE(!cupidbuild_host_observer_file_stream_retained(left, second, 65536u,
++            (cupidbuild_host_stream_sink_t)0, (void *)0, &result));
++        REQUIRE(cleared(result) && !cupidbuild_host_observer_require_unchanged(left));
++        REQUIRE(!cupidbuild_host_observer_roots_captured_same(left, left, &same) && !same);
++      }
++    } else return 3;
++  }
++  REQUIRE(cupidbuild_host_observer_close(left));
++  REQUIRE(cupidbuild_host_observer_close(right));
++  puts("ok");
++  return 0;
++}
+--- /dev/null
++++ b/toolchain/prototypes/native_observer_paths/observer_missing_unc_contract.cc
+@@ -0,0 +1,133 @@
++#include "cupidbuild_host.h"
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++#define REQUIRE(value) do { if (!(value)) { fprintf(stderr, "check failed at %d\n", __LINE__); return 1; } } while (0)
++
++static int unhex(const char *input, char *output, size_t capacity) {
++  size_t count = 0u;
++  while (*input) {
++    unsigned int value = 0u;
++    unsigned int index;
++    for (index = 0u; index < 2u; index++) {
++      unsigned char digit = (unsigned char)*input++;
++      if (digit >= '0' && digit <= '9') value = value * 16u + digit - '0';
++      else if (digit >= 'a' && digit <= 'f') value = value * 16u + digit - 'a' + 10u;
++      else return 0;
++    }
++    if (!value || count + 1u >= capacity) return 0;
++    output[count++] = (char)value;
++  }
++  output[count] = 0;
++  return 1;
++}
++
++static int pause(void) {
++  unsigned char value;
++  return fputs("ready\n", stdout) >= 0 && fflush(stdout) == 0 &&
++      fread(&value, 1u, 1u, stdin) == 1u;
++}
++
++int main(int argc, char **argv) {
++  char root[8192];
++  char second[16384];
++  const char *mode;
++  cupidbuild_host_observer_t *observer = (cupidbuild_host_observer_t *)0;
++  cupidbuild_host_observer_t *other = (cupidbuild_host_observer_t *)0;
++  cupidbuild_host_entry_kind_t kind = CUPIDBUILD_ENTRY_DIRECTORY;
++  if (argc != 4 || !unhex(argv[1], root, sizeof(root)) ||
++      !unhex(argv[3], second, sizeof(second))) return 2;
++  mode = argv[2];
++  if (strcmp(mode, "reject-root") == 0) {
++    observer = (cupidbuild_host_observer_t *)1;
++    REQUIRE(!cupidbuild_host_observer_open_quota(root, 65536u, &observer) && !observer);
++  } else {
++    REQUIRE(strcmp(mode, "missing-default-quota") == 0
++        ? cupidbuild_host_observer_open(root, &observer)
++        : cupidbuild_host_observer_open_quota(root, 65536u, &observer));
++    if (strcmp(mode, "absent-flat") == 0 || strcmp(mode, "absent-nested") == 0 ||
++        strcmp(mode, "absent-suffixes") == 0 || strcmp(mode, "wait-last-absence") == 0) {
++      unsigned int index;
++      for (index = 0u; index < 4096u; index++) {
++        char path[64];
++        snprintf(path, sizeof(path), strcmp(mode, "absent-flat") == 0 ? "missing-%04u.bin" :
++            strcmp(mode, "absent-suffixes") == 0 ? "missing-%04u/child/final.bin" :
++            "d%04u/missing.bin", index);
++        REQUIRE(cupidbuild_host_observer_path_kind(observer, path, &kind) && kind == CUPIDBUILD_ENTRY_NONE);
++        REQUIRE(cupidbuild_host_observer_path_kind(observer, path, &kind) && kind == CUPIDBUILD_ENTRY_NONE);
++      }
++      REQUIRE(cupidbuild_host_observer_require_unchanged(observer));
++      if (strcmp(mode, "wait-last-absence") == 0) {
++        REQUIRE(pause());
++        REQUIRE(!cupidbuild_host_observer_require_unchanged(observer));
++      }
++    } else if (strcmp(mode, "missing-default-quota") == 0) {
++      unsigned int index;
++      for (index = 0u; index < 4096u; index++) {
++        char path[64];
++        snprintf(path, sizeof(path), "missing-%04u.bin", index);
++        if (!cupidbuild_host_observer_path_kind(observer, path, &kind)) break;
++        REQUIRE(kind == CUPIDBUILD_ENTRY_NONE);
++      }
++      REQUIRE(index > 0u && index < 4096u && kind == CUPIDBUILD_ENTRY_NONE);
++      kind = CUPIDBUILD_ENTRY_FILE;
++      REQUIRE(!cupidbuild_host_observer_path_kind(observer, "missing-0000.bin", &kind) && kind == CUPIDBUILD_ENTRY_NONE);
++      REQUIRE(!cupidbuild_host_observer_require_unchanged(observer));
++    } else if (strcmp(mode, "wait-parent-custody") == 0) {
++      REQUIRE(cupidbuild_host_observer_path_kind(observer, second, &kind) && kind == CUPIDBUILD_ENTRY_NONE);
++      REQUIRE(pause());
++      if (cupidbuild_host_execution_format() == 2u)
++        REQUIRE(cupidbuild_host_observer_require_unchanged(observer));
++      else REQUIRE(!cupidbuild_host_observer_require_unchanged(observer));
++    } else if (strcmp(mode, "kind-file") == 0 || strcmp(mode, "kind-directory") == 0) {
++      cupidbuild_host_entry_kind_t expected = strcmp(mode, "kind-file") == 0 ?
++          CUPIDBUILD_ENTRY_FILE : CUPIDBUILD_ENTRY_DIRECTORY;
++      REQUIRE(cupidbuild_host_observer_path_kind(observer, second, &kind) && kind == expected);
++      REQUIRE(cupidbuild_host_observer_path_kind(observer, second, &kind) && kind == expected);
++      REQUIRE(cupidbuild_host_observer_require_unchanged(observer));
++    } else if (strcmp(mode, "reject-path") == 0 || strcmp(mode, "reject-result") == 0) {
++      REQUIRE(!cupidbuild_host_observer_path_kind(observer, second,
++          strcmp(mode, "reject-result") == 0 ? (cupidbuild_host_entry_kind_t *)0 : &kind));
++      if (strcmp(mode, "reject-result") != 0) REQUIRE(kind == CUPIDBUILD_ENTRY_NONE);
++      REQUIRE(!cupidbuild_host_observer_require_unchanged(observer));
++    } else if (strcmp(mode, "wait-absence") == 0) {
++      REQUIRE(cupidbuild_host_observer_path_kind(observer, second, &kind) && kind == CUPIDBUILD_ENTRY_NONE);
++      REQUIRE(pause());
++      REQUIRE(!cupidbuild_host_observer_require_unchanged(observer));
++      kind = CUPIDBUILD_ENTRY_FILE;
++      REQUIRE(!cupidbuild_host_observer_path_kind(observer, second, &kind) && kind == CUPIDBUILD_ENTRY_NONE);
++    } else if (strcmp(mode, "wait-disappeared") == 0) {
++      REQUIRE(cupidbuild_host_observer_path_kind(observer, second, &kind) && kind == CUPIDBUILD_ENTRY_FILE);
++      REQUIRE(pause());
++      REQUIRE(!cupidbuild_host_observer_path_kind(observer, second, &kind) && kind == CUPIDBUILD_ENTRY_NONE);
++      REQUIRE(!cupidbuild_host_observer_require_unchanged(observer));
++    } else if (strcmp(mode, "missing-file-comparison") == 0) {
++      int same = 99;
++      REQUIRE(cupidbuild_host_observer_path_kind(observer, second, &kind) && kind == CUPIDBUILD_ENTRY_NONE);
++      REQUIRE(!cupidbuild_host_observer_files_captured_same(observer, second, observer, second, &same) && !same);
++      REQUIRE(!cupidbuild_host_observer_require_unchanged(observer));
++    } else if (strcmp(mode, "root-alias") == 0) {
++      int same = 99;
++      REQUIRE(cupidbuild_host_observer_open_quota(second, 65536u, &other));
++      REQUIRE(cupidbuild_host_observer_roots_same(observer, other, &same) && same);
++      REQUIRE(cupidbuild_host_observer_kind(observer, "payload.bin", &kind) && kind == CUPIDBUILD_ENTRY_FILE);
++      REQUIRE(cupidbuild_host_observer_kind(other, "payload.bin", &kind) && kind == CUPIDBUILD_ENTRY_FILE);
++      REQUIRE(cupidbuild_host_observer_files_same(observer, "payload.bin", other, "payload.bin", &same) && same);
++    } else if (strcmp(mode, "capture") == 0) {
++      cupidbuild_host_stream_observation_t result;
++      unsigned int index;
++      REQUIRE(cupidbuild_host_observer_path_kind(observer, second, &kind) && kind == CUPIDBUILD_ENTRY_FILE);
++      REQUIRE(cupidbuild_host_observer_file_stream_retained(observer, second, 1048576u,
++          (cupidbuild_host_stream_sink_t)0, (void *)0, &result));
++      REQUIRE(cupidbuild_host_observer_require_unchanged(observer));
++      printf("capture %u ", (unsigned int)result.size);
++      for (index = 0u; index < 32u; index++) printf("%02x", result.sha256[index]);
++      putchar('\n');
++    } else return 3;
++  }
++  REQUIRE(cupidbuild_host_observer_close(observer));
++  REQUIRE(cupidbuild_host_observer_close(other));
++  puts("ok");
++  return 0;
++}
+--- /dev/null
++++ b/toolchain/prototypes/native_observer_paths/unc_resolved_parent_contract.cc
+@@ -0,0 +1,53 @@
++#include "cupidbuild_host.h"
++#include <stdio.h>
++#include <string.h>
++
++#define REQUIRE(value) do { if (!(value)) { fprintf(stderr, "check failed at %d\n", __LINE__); return 1; } } while (0)
++
++static int unhex(const char *input, char *output, size_t capacity) {
++  size_t count = 0u;
++  while (*input) {
++    unsigned int value = 0u, index;
++    for (index = 0u; index < 2u; index++) {
++      unsigned char digit = (unsigned char)*input++;
++      if (digit >= '0' && digit <= '9') value = value * 16u + digit - '0';
++      else if (digit >= 'a' && digit <= 'f') value = value * 16u + digit - 'a' + 10u;
++      else return 0;
++    }
++    if (!value || count + 1u >= capacity) return 0;
++    output[count++] = (char)value;
++  }
++  output[count] = 0;
++  return 1;
++}
++
++int main(int argc, char **argv) {
++  char root[8192];
++  const char *resolved, *output;
++  cupidbuild_host_output_parent_t *parent = (cupidbuild_host_output_parent_t *)0;
++  if (argc != 3 || !unhex(argv[1], root, sizeof(root))) return 2;
++  if (strcmp(argv[2], "reject") == 0) {
++    REQUIRE(!cupidbuild_host_output_parent_resolve_existing(root,
++        "payload.bin", "created.bin", &parent));
++    REQUIRE(cupidbuild_host_output_parent_resolved_root(parent) == (const char *)0);
++    REQUIRE(!cupidbuild_host_output_parent_require_current(parent));
++  } else {
++    REQUIRE(strcmp(argv[2], "resolve") == 0);
++    REQUIRE(cupidbuild_host_output_parent_resolve_existing(root,
++        "payload.bin", "created.bin", &parent));
++    resolved = cupidbuild_host_output_parent_resolved_root(parent);
++    REQUIRE(resolved != (const char *)0);
++    if (cupidbuild_host_execution_format() == 2u) {
++      REQUIRE(resolved[0] == '/' && resolved[1] == '/');
++      REQUIRE(strchr(resolved, '\\') == (char *)0);
++    } else REQUIRE(resolved[0] == '/');
++    REQUIRE(strcmp(cupidbuild_host_output_parent_resolved_source(parent), "payload.bin") == 0);
++    output = cupidbuild_host_output_parent_resolved_output(parent);
++    REQUIRE(output != (const char *)0);
++    REQUIRE(strcmp(output, "created.bin") == 0);
++    REQUIRE(cupidbuild_host_output_parent_require_current(parent));
++  }
++  REQUIRE(cupidbuild_host_output_parent_close(parent));
++  puts("ok");
++  return 0;
++}
+--- /dev/null
++++ b/toolchain/prototypes/native_source_observer/source_observer_contract.cc
+@@ -0,0 +1,125 @@
++#include "cupidbuild_host.h"
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++static int unhex(const char *input, char *output, size_t capacity) {
++  size_t used = 0u;
++  while (*input) {
++    unsigned int value = 0u, index;
++    for (index = 0u; index < 2u; index++) {
++      unsigned char digit = (unsigned char)*input++;
++      if (digit >= '0' && digit <= '9') value = value * 16u + digit - '0';
++      else if (digit >= 'a' && digit <= 'f') value = value * 16u + digit - 'a' + 10u;
++      else return 0;
++    }
++    if (!value || used + 1u >= capacity) return 0;
++    output[used++] = (char)value;
++  }
++  output[used] = 0;
++  return 1;
++}
++
++static int open_observer(int source, const char *root, size_t quota,
++                         cupidbuild_host_observer_t **out) {
++  return source ? cupidbuild_host_observer_open_source_quota(root, quota, out)
++                : cupidbuild_host_observer_open_quota(root, quota, out);
++}
++
++int main(int argc, char **argv) {
++  char root[8192], logical[8192], storage[16][1024];
++  const char *names[16], *mode;
++  cupidbuild_host_observer_t *observer = (cupidbuild_host_observer_t *)0;
++  cupidbuild_host_entry_kind_t kind = (cupidbuild_host_entry_kind_t)99;
++  cupidbuild_host_stream_observation_t stream;
++  uint64_t size = 77u;
++  unsigned char *bytes = (unsigned char *)1;
++  int source, index, valid = 0, result = 2, hold;
++  if (argc < 5 || argc > 21 || !unhex(argv[3], root, sizeof(root)) ||
++      !unhex(argv[4], logical, sizeof(logical))) return 10;
++  source = strcmp(argv[1], "source") == 0;
++  if (!source && strcmp(argv[1], "strict") != 0) return 10;
++  mode = argv[2];
++  hold = strncmp(mode, "hold-", 5u) == 0;
++  if (hold) mode += 5u;
++  for (index = 5; index < argc; index++) {
++    if (!unhex(argv[index], storage[index - 5], sizeof(storage[0]))) return 10;
++    names[index - 5] = storage[index - 5];
++  }
++  if (strcmp(mode, "zero-quota") == 0 || strcmp(mode, "max-quota") == 0 ||
++      strcmp(mode, "null-root") == 0 || strcmp(mode, "null-owner") == 0) {
++    observer = (cupidbuild_host_observer_t *)1;
++    valid = open_observer(source, strcmp(mode, "null-root") == 0 ? (const char *)0 : root,
++        strcmp(mode, "zero-quota") == 0 ? 0u :
++        strcmp(mode, "max-quota") == 0 ? (size_t)-1 : 128u,
++        strcmp(mode, "null-owner") == 0 ? (cupidbuild_host_observer_t **)0 : &observer);
++    if (valid || (strcmp(mode, "null-owner") != 0 && observer)) return 11;
++    return 2;
++  }
++  if (!open_observer(source, root, 128u, &observer))
++    return observer ? 12 : 2;
++  (void)memset(&stream, 0x5a, sizeof(stream));
++  if (strcmp(mode, "open") == 0) valid = 1;
++  else if (strcmp(mode, "kind") == 0)
++    valid = cupidbuild_host_observer_path_kind(observer, logical, &kind);
++  else if (strcmp(mode, "root-kind") == 0)
++    valid = cupidbuild_host_observer_kind(observer, logical, &kind);
++  else if (strcmp(mode, "file") == 0) {
++    valid = cupidbuild_host_observer_file(observer, logical, 1048576u, &bytes, &size);
++    if (!valid && (bytes || size)) result = 13;
++    free(bytes);
++  } else if (strcmp(mode, "stream") == 0) {
++    valid = cupidbuild_host_observer_path_kind(observer, logical, &kind) &&
++        kind == CUPIDBUILD_ENTRY_FILE &&
++        cupidbuild_host_observer_file_stream_retained(observer, logical, 1048576u,
++            (cupidbuild_host_stream_sink_t)0, (void *)0, &stream);
++  } else if (strcmp(mode, "membership") == 0)
++    valid = cupidbuild_host_observer_directory(observer, logical, names, (size_t)(argc - 5));
++  else if (strcmp(mode, "same") == 0) {
++    int same = 0;
++    valid = cupidbuild_host_observer_file(observer, logical, 0u, (unsigned char **)0, &size) &&
++        cupidbuild_host_observer_files_same(observer, logical, observer, logical, &same) && same;
++  } else if (strcmp(mode, "null-kind") == 0 || strcmp(mode, "null-logical") == 0) {
++    valid = cupidbuild_host_observer_path_kind(observer,
++        strcmp(mode, "null-logical") == 0 ? (const char *)0 : logical,
++        strcmp(mode, "null-kind") == 0 ? (cupidbuild_host_entry_kind_t *)0 : &kind);
++    if (valid || (strcmp(mode, "null-logical") == 0 && kind != CUPIDBUILD_ENTRY_NONE)) result = 14;
++    valid = 0;
++  } else if (strcmp(mode, "null-stream") == 0) {
++    valid = cupidbuild_host_observer_file_stream_retained(observer, logical, 1048576u,
++        (cupidbuild_host_stream_sink_t)0, (void *)0,
++        (cupidbuild_host_stream_observation_t *)0);
++    if (valid) result = 14;
++    valid = 0;
++  } else if (strcmp(mode, "null-size") == 0) {
++    valid = cupidbuild_host_observer_file(observer, logical, 0u, &bytes, (uint64_t *)0);
++    if (valid || bytes) result = 14;
++    valid = 0;
++  } else { result = 10; goto done; }
++  if (!valid) {
++    if (!cupidbuild_host_observer_error(observer)[0] ||
++        cupidbuild_host_observer_require_unchanged(observer)) result = 15;
++    goto done;
++  }
++  if (!cupidbuild_host_observer_require_unchanged(observer)) goto done;
++  if (hold) {
++    unsigned char signal;
++    if (fwrite("ready", 1u, 5u, stdout) != 5u || fflush(stdout) != 0 ||
++        fread(&signal, 1u, 1u, stdin) != 1u) { result = 16; goto done; }
++    result = cupidbuild_host_observer_require_unchanged(observer) ? 0 : 2;
++    goto done;
++  }
++  if (strcmp(mode, "kind") == 0 || strcmp(mode, "root-kind") == 0)
++    (void)fputs(kind == CUPIDBUILD_ENTRY_FILE ? "file" :
++        kind == CUPIDBUILD_ENTRY_DIRECTORY ? "directory" : "missing", stdout);
++  else if (strcmp(mode, "file") == 0)
++    (void)printf("%llu", (unsigned long long)size);
++  else if (strcmp(mode, "stream") == 0) {
++    (void)printf("%llu:", (unsigned long long)stream.size);
++    for (index = 0; index < 32; index++) (void)printf("%02x", stream.sha256[index]);
++  }
++  result = fflush(stdout) == 0 ? 0 : 17;
++done:
++  if (!cupidbuild_host_observer_close(observer)) result = 18;
++  return result;
++}

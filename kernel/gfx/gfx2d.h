@@ -35,6 +35,9 @@ void gfx2d_init(void);
 /* Update cached framebuffer pointer (call after vga_flip) */
 void gfx2d_set_framebuffer(uint32_t *fb);
 
+/* Direct drawing and render-state calls below operate on one shared graphics
+ * context. Callers must already hold fullscreen, retained-paint, legacy-frame,
+ * or shared-writer ownership. */
 void gfx2d_clear(uint32_t color);
 void gfx2d_flip(void);
 uint32_t *gfx2d_get_active_fb(void);
@@ -93,6 +96,9 @@ void gfx2d_clip_clear(void);
 bool gfx2d_clip_is_active(void);
 void gfx2d_clip_get(int *x, int *y, int *w, int *h);
 
+/* Sprite handles share one process-wide pool. Callers must hold a fullscreen,
+ * retained-paint, legacy-frame, or shared-writer lease while loading, freeing,
+ * inspecting, or drawing a sprite. */
 int gfx2d_sprite_load(const char *path);
 void gfx2d_sprite_free(int handle);
 void gfx2d_sprite_draw(int handle, int x, int y);
@@ -139,6 +145,8 @@ void gfx2d_blend_mode(int mode);
 
 #define GFX2D_MAX_SURFACES 8
 
+/* Surface handles and the active target share process-wide state. Keep one
+ * render ownership lease for the complete allocate/use/free transaction. */
 int gfx2d_surface_alloc(int w, int h); /* returns handle 0..7, or -1 */
 void gfx2d_surface_free(int handle);
 void gfx2d_surface_fill(int handle, uint32_t color);
@@ -147,6 +155,8 @@ void gfx2d_surface_unset_active(void);     /* back to screen */
 void gfx2d_surface_blit(int handle, int x, int y);
 void gfx2d_surface_blit_alpha(int handle, int x, int y, int alpha);
 void gfx2d_surface_blit_scaled(int handle, int x, int y, int w, int h);
+/* The returned storage belongs to the surface pool. Keep render ownership
+ * while retaining or accessing the pointer. */
 uint32_t *gfx2d_surface_data(int handle, int *w, int *h);
 void gfx2d_capture_screen_to_surface(int handle);
 
@@ -158,6 +168,8 @@ int gfx2d_tween_elastic(int t, int start, int end, int dur);
 #define GFX2D_MAX_PARTICLE_SYSTEMS 4
 #define GFX2D_MAX_PARTICLES_PER_SYS 64
 
+/* Particle systems share the graphics resource pool and require the same
+ * outer render ownership as sprite and surface operations. */
 int gfx2d_particles_create(void); /* returns handle */
 void gfx2d_particles_free(int handle);
 void gfx2d_particle_emit(int handle, int x, int y, int vx, int vy,
@@ -181,8 +193,21 @@ void gfx2d_circle_thick(int x, int y, int r, int thickness, uint32_t color);
 void gfx2d_line_aa(int x0, int y0, int x1, int y1, uint32_t color);
 void gfx2d_flood_fill(int x, int y, uint32_t color);
 
+/* Internal desktop/fullscreen framebuffer ownership boundary. */
+int gfx2d_desktop_render_begin(void);
+void gfx2d_desktop_render_end(void);
+int gfx2d_shared_writer_try_begin(void);
+int gfx2d_shared_writer_begin(void);
+void gfx2d_shared_writer_end(int lease);
+int gfx2d_desktop_writer_owned_by_other(void);
 void gfx2d_fullscreen_enter(void);
 void gfx2d_fullscreen_exit(void);
+uint32_t gfx2d_fullscreen_release_all(void);
+/* Blocking force teardown for the current process owner. */
+void gfx2d_release_process_ownership(uint32_t pid);
+/* Bounded teardown for a quiescent, unreused dead PID; zero defers reaping. */
+int gfx2d_try_release_process_ownership(uint32_t pid);
+int gfx2d_process_owns_render_state(uint32_t pid);
 int gfx2d_fullscreen_active(void); /* returns 1 if fullscreen mode is active */
 int gfx2d_should_quit(void);        /* returns 1 if program was killed via ps/kill */
 

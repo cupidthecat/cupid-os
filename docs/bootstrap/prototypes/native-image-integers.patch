@@ -1,0 +1,411 @@
+--- /dev/null
++++ b/toolchain/prototypes/native_image_integers/cupidbuild_disk_integer.cc
+@@ -0,0 +1,156 @@
++#include "cupidbuild_disk_integer.h"
++
++#include <string.h>
++
++typedef struct {
++  uint32_t first;
++  unsigned int since;
++} cupidbuild_disk_integer_digit_range_t;
++
++typedef struct {
++  uint32_t codepoint;
++  unsigned int profiles;
++} cupidbuild_disk_integer_space_t;
++
++#include "cupidbuild_disk_integer_tables.inc"
++
++_Static_assert(sizeof(uint32_t) == 4, "image integer magnitude needs 32 bits");
++
++static int cupidbuild_disk_integer_next(const unsigned char *text, size_t size,
++                                        size_t *offset, uint32_t *value_out) {
++  size_t position = *offset;
++  uint32_t value;
++  unsigned int count;
++  unsigned int index;
++  unsigned int first;
++  if (position >= size) return 0;
++  first = text[position++];
++  if (first < 0x80u) {
++    *offset = position;
++    *value_out = first;
++    return 1;
++  }
++  if (first >= 0xc2u && first <= 0xdfu) {
++    count = 1u;
++    value = first & 0x1fu;
++  } else if (first >= 0xe0u && first <= 0xefu) {
++    count = 2u;
++    value = first & 0x0fu;
++  } else if (first >= 0xf0u && first <= 0xf4u) {
++    count = 3u;
++    value = first & 0x07u;
++  } else {
++    return 0;
++  }
++  if (size - position < count) return 0;
++  for (index = 0; index < count; index++) {
++    unsigned int byte = text[position++];
++    if ((byte & 0xc0u) != 0x80u) return 0;
++    value = (value << 6) | (byte & 0x3fu);
++  }
++  if ((count == 1u && value < 0x80u) ||
++      (count == 2u && value < 0x800u) ||
++      (count == 3u && value < 0x10000u) || value > 0x10ffffu ||
++      (value >= 0xd800u && value <= 0xdfffu)) return 0;
++  *offset = position;
++  *value_out = value;
++  return 1;
++}
++
++static int cupidbuild_disk_integer_digit(uint32_t value,
++                                         unsigned int unicode_major) {
++  size_t index;
++  for (index = 0; index < sizeof(cupidbuild_disk_integer_digits) /
++                             sizeof(cupidbuild_disk_integer_digits[0]); index++) {
++    const cupidbuild_disk_integer_digit_range_t *range =
++        &cupidbuild_disk_integer_digits[index];
++    if (range->since <= unicode_major && value >= range->first &&
++        value - range->first < 10u) return (int)(value - range->first);
++  }
++  return -1;
++}
++
++static int cupidbuild_disk_integer_space(uint32_t value,
++                                         unsigned int unicode_major) {
++  unsigned int profile = unicode_major == 15u ? 1u : 2u;
++  size_t index;
++  for (index = 0; index < sizeof(cupidbuild_disk_integer_spaces) /
++                             sizeof(cupidbuild_disk_integer_spaces[0]); index++) {
++    const cupidbuild_disk_integer_space_t *space =
++        &cupidbuild_disk_integer_spaces[index];
++    if (space->codepoint == value && (space->profiles & profile) != 0u) return 1;
++  }
++  return 0;
++}
++
++cupidbuild_disk_integer_status_t cupidbuild_disk_integer_parse(
++    const unsigned char *text, size_t size, unsigned int unicode_major,
++    uint32_t digit_limit, cupidbuild_disk_integer_t *result_out) {
++  cupidbuild_disk_integer_t parsed;
++  size_t offset = 0;
++  unsigned int phase = 0;
++  unsigned int last_was_digit = 0;
++  unsigned int negative = 0;
++  uint32_t digit_count = 0;
++  uint32_t magnitude = 0;
++  unsigned int overflow = 0;
++  unsigned int nonzero = 0;
++  unsigned int syntax_error = 0;
++  if (!result_out) return CUPIDBUILD_DISK_INTEGER_ARGUMENT;
++  memset(result_out, 0, sizeof(*result_out));
++  if (!text && size != 0) return CUPIDBUILD_DISK_INTEGER_ARGUMENT;
++  if (unicode_major != 15u && unicode_major != 16u) return CUPIDBUILD_DISK_INTEGER_PROFILE;
++  while (offset < size) {
++    uint32_t value;
++    int digit;
++    int whitespace;
++    if (!cupidbuild_disk_integer_next(text, size, &offset, &value))
++      return CUPIDBUILD_DISK_INTEGER_UTF8;
++    if (syntax_error) continue;
++    whitespace = cupidbuild_disk_integer_space(value, unicode_major);
++    if (phase == 0u) {
++      if (whitespace) continue;
++      phase = 1u;
++      if (value == (uint32_t)'+' || value == (uint32_t)'-') {
++        negative = value == (uint32_t)'-';
++        continue;
++      }
++    }
++    if (phase == 2u) {
++      if (!whitespace) syntax_error = 1u;
++      continue;
++    }
++    digit = cupidbuild_disk_integer_digit(value, unicode_major);
++    if (digit >= 0) {
++      if (digit_count == UINT32_MAX) return CUPIDBUILD_DISK_INTEGER_ARGUMENT;
++      digit_count++;
++      if (digit != 0) nonzero = 1u;
++      if (!overflow) {
++        if (magnitude > (UINT32_MAX - (uint32_t)digit) / 10u) {
++          overflow = 1u;
++          magnitude = UINT32_MAX;
++        } else {
++          magnitude = magnitude * 10u + (uint32_t)digit;
++        }
++      }
++      last_was_digit = 1u;
++    } else if (value == (uint32_t)'_' && last_was_digit) {
++      last_was_digit = 0u;
++    } else if (whitespace && digit_count != 0u && last_was_digit) {
++      phase = 2u;
++    } else {
++      syntax_error = 1u;
++    }
++  }
++  if (syntax_error || digit_count == 0u || !last_was_digit)
++    return CUPIDBUILD_DISK_INTEGER_SYNTAX;
++  if (digit_limit != 0u && digit_count > digit_limit)
++    return CUPIDBUILD_DISK_INTEGER_DIGIT_LIMIT;
++  parsed.magnitude = magnitude;
++  parsed.digits = digit_count;
++  parsed.magnitude_fits_u32 = !overflow;
++  parsed.negative = negative && nonzero;
++  parsed.zero = !nonzero;
++  *result_out = parsed;
++  return CUPIDBUILD_DISK_INTEGER_OK;
++}
+--- /dev/null
++++ b/toolchain/prototypes/native_image_integers/cupidbuild_disk_integer.h
+@@ -0,0 +1,34 @@
++#ifndef CUPIDBUILD_DISK_INTEGER_H
++#define CUPIDBUILD_DISK_INTEGER_H
++
++#include <stddef.h>
++#include <stdint.h>
++
++typedef enum {
++  CUPIDBUILD_DISK_INTEGER_OK = 0,
++  CUPIDBUILD_DISK_INTEGER_SYNTAX = 1,
++  CUPIDBUILD_DISK_INTEGER_UTF8 = 2,
++  CUPIDBUILD_DISK_INTEGER_PROFILE = 3,
++  CUPIDBUILD_DISK_INTEGER_DIGIT_LIMIT = 4,
++  CUPIDBUILD_DISK_INTEGER_ARGUMENT = 5
++} cupidbuild_disk_integer_status_t;
++
++typedef struct {
++  uint32_t magnitude;
++  uint32_t digits;
++  unsigned int magnitude_fits_u32;
++  unsigned int negative;
++  unsigned int zero;
++} cupidbuild_disk_integer_t;
++
++/* Interpret a complete UTF-8 decimal spelling, including signs, digit
++ * separators and the selected Unicode 15 or 16 digit/space profile. A zero
++ * digit_limit is unlimited. Valid larger magnitudes return OK with
++ * magnitude_fits_u32 clear and magnitude saturated; the caller decides when
++ * to reject geometry, after repeated options have selected their final value.
++ * Failure clears the result. This function performs no allocation or I/O. */
++cupidbuild_disk_integer_status_t cupidbuild_disk_integer_parse(
++    const unsigned char *text, size_t size, unsigned int unicode_major,
++    uint32_t digit_limit, cupidbuild_disk_integer_t *result_out);
++
++#endif
+--- /dev/null
++++ b/toolchain/prototypes/native_image_integers/cupidbuild_disk_integer_contract.cc
+@@ -0,0 +1,81 @@
++#include "cupidbuild_disk_integer.h"
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++#ifndef CUPID_DISK_INTEGER_NATIVE
++#include "fgetc_extension.h"
++#endif
++
++static int read_u32(FILE *input, uint32_t *result_out) {
++  unsigned char bytes[4];
++  if (fread(bytes, 1, sizeof(bytes), input) != sizeof(bytes)) return 0;
++  *result_out = (uint32_t)bytes[0] | ((uint32_t)bytes[1] << 8) |
++                ((uint32_t)bytes[2] << 16) | ((uint32_t)bytes[3] << 24);
++  return 1;
++}
++
++int main(int argc, char **argv) {
++  FILE *input;
++  FILE *output;
++  uint32_t count;
++  uint32_t index;
++  if (argc != 4) return 20;
++  input = fopen(argv[1], "rb");
++  if (!input || !read_u32(input, &count)) return 21;
++  output = fopen(argv[2], "wb");
++  if (!output) return 30;
++  for (index = 0; index < count; index++) {
++    uint32_t profile;
++    uint32_t digit_limit;
++    uint32_t size;
++    unsigned char *text;
++    cupidbuild_disk_integer_t result;
++    cupidbuild_disk_integer_status_t status;
++    if (!read_u32(input, &profile) || !read_u32(input, &digit_limit) ||
++        !read_u32(input, &size) || size > 1048576u) return 22;
++    text = (unsigned char *)malloc(size ? size : 1u);
++    if (!text || fread(text, 1, size, input) != size) return 23;
++    memset(&result, 0xff, sizeof(result));
++    status = cupidbuild_disk_integer_parse(text, size, profile, digit_limit, &result);
++    free(text);
++    if (status != CUPIDBUILD_DISK_INTEGER_OK &&
++        (result.magnitude != 0 || result.digits != 0 ||
++         result.magnitude_fits_u32 != 0 || result.negative != 0 || result.zero != 0)) return 24;
++    if (fprintf(output, "%u %u %u %u %u %u\n", (unsigned int)status,
++               result.magnitude, result.digits, result.magnitude_fits_u32,
++               result.negative, result.zero) < 0) return 25;
++  }
++  if (fgetc(input) != EOF || fclose(input) != 0) return 26;
++  if (fclose(output) != 0) return 31;
++  {
++    FILE *bytes = fopen(argv[3], "rb");
++    unsigned int value;
++    if (!bytes || feof(bytes) || ferror(bytes)) return 32;
++    for (value = 0; value < 256u; value++) {
++      if (fgetc(bytes) != (int)value || feof(bytes) || ferror(bytes)) return 33;
++    }
++    if (fgetc(bytes) != EOF || !feof(bytes) || ferror(bytes)) return 34;
++    if (fgetc(bytes) != EOF || !feof(bytes) || ferror(bytes)) return 35;
++    clearerr(bytes);
++    if (feof(bytes) || ferror(bytes)) return 36;
++    if (fgetc(bytes) != EOF || !feof(bytes) || ferror(bytes)) return 37;
++    if (fseek(bytes, 0, SEEK_SET) != 0 || feof(bytes) || ferror(bytes)) return 38;
++    if (fgetc(bytes) != 0 || fgetc(bytes) != 1 || ftell(bytes) != 2) return 39;
++    if (fclose(bytes) != 0) return 40;
++  }
++  {
++    cupidbuild_disk_integer_t result;
++    memset(&result, 0xff, sizeof(result));
++    if (cupidbuild_disk_integer_parse((const unsigned char *)0, 1, 15, 0, &result) !=
++          CUPIDBUILD_DISK_INTEGER_ARGUMENT || result.magnitude != 0 || result.digits != 0 ||
++          result.magnitude_fits_u32 != 0 || result.negative != 0 || result.zero != 0) return 27;
++    if (cupidbuild_disk_integer_parse((const unsigned char *)"1", 1, 15, 0,
++          (cupidbuild_disk_integer_t *)0) != CUPIDBUILD_DISK_INTEGER_ARGUMENT) return 28;
++    if (cupidbuild_disk_integer_parse((const unsigned char *)"42", 2, 15, 0, &result) !=
++          CUPIDBUILD_DISK_INTEGER_OK || result.magnitude != 42 || result.digits != 2 ||
++          result.magnitude_fits_u32 != 1 || result.negative != 0 || result.zero != 0) return 29;
++  }
++  return 0;
++}
+--- /dev/null
++++ b/toolchain/prototypes/native_image_integers/cupidbuild_disk_integer_tables.inc
+@@ -0,0 +1,107 @@
++/* Captured from both installed integer parsers; see integer-profile-*.json. */
++static const cupidbuild_disk_integer_digit_range_t cupidbuild_disk_integer_digits[] = {
++  {0x30u, 15u},
++  {0x660u, 15u},
++  {0x6f0u, 15u},
++  {0x7c0u, 15u},
++  {0x966u, 15u},
++  {0x9e6u, 15u},
++  {0xa66u, 15u},
++  {0xae6u, 15u},
++  {0xb66u, 15u},
++  {0xbe6u, 15u},
++  {0xc66u, 15u},
++  {0xce6u, 15u},
++  {0xd66u, 15u},
++  {0xde6u, 15u},
++  {0xe50u, 15u},
++  {0xed0u, 15u},
++  {0xf20u, 15u},
++  {0x1040u, 15u},
++  {0x1090u, 15u},
++  {0x17e0u, 15u},
++  {0x1810u, 15u},
++  {0x1946u, 15u},
++  {0x19d0u, 15u},
++  {0x1a80u, 15u},
++  {0x1a90u, 15u},
++  {0x1b50u, 15u},
++  {0x1bb0u, 15u},
++  {0x1c40u, 15u},
++  {0x1c50u, 15u},
++  {0xa620u, 15u},
++  {0xa8d0u, 15u},
++  {0xa900u, 15u},
++  {0xa9d0u, 15u},
++  {0xa9f0u, 15u},
++  {0xaa50u, 15u},
++  {0xabf0u, 15u},
++  {0xff10u, 15u},
++  {0x104a0u, 15u},
++  {0x10d30u, 15u},
++  {0x10d40u, 16u},
++  {0x11066u, 15u},
++  {0x110f0u, 15u},
++  {0x11136u, 15u},
++  {0x111d0u, 15u},
++  {0x112f0u, 15u},
++  {0x11450u, 15u},
++  {0x114d0u, 15u},
++  {0x11650u, 15u},
++  {0x116c0u, 15u},
++  {0x116d0u, 16u},
++  {0x116dau, 16u},
++  {0x11730u, 15u},
++  {0x118e0u, 15u},
++  {0x11950u, 15u},
++  {0x11bf0u, 16u},
++  {0x11c50u, 15u},
++  {0x11d50u, 15u},
++  {0x11da0u, 15u},
++  {0x11f50u, 15u},
++  {0x16130u, 16u},
++  {0x16a60u, 15u},
++  {0x16ac0u, 15u},
++  {0x16b50u, 15u},
++  {0x16d70u, 16u},
++  {0x1ccf0u, 16u},
++  {0x1d7ceu, 15u},
++  {0x1d7d8u, 15u},
++  {0x1d7e2u, 15u},
++  {0x1d7ecu, 15u},
++  {0x1d7f6u, 15u},
++  {0x1e140u, 15u},
++  {0x1e2f0u, 15u},
++  {0x1e4f0u, 15u},
++  {0x1e5f1u, 16u},
++  {0x1e950u, 15u},
++  {0x1fbf0u, 15u},
++};
++
++static const cupidbuild_disk_integer_space_t cupidbuild_disk_integer_spaces[] = {
++  {0x9u, 3u},
++  {0xau, 3u},
++  {0xbu, 3u},
++  {0xcu, 3u},
++  {0xdu, 3u},
++  {0x20u, 3u},
++  {0x85u, 3u},
++  {0xa0u, 3u},
++  {0x1680u, 3u},
++  {0x2000u, 3u},
++  {0x2001u, 3u},
++  {0x2002u, 3u},
++  {0x2003u, 3u},
++  {0x2004u, 3u},
++  {0x2005u, 3u},
++  {0x2006u, 3u},
++  {0x2007u, 3u},
++  {0x2008u, 3u},
++  {0x2009u, 3u},
++  {0x200au, 3u},
++  {0x2028u, 3u},
++  {0x2029u, 3u},
++  {0x202fu, 3u},
++  {0x205fu, 3u},
++  {0x3000u, 3u},
++};
+--- /dev/null
++++ b/toolchain/prototypes/native_image_integers/fgetc_extension.cc
+@@ -0,0 +1,7 @@
++#include "fgetc_extension.h"
++
++int fgetc(FILE *stream) {
++  unsigned char value;
++  if (fread(&value, 1, 1, stream) != 1) return EOF;
++  return (int)value;
++}
+--- /dev/null
++++ b/toolchain/prototypes/native_image_integers/fgetc_extension.h
+@@ -0,0 +1,8 @@
++#ifndef CUPID_HOSTED_FGETC_EXTENSION_H
++#define CUPID_HOSTED_FGETC_EXTENSION_H
++
++#include <stdio.h>
++
++int fgetc(FILE *stream);
++
++#endif

@@ -50,9 +50,9 @@ ticcmd_t* I_BaseTiccmd (void);
 
 // Called by M_Responder when quit is selected.
 // Clean exit, displays sell blurb.
-void I_Quit (void);
+void I_Quit (void) __attribute__((noreturn));
 
-void I_Error (char *error, ...);
+void I_Error (char *error, ...) __attribute__((noreturn));
 
 void I_Tactile (int on, int off, int total);
 
@@ -63,6 +63,9 @@ boolean I_GetMemoryValue(unsigned int offset, void *value, int size);
 // is due to an error (I_Error)
 
 void I_AtExit(atexit_func_t func, boolean run_if_error);
+
+// Forget per-run exit callbacks after Doom has returned to the shell.
+void I_ResetExitState(void);
 
 // Add all system-specific config file variable bindings.
 
@@ -81,4 +84,3 @@ void I_PrintBanner(char *text);
 void I_PrintDivider(void);
 
 #endif
-

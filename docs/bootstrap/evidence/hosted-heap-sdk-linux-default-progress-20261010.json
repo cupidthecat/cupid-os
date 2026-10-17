@@ -1,0 +1,750 @@
+{
+  "all_99_raw_committed_producer_inputs_equal": true,
+  "archive_restores_exact_original_receipt": true,
+  "closed_command_receipt": {
+    "sha256": "1fafa67a8d6da1eacb6249baf55be4f2930480a9d67dcb72e94891d5e389f0d2",
+    "size": 935538
+  },
+  "complete_author_request_reconstructed_from_raw_bytes": {
+    "sha256": "40d11d25e16e68a40d71644e1cc0cb50d9dde93bc1ea8d81b10d781149b87173",
+    "size": 70395116
+  },
+  "complete_independent_receipt": {
+    "sha256": "2035687ff4646807cee0775b22b5d714d76fc07aef80d12077073a634763c6b1",
+    "size": 945892
+  },
+  "complete_independent_receipt_archive": {
+    "sha256": "fc600c5a2cc3586253266b319b03baa8cfef99f29c03ca2d0e58102558763c19",
+    "size": 206424
+  },
+  "complete_stage_pairs": {
+    "bootstrap-object/artifact_size_policy": {
+      "sha256": "634d3fcd3c03fc0522d17d76a4bcc05637687bb604cf25cf642a28512f259996",
+      "size": 94564
+    },
+    "bootstrap-object/contract_parse_internal": {
+      "sha256": "4cfcba82a43e484e73ea0a428c3fa9b0ad25cb3fa820a3781e30c3d0f84378a4",
+      "size": 26576
+    },
+    "bootstrap-object/ctool": {
+      "sha256": "b3c53624564e96d88100950babb28d768c40eb288195d958cdc4a7c4a5c0fa20",
+      "size": 41864
+    },
+    "bootstrap-object/ctool_host": {
+      "sha256": "1a473dffc95605846d731663439e9cc887e5204246fbf6e89c376436669642a6",
+      "size": 6480
+    },
+    "bootstrap-object/cupidasm": {
+      "sha256": "c3578a10f80c3113d43f837013fffaa283580182a8bcd8aaeace0dcbb3935435",
+      "size": 169248
+    },
+    "bootstrap-object/cupidasm_main": {
+      "sha256": "a7c32d8c7754874227678e1235c5bfd70d586fcc3ffa56e77542c8588df4804d",
+      "size": 54804
+    },
+    "bootstrap-object/cupidbuild": {
+      "sha256": "430e253161d2fea691b664393df5e2c9738ef15899ba9b0f84967fc36bfe007f",
+      "size": 395100
+    },
+    "bootstrap-object/cupidbuild_artifacts": {
+      "sha256": "bca67188158923f468c64c0b1334525ef2d05a3597461df0b3b1cf62812fcecd",
+      "size": 22860
+    },
+    "bootstrap-object/cupidbuild_host": {
+      "sha256": "15671451814c05e2d3497c1867a8b85a5bac97825bed141c8e3e983171d22018",
+      "size": 259608
+    },
+    "bootstrap-object/cupidbuild_iso": {
+      "sha256": "983f4fc1270094068abe394fe33935bad7e9d02e340c2f981979c9795a22b101",
+      "size": 10544
+    },
+    "bootstrap-object/cupidbuild_iso_capture": {
+      "sha256": "b98a22c53203a5c24fcfa1c0654e2b5a693af28c8c897e18b98b2899dbf6526a",
+      "size": 13360
+    },
+    "bootstrap-object/cupidbuild_iso_image": {
+      "sha256": "4b40d3caea2af73690e1fd28f57a4667a3eedce9de1012227d7da69fb372a287",
+      "size": 29220
+    },
+    "bootstrap-object/cupidbuild_iso_publication": {
+      "sha256": "7d365d4be5d3364716353a6df83290ef802792f6f6a4bf2a4f1ebfdaeeb26cfd",
+      "size": 20972
+    },
+    "bootstrap-object/cupidbuild_main": {
+      "sha256": "d8f48a848f37aa21e43ef62b8789b9db0dee6b039e0a9d957599e7ba65fdd50a",
+      "size": 24072
+    },
+    "bootstrap-object/cupidbuild_user_abi": {
+      "sha256": "6993e6a624d69b976a72b92159585198a64b156d0c1adcd7e029dc4086934489",
+      "size": 5632
+    },
+    "bootstrap-object/cupidc_emit": {
+      "sha256": "9e0b4ad22fa5c7944c657b3ea08adefdae3c6d33fee696377a5cbd4b5eeed0ab",
+      "size": 630368
+    },
+    "bootstrap-object/cupidc_frontend": {
+      "sha256": "247ef308ec75bd3079497bc97cbc4454b0e062675868bc8d982e611304addd87",
+      "size": 1024260
+    },
+    "bootstrap-object/cupidc_ir": {
+      "sha256": "20c569e84d326282fff76afdc1310fd8f9e9d3c88f2546fc9caef945688b7284",
+      "size": 503792
+    },
+    "bootstrap-object/cupidc_main": {
+      "sha256": "7206b5898ebcb85496a00b2ca9c272e13522c626a5f93175ea221f1ed3892835",
+      "size": 29236
+    },
+    "bootstrap-object/cupidc_pp": {
+      "sha256": "e98d0b14213a334fdcc53426dc2a3d14595f9d795b1635d011c0231644bc6cb3",
+      "size": 212404
+    },
+    "bootstrap-object/cupidc_type": {
+      "sha256": "8cfdff4a0ab8fda3c0beba617954053a286d11b702eb2c92d5f75ed7d1f8d265",
+      "size": 46308
+    },
+    "bootstrap-object/cupiddis": {
+      "sha256": "0f8d7644335dbb40585f9d0870bbacf5daecace2de485dc109adad80221a4022",
+      "size": 200756
+    },
+    "bootstrap-object/cupiddis_main": {
+      "sha256": "0745c6797bb812721d7b8d101a08cbdaabfbfd4247a244762ed732af43aff0f2",
+      "size": 55924
+    },
+    "bootstrap-object/cupidld": {
+      "sha256": "91b5d33a13d200dbfcb489be56767ac2ae85c7f8b2145abbd5416524d4940d32",
+      "size": 126964
+    },
+    "bootstrap-object/cupidld_main": {
+      "sha256": "98fbd57ff8823152a1ee256e651aae15fbd03790b5effe535ef63d4336781a8f",
+      "size": 28156
+    },
+    "bootstrap-object/cupidobj": {
+      "sha256": "6cdc545b0aecfc17ea3233faf031cd5682972b4b1075f787b40113ee7eddabdc",
+      "size": 206316
+    },
+    "bootstrap-object/cupidobj_main": {
+      "sha256": "0b0ef393a23cfc55471176fa82e38519f5aaec3ba70f2dd17c937cac79fbe332",
+      "size": 39928
+    },
+    "bootstrap-object/disk_image": {
+      "sha256": "f33bd2816e2778b4fe785adfd1760e89b61407d215630fc5bed23436a36e1a7e",
+      "size": 15720
+    },
+    "bootstrap-object/elf32": {
+      "sha256": "80dcef903d025f22366286d815b485058ac5c74fcab1d6ce258be980626032da",
+      "size": 73196
+    },
+    "bootstrap-object/fat16_names": {
+      "sha256": "574304d23e69036e2497b2f7af0f087b0e0e07d20d9643e3e2ac8cfbd27a1f71",
+      "size": 33016
+    },
+    "bootstrap-object/fat16_stage": {
+      "sha256": "b92ec1c90410f309afd5004475d0e814090fd46187a80a555f687f0b657e21fa",
+      "size": 19152
+    },
+    "bootstrap-object/iso_fixture_bundle": {
+      "sha256": "c34b5ea90d6af7faae0103c17e7c19739595ac5502e385a2f79efe99e7b4d140",
+      "size": 11968
+    },
+    "bootstrap-object/runtime": {
+      "sha256": "51d3ff76543209dc1101686995f2155e73d5b9a3de69e75e242ccc127abe616d",
+      "size": 32664
+    },
+    "bootstrap-object/seed_manifest": {
+      "sha256": "96840ec75ffe08cf60c9aa40d4ac55cc26f175030b24a963cba9c5d6ca0a9c9c",
+      "size": 95696
+    },
+    "bootstrap-object/seed_release": {
+      "sha256": "dc81035bbfaaa4ff003400663a67f014e18dc14902ca7536ddf39f819e706441",
+      "size": 26284
+    },
+    "bootstrap-object/start": {
+      "sha256": "cd3c6ff524666cd666976df08717ef8c576de982312a008b04bc2bc345af3b9c",
+      "size": 788
+    },
+    "bootstrap-object/user_syscall_abi": {
+      "sha256": "dc70dc8f229e532bb75aa871f7f3c926d94045734ceb62b1d0219f03a047b6ba",
+      "size": 74384
+    },
+    "bootstrap-object/x86": {
+      "sha256": "c791b14905e4f609fb833395a3a64989479f08608d6944df0e2ffc0dbb17c5d2",
+      "size": 136108
+    },
+    "bootstrap-tool/cupidasm": {
+      "sha256": "d72c63e51fe687ea25e80087fd2574108bdfd93419b183cac396c9ce1b225b0f",
+      "size": 485192
+    },
+    "bootstrap-tool/cupidbuild": {
+      "sha256": "deba903351b1c8edb5fe713f20c32d46721f56ce878cbcf15470bdd0bbe196ac",
+      "size": 1129544
+    },
+    "bootstrap-tool/cupidc": {
+      "sha256": "584948f9e23af0446c899fdcf41199e1200fb1ada9b6f0c5b3bc8b0ccaa2cb26",
+      "size": 2549392
+    },
+    "bootstrap-tool/cupiddis": {
+      "sha256": "81788f23045380a428c2180ac0cbec341600c149e9c1aa9f9bfb93d462921cbc",
+      "size": 510320
+    },
+    "bootstrap-tool/cupidld": {
+      "sha256": "8fa010b4034f14423b78e25af4bf1dbcc09e3a5cac7896cb4a39ec1226bdd18a",
+      "size": 297032
+    },
+    "bootstrap-tool/cupidobj": {
+      "sha256": "e7ead217e1018f7b628ba9f2e0eb8b886baa1ea23939f71f7f336498bec6b4cc",
+      "size": 389516
+    },
+    "contract-image/core": {
+      "sha256": "05f9b2c0c19720539d0abbbb5777584c892ceb23919a45e269509dc22755e274",
+      "size": 112012
+    },
+    "contract-image/cupidasm": {
+      "sha256": "5ad80aa1359677055337c92f4f8389383891f9b61d96ff916e8bfd1036589987",
+      "size": 549716
+    },
+    "contract-image/cupidasm-demos": {
+      "sha256": "53cf242dcfb5b44301156de1d3c9e51322c7271a2a17275f126e858d29e75dbd",
+      "size": 446540
+    },
+    "contract-image/cupidasm-kernel-elf": {
+      "sha256": "625374e995084a21607e19c640a8f85d5d7e5f31c8f4c274750c4a38299faaa3",
+      "size": 718376
+    },
+    "contract-image/cupidc-frontend": {
+      "sha256": "6aeb84e8d862844d199ee4b3f68b9b698dc220ae3f352b3056351e32285a9700",
+      "size": 2817116
+    },
+    "contract-image/cupidc-ir": {
+      "sha256": "d1af4a8430a23f4eb8f88bb5371292468c66a79aedd9718482cab9615aecf9cb",
+      "size": 3583852
+    },
+    "contract-image/cupidc-object": {
+      "sha256": "b8e906622f8dfde364bea9719a015df7b58adb5f1818a0a4651bc2b701ccc2b4",
+      "size": 4959476
+    },
+    "contract-image/cupidc-pp": {
+      "sha256": "4dfb5b7a2bbc0342b6762571ed544137ce32d0ebe268c48a43c15a84ced24335",
+      "size": 569688
+    },
+    "contract-image/cupidc-type": {
+      "sha256": "6c07ec8774af565eac0227dbc819dc8075a6b79a05b6b3d0fd81b1ef5ba5056c",
+      "size": 260856
+    },
+    "contract-image/cupiddis": {
+      "sha256": "4edc64f2a96262a10d99e8dfea491e8ea50fcc43893dce6897eba701ccf5c20d",
+      "size": 649900
+    },
+    "contract-image/cupidld": {
+      "sha256": "b19d91ad77056f88d5a41554433cd99d05dcd4754b33634779835bb25a3851ec",
+      "size": 382888
+    },
+    "contract-image/cupidobj": {
+      "sha256": "b47f2b10a792a2a8a23a7b9e44025259be3428393678703b48f57d21b4e1f705",
+      "size": 463668
+    },
+    "contract-image/elf32": {
+      "sha256": "0072fc8714bd767a23b974058fab5c36c1e7a7b47a1eda859f3edc1168240b17",
+      "size": 240812
+    },
+    "contract-image/runtime": {
+      "sha256": "ba807be01e3ec585aa481af5fb7546f1772d03bb739cc719f991ed7dbf55bfc1",
+      "size": 106008
+    },
+    "contract-image/user-syscall-abi": {
+      "sha256": "0dcdfcfbbd34e924a22acf9e0a50ff2ecde330403e66186923aa17cd45a0545f",
+      "size": 158288
+    },
+    "contract-image/x86": {
+      "sha256": "31e51447f0e564456a18f1b784622e08a713743e3429e88b01df25087adde147",
+      "size": 568916
+    },
+    "contract-object/as_elf": {
+      "sha256": "0b89d3e4e9883c929ef1a7feea4574cd86f4a74cbe31639a69c4f42232e00d13",
+      "size": 75716
+    },
+    "contract-object/core": {
+      "sha256": "a044337740da406ef03e8a1df7198bbf8dd739a10c4f118192959f7cc09cce9b",
+      "size": 30224
+    },
+    "contract-object/cupidasm": {
+      "sha256": "d9feeb0a6ee937bb35ece07e39bcda5f91d8ae401439ee2d06cca050ca932395",
+      "size": 137676
+    },
+    "contract-object/cupidasm-demos": {
+      "sha256": "0e28e4f9dbab91ed5dc9112eafdf752d1ff2f4fbb369f02a132bb015dbc6c82e",
+      "size": 18292
+    },
+    "contract-object/cupidasm-kernel-elf": {
+      "sha256": "92214ed1360f8db3804e7887ec7edc32f662d1ed8696e589c7f7062bbf0fc993",
+      "size": 112544
+    },
+    "contract-object/cupidc-frontend": {
+      "sha256": "5e59436b4cd62ad2970fe72e54664f04dd1d540562f9e67ae1c61381be22d51f",
+      "size": 1871052
+    },
+    "contract-object/cupidc-ir": {
+      "sha256": "3d54359eb6a514e53f256f5a73b29bae99cb1e28b1146d85ceca2c5f0dac317e",
+      "size": 2047996
+    },
+    "contract-object/cupidc-object": {
+      "sha256": "addfdd09767126d649eda14fc31243bfd2ed0906f402e9a76b5410462281d6b0",
+      "size": 2472416
+    },
+    "contract-object/cupidc-pp": {
+      "sha256": "966c7da7178be0f1396a7efef8ddac0f1f42268b35f5bb0cf6fa0073dcaeb23b",
+      "size": 411540
+    },
+    "contract-object/cupidc-type": {
+      "sha256": "4a15ddc7d8dda4252e747a9f186dc0e2b362c1180b721b6e6503c54c775701ef",
+      "size": 158192
+    },
+    "contract-object/cupiddis": {
+      "sha256": "97c6fbdff7e409891e2c7d5ff61280b307cf27da658c9c386d53b884974f0dc9",
+      "size": 223388
+    },
+    "contract-object/cupidld": {
+      "sha256": "c58f43999b845571a8982101542b3f364f802b2f512d985a2bc617eab02fc233",
+      "size": 125088
+    },
+    "contract-object/cupidobj": {
+      "sha256": "e14ea3c31547fc11210ba4ebffb7ba1cd05c7587413aa1b14e6645540ce54e0f",
+      "size": 140684
+    },
+    "contract-object/elf32": {
+      "sha256": "5d5e8cb5fafdd41fda08a5f46596253d66208cef63a557f104832e25e414f37e",
+      "size": 99440
+    },
+    "contract-object/runtime": {
+      "sha256": "ed5ce49a62ac29a18399131049414581bf4e839b129c339b850882b33ced1a68",
+      "size": 66656
+    },
+    "contract-object/user-syscall-abi": {
+      "sha256": "8a2da05017cd4647ba70d38baeaf4b08304cf5f2bda961f97ce2e11cc0c09952",
+      "size": 7600
+    },
+    "contract-object/x86": {
+      "sha256": "2b010c1aa8082ee2f7a6a3c9ff5ca971149ee7e6883d82b6ce9e483b5a1ae6b3",
+      "size": 432268
+    }
+  },
+  "global_qualified_producer_inputs": 99,
+  "installed_root_seed_files_unchanged": 15,
+  "installed_root_seeds_promoted": false,
+  "latest_original_command_job": {
+    "argv": [
+      "wsl.exe",
+      "-d",
+      "Ubuntu",
+      "--cd",
+      "/var/tmp/cupid-heap-test-consumer-20261010",
+      "--exec",
+      "env",
+      "CC=forbidden-host-CC",
+      "CXX=forbidden-host-CXX",
+      "CPP=forbidden-host-CPP",
+      "AS=forbidden-host-AS",
+      "AR=forbidden-host-AR",
+      "LD=forbidden-host-LD",
+      "NM=forbidden-host-NM",
+      "OBJCOPY=forbidden-host-OBJCOPY",
+      "NASM=forbidden-host-NASM",
+      "GIT_DIR=/mnt/c/Users/admin/Desktop/cupid-os/.git/worktrees/cupid-bootstrap-20261009",
+      "GIT_WORK_TREE=/var/tmp/cupid-heap-test-consumer-20261010",
+      "python3",
+      "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/heap-acceptance/run-consumer-command.py",
+      "/var/tmp/cupid-heap-test-consumer-20261010",
+      "sdk-long",
+      "/var/tmp/cupid-heap-test-consumer-20261010/build/heap-sdk-linux-long"
+    ],
+    "host": "linux",
+    "mode": "sdk-long",
+    "name": "heap-sdk-linux-long",
+    "pid": 35400,
+    "producer_variables": {
+      "AR": "forbidden-host-AR",
+      "AS": "forbidden-host-AS",
+      "CC": "forbidden-host-CC",
+      "CPP": "forbidden-host-CPP",
+      "CXX": "forbidden-host-CXX",
+      "LD": "forbidden-host-LD",
+      "NASM": "forbidden-host-NASM",
+      "NM": "forbidden-host-NM",
+      "OBJCOPY": "forbidden-host-OBJCOPY"
+    },
+    "started_utc": "2026-10-10T08:16:01.525484+00:00",
+    "status": "running"
+  },
+  "normal_transform_ownership": {
+    "cupidbuild": 449,
+    "python": 3,
+    "total": 452
+  },
+  "original_audit_exec_session": 46506,
+  "original_audit_job": {
+    "argv": [
+      "wsl.exe",
+      "-d",
+      "Ubuntu",
+      "--exec",
+      "env",
+      "CC=forbidden-host-CC",
+      "CXX=forbidden-host-CXX",
+      "CPP=forbidden-host-CPP",
+      "AS=forbidden-host-AS",
+      "AR=forbidden-host-AR",
+      "LD=forbidden-host-LD",
+      "NM=forbidden-host-NM",
+      "OBJCOPY=forbidden-host-OBJCOPY",
+      "NASM=forbidden-host-NASM",
+      "python3",
+      "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/heap-acceptance/verify-sdk-consumer.py",
+      "/var/tmp/cupid-heap-test-consumer-20261010",
+      "/var/tmp/cupid-heap-test-consumer-20261010/build/heap-sdk-linux-default"
+    ],
+    "exit_code": 0,
+    "finished_utc": "2026-10-10T08:16:38.712942+00:00",
+    "log_sha256": "cecb700d0f6ac5acf78019edce286e6b26302c0c13216584aa8c6667ca4bdf1c",
+    "name": "heap-sdk-linux-default-sdk",
+    "original_consumer": "heap-sdk-linux-default",
+    "pid": 35240,
+    "seconds": 29.114824899937958,
+    "started_utc": "2026-10-10T08:16:09.597919+00:00",
+    "status": "pass"
+  },
+  "original_audit_queue_status": "waiting-for-heap-sdk-linux-long",
+  "original_command_queue_status": "running",
+  "original_consumer_commands": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/var/tmp/cupid-heap-test-consumer-20261010/tools/cupidc_toolchain_contracts.py",
+        "build",
+        "--root",
+        "/var/tmp/cupid-heap-test-consumer-20261010",
+        "--manifest",
+        "/var/tmp/cupid-heap-test-consumer-20261010/bootstrap/seeds/i386-linux/manifest.json",
+        "--behavior-release",
+        "/var/tmp/cupid-heap-test-consumer-20261010/bootstrap/seeds/release.json",
+        "--output",
+        "/var/tmp/cupid-heap-test-consumer-20261010/build/heap-sdk-linux-default/cupidc-contracts",
+        "--workers",
+        "2"
+      ],
+      "cwd": "/var/tmp/cupid-heap-test-consumer-20261010",
+      "exit_code": 0,
+      "log": {
+        "sha256": "82a2a263b6746b462609438bb7a7ec3c45822d54ad9adc7319ee88342d9cde02",
+        "size": 5837
+      },
+      "name": "sdk-build",
+      "seconds": 3824.8206340280003
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/var/tmp/cupid-heap-test-consumer-20261010/tools/cupidc_toolchain_contracts.py",
+        "verify",
+        "--root",
+        "/var/tmp/cupid-heap-test-consumer-20261010",
+        "--output",
+        "/var/tmp/cupid-heap-test-consumer-20261010/build/heap-sdk-linux-default/cupidc-contracts"
+      ],
+      "cwd": "/var/tmp/cupid-heap-test-consumer-20261010",
+      "exit_code": 0,
+      "log": {
+        "sha256": "acbcc600f9ec2a154f4ded56be24b9b1f53501515f7cdc13cc67f3300c74c3e6",
+        "size": 52
+      },
+      "name": "sdk-verify",
+      "seconds": 0.16277804800029116
+    }
+  ],
+  "original_exec_session": 75606,
+  "original_job": {
+    "argv": [
+      "wsl.exe",
+      "-d",
+      "Ubuntu",
+      "--cd",
+      "/var/tmp/cupid-heap-test-consumer-20261010",
+      "--exec",
+      "env",
+      "CC=forbidden-host-CC",
+      "CXX=forbidden-host-CXX",
+      "CPP=forbidden-host-CPP",
+      "AS=forbidden-host-AS",
+      "AR=forbidden-host-AR",
+      "LD=forbidden-host-LD",
+      "NM=forbidden-host-NM",
+      "OBJCOPY=forbidden-host-OBJCOPY",
+      "NASM=forbidden-host-NASM",
+      "GIT_DIR=/mnt/c/Users/admin/Desktop/cupid-os/.git/worktrees/cupid-bootstrap-20261009",
+      "GIT_WORK_TREE=/var/tmp/cupid-heap-test-consumer-20261010",
+      "python3",
+      "/mnt/c/Users/admin/cupid-bootstrap-20261009/build/heap-acceptance/run-consumer-command.py",
+      "/var/tmp/cupid-heap-test-consumer-20261010",
+      "sdk-default",
+      "/var/tmp/cupid-heap-test-consumer-20261010/build/heap-sdk-linux-default"
+    ],
+    "exit_code": 0,
+    "finished_utc": "2026-10-10T08:16:01.522141+00:00",
+    "host": "linux",
+    "log_sha256": "9e97f19108503f79af01edcabcd8c7f8e64823a8983823429265665d6198ea15",
+    "mode": "sdk-default",
+    "name": "heap-sdk-linux-default",
+    "pid": 35844,
+    "producer_variables": {
+      "AR": "forbidden-host-AR",
+      "AS": "forbidden-host-AS",
+      "CC": "forbidden-host-CC",
+      "CPP": "forbidden-host-CPP",
+      "CXX": "forbidden-host-CXX",
+      "LD": "forbidden-host-LD",
+      "NASM": "forbidden-host-NASM",
+      "NM": "forbidden-host-NM",
+      "OBJCOPY": "forbidden-host-OBJCOPY"
+    },
+    "seconds": 4063.05444420001,
+    "started_utc": "2026-10-10T07:08:18.467625+00:00",
+    "status": "pass"
+  },
+  "original_producer_sentinels": {
+    "AR": "forbidden-host-AR",
+    "AS": "forbidden-host-AS",
+    "CC": "forbidden-host-CC",
+    "CPP": "forbidden-host-CPP",
+    "CXX": "forbidden-host-CXX",
+    "LD": "forbidden-host-LD",
+    "NASM": "forbidden-host-NASM",
+    "NM": "forbidden-host-NM",
+    "OBJCOPY": "forbidden-host-OBJCOPY"
+  },
+  "publication_files": {
+    "core-contract.elf": {
+      "sha256": "05f9b2c0c19720539d0abbbb5777584c892ceb23919a45e269509dc22755e274",
+      "size": 112012
+    },
+    "cupidasm-contract.elf": {
+      "sha256": "5ad80aa1359677055337c92f4f8389383891f9b61d96ff916e8bfd1036589987",
+      "size": 549716
+    },
+    "cupidasm-demos-contract.elf": {
+      "sha256": "53cf242dcfb5b44301156de1d3c9e51322c7271a2a17275f126e858d29e75dbd",
+      "size": 446540
+    },
+    "cupidasm-kernel-elf-contract.elf": {
+      "sha256": "625374e995084a21607e19c640a8f85d5d7e5f31c8f4c274750c4a38299faaa3",
+      "size": 718376
+    },
+    "cupidc-cupidasm.elf": {
+      "sha256": "d72c63e51fe687ea25e80087fd2574108bdfd93419b183cac396c9ce1b225b0f",
+      "size": 485192
+    },
+    "cupidc-cupidbuild.elf": {
+      "sha256": "deba903351b1c8edb5fe713f20c32d46721f56ce878cbcf15470bdd0bbe196ac",
+      "size": 1129544
+    },
+    "cupidc-cupidc.elf": {
+      "sha256": "584948f9e23af0446c899fdcf41199e1200fb1ada9b6f0c5b3bc8b0ccaa2cb26",
+      "size": 2549392
+    },
+    "cupidc-cupiddis.elf": {
+      "sha256": "81788f23045380a428c2180ac0cbec341600c149e9c1aa9f9bfb93d462921cbc",
+      "size": 510320
+    },
+    "cupidc-cupidld.elf": {
+      "sha256": "8fa010b4034f14423b78e25af4bf1dbcc09e3a5cac7896cb4a39ec1226bdd18a",
+      "size": 297032
+    },
+    "cupidc-cupidobj.elf": {
+      "sha256": "e7ead217e1018f7b628ba9f2e0eb8b886baa1ea23939f71f7f336498bec6b4cc",
+      "size": 389516
+    },
+    "cupidc-frontend-contract.elf": {
+      "sha256": "6aeb84e8d862844d199ee4b3f68b9b698dc220ae3f352b3056351e32285a9700",
+      "size": 2817116
+    },
+    "cupidc-ir-contract.elf": {
+      "sha256": "d1af4a8430a23f4eb8f88bb5371292468c66a79aedd9718482cab9615aecf9cb",
+      "size": 3583852
+    },
+    "cupidc-object-contract.elf": {
+      "sha256": "b8e906622f8dfde364bea9719a015df7b58adb5f1818a0a4651bc2b701ccc2b4",
+      "size": 4959476
+    },
+    "cupidc-pp-contract.elf": {
+      "sha256": "4dfb5b7a2bbc0342b6762571ed544137ce32d0ebe268c48a43c15a84ced24335",
+      "size": 569688
+    },
+    "cupidc-runtime-contract.elf": {
+      "sha256": "ba807be01e3ec585aa481af5fb7546f1772d03bb739cc719f991ed7dbf55bfc1",
+      "size": 106008
+    },
+    "cupidc-type-contract.elf": {
+      "sha256": "6c07ec8774af565eac0227dbc819dc8075a6b79a05b6b3d0fd81b1ef5ba5056c",
+      "size": 260856
+    },
+    "cupiddis-contract.elf": {
+      "sha256": "4edc64f2a96262a10d99e8dfea491e8ea50fcc43893dce6897eba701ccf5c20d",
+      "size": 649900
+    },
+    "cupidld-contract.elf": {
+      "sha256": "b19d91ad77056f88d5a41554433cd99d05dcd4754b33634779835bb25a3851ec",
+      "size": 382888
+    },
+    "cupidobj-contract.elf": {
+      "sha256": "b47f2b10a792a2a8a23a7b9e44025259be3428393678703b48f57d21b4e1f705",
+      "size": 463668
+    },
+    "elf32-contract.elf": {
+      "sha256": "0072fc8714bd767a23b974058fab5c36c1e7a7b47a1eda859f3edc1168240b17",
+      "size": 240812
+    },
+    "manifest.json": {
+      "sha256": "fd2c21487daf1798da99e163b0019ea08dae6da888a3b845e455525684f3d6e2",
+      "size": 40456
+    },
+    "user-syscall-abi-contract.elf": {
+      "sha256": "0dcdfcfbbd34e924a22acf9e0a50ff2ecde330403e66186923aa17cd45a0545f",
+      "size": 158288
+    },
+    "x86-contract.elf": {
+      "sha256": "31e51447f0e564456a18f1b784622e08a713743e3429e88b01df25087adde147",
+      "size": 568916
+    }
+  },
+  "published_images": [
+    {
+      "path": "core-contract.elf",
+      "sha256": "05f9b2c0c19720539d0abbbb5777584c892ceb23919a45e269509dc22755e274",
+      "size": 112012
+    },
+    {
+      "path": "cupidasm-contract.elf",
+      "sha256": "5ad80aa1359677055337c92f4f8389383891f9b61d96ff916e8bfd1036589987",
+      "size": 549716
+    },
+    {
+      "path": "cupidasm-demos-contract.elf",
+      "sha256": "53cf242dcfb5b44301156de1d3c9e51322c7271a2a17275f126e858d29e75dbd",
+      "size": 446540
+    },
+    {
+      "path": "cupidasm-kernel-elf-contract.elf",
+      "sha256": "625374e995084a21607e19c640a8f85d5d7e5f31c8f4c274750c4a38299faaa3",
+      "size": 718376
+    },
+    {
+      "path": "cupidc-cupidasm.elf",
+      "sha256": "d72c63e51fe687ea25e80087fd2574108bdfd93419b183cac396c9ce1b225b0f",
+      "size": 485192
+    },
+    {
+      "path": "cupidc-cupidbuild.elf",
+      "sha256": "deba903351b1c8edb5fe713f20c32d46721f56ce878cbcf15470bdd0bbe196ac",
+      "size": 1129544
+    },
+    {
+      "path": "cupidc-cupidc.elf",
+      "sha256": "584948f9e23af0446c899fdcf41199e1200fb1ada9b6f0c5b3bc8b0ccaa2cb26",
+      "size": 2549392
+    },
+    {
+      "path": "cupidc-cupiddis.elf",
+      "sha256": "81788f23045380a428c2180ac0cbec341600c149e9c1aa9f9bfb93d462921cbc",
+      "size": 510320
+    },
+    {
+      "path": "cupidc-cupidld.elf",
+      "sha256": "8fa010b4034f14423b78e25af4bf1dbcc09e3a5cac7896cb4a39ec1226bdd18a",
+      "size": 297032
+    },
+    {
+      "path": "cupidc-cupidobj.elf",
+      "sha256": "e7ead217e1018f7b628ba9f2e0eb8b886baa1ea23939f71f7f336498bec6b4cc",
+      "size": 389516
+    },
+    {
+      "path": "cupidc-frontend-contract.elf",
+      "sha256": "6aeb84e8d862844d199ee4b3f68b9b698dc220ae3f352b3056351e32285a9700",
+      "size": 2817116
+    },
+    {
+      "path": "cupidc-ir-contract.elf",
+      "sha256": "d1af4a8430a23f4eb8f88bb5371292468c66a79aedd9718482cab9615aecf9cb",
+      "size": 3583852
+    },
+    {
+      "path": "cupidc-object-contract.elf",
+      "sha256": "b8e906622f8dfde364bea9719a015df7b58adb5f1818a0a4651bc2b701ccc2b4",
+      "size": 4959476
+    },
+    {
+      "path": "cupidc-pp-contract.elf",
+      "sha256": "4dfb5b7a2bbc0342b6762571ed544137ce32d0ebe268c48a43c15a84ced24335",
+      "size": 569688
+    },
+    {
+      "path": "cupidc-runtime-contract.elf",
+      "sha256": "ba807be01e3ec585aa481af5fb7546f1772d03bb739cc719f991ed7dbf55bfc1",
+      "size": 106008
+    },
+    {
+      "path": "cupidc-type-contract.elf",
+      "sha256": "6c07ec8774af565eac0227dbc819dc8075a6b79a05b6b3d0fd81b1ef5ba5056c",
+      "size": 260856
+    },
+    {
+      "path": "cupiddis-contract.elf",
+      "sha256": "4edc64f2a96262a10d99e8dfea491e8ea50fcc43893dce6897eba701ccf5c20d",
+      "size": 649900
+    },
+    {
+      "path": "cupidld-contract.elf",
+      "sha256": "b19d91ad77056f88d5a41554433cd99d05dcd4754b33634779835bb25a3851ec",
+      "size": 382888
+    },
+    {
+      "path": "cupidobj-contract.elf",
+      "sha256": "b47f2b10a792a2a8a23a7b9e44025259be3428393678703b48f57d21b4e1f705",
+      "size": 463668
+    },
+    {
+      "path": "elf32-contract.elf",
+      "sha256": "0072fc8714bd767a23b974058fab5c36c1e7a7b47a1eda859f3edc1168240b17",
+      "size": 240812
+    },
+    {
+      "path": "user-syscall-abi-contract.elf",
+      "sha256": "0dcdfcfbbd34e924a22acf9e0a50ff2ecde330403e66186923aa17cd45a0545f",
+      "size": 158288
+    },
+    {
+      "path": "x86-contract.elf",
+      "sha256": "31e51447f0e564456a18f1b784622e08a713743e3429e88b01df25087adde147",
+      "size": 568916
+    }
+  ],
+  "recorder": {
+    "sha256": "f5af7de4f01942f5baf3eddba1e1eccafb56e0fc7385871ec61b4f0739ec4875",
+    "size": 5055
+  },
+  "required_remaining": [
+    "linux-sdk-long",
+    "windows-sdk-default",
+    "windows-sdk-long",
+    "linux-public-bootstrap",
+    "windows-public-bootstrap",
+    "linux-Make-bootstrap",
+    "windows-Make-bootstrap"
+  ],
+  "retained_workspace_files_checked": 4558,
+  "schema": "cupid.hosted-heap-sdk-default-progress.v1",
+  "sdk_bootstrap_input_digest": "0651dccd5e843c2fb8ef17d36cf1081ccaa5f4ce74dfa7df13811a47c62818a3",
+  "sdk_bootstrap_inputs": 98,
+  "sdk_inputs": 104,
+  "source_controls_rechecked": 1764,
+  "source_revision": "1d852023df98c03481c4b3979dccb398288b7115",
+  "source_snapshot_sha256": "4ae98403b0896b24e50b81b11b213b8117207421b9152e95d0500e00e612d07e",
+  "status": "linux-default-sdk-accepted-other-sdk-public-and-make-pending"
+}

@@ -140,6 +140,7 @@ int main() {
 
   /* Step 6: Display the BMP on framebuffer */
   println("Displaying on framebuffer at (304, 224)...");
+  gfx2d_fullscreen_enter();
   ret = bmp_decode_to_fb("/tmp/test.bmp", 304, 224);
   if (ret != 0) {
     print("  bmp_decode_to_fb returned ");
@@ -149,6 +150,7 @@ int main() {
     println("  Displayed OK");
     gfx2d_flip();
   }
+  gfx2d_fullscreen_exit();
 
   kfree(img);
   kfree(img2);

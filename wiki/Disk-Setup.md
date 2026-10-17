@@ -6,20 +6,20 @@ This guide explains the current disk model and how to work with the FAT16 partit
 
 ## Quick Setup (Copy-Paste)
 
-If you just want a working HDD image fast:
+The shortest setup uses the portable host helper:
 
 ```bash
 # Build (or reuse) cupidos.img
 make HDD_MB=200
 
 # Copy host file into FAT root (visible as /disk in CupidOS)
-python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 cupid.bmp:/cupid.bmp
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 cupid.bmp:/cupid.bmp
 
 # Boot
 make run
 ```
 
-That's it. Read on for a detailed explanation of each step.
+The sections below explain the image layout and the manual alternatives.
 
 ---
 
@@ -28,6 +28,26 @@ That's it. Read on for a detailed explanation of each step.
 The normal build and host-copy flow uses `tools/hostbuild.py` and works on
 Linux and native Windows with Python 3. `mtools` is optional for manual FAT16
 inspection/copying.
+
+The normal `make` image target runs checked-seed CupidObj `disk-template` on
+private bootloader and kernel copies. CupidObj writes the pristine prefix from
+the MBR through the empty FAT16 root directory. Python separately renders a
+layout oracle and stops if its bytes differ from CupidObj's candidate.
+
+For a fresh, invalid, or force-formatted image, Python extends the complete
+template to the requested disk size. When it reuses a valid image, it replaces
+only the bytes before the FAT partition, so existing FAT files survive. Python
+then stages frozen inputs, checks for live input or output changes, and
+publishes the finished image with an atomic replacement. [ADR 0238](../docs/adr/0238-publish-normal-disk-images-from-cupidobj-templates.md)
+records this split between template authorship and persistent disk handling.
+The guarded recipe built a fresh 209,715,200-byte image with SHA-256
+`8ad90a91103bf48d1e8d1e20b1b3dee48122ed1e4059b3f94cce7d750c262f16`.
+A private four-CPU `/bin/ls.cc` JIT boot passed from that image in 61.9 seconds.
+At a later handoff checkpoint, a rebuild preserved the existing FAT data. Its
+image had
+SHA-256
+`d1bfab4aed1f2116768ceed3e301fb14ffe2a36418eb4d4ebdf1108097cb2b05`,
+and a private four-CPU JIT boot passed from it in 66.8 seconds.
 
 The alternate loop-mount method is Linux/WSL-only and needs root/sudo access:
 
@@ -73,18 +93,21 @@ Default is `HDD_MB=200`.
 Copy files into FAT root with the Python helper:
 
 ```bash
-python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 cupid.bmp:/cupid.bmp
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 cupid.bmp:/cupid.bmp
 ```
 
 On Windows, use `python` instead of `python3`.
+
+The Make recipes give `hostbuild.py` the partition start as an LBA. They do
+not precompute a byte offset while parsing the Makefile.
 
 If you prefer `mtools`, install it and use the FAT byte offset:
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y mtools
-mcopy -o -i cupidos.img@@8388608 cupid.bmp ::/cupid.bmp
-mdir -i cupidos.img@@8388608 ::/
+mcopy -o -i cupidos.img@@10485760 cupid.bmp ::/cupid.bmp
+mdir -i cupidos.img@@10485760 ::/
 ```
 
 Mapping:
@@ -104,14 +127,14 @@ mcopy -o -i cupidos.img@@${offset_bytes} file.txt ::/file.txt
 If you prefer mounting from Linux directly:
 
 ```bash
-sudo mount -o loop,offset=$((16384*512)) cupidos.img /mnt/cupidos
+sudo mount -o loop,offset=$((20480*512)) cupidos.img /mnt/cupidos
 ```
 
 This mounts the FAT16 partition directly from `cupidos.img`.
 
 ### 4. Add Files (Loop-Mount Path)
 
-Now copy files into it:
+Copy files into the mounted partition:
 
 ```bash
 # Simple text file
@@ -152,7 +175,7 @@ EOF
 sudo umount /mnt/cupidos
 ```
 
-Your `cupidos.img` now contains the updated FAT16 data.
+The copied files are stored in the FAT16 partition inside `cupidos.img`.
 
 ---
 
@@ -261,7 +284,7 @@ Always `sync` before shutting down QEMU to avoid data loss.
 
 ### No files visible in /disk
 - Verify files were copied to FAT root `::/`.
-- Check FAT listing from host: `mdir -i cupidos.img@@8388608 ::/`.
+- Check FAT listing from host: `mdir -i cupidos.img@@10485760 ::/`.
 - Check serial output for FAT16 mount messages.
 
 ### "mount" doesn't show /disk as fat16
@@ -278,7 +301,7 @@ Always `sync` before shutting down QEMU to avoid data loss.
 - No long filename (LFN) support.
 
 ### Wrong offset in mtools/loop mount
-- Default FAT offset is `8388608` bytes (`16384 * 512`).
+- Default FAT offset is `10485760` bytes (`20480 * 512`).
 - If `FAT_START_LBA` changed, recompute offset as `FAT_START_LBA * 512`.
 
 ### Permission denied

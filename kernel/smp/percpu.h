@@ -24,10 +24,12 @@ typedef struct per_cpu_t {
     void    *call_arg;
     volatile uint8_t call_pending;
     volatile uint8_t call_done;
+    volatile uint8_t reschedule_pending;
+    uint8_t  interrupt_depth;  /* generic ISR/IRQ nesting on this CPU */
     /* Tail pad so the struct rounds up to a cache-line pair. The
      * aligned(64) attribute on the struct forces sizeof to a
      * multiple of 64, so _pad only needs to avoid truncating fields.*/
-    uint8_t  _pad[76];
+    uint8_t  _pad[74];
 } per_cpu_t __attribute__((aligned(64)));
 
 /* Cache-line-pair isolation guaranteed: sizeof must be 128. */
@@ -43,8 +45,27 @@ static inline per_cpu_t *this_cpu(void) {
     return p;
 }
 
+static inline void percpu_request_reschedule(per_cpu_t *cpu) {
+    __atomic_store_n(&cpu->reschedule_pending, 1u, __ATOMIC_RELEASE);
+}
+
+static inline bool percpu_reschedule_is_pending(const per_cpu_t *cpu) {
+    return __atomic_load_n(&cpu->reschedule_pending, __ATOMIC_ACQUIRE) != 0u;
+}
+
+static inline bool percpu_take_reschedule(per_cpu_t *cpu) {
+    return __atomic_exchange_n(&cpu->reschedule_pending, 0u,
+                               __ATOMIC_ACQ_REL) != 0u;
+}
+
+static inline bool percpu_in_interrupt(const per_cpu_t *cpu) {
+    return cpu->interrupt_depth != 0u;
+}
+
 void percpu_init_bsp(void);
 void percpu_load_kernel_gdt(int cpu_id);
+void percpu_interrupt_enter(void);
+void percpu_interrupt_leave(void);
 int smp_cpu_count(void);
 int smp_current_cpu(void);
 

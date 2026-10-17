@@ -28,9 +28,10 @@ typedef struct {
 int blockcache_init(block_device_t* device);
 int blockcache_read(uint32_t lba, void* buffer);
 int blockcache_write(uint32_t lba, const void* buffer);
-void blockcache_flush_all(void);
+int blockcache_flush_all(void);
 void blockcache_periodic_flush(struct registers* r, uint32_t channel);
-void blockcache_sync(void);
+int blockcache_sync(void);
+int blockcache_failure_selftest(void);
 void blockcache_stats(void);
 void blockcache_set_output(void (*print_fn)(const char*), void (*print_int_fn)(uint32_t));
 

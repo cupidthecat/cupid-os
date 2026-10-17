@@ -48,10 +48,16 @@ main:
     push msg_ok
     call print
     add  esp, 4
+    push msg_ok
+    call serial_write_string
+    add  esp, 4
     ret
 
 .fail:
     push msg_fail
     call print
+    add  esp, 4
+    push msg_fail
+    call serial_write_string
     add  esp, 4
     ret

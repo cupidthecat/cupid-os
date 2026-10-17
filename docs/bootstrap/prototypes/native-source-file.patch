@@ -1,0 +1,413 @@
+--- /dev/null
++++ b/toolchain/prototypes/native_source_file/cupidbuild_source_path.cc
+@@ -0,0 +1,154 @@
++#include "cupidbuild_source_path.h"
++#include "cupidbuild_host.h"
++#include "path_encoding.h"
++
++#include <stdlib.h>
++#include <string.h>
++
++#define CUPIDBUILD_SOURCE_PATH_BYTES 8192u
++
++static int source_text_valid(const char *text) {
++  size_t units = 0u;
++  return text && strlen(text) < CUPIDBUILD_SOURCE_PATH_BYTES &&
++      cupidbuild_path_to_utf16(text, strlen(text), (unsigned short *)0,
++                              0u, &units);
++}
++
++static int source_separator(char value) {
++  return value == '/' || value == '\\';
++}
++
++static int source_drive(const char *text) {
++  return text && ((text[0] >= 'A' && text[0] <= 'Z') ||
++                  (text[0] >= 'a' && text[0] <= 'z')) && text[1] == ':';
++}
++
++static char source_fold_drive(char value) {
++  return value >= 'a' && value <= 'z' ? (char)(value - 'a' + 'A') : value;
++}
++
++static int source_posix_normalize(const char *joined, char *output,
++                                  size_t capacity) {
++  size_t length = strlen(joined);
++  size_t anchor = joined[0] == '/' && joined[1] == '/' && joined[2] != '/' ? 2u : 1u;
++  size_t used = anchor, cursor = anchor;
++  char *work = (char *)malloc(length + 2u);
++  int valid = 0;
++  if (!work) return 0;
++  work[0] = '/';
++  if (anchor == 2u) work[1] = '/';
++  while (cursor < length) {
++    size_t begin, component;
++    while (joined[cursor] == '/') cursor++;
++    begin = cursor;
++    while (joined[cursor] && joined[cursor] != '/') cursor++;
++    component = cursor - begin;
++    if (!component || (component == 1u && joined[begin] == '.')) continue;
++    if (component == 2u && joined[begin] == '.' && joined[begin + 1u] == '.') {
++      if (used > anchor) {
++        while (used > anchor && work[used - 1u] != '/') used--;
++        if (used > anchor) used--;
++      }
++    } else {
++      if (used > anchor) work[used++] = '/';
++      (void)memcpy(work + used, joined + begin, component);
++      used += component;
++    }
++  }
++  work[used] = 0;
++  if (used < capacity && used < CUPIDBUILD_SOURCE_PATH_BYTES) {
++    (void)memcpy(output, work, used + 1u);
++    valid = 1;
++  }
++  free(work);
++  return valid;
++}
++
++static int source_windows_finish(char *output, size_t capacity) {
++  size_t length = strlen(output), anchor;
++  if (source_drive(output) && source_separator(output[2])) anchor = 3u;
++  else if (source_separator(output[0]) && source_separator(output[1])) {
++    size_t start = 2u, cursor;
++    if (length >= 8u && output[2] == '?' && source_separator(output[3]) &&
++        source_fold_drive(output[4]) == 'U' &&
++        source_fold_drive(output[5]) == 'N' &&
++        source_fold_drive(output[6]) == 'C' && source_separator(output[7]))
++      start = 8u;
++    cursor = start;
++    while (output[cursor] && !source_separator(output[cursor])) cursor++;
++    if (!output[cursor] || !output[cursor + 1u])
++      return length < CUPIDBUILD_SOURCE_PATH_BYTES;
++    cursor++;
++    while (output[cursor] && !source_separator(output[cursor])) cursor++;
++    anchor = cursor + 1u;
++    if (!output[cursor]) {
++      if (start == 2u && (output[2] == '?' || output[2] == '.'))
++        return length < CUPIDBUILD_SOURCE_PATH_BYTES;
++      if (length + 1u >= capacity || length + 1u >= CUPIDBUILD_SOURCE_PATH_BYTES) return 0;
++      output[length++] = '\\';
++      output[length] = 0;
++    }
++  } else return 0;
++  while (length > anchor && source_separator(output[length - 1u])) output[--length] = 0;
++  return length < CUPIDBUILD_SOURCE_PATH_BYTES;
++}
++
++int cupidbuild_source_path_absolute(const char *root, const char *request,
++                                   char *output, size_t capacity) {
++  unsigned int format = cupidbuild_host_execution_format();
++  size_t root_length = 0u, request_length, prefix = 0u;
++  const char *suffix = request;
++  char *joined;
++  int absolute, valid = 0;
++  if (!output || !capacity) return 0;
++  output[0] = 0;
++  if (!source_text_valid(request) || (format != 1u && format != 2u)) return 0;
++  request_length = strlen(request);
++  absolute = format == 1u ? request[0] == '/' :
++      (source_drive(request) && source_separator(request[2])) ||
++      (source_separator(request[0]) && source_separator(request[1]));
++  if (!absolute) {
++    if (!source_text_valid(root)) return 0;
++    root_length = strlen(root);
++    if (format == 1u) {
++      if (root[0] != '/') return 0;
++      prefix = root_length;
++    } else {
++      if (source_drive(root) && source_separator(root[2])) {
++        prefix = source_separator(request[0]) ? 2u : root_length;
++      } else if (source_separator(root[0]) && source_separator(root[1])) {
++        size_t cursor = 2u;
++        while (root[cursor] && !source_separator(root[cursor])) cursor++;
++        if (!root[cursor] || !root[cursor + 1u]) return 0;
++        cursor++;
++        while (root[cursor] && !source_separator(root[cursor])) cursor++;
++        prefix = source_separator(request[0]) ? cursor : root_length;
++      } else return 0;
++      if (source_drive(request)) {
++        if (source_drive(root) && source_fold_drive(request[0]) == source_fold_drive(root[0]))
++          suffix = request + 2u;
++        else {
++          valid = cupidbuild_host_absolute_root(request, output, capacity) &&
++                  source_windows_finish(output, capacity);
++          if (!valid) output[0] = 0;
++          return valid;
++        }
++      }
++    }
++  }
++  joined = (char *)malloc(prefix + request_length + 3u);
++  if (!joined) return 0;
++  if (prefix) (void)memcpy(joined, root, prefix);
++  joined[prefix] = 0;
++  if (prefix &&
++      !(format == 1u ? joined[prefix - 1u] == '/' : source_separator(joined[prefix - 1u])) &&
++      !(format == 1u ? suffix[0] == '/' : source_separator(suffix[0])))
++    joined[prefix++] = '/';
++  (void)memcpy(joined + prefix, suffix, strlen(suffix) + 1u);
++  if (format == 1u) valid = source_posix_normalize(joined, output, capacity);
++  else valid = cupidbuild_host_absolute_root(joined, output, capacity) &&
++               source_windows_finish(output, capacity);
++  free(joined);
++  if (!valid) output[0] = 0;
++  return valid;
++}
+--- /dev/null
++++ b/toolchain/prototypes/native_source_file/cupidbuild_source_path.h
+@@ -0,0 +1,15 @@
++#ifndef CUPID_TOOLCHAIN_BUILD_SOURCE_PATH_H
++#define CUPID_TOOLCHAIN_BUILD_SOURCE_PATH_H
++
++#include <stddef.h>
++
++/* Produce the image command's absolute lexical source spelling. Relative
++ * requests use the supplied absolute working root. This follows no aliases,
++ * observes no file and creates no namespace entry. Input strings are UTF-8;
++ * each input and the result may contain at most 8,191 bytes. Input and output
++ * buffers must not overlap. Failure clears a supplied output.
++ * The caller must retain filesystem observations before using the spelling. */
++int cupidbuild_source_path_absolute(const char *root, const char *request,
++                                   char *output, size_t capacity);
++
++#endif
+--- /dev/null
++++ b/toolchain/prototypes/native_source_file/cupidbuild_source_file.cc
+@@ -0,0 +1,100 @@
++#include "cupidbuild_source_file.h"
++#include "cupidbuild_source_path.h"
++#include <stdlib.h>
++#include <string.h>
++
++#define CUPIDBUILD_SOURCE_FILE_PATH_BYTES 8192u
++
++struct cupidbuild_source_file {
++  cupidbuild_host_observer_t *observer;
++  const char *physical_root;
++  char *requested;
++  char *physical;
++  const char *logical;
++};
++
++static int source_file_separator(char value, unsigned int format) {
++  return value == '/' || (format == 2u && value == '\\');
++}
++
++int cupidbuild_source_file_open_quota(const char *working_root,
++    const char *request, size_t entry_quota, cupidbuild_source_file_t **owner_out) {
++  char absolute[CUPIDBUILD_SOURCE_FILE_PATH_BYTES];
++  char parent[CUPIDBUILD_SOURCE_FILE_PATH_BYTES];
++  cupidbuild_source_file_t *owner;
++  cupidbuild_host_entry_kind_t kind = CUPIDBUILD_ENTRY_NONE;
++  unsigned int format = cupidbuild_host_execution_format();
++  size_t length, split, parent_length, root_length, leaf_length, joined_length;
++  int separator, valid;
++  if (owner_out) *owner_out = (cupidbuild_source_file_t *)0;
++  if (!owner_out || entry_quota == 0u || entry_quota == (size_t)-1 ||
++      !cupidbuild_source_path_absolute(working_root, request, absolute, sizeof(absolute))) return 0;
++  length = strlen(absolute);
++  split = length;
++  while (split && !source_file_separator(absolute[split - 1u], format)) split--;
++  if (!split || split == length) return 0;
++  parent_length = split - 1u;
++  if (!parent_length) parent_length = 1u;
++  if (format == 2u && parent_length == 2u && absolute[1] == ':') parent_length = 3u;
++  (void)memcpy(parent, absolute, parent_length);
++  parent[parent_length] = 0;
++  owner = (cupidbuild_source_file_t *)calloc(1u, sizeof(*owner));
++  if (!owner) return 0;
++  owner->requested = (char *)malloc(length + 1u);
++  if (!owner->requested) {
++    (void)cupidbuild_source_file_close(owner);
++    return 0;
++  }
++  (void)memcpy(owner->requested, absolute, length + 1u);
++  owner->logical = owner->requested + split;
++  valid = cupidbuild_host_observer_resolve_source_root_quota(parent, entry_quota,
++      &owner->observer, &owner->physical_root) &&
++      cupidbuild_host_observer_path_kind(owner->observer, owner->logical, &kind) &&
++      kind == CUPIDBUILD_ENTRY_FILE;
++  if (valid) {
++    root_length = strlen(owner->physical_root);
++    leaf_length = strlen(owner->logical);
++    separator = root_length && !source_file_separator(owner->physical_root[root_length - 1u], format);
++    joined_length = root_length + (separator ? 1u : 0u) + leaf_length;
++    valid = joined_length < CUPIDBUILD_SOURCE_FILE_PATH_BYTES;
++    if (valid) {
++      owner->physical = (char *)malloc(joined_length + 1u);
++      valid = owner->physical != (char *)0;
++      if (valid) {
++        (void)memcpy(owner->physical, owner->physical_root, root_length);
++        if (separator) owner->physical[root_length++] = '/';
++        (void)memcpy(owner->physical + root_length, owner->logical, leaf_length + 1u);
++        valid = cupidbuild_host_observer_require_unchanged(owner->observer);
++      }
++    }
++  }
++  if (!valid) {
++    (void)cupidbuild_source_file_close(owner);
++    return 0;
++  }
++  *owner_out = owner;
++  return 1;
++}
++
++int cupidbuild_source_file_view(cupidbuild_source_file_t *owner,
++                               cupidbuild_source_file_view_t *view_out) {
++  if (view_out) (void)memset(view_out, 0, sizeof(*view_out));
++  if (!owner || !view_out || !owner->observer ||
++      !cupidbuild_host_observer_require_unchanged(owner->observer)) return 0;
++  view_out->observer = owner->observer;
++  view_out->physical_root = owner->physical_root;
++  view_out->logical = owner->logical;
++  view_out->requested_absolute = owner->requested;
++  view_out->physical_absolute = owner->physical;
++  return 1;
++}
++
++int cupidbuild_source_file_close(cupidbuild_source_file_t *owner) {
++  int valid;
++  if (!owner) return 1;
++  valid = cupidbuild_host_observer_close(owner->observer);
++  free(owner->requested);
++  free(owner->physical);
++  free(owner);
++  return valid;
++}
+--- /dev/null
++++ b/toolchain/prototypes/native_source_file/cupidbuild_source_file.h
+@@ -0,0 +1,31 @@
++#ifndef CUPID_TOOLCHAIN_BUILD_SOURCE_FILE_H
++#define CUPID_TOOLCHAIN_BUILD_SOURCE_FILE_H
++
++#include "cupidbuild_host.h"
++
++typedef struct cupidbuild_source_file cupidbuild_source_file_t;
++typedef struct {
++  cupidbuild_host_observer_t *observer;
++  const char *physical_root;
++  const char *logical;
++  const char *requested_absolute;
++  const char *physical_absolute;
++} cupidbuild_source_file_view_t;
++
++/* Select one required regular input through the lexical source-path rules.
++ * Resolve and retain its original parent request before observing the no-follow
++ * file leaf. Both caller strings may be released after success. Zero/SIZE_MAX
++ * quotas and invalid inputs reject; a supplied owner output clears on failure.
++ * Capture starts with metadata. Retained streaming through the view's observer
++ * adds payload custody; metadata alone cannot detect restored-time edits. */
++int cupidbuild_source_file_open_quota(const char *working_root,
++    const char *request, size_t entry_quota, cupidbuild_source_file_t **owner_out);
++/* Revalidate the original parent binding and all captured observations before
++ * returning borrowed strings and observer. Failure clears the supplied view.
++ * Strings and observer belong to the owner through close. Close borrowing
++ * transactions before the owner; revalidate before and after consuming views. */
++int cupidbuild_source_file_view(cupidbuild_source_file_t *owner,
++                               cupidbuild_source_file_view_t *view_out);
++int cupidbuild_source_file_close(cupidbuild_source_file_t *owner);
++
++#endif
+--- /dev/null
++++ b/toolchain/prototypes/native_source_file/source_file_contract.cc
+@@ -0,0 +1,98 @@
++#include "cupidbuild_source_file.h"
++#include <stdio.h>
++#include <string.h>
++
++static int nibble(char value) {
++  if (value >= '0' && value <= '9') return value - '0';
++  if (value >= 'a' && value <= 'f') return value - 'a' + 10;
++  return -1;
++}
++
++static int decode(const char *text, char *result, size_t capacity) {
++  size_t used = 0u;
++  while (*text) {
++    int high = nibble(*text++), low;
++    if (!*text || high < 0) return 0;
++    low = nibble(*text++);
++    if (low < 0 || used + 1u >= capacity || (high == 0 && low == 0)) return 0;
++    result[used++] = (char)((high << 4) | low);
++  }
++  result[used] = 0;
++  return 1;
++}
++
++int main(int argc, char **argv) {
++  char root[32768], request[32768], physical[8192], requested[8192];
++  cupidbuild_source_file_t *owner = (cupidbuild_source_file_t *)1;
++  cupidbuild_source_file_view_t view;
++  cupidbuild_host_transaction_t *transaction = (cupidbuild_host_transaction_t *)0;
++  cupidbuild_host_stream_observation_t stream;
++  const char *mode;
++  size_t quota = 256u;
++  int valid, accepted = 1, closed = 1;
++  if (argc != 6 || !decode(argv[2], root, sizeof(root)) ||
++      !decode(argv[3], request, sizeof(request)) || !decode(argv[4], physical, sizeof(physical)) ||
++      !decode(argv[5], requested, sizeof(requested))) return 80;
++  mode = argv[1];
++  if (strcmp(mode, "zero-quota") == 0) quota = 0u;
++  if (strcmp(mode, "max-quota") == 0) quota = (size_t)-1;
++  if (strcmp(mode, "one-quota") == 0) quota = 1u;
++  if (strcmp(mode, "two-quota") == 0) quota = 2u;
++  valid = cupidbuild_source_file_open_quota(strcmp(mode, "null-root") == 0 ? (const char *)0 : root,
++      strcmp(mode, "null-request") == 0 ? (const char *)0 : request, quota,
++      strcmp(mode, "null-output") == 0 ? (cupidbuild_source_file_t **)0 : &owner);
++  if (!valid) {
++    if (strcmp(mode, "null-output") != 0 && owner) return 81;
++    (void)fputs("reject", stdout);
++    return 2;
++  }
++  (void)memset(root, 'x', strlen(root));
++  (void)memset(request, 'x', strlen(request));
++  if (!cupidbuild_source_file_view(owner, &view) || !view.observer || !view.physical_root ||
++      !view.logical || strcmp(view.physical_absolute, physical) != 0 ||
++      strcmp(view.requested_absolute, requested) != 0) goto mismatch;
++  if (strcmp(mode, "null-view") == 0) {
++    if (cupidbuild_source_file_view(owner, (cupidbuild_source_file_view_t *)0) ||
++        !cupidbuild_source_file_view(owner, &view)) goto mismatch;
++  }
++  if (strcmp(mode, "null-owner-view") == 0) {
++    (void)memset(&view, 1, sizeof(view));
++    if (cupidbuild_source_file_view((cupidbuild_source_file_t *)0, &view) ||
++        view.observer || view.physical_root || view.logical || view.requested_absolute || view.physical_absolute ||
++        !cupidbuild_source_file_view(owner, &view)) goto mismatch;
++  }
++  if (strcmp(mode, "metadata") != 0 && strcmp(mode, "hold-metadata") != 0 &&
++      !cupidbuild_host_observer_file_stream_retained(view.observer, view.logical, 1048576u,
++          (cupidbuild_host_stream_sink_t)0, (void *)0, &stream)) goto mismatch;
++  if (strcmp(mode, "hold-borrow") == 0) {
++    if (!cupidbuild_host_transaction_open(view.physical_root, view.logical, "owned-output.img", &transaction) ||
++        !cupidbuild_host_transaction_borrow_observer(transaction, view.observer) ||
++        !cupidbuild_host_require_publication_boundary(transaction)) goto mismatch;
++  }
++  if (strcmp(mode, "hold-metadata") == 0 || strcmp(mode, "hold-stream") == 0 ||
++      strcmp(mode, "hold-borrow") == 0) {
++    (void)fputs("ready", stdout);
++    (void)fflush(stdout);
++    {
++      unsigned char signal;
++      if (fread(&signal, 1u, 1u, stdin) != 1u) goto mismatch;
++    }
++    accepted = transaction ? cupidbuild_host_require_publication_boundary(transaction)
++                           : cupidbuild_source_file_view(owner, &view);
++    if (!accepted) {
++      (void)memset(&view, 1, sizeof(view));
++      if (cupidbuild_source_file_view(owner, &view) || view.observer || view.physical_root ||
++          view.logical || view.requested_absolute || view.physical_absolute) goto mismatch;
++      if (transaction && cupidbuild_host_require_publication_boundary(transaction)) goto mismatch;
++    }
++  }
++  if (!cupidbuild_host_transaction_close(transaction)) closed = 0;
++  if (!cupidbuild_source_file_close(owner)) closed = 0;
++  if (!closed) return 82;
++  (void)fputs(accepted ? "accept" : "reject", stdout);
++  return accepted ? 0 : 2;
++mismatch:
++  (void)cupidbuild_host_transaction_close(transaction);
++  (void)cupidbuild_source_file_close(owner);
++  return 83;
++}
