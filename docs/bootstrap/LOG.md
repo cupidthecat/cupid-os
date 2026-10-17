@@ -1,5 +1,55 @@
 # Bootstrapping log
 
+## 2026-10-17: Complete the Linux copied-output image
+
+A fresh Linux preparation copies 2,722 payloads and six controls. Its separate
+completion reuses 451 compiled products and passes all sixteen exact artifact
+rows. Four explicit Make `-o` masks retain the copied boot and kernel outputs.
+The existing buffered image publisher produces a 209,715,200-byte image with
+SHA-256 `7707a8cd57ad7997cdd5b5d015708b8cf6a1b113575074d65f673abeb866a3b0`.
+Every image byte matches the accepted Windows image. Readback checks the full
+boot/kernel payloads. Child, terminal and qualification
+statuses are zero, the controller error is null, and Linux and Windows cleanup
+separately report no remaining owned work.
+
+The completion does not compile, link or regenerate retained products. A later
+bounded export retains the closed Make, supervisor and control logs, 10,398
+bytes in total. Independent Spec and Standards readers and Root reparse the raw
+Make body as nine variable assignments and five exact command/result records:
+the sixteen-artifact check and success, then one image-publisher invocation and
+two success lines. The raw supervisor document equals the supervisor document embedded in the
+completion receipt.
+Completion DATA readers close successfully (`f082ab`, `64b002` and Root `05242f`);
+raw-export readers also close successfully (`746fc9`, `90cc61` and Root `4d8742`).
+
+The [portable Linux OS evidence](evidence/bounded-host-api-linux-os-qualification-20261017.json.gz)
+contains twenty-one raw records with their models, hashes and source joins.
+The earlier loader-configuration failure remains in the
+[Windows OS record](evidence/bounded-host-api-windows-os-qualification-20261016.json.gz).
+Its changed field and cause remain unknown. The original plain Windows2/Linux2
+Make runs stay failed at their stale size checks. No Linux stock guest has been
+qualified, and the later log export makes no filesystem continuity claim.
+
+Four QEMU metadata attempts remain failed. The first rejects an unrelated
+masked service alias; the second reaches an unsupported firmware header. The
+third and fourth stop in strict ELF parsing of /usr/share/qemu/s390-ccw.img.
+The fourth adds one exact S390x profile and passes 28 limited helper fixtures,
+but that does not resolve the actual failure. None produces an accepted report
+or proves QEMU availability. The target's actual header and full role ledger
+remain unknown. A smaller diagnostic passes both Source reviews after adding
+a parent check before exclusive output creation. Its launch remains on HOLD
+because the required retained Linux Python resource profile is not bound.
+
+Review corrects the earlier ISO/FAT chain-validation wording: the portable
+records retain boot/kernel checks and the complete image comparison. They
+supply no separate ISO-chain validation result.
+
+The 185,047-byte LF manual retains the qualified API descriptions. Normal
+ownership remains 449 CupidBuild actions and three Python actions across 452
+transforms, with 37 assembly roots and 239 C roots plus generated CupidC inputs
+counted separately. Hosted streaming integration, installed seeds and SDK
+publication retain their existing scope. TempleOS remains read-only and excluded.
+
 ## 2026-10-16: Complete the Windows image and stock boot check
 
 The bounded callback and directory APIs retain their passing native and
@@ -9,7 +59,7 @@ then completes the existing sixteen-artifact gate and image publisher using
 commands and their success records, with no compile, link or regeneration.
 The published 200 MiB image is
 `7707a8cd57ad7997cdd5b5d015708b8cf6a1b113575074d65f673abeb866a3b0`.
-Full readback checks boot/kernel placement and the staged ISO/FAT chain.
+The saved readback checks boot/kernel placement.
 
 Its separate private-image stock `ls` check passes with e1000, four CPUs and
 CPU max under the existing 300-second harness bound. All 62 TLS checks and

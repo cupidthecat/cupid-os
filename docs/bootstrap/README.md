@@ -18,15 +18,21 @@ pass 111 native methods with three skips and 112 Cupid-built methods with two
 skips, including all 24 snapshot methods and all allocation-failure indices.
 Normal SDK/image coordination, installed seeds and build ownership are unchanged.
 
-The bounded API source also has separate Windows OS evidence. A fresh private
-copy reuses 451 compiled products, passes all sixteen exact artifact checks and
+The bounded API source also has Windows OS evidence. A fresh private copy
+reuses 451 compiled products, passes all sixteen exact artifact checks and
 publishes a 209,715,200-byte image through the existing coordinator. Its stock
 four-CPU `ls` boot passes all 62 TLS checks and the ordered compile, JIT and
-terminal completion checks. The three kernel-size policy rows now match those
-measured outputs. Linux API tests pass; its separate OS completion stops before
-Make when a retained loader-configuration model changes. That OS run remains
-unqualified. The [saved OS evidence](evidence/bounded-host-api-windows-os-qualification-20261016.json.gz)
-contains the accepted Windows records and failed Linux record.
+terminal completion checks. The three kernel-size policy rows match those
+measured outputs. The [Windows OS record](evidence/bounded-host-api-windows-os-qualification-20261016.json.gz)
+also preserves the earlier Linux loader-model failure.
+
+A fresh Linux copy now completes the same artifact check and existing image
+publisher using 451 retained compiled products and four explicit Make `-o`
+masks. All 209,715,200 image bytes match the Windows image. The
+[Linux OS record](evidence/bounded-host-api-linux-os-qualification-20261017.json.gz)
+retains its plans, receipts and raw Make, supervisor and control logs. This
+qualifies copied-output image completion; the earlier plain Make failures and
+Linux stock guest qualification remain open.
 
 ## Windows file-ID qualification gap, 2026-10-16
 

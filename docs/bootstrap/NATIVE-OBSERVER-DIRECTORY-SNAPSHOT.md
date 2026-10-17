@@ -211,7 +211,7 @@ initial stock Make run. The reviewed completion invokes only the sixteen-row
 size check and image publisher; compilation, linking and regeneration do not
 run again. Completion returns zero and publishes a 209,715,200-byte image with
 SHA-256 `7707a8cd57ad7997cdd5b5d015708b8cf6a1b113575074d65f673abeb866a3b0`.
-The image readback checks its boot sectors, full kernel and staged ISO/FAT chain.
+The saved image readback checks its boot sectors and full kernel.
 
 A separate stock private-image boot uses e1000, four CPUs, CPU max and one `ls`
 command under the original 300-second harness limit. Child and qualification
@@ -227,16 +227,41 @@ seed binaries retain their prior values. The original Windows and Linux stock
 Make runs remain failed at their stale size checks. This evidence establishes
 copied-output completion and one Windows stock boot.
 
-The fresh Linux preparation copies 2,722 payloads and six controls. Its later
-completion rejects `/etc/ld.so.conf.d/ld.wsl.conf` during retained resource
-validation, before a supervisor or Make process starts. The saved partial
-cohort still matches all preparation models; the changed field and cause are
-unknown. Linux OS image and guest qualification remain open. The separate
-QEMU filesystem inspection also remains failed after rejecting an unrelated
-masked service alias to `/dev/null`; it establishes no QEMU availability claim.
+## Linux copied-output image evidence
 
-The [portable OS record](evidence/bounded-host-api-windows-os-qualification-20261016.json.gz)
-retains raw Windows completion, harness and serial bodies, the Linux failure,
-full file models and source-body joins. Standalone API qualification on both
-hosts remains recorded above. Hosted callback integration, SDK publication,
-installed seeds and normal coordinator ownership retain their separate scope.
+The earlier Linux preparation copies 2,722 payloads and six controls, but its
+completion rejects `/etc/ld.so.conf.d/ld.wsl.conf` before a supervisor or Make
+process starts. The saved partial cohort still matches its preparation models.
+The changed field and cause remain unknown; that failed attempt is preserved.
+
+A separate fresh Linux preparation and completion pass. The completion retains
+451 compiled products and uses four explicit Make `-o` masks for the copied boot
+and kernel outputs. All sixteen artifact rows pass. The existing buffered image
+publisher produces 209,715,200 bytes, matching the Windows image byte for byte
+with the SHA-256 above. Readback checks boot/kernel placement. Compilation,
+linking and regeneration do not run again.
+Child, terminal and qualification statuses are zero, with no controller error;
+Linux cleanup and Windows cleanup separately report no remaining owned work.
+
+A later bounded export preserves all 10,398 bytes of the closed Make, supervisor
+and control logs. Independent readers and Root reparse the Make trace as nine
+variable assignments followed by the exact size check, its sixteen-artifact
+success, one existing image-publisher command and its two success records.
+The raw supervisor document equals the supervisor document embedded in the
+completion receipt. These are closed records; their later export establishes
+no continuous filesystem state.
+
+The original plain Windows2/Linux2 Make runs remain failed at their stale size
+checks. Linux stock guest qualification remains open. Four separate QEMU
+metadata attempts have failed; the latest stops in strict ELF parsing of
+`/usr/share/qemu/s390-ccw.img`. Its actual header and full role ledger remain
+unknown, and no attempt supplies an accepted metadata or QEMU availability
+report.
+
+The [Windows OS record](evidence/bounded-host-api-windows-os-qualification-20261016.json.gz)
+retains the Windows completion, harness and serial bodies, plus the earlier
+Linux failure. The [Linux OS record](evidence/bounded-host-api-linux-os-qualification-20261017.json.gz)
+contains the fresh plans, receipts, full file models, source joins and exported
+raw logs. Standalone API qualification on both hosts remains recorded above.
+Hosted callback integration, SDK publication, installed seeds and normal
+coordinator ownership retain their separate scope.
