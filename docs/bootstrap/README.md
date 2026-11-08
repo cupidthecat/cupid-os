@@ -51,6 +51,8 @@ complete OS can rebuild itself from inside the guest.
 
 ## Records
 
+- [Private integer updates](PRIVATE-INTEGER-UPDATES.md): typed lvalue mutation
+  with paired-host source checks and installed JIT/AOT evidence.
 - [Private pointer difference](PRIVATE-POINTER-DIFFERENCE.md): signed element
   counts, diagnostics, native compiler tests and Windows guest evidence.
 - [Implementation log](LOG.md): changes, test evidence and failed approaches.

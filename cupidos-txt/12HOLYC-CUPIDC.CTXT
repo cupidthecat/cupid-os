@@ -1543,3 +1543,14 @@ must fit a signed word.
 Run feature23_full_access to check signed halfword, word, double and row
 distances in the installed demo. It prints PASS feature23_pointer_difference
 when the forward, reverse and row checks pass.
+
+
+Private integer lvalue updates
+
+Prefix and postfix ++ and -- update integer pointer targets, array elements
+and record fields at their declared byte, halfword or word width. The destination
+is evaluated once. Postfix returns the original value; prefix returns the stored
+value after narrowing. Const objects, computed values, incomplete rows and
+pointer-valued slots remain outside the represented integer update path.
+Feature23_full_access prints PASS feature23_integer_updates after its width,
+neighbor and once-only checks pass.

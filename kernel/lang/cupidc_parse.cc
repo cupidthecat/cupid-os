@@ -3214,16 +3214,45 @@ static int cc_emit_variable_update(cc_state_t *cc, cc_symbol_t *sym,
   return 1;
 }
 
-/* Update a floating or SIMD object whose evaluated address remains in EAX and
- * whose current value is already in XMM0. The address is saved before the
- * update helper uses EAX for the exact integer one. */
-static int cc_emit_indirect_fp_update(cc_state_t *cc,
+/* Integer loads retain the evaluated address in EDX and the value in EAX.
+ * Floating and SIMD loads retain the address in EAX and the value in XMM0.
+ * Each path stores once and preserves the original value for postfix. */
+static int cc_emit_indirect_update(cc_state_t *cc,
                                       cc_type_t object_type,
                                       int decrement,
                                       int preserve_old) {
   if (cc_last_expr_const_lvalue && cc_is_simd_value_type(object_type)) {
     cc_error_simd_update_target(cc);
     return 0;
+  }
+  if (cc_is_integer_scalar_type(object_type)) {
+    if (cc_last_expr_const_lvalue) {
+      cc_error(cc, "increment or decrement requires a modifiable scalar lvalue");
+      return 0;
+    }
+    /* The scalar load retained the evaluated destination in EDX. EAX is the
+     * already loaded integer, so postfix saves its exact normalized value. */
+    if (preserve_old)
+      emit_push_eax(cc);
+    emit8(cc, 0x89); emit8(cc, 0xC3); /* mov ebx, eax */
+    emit8(cc, decrement ? 0x4B : 0x43); /* dec/inc ebx */
+    emit8(cc, 0x89); emit8(cc, 0xD0); /* mov eax, edx */
+    if (!cc_emit_indirect_scalar_store(cc, object_type))
+      return 0;
+    emit8(cc, 0x89); emit8(cc, 0xD8); /* mov eax, ebx */
+    if (cc_is_halfword_type(object_type))
+      emit_normalize_halfword(cc, object_type);
+    else if (object_type == TYPE_CHAR) {
+      emit8(cc, 0x25); emit32(cc, 0xffu); /* and eax, 255 */
+    }
+    if (preserve_old)
+      emit_pop_eax(cc);
+    cc_last_expr_type = object_type;
+    cc_last_expr_indirect_lvalue = 0;
+    cc_last_expr_direct_lvalue_sym = NULL;
+    cc_last_expr_simd_lane = 0;
+    cc_last_expr_const_lvalue = 0;
+    return 1;
   }
   if (object_type != TYPE_FLOAT && object_type != TYPE_DOUBLE &&
       !cc_is_simd_value_type(object_type)) {
@@ -5708,15 +5737,15 @@ static void cc_parse_primary(cc_state_t *cc) {
 
   case CC_TOK_PLUSPLUS: {
     /* Prefix update parses one complete primary designator. Direct variables
-     * use their symbol path. A derived floating or SIMD lvalue keeps its
-     * address in EAX until the indirect update helper saves it. */
+     * use their symbol path. Derived integer addresses remain in EDX;
+     * floating and SIMD addresses remain in EAX until the helper saves them. */
     cc_parse_primary(cc);
     if (cc->error)
       return;
     if (cc_reject_incomplete_simd_row(cc))
       return;
     if (cc_last_expr_indirect_lvalue) {
-      if (!cc_emit_indirect_fp_update(
+      if (!cc_emit_indirect_update(
               cc, cc_last_expr_type, 0, 0))
         return;
     } else if (cc_last_expr_direct_lvalue_sym) {
@@ -5738,7 +5767,7 @@ static void cc_parse_primary(cc_state_t *cc) {
     if (cc_reject_incomplete_simd_row(cc))
       return;
     if (cc_last_expr_indirect_lvalue) {
-      if (!cc_emit_indirect_fp_update(
+      if (!cc_emit_indirect_update(
               cc, cc_last_expr_type, 1, 0))
         return;
     } else if (cc_last_expr_direct_lvalue_sym) {
@@ -5980,7 +6009,8 @@ static void cc_parse_primary(cc_state_t *cc) {
             field->function_pointer_signature_handle >= 0)
           cc_set_expr_function_signature_handle(
               field->function_pointer_signature_handle);
-        if (field->type == TYPE_FLOAT || field->type == TYPE_DOUBLE)
+        if (field->type == TYPE_FLOAT || field->type == TYPE_DOUBLE ||
+            cc_is_integer_scalar_type(field->type))
           cc_last_expr_indirect_lvalue = 1;
       }
       continue;
@@ -6064,8 +6094,11 @@ static void cc_parse_primary(cc_state_t *cc) {
         cc_last_expr_array_object_size = base_elem_size;
         cc_last_expr_array_elem_type = TYPE_CHAR;
       } else if (base_type == TYPE_CHAR_PTR) {
-        if (!address_of_array_element)
-          emit_deref_byte(cc);
+        if (!address_of_array_element) {
+          if (!cc_emit_indirect_scalar_load(cc, TYPE_CHAR))
+            return;
+          cc_last_expr_indirect_lvalue = 1;
+        }
         cc_last_expr_type = TYPE_CHAR;
         cc_last_expr_elem_size = 0;
         cc_last_expr_dim2 = 0;
@@ -6116,6 +6149,14 @@ static void cc_parse_primary(cc_state_t *cc) {
           cc_last_expr_array_object_size = 0;
           cc_last_expr_array_elem_type = TYPE_INT;
         }
+      } else if (cc_is_object_pointer_type(base_array_elem_type)) {
+        /* Pointer slots retain their declared type. They must never enter
+         * the new integer-update path with an implicit byte-sized step. */
+        if (!address_of_array_element &&
+            !cc_emit_indirect_scalar_load(cc, base_array_elem_type))
+          return;
+        cc_last_expr_type = base_array_elem_type;
+        cc_last_expr_indirect_lvalue = !address_of_array_element;
       } else if ((base_type == TYPE_SHORT_PTR ||
                   base_type == TYPE_USHORT_PTR) && base_array_rank > 1) {
         cc_last_expr_type = base_type;
@@ -6130,8 +6171,11 @@ static void cc_parse_primary(cc_state_t *cc) {
         cc_type_t element_type = cc_is_halfword_type(base_array_elem_type)
                                     ? base_array_elem_type
                                     : cc_pointed_object_type(base_type);
-        if (!address_of_array_element)
-          emit_deref_halfword(cc, element_type);
+        if (!address_of_array_element) {
+          if (!cc_emit_indirect_scalar_load(cc, element_type))
+            return;
+          cc_last_expr_indirect_lvalue = 1;
+        }
         cc_last_expr_type = element_type;
         cc_last_expr_elem_size = 0;
         cc_last_expr_dim2 = 0;
@@ -6149,13 +6193,15 @@ static void cc_parse_primary(cc_state_t *cc) {
         cc_last_expr_array_elem_type =
             base_type == TYPE_UINT_PTR ? TYPE_UINT : TYPE_INT;
       } else {
-        if (!address_of_array_element)
-          emit_deref_dword(cc);
-        cc_last_expr_type =
-            base_array_elem_type == TYPE_UINT ||
-                    base_type == TYPE_UINT_PTR
-                ? TYPE_UINT
-                : TYPE_INT;
+        cc_type_t integer_element_type =
+            base_array_elem_type == TYPE_UINT || base_type == TYPE_UINT_PTR
+                ? TYPE_UINT : TYPE_INT;
+        if (!address_of_array_element) {
+          if (!cc_emit_indirect_scalar_load(cc, integer_element_type))
+            return;
+          cc_last_expr_indirect_lvalue = 1;
+        }
+        cc_last_expr_type = integer_element_type;
         cc_last_expr_elem_size = 0;
         cc_last_expr_dim2 = 0;
         cc_last_expr_array_rank = 0;
@@ -6200,8 +6246,9 @@ static void cc_parse_primary(cc_state_t *cc) {
           cc_last_expr_indirect_lvalue &&
           (cc_last_expr_type == TYPE_FLOAT ||
            cc_last_expr_type == TYPE_DOUBLE ||
+           cc_is_integer_scalar_type(cc_last_expr_type) ||
            cc_is_simd_value_type(cc_last_expr_type))) {
-        if (!cc_emit_indirect_fp_update(
+        if (!cc_emit_indirect_update(
                 cc, cc_last_expr_type, 0, 1))
           return;
         break;
@@ -6226,8 +6273,9 @@ static void cc_parse_primary(cc_state_t *cc) {
           cc_last_expr_indirect_lvalue &&
           (cc_last_expr_type == TYPE_FLOAT ||
            cc_last_expr_type == TYPE_DOUBLE ||
+           cc_is_integer_scalar_type(cc_last_expr_type) ||
            cc_is_simd_value_type(cc_last_expr_type))) {
-        if (!cc_emit_indirect_fp_update(
+        if (!cc_emit_indirect_update(
                 cc, cc_last_expr_type, 1, 1))
           return;
         break;
@@ -6955,6 +7003,9 @@ static int cc_emit_indirect_scalar_load(cc_state_t *cc,
                                         cc_type_t object_type) {
   int struct_index = cc_last_expr_struct_index;
 
+  if (cc_is_integer_scalar_type(object_type)) {
+    emit8(cc, 0x89); emit8(cc, 0xC2); /* mov edx, eax: retained lvalue address */
+  }
   if (cc_is_halfword_type(object_type)) {
     emit_deref_halfword(cc, object_type);
   } else if (object_type == TYPE_CHAR) {
@@ -7753,7 +7804,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
   if (cc_peek(cc).type == CC_TOK_PLUSPLUS ||
       cc_peek(cc).type == CC_TOK_MINUSMINUS) {
     int decrement = cc_next(cc).type == CC_TOK_MINUSMINUS;
-    if (!is_fp && !is_simd) {
+    if (!is_fp && !is_simd && !cc_is_integer_scalar_type(elem_type)) {
       cc_error(cc, "indirect increment or decrement is not supported");
       return;
     }
@@ -7766,7 +7817,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
     }
     cc_last_expr_indirect_lvalue = 1;
     cc_last_expr_const_lvalue = sym->is_const_qualified;
-    if (!cc_emit_indirect_fp_update(cc, elem_type, decrement, 0))
+    if (!cc_emit_indirect_update(cc, elem_type, decrement, 0))
       return;
     return;
   }
@@ -11302,15 +11353,19 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
       if (assign_op.type == CC_TOK_PLUSPLUS ||
           assign_op.type == CC_TOK_MINUSMINUS) {
         int decrement = cc_next(cc).type == CC_TOK_MINUSMINUS;
-        if (ftype != TYPE_FLOAT && ftype != TYPE_DOUBLE) {
+        if (ftype != TYPE_FLOAT && ftype != TYPE_DOUBLE &&
+            !cc_is_integer_scalar_type(ftype)) {
           cc_error(cc,
                    "indirect increment or decrement is not supported");
           break;
         }
+        /* The chain's index expressions may leave unrelated qualification.
+         * The destination's owning record supplies the update contract. */
+        cc_last_expr_const_lvalue = sym->is_const_qualified;
         if (!cc_emit_indirect_scalar_load(cc, ftype))
           break;
         cc_last_expr_indirect_lvalue = 1;
-        if (!cc_emit_indirect_fp_update(
+        if (!cc_emit_indirect_update(
                 cc, ftype, decrement, 0))
           break;
         cc_expect(cc, CC_TOK_SEMICOLON);

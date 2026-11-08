@@ -1,5 +1,14 @@
 # Cupid Toolchain capability matrix
 
+## Private integer updates, 2026-11-08
+
+The private compiler supports byte, halfword and word increment
+and decrement through pointers, arrays and record fields. Both hosts pass 528
+compiler/smoke methods and the complete 156-source checks. The normal image
+matches all 428 objects and sixteen exact artifact sizes. Four-CPU installed
+JIT and external AOT checks pass, with the source image unchanged. See the
+[capability record](PRIVATE-INTEGER-UPDATES.md).
+
 ## Private pointer difference, 2026-11-08
 
 Source head supports compatible complete object-pointer subtraction with signed

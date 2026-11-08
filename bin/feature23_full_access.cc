@@ -3,6 +3,38 @@
 //help: Checks native network argument widths and static integer array data.
 //help: Also checks signed pointer distances in elements and complete rows.
 
+I32 feature23_integer_update_probe() {
+    int a[3];
+    U16 h[3];
+    I16 s[3];
+    char b[3];
+    unsigned int u[2];
+    int i;
+    a[0] = 41;
+    a[1] = 99;
+    h[0] = 65535;
+    h[1] = 54321;
+    s[0] = -32768;
+    s[1] = 123;
+    b[0] = 255;
+    b[1] = 123;
+    u[0] = 4294967295u;
+    i = 0;
+    if (a[i++]++ != 41 || i != 1 || a[0] != 42 || a[1] != 99)
+        return 1;
+    if (++h[0] != 0 || h[0] != 0 || h[1] != 54321)
+        return 2;
+    if (s[0]-- != -32768 || s[0] != 32767 || s[1] != 123)
+        return 3;
+    if (++b[0] != 0 || b[0] != 0 || b[1] != 123)
+        return 4;
+    if (u[0]++ != 4294967295u || u[0] != 0)
+        return 5;
+    if (--a[0] != 41 || a[0]-- != 41 || a[0] != 40)
+        return 6;
+    return 0;
+}
+
 I32 feature23_pointer_difference_probe() {
     U16 ports[6];
     I16 samples[6];
@@ -177,8 +209,12 @@ U0 Main() {
     if (pointer_difference_ok) serial_printf("PASS feature23_pointer_difference forward=6 reverse=-6 rows=2\n");
     else serial_printf("FAIL feature23_pointer_difference\n");
 
+    I32 integer_updates_ok = feature23_integer_update_probe() == 0;
+    if (integer_updates_ok) serial_printf("PASS feature23_integer_updates\n");
+    else serial_printf("FAIL feature23_integer_updates\n");
+
     /* Pass criteria: link up + non-zero IP + at least one PCI device */
-    if (link == 1 && ip != 0 && npci > 0 && bindings_ok && initializers_ok && halfword_types_ok && pointer_difference_ok) {
+    if (link == 1 && ip != 0 && npci > 0 && bindings_ok && initializers_ok && halfword_types_ok && pointer_difference_ok && integer_updates_ok) {
         serial_printf("[feature23] PASS\n");
     } else {
         serial_printf("[feature23] FAIL link=%d ip=%x npci=%d\n", link, ip, npci);

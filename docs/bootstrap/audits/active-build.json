@@ -51475,7 +51475,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5734
+      "occurrences": 5737
     },
     {
       "category": "control",
@@ -52260,7 +52260,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 45486
+      "occurrences": 45506
     },
     {
       "category": "control",
@@ -52654,7 +52654,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28202
+      "occurrences": 28216
     },
     {
       "category": "control",
@@ -58014,7 +58014,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 12334
+      "occurrences": 12335
     },
     {
       "category": "type",
@@ -58323,6 +58323,7 @@
         "bin/feature18_swap.cc",
         "bin/feature19_usb.cc",
         "bin/feature1_types.cc",
+        "bin/feature23_full_access.cc",
         "bin/feature24_widetypes.cc",
         "bin/feature25.cc",
         "bin/find.cc",
@@ -58826,7 +58827,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 26008
+      "occurrences": 26011
     },
     {
       "category": "type",
@@ -59714,6 +59715,7 @@
         "bin/browser/woff.cc",
         "bin/ctxt.cc",
         "bin/cupidc_test3.cc",
+        "bin/feature23_full_access.cc",
         "bin/feature24_widetypes.cc",
         "drivers/mouse.cc",
         "drivers/rtc.cc",
@@ -59875,7 +59877,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 4539
+      "occurrences": 4540
     },
     {
       "category": "type",
@@ -61203,9 +61205,9 @@
           "text": "I16 i16_pos = 1234;"
         },
         {
-          "line": 8,
+          "line": 9,
           "path": "bin/feature23_full_access.cc",
-          "text": "I16 samples[6];"
+          "text": "I16 s[3];"
         }
       ],
       "files": [
@@ -61213,7 +61215,7 @@
         "bin/feature23_full_access.cc"
       ],
       "id": "cupid_c.type.i16",
-      "occurrences": 9
+      "occurrences": 10
     },
     {
       "category": "type",
@@ -61252,7 +61254,7 @@
         "bin/kbdsub_test.cc"
       ],
       "id": "cupid_c.type.i32",
-      "occurrences": 57
+      "occurrences": 59
     },
     {
       "category": "type",
@@ -61334,9 +61336,9 @@
           "text": "U16 peer_port = 0;"
         },
         {
-          "line": 7,
+          "line": 8,
           "path": "bin/feature23_full_access.cc",
-          "text": "U16 ports[6];"
+          "text": "U16 h[3];"
         }
       ],
       "files": [
@@ -61345,7 +61347,7 @@
         "bin/feature23_full_access.cc"
       ],
       "id": "cupid_c.type.u16",
-      "occurrences": 10
+      "occurrences": 11
     },
     {
       "category": "type",
@@ -61438,7 +61440,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "5ebe2ff3017773cb0cb7a742c80a0540ecee74c2765d3084940c49be65c8598e",
+    "active_source_digest": "7bb0ec9385e5b83d1b34ad5811c1bc799d37e1a57c8fcf65b748891bad6d0e52",
     "control_files": [
       {
         "path": "Makefile",
@@ -64069,6 +64071,8 @@
         "c.storage.static",
         "c.type.char",
         "c.type.double",
+        "c.type.int",
+        "c.type.unsigned",
         "cupid_c.delivery.embedded_source",
         "cupid_c.type.double2",
         "cupid_c.type.float4",
@@ -64081,12 +64085,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 187,
+      "lines": 223,
       "origin": "tracked",
       "path": "bin/feature23_full_access.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "403d975314c085232a08d396551e4a1a514c4b01ea00bc628b50db22c834483a"
+      "sha256": "c377bee5d7227ad95881c713a8ba66cace51154f275e02950094ff7c9621e192"
     },
     {
       "build_owners": [
@@ -82252,12 +82256,12 @@
         "kernel/lang/cupidc.h"
       ],
       "language": "cupid_c",
-      "lines": 13739,
+      "lines": 13794,
       "origin": "tracked",
       "path": "kernel/lang/cupidc_parse.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "3a916b303be7b8de7af8e6fafd7f3c5fa7af039258dbbe43261c23c4c44baf59"
+      "sha256": "1bee0a34630f9f99e99018304f35d9d65a6cddb2ee18a1b59b6341cbbff3c7d4"
     },
     {
       "build_owners": [

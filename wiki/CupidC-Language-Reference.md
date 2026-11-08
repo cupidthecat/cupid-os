@@ -1070,3 +1070,13 @@ must fit a signed word.
 Run `feature23_full_access` in the OS terminal to check halfword, word,
 double and row distances. The installed demo prints
 `PASS feature23_pointer_difference` when those checks pass.
+
+
+## Private integer lvalue updates
+
+Prefix and postfix `++` and `--` support integer pointer targets, array elements
+and record fields. Stores keep the declared byte, halfword or word width and
+evaluate the destination once. Postfix returns the original value; prefix returns
+the stored, narrowed value. Const objects, computed values, incomplete array rows
+and pointer-valued slots receive a diagnostic. Run `feature23_full_access` for
+the installed width, neighbor-preservation and once-only checks.

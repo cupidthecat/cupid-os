@@ -1,5 +1,20 @@
 # Bootstrapping log
 
+## 2026-11-08: Private derived integer updates
+
+The private parser retains evaluated integer lvalue addresses and performs
+typed prefix/postfix updates through pointers, array elements and record fields.
+Both hosts pass 528 integrated methods and produce the same checked parser
+object. Review regressions cover pointer-slot type retention and destination
+const qualification. Both complete source checks pass; all 624 retained objects
+agree. The ordinary OS build matches all 428 objects, 322 headers and five
+linked/generated outputs against the corrected layout, with sixteen exact
+artifact sizes. A four-CPU guest passes installed JIT and external AOT updates,
+with the source image unchanged. Audit regeneration and checking pass.
+[The capability record](PRIVATE-INTEGER-UPDATES.md) links portable evidence and
+records failed integration, review and layout attempts. Ownership remains
+449 CupidBuild actions and three Python actions; seeds are unchanged.
+
 ## 2026-10-17: Complete the Linux copied-output image
 
 A fresh Linux preparation copies 2,722 payloads and six controls. Its separate

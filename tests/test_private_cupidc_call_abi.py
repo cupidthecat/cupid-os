@@ -215,6 +215,161 @@ def _storage_native_assembly():
 
 
 class PrivateCupidCCallAbiTests(unittest.TestCase):
+    def test_indirect_integer_indexed_updates_keep_old_and_new_values(self):
+        self._assert_halfword_runtime(r'''
+            int main() {
+                int a[3];
+                U16 h[3];
+                I16 s[3];
+                char b[3];
+                unsigned int u[2];
+                int i;
+                a[0] = 41;
+                a[1] = 99;
+                h[0] = 65535;
+                h[1] = 54321;
+                s[0] = -32768;
+                s[1] = 123;
+                b[0] = 255;
+                b[1] = 123;
+                u[0] = 4294967295u;
+                i = 0;
+                if (a[i++]++ != 41 || i != 1 || a[0] != 42 || a[1] != 99)
+                    return 1;
+                if (++h[0] != 0 || h[0] != 0 || h[1] != 54321)
+                    return 2;
+                if (s[0]-- != -32768 || s[0] != 32767 || s[1] != 123)
+                    return 3;
+                if (++b[0] != 0 || b[0] != 0 || b[1] != 123)
+                    return 4;
+                if (u[0]++ != 4294967295u || u[0] != 0)
+                    return 5;
+                if (--a[0] != 41 || a[0]-- != 41 || a[0] != 40)
+                    return 6;
+                return 0;
+            }        ''')
+
+    def test_indirect_integer_pointer_designators_execute_once(self):
+        self._assert_halfword_runtime(r'''
+            I16 data[3];
+            int calls;
+            I16 *pick() {
+                calls++;
+                return data + 1;
+            }
+            int main() {
+                I16 *p;
+                int old;
+                data[0] = 123;
+                data[1] = 12;
+                data[2] = 456;
+                p = data + 1;
+                if (++*p != 13 || (*p)++ != 13 || *p != 14)
+                    return 1;
+                old = (*pick())--;
+                if (old != 14 || data[1] != 13 || calls != 1)
+                    return 2;
+                if (--*pick() != 12 || calls != 2 || data[0] != 123 || data[2] != 456)
+                    return 3;
+                return 0;
+            }        ''')
+
+    def test_indirect_integer_record_and_row_updates(self):
+        self._assert_halfword_runtime(r'''
+            struct R {
+                int a;
+                U16 b;
+                I16 c;
+            };
+            int calls;
+            struct R rows[2];
+            struct R *pick() {
+                calls++;
+                return rows;
+            }
+            int main() {
+                int grid[2][3];
+                int i;
+                rows[0].a = 10;
+                rows[0].b = 65535;
+                rows[0].c = -1;
+                if (rows[0].a++ != 10 || rows[0].a != 11)
+                    return 1;
+                if (++pick()->b != 0 || rows[0].b != 0 || calls != 1)
+                    return 2;
+                if (rows[0].c-- != -1 || rows[0].c != -2)
+                    return 3;
+                grid[1][2] = 17;
+                i = 1;
+                if (grid[i++][2]++ != 17 || grid[1][2] != 18 || i != 2)
+                    return 4;
+                return 0;
+            }        ''')
+
+    def test_indirect_integer_statement_and_for_updates(self):
+        self._assert_halfword_runtime(r'''
+            struct R {
+                int a;
+            };
+            int main() {
+                int a[1];
+                I16 s[1];
+                int i;
+                struct R r;
+                a[0] = 5;
+                s[0] = -3;
+                r.a = 9;
+                a[0]++;
+                s[0]--;
+                r.a++;
+                r.a--;
+                if (a[0] != 6 || s[0] != -4 || r.a != 9)
+                    return 1;
+                for (i = 0; i < 3; a[0]++) {
+                    i++;
+                }
+                if (a[0] != 9)
+                    return 2;
+                return 0;
+            }        ''')
+
+    def test_indirect_integer_nonmodifiable_results_reject_and_recover(self):
+        for body in ('int a[2];return (a[0]+1)++;', 'int a[2];return ++&a[0];', 'int a[2];return ((int)a[0])++;'):
+            with self.subTest(body=body), tempfile.TemporaryDirectory() as temporary:
+                p = Path(temporary)
+                r, _, _ = self._compile_after_failure(p, 'int main(){' + body + '}', 'int main(){int a[1];a[0]=4;return ++a[0]-5;}', same_state=True)
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                self.assertIn('increment or decrement requires', r.stderr)
+                executed = self._run_i386(p, int(r.stdout.strip()))
+                self.assertEqual(executed.returncode, 0, executed.stdout + executed.stderr)
+
+    def test_indirect_integer_const_rows_and_pointer_slots_are_not_integer_updates(self):
+        cases = (('int main(){const int a[2];return ++a[0];}', 'modifiable scalar lvalue'), ('int main(){int a[2][3];return ++a[0];}', 'requires a scalar variable'), ('int main(){int a[2];int *slots[1];slots[0]=a;slots[0]++;return 0;}', 'indirect increment or decrement'), ('int main(){int a[2];int *slots[1];slots[0]=a;return ++slots[0];}', 'indirect increment or decrement'))
+        for source, diagnostic in cases:
+            for aot in (False, True):
+                with self.subTest(source=source, aot=aot), tempfile.TemporaryDirectory() as temporary:
+                    result, _, _ = self._compile(Path(temporary), source, aot=aot)
+                    self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertIn(diagnostic, result.stdout + result.stderr)
+
+    def test_indirect_integer_member_update_uses_destination_qualification(self):
+        self._assert_halfword_runtime('struct R{int a;};int main(){const int enabled=1;struct R r;r.a=4;if(enabled)r.a++;return r.a-5;}')
+        for source in ('struct R{int a;};int main(){const struct R r;r.a++;return 0;}',):
+            for aot in (False, True):
+                with self.subTest(source=source, aot=aot), tempfile.TemporaryDirectory() as temporary:
+                    result, _, _ = self._compile(Path(temporary), source, aot=aot)
+                    self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertIn('modifiable scalar lvalue', result.stdout + result.stderr)
+
+    def test_installed_integer_update_demo_runs_in_jit_and_aot(self):
+        source = (REPO_ROOT / "bin/feature23_full_access.cc").read_text(
+            encoding="utf-8")
+        start = source.index("I32 feature23_integer_update_probe() {")
+        end = source.index("I32 feature23_pointer_difference_probe()", start)
+        self._assert_halfword_runtime(
+            source[start:end] +
+            "\nint main() { return feature23_integer_update_probe(); }")
+
     def test_installed_pointer_difference_demo_runs_in_jit_and_aot(self):
         source = (REPO_ROOT / "bin/feature23_full_access.cc").read_text(
             encoding="utf-8")
@@ -12421,8 +12576,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
     def test_invalid_derived_updates_report_useful_diagnostics(self):
         cases = (
             (
-                "void probe(int *value) { ++*value; }",
-                "indirect increment or decrement is not supported",
+                "void probe(int *value) { ++(*value + 1); }",
+                "increment or decrement requires a scalar variable",
             ),
             (
                 "void probe(float value) { ++(1.0f + value); }",
@@ -12460,7 +12615,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             root = Path(temporary)
             result, _code, _data = self._compile_after_failure(
                 root,
-                "void probe(int *value) { ++*value; }",
+                "void probe(int *value) { ++(*value + 1); }",
                 """
                 float value;
 
