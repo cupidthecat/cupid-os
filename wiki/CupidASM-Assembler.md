@@ -526,6 +526,12 @@ framebuffer, AC97, and PC speaker checks without changing the source image.
 
 ### Hosted i386 commands
 
+Source head also offers an opt-in hosted heap threading mode. A caller enables
+it through `<cupid_runtime.h>` before creating concurrent allocation users.
+The four allocation functions then serialize shared metadata. Streams and
+other runtime state retain their existing contracts. This does not change the
+installed bootstrap seeds; see [the record](../docs/bootstrap/HOSTED-HEAP-THREADS.md).
+
 CupidC emits the unchanged C source closures for CupidC, CupidASM, CupidDis,
 CupidLD, and CupidObj under the checked four-byte i386 Linux ABI. CupidASM
 assembles the repository `_start` and `int 0x80` system-call boundary. CupidLD

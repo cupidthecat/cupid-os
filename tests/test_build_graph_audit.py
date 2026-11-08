@@ -12160,6 +12160,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 None,
             ),
             (
+                "heap runtime header removed",
+                "toolchain/hosted/i386-linux/include/cupid_runtime.h",
+                None,
+            ),
+            (
                 "bootstrap source added",
                 None,
                 "toolchain/new-bootstrap-source.cc",

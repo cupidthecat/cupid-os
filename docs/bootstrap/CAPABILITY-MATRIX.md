@@ -1,5 +1,15 @@
 # Cupid Toolchain capability matrix
 
+## Hosted heap threading mode, 2026-11-08
+
+Source head can enable heap serialization before starting workers. Existing
+allocator and runtime contracts cover both modes on both hosts; Windows adds
+checked callback, concurrent payload and overlap controls. Other runtime
+services and installed seeds retain their existing scope. The private complete
+owner now passes its 4,096-parent UNC capacity case within sixty seconds;
+source-owner integration and image publication remain open. See the
+[qualification record](HOSTED-HEAP-THREADS.md).
+
 ## Private integer updates, 2026-11-08
 
 The private compiler supports byte, halfword and word increment

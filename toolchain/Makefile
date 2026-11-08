@@ -53,6 +53,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_SEED_INPUTS := \
 TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS := \
 	Makefile \
 	hosted/i386-linux/include/cupid_host_abi.h \
+	hosted/i386-linux/include/cupid_runtime.h \
 	hosted/i386-linux/include/direct.h \
 	hosted/i386-linux/include/errno.h \
 	hosted/i386-linux/include/stddef.h \
@@ -163,6 +164,7 @@ CUPIDC_PP_GENERATED_SOURCES := ../kernel/cpu/ksyms_data.cc \
                               ../kernel/util/demos_programs_gen.cc \
                               ../kernel/util/docs_programs_gen.cc
 CUPIDC_HOSTED_I386_HEADERS := hosted/i386-linux/include/cupid_host_abi.h \
+                              hosted/i386-linux/include/cupid_runtime.h \
                               hosted/i386-linux/include/direct.h \
                               hosted/i386-linux/include/errno.h \
                               hosted/i386-linux/include/stddef.h \

@@ -6,6 +6,12 @@ Cupid OS is an operating-system project pursuing a self-hosting toolchain. This 
 
 ### System and source
 
+**Hosted heap threading mode**:
+A process-lifetime allocator mode enabled before additional heap users start.
+It serializes shared allocation metadata without extending the concurrency
+contract of other hosted runtime services.
+_Avoid_: thread-safe runtime, threaded process profile
+
 **Cupid OS**:
 The operating system produced and developed by this repository.
 _Avoid_: CupidOS, cupid-os (except as a repository or package identifier)

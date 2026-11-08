@@ -616,6 +616,12 @@ CupidASM assembles the repository _start and int 0x80 system-call boundary.
 CupidLD links five deterministic static i386 commands without unresolved
 symbols.
 
+Source head offers an opt-in hosted heap threading mode through cupid_runtime.h.
+Enable it before creating concurrent heap users. Allocation metadata is then
+serialized; streams and other runtime state retain their existing contracts.
+Installed bootstrap seeds are unchanged. The native image-owner candidate
+still needs integration and complete acceptance.
+
 The repository runtime provides the checked file, heap, memory, string, errno,
 getcwd, and formatted-output calls used by those commands. It has unbuffered
 streams and single-threaded process state. Each closure object is emitted twice

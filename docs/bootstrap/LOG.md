@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## 2026-11-08: Serialize the hosted heap before starting workers
+
+The hosted allocator can opt into a process-lifetime mutex before additional
+heap users start. Its allocation cores and failure policies remain unchanged.
+Windows passes all 45 heap/runtime methods, including checked callback and
+eight-thread payload tests. Linux passes nineteen methods under the existing
+contracts, with 26 Windows-only skips. A disabled-lock control detects overlap
+before heap mutation. The exact graph input lists add the public runtime header;
+the producer source snapshot grows from 99 to 100 inputs.
+
+The private complete-owner caller now accepts all 4,096 UNC parent groups in
+48.986 seconds within its unchanged sixty-second deadline. That prototype
+still needs worker-failure and full regression checks before integration.
+Installed seeds and the 449/3 CupidBuild/Python ownership split remain unchanged.
+The [record](HOSTED-HEAP-THREADS.md) and
+[portable evidence](evidence/hosted-heap-threads-20261108.json.gz) retain
+qualification scope, failed approaches and remaining work.
+
 ## 2026-11-08: Split private compiler execution tests
 
 The 14,417-line ABI module now delegates to a shared harness and thirteen

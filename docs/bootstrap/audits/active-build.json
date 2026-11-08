@@ -3425,6 +3425,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -6869,6 +6870,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -7218,6 +7220,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -7567,6 +7570,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -7916,6 +7920,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -8265,6 +8270,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -8614,6 +8620,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -8963,6 +8970,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -9312,6 +9320,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -9661,6 +9670,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -10010,6 +10020,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -10359,6 +10370,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -10708,6 +10720,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -11057,6 +11070,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -11406,6 +11420,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -11755,6 +11770,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -12104,6 +12120,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -12453,6 +12470,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -12802,6 +12820,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -13151,6 +13170,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -13500,6 +13520,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -13849,6 +13870,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -14198,6 +14220,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -14547,6 +14570,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -14896,6 +14920,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -15245,6 +15270,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -15594,6 +15620,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -15943,6 +15970,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -16292,6 +16320,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -16641,6 +16670,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -16990,6 +17020,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -17339,6 +17370,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -17688,6 +17720,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -18037,6 +18070,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -18386,6 +18420,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -18735,6 +18770,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -19084,6 +19120,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -19433,6 +19470,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -19782,6 +19820,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -20131,6 +20170,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -20480,6 +20520,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -20829,6 +20870,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -21178,6 +21220,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -21527,6 +21570,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -21876,6 +21920,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -22225,6 +22270,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -22574,6 +22620,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -22923,6 +22970,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -23272,6 +23320,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -23621,6 +23670,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -23970,6 +24020,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -24319,6 +24370,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -24668,6 +24720,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -25017,6 +25070,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -25366,6 +25420,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -25715,6 +25770,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -26064,6 +26120,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -26413,6 +26470,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -26762,6 +26820,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -27111,6 +27170,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -27460,6 +27520,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -27809,6 +27870,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -28158,6 +28220,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -28507,6 +28570,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -28856,6 +28920,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -29205,6 +29270,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -29554,6 +29620,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -29903,6 +29970,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -30252,6 +30320,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -30601,6 +30670,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -30950,6 +31020,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -31299,6 +31370,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -31648,6 +31720,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -31997,6 +32070,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -32346,6 +32420,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -32695,6 +32770,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -33044,6 +33120,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -33393,6 +33470,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -33742,6 +33820,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -34091,6 +34170,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -34440,6 +34520,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -34789,6 +34870,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -35138,6 +35220,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -35487,6 +35570,7 @@
           "toolchain/fat16_names.h",
           "toolchain/fat16_stage.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/cupid_runtime.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stddef.h",
@@ -43522,19 +43606,7 @@
             },
             {
               "directive": "if",
-              "line": 477,
-              "path": "toolchain/hosted/i386-linux/runtime.cc",
-              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
-            },
-            {
-              "directive": "if",
-              "line": 877,
-              "path": "toolchain/hosted/i386-linux/runtime.cc",
-              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
-            },
-            {
-              "directive": "if",
-              "line": 891,
+              "line": 500,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
@@ -43546,67 +43618,79 @@
             },
             {
               "directive": "if",
-              "line": 967,
+              "line": 941,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 979,
+              "line": 977,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 1031,
+              "line": 1017,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 1040,
+              "line": 1029,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 1117,
+              "line": 1081,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 1198,
+              "line": 1090,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 1250,
+              "line": 1167,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 1307,
+              "line": 1248,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 1335,
+              "line": 1300,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 1734,
+              "line": 1357,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             },
             {
               "directive": "if",
-              "line": 1913,
+              "line": 1385,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 1784,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 1963,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
             }
@@ -43737,7 +43821,7 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 1854,
+              "line": 1904,
               "path": "toolchain/hosted/i386-linux/runtime.cc",
               "text": "#if defined(CUPID_WINDOWS_UTF8)"
             }
@@ -45315,7 +45399,7 @@
       "max_conditional_depth": 2,
       "ordinary_marker_occurrences": 2608,
       "pp_token_operand_occurrences": 0,
-      "source_files": 745,
+      "source_files": 746,
       "status": "pass"
     },
     "c_preprocessor_line_directives": {
@@ -45328,7 +45412,7 @@
       "numeric_marker_occurrences": 0,
       "ordinary_marker_occurrences": 0,
       "pp_token_line_occurrences": 0,
-      "source_files": 745,
+      "source_files": 746,
       "status": "pass"
     },
     "c_preprocessor_pragmas": {
@@ -46549,7 +46633,7 @@
       "compared_startup_objects": 1,
       "compared_tool_images": 6,
       "compiler_c_sources": 11,
-      "contract_manifest_inputs": 104,
+      "contract_manifest_inputs": 105,
       "executed_tools": [
         "cupidasm",
         "cupiddis",
@@ -52260,7 +52344,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 45506
+      "occurrences": 45509
     },
     {
       "category": "control",
@@ -52654,7 +52738,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28216
+      "occurrences": 28221
     },
     {
       "category": "control",
@@ -53062,7 +53146,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3098
+      "occurrences": 3100
     },
     {
       "category": "declaration",
@@ -54686,6 +54770,7 @@
         "toolchain/fat16_stage.cc",
         "toolchain/fat16_stage.h",
         "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+        "toolchain/hosted/i386-linux/include/cupid_runtime.h",
         "toolchain/hosted/i386-linux/include/direct.h",
         "toolchain/hosted/i386-linux/include/errno.h",
         "toolchain/hosted/i386-linux/include/stddef.h",
@@ -54730,7 +54815,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3465
+      "occurrences": 3466
     },
     {
       "category": "preprocessor",
@@ -55164,6 +55249,7 @@
         "toolchain/fat16_names.h",
         "toolchain/fat16_stage.h",
         "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+        "toolchain/hosted/i386-linux/include/cupid_runtime.h",
         "toolchain/hosted/i386-linux/include/direct.h",
         "toolchain/hosted/i386-linux/include/errno.h",
         "toolchain/hosted/i386-linux/include/stddef.h",
@@ -55191,7 +55277,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 895
+      "occurrences": 896
     },
     {
       "category": "preprocessor",
@@ -55757,6 +55843,7 @@
         "toolchain/fat16_names.h",
         "toolchain/fat16_stage.h",
         "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+        "toolchain/hosted/i386-linux/include/cupid_runtime.h",
         "toolchain/hosted/i386-linux/include/direct.h",
         "toolchain/hosted/i386-linux/include/errno.h",
         "toolchain/hosted/i386-linux/include/stddef.h",
@@ -55781,7 +55868,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.ifndef",
-      "occurrences": 330
+      "occurrences": 331
     },
     {
       "category": "preprocessor",
@@ -57533,7 +57620,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10881
+      "occurrences": 10893
     },
     {
       "category": "type",
@@ -58827,7 +58914,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 26011
+      "occurrences": 26019
     },
     {
       "category": "type",
@@ -59877,7 +59964,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 4540
+      "occurrences": 4542
     },
     {
       "category": "type",
@@ -60469,6 +60556,7 @@
         "toolchain/fat16_stage.cc",
         "toolchain/fat16_stage.h",
         "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+        "toolchain/hosted/i386-linux/include/cupid_runtime.h",
         "toolchain/hosted/i386-linux/include/errno.h",
         "toolchain/hosted/i386-linux/include/stddef.h",
         "toolchain/hosted/i386-linux/include/stdio.h",
@@ -60511,7 +60599,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 16282
+      "occurrences": 16297
     },
     {
       "category": "declaration",
@@ -61440,7 +61528,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "7bb0ec9385e5b83d1b34ad5811c1bc799d37e1a57c8fcf65b748891bad6d0e52",
+    "active_source_digest": "bc1da6423dbc3d6b235d0b4e3553ed8d638ddd2f44e71d412d06fc83e7a848a9",
     "control_files": [
       {
         "path": "Makefile",
@@ -61452,7 +61540,7 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "ccd8ee1b64d814854a469955f83f1c56b0c79c415154d0ac254db3f5a7469e35"
+        "sha256": "e6d5d4792d0e82a32b871f84dc0760256e0cc435117a1f7fe6291276e56bd2b3"
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
@@ -61477,7 +61565,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "b1dd811fec11aac2a9ad46790a705414a8fde5b0039e9f152b9cd7ef0c0a99b4"
+      "sha256": "5ec024778073484c2e4e6bcdde682db4a589ae952f0764f2fdc028d3a222ac15"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -61511,7 +61599,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 135,
+        "source_count": 136,
         "title": "Establish a host-runnable shared Cupid Toolchain core"
       },
       {
@@ -61873,7 +61961,7 @@
           "bin/godspeak.cc",
           "bin/notepad.cc"
         ],
-        "source_count": 603,
+        "source_count": 604,
         "title": "Implement the active C and Cupid C preprocessing contract"
       },
       {
@@ -61919,7 +62007,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 710,
+        "source_count": 711,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -62062,7 +62150,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 135
+        "source_count": 136
       },
       {
         "cohorts": [
@@ -88167,6 +88255,36 @@
         "c.preprocessor.define",
         "c.preprocessor.endif",
         "c.preprocessor.ifndef",
+        "c.type.void"
+      ],
+      "includes": [],
+      "language": "c_header",
+      "lines": 9,
+      "origin": "tracked",
+      "path": "toolchain/hosted/i386-linux/include/cupid_runtime.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "7bd07f6dd482a2cee87c956a9972fa562995bf8a9c75a656e48d93a40fd3bba9"
+    },
+    {
+      "build_owners": [
+        "cupid_assembler",
+        "cupid_builder",
+        "cupid_c_compiler",
+        "cupid_c_contract",
+        "cupid_linker",
+        "cupid_object",
+        "host_python"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
         "c.preprocessor.include",
         "c.qualifier.const",
         "c.type.char",
@@ -88525,12 +88643,12 @@
         "toolchain/path_encoding.h"
       ],
       "language": "cupid_c",
-      "lines": 1934,
+      "lines": 1984,
       "origin": "tracked",
       "path": "toolchain/hosted/i386-linux/runtime.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ade2b98d00be63c0c0fdaa59e60d9e6726d3dd641d6ab5ae886cbfba67297b1f"
+      "sha256": "969a5f191a78568bfaded6b07d88e9c36d583570d19df44385dd06aedcd2f526"
     },
     {
       "build_owners": [
@@ -90694,7 +90812,7 @@
     }
   ],
   "summary": {
-    "active_sources": 786,
+    "active_sources": 787,
     "features": 255,
     "transforms": 452,
     "unreachable_sources": 79
@@ -90945,6 +91063,7 @@
             "toolchain/build/cupidc-contracts/cupidc-runtime-contract.elf",
             "toolchain/Makefile",
             "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+            "toolchain/hosted/i386-linux/include/cupid_runtime.h",
             "toolchain/hosted/i386-linux/include/direct.h",
             "toolchain/hosted/i386-linux/include/errno.h",
             "toolchain/hosted/i386-linux/include/stddef.h",
@@ -91145,6 +91264,7 @@
             "kernel/lang/as_elf.cc",
             "kernel/lang/as_elf.h",
             "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+            "toolchain/hosted/i386-linux/include/cupid_runtime.h",
             "toolchain/hosted/i386-linux/include/direct.h",
             "toolchain/hosted/i386-linux/include/errno.h",
             "toolchain/hosted/i386-linux/include/stddef.h",

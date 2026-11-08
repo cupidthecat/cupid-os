@@ -474,6 +474,29 @@ static void cupid_heap_free_remove(cupid_heap_block_t *block) {
   block->free_next = (cupid_heap_block_t *)0;
 }
 
+/* Enable only while this runtime still has one calling thread, before
+ * publishing work to additional threads. Once enabled, heap metadata remains
+ * serialized for the rest of the process. This does not make stdio or errno
+ * thread-local. Allocator cores never call the public locking entry points. */
+static unsigned int cupid_heap_threading_enabled;
+static unsigned int cupid_heap_mutex;
+
+void cupid_runtime_heap_enable_threads(void) {
+  if (!cupid_heap_threading_enabled) cupid_heap_threading_enabled = 1u;
+}
+
+static int cupid_heap_enter(void) {
+  if (!cupid_heap_threading_enabled) return 0;
+  while (__atomic_exchange_n(&cupid_heap_mutex, 1u, __ATOMIC_ACQUIRE)) {
+    while (__atomic_load_n(&cupid_heap_mutex, __ATOMIC_RELAXED)) {}
+  }
+  return 1;
+}
+
+static void cupid_heap_leave(int locked) {
+  if (locked) __atomic_store_n(&cupid_heap_mutex, 0u, __ATOMIC_RELEASE);
+}
+
 #if defined(CUPID_RUNTIME_WINDOWS)
 static cupid_heap_arena_t *cupid_heap_arenas;
 
@@ -518,7 +541,7 @@ static void cupid_heap_split(cupid_heap_block_t *block, size_t size) {
   cupid_heap_join_next(remainder);
 }
 
-void *malloc(size_t bytes) {
+static void *cupid_heap_malloc_unlocked(size_t bytes) {
   size_t size, total;
   unsigned int bin;
   cupid_heap_block_t *block;
@@ -574,7 +597,7 @@ void *malloc(size_t bytes) {
   return (void *)(block + 1);
 }
 
-void *calloc(size_t count, size_t bytes) {
+static void *cupid_heap_calloc_unlocked(size_t count, size_t bytes) {
   size_t size;
   void *allocation;
   if (bytes != 0u && count > CUPID_RUNTIME_UINT_MAX / bytes) {
@@ -582,14 +605,14 @@ void *calloc(size_t count, size_t bytes) {
     return (void *)0;
   }
   size = count * bytes;
-  allocation = malloc(size);
+  allocation = cupid_heap_malloc_unlocked(size);
   if (allocation != (void *)0) {
     (void)memset(allocation, 0, size);
   }
   return allocation;
 }
 
-void free(void *allocation) {
+static void cupid_heap_free_unlocked(void *allocation) {
   cupid_heap_block_t *block;
   cupid_heap_arena_t *arena, *previous, *next;
   if (allocation == (void *)0) {
@@ -626,15 +649,15 @@ void free(void *allocation) {
   }
 }
 
-void *realloc(void *allocation, size_t bytes) {
+static void *cupid_heap_realloc_unlocked(void *allocation, size_t bytes) {
   cupid_heap_block_t *block;
   size_t size, copy_size;
   void *replacement;
   if (allocation == (void *)0) {
-    return malloc(bytes);
+    return cupid_heap_malloc_unlocked(bytes);
   }
   if (bytes == 0u) {
-    free(allocation);
+    cupid_heap_free_unlocked(allocation);
     return (void *)0;
   }
   if (!cupid_heap_size(bytes, &size)) {
@@ -652,13 +675,13 @@ void *realloc(void *allocation, size_t bytes) {
     cupid_heap_split(block, size);
     return allocation;
   }
-  replacement = malloc(bytes);
+  replacement = cupid_heap_malloc_unlocked(bytes);
   if (replacement == (void *)0) {
     return (void *)0;
   }
   copy_size = block->size < bytes ? block->size : bytes;
   (void)memcpy(replacement, allocation, copy_size);
-  free(allocation);
+  cupid_heap_free_unlocked(allocation);
   return replacement;
 }
 #else
@@ -734,7 +757,7 @@ static void cupid_heap_split(cupid_heap_block_t *block, size_t size) {
   cupid_heap_join_next(remainder);
 }
 
-void *malloc(size_t bytes) {
+static void *cupid_heap_malloc_unlocked(size_t bytes) {
   size_t size;
   cupid_heap_block_t *block;
   unsigned int bin, address, end;
@@ -786,7 +809,7 @@ void *malloc(size_t bytes) {
   return (void *)(block + 1);
 }
 
-void *calloc(size_t count, size_t bytes) {
+static void *cupid_heap_calloc_unlocked(size_t count, size_t bytes) {
   size_t size;
   void *allocation;
   if (bytes != 0u && count > CUPID_RUNTIME_UINT_MAX / bytes) {
@@ -794,14 +817,14 @@ void *calloc(size_t count, size_t bytes) {
     return (void *)0;
   }
   size = count * bytes;
-  allocation = malloc(size);
+  allocation = cupid_heap_malloc_unlocked(size);
   if (allocation != (void *)0) {
     (void)memset(allocation, 0, size);
   }
   return allocation;
 }
 
-void free(void *allocation) {
+static void cupid_heap_free_unlocked(void *allocation) {
   cupid_heap_block_t *block, *previous;
   unsigned int address;
   int result;
@@ -837,15 +860,15 @@ void free(void *allocation) {
   }
 }
 
-void *realloc(void *allocation, size_t bytes) {
+static void *cupid_heap_realloc_unlocked(void *allocation, size_t bytes) {
   cupid_heap_block_t *block;
   size_t size, copy_size;
   void *replacement;
   if (allocation == (void *)0) {
-    return malloc(bytes);
+    return cupid_heap_malloc_unlocked(bytes);
   }
   if (bytes == 0u) {
-    free(allocation);
+    cupid_heap_free_unlocked(allocation);
     return (void *)0;
   }
   if (!cupid_heap_size(bytes, &size)) {
@@ -862,16 +885,43 @@ void *realloc(void *allocation, size_t bytes) {
     cupid_heap_split(block, size);
     return allocation;
   }
-  replacement = malloc(bytes);
+  replacement = cupid_heap_malloc_unlocked(bytes);
   if (replacement == (void *)0) {
     return (void *)0;
   }
   copy_size = block->size < bytes ? block->size : bytes;
   (void)memcpy(replacement, allocation, copy_size);
-  free(allocation);
+  cupid_heap_free_unlocked(allocation);
   return replacement;
 }
 #endif
+
+void *malloc(size_t bytes) {
+  int locked = cupid_heap_enter();
+  void *result = cupid_heap_malloc_unlocked(bytes);
+  cupid_heap_leave(locked);
+  return result;
+}
+
+void *calloc(size_t count, size_t bytes) {
+  int locked = cupid_heap_enter();
+  void *result = cupid_heap_calloc_unlocked(count, bytes);
+  cupid_heap_leave(locked);
+  return result;
+}
+
+void free(void *allocation) {
+  int locked = cupid_heap_enter();
+  cupid_heap_free_unlocked(allocation);
+  cupid_heap_leave(locked);
+}
+
+void *realloc(void *allocation, size_t bytes) {
+  int locked = cupid_heap_enter();
+  void *result = cupid_heap_realloc_unlocked(allocation, bytes);
+  cupid_heap_leave(locked);
+  return result;
+}
 
 static int cupid_stdio_bad_stream(FILE *stream) {
 #if defined(CUPID_RUNTIME_WINDOWS)

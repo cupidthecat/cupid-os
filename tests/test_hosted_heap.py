@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from tools.bootstrap_toolchain import (
     ToolRunner, WINDOWS_TOOL_IMPORTS, freeze_seed_inputs,
-    require_live_seed_inputs, _windows_utf8_imports,
+    require_live_seed_inputs, _windows_utf8_imports, _validate_static_i386_pe32,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class HostedHeapTests(unittest.TestCase):
     utf8 = False
+    threaded = False
 
     @classmethod
     def setUpClass(cls):
@@ -26,6 +27,8 @@ class HostedHeapTests(unittest.TestCase):
         retained = os.environ.get('CUPID_HOSTED_HEAP_PRODUCTS')
         if retained:
             cls.products = Path(retained).resolve()
+            if cls.threaded:
+                cls.products = cls.products / 'threaded'
             if cls.utf8:
                 cls.products = cls.products / 'utf8'
             if not cls.products.is_relative_to(ROOT):
@@ -135,6 +138,25 @@ class HostedHeapTests(unittest.TestCase):
     @classmethod
     def compile(cls, source, name, *, gnu=False, definitions=()):
         output = cls.products / name
+        if cls.threaded and source in {
+                'toolchain/tests/hosted_heap_density_contract.cc',
+                'toolchain/tests/hosted_heap_fault_contract.cc',
+                'toolchain/tests/hosted_i386_windows_runtime_contract.cc',
+                'toolchain/tests/hosted_i386_runtime_contract.cc'}:
+            wrapper = cls.products / ('threaded-' + name + '.cc')
+            wrapper.write_text(
+                '#include <cupid_runtime.h>\n#define main cupid_heap_contract_main\n'
+                '#include "/' + source + '"\n#undef main\n'
+                'int main(int argc, char **argv) {\n'
+                '  cupid_runtime_heap_enable_threads();\n'
+                '  cupid_runtime_heap_enable_threads();\n'
+                '  return cupid_heap_contract_main(argc, argv);\n}\n', encoding='utf8', newline='\n')
+            cls.source_bytes[wrapper] = wrapper.read_bytes()
+            (cls.products / 'inputs.json').write_text(json.dumps({
+                path.relative_to(ROOT).as_posix(): {
+                    'size': len(payload), 'sha256': hashlib.sha256(payload).hexdigest()}
+                for path, payload in cls.source_bytes.items()}, indent=2, sort_keys=True) + '\n', encoding='utf8')
+            source = wrapper.relative_to(ROOT).as_posix()
         arguments = ['--root', ROOT, '-c', '/' + source,
                      '--include-angle', '/toolchain/hosted/i386-linux/include']
         if gnu:
@@ -147,7 +169,7 @@ class HostedHeapTests(unittest.TestCase):
         return output
 
     @classmethod
-    def link(cls, name, fixture, runtime):
+    def link(cls, name, fixture, runtime, *, extras=(), extra_imports=()):
         output = cls.products / (name + ('.exe' if cls.windows else '.elf'))
         arguments = ['-m', 'i386pe' if cls.windows else 'elf_i386',
                      '--text-address', '0x00401000' if cls.windows else '0x08048000',
@@ -158,9 +180,16 @@ class HostedHeapTests(unittest.TestCase):
             for library, names in imports:
                 for symbol in names:
                     arguments.extend(['--import', '__imp_' + symbol + '=' + library + ':' + symbol])
-        arguments.extend(['-o', output, cls.start, fixture, runtime, *cls.support])
+            for symbol in extra_imports:
+                arguments.extend(['--import', '__imp_' + symbol + '=KERNEL32.dll:' + symbol])
+        arguments.extend(['-o', output, cls.start, fixture, runtime, *cls.support, *extras])
         cls.tool('cupidld', arguments, 180)
         cls.certify(output)
+        if extra_imports:
+            expected = {library: set(names) for library, names in imports}
+            expected['KERNEL32.dll'].update(extra_imports)
+            _validate_static_i386_pe32(output, 0x00401000,
+                tuple((library, tuple(sorted(names))) for library, names in sorted(expected.items())))
         return output
 
     def invoke(self, *arguments, program=None):
@@ -253,6 +282,88 @@ class HostedWindowsUtf8HeapTests(HostedHeapTests):
         missing = directory / 'cupid-\u2665-missing.bin'
         self.assertGreater(len(str(output)), 260)
         self.check_legacy_runtime(output, missing, 'legacy-unicode-result.json')
+
+
+class HostedThreadedHeapTests(HostedHeapTests):
+    threaded = True
+
+    @classmethod
+    def thread_programs(cls):
+        if '_thread_programs' in cls.__dict__:
+            return cls._thread_programs
+        names = ['hosted_windows_thread_adapter.asm', 'hosted_windows_thread_exit.asm',
+                 'hosted_windows_thread_contract.cc', 'hosted_heap_thread_contract.cc']
+        cls.source_bytes.update({ROOT / 'toolchain/tests' / name:
+                                 (ROOT / 'toolchain/tests' / name).read_bytes() for name in names})
+        extras = []
+        for name in names[:2]:
+            destination = cls.products / (name + '.o')
+            cls.tool('cupidasm', ['-f', 'elf32', ROOT / 'toolchain/tests' / name,
+                                 '-o', destination], 120)
+            cls.certify(destination)
+            extras.append(destination)
+        hook_root = cls.products / 'hooks'
+        source = (ROOT / 'toolchain/hosted/i386-linux/runtime.cc').read_text(encoding='utf8')
+        assert source.count('int locked = cupid_heap_enter();') == 4
+        source = source.replace('int locked = cupid_heap_enter();',
+                                'int locked = cupid_heap_enter();\n  cupid_test_heap_enter();')
+        assert source.count('  cupid_heap_leave(locked);') == 4
+        source = source.replace('  cupid_heap_leave(locked);',
+                                '  cupid_test_heap_leave();\n  cupid_heap_leave(locked);')
+        source = ('#define CUPID_RUNTIME_WINDOWS 1\nvoid cupid_test_heap_enter(void);\n'
+                  'void cupid_test_heap_leave(void);\n' + source)
+        hook_path = hook_root / 'toolchain/hosted/i386-linux/runtime.cc'
+        hook_path.parent.mkdir(parents=True)
+        hook_path.write_text(source, encoding='utf8', newline='\n')
+        header = hook_root / 'toolchain/path_encoding.h'
+        header.write_bytes((ROOT / 'toolchain/path_encoding.h').read_bytes())
+        cls.source_bytes.update({p: p.read_bytes() for p in [hook_path, header]})
+        hook_runtime = cls.compile(hook_path.relative_to(ROOT).as_posix(), 'thread-hook-runtime.o',
+                                   gnu=True, definitions=['CUPID_WINDOWS_UTF8=1'] if cls.utf8 else [])
+        abi = cls.compile('toolchain/tests/hosted_windows_thread_contract.cc', 'thread-abi.o')
+        heap = cls.compile('toolchain/tests/hosted_heap_thread_contract.cc', 'thread-heap.o', gnu=True)
+        options = {'extras': extras, 'extra_imports': ['CreateThread', 'GetExitCodeThread', 'WaitForSingleObject']}
+        cls._thread_programs = {
+            'abi': cls.link('thread-abi', abi, cls.runtime, **options),
+            'heap': cls.link('thread-heap', heap, cls.runtime, **options),
+            'hooks': cls.link('thread-heap-hooks', heap, hook_runtime, **options)}
+        (cls.products / 'thread-inputs.json').write_text(json.dumps({
+            path.relative_to(ROOT).as_posix(): {
+                'size': len(payload), 'sha256': hashlib.sha256(payload).hexdigest()}
+            for path, payload in cls.source_bytes.items()}, indent=2, sort_keys=True) + '\n', encoding='utf8')
+        return cls._thread_programs
+
+    def check_thread_program(self, key, arguments, expected_code, expected_stdout):
+        program = self.thread_programs()[key]
+        result = self.runner.run(program, arguments, 60)
+        (self.products / (self._testMethodName + '-' + key + '-' + str(expected_code) + '.json')).write_text(json.dumps({
+            'program': str(program), 'program_sha256': hashlib.sha256(program.read_bytes()).hexdigest(),
+            'arguments': arguments, 'timeout_seconds': 60, 'exit_code': result.returncode,
+            'stdout': result.stdout, 'stderr': result.stderr}, indent=2) + '\n', encoding='utf8')
+        self.assertEqual((result.returncode, result.stdout, result.stderr),
+                         (expected_code, expected_stdout, ''))
+        require_live_seed_inputs(self.seed)
+        self.require_sources()
+
+    @unittest.skipUnless(os.name == 'nt', 'The callback adapter requires Windows')
+    def test_windows_callback_stack_return_and_publication(self):
+        self.check_thread_program('abi', [], 0, 'pass thread_adapter callbacks=513 rejected=2\n')
+
+    @unittest.skipUnless(os.name == 'nt', 'The callback adapter requires Windows')
+    def test_windows_heap_lock_excludes_reference_overlap(self):
+        self.check_thread_program('hooks', ['off', 'hooks'], 91, '')
+        self.check_thread_program('hooks', ['on', 'hooks'], 0,
+                                  'pass threaded_heap workers=8 iterations=32000\n')
+
+    @unittest.skipUnless(os.name == 'nt', 'The callback adapter requires Windows')
+    def test_windows_concurrent_heap_preserves_live_payloads(self):
+        self.check_thread_program('heap', ['on'], 0,
+                                  'pass threaded_heap workers=8 iterations=32000\n')
+
+
+@unittest.skipUnless(os.name == 'nt', 'The UTF-8 startup profile requires Windows')
+class HostedWindowsUtf8ThreadedHeapTests(HostedWindowsUtf8HeapTests, HostedThreadedHeapTests):
+    threaded = True
 
 
 class HostedHeapHarnessTests(unittest.TestCase):
