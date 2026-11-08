@@ -1,5 +1,14 @@
 # Cupid Toolchain capability matrix
 
+## Private source-owner worker qualification, 2026-11-08
+
+The combined worker/heap candidate passes all 3,630 observer API calls, 340
+legacy and 48 alias methods, preserving twelve declared skips. Complete-owner
+lifetime controls and all twelve 4,096-input capacity cases pass, together with
+creation/wait/close failures and deterministic payload/metadata drift. This
+qualifies the private API candidate; active integration, publisher authority
+and seed adoption remain open. See the [record](SOURCE-OWNER-WORKERS.md).
+
 ## Hosted heap threading mode, 2026-11-08
 
 Source head can enable heap serialization before starting workers. Existing

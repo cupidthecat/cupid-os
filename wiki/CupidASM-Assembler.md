@@ -534,6 +534,9 @@ installed bootstrap seeds; see [the record](../docs/bootstrap/HOSTED-HEAP-THREAD
 The Windows callback fixture publishes completion after callback return and
 the final descriptor read. Its failure controls retain caller-owned storage
 when a wait fails; see [worker completion](../docs/bootstrap/WORKER-COMPLETION.md).
+The private source-owner candidate passes its full API, lifetime and capacity
+selections; [qualification](../docs/bootstrap/SOURCE-OWNER-WORKERS.md) remains
+separate from adopting the native image command.
 
 CupidC emits the unchanged C source closures for CupidC, CupidASM, CupidDis,
 CupidLD, and CupidObj under the checked four-byte i386 Linux ABI. CupidASM

@@ -623,6 +623,9 @@ Installed bootstrap seeds are unchanged. The native image-owner candidate
 still needs integration and complete acceptance.
 Its Windows callback adapter publishes completion after callback return and
 the final descriptor access, retaining caller storage even after a failed wait.
+The private source-owner candidate passes the complete observer API replay,
+lifetime controls and original 4,096-input capacities. Native image-command
+ownership and producer qualification remain separate work.
 
 The repository runtime provides the checked file, heap, memory, string, errno,
 getcwd, and formatted-output calls used by those commands. It has unbuffered

@@ -1,5 +1,15 @@
 # Bootstrapping log
 
+## 2026-11-08: Close source-owner worker qualification
+
+Both complete private replays pass: 3,630 API calls, 340 legacy methods, 48
+alias methods and the original twelve platform skips. Independent review
+rereads 4,030 outcome records, verifies unchanged test/bound bodies and checks
+all common objects. Complete-owner lifetime controls add 236 calls; all twelve
+original 4,096-input capacities, 24 pool-failure controls and four deterministic
+parallel drift controls pass. Active source/profile integration and image
+publication remain open. See the [qualification record](SOURCE-OWNER-WORKERS.md).
+
 ## 2026-11-08: Publish completion after callback return
 
 The checked Windows adapter now publishes its completion marker after the

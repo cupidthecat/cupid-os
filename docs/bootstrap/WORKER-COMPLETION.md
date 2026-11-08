@@ -61,7 +61,8 @@ source-ownership entries. Both fixtures now have explicit `not_reached`
 records: they run through the unit harness rather than a supported Make root.
 The audit is regenerated and checked with those files tracked.
 
-The next gate replays all existing observer, request, selection and legacy
-contracts against the combined worker and heap candidate. Publisher custody,
+The later [source-owner qualification](SOURCE-OWNER-WORKERS.md) closes the
+complete observer and legacy replay, original lifetime cases and capacity
+matrix against this protocol. Publisher custody,
 large-image publication, producer qualification and replacement-seed adoption
 remain separate gates. The normal graph still has three Python coordinators.
