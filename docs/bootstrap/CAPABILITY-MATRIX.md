@@ -1,5 +1,16 @@
 # Cupid Toolchain capability matrix
 
+## Private pointer difference, 2026-11-08
+
+Source head supports compatible complete object-pointer subtraction with signed
+element counts, once-only evaluation and incompatible-referent diagnostics.
+Windows and Linux pass all 520 compiler and smoke-runner methods and the
+156-source checks under their original timeout. An earlier Windows image
+passes sixteen exact artifact checks and a four-CPU signed-distance probe.
+The installed Feature 23 demo passes JIT and external AOT checks in the final
+four-CPU guest, after a complete normal image build. See [the record](PRIVATE-POINTER-DIFFERENCE.md)
+for measured scope and retained failures.
+
 ## Private VFS and swap call signatures, 2026-10-11
 
 Private CupidC now publishes fixed native signatures for eight VFS calls and

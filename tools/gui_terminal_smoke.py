@@ -1311,6 +1311,19 @@ def send_key(
 def key_name(ch: str) -> str:
     if "a" <= ch <= "z" or "0" <= ch <= "9":
         return ch
+    if "A" <= ch <= "Z":
+        return "shift-" + ch.lower()
+    source_keys = {
+        "(": "shift-9", ")": "shift-0",
+        "[": "bracket_left", "]": "bracket_right",
+        "{": "shift-bracket_left", "}": "shift-bracket_right",
+        ";": "semicolon", ":": "shift-semicolon",
+        ",": "comma", "=": "equal", "%": "shift-5",
+        "&": "shift-7", "*": "shift-8",
+        "\"": "shift-apostrophe", "'": "apostrophe", "\\": "backslash",
+    }
+    if ch in source_keys:
+        return source_keys[ch]
     if ch == " ":
         return "spc"
     if ch == "/":

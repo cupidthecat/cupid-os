@@ -51,6 +51,8 @@ complete OS can rebuild itself from inside the guest.
 
 ## Records
 
+- [Private pointer difference](PRIVATE-POINTER-DIFFERENCE.md): signed element
+  counts, diagnostics, native compiler tests and Windows guest evidence.
 - [Implementation log](LOG.md): changes, test evidence and failed approaches.
 - [Migration matrix](MIGRATION-MATRIX.md): tool ownership by source cohort.
 - [Active build audit](audits/active-build.json): machine-readable graph;

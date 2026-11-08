@@ -1,6 +1,21 @@
 //help: P6 Phase-4 sanity - exercises new networking + driver bindings
 //help: Usage: feature23_full_access
 //help: Checks native network argument widths and static integer array data.
+//help: Also checks signed pointer distances in elements and complete rows.
+
+I32 feature23_pointer_difference_probe() {
+    U16 ports[6];
+    I16 samples[6];
+    I32 words[4];
+    double frames[3];
+    U16 grid[3][5];
+    if ((ports + 6) - ports != 6 || ports - (ports + 6) != -6) return 0;
+    if (&samples[1] - &samples[5] != -4) return 0;
+    if (&words[3] - &words[1] != 2) return 0;
+    if (&frames[0] - &frames[2] != -2) return 0;
+    if ((grid + 2) - grid != 2 || grid - (grid + 2) != -2) return 0;
+    return 1;
+}
 
 I32 feature23_initializer_probe() {
     static U16 ports[3] = {65537, 54321,};
@@ -158,9 +173,12 @@ U0 Main() {
     I32 halfword_types_ok = feature23_halfword_type_probe();
     if (halfword_types_ok) serial_printf("PASS feature23_halfword_types strides=2 rows=3 broadcasts=4 casts=2\n");
     else serial_printf("FAIL feature23_halfword_types\n");
+    I32 pointer_difference_ok = feature23_pointer_difference_probe();
+    if (pointer_difference_ok) serial_printf("PASS feature23_pointer_difference forward=6 reverse=-6 rows=2\n");
+    else serial_printf("FAIL feature23_pointer_difference\n");
 
     /* Pass criteria: link up + non-zero IP + at least one PCI device */
-    if (link == 1 && ip != 0 && npci > 0 && bindings_ok && initializers_ok && halfword_types_ok) {
+    if (link == 1 && ip != 0 && npci > 0 && bindings_ok && initializers_ok && halfword_types_ok && pointer_difference_ok) {
         serial_printf("[feature23] PASS\n");
     } else {
         serial_printf("[feature23] FAIL link=%d ip=%x npci=%d\n", link, ip, npci);

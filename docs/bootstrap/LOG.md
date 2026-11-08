@@ -47718,3 +47718,64 @@ remains read-only reference material and stays outside the progress counts.
 Interface contracts and focused evidence are recorded in
 [STREAMED-DISK-TEMPLATE.md](STREAMED-DISK-TEMPLATE.md) and
 [NATIVE-OBSERVER-DIRECTORY-SNAPSHOT.md](NATIVE-OBSERVER-DIRECTORY-SNAPSHOT.md).
+
+## 2026-11-08: private pointer difference at source head
+
+Private CupidC subtracts compatible complete object pointers in signed element
+units, evaluates each operand once and rejects incompatible referents. Both
+final compiler/smoke-runner selections pass all 519 methods, without skips.
+The Windows build completes compilation, both links and guarded flattening,
+then rejects the old raw-kernel size lock. A layout comparison attributes the
+2,456-byte increase to 2,465 payload bytes and nine fewer padding bytes.
+Only the raw-kernel policy row changes. The native sixteen-artifact check and
+existing normal image command then pass. The original Make run stays failed.
+
+The private-copy four-CPU max/e1000 guest passes all 62 crypto checks, the ls
+JIT, signed halfword pointer distances of 6 and -6, terminal completion and
+the survival window. The first probe consumed only its leading declaration;
+the corrected probe uses an executable block without changing OS source.
+All twenty focused policy/audit methods pass after correcting a test-class typo.
+
+Independent readback checks all 312 Linux frontier objects and their 156 whole
+Windows production pairs. Cohorts contain 4,250,780 bytes; the snapshot retains
+478 inputs. The mounted-drive CLI takes about 3,083 seconds and supplies no
+passing result for the original 2,340-second method bound. The initial full
+Windows module fails only its preliminary aggregate byte expectation; corrected
+native Windows and native-filesystem Linux methods pass separately after the
+remaining shell lock is calibrated. They take 1,948.697 and 1,905.151 seconds
+under the original 2,340-second bound. Linux rechecks all 511 captured files
+and removes its owned workspace after success.
+
+Both intervening attempts reject the stale shell object lock from the earlier
+disassembly change. Independent readback checks all sixty object locks before
+the passing corrected native methods. A manual-only
+correction removes 53 bytes of qualification prose. Its separate normal-recipe
+replay passes every step and all sixteen artifact rows. The measured raw kernel
+has 9,407,872 bytes, with 2,412 added payload bytes and eight fewer padding bytes
+relative to the parent. A fresh four-CPU guest qualifies that final image in
+118.074 seconds and leaves its complete hash unchanged. Earlier image results
+retain their original scope.
+
+The installed Feature 23 demo also checks halfword, word, double and complete-row
+pointer distances. Its probe passes extracted JIT and AOT execution, and both
+complete compiler/smoke selections pass all 520 methods. A separate 428-object,
+322-header copy reproduces the two-pass layout with Cupid tools. Its raw kernel
+has 9,408,860 bytes and final ELF has 9,639,568 bytes; pass one remains unchanged.
+Two exact size rows are calibrated from those outputs, and all seventeen policy
+methods pass. The normal Make rebuild passes in 2,675.096 seconds and reproduces
+all 428 complete object pairs, 322 headers and five linked/generated artifacts.
+The final four-CPU guest passes the installed JIT and external AOT demo, matching
+loader/exit PID, terminal completion and survival in 123.231 seconds. Its complete
+200 MiB source image and three source inputs retain their hashes. Active-output locks and an incomplete header copy stopped earlier
+diagnostic attempts; no size claim comes from those failed attempts.
+
+The original Doom custody failures, missing output-parent invocation, block
+record fixture, incomplete aggregate calibration and invalid probe remain
+recorded. Installed seeds and 449 CupidBuild / three Python ownership remain
+unchanged. [The capability record](PRIVATE-POINTER-DIFFERENCE.md) retains the
+implementation, scope, layout evidence and qualification results.
+
+The final audit regeneration, deterministic check and independent evidence
+export pass. [Portable pointer-difference evidence](evidence/private-pointer-difference-20261108.json.gz)
+retains the failed attempts alongside the successful full build and installed
+JIT/AOT guest. No hosted seed or normal compiler owner changes in this step.

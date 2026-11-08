@@ -1055,3 +1055,18 @@ void main() {
     print_int(i);
 }
 ```
+
+## Private object-pointer difference
+
+Private CupidC source supports `end - begin` for compatible complete object
+pointers. It returns a signed four-byte element count, including negative and
+zero distances. Each operand is evaluated once. Character, halfword, word,
+floating and record elements use their declared size; retained array rows use
+their complete row size. Incompatible types, different record identities,
+incompatible rows and erased `void *` referents produce an error. Both pointers
+must belong to the same array, allowing its one-past position, and the result
+must fit a signed word.
+
+Run `feature23_full_access` in the OS terminal to check halfword, word,
+double and row distances. The installed demo prints
+`PASS feature23_pointer_difference` when those checks pass.

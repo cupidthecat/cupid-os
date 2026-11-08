@@ -6489,6 +6489,46 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
       continue; /* skip the int binop path below */
     }
 
+    if (op.type == CC_TOK_MINUS && cc_is_object_pointer_type(left_type) &&
+        cc_is_object_pointer_type(right_type)) {
+      int32_t stride = left_pointer_stride;
+      int32_t right_stride = right_pointer_stride;
+      int left_rank = left_array_rank > 0 ? left_array_rank : 1;
+      int right_rank = right_array_rank > 0 ? right_array_rank : 1;
+      if (stride <= 0)
+        stride = cc_type_size(cc, cc_pointed_object_type(left_type),
+                              left_struct_index);
+      if (right_stride <= 0)
+        right_stride = cc_type_size(cc, cc_pointed_object_type(right_type),
+                                    right_struct_index);
+      if (left_type != right_type || left_type == TYPE_PTR ||
+          (left_type == TYPE_STRUCT_PTR &&
+           (left_struct_index != right_struct_index ||
+            cc_type_size(cc, TYPE_STRUCT, left_struct_index) <= 0)) ||
+          stride <= 0 || stride != right_stride || left_rank != right_rank ||
+          (left_rank > 1 &&
+           (left_array_dim2 != right_array_dim2 ||
+            left_array_element_type != right_array_element_type))) {
+        cc_error(cc,
+                 "pointer difference requires compatible complete pointed-to types");
+        return;
+      }
+      /* Each operand is already evaluated once. Subtract addresses, then
+       * divide the signed byte distance by the complete element size. */
+      cc_emit_binop(cc, CC_TOK_MINUS, TYPE_INT);
+      if (stride != 1) {
+        emit8(cc, 0xB9); /* mov ecx, stride */
+        emit32(cc, (uint32_t)stride);
+        emit8(cc, 0x99); /* cdq */
+        emit8(cc, 0xF7);
+        emit8(cc, 0xF9); /* idiv ecx */
+      }
+      cc_last_expr_type = TYPE_INT;
+      cc_last_expr_struct_index = -1;
+      cc_reset_expr_subscript_metadata();
+      continue;
+    }
+
     if ((op.type == CC_TOK_PLUS || op.type == CC_TOK_MINUS) &&
         cc_is_object_pointer_type(left_type) &&
         cc_is_integer_scalar_type(right_type)) {

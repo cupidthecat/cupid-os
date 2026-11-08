@@ -215,6 +215,81 @@ def _storage_native_assembly():
 
 
 class PrivateCupidCCallAbiTests(unittest.TestCase):
+    def test_installed_pointer_difference_demo_runs_in_jit_and_aot(self):
+        source = (REPO_ROOT / "bin/feature23_full_access.cc").read_text(
+            encoding="utf-8")
+        start = source.index("I32 feature23_pointer_difference_probe() {")
+        end = source.index("\nI32 feature23_initializer_probe()", start)
+        self._assert_halfword_runtime(
+            source[start:end] +
+            "\nint main() { return !feature23_pointer_difference_probe(); }")
+
+    def test_pointer_difference_uses_signed_element_counts(self):
+        self._assert_halfword_runtime(r'''
+            struct Triple { int a; int b; int c; };
+            int calls;
+            U16 ports[6];
+            U16 *select_port(int index) { calls = calls + 1; return ports + index; }
+            int main() {
+                char bytes[6]; I16 halves[6]; int words[6];
+                float floats[6]; double doubles[6]; struct Triple records[6];
+                if (&bytes[5] - &bytes[1] != 4) return 1;
+                if (&halves[1] - &halves[5] != -4) return 2;
+                if (&words[5] - &words[1] != 4) return 3;
+                if (&floats[1] - &floats[5] != -4) return 4;
+                if (&doubles[5] - &doubles[1] != 4) return 5;
+                if (&records[1] - &records[5] != -4) return 6;
+                if (select_port(5) - select_port(1) != 4 || calls != 2) return 7;
+                if (ports - ports != 0 || sizeof(ports - ports) != 4) return 8;
+                if ((ports + 6) - ports != 6) return 9;
+                if ((ports + 5) - (ports + 1) + 3 != 7) return 10;
+                U16 rows[3][5]; unsigned int unsigned_words[6];
+                if ((rows + 2) - rows != 2 || rows - (rows + 2) != -2) return 11;
+                if (&unsigned_words[1] - &unsigned_words[5] != -4) return 12;
+                return 0;
+            }
+        ''')
+
+    def test_pointer_difference_keeps_repl_and_static_storage_types(self):
+        result = self._compile_repl_and_run((
+            'U16 ports[6]; double samples[6];',
+            'U16 *end_port() { return ports + 6; }',
+            'int span() { static I16 history[6]; return &history[1] - &history[5]; }',
+            '''int main() {
+                if (end_port() - ports != 6 || span() != -4) return 1;
+                if (&samples[1] - &samples[5] != -4) return 2;
+                if (sizeof(end_port() - ports) != 4) return 3;
+                return 0;
+            }''',
+        ))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_pointer_difference_rejects_incompatible_referents_and_recovers(self):
+        cases = (
+            'int a[2]; char b[2]; return a - b;',
+            'U16 a[2]; I16 b[2]; return a - b;',
+            'struct A a[2]; struct B b[2]; return a - b;',
+            'int a[2][3]; int b[2][4]; return a - b;',
+            'void *a; void *b; return a - b;',
+        )
+        for body in cases:
+            for aot in (False, True):
+                with self.subTest(body=body, aot=aot):
+                    with tempfile.TemporaryDirectory(prefix='private-pointer-difference-') as temporary:
+                        result, _code, _data = self._compile(
+                            Path(temporary), 'struct A { int x; }; struct B { int x; }; int main() { ' + body + ' }', aot=aot)
+                    self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertIn('pointer difference requires', result.stdout + result.stderr)
+            with tempfile.TemporaryDirectory(prefix='private-pointer-difference-recovery-') as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root, 'struct A { int x; }; struct B { int x; }; int main() { ' + body + ' }',
+                    'int main() { U16 a[3]; return (&a[2] - &a[0]) - 2; }',
+                    same_state=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                executed = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(executed.returncode, 0, executed.stdout + executed.stderr)
+
     def test_halfword_scalar_addresses_use_declared_strides(self):
         self._assert_halfword_runtime('''
             U16 global_unsigned; I16 global_signed;

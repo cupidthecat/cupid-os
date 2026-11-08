@@ -961,6 +961,25 @@ class GuiTerminalInputTests(unittest.TestCase):
         self.assertEqual(gui_terminal_smoke.key_name("."), "dot")
         self.assertEqual(gui_terminal_smoke.key_name(" "), "spc")
 
+    def test_terminal_command_types_a_pointer_difference_repl_expression(self):
+        command = r'{short pd[6];serial_printf("PTRDIFF=%d\n",(pd+6)-pd);}'
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text("boot complete\n", encoding="utf-8")
+            monitor = SequencedMonitorSocket(log, ["PTRDIFF=6\n"])
+            with mock.patch("tools.gui_terminal_smoke.time.sleep"):
+                ok, _ = gui_terminal_smoke.run_terminal_command(
+                    mock.Mock(), monitor, log, command, r"PTRDIFF=6", 1.0, 0.35)
+        self.assertTrue(ok)
+        self.assertEqual(len(monitor.sent), len(command) + 1)
+        for report in (b"sendkey bracket_left 300\n", b"sendkey semicolon 300\n",
+                       b"sendkey shift-apostrophe 300\n", b"sendkey shift-p 300\n",
+                       b"sendkey backslash 300\n", b"sendkey shift-9 300\n",
+                       b"sendkey shift-bracket_left 300\n",
+                       b"sendkey shift-bracket_right 300\n"):
+            self.assertIn(report, monitor.sent)
+        self.assertEqual(monitor.sent[-1], b"sendkey ret 300\n")
+
     def test_terminal_command_types_a_fat_short_name(self):
         command = "doom -iwad /disk/wads/freedo~1.wad"
         with tempfile.TemporaryDirectory() as temporary:
