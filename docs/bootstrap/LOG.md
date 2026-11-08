@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-08: Split private compiler execution tests
+
+The 14,417-line ABI module now delegates to a shared harness and thirteen
+topic modules under `tests/private_cupidc/`. Each stays below 1,750 lines.
+The original class and all 381 test selectors remain available. AST comparison
+preserves all 381 tests and fourteen helper methods; discovery runs each test
+once and builds the native driver once. Both hosts pass the complete 528-method
+compiler/smoke selection, with no skips or failures. All 851 captured product
+inputs retain their bytes. The normal graph, seeds and OS outputs are unchanged.
+[Portable evidence](evidence/private-compiler-test-layout-20261108.json.gz)
+retains the comparisons, final process receipts and collector failure.
+
 ## 2026-11-08: Private derived integer updates
 
 The private parser retains evaluated integer lvalue addresses and performs

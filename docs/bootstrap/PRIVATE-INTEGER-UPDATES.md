@@ -59,3 +59,11 @@ Normal ownership remains 449 CupidBuild and three Python actions across 452
 transforms. No hosted seed promotion or production owner transfer is claimed.
 Native image/SDK coordination, full Doom runtime acceptance and a complete
 inside-guest OS build remain separate work. TempleOS stays excluded.
+
+## Test layout follow-up
+
+The execution cases now live in topic modules under `tests/private_cupidc/`;
+the original ABI module retains its class and test selectors. Both hosts pass
+the same 528-method selection after the split. All test and helper method ASTs
+are unchanged. The [separate layout evidence](evidence/private-compiler-test-layout-20261108.json.gz)
+records this refactor; the capability evidence above retains its original inputs.

@@ -3415,3 +3415,17 @@ the remaining 258 transforms. ADR
 refresh, ADR 0357 records the raw recipe transfer, ADR 0362 records the direct
 CupidObj handoff, ADR 0367 records the preceding seed generation, ADR 0370
 records the active pair, and ADR 0371 records kernel-symbol production.
+
+## Private compiler execution tests
+
+Run the private compiler and terminal-harness checks from the repository root:
+
+```sh
+python -m unittest tests.test_private_cupidc_call_abi tests.test_gui_terminal_smoke
+```
+
+The ABI suite keeps one shared native driver in `tests/private_cupidc/harness.py`.
+Its execution cases are grouped by integers, storage, SIMD, callbacks, bindings,
+floating values, calls, language rules and REPL behavior. The original module
+and class names still accept individual test selectors. Topic modules are
+mixins; ordinary discovery collects their cases through the original class once.
