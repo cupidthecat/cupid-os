@@ -93,12 +93,13 @@ class WindowsLongPathProfileTests(unittest.TestCase):
         native = bootstrap.verify_seed_inputs(WINDOWS)
         linux = bootstrap._candidate_build_plan(json.loads(LINUX.read_bytes())["build_plan"])
         snapshot = bootstrap.capture_source_snapshot(ROOT, linux, windows_utf8=True, windows_long_paths=True)
-        self.assertEqual(len(snapshot), 98)
+        self.assertEqual(len(snapshot), 99)
+        self.assertIn('toolchain/hosted/i386-linux/include/cupid_runtime.h', snapshot)
         self.assertIn(SHIM, snapshot)
         changed = bootstrap._retarget_native_windows_behavior_seed(native, LONG_PLAN, linux, snapshot,
             utf8=True, long_paths=True, parent_plan_seed=bootstrap.verify_seed_inputs(LINUX))
         provenance = changed.manifest["provenance"]
-        self.assertEqual(provenance["source_input_count"], 98)
+        self.assertEqual(provenance["source_input_count"], 99)
         self.assertEqual(provenance["parent_execution_seed_manifest_sha256"], native.manifest_sha256)
         self.assertEqual(provenance["parent_plan_seed_manifest_sha256"], bootstrap.verify_seed_inputs(LINUX).manifest_sha256)
         self.assertEqual(provenance["native_build_plan_sha256"], LONG_PLAN)
@@ -135,8 +136,8 @@ class WindowsLongPathProfileTests(unittest.TestCase):
         with artifact_size_policy._PinnedRepository(ROOT) as reader:
             short = verifier._bootstrap_input_logical_paths(reader, linux)
             long = verifier._bootstrap_input_logical_paths(reader, linux, windows_long_paths=True)
-            self.assertEqual(len(short), 97)
-            self.assertEqual(len(long), 98)
+            self.assertEqual(len(short), 98)
+            self.assertEqual(len(long), 99)
             self.assertNotIn(SHIM, short)
             self.assertEqual(set(long) - set(short), {SHIM})
             reader.require_unchanged()

@@ -7,7 +7,10 @@ legacy and 48 alias methods, preserving twelve declared skips. Complete-owner
 lifetime controls and all twelve 4,096-input capacity cases pass, together with
 creation/wait/close failures and deterministic payload/metadata drift. This
 qualifies the private API candidate; active integration, publisher authority
-and seed adoption remain open. See the [record](SOURCE-OWNER-WORKERS.md).
+and seed adoption remain open. The opt-in Windows profile now binds the
+production adapter and exact import/link/source closure; producer drivers still
+select their existing profiles. See the [qualification](SOURCE-OWNER-WORKERS.md)
+and [profile record](OBSERVER-WORKER-PROFILE.md).
 
 ## Hosted heap threading mode, 2026-11-08
 

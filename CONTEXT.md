@@ -6,6 +6,12 @@ Cupid OS is an operating-system project pursuing a self-hosting toolchain. This 
 
 ### System and source
 
+**Windows observer worker profile**:
+An explicit hosted build-plan selection that binds CreateThread and the
+callback adapter to CupidBuild, including its frozen source closure. It is
+separate from the exact historical profiles used to validate installed seeds.
+_Avoid_: new installed cohort, general threading profile
+
 **Worker completion marker**:
 An acquired indication that a callback has returned and its descriptor and
 context will no longer be accessed. It protects caller-owned storage

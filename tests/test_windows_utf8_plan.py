@@ -44,7 +44,7 @@ class WindowsUtf8PlanTests(unittest.TestCase):
     def test_long_source_capture_includes_the_complete_selected_plan(self):
         canonical = bootstrap._candidate_build_plan(json.loads(
             (ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"])
-        for linux, count in ((self.linux, 85), (canonical, 98)):
+        for linux, count in ((self.linux, 86), (canonical, 99)):
             wide = bootstrap.capture_source_snapshot(ROOT, linux, windows_utf8=True)
             long = bootstrap.capture_source_snapshot(ROOT, linux,
                 windows_utf8=True, windows_long_paths=True)
@@ -133,7 +133,8 @@ class WindowsUtf8PlanTests(unittest.TestCase):
         snapshot = bootstrap.capture_source_snapshot(ROOT, installed_plan, windows_utf8=True,
             windows_long_paths=long_paths, windows_user_link_aliases=aliases)
         extra_headers = 0 if any(row['name'] == 'fat16_names' for row in installed_plan['sources']) else 3
-        self.assertEqual(len(snapshot), count + extra_headers)
+        self.assertIn('toolchain/hosted/i386-linux/include/cupid_runtime.h', snapshot)
+        self.assertEqual(len(snapshot), count + extra_headers + 1)
 
     def test_promoted_profiles_select_exact_imports_for_every_role(self):
         for utf8, count in ((False, 66), (True, 73)):

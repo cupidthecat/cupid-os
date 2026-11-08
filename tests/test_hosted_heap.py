@@ -291,15 +291,15 @@ class HostedThreadedHeapTests(HostedHeapTests):
     def thread_programs(cls):
         if '_thread_programs' in cls.__dict__:
             return cls._thread_programs
-        names = ['hosted_windows_thread_adapter.asm', 'hosted_windows_thread_exit.asm',
-                 'hosted_windows_thread_contract.cc', 'hosted_heap_thread_contract.cc']
-        cls.source_bytes.update({ROOT / 'toolchain/tests' / name:
-                                 (ROOT / 'toolchain/tests' / name).read_bytes() for name in names})
+        paths = [ROOT / 'toolchain/hosted/i386-windows/observer_thread.asm',
+                 ROOT / 'toolchain/tests/hosted_windows_thread_exit.asm',
+                 ROOT / 'toolchain/tests/hosted_windows_thread_contract.cc',
+                 ROOT / 'toolchain/tests/hosted_heap_thread_contract.cc']
+        cls.source_bytes.update({path: path.read_bytes() for path in paths})
         extras = []
-        for name in names[:2]:
-            destination = cls.products / (name + '.o')
-            cls.tool('cupidasm', ['-f', 'elf32', ROOT / 'toolchain/tests' / name,
-                                 '-o', destination], 120)
+        for path in paths[:2]:
+            destination = cls.products / (path.name + '.o')
+            cls.tool('cupidasm', ['-f', 'elf32', path, '-o', destination], 120)
             cls.certify(destination)
             extras.append(destination)
         hook_root = cls.products / 'hooks'

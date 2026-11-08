@@ -224,9 +224,10 @@ def _read_preparation(root, format_name, snapshot, linux_plan, windows_plan, par
     if any(type(record[key]) is not type(value) or _encode(record[key]) != _encode(value)
            for key, value in expected.items()):
         raise seed.BootstrapError("preparation differs from caller-owned source, plan or parents")
-    utf8, long_paths, aliases = seed._windows_plan_profile(windows_plan)
-    seed.require_source_snapshot(root / "source", linux_plan, snapshot, windows_utf8=utf8,
-                                 windows_long_paths=long_paths, windows_user_link_aliases=aliases)
+    profile = seed._windows_plan_configuration(windows_plan)
+    seed.require_source_snapshot(root / "source", linux_plan, snapshot, windows_utf8=profile.utf8,
+        windows_long_paths=profile.long_paths, windows_user_link_aliases=profile.user_link_aliases,
+        windows_observer_workers=profile.observer_workers)
     stage_maps = record["stages"]
     if type(stage_maps) is not dict or set(stage_maps) != set(STAGES):
         raise seed.BootstrapError("preparation stage inventory differs")

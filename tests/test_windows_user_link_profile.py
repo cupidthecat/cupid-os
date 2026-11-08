@@ -81,7 +81,9 @@ class WindowsUserLinkProfileTests(unittest.TestCase):
             self.assertEqual(sum(API in row for row in selectors), int(name == 'cupidbuild'))
 
     def test_source_inventory_captures_the_selected_bridge_and_exact_count(self):
-        for long_paths, count in ((False, 98), (True, 99)):
+        # Live capture also owns the hosted heap opt-in header, added after
+        # the installed cohorts. Historical count pins below stay unchanged.
+        for long_paths, count in ((False, 99), (True, 100)):
             with self.subTest(long_paths=long_paths):
                 old = bootstrap.capture_source_snapshot(ROOT, self.linux,
                     windows_utf8=True, windows_long_paths=long_paths)

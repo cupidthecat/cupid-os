@@ -206,6 +206,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `tests/usb_interrupt_ownership_contract.c` | `c` | `host_fixture` | 50 | native USB behavior fixture compiled by the host test harness |
 | `tests/usb_msc_lifetime_contract.c` | `c` | `host_fixture` | 150 | native USB behavior fixture compiled by the host test harness |
 | `tests/usb_reconciliation_runtime.c` | `c` | `host_fixture` | 728 | native USB behavior fixture compiled by the host test harness |
+| `toolchain/hosted/i386-windows/observer_thread.asm` | `assembly` | `not_reached` | 74 | not reachable from the supported Make target or include closure |
 | `toolchain/native_utf8.cc` | `cupid_c` | `not_reached` | 170 | not reachable from the supported Make target or include closure |
 | `toolchain/native_utf8_entry.cc` | `cupid_c` | `not_reached` | 21 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/artifact_size_policy_contract.cc` | `cupid_c` | `not_reached` | 97 | not reachable from the supported Make target or include closure |
@@ -250,7 +251,6 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `toolchain/tests/hosted_strtoull_contract.cc` | `cupid_c` | `not_reached` | 46 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/hosted_update_modes_contract.cc` | `cupid_c` | `not_reached` | 46 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/hosted_wide_file_contract.cc` | `cupid_c` | `not_reached` | 110 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/hosted_windows_thread_adapter.asm` | `assembly` | `not_reached` | 74 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/hosted_windows_thread_contract.cc` | `cupid_c` | `not_reached` | 110 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/hosted_windows_thread_exit.asm` | `assembly` | `not_reached` | 38 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/iso_fixture_bundle_contract.cc` | `cupid_c` | `not_reached` | 188 | not reachable from the supported Make target or include closure |

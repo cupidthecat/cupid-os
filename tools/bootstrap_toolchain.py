@@ -523,6 +523,15 @@ class SourceInputs:
     windows_utf8: bool = False
     windows_long_paths: bool = False
     windows_user_link_aliases: bool = False
+    windows_observer_workers: bool = False
+
+
+@dataclass(frozen=True)
+class WindowsPlanProfile:
+    utf8: bool
+    long_paths: bool
+    user_link_aliases: bool
+    observer_workers: bool
 
 
 class ToolRunner:
@@ -838,6 +847,7 @@ def _source_input_paths(
     windows_utf8: bool = False,
     windows_long_paths: bool = False,
     windows_user_link_aliases: bool = False,
+    windows_observer_workers: bool = False,
 ) -> dict[str, Path]:
     if type(windows_utf8) is not bool:
         raise BootstrapError("Windows UTF-8 source selection must be Boolean")
@@ -849,6 +859,8 @@ def _source_input_paths(
         raise BootstrapError("Windows user-link source selection must be Boolean")
     if windows_user_link_aliases and not windows_utf8:
         raise BootstrapError("Windows user-link source selection requires UTF-8")
+    if type(windows_observer_workers) is not bool:
+        raise BootstrapError("Windows observer-worker source selection must be Boolean")
     source_root = source_root.resolve()
     paths: list[Path] = []
     raw_sources = _require_list(plan.get("sources"), "build_plan.sources")
@@ -903,6 +915,8 @@ def _source_input_paths(
         paths.append(source_root / "toolchain/hosted/i386-windows/utf8_long_path_start.asm")
     if windows_user_link_aliases:
         paths.append(source_root / "toolchain/hosted/i386-windows/final_path_start.asm")
+    if windows_observer_workers:
+        paths.append(source_root / "toolchain/hosted/i386-windows/observer_thread.asm")
     paths.extend(path for path in sorted((source_root / "toolchain").glob("*.h"))
                  if not (windows_utf8 and path.name == "path_encoding.h"))
     paths.extend(
@@ -945,12 +959,14 @@ def capture_source_snapshot(
     windows_utf8: bool = False,
     windows_long_paths: bool = False,
     windows_user_link_aliases: bool = False,
+    windows_observer_workers: bool = False,
 ) -> dict[str, dict[str, object]]:
     """Hash every active toolchain source input in a build plan."""
     inventory: dict[str, dict[str, object]] = {}
     for name, path in sorted(_source_input_paths(source_root, plan,
             windows_utf8=windows_utf8, windows_long_paths=windows_long_paths,
-            windows_user_link_aliases=windows_user_link_aliases).items()):
+            windows_user_link_aliases=windows_user_link_aliases,
+            windows_observer_workers=windows_observer_workers).items()):
         try:
             data = path.read_bytes()
         except OSError as error:
@@ -972,11 +988,13 @@ def freeze_source_inputs(
     windows_utf8: bool = False,
     windows_long_paths: bool = False,
     windows_user_link_aliases: bool = False,
+    windows_observer_workers: bool = False,
 ) -> SourceInputs:
     """Copy one exact source closure into a private compiler root."""
     source_paths = _source_input_paths(
         source_root, plan, windows_utf8=windows_utf8, windows_long_paths=windows_long_paths,
-        windows_user_link_aliases=windows_user_link_aliases
+        windows_user_link_aliases=windows_user_link_aliases,
+        windows_observer_workers=windows_observer_workers
     )
     if snapshot_directory.is_symlink():
         raise BootstrapError("frozen source directory may not be a symlink")
@@ -1018,7 +1036,8 @@ def freeze_source_inputs(
         }
     frozen = SourceInputs(root=snapshot_root, inventory=inventory,
         windows_utf8=windows_utf8, windows_long_paths=windows_long_paths,
-        windows_user_link_aliases=windows_user_link_aliases)
+        windows_user_link_aliases=windows_user_link_aliases,
+        windows_observer_workers=windows_observer_workers)
     require_frozen_source_snapshot(frozen, plan)
     return frozen
 
@@ -1041,10 +1060,12 @@ def _require_source_snapshot(
     windows_utf8: bool = False,
     windows_long_paths: bool = False,
     windows_user_link_aliases: bool = False,
+    windows_observer_workers: bool = False,
 ) -> None:
     current = capture_source_snapshot(source_root, plan,
         windows_utf8=windows_utf8, windows_long_paths=windows_long_paths,
-        windows_user_link_aliases=windows_user_link_aliases)
+        windows_user_link_aliases=windows_user_link_aliases,
+        windows_observer_workers=windows_observer_workers)
     if current == expected:
         return
     changed = sorted(
@@ -1068,11 +1089,13 @@ def require_source_snapshot(
     windows_utf8: bool = False,
     windows_long_paths: bool = False,
     windows_user_link_aliases: bool = False,
+    windows_observer_workers: bool = False,
 ) -> None:
     """Reject a build whose live source inputs changed after capture."""
     _require_source_snapshot(source_root, plan, expected, "source inputs",
         windows_utf8=windows_utf8, windows_long_paths=windows_long_paths,
-        windows_user_link_aliases=windows_user_link_aliases)
+        windows_user_link_aliases=windows_user_link_aliases,
+        windows_observer_workers=windows_observer_workers)
 
 
 def require_frozen_source_snapshot(
@@ -1088,6 +1111,7 @@ def require_frozen_source_snapshot(
         windows_utf8=source_inputs.windows_utf8,
         windows_long_paths=source_inputs.windows_long_paths,
         windows_user_link_aliases=source_inputs.windows_user_link_aliases,
+        windows_observer_workers=source_inputs.windows_observer_workers,
     )
 
 
@@ -1103,6 +1127,7 @@ def require_source_closures(
         windows_utf8=source_inputs.windows_utf8,
         windows_long_paths=source_inputs.windows_long_paths,
         windows_user_link_aliases=source_inputs.windows_user_link_aliases,
+        windows_observer_workers=source_inputs.windows_observer_workers,
     )
 
 
@@ -2741,16 +2766,31 @@ def _promoted_windows_imports(
     raise BootstrapError("promoted Windows import profile differs")
 
 
-def _windows_import_selectors(tool_name: str, *, utf8: bool = False,
-    long_paths: bool = False, user_link_aliases: bool = False) -> tuple[str, ...]:
+def _windows_profile_imports(tool_name: str, *, utf8: bool = False,
+    long_paths: bool = False, user_link_aliases: bool = False,
+    observer_workers: bool = False) -> tuple[tuple[str, tuple[str, ...]], ...]:
     if long_paths and not utf8:
         raise BootstrapError("Windows long-path imports require UTF-8")
     if type(user_link_aliases) is not bool:
         raise BootstrapError("Windows user-link import selection must be Boolean")
     if user_link_aliases and not utf8:
         raise BootstrapError("Windows user-link imports require UTF-8")
+    if type(observer_workers) is not bool:
+        raise BootstrapError("Windows observer-worker import selection must be Boolean")
     imports = _windows_utf8_imports(tool_name, long_paths=long_paths,
         user_link_aliases=user_link_aliases) if utf8 else _windows_imports(tool_name)
+    if observer_workers and tool_name == "cupidbuild":
+        imports = tuple((library, (*procedures, "CreateThread")
+                         if library == "KERNEL32.dll" else procedures)
+                        for library, procedures in imports)
+    return imports
+
+
+def _windows_import_selectors(tool_name: str, *, utf8: bool = False,
+    long_paths: bool = False, user_link_aliases: bool = False,
+    observer_workers: bool = False) -> tuple[str, ...]:
+    imports = _windows_profile_imports(tool_name, utf8=utf8, long_paths=long_paths,
+        user_link_aliases=user_link_aliases, observer_workers=observer_workers)
     return tuple(
         f"__imp_{procedure}={library}:{procedure}"
         for library, procedures in imports
@@ -2764,6 +2804,7 @@ def _windows_build_plan(
     utf8: bool = False,
     long_paths: bool = False,
     user_link_aliases: bool = False,
+    observer_workers: bool = False,
 ) -> dict[str, object]:
     if type(long_paths) is not bool or (long_paths and not utf8):
         raise BootstrapError("Windows long-path plan requires Boolean UTF-8 selection")
@@ -2773,6 +2814,8 @@ def _windows_build_plan(
         raise BootstrapError("Windows user-link plan selection must be Boolean")
     if user_link_aliases and not utf8:
         raise BootstrapError("Windows user-link plan requires UTF-8")
+    if type(observer_workers) is not bool:
+        raise BootstrapError("Windows observer-worker plan selection must be Boolean")
     raw_sources = _require_list(
         linux_plan.get("sources"), "build_plan.sources"
     )
@@ -2785,7 +2828,7 @@ def _windows_build_plan(
             raise BootstrapError(
                 f"Linux build plan repeats a source name: {name}"
             )
-        if name in ("publication_runtime", "long_path_start", "final_path_start", "path_encoding", "windows_utf8",
+        if name in ("publication_runtime", "long_path_start", "final_path_start", "observer_thread", "path_encoding", "windows_utf8",
                     "windows_utf8_publication", "windows_utf8_build"):
             raise BootstrapError(
                 "Linux build plan uses the reserved Windows source name: "
@@ -2844,6 +2887,8 @@ def _windows_build_plan(
     tool_names = _plan_tool_names(raw_links, "Linux build plan")
     if user_link_aliases and "cupidbuild" not in tool_names:
         raise BootstrapError("Windows user-link plan requires CupidBuild")
+    if observer_workers and "cupidbuild" not in tool_names:
+        raise BootstrapError("Windows observer-worker plan requires CupidBuild")
     known_linux_objects = {"start", *source_names}
     links: dict[str, list[str]] = {}
     for tool_name in tool_names:
@@ -2900,6 +2945,8 @@ def _windows_build_plan(
                 native_order.insert(1, "long_path_start")
         if user_link_aliases and tool_name == "cupidbuild":
             native_order.insert(native_order.index("cupidbuild_start") + 1, "final_path_start")
+        if observer_workers and tool_name == "cupidbuild":
+            native_order.insert(native_order.index("cupidbuild_start") + 1, "observer_thread")
         links[tool_name] = native_order
 
     include_arguments = [
@@ -2945,8 +2992,9 @@ def _windows_build_plan(
     if user_link_aliases:
         assembly_sources.append({"name": "final_path_start",
             "path": "/toolchain/hosted/i386-windows/final_path_start.asm"})
-    imports_for = (lambda name: _windows_utf8_imports(name, long_paths=long_paths,
-        user_link_aliases=user_link_aliases)) if utf8 else _windows_imports
+    if observer_workers:
+        assembly_sources.append({"name": "observer_thread",
+            "path": "/toolchain/hosted/i386-windows/observer_thread.asm"})
     return {
         "assembly_sources": assembly_sources,
         "include_arguments": include_arguments,
@@ -2957,7 +3005,9 @@ def _windows_build_plan(
                     "procedure": procedure,
                     "slot": f"__imp_{procedure}",
                 }
-                for library, procedures in imports_for(name)
+                for library, procedures in _windows_profile_imports(name, utf8=utf8,
+                    long_paths=long_paths, user_link_aliases=user_link_aliases,
+                    observer_workers=observer_workers)
                 for procedure in procedures
             ]
             for name in tool_names
@@ -2978,6 +3028,7 @@ def _windows_link_arguments(
     utf8: bool = False,
     long_paths: bool = False,
     user_link_aliases: bool = False,
+    observer_workers: bool = False,
 ) -> list[str | Path]:
     arguments: list[str | Path] = [
         "-m",
@@ -2988,40 +3039,53 @@ def _windows_link_arguments(
         "_start",
     ]
     for selector in _windows_import_selectors(tool_name, utf8=utf8,
-        long_paths=long_paths, user_link_aliases=user_link_aliases):
+        long_paths=long_paths, user_link_aliases=user_link_aliases,
+        observer_workers=observer_workers):
         arguments.extend(("--import", selector))
     arguments.extend(("-o", output))
     arguments.extend(objects[name] for name in link_order)
     return arguments
 
 
-def _windows_plan_profile(native_plan: dict[str, object]) -> tuple[bool, bool, bool]:
+def _windows_plan_configuration(native_plan: dict[str, object]) -> WindowsPlanProfile:
     links = _require_object(native_plan.get("links"), "Windows build plan links")
     names = _plan_tool_names(links, "Windows build plan")
     imports = _require_object(native_plan.get("imports"), "Windows build plan imports")
-    for utf8, long_paths, user_link_aliases in (
-        (False, False, False), (True, False, False), (True, True, False),
-        (True, False, True), (True, True, True)):
+    profiles = ((False, False, False), (True, False, False), (True, True, False),
+                (True, False, True), (True, True, True))
+    for utf8, long_paths, user_link_aliases, observer_workers in (
+            (*profile, workers) for profile in profiles for workers in (False, True)):
         expected = {
             name: [{"library": library, "procedure": procedure, "slot": "__imp_" + procedure}
-                   for library, procedures in (_windows_utf8_imports(name, long_paths=long_paths,
-                       user_link_aliases=user_link_aliases)
-                       if utf8 else _windows_imports(name)) for procedure in procedures]
+                   for library, procedures in _windows_profile_imports(name, utf8=utf8,
+                       long_paths=long_paths, user_link_aliases=user_link_aliases,
+                       observer_workers=observer_workers) for procedure in procedures]
             for name in names
         }
         if imports == expected:
             assembly = _require_list(native_plan.get("assembly_sources", []), "Windows assembly sources")
-            bridge = [row for row in assembly if _require_object(row, "Windows assembly source").get("name") == "final_path_start"]
-            if bridge != ([{"name": "final_path_start",
-                           "path": "/toolchain/hosted/i386-windows/final_path_start.asm"}]
-                          if user_link_aliases else []):
-                raise BootstrapError("Windows user-link bridge differs from the import profile")
-            for name in names:
-                order = _require_list(links[name], "Windows link order")
-                if order.count("final_path_start") != int(user_link_aliases and name == "cupidbuild"):
-                    raise BootstrapError("Windows user-link bridge role differs from the import profile")
-            return utf8, long_paths, user_link_aliases
+            if observer_workers and "cupidbuild" not in names:
+                raise BootstrapError("Windows observer-worker profile requires CupidBuild")
+            for bridge_name, selected, label in (
+                    ("final_path_start", user_link_aliases, "user-link"),
+                    ("observer_thread", observer_workers, "observer-worker")):
+                bridge = [row for row in assembly
+                          if _require_object(row, "Windows assembly source").get("name") == bridge_name]
+                if bridge != ([{"name": bridge_name,
+                               "path": f"/toolchain/hosted/i386-windows/{bridge_name}.asm"}]
+                              if selected else []):
+                    raise BootstrapError(f"Windows {label} bridge differs from the import profile")
+                for name in names:
+                    order = _require_list(links[name], "Windows link order")
+                    if order.count(bridge_name) != int(selected and name == "cupidbuild"):
+                        raise BootstrapError(f"Windows {label} bridge role differs from the import profile")
+            return WindowsPlanProfile(utf8, long_paths, user_link_aliases, observer_workers)
     raise BootstrapError("Windows build plan imports differ from a complete ANSI or UTF-8 cohort")
+
+
+def _windows_plan_profile(native_plan: dict[str, object]) -> tuple[bool, bool, bool]:
+    profile = _windows_plan_configuration(native_plan)
+    return profile.utf8, profile.long_paths, profile.user_link_aliases
 
 
 def _windows_plan_uses_utf8(native_plan: dict[str, object]) -> bool:
@@ -3036,7 +3100,8 @@ def _build_windows_stage(
     native_plan: dict[str, object],
     stage_name: str,
 ) -> Stage:
-    utf8, long_paths, user_link_aliases = _windows_plan_profile(native_plan)
+    profile = _windows_plan_configuration(native_plan)
+    utf8, long_paths, user_link_aliases = profile.utf8, profile.long_paths, profile.user_link_aliases
     stage_directory.mkdir()
     raw_sources = _require_list(
         native_plan.get("sources"), "Windows build plan sources"
@@ -3139,7 +3204,7 @@ def _build_windows_stage(
             producers["cupidld"],
             _windows_link_arguments(
                 tool_name, executable, objects, link_order, utf8=utf8, long_paths=long_paths,
-                user_link_aliases=user_link_aliases
+                user_link_aliases=user_link_aliases, observer_workers=profile.observer_workers
             ),
             f"{stage_name} native CupidLD for {tool_name}",
             180,
@@ -3147,8 +3212,8 @@ def _build_windows_stage(
         _validate_static_i386_pe32(
             executable,
             int(EXPECTED_WINDOWS_TARGET["entry"]),
-            _windows_utf8_imports(tool_name, long_paths=long_paths,
-                user_link_aliases=user_link_aliases) if utf8 else _windows_imports(tool_name),
+            _windows_profile_imports(tool_name, utf8=utf8, long_paths=long_paths,
+                user_link_aliases=user_link_aliases, observer_workers=profile.observer_workers),
         )
         tools[tool_name] = executable
     return Stage(objects=objects, tools=tools)
@@ -3531,6 +3596,7 @@ def _retarget_native_windows_behavior_seed(
     utf8: bool = False,
     long_paths: bool = False,
     user_link_aliases: bool = False,
+    observer_workers: bool = False,
     parent_plan_seed: SeedInputs | None = None,
 ) -> SeedInputs:
     if seed_inputs.manifest.get("schema") != PROMOTED_WINDOWS_SEED_SCHEMA:
@@ -3541,7 +3607,8 @@ def _retarget_native_windows_behavior_seed(
         "native Windows behavior build plan SHA-256",
     )
     if digest != _build_plan_sha256(_windows_build_plan(linux_plan, utf8=utf8,
-        long_paths=long_paths, user_link_aliases=user_link_aliases)):
+        long_paths=long_paths, user_link_aliases=user_link_aliases,
+        observer_workers=observer_workers)):
         raise BootstrapError("native Windows behavior build plan differs")
     if not source_snapshot:
         raise BootstrapError("native Windows behavior source snapshot is empty")
@@ -3551,7 +3618,7 @@ def _retarget_native_windows_behavior_seed(
         raise BootstrapError(
             "native Windows behavior seed build plan is unavailable"
         )
-    if long_paths or user_link_aliases:
+    if long_paths or user_link_aliases or observer_workers:
         if parent_plan_seed is None:
             raise BootstrapError("native Windows behavior parent plan seed is unavailable")
         _require_seed_pair_identity(seed_inputs, parent_plan_seed)
@@ -5497,17 +5564,22 @@ def _run_native_windows_behavior_checks(
     behavior_linux_plan = _candidate_build_plan(
         _require_object(linux_seed_inputs.manifest.get("build_plan"), "build_plan")
     )
-    behavior_utf8, behavior_long_paths, behavior_user_link_aliases = _windows_plan_profile(native_plan)
+    behavior_profile = _windows_plan_configuration(native_plan)
+    behavior_utf8 = behavior_profile.utf8
+    behavior_long_paths = behavior_profile.long_paths
+    behavior_user_link_aliases = behavior_profile.user_link_aliases
     behavior_source_snapshot = capture_source_snapshot(
         output_root, behavior_linux_plan, windows_utf8=behavior_utf8,
         windows_long_paths=behavior_long_paths,
         windows_user_link_aliases=behavior_user_link_aliases,
+        windows_observer_workers=behavior_profile.observer_workers,
     )
     behavior_seed_inputs = _retarget_native_windows_behavior_seed(
         seed_inputs, _build_plan_sha256(native_plan),
         behavior_linux_plan, behavior_source_snapshot,
         utf8=behavior_utf8, long_paths=behavior_long_paths,
         user_link_aliases=behavior_user_link_aliases,
+        observer_workers=behavior_profile.observer_workers,
         parent_plan_seed=linux_seed_inputs,
     )
     if seed_inputs.behavior_release is not None:

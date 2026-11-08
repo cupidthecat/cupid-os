@@ -16253,7 +16253,7 @@ def _cupid_toolchain_fixed_point_contract(
             '"i386pe"',
             '"0x00401000"',
             '"_start"',
-            'for selector in _windows_import_selectors(tool_name, utf8=utf8,\n        long_paths=long_paths, user_link_aliases=user_link_aliases):',
+            'for selector in _windows_import_selectors(tool_name, utf8=utf8,\n        long_paths=long_paths, user_link_aliases=user_link_aliases,\n        observer_workers=observer_workers):',
             "objects[name] for name in link_order",
         ),
         "_build_windows_stage": (
@@ -16280,7 +16280,9 @@ def _cupid_toolchain_fixed_point_contract(
             'native_plan.get("links"), "Windows build plan links"',
             "tool_name, executable, objects, link_order",
             "_validate_static_i386_pe32(",
-            "_windows_imports(tool_name)",
+            "profile = _windows_plan_configuration(native_plan)",
+            "_windows_profile_imports(tool_name, utf8=utf8, long_paths=long_paths,\n"
+            "                user_link_aliases=user_link_aliases, observer_workers=profile.observer_workers)",
         ),
         "_compare_windows_stages": (
             "stage_three.objects[name].read_bytes()",
@@ -16298,7 +16300,7 @@ def _cupid_toolchain_fixed_point_contract(
             'provenance["linux_candidate_build_plan_sha256"] = _build_plan_sha256(linux_plan)',
             'provenance["source_input_count"] = len(source_snapshot)',
             'provenance["source_snapshot_sha256"] = _source_snapshot_sha256(source_snapshot)',
-            'digest != _build_plan_sha256(_windows_build_plan(linux_plan, utf8=utf8,\n        long_paths=long_paths, user_link_aliases=user_link_aliases))',
+            'digest != _build_plan_sha256(_windows_build_plan(linux_plan, utf8=utf8,\n        long_paths=long_paths, user_link_aliases=user_link_aliases,\n        observer_workers=observer_workers))',
             'if not source_snapshot:',
 
             "manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest()",
@@ -16335,13 +16337,18 @@ def _cupid_toolchain_fixed_point_contract(
             "        behavior_linux_plan, behavior_source_snapshot,\n"
             "        utf8=behavior_utf8, long_paths=behavior_long_paths,\n"
             "        user_link_aliases=behavior_user_link_aliases,\n"
+            "        observer_workers=behavior_profile.observer_workers,\n"
             "        parent_plan_seed=linux_seed_inputs,\n"
             "    )",
-            "behavior_utf8, behavior_long_paths, behavior_user_link_aliases = _windows_plan_profile(native_plan)",
+            "behavior_profile = _windows_plan_configuration(native_plan)",
+            "behavior_utf8 = behavior_profile.utf8",
+            "behavior_long_paths = behavior_profile.long_paths",
+            "behavior_user_link_aliases = behavior_profile.user_link_aliases",
             "behavior_source_snapshot = capture_source_snapshot(\n"
             "        output_root, behavior_linux_plan, windows_utf8=behavior_utf8,\n"
             "        windows_long_paths=behavior_long_paths,\n"
             "        windows_user_link_aliases=behavior_user_link_aliases,\n"
+            "        windows_observer_workers=behavior_profile.observer_workers,\n"
             "    )",
             'behavior_linux_plan = _candidate_build_plan(\n'
             '        _require_object(linux_seed_inputs.manifest.get("build_plan"), "build_plan")\n'

@@ -304,7 +304,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 retargeted.manifest_sha256,
                 hashlib.sha256(retargeted.manifest_bytes).hexdigest(),
             )
-            self.assertEqual(retargeted.manifest["provenance"]["source_input_count"], 92)
+            self.assertIn("toolchain/hosted/i386-linux/include/cupid_runtime.h", snapshot)
+            self.assertEqual(retargeted.manifest["provenance"]["source_input_count"], 93)
             self.assertEqual(retargeted.manifest["provenance"]["linux_candidate_build_plan_sha256"],
                              _build_plan_sha256(candidate_plan))
             self.assertEqual(retargeted.manifest["provenance"]["source_snapshot_sha256"],
@@ -917,9 +918,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             REPO_ROOT, candidate_plan, windows_utf8=True
         )
         self.assertEqual(
-            len(source_inventory), 97
+            len(source_inventory), 98
         )
         for path in (
+            "toolchain/hosted/i386-linux/include/cupid_runtime.h",
             "toolchain/cupidbuild.cc",
             "toolchain/cupidbuild_host.cc",
             "toolchain/cupidbuild_main.cc",

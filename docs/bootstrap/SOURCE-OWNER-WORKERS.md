@@ -51,6 +51,9 @@ coordinators. All fifteen installed seed files remain unchanged.
 Adoption must add the actual modules and a complete Windows worker profile
 while retaining validation of the installed legacy profiles. Adding CreateThread
 to their existing exact import sets would invalidate those old cohorts.
+The [opt-in worker profile](OBSERVER-WORKER-PROFILE.md) now binds the production
+adapter, import, link role and source capture; producer drivers still select
+their existing profiles while module adoption remains open.
 Wide owned stores, publisher custody, complete producer and consumer checks,
 the normal CLI/Make handoff and relevant OS/runtime acceptance remain separate
 work. The older publisher source locations referenced by the historical records

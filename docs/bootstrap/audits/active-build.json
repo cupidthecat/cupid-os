@@ -61566,7 +61566,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "2e481818d74cb27dcbcffdcf56e87adb8883210ebf5d9d435c389732feaa6c3a"
+        "sha256": "052e5cbafb82a74eb2dd9d04126fb3b874af4f2c159626bfe965481142cb8d7d"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
@@ -61575,7 +61575,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "6b317a8e04997d55fc1fb8f5c3d01d324ddf78b8be6eaad81cca622bc2a6b6d7"
+      "sha256": "6d9b6dedd44323299d0c3472c5bc75b43d8688ed3dc3e9e109aab8df4f734b3d"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -91747,6 +91747,16 @@
     {
       "classification": "not_reached",
       "duplicate_of": [],
+      "language": "assembly",
+      "lines": 74,
+      "path": "toolchain/hosted/i386-windows/observer_thread.asm",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "b5af6dd3f69cf986d94bb28448eba2cbfa7b49d21e9044432eb1640ed48c1a97"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
       "language": "cupid_c",
       "lines": 170,
       "path": "toolchain/native_utf8.cc",
@@ -92183,16 +92193,6 @@
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
       "sha256": "9ccb15f9231e4f2bd8165108734be564129c6c288b1a343de8192dc0b19bfea9"
-    },
-    {
-      "classification": "not_reached",
-      "duplicate_of": [],
-      "language": "assembly",
-      "lines": 74,
-      "path": "toolchain/tests/hosted_windows_thread_adapter.asm",
-      "reason": "not reachable from the supported Make target or include closure",
-      "relations": [],
-      "sha256": "b5af6dd3f69cf986d94bb28448eba2cbfa7b49d21e9044432eb1640ed48c1a97"
     },
     {
       "classification": "not_reached",

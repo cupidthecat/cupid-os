@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-08: Bind the Windows worker profile explicitly
+
+The opt-in producer profile binds one production adapter and CreateThread
+import to CupidBuild, preserving exact legacy profiles. Source capture freezes
+the adapter and carries its selection through both closure checks. All 53
+profile methods pass, including mismatched bridge/import/role rejection and
+live/frozen drift. Eight stale live-source assertions now include the earlier
+heap header; historical digest/count pins remain unchanged. Fifty focused
+release/seed methods and six production-adapter methods pass, with two
+existing platform skips in the release suite. Producer drivers
+and installed seeds retain their existing selections. See the
+[profile record](OBSERVER-WORKER-PROFILE.md).
+
 ## 2026-11-08: Close source-owner worker qualification
 
 Both complete private replays pass: 3,630 API calls, 340 legacy methods, 48
