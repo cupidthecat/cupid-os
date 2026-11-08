@@ -44,7 +44,7 @@ class WindowsUtf8PlanTests(unittest.TestCase):
     def test_long_source_capture_includes_the_complete_selected_plan(self):
         canonical = bootstrap._candidate_build_plan(json.loads(
             (ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"])
-        for linux, count in ((self.linux, 86), (canonical, 99)):
+        for linux, count in ((self.linux, 92), (canonical, 112)):
             wide = bootstrap.capture_source_snapshot(ROOT, linux, windows_utf8=True)
             long = bootstrap.capture_source_snapshot(ROOT, linux,
                 windows_utf8=True, windows_long_paths=True)
@@ -134,7 +134,7 @@ class WindowsUtf8PlanTests(unittest.TestCase):
             windows_long_paths=long_paths, windows_user_link_aliases=aliases)
         extra_headers = 0 if any(row['name'] == 'fat16_names' for row in installed_plan['sources']) else 3
         self.assertIn('toolchain/hosted/i386-linux/include/cupid_runtime.h', snapshot)
-        self.assertEqual(len(snapshot), count + extra_headers + 1)
+        self.assertEqual(len(snapshot), count + extra_headers + 7)
 
     def test_promoted_profiles_select_exact_imports_for_every_role(self):
         for utf8, count in ((False, 66), (True, 73)):
@@ -292,7 +292,10 @@ class WindowsUtf8PlanTests(unittest.TestCase):
                 linked = [call.args[2] for call in run.call_args_list
                           if call.args[1] == producers["cupidld"]]
                 self.assertEqual(len(linked), len(plan["links"]))
-                for tool, arguments, validation in zip(plan["links"], linked, validate.call_args_list):
+                links_by_name = {Path(str(args[args.index('-o') + 1])).stem: args for args in linked}
+                validations_by_name = {Path(str(call.args[0])).stem: call for call in validate.call_args_list}
+                for tool in plan['links']:
+                    arguments, validation = links_by_name[tool], validations_by_name[tool]
                     expected = bootstrap._windows_utf8_imports(tool, long_paths=long_paths) if utf8 else bootstrap._windows_imports(tool)
                     selectors = [arguments[index + 1] for index, argument in enumerate(arguments)
                                  if argument == "--import"]

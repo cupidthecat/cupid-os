@@ -62,7 +62,7 @@ unsigned int cupidbuild_host_execution_format(void);
 int cupidbuild_host_absolute_root(const char *root, char *output, size_t capacity);
 
 /* Read-only observations retain live handles until close. Repository roots are
- * absolute (drive-rooted on Windows). Logical paths are
+ * absolute (ordinary drive or UNC share roots on Windows). Logical paths are
  * UTF-8, repository-relative, and reject empty, dot, parent and link components.
  * Opening an observer creates no files. A failed operation poisons the observer;
  * require_unchanged cannot subsequently succeed. Close accepts NULL and reports
@@ -70,11 +70,48 @@ int cupidbuild_host_absolute_root(const char *root, char *output, size_t capacit
  * are retained at open and rechecked; other directories retain identity only.
  * Repeated ancestor directories are reused only after a fresh binding and
  * original-handle identity check; explicit leaves remain separate observations.
- * Limits: 4096 retained handles, 4096 expected names in
+ * Ordinary limits: 4096 retained entries, 4096 expected names in
  * total, 8191 path bytes, and 1023 bytes per UTF-8 component.
  */
 int cupidbuild_host_observer_open(const char *repository_root,
                                  cupidbuild_host_observer_t **observer_out);
+/* Explicit retained-entry budget. Records allocate only when observed. Zero
+ * and SIZE_MAX reject before resolution and clear the owner output. Ordinary
+ * open keeps its 4096-entry budget; membership and batch limits stay separate. */
+int cupidbuild_host_observer_open_quota(const char *repository_root,
+                                       size_t entry_quota,
+                                       cupidbuild_host_observer_t **observer_out);
+/* Read-only source-input names with the same retained custody, quotas,
+ * poison, UTF-8 and byte limits as ordinary open. POSIX additionally accepts
+ * colon and backslash component bytes. Windows keeps its ordinary drive/UNC
+ * policy. The selected profile stays with this owner for every observation,
+ * membership comparison and revalidation; ordinary open is unchanged. */
+int cupidbuild_host_observer_open_source_quota(const char *repository_root,
+    size_t entry_quota, cupidbuild_host_observer_t **observer_out);
+/* Resolve an absolute UTF-8 source directory request and retain its physical
+ * directory before closing the resolution handle. The owner copies both
+ * request and physical names; physical_root_out borrows storage through close.
+ * Complete validation and borrowed publication also recheck the original
+ * request binding. Failure clears both supplied outputs. */
+int cupidbuild_host_observer_resolve_source_root_quota(const char *requested_root,
+    size_t entry_quota, cupidbuild_host_observer_t **observer_out,
+    const char **physical_root_out);
+/* Temporary read-only source selection. Retain the resolved directory
+ * handle and original request binding without walking its physical
+ * ancestors again. This observer cannot bind a publication transaction.
+ * Compare selected file and parent identities with a complete retained
+ * observer and validate that observer before and after selection.
+ * Outputs, quotas, source names and borrowed lifetime match root resolve. */
+/* Begin a temporary selection from its first retained directory resolution.
+ * Capture the leaf, then require complete source validation before using it.
+ * This observer remains ineligible for transaction borrowing. */
+int cupidbuild_host_observer_begin_source_selection_quota(
+    const char *requested_root, size_t entry_quota,
+    cupidbuild_host_observer_t **observer_out, const char **physical_root_out);
+
+int cupidbuild_host_observer_resolve_source_selection_quota(const char *requested_root,
+    size_t entry_quota, cupidbuild_host_observer_t **observer_out,
+    const char **physical_root_out);
 /* With bytes_out == NULL, observe metadata without reading the payload.
  * Otherwise read at most min(limit, 64 MiB) bytes and return caller-owned malloc
  * storage. size_out is required; metadata-only observations retain 64-bit sizes.
@@ -108,6 +145,113 @@ int cupidbuild_host_observer_file_stream(
     cupidbuild_host_observer_t *observer, const char *logical, uint64_t limit,
     cupidbuild_host_stream_sink_t sink, void *context,
     cupidbuild_host_stream_observation_t *result_out);
+/* Stream an already retained regular-file entry without creating another
+ * observation. Reopen through its retained parent, check all original bindings
+ * before and after streaming, preserve a previous digest, and upgrade that
+ * same record's handle only on success. Failure poisons the observer and clears
+ * result_out. Sink, limit, ownership and serialization rules are unchanged. */
+int cupidbuild_host_observer_file_stream_retained(
+    cupidbuild_host_observer_t *observer, const char *logical, uint64_t limit,
+    cupidbuild_host_stream_sink_t sink, void *context,
+    cupidbuild_host_stream_observation_t *result_out);
+
+typedef struct {
+  const char *logical;
+  uint64_t limit;
+  cupidbuild_host_stream_sink_t sink;
+  void *context;
+} cupidbuild_host_retained_stream_request_t;
+/* Capture serialized retained files with complete observer validation before
+ * and after the group. Every member checks its no-follow leaf, held metadata,
+ * payload and immediate parent before/after capture; the whole group checks
+ * every original ancestor, retained entry, earlier digest and membership.
+ * No new observation is created. Existing single-file streaming is unchanged.
+ * Requests/results and callback storage must remain valid and unmodified for
+ * the call. A callback must not reenter or close this observer. Transaction
+ * borrowing and validation of an already borrowed observer reject while the
+ * capture is active. A callback's copied bytes remain provisional until this
+ * call succeeds. Failure poisons the observer and clears all count results;
+ * copied bytes must be discarded. An overflowing count rejects before any
+ * array access or output write. Zero count accepts null arrays and still
+ * validates the observer. This API grants no publication authority. */
+int cupidbuild_host_observer_files_stream_retained(
+    cupidbuild_host_observer_t *observer,
+    const cupidbuild_host_retained_stream_request_t *requests, size_t count,
+    cupidbuild_host_stream_observation_t *results_out);
+
+/* Compare already retained identities after full ordinary revalidation. These
+ * operations discover no leaf and grant no authority. Failure clears same_out
+ * and poisons all supplied observers. Logical file paths must have been
+ * retained as regular-file records by the corresponding observer. */
+int cupidbuild_host_observer_roots_same(cupidbuild_host_observer_t *left,
+                                       cupidbuild_host_observer_t *right,
+                                       int *same_out);
+int cupidbuild_host_observer_files_same(cupidbuild_host_observer_t *left,
+                                       const char *left_logical,
+                                       cupidbuild_host_observer_t *right,
+                                       const char *right_logical,
+                                       int *same_out);
+/* Historical captured identities only: no metadata, digest, absence or binding
+ * revalidation. Existing poison cannot be bypassed. Intended for serialized
+ * construction followed by full observer and original-path validation before
+ * exposing the resulting owner. Later publication checks are never cached. */
+int cupidbuild_host_observer_roots_captured_same(cupidbuild_host_observer_t *left,
+                                                cupidbuild_host_observer_t *right,
+                                                int *same_out);
+int cupidbuild_host_observer_files_captured_same(cupidbuild_host_observer_t *left,
+                                                const char *left_logical,
+                                                cupidbuild_host_observer_t *right,
+                                                const char *right_logical,
+                                                int *same_out);
+/* Compare the captured parent-directory identities of two already retained
+ * regular files. Like captured file/root comparisons, this observes nothing
+ * and performs no revalidation. It grants no source authority. Full observer
+ * and original-request validation must bracket its use before borrowed views.
+ * Invalid, unobserved or poisoned inputs clear same_out and poison both owners. */
+/* Compare cached regular-file and parent identities with one lookup per
+ * observer. Observe and fully validate complete roots before and after
+ * use. This adds no observations and grants no publication authority.
+ * Invalid captures clear same_out and poison both supplied observers. */
+int cupidbuild_host_observer_file_bindings_captured_same(
+    cupidbuild_host_observer_t *left, const char *left_logical,
+    cupidbuild_host_observer_t *right, const char *right_logical, int *same_out);
+/* Recheck an original absolute request against an already retained file.
+ * Resolve its physical parent twice, compare parent identity and file metadata,
+ * and reject links, replacement or unavailable paths. Add no observations.
+ * parent_identity_only is 0 for a required input and 1 for an optional stage.
+ * Complete observer validation, including payloads, must bracket this call.
+ * Failure poisons the supplied observer. This grants no publication authority. */
+int cupidbuild_host_observer_require_file_request_binding(
+    cupidbuild_host_observer_t *observer, const char *logical,
+    const char *requested_absolute, const char *physical_absolute,
+    int parent_identity_only);
+/* Recheck original file bindings grouped by identical original parents.
+ * Requests, names and callback context stay valid and stable throughout the call.
+ * Resolve each parent before and after its group; retain every no-follow file,
+ * captured parent identity and file-metadata comparison. A required request
+ * also checks unchanged parent metadata across the group. Callback results are
+ * provisional until success and arrive in parent order, with original indices.
+ * Count overflow rejects before array access; zero accepts null requests.
+ * Failure poisons the observer. Active capture rejects closure, complete revalidation,
+ * recursive groups and new borrowing. Established borrowing retains its existing
+ * lifetime and error rules. This adds no observations or publication authority.
+ * The caller must bracket this operation with complete root and payload checks,
+ * just as for the ordinary single-request binding validator. */
+typedef struct {
+  const char *logical;
+  const char *requested_absolute;
+  const char *physical_absolute;
+  int parent_identity_only;
+} cupidbuild_host_file_request_t;
+typedef int (*cupidbuild_host_file_request_sink_t)(void *context, size_t index,
+    const cupidbuild_host_file_request_t *request);
+int cupidbuild_host_observer_require_file_request_bindings(
+    cupidbuild_host_observer_t *observer,
+    const cupidbuild_host_file_request_t *requests, size_t count,
+    cupidbuild_host_file_request_sink_t sink, void *context);
+int cupidbuild_host_observer_file_parents_captured_same(
+    cupidbuild_host_observer_t *left, const char *left_logical,
+    cupidbuild_host_observer_t *right, const char *right_logical, int *same_out);
 typedef enum {
   CUPIDBUILD_ENTRY_NONE = 0,
   CUPIDBUILD_ENTRY_FILE = 1,
@@ -122,6 +266,37 @@ typedef enum {
 int cupidbuild_host_observer_kind(cupidbuild_host_observer_t *observer,
                                  const char *logical,
                                  cupidbuild_host_entry_kind_t *kind_out);
+/* Observe a normalized optional path. NONE is a successful retained first
+ * absence under the nearest existing no-follow parent; later appearance or
+ * lookup failure poisons the observer. Existing regular files/directories keep
+ * ordinary metadata observations. This grants no authority or whole-observer
+ * verdict. Invalid input clears kind_out and poisons the supplied observer. */
+int cupidbuild_host_observer_path_kind(cupidbuild_host_observer_t *observer,
+    const char *logical, cupidbuild_host_entry_kind_t *kind_out);
+typedef int (*cupidbuild_host_path_observation_sink_t)(void *context,
+    size_t index, const char *logical, cupidbuild_host_entry_kind_t kind);
+/* Observe normalized logical paths with complete validation before and after
+ * the serialized group. Every path keeps immediate parent/root, fresh no-follow
+ * leaf and retained metadata checks. The callback receives provisional kinds;
+ * failure clears kinds_out and poisons the observer. Callbacks must not reenter
+ * or close this observer. They may close separate temporary selectors after
+ * comparing captured bindings. All request and result storage must remain stable
+ * through the call. Overflow rejects before array access or writes; zero count
+ * accepts null arrays and still validates. This grants no publication authority. */
+int cupidbuild_host_observer_paths_kind(cupidbuild_host_observer_t *observer,
+    const char *const *logical, size_t count,
+    cupidbuild_host_path_observation_sink_t sink, void *context,
+    cupidbuild_host_entry_kind_t *kinds_out);
+/* Observe a group on a temporary selection observer with source validation
+ * at both boundaries. Uncaptured sibling changes in its root are allowed;
+ * descendant identity, leaf metadata and any captured payload or membership
+ * remain checked. Complete observers reject this selection-only entry point.
+ * Provisional results, serialization, failure, storage and lifetime rules
+ * match paths_kind. Complete retained custody must bracket adoption. */
+int cupidbuild_host_observer_source_selection_paths_kind(
+    cupidbuild_host_observer_t *observer, const char *const *logical, size_t count,
+    cupidbuild_host_path_observation_sink_t sink, void *context,
+    cupidbuild_host_entry_kind_t *kinds_out);
 typedef enum {
   CUPIDBUILD_OBSERVATION_OK = 0,
   CUPIDBUILD_OBSERVATION_UNAVAILABLE = 1,
@@ -198,6 +373,20 @@ int cupidbuild_host_observer_directory_snapshot_names(
     const char *const **names_out, size_t *count_out);
 int cupidbuild_host_observer_require_unchanged(
     cupidbuild_host_observer_t *observer);
+/* Revalidate source captures, first absences, exact memberships and original
+ * source-root bindings. The retained root's directory identity is checked while
+ * its unrelated namespace writes are allowed. Explicit root membership remains
+ * exact. Ordinary require_unchanged keeps its complete root-metadata contract. */
+int cupidbuild_host_observer_require_source_unchanged(
+    cupidbuild_host_observer_t *observer);
+/* Query the image command's complete absolute UTF-8 source pathname. One means
+ * the leaf is absent and no leaf link/reparse point exists. Parent aliases are
+ * followed. Broken-parent children are missing; file-parent children are missing
+ * on Windows and reject on POSIX. Other lookup failures, present leaves, invalid
+ * text and nonabsolute requests return zero. This retains nothing, creates no
+ * files and grants no source or publication authority. Recheck at each consuming
+ * boundary; ordinary observers keep their retained first-absence contracts. */
+int cupidbuild_host_source_missing(const char *requested_absolute);
 const char *cupidbuild_host_observer_error(
     const cupidbuild_host_observer_t *observer);
 int cupidbuild_host_observer_close(cupidbuild_host_observer_t *observer);

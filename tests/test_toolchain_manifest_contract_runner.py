@@ -11,6 +11,7 @@ from unittest import mock
 
 from tests.test_toolchain_manifest_contract import (
     _disk_context_fixture,
+    _owner_context_fixture,
     _seed_context_bytes,
     _seed_fixture,
 )
@@ -57,7 +58,7 @@ EXPECTED_BUILD_INPUTS = (
 
 def _write_publication_at(output: Path):
     output.mkdir(parents=True)
-    manifest, observations, _seed, _facts = _disk_context_fixture()
+    manifest, observations, _seed, _facts = _owner_context_fixture()
     for name, _kind, _size, _digest in observations:
         (output / name).write_bytes(f"checked:{name}\n".encode("ascii"))
     (output / "manifest.json").write_text(
@@ -99,7 +100,7 @@ def _rewrite_with_live_closure(
             root, bootstrap_toolchain._candidate_build_plan(
                 seed.manifest["build_plan"]
             ), windows_utf8=True, windows_long_paths=windows_long_paths,
-            windows_user_link_aliases=windows_user_link_aliases
+            windows_user_link_aliases=windows_user_link_aliases, windows_observer_workers=True
         )
     )
     manifest["bootstrap"]["source_inputs"] = {
@@ -120,8 +121,8 @@ def _expected_report():
     return {
         "artifact_count": 22,
         "artifact_total_bytes": 682,
-        "bootstrap_source_input_count": 97,
-        "input_count": 104,
+        "bootstrap_source_input_count": 112,
+        "input_count": 112,
         "schema": "cupid.toolchain-manifest-verification.v1",
     }
 
@@ -414,9 +415,11 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
             observations = tuple((name, 1, 1, "0" * 64) for name in expected)
             current = expected
 
-            def recapture(_reader, _plan, *, windows_long_paths=False, windows_user_link_aliases=False):
+            def recapture(_reader, _plan, *, windows_long_paths=False, windows_user_link_aliases=False,
+                          windows_observer_workers=False):
                 self.assertEqual(windows_long_paths, long_paths)
                 self.assertEqual(windows_user_link_aliases, aliases)
+                self.assertTrue(windows_observer_workers)
                 return current
 
             with self.subTest(long_paths=long_paths, aliases=aliases), mock.patch.object(
@@ -519,7 +522,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                 decoded["artifact_observations"],
                 sorted(observations),
             )
-            self.assertEqual(len(decoded["input_observations"]), 104)
+            self.assertEqual(len(decoded["input_observations"]), 112)
             self.assertIn(
                 "toolchain/x86.cc",
                 {
@@ -529,7 +532,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                     ]
                 },
             )
-            self.assertEqual(len(decoded["bootstrap_observations"]), 97)
+            self.assertEqual(len(decoded["bootstrap_observations"]), 112)
             self.assertEqual(len(decoded["seed_observations"]), 6)
             self.assertEqual(
                 decoded["seed_context"]["manifest_sha256"],
@@ -705,7 +708,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                             )
                         )
         expected = _expected_report()
-        expected["bootstrap_source_input_count"] = 97 + int(aliases) + int(long_paths)
+        expected["bootstrap_source_input_count"] = 112 + int(aliases) + int(long_paths)
         self.assertEqual(report, expected)
 
     def test_checked_seed_build_runs_the_manifest_contract(self):
@@ -1113,7 +1116,7 @@ class ToolchainManifestLiveCandidateTests(unittest.TestCase):
                     reader, REPO_ROOT, manifest
                 )
                 self.assertEqual({row[0] for row in bootstrap}, set(expected))
-                self.assertEqual(len(bootstrap), 97)
+                self.assertEqual(len(bootstrap), 112)
                 REAL_REQUIRE_LIVE_MEMBERSHIP(reader, inputs, bootstrap, seed_bytes)
                 for omitted in (
                     "toolchain/cupidbuild_artifacts.cc",

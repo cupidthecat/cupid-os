@@ -4,8 +4,9 @@ The private source-owner candidate passes its full observer regression replay,
 complete-owner lifetime controls and original distinct-input capacities. Its
 worker protocol publishes completion after callback return and the final
 descriptor read. Both Windows pools enable the synchronized hosted heap before
-starting concurrent allocation users. Active-source integration, producer
-qualification and image-command ownership remain open.
+starting concurrent allocation users. The [current integration](SOURCE-OWNER-INTEGRATION.md)
+now carries these modules in producer plans. Complete producer qualification
+and image-command ownership remain open.
 
 ## Closed selections
 
@@ -43,17 +44,18 @@ on Linux, and the runtime and host changed on Windows, plus its new adapter.
 
 ## Integration boundary
 
-The complete owner is qualified as a private read-only API candidate. Its
+The complete owner was qualified as a private read-only API candidate. Its
 dummy required files do not establish seed authority or image publication.
 The normal graph remains 449 CupidBuild transforms and three Python
 coordinators. All fifteen installed seed files remain unchanged.
 
-Adoption must add the actual modules and a complete Windows worker profile
+Adoption requires the actual modules and a complete Windows worker profile
 while retaining validation of the installed legacy profiles. Adding CreateThread
 to their existing exact import sets would invalidate those old cohorts.
-The [opt-in worker profile](OBSERVER-WORKER-PROFILE.md) now binds the production
-adapter, import, link role and source capture; producer drivers still select
-their existing profiles while module adoption remains open.
+The [worker profile](OBSERVER-WORKER-PROFILE.md) binds the production adapter,
+import, link role and source capture. Current source plans now select it and
+carry the owner modules. The [integration record](SOURCE-OWNER-INTEGRATION.md)
+tracks their fresh acceptance and remaining promotion gates.
 Wide owned stores, publisher custody, complete producer and consumer checks,
 the normal CLI/Make handoff and relevant OS/runtime acceptance remain separate
 work. The older publisher source locations referenced by the historical records

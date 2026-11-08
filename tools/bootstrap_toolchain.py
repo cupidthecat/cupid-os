@@ -426,7 +426,17 @@ DISK_FOUNDATION_SOURCES = (
     ("fat16_names", "/toolchain/fat16_names.cc", False),
     ("disk_image", "/toolchain/disk_image.cc", False),
 )
-CANDIDATE_SOURCES = (*ISO_PUBLICATION_SOURCES, *DISK_FOUNDATION_SOURCES)
+PROMOTED_SOURCES = (*ISO_PUBLICATION_SOURCES, *DISK_FOUNDATION_SOURCES)
+SOURCE_OWNER_SOURCES = (
+    ("cupidbuild_source_path", "/toolchain/cupidbuild_source_path.cc", False),
+    ("cupidbuild_source_file", "/toolchain/cupidbuild_source_file.cc", False),
+    ("cupidbuild_source_stage", "/toolchain/cupidbuild_source_stage.cc", False),
+    ("cupidbuild_disk_integer", "/toolchain/cupidbuild_disk_integer.cc", False),
+    ("cupidbuild_disk_options", "/toolchain/cupidbuild_disk_options.cc", False),
+    ("cupidbuild_disk_input_discovery", "/toolchain/cupidbuild_disk_input_discovery.cc", False),
+    ("path_encoding", "/toolchain/path_encoding.cc", False),
+)
+CANDIDATE_SOURCES = (*PROMOTED_SOURCES, *SOURCE_OWNER_SOURCES)
 CANDIDATE_CUPIDOBJ_LINK = (
     "start", "cupidobj_main", "cupidobj", "iso_fixture_bundle",
     "ctool_host", "ctool", "elf32", "runtime",
@@ -456,12 +466,17 @@ ISO_PUBLICATION_CUPIDBUILD_LINK = (
     "cupidbuild_iso", "cupidbuild_iso_capture", "cupidbuild_iso_image",
     "cupidbuild_iso_publication", "runtime",
 )
-CANDIDATE_CUPIDBUILD_LINK = (
+PROMOTED_CUPIDBUILD_LINK = (
     *ISO_PUBLICATION_CUPIDBUILD_LINK[:-1],
     "fat16_stage", "fat16_names", "disk_image", "runtime",
 )
-PROMOTED_SOURCES = CANDIDATE_SOURCES
-PROMOTED_CUPIDBUILD_LINK = CANDIDATE_CUPIDBUILD_LINK
+CANDIDATE_CUPIDBUILD_LINK = (
+    *PROMOTED_CUPIDBUILD_LINK[:-1],
+    "cupidbuild_source_path", "cupidbuild_source_file", "cupidbuild_source_stage",
+    "cupidbuild_disk_integer", "cupidbuild_disk_options", "cupidbuild_disk_input_discovery",
+    "path_encoding",
+    "runtime",
+)
 PROMOTED_CUPIDOBJ_LINK = CANDIDATE_CUPIDOBJ_LINK
 REPORT_SCHEMA = "cupid.bootstrap-report.v1"
 WINDOWS_REPORT_SCHEMA = "cupid.windows-bootstrap-report.v1"
@@ -816,7 +831,8 @@ def _candidate_build_plan(
         ]
         if tuple(cupidbuild_link) not in (
             EARLIER_PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK,
-            ISO_PUBLICATION_CUPIDBUILD_LINK, CANDIDATE_CUPIDBUILD_LINK
+            ISO_PUBLICATION_CUPIDBUILD_LINK, PROMOTED_CUPIDBUILD_LINK,
+            CANDIDATE_CUPIDBUILD_LINK
         ):
             raise BootstrapError(
                 "Linux build plan candidate link differs: cupidbuild"
@@ -870,6 +886,8 @@ def _source_input_paths(
         paths.append(source_root / logical_path.lstrip("/"))
         if logical_path == "/toolchain/fat16_names.cc":
             paths.append(source_root / "toolchain/fat16_name_profiles.inc")
+        if logical_path == "/toolchain/cupidbuild_disk_integer.cc":
+            paths.append(source_root / "toolchain/cupidbuild_disk_integer_tables.inc")
 
     startup = str(plan["startup"])
     paths.append(source_root / startup.lstrip("/"))
@@ -903,8 +921,10 @@ def _source_input_paths(
     )
 
     if windows_utf8:
+        if not any(_require_object(row, "build source").get("path") == "/toolchain/path_encoding.cc"
+                   for row in raw_sources):
+            paths.append(source_root / "toolchain/path_encoding.cc")
         paths.extend(source_root / name for name in (
-            "toolchain/path_encoding.cc",
             "toolchain/path_encoding.h",
             "toolchain/hosted/i386-windows/windows_utf8.cc",
             "toolchain/hosted/i386-windows/utf8_tool_start.asm",
@@ -2569,6 +2589,24 @@ def run_seed_tool(
         )
 
 
+def _compiler_stage_sources(
+    raw_sources: list[object], raw_links: dict[str, object],
+    assembly_names: Sequence[str],
+) -> tuple[list[object], list[object]]:
+    sources = [_require_object(row, "build source") for row in raw_sources]
+    names = [str(row["name"]) for row in sources]
+    if len(names) != len(set(names)):
+        raise BootstrapError("build plan repeats a C source name")
+    compiler_order = [str(name) for name in _require_list(
+        raw_links.get("cupidc"), "build_plan.links.cupidc")]
+    unknown = set(compiler_order) - set(names) - set(assembly_names)
+    if unknown:
+        raise BootstrapError("compiler link names unknown objects: " + ", ".join(sorted(unknown)))
+    compiler_names = set(compiler_order) & set(names)
+    return ([row for row in sources if str(row["name"]) in compiler_names],
+            [row for row in sources if str(row["name"]) not in compiler_names])
+
+
 def _build_stage(
     runner: ToolRunner,
     source_root: Path,
@@ -2579,6 +2617,10 @@ def _build_stage(
 ) -> Stage:
     stage_directory.mkdir()
     raw_sources = _require_list(plan.get("sources"), "build_plan.sources")
+    raw_links = _require_object(plan.get("links"), "build_plan.links")
+    tool_names = _plan_tool_names(raw_links, "build plan")
+    compiler_sources, peer_sources = _compiler_stage_sources(raw_sources, raw_links, ("start",))
+    compiler = producers["cupidc"]
     include_arguments = [
         str(argument)
         for argument in _require_list(
@@ -2606,7 +2648,7 @@ def _build_stage(
         )
         _run_clean(
             runner,
-            producers["cupidc"],
+            compiler,
             arguments,
             f"{stage_name} CupidC for {logical_source}",
             360,
@@ -2622,7 +2664,7 @@ def _build_stage(
 
     workers = int(plan["workers"])
     with ThreadPoolExecutor(max_workers=workers) as executor:
-        compiled = list(executor.map(compile_source, raw_sources))
+        compiled = list(executor.map(compile_source, compiler_sources))
     objects = dict(compiled)
 
     startup_logical = str(plan["startup"])
@@ -2650,10 +2692,7 @@ def _build_stage(
     )
     objects["start"] = startup_object
 
-    raw_links = _require_object(plan.get("links"), "build_plan.links")
-    tool_names = _plan_tool_names(raw_links, "build plan")
-    tools: dict[str, Path] = {}
-    for tool_name in tool_names:
+    def link_tool(tool_name: str) -> Path:
         order = [
             str(name)
             for name in _require_list(
@@ -2682,8 +2721,16 @@ def _build_stage(
         _validate_static_i386_elf(
             executable, int(EXPECTED_TARGET["entry"])
         )
-        tools[tool_name] = executable
-    return Stage(objects=objects, tools=tools)
+        return executable
+
+    compiler = link_tool("cupidc")
+    tools = {"cupidc": compiler}
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        objects.update(executor.map(compile_source, peer_sources))
+    for tool_name in tool_names:
+        if tool_name != "cupidc":
+            tools[tool_name] = link_tool(tool_name)
+    return Stage(objects=objects, tools={name: tools[name] for name in tool_names})
 
 
 def _windows_imports(
@@ -2780,7 +2827,7 @@ def _windows_profile_imports(tool_name: str, *, utf8: bool = False,
     imports = _windows_utf8_imports(tool_name, long_paths=long_paths,
         user_link_aliases=user_link_aliases) if utf8 else _windows_imports(tool_name)
     if observer_workers and tool_name == "cupidbuild":
-        imports = tuple((library, (*procedures, "CreateThread")
+        imports = tuple((library, tuple(sorted((*procedures, "CreateThread")))
                          if library == "KERNEL32.dll" else procedures)
                         for library, procedures in imports)
     return imports
@@ -2828,13 +2875,16 @@ def _windows_build_plan(
             raise BootstrapError(
                 f"Linux build plan repeats a source name: {name}"
             )
-        if name in ("publication_runtime", "long_path_start", "final_path_start", "observer_thread", "path_encoding", "windows_utf8",
+        if name in ("publication_runtime", "long_path_start", "final_path_start", "observer_thread", "windows_utf8",
                     "windows_utf8_publication", "windows_utf8_build"):
             raise BootstrapError(
                 "Linux build plan uses the reserved Windows source name: "
                 f"{name}"
             )
         source_names.add(name)
+        if name == "path_encoding" and source != {
+                "name": "path_encoding", "path": "/toolchain/path_encoding.cc", "gnu_extensions": False}:
+            raise BootstrapError("Linux build plan uses the reserved Windows source name: path_encoding")
         path = str(source["path"])
         gnu_extensions = bool(source["gnu_extensions"])
         if name == "runtime":
@@ -2869,8 +2919,9 @@ def _windows_build_plan(
         raise BootstrapError("Linux build plan omits its runtime source")
 
     if utf8:
-        sources.append({"definitions": [], "gnu_extensions": False,
-                        "name": "path_encoding", "path": "/toolchain/path_encoding.cc"})
+        if "path_encoding" not in source_names:
+            sources.append({"definitions": [], "gnu_extensions": False,
+                            "name": "path_encoding", "path": "/toolchain/path_encoding.cc"})
         for name, definitions in (
             ("windows_utf8", []),
             ("windows_utf8_publication", ["CUPID_WINDOWS_PUBLICATION=1"]),
@@ -2940,7 +2991,9 @@ def _windows_build_plan(
             adapter = ("windows_utf8_build" if tool_name == "cupidbuild" else
                        "windows_utf8_publication" if tool_name in ("cupidasm", "cupidld")
                        else "windows_utf8")
-            native_order.extend(["path_encoding", adapter])
+            if "path_encoding" not in native_order:
+                native_order.append("path_encoding")
+            native_order.append(adapter)
             if long_paths and tool_name not in ("cupidbuild", "cupidasm", "cupidld"):
                 native_order.insert(1, "long_path_start")
         if user_link_aliases and tool_name == "cupidbuild":
@@ -3106,6 +3159,14 @@ def _build_windows_stage(
     raw_sources = _require_list(
         native_plan.get("sources"), "Windows build plan sources"
     )
+    raw_links = _require_object(native_plan.get("links"), "Windows build plan links")
+    tool_names = _plan_tool_names(raw_links, "Windows build plan")
+    raw_assembly = _require_list(native_plan.get("assembly_sources"),
+                                 "Windows build plan assembly sources")
+    assembly_names = [str(_require_object(row, "Windows assembly source")["name"])
+                      for row in raw_assembly]
+    compiler_sources, peer_sources = _compiler_stage_sources(raw_sources, raw_links, assembly_names)
+    compiler = producers["cupidc"]
     include_arguments = [
         str(argument)
         for argument in _require_list(
@@ -3135,7 +3196,7 @@ def _build_windows_stage(
         )
         _run_clean(
             runner,
-            producers["cupidc"],
+            compiler,
             arguments,
             f"{stage_name} native CupidC for {logical_source}",
             360,
@@ -3151,13 +3212,9 @@ def _build_windows_stage(
 
     workers = int(native_plan["workers"])
     with ThreadPoolExecutor(max_workers=workers) as executor:
-        compiled = list(executor.map(compile_source, raw_sources))
+        compiled = list(executor.map(compile_source, compiler_sources))
     objects = dict(compiled)
 
-    raw_assembly = _require_list(
-        native_plan.get("assembly_sources"),
-        "Windows build plan assembly sources",
-    )
     for raw_source in raw_assembly:
         source = _require_object(raw_source, "Windows assembly source")
         name = str(source["name"])
@@ -3179,12 +3236,7 @@ def _build_windows_stage(
         )
         objects[name] = object_path
 
-    tools: dict[str, Path] = {}
-    raw_links = _require_object(
-        native_plan.get("links"), "Windows build plan links"
-    )
-    tool_names = _plan_tool_names(raw_links, "Windows build plan")
-    for tool_name in tool_names:
+    def link_tool(tool_name: str) -> Path:
         link_order = [
             str(name)
             for name in _require_list(
@@ -3215,8 +3267,16 @@ def _build_windows_stage(
             _windows_profile_imports(tool_name, utf8=utf8, long_paths=long_paths,
                 user_link_aliases=user_link_aliases, observer_workers=profile.observer_workers),
         )
-        tools[tool_name] = executable
-    return Stage(objects=objects, tools=tools)
+        return executable
+
+    compiler = link_tool("cupidc")
+    tools = {"cupidc": compiler}
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        objects.update(executor.map(compile_source, peer_sources))
+    for tool_name in tool_names:
+        if tool_name != "cupidc":
+            tools[tool_name] = link_tool(tool_name)
+    return Stage(objects=objects, tools={name: tools[name] for name in tool_names})
 
 
 def _compare_windows_stages(
@@ -9619,6 +9679,7 @@ def _bootstrap_from_frozen_seed(
             windows_utf8=True,
             windows_long_paths=windows_long_paths,
             **({"windows_user_link_aliases": True} if windows_user_link_aliases else {}),
+            windows_observer_workers=True,
         )
         private_source_root = source_inputs.root
         require_source_closures(source_inputs, source_root, plan)
@@ -9686,7 +9747,7 @@ def _bootstrap_from_frozen_seed(
             return publish_preparation(
                 source_inputs, source_root, plan,
                 _windows_build_plan(plan, utf8=True, long_paths=windows_long_paths,
-                                    user_link_aliases=windows_user_link_aliases),
+                                    user_link_aliases=windows_user_link_aliases, observer_workers=True),
                 seed_inputs, None, (stage_two, stage_three, stage_four),
                 private_workspace, output_root, "elf32",
             )
@@ -9695,7 +9756,7 @@ def _bootstrap_from_frozen_seed(
             authority = release_request.authorize(
                 source_inputs, source_root, plan,
                 _windows_build_plan(plan, utf8=True, long_paths=windows_long_paths,
-                                    user_link_aliases=windows_user_link_aliases),
+                                    user_link_aliases=windows_user_link_aliases, observer_workers=True),
                 seed_inputs, None, stage_three, stage_four, "elf32",
             )
             seed_inputs = replace(seed_inputs, behavior_release=authority)
@@ -9876,7 +9937,7 @@ def _bootstrap_windows_from_frozen_seed(
     )
     linux_plan = _candidate_build_plan(checked_linux_plan)
     native_plan = _windows_build_plan(linux_plan, utf8=True, long_paths=windows_long_paths,
-        user_link_aliases=windows_user_link_aliases)
+        user_link_aliases=windows_user_link_aliases, observer_workers=True)
     source_root = source_root.resolve()
     if output_root.is_symlink():
         raise BootstrapError("bootstrap output may not be a symlink")
@@ -9903,6 +9964,7 @@ def _bootstrap_windows_from_frozen_seed(
             windows_utf8=True,
             windows_long_paths=windows_long_paths,
             **({"windows_user_link_aliases": True} if windows_user_link_aliases else {}),
+            windows_observer_workers=True,
         )
         private_source_root = source_inputs.root
         require_source_closures(

@@ -465,9 +465,12 @@ def _bootstrap_input_logical_paths(
     *,
     windows_long_paths: bool = False,
     windows_user_link_aliases: bool = False,
+    windows_observer_workers: bool = False,
 ) -> tuple[str, ...]:
     if type(windows_user_link_aliases) is not bool:
         raise ToolchainManifestContractError("Windows user-link alias selection must be Boolean")
+    if type(windows_observer_workers) is not bool:
+        raise ToolchainManifestContractError("Windows observer-worker selection must be Boolean")
     raw_sources = plan.get("sources")
     startup = plan.get("startup")
     if not isinstance(raw_sources, list) or not isinstance(startup, str):
@@ -492,6 +495,8 @@ def _bootstrap_input_logical_paths(
         )
         if source == "/toolchain/fat16_names.cc":
             paths.append("toolchain/fat16_name_profiles.inc")
+        if source == "/toolchain/cupidbuild_disk_integer.cc":
+            paths.append("toolchain/cupidbuild_disk_integer_tables.inc")
     paths.extend(
         (
             _require_logical_path(
@@ -508,15 +513,18 @@ def _bootstrap_input_logical_paths(
             "toolchain/hosted/i386-windows/utf8_publication_start.asm",
             "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
             "toolchain/hosted/i386-windows/windows_utf8.cc",
-            "toolchain/path_encoding.cc",
             "toolchain/tests/hosted_i386_windows_contract.cc",
             "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         )
     )
+    if "toolchain/path_encoding.cc" not in paths:
+        paths.append("toolchain/path_encoding.cc")
     if windows_long_paths:
         paths.append("toolchain/hosted/i386-windows/utf8_long_path_start.asm")
     if windows_user_link_aliases:
         paths.append("toolchain/hosted/i386-windows/final_path_start.asm")
+    if windows_observer_workers:
+        paths.append("toolchain/hosted/i386-windows/observer_thread.asm")
     paths.extend(_directory_members_with_suffix(reader, "toolchain", ".h"))
     paths.extend(
         _directory_members_with_suffix(
@@ -587,6 +595,7 @@ def _capture_live_manifest_closure(
                             in bootstrap["source_inputs"]["files"]),
         windows_user_link_aliases=("toolchain/hosted/i386-windows/final_path_start.asm"
                                   in bootstrap["source_inputs"]["files"]),
+        windows_observer_workers=True,
     )
     bootstrap_observations, bootstrap_snapshots = (
         _capture_regular_observations(
@@ -698,6 +707,7 @@ def _require_live_closure_membership(
             path == "toolchain/hosted/i386-windows/final_path_start.asm"
             for path, _kind, _size, _digest in bootstrap_observations
         ),
+        windows_observer_workers=True,
     )
     expected_bootstrap = tuple(
         sorted(

@@ -1,5 +1,33 @@
 # Toolchain bootstrap
 
+## Source-owner integration, 2026-11-08
+
+Current producer plans include the path, file, stage, integer, option and
+complete image-input owners. Windows also selects the observer callback
+adapter and CreateThread imports. The complete long-path/user-link source
+closure has 114 inputs. Linux builds 45 objects and Windows builds 54;
+both produce six hosted tools.
+
+Each stage now builds and validates its current CupidC before using it for
+the remaining tools. This lets peer source use the compiler's new flexible
+array support. Its compiler prerequisites still use the incoming compiler.
+Checked stage-two builds pass on both hosts, as do the eleven input-owner
+methods with native and checked callers on each host. Fresh original lifetime
+runs pass 236 calls, and all twelve 4,096-input capacity cases pass with their
+existing time and memory limits.
+
+The installed-seed image also passes all sixteen exact artifact checks and a
+four-CPU boot with all 62 TLS checks and ordered JIT/terminal completion. The
+final CTXT update changes three measured kernel size-policy rows. Replacement
+tools still need their own cold OS builds and consumer acceptance.
+
+Complete producer fixed points and replacement-tool consumers remain required
+before seed adoption. Image
+publication and the normal image-command handoff remain unfinished. The
+normal graph still has 449 CupidBuild transforms and three Python transforms.
+See the [integration record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-INTEGRATION.md)
+for the measured scope and remaining checks.
+
 ## Bounded templates and directory discovery, 2026-10-16
 
 CupidObj source can produce a complete pristine disk prefix through bounded

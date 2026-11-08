@@ -9,9 +9,8 @@ Cupid OS remains unfinished.
 
 - The normal graph has 452 transforms: 449 use CupidBuild and three retain
   Python coordination. GNU Make still schedules the build.
-- Native source discovery and disk/SDK publication still need integration
-  and complete qualification. Passing API experiments do not transfer those
-  normal build edges.
+- Source-owner modules are in current producer plans. Complete qualification,
+  disk/SDK publication and the normal image-command handoff remain open.
 - The private in-OS compiler supports halfword storage, integer array lists
   and typed native calls. Its remaining language gaps and guest acceptance
   are separate from hosted compiler fixed points. The shell can inspect
@@ -51,8 +50,8 @@ complete OS can rebuild itself from inside the guest.
 
 ## Records
 
-- [Source-owner workers](SOURCE-OWNER-WORKERS.md): private qualification,
-  callback lifetime, heap support and the active-integration boundary.
+- [Source-owner integration](SOURCE-OWNER-INTEGRATION.md): producer plans,
+  flexible members, compiler-first stages and remaining acceptance.
 - [Private integer updates](PRIVATE-INTEGER-UPDATES.md): typed lvalue mutation
   with paired-host source checks and installed JIT/AOT evidence.
 - [Private pointer difference](PRIVATE-POINTER-DIFFERENCE.md): signed element

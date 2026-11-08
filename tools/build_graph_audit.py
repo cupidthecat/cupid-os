@@ -161,11 +161,17 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/cupidasm.h",
     "toolchain/cupidbuild.h",
     "toolchain/cupidbuild_artifacts.h",
+    "toolchain/cupidbuild_disk_input_discovery.h",
+    "toolchain/cupidbuild_disk_integer.h",
+    "toolchain/cupidbuild_disk_options.h",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidbuild_iso.h",
     "toolchain/cupidbuild_iso_capture.h",
     "toolchain/cupidbuild_iso_image.h",
     "toolchain/cupidbuild_iso_publication.h",
+    "toolchain/cupidbuild_source_file.h",
+    "toolchain/cupidbuild_source_path.h",
+    "toolchain/cupidbuild_source_stage.h",
     "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
@@ -192,6 +198,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-linux/include/windows.h",
     "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/final_path_start.asm",
+    "toolchain/hosted/i386-windows/observer_thread.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
@@ -268,6 +275,13 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/cupidbuild.h",
     "toolchain/cupidbuild_artifacts.cc",
     "toolchain/cupidbuild_artifacts.h",
+    "toolchain/cupidbuild_disk_input_discovery.cc",
+    "toolchain/cupidbuild_disk_input_discovery.h",
+    "toolchain/cupidbuild_disk_integer.cc",
+    "toolchain/cupidbuild_disk_integer.h",
+    "toolchain/cupidbuild_disk_integer_tables.inc",
+    "toolchain/cupidbuild_disk_options.cc",
+    "toolchain/cupidbuild_disk_options.h",
     "toolchain/cupidbuild_host.cc",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidbuild_iso.cc",
@@ -279,6 +293,12 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/cupidbuild_iso_publication.cc",
     "toolchain/cupidbuild_iso_publication.h",
     "toolchain/cupidbuild_main.cc",
+    "toolchain/cupidbuild_source_file.cc",
+    "toolchain/cupidbuild_source_file.h",
+    "toolchain/cupidbuild_source_path.cc",
+    "toolchain/cupidbuild_source_path.h",
+    "toolchain/cupidbuild_source_stage.cc",
+    "toolchain/cupidbuild_source_stage.h",
     "toolchain/cupidbuild_user_abi.cc",
     "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.cc",
@@ -325,6 +345,7 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/hosted/i386-linux/start.asm",
     "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/final_path_start.asm",
+    "toolchain/hosted/i386-windows/observer_thread.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
@@ -500,11 +521,17 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/cupidasm.h",
     "toolchain/cupidbuild.h",
     "toolchain/cupidbuild_artifacts.h",
+    "toolchain/cupidbuild_disk_input_discovery.h",
+    "toolchain/cupidbuild_disk_integer.h",
+    "toolchain/cupidbuild_disk_options.h",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidbuild_iso.h",
     "toolchain/cupidbuild_iso_capture.h",
     "toolchain/cupidbuild_iso_image.h",
     "toolchain/cupidbuild_iso_publication.h",
+    "toolchain/cupidbuild_source_file.h",
+    "toolchain/cupidbuild_source_path.h",
+    "toolchain/cupidbuild_source_stage.h",
     "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
@@ -531,6 +558,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-linux/include/windows.h",
     "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/final_path_start.asm",
+    "toolchain/hosted/i386-windows/observer_thread.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
@@ -607,6 +635,13 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/cupidbuild.h",
     "toolchain/cupidbuild_artifacts.cc",
     "toolchain/cupidbuild_artifacts.h",
+    "toolchain/cupidbuild_disk_input_discovery.cc",
+    "toolchain/cupidbuild_disk_input_discovery.h",
+    "toolchain/cupidbuild_disk_integer.cc",
+    "toolchain/cupidbuild_disk_integer.h",
+    "toolchain/cupidbuild_disk_integer_tables.inc",
+    "toolchain/cupidbuild_disk_options.cc",
+    "toolchain/cupidbuild_disk_options.h",
     "toolchain/cupidbuild_host.cc",
     "toolchain/cupidbuild_host.h",
     "toolchain/cupidbuild_iso.cc",
@@ -618,6 +653,12 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/cupidbuild_iso_publication.cc",
     "toolchain/cupidbuild_iso_publication.h",
     "toolchain/cupidbuild_main.cc",
+    "toolchain/cupidbuild_source_file.cc",
+    "toolchain/cupidbuild_source_file.h",
+    "toolchain/cupidbuild_source_path.cc",
+    "toolchain/cupidbuild_source_path.h",
+    "toolchain/cupidbuild_source_stage.cc",
+    "toolchain/cupidbuild_source_stage.h",
     "toolchain/cupidbuild_user_abi.cc",
     "toolchain/cupidbuild_user_abi.h",
     "toolchain/cupidc_emit.cc",
@@ -664,6 +705,7 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/hosted/i386-linux/start.asm",
     "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/final_path_start.asm",
+    "toolchain/hosted/i386-windows/observer_thread.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
@@ -1079,7 +1121,7 @@ _C_PP_ACTIVE_COUNTS = {
     "CUPID_RUNTIME": 108,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
-    "HOSTED_I386_LINUX": 53,
+    "HOSTED_I386_LINUX": 59,
     "HOSTED_I386_WINDOWS": 9,
     "HOSTED_I386_KERNEL_BRIDGE": 2,
     "HOSTED_I386_LINUX_GNU": 3,
@@ -1127,6 +1169,12 @@ _C_PP_HOSTED_I386_STRICT_CASES = (
     "/toolchain/fat16_stage.cc",
     "/toolchain/fat16_names.cc",
     "/toolchain/disk_image.cc",
+    "/toolchain/cupidbuild_source_path.cc",
+    "/toolchain/cupidbuild_source_file.cc",
+    "/toolchain/cupidbuild_source_stage.cc",
+    "/toolchain/cupidbuild_disk_integer.cc",
+    "/toolchain/cupidbuild_disk_options.cc",
+    "/toolchain/cupidbuild_disk_input_discovery.cc",
 )
 _C_PP_HOSTED_I386_GNU_CASES = (
     "/toolchain/hosted/i386-linux/runtime.cc",
@@ -11920,8 +11968,17 @@ def _cupid_toolchain_fixed_point_contract(
         ("fat16_names", "/toolchain/fat16_names.cc", False),
         ("disk_image", "/toolchain/disk_image.cc", False),
     )
+    source_owner_sources = (
+        ("cupidbuild_source_path", "/toolchain/cupidbuild_source_path.cc", False),
+        ("cupidbuild_source_file", "/toolchain/cupidbuild_source_file.cc", False),
+        ("cupidbuild_source_stage", "/toolchain/cupidbuild_source_stage.cc", False),
+        ("cupidbuild_disk_integer", "/toolchain/cupidbuild_disk_integer.cc", False),
+        ("cupidbuild_disk_options", "/toolchain/cupidbuild_disk_options.cc", False),
+        ("cupidbuild_disk_input_discovery", "/toolchain/cupidbuild_disk_input_discovery.cc", False),
+        ("path_encoding", "/toolchain/path_encoding.cc", False),
+    )
     candidate_toolchain_sources = (
-        iso_publication_toolchain_sources + disk_foundation_sources
+        iso_publication_toolchain_sources + disk_foundation_sources + source_owner_sources
     )
     iso_publication_toolchain_links = expected_toolchain_links + (
         (
@@ -11951,11 +12008,15 @@ def _cupid_toolchain_fixed_point_contract(
         ),
     )
     iso_publication_cupidbuild_link = iso_publication_toolchain_links[-1][1]
+    disk_foundation_cupidbuild_link = (*iso_publication_cupidbuild_link[:-1],
+        "fat16_stage", "fat16_names", "disk_image", "runtime")
     candidate_toolchain_links = expected_toolchain_links + (
         (
             "cupidbuild",
-            (*iso_publication_cupidbuild_link[:-1],
-             "fat16_stage", "fat16_names", "disk_image", "runtime"),
+            (*disk_foundation_cupidbuild_link[:-1],
+             "cupidbuild_source_path", "cupidbuild_source_file", "cupidbuild_source_stage",
+             "cupidbuild_disk_integer", "cupidbuild_disk_options", "cupidbuild_disk_input_discovery",
+             "path_encoding", "runtime"),
         ),
     )
 
@@ -15448,7 +15509,9 @@ def _cupid_toolchain_fixed_point_contract(
         bootstrap_assignment("ISO_PUBLICATION_SOURCES") != iso_publication_sources
         or bootstrap_assignment("DISK_FOUNDATION_SOURCES") != disk_foundation_sources
         or bootstrap_assignment("CANDIDATE_SOURCES")
-        != iso_publication_sources + disk_foundation_sources
+        != iso_publication_sources + disk_foundation_sources + source_owner_sources
+        or bootstrap_assignment("SOURCE_OWNER_SOURCES") != source_owner_sources
+        or bootstrap_assignment("PROMOTED_SOURCES") != iso_publication_sources + disk_foundation_sources
     ):
         missing_bootstrap_fragments.append(
             "candidate source constants must match the audited inventory"
@@ -15458,6 +15521,7 @@ def _cupid_toolchain_fixed_point_contract(
         != iso_publication_cupidbuild_link
         or bootstrap_assignment("CANDIDATE_CUPIDBUILD_LINK")
         != (candidate_toolchain_links[-1][1])
+        or bootstrap_assignment("PROMOTED_CUPIDBUILD_LINK") != disk_foundation_cupidbuild_link
     ):
         missing_bootstrap_fragments.append(
             "CupidBuild link constants must match the audited plan"
@@ -15685,7 +15749,7 @@ def _cupid_toolchain_fixed_point_contract(
     ) or not has_exact_live_expression_assignment(
         windows_bootstrap_function,
         "native_plan",
-        "_windows_build_plan(linux_plan, utf8=True, long_paths=windows_long_paths, user_link_aliases=windows_user_link_aliases)",
+        "_windows_build_plan(linux_plan, utf8=True, long_paths=windows_long_paths, user_link_aliases=windows_user_link_aliases, observer_workers=True)",
     ):
         missing_bootstrap_fragments.append(
             "Windows driver: one live candidate and native plan chain"
@@ -15781,7 +15845,7 @@ def _cupid_toolchain_fixed_point_contract(
             "            raw_cupidbuild, 'build_plan.links.cupidbuild'\n"
             "        )\n"
             "    ]\n"
-            "    if tuple(cupidbuild_link) not in (EARLIER_PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK, ISO_PUBLICATION_CUPIDBUILD_LINK, CANDIDATE_CUPIDBUILD_LINK):\n"
+            "    if tuple(cupidbuild_link) not in (EARLIER_PROMOTED_CUPIDBUILD_LINK, ISO_BUNDLE_CUPIDBUILD_LINK, ISO_PUBLICATION_CUPIDBUILD_LINK, PROMOTED_CUPIDBUILD_LINK, CANDIDATE_CUPIDBUILD_LINK):\n"
             "        raise BootstrapError(\n"
             "            'Linux build plan candidate link differs: cupidbuild'\n"
             "        )\n"
@@ -15902,7 +15966,7 @@ def _cupid_toolchain_fixed_point_contract(
     )
     required_windows_bootstrap_fragments = (
         "linux_plan = _candidate_build_plan(checked_linux_plan)",
-        'native_plan = _windows_build_plan(linux_plan, utf8=True, long_paths=windows_long_paths,\n        user_link_aliases=windows_user_link_aliases)',
+        'native_plan = _windows_build_plan(linux_plan, utf8=True, long_paths=windows_long_paths,\n        user_link_aliases=windows_user_link_aliases, observer_workers=True)',
         "windows_utf8=True,",
         "windows_long_paths=windows_long_paths,",
         'if type(windows_long_paths) is not bool:',
@@ -16566,6 +16630,7 @@ def _cupid_toolchain_fixed_point_contract(
     required_windows_source_inputs = (
         "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/final_path_start.asm",
+        "toolchain/hosted/i386-windows/observer_thread.asm",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/runtime.cc",
@@ -16934,7 +16999,7 @@ return tuple(
             verify_inputs_function, "live_bootstrap_inputs"
         )
         expected_recapture = ast.parse(
-            'capture_source_snapshot(root, _candidate_build_plan(build_plan), windows_utf8=True, windows_long_paths=("toolchain/hosted/i386-windows/utf8_long_path_start.asm" in bootstrap["source_inputs"]["files"]), windows_user_link_aliases=("toolchain/hosted/i386-windows/final_path_start.asm" in bootstrap["source_inputs"]["files"]))',
+            'capture_source_snapshot(root, _candidate_build_plan(build_plan), windows_utf8=True, windows_long_paths=("toolchain/hosted/i386-windows/utf8_long_path_start.asm" in bootstrap["source_inputs"]["files"]), windows_user_link_aliases=("toolchain/hosted/i386-windows/final_path_start.asm" in bootstrap["source_inputs"]["files"]), windows_observer_workers=True)',
             mode="eval",
         ).body
         if (

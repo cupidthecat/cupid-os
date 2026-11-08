@@ -2045,7 +2045,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             producers = {
                 name: root / name
-                for name in ("cupidasm", "cupiddis", "cupidld")
+                for name in ("cupidc", "cupidasm", "cupiddis", "cupidld")
             }
             plan = {
                 "sources": [],
@@ -2161,6 +2161,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "startup": str(startup),
                 "links": {name: ["start"] for name in TOOL_NAMES},
             }
+            linux_plan["links"]["cupidc"] = ["start", "first", "second"]
             linux_runner = RecordingRunner(root)
             with mock.patch(
                 "tools.bootstrap_toolchain._validate_static_i386_elf"
@@ -2184,6 +2185,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ],
                 "links": {name: ["start"] for name in TOOL_NAMES},
             }
+            windows_plan["links"]["cupidc"] = ["start", "first", "second"]
             windows_runner = RecordingRunner(root)
             with mock.patch(
                 "tools.bootstrap_toolchain._validate_static_i386_pe32"
@@ -2286,6 +2288,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "startup": str(startup),
                 "links": {name: ["start"] for name in TOOL_NAMES},
             }
+            plan["links"]["cupidc"] = ["start", "unit"]
             runner = RejectingRunner(root)
             with self.assertRaisesRegex(
                 BootstrapError,
@@ -2340,7 +2343,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             producers = {
                 name: root / name
-                for name in ("cupidasm", "cupiddis", "cupidld")
+                for name in ("cupidc", "cupidasm", "cupiddis", "cupidld")
             }
             linux_plan = {
                 "sources": [],
@@ -2516,7 +2519,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             startup.write_text("bits 32\nret\n", encoding="utf-8")
             producers = {
                 name: root / name
-                for name in ("cupidasm", "cupiddis", "cupidld")
+                for name in ("cupidc", "cupidasm", "cupiddis", "cupidld")
             }
             plan = {
                 "sources": [],

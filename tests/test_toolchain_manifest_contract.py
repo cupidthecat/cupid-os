@@ -650,7 +650,8 @@ def _complete_context_fixture(*, long_paths=False, user_link_aliases=False):
     document = json.loads(payload)
     document["build_plan"] = seed._candidate_build_plan(document["build_plan"])
     document["build_plan"]["sources"] = [row for row in document["build_plan"]["sources"]
-        if row["name"] not in {"fat16_stage", "fat16_names", "disk_image"}]
+        if row["name"] not in {"fat16_stage", "fat16_names", "disk_image",
+                              *[name for name, _path, _gnu in seed.SOURCE_OWNER_SOURCES]}]
     document["build_plan"]["links"]["cupidbuild"] = list(seed.ISO_PUBLICATION_CUPIDBUILD_LINK)
     document["build_plan_sha256"] = seed._build_plan_sha256(document["build_plan"])
     document["provenance"]["source_input_count"] = 92
@@ -699,6 +700,9 @@ def _disk_context_fixture(*, long_paths=False, user_link_aliases=False, release_
         long_paths=long_paths, user_link_aliases=user_link_aliases)
     document = json.loads(seed_bytes)
     document["build_plan"] = seed._candidate_build_plan(document["build_plan"])
+    document["build_plan"]["sources"] = [row for row in document["build_plan"]["sources"]
+        if row["name"] not in {name for name, _path, _gnu in seed.SOURCE_OWNER_SOURCES}]
+    document["build_plan"]["links"]["cupidbuild"] = list(seed.PROMOTED_CUPIDBUILD_LINK)
     document["build_plan_sha256"] = seed._build_plan_sha256(document["build_plan"])
     document["provenance"]["source_input_count"] = 99
     seed_bytes = _json_bytes(document)
@@ -741,6 +745,47 @@ def _disk_context_request(mode, *, long_paths=False, user_link_aliases=False,
     if not captured:
         return classic
     return (b"CUPMAN5\0" if mode == "author" else b"CUPMAN6\0") + _seed_context_bytes(seed_bytes) + classic[8:]
+
+
+OWNER_OBJECTS = ('cupidbuild_source_path', 'cupidbuild_source_file', 'cupidbuild_source_stage',
+                 'cupidbuild_disk_integer', 'cupidbuild_disk_options', 'cupidbuild_disk_input_discovery',
+                 'path_encoding')
+OWNER_HEADERS = tuple('toolchain/' + name + '.h' for name in OWNER_OBJECTS[:-1])
+OWNER_SHARED_INPUTS = ('toolchain/hosted/i386-linux/include/cupid_runtime.h',
+                       'toolchain/hosted/i386-windows/observer_thread.asm')
+OWNER_BOOTSTRAP_INPUTS = (*OWNER_HEADERS, *OWNER_SHARED_INPUTS,
+    *('toolchain/' + name + '.cc' for name in OWNER_OBJECTS[:-1]),
+    'toolchain/cupidbuild_disk_integer_tables.inc')
+
+
+def _owner_context_fixture(**profile):
+    manifest, observations, seed_bytes, seed_observations = _disk_context_fixture(**profile)
+    inputs = manifest['bootstrap']['source_inputs']
+    for path in OWNER_BOOTSTRAP_INPUTS:
+        data = (REPO_ROOT / path).read_bytes()
+        row = {'size': len(data), 'sha256': _digest(data)}
+        inputs['files'][path] = row
+        if path in (*OWNER_HEADERS, *OWNER_SHARED_INPUTS):
+            manifest['inputs'][path] = row.copy()
+    manifest['input_count'] = len(manifest['inputs'])
+    inputs['count'] = len(inputs['files'])
+    inputs['sha256'] = _digest(_json_bytes(inputs['files']))
+    manifest['bootstrap']['build_plan_sha256'] = 'e58a047f92d21a9ffbae6cc19726477f95ca3a872f1238d9cbab58dae950faaa'
+    manifest['tool_fixed_point']['c_objects'] = 44
+    return manifest, observations, seed_bytes, seed_observations
+
+
+def _owner_context_request(mode, *, manifest=None, bootstrap_object_pairs=None, **profile):
+    fixture, observations, seed_bytes, seed_observations = _owner_context_fixture(**profile)
+    kwargs = {}
+    if mode == 'author':
+        kwargs['bootstrap_object_pairs'] = bootstrap_object_pairs if bootstrap_object_pairs is not None else (
+            _matching_bootstrap_pairs((*BOOTSTRAP_OBJECT_NAMES, *COMPLETE_ISO_OBJECTS,
+                                      *DISK_FOUNDATION_OBJECTS, *OWNER_OBJECTS), 'bootstrap-object'))
+    builder = _author_request if mode == 'author' else _request
+    payload = builder(manifest=fixture if manifest is None else manifest,
+        observations=observations, seed_manifest_bytes=seed_bytes, seed_observations=seed_observations, **kwargs)
+    return (b'CUPMAN5\0' if mode == 'author' else b'CUPMAN6\0') + _seed_context_bytes(seed_bytes) + payload[8:]
 
 
 def _seed_context_bytes(seed_bytes, *, manifest_digest=None, plan_digest=None, facts=None):
@@ -1020,6 +1065,69 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     report = json.loads(verified.stdout)
                     self.assertEqual((report["input_count"], report["bootstrap_source_input_count"]),
                         (manifest["input_count"], count))
+
+    def test_owner_producer_author_and_verifier_bind_all_current_profiles(self):
+        for long_paths, aliases, count in ((False, False, 112), (True, False, 113),
+                                          (False, True, 113), (True, True, 114)):
+            for release_inputs in (False, True):
+                profile = dict(long_paths=long_paths, user_link_aliases=aliases, release_inputs=release_inputs)
+                with self.subTest(**profile):
+                    manifest, _observations, _seed, _facts = _owner_context_fixture(**profile)
+                    self.assertEqual(manifest['input_count'], 112 if release_inputs else 108)
+                    self.assertEqual(manifest['bootstrap']['source_inputs']['count'], count)
+                    authored = self.run_author_request(_owner_context_request('author', **profile))
+                    self.assertEqual(authored.returncode, 0, authored.stderr)
+                    self.assertEqual(json.loads(authored.stdout), manifest)
+                    verified = self.run_request(_owner_context_request('check', **profile))
+                    self.assertEqual(verified.returncode, 0, verified.stderr)
+
+    def test_owner_producer_rejects_missing_or_replaced_new_inputs(self):
+        original, _observations, _seed, _facts = _owner_context_fixture()
+        for inventory, paths in (('bootstrap', OWNER_BOOTSTRAP_INPUTS),
+                                 ('inputs', (*OWNER_HEADERS, *OWNER_SHARED_INPUTS))):
+            for path in paths:
+                for replacement in (None, 'toolchain/unexpected-owner-input.cc'):
+                    changed = copy.deepcopy(original)
+                    rows = changed['bootstrap']['source_inputs']['files'] if inventory == 'bootstrap' else changed['inputs']
+                    row = rows.pop(path)
+                    if replacement:
+                        rows[replacement] = row
+                    if inventory == 'bootstrap':
+                        inputs = changed['bootstrap']['source_inputs']
+                        inputs['count'] = len(rows)
+                        inputs['sha256'] = _digest(_json_bytes(rows))
+                    else:
+                        changed['input_count'] = len(rows)
+                    for mode in ('author', 'check'):
+                        with self.subTest(inventory=inventory, path=path, replacement=replacement, mode=mode):
+                            run = self.run_author_request if mode == 'author' else self.run_request
+                            result = run(_owner_context_request(mode, manifest=changed))
+                            self.assertEqual(result.returncode, 1, result.stderr)
+                            self.assertEqual(result.stdout, '')
+
+    def test_owner_producer_compares_every_new_raw_object_pair(self):
+        original = _matching_bootstrap_pairs((*BOOTSTRAP_OBJECT_NAMES, *COMPLETE_ISO_OBJECTS,
+                                              *DISK_FOUNDATION_OBJECTS, *OWNER_OBJECTS), 'bootstrap-object')
+        for name in OWNER_OBJECTS:
+            position = next(index for index, row in enumerate(original) if row[0] == name)
+            row = original[position]
+            changed = list(original)
+            changed[position] = (*row[:4], row[4] + b'drift')
+            duplicate = list(original)
+            duplicate[position] = original[0]
+            for pairs in (original[:position] + original[position + 1:], changed, duplicate):
+                with self.subTest(name=name, count=len(pairs)):
+                    self.assert_author_failure(_owner_context_request('author', bootstrap_object_pairs=pairs))
+
+    def test_owner_producer_rejects_crossed_historical_plan_and_object_profiles(self):
+        original, _observations, _seed, _facts = _owner_context_fixture()
+        for target, field, values in (('bootstrap', 'build_plan_sha256',
+                ('808d9a566c3dd200252cb6ca974dfa19992a923867dc60f500797efd5169c73e', BUILD_PLAN_SHA256)),
+                ('tool_fixed_point', 'c_objects', (29, 34, 37, 43, 45))):
+            for value in values:
+                changed = copy.deepcopy(original)
+                changed[target][field] = value
+                self.assert_contract_failure(_owner_context_request('check', manifest=changed))
 
     def test_disk_producer_requires_every_source_header_and_unicode_table(self):
         original, _observations, _seed, _facts = _disk_context_fixture()
@@ -2281,9 +2389,10 @@ class ToolchainManifestContractTests(unittest.TestCase):
         }
         self.assertEqual({*INPUT_PATHS, *["toolchain/" + name + ".h" for name in COMPLETE_ISO_OBJECTS],
                           *["toolchain/" + name + ".h" for name in DISK_FOUNDATION_OBJECTS],
+                          *OWNER_HEADERS, *OWNER_SHARED_INPUTS,
                           "tools/__init__.py", "tools/bootstrap_user_abi.py",
                           "tools/bootstrap_stage_release.py", "tools/seed_release_identity.py"}, actual)
-        self.assertEqual(len(actual), 104)
+        self.assertEqual(len(actual), 112)
 
     def _complete_release_inventory_fixture(self, **profile):
         manifest, observations, seed_bytes, seed_observations = _complete_context_fixture(**profile)

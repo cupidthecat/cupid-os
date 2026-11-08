@@ -479,9 +479,10 @@ def _capture_pair(root, linux_seed, windows_seed, long_paths, aliases):
     seed._require_seed_pair_identity(windows_seed, linux_seed)
     linux_plan = seed._candidate_build_plan(linux_seed.manifest["build_plan"])
     windows_plan = seed._windows_build_plan(linux_plan, utf8=True, long_paths=long_paths,
-                                          user_link_aliases=aliases)
+                                          user_link_aliases=aliases, observer_workers=True)
     snapshot = seed.capture_source_snapshot(root, linux_plan, windows_utf8=True,
-                                            windows_long_paths=long_paths, windows_user_link_aliases=aliases)
+        windows_long_paths=long_paths, windows_user_link_aliases=aliases,
+        windows_observer_workers=True)
     return snapshot, linux_plan, windows_plan
 
 
@@ -497,7 +498,8 @@ def paired_context(root, linux_preparation, windows_preparation, linux_seed, win
                "pe32": _read_preparation(windows_preparation, "pe32", snapshot, linux_plan, windows_plan, windows_parents)}
     seed.require_live_seed_inputs(linux_seed, windows_seed)
     seed.require_source_snapshot(root, linux_plan, snapshot, windows_utf8=True,
-                                 windows_long_paths=long_paths, windows_user_link_aliases=aliases)
+        windows_long_paths=long_paths, windows_user_link_aliases=aliases,
+        windows_observer_workers=True)
     identity = _expected_identity(source_revision, snapshot, linux_plan, windows_plan,
                                   linux_seed, windows_seed, cohorts)
     return identity, cohorts

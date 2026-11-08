@@ -6,6 +6,12 @@ Cupid OS is an operating-system project pursuing a self-hosting toolchain. This 
 
 ### System and source
 
+**Compiler-first stage**:
+A hosted reconstruction that builds and validates the current CupidC before
+using it to compile its peer tools. Its compiler prerequisites still use the
+incoming compiler, and final stage-three/stage-four equality remains required.
+_Avoid_: host-compiler fallback, completed fixed point
+
 **Windows observer worker profile**:
 An explicit hosted build-plan selection that binds CreateThread and the
 callback adapter to CupidBuild, including its frozen source closure. It is

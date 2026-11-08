@@ -311,7 +311,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             },
             "tool_fixed_point": {
                 "all_equal": True,
-                "c_objects": 37,
+                "c_objects": 44,
                 "compared_generations": list(
                     cupidc_toolchain_contracts.CONVERGED_GENERATIONS
                 ),
@@ -419,6 +419,11 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             "toolchain/hosted/i386-linux/runtime.cc": "int runtime;\n",
             "toolchain/hosted/i386-linux/start.asm": "ret\n",
         }
+        for name, logical, _gnu in bootstrap_toolchain.SOURCE_OWNER_SOURCES:
+            logical_inputs.setdefault(logical.lstrip('/'), 'int ' + name + ';\n')
+            if name != 'path_encoding':
+                logical_inputs['toolchain/' + name + '.h'] = 'int ' + name + '_header;\n'
+        logical_inputs['toolchain/cupidbuild_disk_integer_tables.inc'] = '/* captured digits */\n'
         for logical_path, text in logical_inputs.items():
             path = root / logical_path
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -465,7 +470,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             encoding="ascii",
         )
         files = cupidc_toolchain_contracts.capture_source_snapshot(
-            root, _candidate_build_plan(build_plan), windows_utf8=True
+            root, _candidate_build_plan(build_plan), windows_utf8=True, windows_observer_workers=True
         )
         return {
             "build_plan_sha256": _build_plan_sha256(_candidate_build_plan(build_plan)),
@@ -768,7 +773,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            cupidc_toolchain_contracts.BOOTSTRAP_OBJECT_NAMES[-14:],
+            cupidc_toolchain_contracts.BOOTSTRAP_OBJECT_NAMES[-21:],
             (
                 "cupidbuild",
                 "cupidbuild_host",
@@ -783,6 +788,9 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 "fat16_stage",
                 "fat16_names",
                 "disk_image",
+                "cupidbuild_source_path", "cupidbuild_source_file", "cupidbuild_source_stage",
+                "cupidbuild_disk_integer", "cupidbuild_disk_options", "cupidbuild_disk_input_discovery",
+                "path_encoding",
                 "start",
             ),
         )
@@ -793,7 +801,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._tool_fixed_point_record(),
             {
                 "all_equal": True,
-                "c_objects": 37,
+                "c_objects": 44,
                 "compared_generations": ["stage-three", "stage-four"],
                 "startup_objects": 1,
                 "tool_images": 6,
@@ -807,7 +815,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 104)
+        self.assertEqual(len(inputs), 112)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)
@@ -2642,6 +2650,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             repository, _candidate_build_plan(seed.manifest["build_plan"]),
             windows_utf8=True, windows_long_paths=windows_long_paths,
             windows_user_link_aliases=True,
+            windows_observer_workers=True,
         )
         inputs = cupidc_toolchain_contracts._snapshot_contract_inputs(
             repository,
@@ -2716,8 +2725,8 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             expected = cupidc_toolchain_contracts.check_syscall_abi(root)
             before = (output / "manifest.json").read_bytes()
             publication = cupidc_toolchain_contracts.verify_publication(output)
-            self.assertEqual(publication["input_count"], 104)
-            self.assertEqual(publication["bootstrap"]["source_inputs"]["count"], 99)
+            self.assertEqual(publication["input_count"], 112)
+            self.assertEqual(publication["bootstrap"]["source_inputs"]["count"], 114)
             completed = subprocess.CompletedProcess(
                 ["user-syscall-abi-contract.elf"], 0,
                 json.dumps(expected) + "\n", "",

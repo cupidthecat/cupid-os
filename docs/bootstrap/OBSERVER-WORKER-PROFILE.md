@@ -52,8 +52,11 @@ belongs after source-owner adoption. Earlier audit attempts exposed stale
 validator fragment expectations; the guards now require the typed profile in
 linking, PE validation and behavior capture.
 
-This profile is available but is not selected by the current producer drivers.
-Source-owner module adoption, complete named producer and replacement consumer
+At this checkpoint the producer drivers did not select the profile. The
+[source-owner integration](SOURCE-OWNER-INTEGRATION.md) now selects it for
+current-source reconstruction and publication checks. That integration also
+corrects the expected import ordering to match CupidLD and adds a real PE
+link regression. Complete named producer and replacement consumer
 qualification, wide publication stores and the normal image handoff remain
 open. The normal graph remains 449 CupidBuild transforms and three Python
 coordinators. Installed seed files remain unchanged.

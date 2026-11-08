@@ -1,5 +1,20 @@
 # CupidC Compiler
 
+## Hosted flexible-array members
+
+Hosted CupidC can address and decay a final flexible-array member such as
+`char bytes[]`. The element type must be complete, and access preserves its
+const or volatile qualification. The member offset can precede the end of
+record padding; `sizeof` of the record does not give the array a length.
+Taking its address is valid. `sizeof` of the incomplete array and arithmetic
+on a pointer to that whole array remain errors.
+
+Native Windows and Linux tests cover byte, halfword and record elements,
+layout, qualifiers and invalid declarations. The complete image-input owner
+uses a flexible tail for copied strings. Checked stage-two tool builds pass
+on both hosts. Full producer and seed acceptance remain separate; see the
+[integration record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-INTEGRATION.md).
+
 ## Private halfword storage and constant array data
 
 `short` and `I16` use signed two-byte storage; `unsigned short` and `U16` use

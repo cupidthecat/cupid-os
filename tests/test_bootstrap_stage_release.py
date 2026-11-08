@@ -37,7 +37,7 @@ class StageReleaseTests(unittest.TestCase):
             workspace = self.root / format_name
             workspace.mkdir()
             source = seed.freeze_source_inputs(ROOT, self.linux_plan, workspace / "source",
-                windows_utf8=True, windows_user_link_aliases=True)
+                windows_utf8=True, windows_user_link_aliases=True, windows_observer_workers=True)
             plan = self.linux_plan if format_name == "elf32" else self.windows_plan
             object_roles = {row["name"] for row in plan["sources"]}
             object_roles.update({"start"} if format_name == "elf32" else
@@ -164,7 +164,7 @@ class StageReleaseTests(unittest.TestCase):
 
     def test_qualification_matches_actual_rebuild_and_materializes_owned_context(self):
         request = self.request()
-        source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True)
+        source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True, windows_observer_workers=True)
         for format_name in ("elf32", "pe32"):
             with self.subTest(format=format_name):
                 stages = self.stages[format_name]
@@ -186,14 +186,14 @@ class StageReleaseTests(unittest.TestCase):
     def test_rebuilt_cohort_cannot_differ_even_with_matching_release(self):
         request = self.request()
         self.stages["elf32"][2].tools["cupidobj"].write_bytes(b"different rebuild")
-        source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True)
+        source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True, windows_observer_workers=True)
         with self.assertRaisesRegex(seed.BootstrapError, "tools differ from prepared"):
             request.authorize(source, ROOT, self.linux_plan, self.windows_plan,
                 self.linux, None, *self.stages["elf32"][1:], "elf32")
 
     def test_linux_behavior_materialization_uses_authorized_candidate_plan(self):
         request = self.request()
-        source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True)
+        source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True, windows_observer_workers=True)
         for format_name in ("elf32", "pe32"):
             stages = self.stages[format_name]
             authority = request.authorize(source, ROOT, self.linux_plan, self.windows_plan,
@@ -217,14 +217,14 @@ class StageReleaseTests(unittest.TestCase):
         request = self.request()
         for stage in self.stages["elf32"][1:]:
             stage.objects["start"].write_bytes(b"same changed object in both generations")
-        source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True)
+        source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True, windows_observer_workers=True)
         with self.assertRaisesRegex(seed.BootstrapError, "objects differ from prepared"):
             request.authorize(source, ROOT, self.linux_plan, self.windows_plan,
                 self.linux, None, *self.stages["elf32"][1:], "elf32")
 
     def test_authorized_linux_plan_is_retained_as_immutable_bytes(self):
         request = self.request()
-        source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True)
+        source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True, windows_observer_workers=True)
         authority = request.authorize(source, ROOT, self.linux_plan, self.windows_plan,
             self.linux, None, *self.stages["elf32"][1:], "elf32")
         expected = copy.deepcopy(self.linux_plan)
@@ -235,7 +235,7 @@ class StageReleaseTests(unittest.TestCase):
 
     def test_wrong_retained_plan_fails_before_behavior_seed_publication(self):
         request = self.request()
-        source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True)
+        source = seed.SourceInputs(ROOT, self.snapshot, windows_utf8=True, windows_user_link_aliases=True, windows_observer_workers=True)
         authority = request.authorize(source, ROOT, self.linux_plan, self.windows_plan,
             self.linux, None, *self.stages["elf32"][1:], "elf32")
         wrong_plan = copy.deepcopy(self.linux_plan)

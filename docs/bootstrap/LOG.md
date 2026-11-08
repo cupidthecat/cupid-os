@@ -1,5 +1,26 @@
 # Bootstrapping log
 
+## 2026-11-08: Integrate source owners and bootstrap the compiler first
+
+Current source plans carry the six owner modules, integer Unicode table,
+common path codec and Windows worker profile. Source capture has 114 inputs
+with long paths and user-link aliases. Historical seed plans remain separate.
+Native warnings exposed const-view cleanup; private linked string storage
+removes those casts and exercises ordinary flexible-array access. CupidC now
+lowers and emits that access with the array still incomplete.
+
+Each stage builds and validates CupidC before compiling its peers. Linux stage
+two passes 45 objects and six images; Windows passes 54 objects and six images
+after correcting the worker profile's expected import order. Six fresh Windows
+links reproduce every image byte. All eleven owner methods pass with native
+and checked callers on each host. Fresh lifetime runs pass 236 calls, and all
+twelve 4,096-input capacity cases pass under their original limits. The final
+installed-seed image passes all sixteen exact artifact checks and a four-CPU
+boot with all 62 TLS checks. The CTXT update changes only three measured kernel
+size-policy rows. Full replays, named fixed points, replacement-tool consumer
+acceptance and seed adoption remain ahead. The
+[integration record](SOURCE-OWNER-INTEGRATION.md) records the scope and failures.
+
 ## 2026-11-08: Bind the Windows worker profile explicitly
 
 The opt-in producer profile binds one production adapter and CreateThread

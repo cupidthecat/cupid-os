@@ -16,8 +16,8 @@ API = 'GetFinalPathNameByHandleW'
 
 class WindowsUserLinkProfileTests(unittest.TestCase):
     def setUp(self):
-        self.linux = bootstrap._candidate_build_plan(json.loads(
-            (ROOT / 'bootstrap/seeds/i386-linux/manifest.json').read_bytes())['build_plan'])
+        self.linux = json.loads(
+            (ROOT / 'bootstrap/seeds/i386-linux/manifest.json').read_bytes())['build_plan']
 
     def plan(self, long_paths=False):
         return bootstrap._windows_build_plan(self.linux, utf8=True,
@@ -83,7 +83,7 @@ class WindowsUserLinkProfileTests(unittest.TestCase):
     def test_source_inventory_captures_the_selected_bridge_and_exact_count(self):
         # Live capture also owns the hosted heap opt-in header, added after
         # the installed cohorts. Historical count pins below stay unchanged.
-        for long_paths, count in ((False, 99), (True, 100)):
+        for long_paths, count in ((False, 105), (True, 106)):
             with self.subTest(long_paths=long_paths):
                 old = bootstrap.capture_source_snapshot(ROOT, self.linux,
                     windows_utf8=True, windows_long_paths=long_paths)

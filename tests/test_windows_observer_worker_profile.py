@@ -3,6 +3,7 @@
 import copy
 from dataclasses import replace
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -42,8 +43,8 @@ class WindowsObserverWorkerProfileTests(unittest.TestCase):
                 for name in new['links']:
                     expected_imports = old['imports'][name].copy()
                     if name == 'cupidbuild':
-                        position = sum(row['library'] == 'KERNEL32.dll'
-                                       for row in expected_imports)
+                        position = next(index for index, row in enumerate(expected_imports)
+                            if row['library'] != 'KERNEL32.dll' or row['procedure'] > 'CreateThread')
                         expected_imports.insert(position, IMPORT)
                     self.assertEqual(new['imports'][name], expected_imports)
                     order = new['links'][name].copy()
@@ -96,6 +97,33 @@ class WindowsObserverWorkerProfileTests(unittest.TestCase):
             with self.subTest(index=index), self.assertRaises(bootstrap.BootstrapError):
                 bootstrap._windows_plan_configuration(changed)
 
+    def test_checked_linker_emits_the_exact_worker_import_profile(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / 'build') as temporary:
+            directory = Path(temporary)
+            host = 'windows' if os.name == 'nt' else 'linux'
+            seed = bootstrap.freeze_seed_inputs(ROOT / ('bootstrap/seeds/i386-' + host + '/manifest.json'),
+                                                directory / 'seed')
+            source = directory / 'entry.asm'
+            imports = bootstrap._windows_profile_imports('cupidbuild', utf8=True, long_paths=True,
+                user_link_aliases=True, observer_workers=True)
+            slots = ['__imp_' + name for _library, procedures in imports for name in procedures]
+            source.write_text('[BITS 32]\nglobal _start:function\n' +
+                ''.join('extern ' + slot + '\n' for slot in slots) +
+                'section .text\n_start:\n xor eax, eax\n ret\nsection .data\n' +
+                ''.join('dd ' + slot + '\n' for slot in slots), encoding='utf-8')
+            obj, program = directory / 'entry.o', directory / 'worker.exe'
+            runner = bootstrap.ToolRunner(ROOT)
+            bootstrap._run_clean(runner, seed.tools['cupidasm'],
+                ['-f', 'elf32', source, '-o', obj], 'worker profile assembly', 120)
+            bootstrap._run_clean(runner, seed.tools['cupidld'],
+                bootstrap._windows_link_arguments('cupidbuild', program, {'start': obj}, ['start'],
+                    utf8=True, long_paths=True, user_link_aliases=True, observer_workers=True),
+                'worker profile PE link', 120)
+            bootstrap._validate_static_i386_pe32(program, int(bootstrap.EXPECTED_WINDOWS_TARGET['entry']),
+                bootstrap._windows_profile_imports('cupidbuild', utf8=True, long_paths=True,
+                    user_link_aliases=True, observer_workers=True))
+            bootstrap.require_live_seed_inputs(seed)
+
     def test_stage_uses_the_worker_profile_for_linking_and_pe_validation(self):
         plan = bootstrap._windows_build_plan(self.linux, utf8=True,
             long_paths=True, user_link_aliases=True, observer_workers=True)
@@ -110,7 +138,12 @@ class WindowsObserverWorkerProfileTests(unittest.TestCase):
             self.assertEqual(set(stage.tools), set(plan['links']))
             calls = [call for call in run.call_args_list if call.args[1] == producers['cupidld']]
             self.assertEqual(len(calls), len(plan['links']))
-            for name, call, validation in zip(plan['links'], calls, validate.call_args_list):
+            links_by_name = {Path(str(call.args[2][call.args[2].index('-o') + 1])).stem: call
+                             for call in calls}
+            validation_by_name = {Path(str(call.args[0])).stem: call
+                                  for call in validate.call_args_list}
+            for name in plan['links']:
+                call, validation = links_by_name[name], validation_by_name[name]
                 arguments = call.args[2]
                 self.assertEqual(arguments.count('__imp_CreateThread=KERNEL32.dll:CreateThread'),
                                  int(name == 'cupidbuild'))

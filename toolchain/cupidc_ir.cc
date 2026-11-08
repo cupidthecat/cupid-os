@@ -4540,6 +4540,7 @@ static ctool_status_t cir_validate_member(
   ctool_u32 record_qualifiers;
   ctool_u32 designator_base;
   ctool_u32 designator_qualifiers;
+  ctool_bool flexible_member;
   ctool_status_t status;
   cir_zero(info, (ctool_u32)sizeof(*info));
   if (member_expression->kind != CTOOL_C_EXPRESSION_MEMBER ||
@@ -4596,12 +4597,22 @@ static ctool_status_t cir_validate_member(
       &context->unit->layout.types[member_expression->type];
   info->member_layout =
       &context->unit->layout.members[member_expression->reference];
+  flexible_member = record_node->record_kind == CTOOL_C_RECORD_STRUCT &&
+      record_node->member_count > 1u &&
+      member_expression->reference - record_node->first_member ==
+          record_node->member_count - 1u &&
+      info->member->is_bit_field == CTOOL_FALSE &&
+      cir_type_is_addressable_unspecified_array(context, info->member->type) == CTOOL_TRUE &&
+      cir_type_is_addressable_unspecified_array(context, member_expression->type) == CTOOL_TRUE
+      ? CTOOL_TRUE : CTOOL_FALSE;
   if (info->record_layout->is_object == CTOOL_FALSE ||
       info->record_layout->is_complete_object == CTOOL_FALSE ||
       info->member_type_layout->is_object == CTOOL_FALSE ||
-      info->member_type_layout->is_complete_object == CTOOL_FALSE ||
+      (info->member_type_layout->is_complete_object == CTOOL_FALSE &&
+       flexible_member == CTOOL_FALSE) ||
       info->designator_layout->is_object == CTOOL_FALSE ||
-      info->designator_layout->is_complete_object == CTOOL_FALSE ||
+      (info->designator_layout->is_complete_object == CTOOL_FALSE &&
+       flexible_member == CTOOL_FALSE) ||
       info->member_layout->size != info->member_type_layout->size ||
       info->designator_layout->size != info->member_type_layout->size ||
       info->member_layout->byte_offset > info->record_layout->size) {
@@ -5704,8 +5715,10 @@ static ctool_status_t cir_lower_unary(
         (function_address == CTOOL_FALSE &&
          (child_type >= context->unit->layout.type_count ||
           context->unit->layout.types[child_type].is_object == CTOOL_FALSE ||
-          context->unit->layout.types[child_type].is_complete_object ==
-              CTOOL_FALSE)) ||
+          (context->unit->layout.types[child_type].is_complete_object ==
+               CTOOL_FALSE &&
+           cir_type_is_addressable_unspecified_array(context, child_type) ==
+               CTOOL_FALSE))) ||
         cir_type_is_i32_pointer_value(context, expression->type) ==
             CTOOL_FALSE ||
         pointer == (const ctool_c_type_node_t *)0 ||

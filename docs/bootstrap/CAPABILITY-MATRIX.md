@@ -1,15 +1,26 @@
 # Cupid Toolchain capability matrix
 
+## Source-owner producer integration, 2026-11-08
+
+Current plans include the source-owner modules and exact Windows worker
+profile. CupidC supports their flexible-array member access; stages build
+and validate that compiler before compiling peers. Both stage-two builds and
+all four native/checked owner caller selections pass. Fresh lifetime and all
+twelve capacity cases pass. The installed-seed image passes its exact artifact
+and four-CPU boot checks. Full fixed points and replacement-tool consumers
+remain required before seed adoption.
+See the [integration record](SOURCE-OWNER-INTEGRATION.md).
+
 ## Private source-owner worker qualification, 2026-11-08
 
 The combined worker/heap candidate passes all 3,630 observer API calls, 340
 legacy and 48 alias methods, preserving twelve declared skips. Complete-owner
 lifetime controls and all twelve 4,096-input capacity cases pass, together with
 creation/wait/close failures and deterministic payload/metadata drift. This
-qualifies the private API candidate; active integration, publisher authority
-and seed adoption remain open. The opt-in Windows profile now binds the
-production adapter and exact import/link/source closure; producer drivers still
-select their existing profiles. See the [qualification](SOURCE-OWNER-WORKERS.md)
+qualifies the private API candidate. The later integration above carries its
+modules and Windows profile; publisher authority and seed adoption remain open.
+At this private checkpoint the producer drivers retained their existing profiles.
+See the [qualification](SOURCE-OWNER-WORKERS.md)
 and [profile record](OBSERVER-WORKER-PROFILE.md).
 
 ## Hosted heap threading mode, 2026-11-08

@@ -33916,6 +33916,18 @@ static int run_self_host_link_tools(const char *host_root,
       {"/toolchain/fat16_names.cc", "/toolchain/fat16_names.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
       {"/toolchain/disk_image.cc", "/toolchain/disk_image.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidbuild_source_path.cc", "/toolchain/cupidbuild_source_path.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidbuild_source_file.cc", "/toolchain/cupidbuild_source_file.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidbuild_source_stage.cc", "/toolchain/cupidbuild_source_stage.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidbuild_disk_integer.cc", "/toolchain/cupidbuild_disk_integer.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidbuild_disk_options.cc", "/toolchain/cupidbuild_disk_options.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidbuild_disk_input_discovery.cc", "/toolchain/cupidbuild_disk_input_discovery.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE}};
   static const ctool_u32 cupidasm_objects[] = {
       0u, 7u, 6u, 3u, 2u, 4u, 5u, 1u};
@@ -33929,7 +33941,8 @@ static int run_self_host_link_tools(const char *host_root,
       0u, 20u, 19u, 18u, 17u, 16u, 15u, 3u, 2u, 4u, 5u, 1u};
   static const ctool_u32 cupidbuild_objects[] = {
       0u, 23u, 21u, 22u, 3u, 2u, 4u, 26u, 27u, 28u, 30u, 31u, 32u, 33u,
-      34u, 35u, 36u, 37u, 38u, 39u, 40u, 41u, 1u};
+      34u, 35u, 36u, 37u, 38u, 39u, 40u, 41u,
+      42u, 43u, 44u, 45u, 46u, 47u, 29u, 1u};
   static const ctool_u32 runtime_objects[] = {0u, 14u, 1u};
   ctool_host_adapter_t adapter;
   ctool_limits_t limits = ctool_default_limits();

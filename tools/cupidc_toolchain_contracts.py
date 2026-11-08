@@ -152,12 +152,20 @@ BOOTSTRAP_OBJECT_NAMES = (
     "fat16_stage",
     "fat16_names",
     "disk_image",
+    "cupidbuild_source_path",
+    "cupidbuild_source_file",
+    "cupidbuild_source_stage",
+    "cupidbuild_disk_integer",
+    "cupidbuild_disk_options",
+    "cupidbuild_disk_input_discovery",
+    "path_encoding",
     "start",
 )
 WINDOWS_RUNTIME_INPUTS = (
     "toolchain/hosted/i386-linux/include/windows.h",
     "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/final_path_start.asm",
+    "toolchain/hosted/i386-windows/observer_thread.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
@@ -1908,6 +1916,7 @@ def verify_publication_inputs(
                                 in bootstrap["source_inputs"]["files"]),
             windows_user_link_aliases=("toolchain/hosted/i386-windows/final_path_start.asm"
                                       in bootstrap["source_inputs"]["files"]),
+            windows_observer_workers=True,
         )
     except (
         BootstrapError,

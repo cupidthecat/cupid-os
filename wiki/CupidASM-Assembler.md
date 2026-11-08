@@ -526,6 +526,15 @@ framebuffer, AC97, and PC speaker checks without changing the source image.
 
 ### Hosted i386 commands
 
+Current Windows producer plans carry the observer callback adapter in
+`toolchain/hosted/i386-windows/observer_thread.asm` and its CreateThread
+imports. The adapter uses a three-word descriptor and publishes completion
+after the callback returns and its final descriptor access finishes.
+Current source capture and publication checks require the selected adapter.
+Historical installed profiles retain their exact inventories. Checked
+stage-two builds pass on both hosts; complete producer and replacement-tool
+acceptance remain open. See [source-owner integration](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-INTEGRATION.md).
+
 Source head also offers an opt-in hosted heap threading mode. A caller enables
 it through `<cupid_runtime.h>` before creating concurrent allocation users.
 The four allocation functions then serialize shared metadata. Streams and

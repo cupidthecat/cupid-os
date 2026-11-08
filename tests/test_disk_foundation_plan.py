@@ -23,20 +23,20 @@ class DiskFoundationPlanTests(unittest.TestCase):
 
     def test_complete_plan_adds_exact_portable_cores_and_keeps_parent_immutable(self):
         parent = copy.deepcopy(self.installed['build_plan'])
-        self.assertEqual(len(self.plan['sources']), 37)
-        self.assertEqual(len(self.plan['links']['cupidbuild']), 23)
-        self.assertEqual(self.plan['links']['cupidbuild'][-4:], [*MODULES, 'runtime'])
+        self.assertEqual(len(self.plan['sources']), 44)
+        self.assertEqual(len(self.plan['links']['cupidbuild']), 30)
+        self.assertEqual(self.plan['links']['cupidbuild'][-11:-8], list(MODULES))
         for name in MODULES:
             self.assertEqual([row for row in self.plan['sources'] if row['name'] == name],
                              [{'name': name, 'path': '/toolchain/' + name + '.cc', 'gnu_extensions': False}])
         self.assertEqual(bootstrap._candidate_build_plan(self.plan), self.plan)
         self.assertEqual(self.installed['build_plan'], parent)
         self.assertEqual(len(parent['sources']), 37)
-        self.assertEqual(tuple(parent['links']['cupidbuild']), bootstrap.CANDIDATE_CUPIDBUILD_LINK)
+        self.assertEqual(tuple(parent['links']['cupidbuild']), bootstrap.PROMOTED_CUPIDBUILD_LINK)
         bootstrap._validate_build_plan(self.installed, promoted=True)
 
     def test_historical_iso_parent_upgrades_without_mutating_its_exact_plan(self):
-        parent = copy.deepcopy(self.plan)
+        parent = copy.deepcopy(self.installed['build_plan'])
         parent['sources'] = [row for row in parent['sources'] if row['name'] not in MODULES]
         parent['links']['cupidbuild'] = list(bootstrap.ISO_PUBLICATION_CUPIDBUILD_LINK)
         before = copy.deepcopy(parent)
@@ -54,17 +54,18 @@ class DiskFoundationPlanTests(unittest.TestCase):
             (True, False, True, 98, 42, 4, '6023235b95ec568a107b163b2e107dc5979d9dc0d8a811f2bf605baa26d79bf5'),
             (True, True, True, 99, 42, 5, '754895566b00e6e53b045a1414e7b734872f04d4f0c84d62e3dfcf8dd9bc57ab'),
         )
-        self.assertEqual(bootstrap._build_plan_sha256(self.plan),
+        historical = self.installed['build_plan']
+        self.assertEqual(bootstrap._build_plan_sha256(historical),
                          '808d9a566c3dd200252cb6ca974dfa19992a923867dc60f500797efd5169c73e')
         for utf8, long_paths, aliases, count, sources, assembly, digest in profiles:
             with self.subTest(utf8=utf8, long_paths=long_paths, aliases=aliases):
-                plan = bootstrap._windows_build_plan(self.plan, utf8=utf8, long_paths=long_paths,
+                plan = bootstrap._windows_build_plan(historical, utf8=utf8, long_paths=long_paths,
                                                      user_link_aliases=aliases)
                 self.assertEqual((len(plan['sources']), len(plan['assembly_sources'])), (sources, assembly))
                 self.assertEqual(bootstrap._build_plan_sha256(plan), digest)
-                captured = bootstrap._source_input_paths(ROOT, self.plan, windows_utf8=utf8,
+                captured = bootstrap._source_input_paths(ROOT, historical, windows_utf8=utf8,
                     windows_long_paths=long_paths, windows_user_link_aliases=aliases)
-                self.assertEqual(len(captured), count)
+                self.assertEqual(len(captured), count + 7)
                 self.assertEqual(captured[TABLE], ROOT / TABLE)
                 for name in MODULES:
                     self.assertIn('toolchain/' + name + '.cc', captured)
@@ -72,26 +73,26 @@ class DiskFoundationPlanTests(unittest.TestCase):
 
     def test_sdk_bootstrap_capture_retains_the_same_explicit_unicode_table(self):
         with policy._PinnedRepository(ROOT) as reader:
-            self.assertEqual(len(sdk._contract_input_logical_paths(reader)), 104)
-            for long_paths, aliases, expected in ((False, False, 97), (True, False, 98),
-                                                 (False, True, 98), (True, True, 99)):
+            self.assertEqual(len(sdk._contract_input_logical_paths(reader)), 112)
+            for long_paths, aliases, expected in ((False, False, 111), (True, False, 112),
+                                                 (False, True, 112), (True, True, 113)):
                 paths = sdk._bootstrap_input_logical_paths(reader, self.plan,
                     windows_long_paths=long_paths, windows_user_link_aliases=aliases)
                 self.assertIn(TABLE, paths)
                 self.assertEqual(len(paths), expected)
 
     def test_sdk_compares_the_complete_producer_object_inventory(self):
-        self.assertEqual(len(contracts.BOOTSTRAP_OBJECT_NAMES), 38)
-        self.assertEqual(contracts.BOOTSTRAP_OBJECT_NAMES[-4:], (*MODULES, 'start'))
+        self.assertEqual(len(contracts.BOOTSTRAP_OBJECT_NAMES), 45)
+        self.assertEqual(contracts.BOOTSTRAP_OBJECT_NAMES[-11:-8], MODULES)
         self.assertEqual(set(contracts.BOOTSTRAP_OBJECT_NAMES),
                          {'start', *[row['name'] for row in self.plan['sources']]})
-        self.assertEqual(contracts._tool_fixed_point_record()['c_objects'], 37)
+        self.assertEqual(contracts._tool_fixed_point_record()['c_objects'], 44)
 
     def test_disk_windows_import_profiles_bind_exact_plan_and_count(self):
         for utf8, long_paths, aliases, count in ((False, False, False, 92),
                 (True, False, False, 97), (True, True, False, 98),
                 (True, False, True, 98), (True, True, True, 99)):
-            native = bootstrap._windows_build_plan(self.plan, utf8=utf8,
+            native = bootstrap._windows_build_plan(self.installed['build_plan'], utf8=utf8,
                 long_paths=long_paths, user_link_aliases=aliases)
             digest = bootstrap._build_plan_sha256(native)
             for name in bootstrap.CANDIDATE_TOOL_NAMES:

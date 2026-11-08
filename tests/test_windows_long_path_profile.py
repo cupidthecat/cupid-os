@@ -18,7 +18,7 @@ SHIM = "toolchain/hosted/i386-windows/utf8_long_path_start.asm"
 
 class WindowsLongPathProfileTests(unittest.TestCase):
     def test_exact_import_profile_keeps_count_and_plan_bound(self):
-        linux = bootstrap._candidate_build_plan(json.loads(LINUX.read_bytes())["build_plan"])
+        linux = json.loads(LINUX.read_bytes())["build_plan"]
         plan = bootstrap._windows_build_plan(linux, utf8=True, long_paths=True)
         self.assertEqual(bootstrap._build_plan_sha256(plan), LONG_PLAN)
         self.assertEqual(bootstrap._windows_plan_profile(plan), (True, True, False))
@@ -73,7 +73,8 @@ class WindowsLongPathProfileTests(unittest.TestCase):
                             bootstrap._bootstrap_from_frozen_seed(seed, ROOT, output,
                                 compare_fixed_point=True, windows_long_paths=selected)
                     self.assertEqual(capture.call_args.kwargs,
-                                     {"windows_utf8": True, "windows_long_paths": selected, "windows_user_link_aliases": True})
+                                     {"windows_utf8": True, "windows_long_paths": selected,
+                                      "windows_user_link_aliases": True, "windows_observer_workers": True})
                     self.assertFalse(output.exists())
 
     def test_invalid_selection_is_rejected_before_input_or_output_mutation(self):
@@ -91,15 +92,15 @@ class WindowsLongPathProfileTests(unittest.TestCase):
 
     def test_behavior_retarget_retains_long_profile_and_installed_parent_pair(self):
         native = bootstrap.verify_seed_inputs(WINDOWS)
-        linux = bootstrap._candidate_build_plan(json.loads(LINUX.read_bytes())["build_plan"])
+        linux = json.loads(LINUX.read_bytes())["build_plan"]
         snapshot = bootstrap.capture_source_snapshot(ROOT, linux, windows_utf8=True, windows_long_paths=True)
-        self.assertEqual(len(snapshot), 99)
+        self.assertEqual(len(snapshot), 105)
         self.assertIn('toolchain/hosted/i386-linux/include/cupid_runtime.h', snapshot)
         self.assertIn(SHIM, snapshot)
         changed = bootstrap._retarget_native_windows_behavior_seed(native, LONG_PLAN, linux, snapshot,
             utf8=True, long_paths=True, parent_plan_seed=bootstrap.verify_seed_inputs(LINUX))
         provenance = changed.manifest["provenance"]
-        self.assertEqual(provenance["source_input_count"], 99)
+        self.assertEqual(provenance["source_input_count"], 105)
         self.assertEqual(provenance["parent_execution_seed_manifest_sha256"], native.manifest_sha256)
         self.assertEqual(provenance["parent_plan_seed_manifest_sha256"], bootstrap.verify_seed_inputs(LINUX).manifest_sha256)
         self.assertEqual(provenance["native_build_plan_sha256"], LONG_PLAN)
@@ -136,8 +137,8 @@ class WindowsLongPathProfileTests(unittest.TestCase):
         with artifact_size_policy._PinnedRepository(ROOT) as reader:
             short = verifier._bootstrap_input_logical_paths(reader, linux)
             long = verifier._bootstrap_input_logical_paths(reader, linux, windows_long_paths=True)
-            self.assertEqual(len(short), 98)
-            self.assertEqual(len(long), 99)
+            self.assertEqual(len(short), 111)
+            self.assertEqual(len(long), 112)
             self.assertNotIn(SHIM, short)
             self.assertEqual(set(long) - set(short), {SHIM})
             reader.require_unchanged()

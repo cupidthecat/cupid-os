@@ -563,11 +563,15 @@ typedef struct {
   const ctool_c_member_layout_t *member_layout;
 } cemit_member_info_t;
 
+static ctool_bool cemit_ir_type_is_addressable_unspecified_array(
+    const cemit_context_t *context, ctool_u32 type);
+
 static ctool_status_t cemit_validate_member_instruction(
     const cemit_context_t *context,
     const ctool_c_ir_instruction_t *ir_instruction,
     ctool_c_conversion_kind_t expected_conversion,
     cemit_member_info_t *info) {
+  ctool_bool flexible_member;
   if (ir_instruction->input_type >= context->unit->graph.type_count ||
       ir_instruction->input_type >= context->unit->layout.type_count ||
       ir_instruction->type >= context->unit->graph.type_count ||
@@ -598,6 +602,18 @@ static ctool_status_t cemit_validate_member_instruction(
       &context->unit->layout.types[ir_instruction->type];
   info->member_layout =
       &context->unit->layout.members[ir_instruction->reference];
+  flexible_member = ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS &&
+      info->record != (const ctool_c_type_node_t *)0 &&
+      info->record->kind == CTOOL_C_TYPE_RECORD &&
+      info->record->record_kind == CTOOL_C_RECORD_STRUCT &&
+      info->record->member_count > 1u &&
+      ir_instruction->reference >= info->record->first_member &&
+      ir_instruction->reference - info->record->first_member ==
+          info->record->member_count - 1u &&
+      info->member->is_bit_field == CTOOL_FALSE &&
+      cemit_ir_type_is_addressable_unspecified_array(context, info->member->type) == CTOOL_TRUE &&
+      cemit_ir_type_is_addressable_unspecified_array(context, ir_instruction->type) == CTOOL_TRUE
+      ? CTOOL_TRUE : CTOOL_FALSE;
   if (info->record == (const ctool_c_type_node_t *)0 ||
       info->record->kind != CTOOL_C_TYPE_RECORD ||
       info->record->record_complete == CTOOL_FALSE ||
@@ -609,9 +625,11 @@ static ctool_status_t cemit_validate_member_instruction(
       info->record_layout->is_object == CTOOL_FALSE ||
       info->record_layout->is_complete_object == CTOOL_FALSE ||
       info->member_type_layout->is_object == CTOOL_FALSE ||
-      info->member_type_layout->is_complete_object == CTOOL_FALSE ||
+      (info->member_type_layout->is_complete_object == CTOOL_FALSE &&
+       flexible_member == CTOOL_FALSE) ||
       info->result_layout->is_object == CTOOL_FALSE ||
-      info->result_layout->is_complete_object == CTOOL_FALSE ||
+      (info->result_layout->is_complete_object == CTOOL_FALSE &&
+       flexible_member == CTOOL_FALSE) ||
       info->member_layout->size != info->member_type_layout->size ||
       info->result_layout->size != info->member_type_layout->size ||
       info->member_layout->byte_offset > info->record_layout->size ||
@@ -13218,8 +13236,10 @@ static ctool_status_t cemit_emit_ir_instruction(
          (ir_instruction->input_type >= context->unit->layout.type_count ||
           context->unit->layout.types[ir_instruction->input_type].is_object ==
               CTOOL_FALSE ||
-          context->unit->layout.types[ir_instruction->input_type]
-                  .is_complete_object == CTOOL_FALSE)) ||
+          (context->unit->layout.types[ir_instruction->input_type]
+                   .is_complete_object == CTOOL_FALSE &&
+           cemit_ir_type_is_addressable_unspecified_array(
+               context, ir_instruction->input_type) == CTOOL_FALSE))) ||
         pointer->referenced_type != ir_instruction->input_type ||
         ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_ADDRESS ||
         ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||

@@ -182,6 +182,7 @@ CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/publication_runtime.cc
                                       hosted/i386-windows/utf8_tool_start.asm \
                                       hosted/i386-windows/utf8_long_path_start.asm \
                                       hosted/i386-windows/final_path_start.asm \
+                                      hosted/i386-windows/observer_thread.asm \
                                       hosted/i386-windows/utf8_publication_start.asm \
                                       hosted/i386-windows/utf8_cupidbuild_start.asm \
                                       path_encoding.cc \
@@ -204,6 +205,13 @@ CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.cc artifact_size_policy.h con
                               cupidbuild_user_abi.cc cupidbuild_user_abi.h \
                               user_syscall_abi.cc user_syscall_abi.h \
                               cupidbuild_host.cc cupidbuild_host.h \
+                              cupidbuild_source_path.cc cupidbuild_source_path.h \
+                              cupidbuild_source_file.cc cupidbuild_source_file.h \
+                              cupidbuild_source_stage.cc cupidbuild_source_stage.h \
+                              cupidbuild_disk_integer.cc cupidbuild_disk_integer.h \
+                              cupidbuild_disk_integer_tables.inc \
+                              cupidbuild_disk_options.cc cupidbuild_disk_options.h \
+                              cupidbuild_disk_input_discovery.cc cupidbuild_disk_input_discovery.h \
                               cupidbuild_iso.h cupidbuild_iso_capture.h \
                               cupidbuild_iso_image.h \
                               cupidbuild_iso_publication.h \
@@ -248,6 +256,8 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS := \
 	path_encoding.h native_utf8.h \
 	seed_manifest.h seed_release.h \
 	ctool.h ctool_host.h cupidasm.h cupidbuild.h cupidbuild_host.h \
+	cupidbuild_source_path.h cupidbuild_source_file.h cupidbuild_source_stage.h \
+	cupidbuild_disk_integer.h cupidbuild_disk_options.h cupidbuild_disk_input_discovery.h \
 	cupidbuild_artifacts.h cupidbuild_user_abi.h user_syscall_abi.h \
 	cupidbuild_iso.h cupidbuild_iso_capture.h cupidbuild_iso_image.h \
 	cupidbuild_iso_publication.h \
@@ -390,7 +400,12 @@ CUPIDLD_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                    $(BUILD_DIR)/cupidld_main.o
 SEED_MANIFEST_OBJECTS := $(BUILD_DIR)/seed_manifest.o $(BUILD_DIR)/seed_release.o \
                          $(BUILD_DIR)/contract_parse_internal.o
-CUPIDBUILD_OBJECTS := $(BUILD_DIR)/cupidbuild_artifacts.o $(BUILD_DIR)/artifact_size_policy.o \
+CUPIDBUILD_SOURCE_OWNER_NAMES := cupidbuild_source_path cupidbuild_source_file cupidbuild_source_stage \
+                                cupidbuild_disk_integer cupidbuild_disk_options cupidbuild_disk_input_discovery
+CUPIDBUILD_SOURCE_OWNER_HEADERS := $(addsuffix .h,$(CUPIDBUILD_SOURCE_OWNER_NAMES))
+CUPIDBUILD_SOURCE_OWNER_OBJECTS := $(addprefix $(BUILD_DIR)/,$(addsuffix .o,$(CUPIDBUILD_SOURCE_OWNER_NAMES)))
+CUPIDBUILD_OBJECTS := $(CUPIDBUILD_SOURCE_OWNER_OBJECTS) \
+                      $(BUILD_DIR)/cupidbuild_artifacts.o $(BUILD_DIR)/artifact_size_policy.o \
                       $(BUILD_DIR)/user_syscall_abi.o $(BUILD_DIR)/cupidbuild_user_abi.o \
                       $(SEED_MANIFEST_OBJECTS) $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                       $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidbuild_host.o \
@@ -442,6 +457,8 @@ CUPIDBUILD_OBJECTS := $(filter-out $(BUILD_DIR)/cupidbuild_host.o,$(CUPIDBUILD_O
 CUPIDBUILD_JPEG_CONTRACT_OBJECTS += $(BUILD_DIR)/path_encoding.o
 CUPIDBUILD_USER_ELF_CONTRACT_OBJECTS += $(BUILD_DIR)/path_encoding.o
 CUPIDBUILD_HOST_RUNNER_CONTRACT_OBJECTS += $(BUILD_DIR)/path_encoding.o
+else
+CUPIDBUILD_OBJECTS += $(BUILD_DIR)/path_encoding.o
 endif
 NATIVE_ORACLE_ARTIFACTS := $(NATIVE_CONTRACT) \
 	$(NATIVE_CUPIDC_PP_CONTRACT) $(NATIVE_CUPIDC_TYPE_CONTRACT) \
@@ -461,9 +478,9 @@ CFLAGS ?= -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow \
           -Wmissing-prototypes -Wconversion -Wsign-conversion
 CPPFLAGS ?= -I.
 ifeq ($(OS),Windows_NT)
-# The observer uses standard strcpy after allocating the exact string size.
+# These modules bound their standard strcpy destinations before copying.
 # Microsoft's CRT deprecation is specific to the native oracle headers.
-$(BUILD_DIR)/cupidbuild_host.o: CPPFLAGS += -D_CRT_SECURE_NO_WARNINGS
+$(BUILD_DIR)/cupidbuild_host.o $(BUILD_DIR)/cupidbuild_disk_options.o: CPPFLAGS += -D_CRT_SECURE_NO_WARNINGS
 endif
 LDFLAGS ?=
 
@@ -561,6 +578,9 @@ $(BUILD_DIR)/cupidld_main.o: cupidld_main.cc cupidld.h ctool_host.h ctool.h elf3
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidbuild_host.o: cupidbuild_host.cc cupidbuild_host.h path_encoding.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(CUPIDBUILD_SOURCE_OWNER_OBJECTS): $(BUILD_DIR)/%.o: %.cc $(CUPIDBUILD_SOURCE_OWNER_HEADERS) cupidbuild_disk_integer_tables.inc cupidbuild_host.h fat16_names.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidbuild_host_runner_adapter.o: \
