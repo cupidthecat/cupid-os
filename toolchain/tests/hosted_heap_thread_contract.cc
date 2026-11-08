@@ -6,7 +6,11 @@
 #include <cupid_runtime.h>
 
 typedef DWORD (*thread_function_t)(void *);
-typedef struct { thread_function_t function; void *argument; } thread_call_t;
+typedef struct {
+  thread_function_t function;
+  void *argument;
+  volatile LONG *complete;
+} thread_call_t;
 HANDLE cupid_windows_observer_thread_open(void *call);
 void cupid_windows_observer_thread_finish(volatile LONG *flag);
 LONG cupid_windows_observer_thread_finished(volatile LONG *flag);
@@ -98,6 +102,7 @@ int main(int argc, char **argv) {
   unsigned int ids[8], index;
   thread_call_t calls[8];
   HANDLE threads[8];
+  volatile LONG completed[8];
   DWORD code;
   int hooks = argc == 3 && strcmp(argv[2], "hooks") == 0;
   if (argc < 2 || argc > 3) return 1;
@@ -109,6 +114,8 @@ int main(int argc, char **argv) {
   for (index = 0u; index < 8u; index++) {
     ids[index] = index + 1u;
     calls[index].function = worker; calls[index].argument = &ids[index];
+    completed[index] = 0;
+    calls[index].complete = &completed[index];
     threads[index] = cupid_windows_observer_thread_open(&calls[index]);
     if (!threads[index]) return 3;
   }
@@ -125,7 +132,7 @@ int main(int argc, char **argv) {
   for (index = 0u; index < 8u; index++) {
     if (WaitForSingleObject(threads[index], 30000u) != WAIT_OBJECT_0 ||
         !cupid_test_get_exit_code_thread(threads[index], &code) || code ||
-        !CloseHandle(threads[index])) return 5;
+        !CloseHandle(threads[index]) || !cupid_windows_observer_thread_finished(&completed[index])) return 5;
   }
   if (hooks) __atomic_store_n(&probe_enabled, 0u, __ATOMIC_RELEASE);
   puts("pass threaded_heap workers=8 iterations=32000");

@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-08: Publish completion after callback return
+
+The checked Windows adapter now publishes its completion marker after the
+callback returns and after the final descriptor access. The old adapter fails
+the new marker contract; the revised one passes 513 calls and three invalid
+descriptors. Twenty-four native/checked controls exercise both real pool seams,
+including partial creation, deferred completion after wait failure, close
+failure, cleared views and repeated poisoned-owner rejection. The complete
+4,096-parent UNC case passes in 52.735 seconds under the original minute.
+The public Windows SDK gains `WAIT_FAILED`, checked through a real invalid
+handle. Installed seeds and image ownership remain unchanged. See the
+[record](WORKER-COMPLETION.md) for scope and remaining gates.
+
 ## 2026-11-08: Serialize the hosted heap before starting workers
 
 The hosted allocator can opt into a process-lifetime mutex before additional

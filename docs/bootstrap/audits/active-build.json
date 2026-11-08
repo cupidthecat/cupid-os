@@ -46263,13 +46263,13 @@
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
         "residual_c_sources": 17,
         "runtime_delivery_sources": 130,
-        "sha256": "e54bafdfd8553847354826e1caea2cbae8a2ceeb2ad1193e47d0b55fb054a62c",
-        "unreachable_cupid_c_sources": 56
+        "sha256": "f338da66a4c9b03e4fc6dda78bd907a948f7c41baee86f92ef42dfaccc10d8ab",
+        "unreachable_cupid_c_sources": 58
       },
       "proven_cupidc_owned_tracked_cupid_c_sources": 426,
       "status": "pass",
       "tracked_c_sources": 17,
-      "tracked_cupid_c_sources": 482,
+      "tracked_cupid_c_sources": 484,
       "unreachable": [
         {
           "classification": "historical_copy",
@@ -46553,6 +46553,11 @@
         },
         {
           "classification": "not_reached",
+          "path": "toolchain/tests/hosted_heap_thread_contract.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
           "path": "toolchain/tests/hosted_putchar_contract.cc",
           "policy": "source_suffix_policy"
         },
@@ -46569,6 +46574,11 @@
         {
           "classification": "not_reached",
           "path": "toolchain/tests/hosted_wide_file_contract.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
+          "path": "toolchain/tests/hosted_windows_thread_contract.cc",
           "policy": "source_suffix_policy"
         },
         {
@@ -46623,7 +46633,7 @@
         }
       ],
       "unreachable_tracked_c_sources": 17,
-      "unreachable_tracked_cupid_c_sources": 56
+      "unreachable_tracked_cupid_c_sources": 58
     },
     "cupid_toolchain_fixed_point": {
       "checked_seed_publication": "complete-bundle",
@@ -54815,7 +54825,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3466
+      "occurrences": 3467
     },
     {
       "category": "preprocessor",
@@ -61528,7 +61538,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "bc1da6423dbc3d6b235d0b4e3553ed8d638ddd2f44e71d412d06fc83e7a848a9",
+    "active_source_digest": "db41c6b21c4faaa076971d0e6cbd0290bdf8a596f5cb1945a1af0ccc3e389c6b",
     "control_files": [
       {
         "path": "Makefile",
@@ -61544,7 +61554,7 @@
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
-        "sha256": "e54bafdfd8553847354826e1caea2cbae8a2ceeb2ad1193e47d0b55fb054a62c"
+        "sha256": "f338da66a4c9b03e4fc6dda78bd907a948f7c41baee86f92ef42dfaccc10d8ab"
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
@@ -61565,7 +61575,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "5ec024778073484c2e4e6bcdde682db4a589ae952f0764f2fdc028d3a222ac15"
+      "sha256": "6b317a8e04997d55fc1fb8f5c3d01d324ddf78b8be6eaad81cca622bc2a6b6d7"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -88586,12 +88596,12 @@
       ],
       "includes": [],
       "language": "c_header",
-      "lines": 254,
+      "lines": 255,
       "origin": "tracked",
       "path": "toolchain/hosted/i386-linux/include/windows.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b887ed4c5e17a19e0959f909eaadac492f7cc197701b3e2a9ea2f317bdbc4b80"
+      "sha256": "dd74ca74ebca4812c205664442ede8a8b6dea603e10f24716b3cf0f5346385aa"
     },
     {
       "build_owners": [
@@ -90815,7 +90825,7 @@
     "active_sources": 787,
     "features": 255,
     "transforms": 452,
-    "unreachable_sources": 79
+    "unreachable_sources": 83
   },
   "supplemental_builds": [
     {
@@ -92128,6 +92138,16 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
+      "lines": 140,
+      "path": "toolchain/tests/hosted_heap_thread_contract.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "5f07244caa410452578da31d0edce247ce41973e68339ac659d95a63ae953d0e"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
       "lines": 29,
       "path": "toolchain/tests/hosted_putchar_contract.cc",
       "reason": "not reachable from the supported Make target or include closure",
@@ -92163,6 +92183,36 @@
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
       "sha256": "9ccb15f9231e4f2bd8165108734be564129c6c288b1a343de8192dc0b19bfea9"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "assembly",
+      "lines": 74,
+      "path": "toolchain/tests/hosted_windows_thread_adapter.asm",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "b5af6dd3f69cf986d94bb28448eba2cbfa7b49d21e9044432eb1640ed48c1a97"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 110,
+      "path": "toolchain/tests/hosted_windows_thread_contract.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "bf2c294ce4606105308dc52169d1bace7702c075911867bc37c89449eb8a96d4"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "assembly",
+      "lines": 38,
+      "path": "toolchain/tests/hosted_windows_thread_exit.asm",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "60c39447020b7ffb77bced39fa68fcf25ed364124de49388d200b8e73b735fe6"
     },
     {
       "classification": "not_reached",

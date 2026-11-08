@@ -37,12 +37,14 @@ neighboring payloads. A test-only hook detects overlapping allocator entry
 before metadata mutation. The disabled control reports overlap; the enabled
 caller passes both that exclusion check and the uninstrumented stress case.
 
-The test callback adapter separately checks 513 calls, return values, stack
+The initial test callback adapter separately checks 513 calls, return values, stack
 cleanup, data publication before join and two rejected invalid descriptors.
 All objects and images pass strict disassembly. Thread fixtures add exactly
 CreateThread, GetExitCodeThread and WaitForSingleObject to their existing
 Windows import profiles and validate the complete PE import set. Conventional
 host producers remain forbidden in checked invocations.
+The later [completion record](WORKER-COMPLETION.md) advances that fixture to
+three required descriptor fields and adapter-owned completion after return.
 
 ## Why this work was needed
 

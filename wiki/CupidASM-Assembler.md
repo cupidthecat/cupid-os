@@ -531,6 +531,9 @@ it through `<cupid_runtime.h>` before creating concurrent allocation users.
 The four allocation functions then serialize shared metadata. Streams and
 other runtime state retain their existing contracts. This does not change the
 installed bootstrap seeds; see [the record](../docs/bootstrap/HOSTED-HEAP-THREADS.md).
+The Windows callback fixture publishes completion after callback return and
+the final descriptor read. Its failure controls retain caller-owned storage
+when a wait fails; see [worker completion](../docs/bootstrap/WORKER-COMPLETION.md).
 
 CupidC emits the unchanged C source closures for CupidC, CupidASM, CupidDis,
 CupidLD, and CupidObj under the checked four-byte i386 Linux ABI. CupidASM

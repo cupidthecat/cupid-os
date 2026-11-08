@@ -134,6 +134,7 @@ unsigned int cupid_windows_find_next_file_wide(
 #define STILL_ACTIVE 259u
 #define WAIT_OBJECT_0 0u
 #define WAIT_TIMEOUT 258u
+#define WAIT_FAILED 0xffffffffu
 #define INFINITE 0xffffffffu
 #define STARTF_USESTDHANDLES 0x00000100u
 #define EXTENDED_STARTUPINFO_PRESENT 0x00080000u

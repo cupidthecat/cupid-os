@@ -347,7 +347,8 @@ class HostedThreadedHeapTests(HostedHeapTests):
 
     @unittest.skipUnless(os.name == 'nt', 'The callback adapter requires Windows')
     def test_windows_callback_stack_return_and_publication(self):
-        self.check_thread_program('abi', [], 0, 'pass thread_adapter callbacks=513 rejected=2\n')
+        self.check_thread_program('abi', [], 0,
+            'pass thread_adapter callbacks=513 rejected=3 completion=after_callback\n')
 
     @unittest.skipUnless(os.name == 'nt', 'The callback adapter requires Windows')
     def test_windows_heap_lock_excludes_reference_overlap(self):

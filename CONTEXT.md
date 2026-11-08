@@ -6,6 +6,12 @@ Cupid OS is an operating-system project pursuing a self-hosting toolchain. This 
 
 ### System and source
 
+**Worker completion marker**:
+An acquired indication that a callback has returned and its descriptor and
+context will no longer be accessed. It protects caller-owned storage
+independently of a successful operating-system wait.
+_Avoid_: thread termination, data-ready flag
+
 **Hosted heap threading mode**:
 A process-lifetime allocator mode enabled before additional heap users start.
 It serializes shared allocation metadata without extending the concurrency

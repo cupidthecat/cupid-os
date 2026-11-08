@@ -7,7 +7,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Root Make target: `all`
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 787
-- Unreachable source-like files: 79
+- Unreachable source-like files: 83
 - Reachable output transforms: 452
 - Distinct feature requirements: 255
 - Make conditionals use the canonical `OS=Windows_NT` graph and the C locale fixes wildcard order on every host. Direct Linux build tests cover the Linux execution branch.
@@ -57,7 +57,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
 | `toolchain_contract` | 24 | 168729 |
-| `toolchain_core` | 88 | 125199 |
+| `toolchain_core` | 88 | 125200 |
 | `toolchain_host_adapter` | 2 | 270 |
 | `toolchain_kernel_adapter` | 2 | 627 |
 | `user_program` | 3 | 139 |
@@ -106,7 +106,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.expression` | 2 | 7193 |
 | `c.extension` | 19 | 427 |
 | `c.initializer` | 1 | 690 |
-| `c.preprocessor` | 18 | 8550 |
+| `c.preprocessor` | 18 | 8551 |
 | `c.qualifier` | 2 | 19088 |
 | `c.storage` | 4 | 11743 |
 | `c.type` | 15 | 64084 |
@@ -173,7 +173,7 @@ It is also a declared Make prerequisite.
 | `historical_copy` | 7 |
 | `host_fixture` | 7 |
 | `host_oracle` | 2 |
-| `not_reached` | 56 |
+| `not_reached` | 60 |
 | `superseded` | 4 |
 
 An exact content match does not by itself prove semantic duplication; path-sensitive compatibility headers remain removal-blocked.
@@ -245,10 +245,14 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `toolchain/tests/hosted_fgets_contract.cc` | `cupid_c` | `not_reached` | 96 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/hosted_heap_density_contract.cc` | `cupid_c` | `not_reached` | 163 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/hosted_heap_fault_contract.cc` | `cupid_c` | `not_reached` | 128 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/hosted_heap_thread_contract.cc` | `cupid_c` | `not_reached` | 140 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/hosted_putchar_contract.cc` | `cupid_c` | `not_reached` | 29 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/hosted_strtoull_contract.cc` | `cupid_c` | `not_reached` | 46 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/hosted_update_modes_contract.cc` | `cupid_c` | `not_reached` | 46 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/hosted_wide_file_contract.cc` | `cupid_c` | `not_reached` | 110 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/hosted_windows_thread_adapter.asm` | `assembly` | `not_reached` | 74 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/hosted_windows_thread_contract.cc` | `cupid_c` | `not_reached` | 110 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/hosted_windows_thread_exit.asm` | `assembly` | `not_reached` | 38 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/iso_fixture_bundle_contract.cc` | `cupid_c` | `not_reached` | 188 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/native_utf8_argv_contract.cc` | `cupid_c` | `not_reached` | 7 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/native_utf8_fault_contract.cc` | `cupid_c` | `not_reached` | 124 | not reachable from the supported Make target or include closure |
@@ -272,7 +276,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 746 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 422 tracked + 4 generated translation units (KERNEL_I386=156, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, FREESTANDING_I386=1, CUPID_RUNTIME=108, HOSTED_TOOLCHAIN_64=0, HOSTED_KERNEL_BRIDGE_64=0, HOSTED_I386_LINUX=53, HOSTED_I386_WINDOWS=9, HOSTED_I386_KERNEL_BRIDGE=2, HOSTED_I386_LINUX_GNU=3, HOSTED_I386_WINDOWS_UTF8=1, HOSTED_I386_WINDOWS_PUBLICATION=1, HOSTED_I386_WINDOWS_BUILD=1, HOSTED_I386_WINDOWS_UTF8_GNU=1); 22 include-only, 2 non-root headers; 0 hosted deferred (0 external, 0 hermetic) |
-| `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable; 482 tracked .cc sources; 426 active with independent CupidC evidence; 56 unreachable |
+| `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable; 484 tracked .cc sources; 426 active with independent CupidC evidence; 58 unreachable |
 | `cupid_toolchain_fixed_point` | `pass` | 37 tool C sources (36 strict, 1 GNU); 6 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=8, cupidc=12, cupidbuild=23); 37 C objects and 1 startup object compared across stages; 6 tool images; 73 success and 66 failure cases; i386-linux |
 
 ## Interpretation limits

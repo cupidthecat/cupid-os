@@ -10183,7 +10183,7 @@ def _cupid_toolchain_fixed_point_contract(
     windows_publication_sources_match = all(
         (
             windows_publication_header_digest
-            == "09417243701c249da8e6f15036bde5debfe5ec648b75d449a4733296d7a3b6ce",
+            == "507b484c5355e7f33fb6e07935f9a8384478c6c2ca335c136c43e612479e6113",
             windows_publication_runtime_digest
             == "536fa0a609ddaf6fe90c3fb0696c8e66823284634b75811f03d275427187ad0c",
             windows_publication_start_digest

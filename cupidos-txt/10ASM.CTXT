@@ -621,6 +621,8 @@ Enable it before creating concurrent heap users. Allocation metadata is then
 serialized; streams and other runtime state retain their existing contracts.
 Installed bootstrap seeds are unchanged. The native image-owner candidate
 still needs integration and complete acceptance.
+Its Windows callback adapter publishes completion after callback return and
+the final descriptor access, retaining caller storage even after a failed wait.
 
 The repository runtime provides the checked file, heap, memory, string, errno,
 getcwd, and formatted-output calls used by those commands. It has unbuffered

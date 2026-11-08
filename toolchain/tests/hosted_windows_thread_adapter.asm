@@ -9,8 +9,8 @@ global cupid_windows_observer_thread_finished:function
 
 section .text
 
-; The descriptor contains a cdecl function and its argument. The caller owns
-; it through completion and join. Only the Windows entry uses callee cleanup.
+; Descriptor: cdecl function, argument, completion flag pointer. Caller owns
+; it until completion is acquired. Only the Windows entry uses callee cleanup.
 cupid_windows_observer_thread_open:
  push ebp
  mov ebp, esp
@@ -18,6 +18,8 @@ cupid_windows_observer_thread_open:
  test eax, eax
  jz .invalid
  cmp dword [eax], 0
+ je .invalid
+ cmp dword [eax + 8], 0
  je .invalid
  push dword 0
  push dword 0
@@ -42,6 +44,12 @@ cupid_windows_observer_thread_entry:
  push dword [eax + 4]
  call dword [eax]
  add esp, 4
+ ; Callback has returned. Read the final descriptor field before release;
+ ; no descriptor or callback context is accessed after the XCHG.
+ mov edx, [ebp + 8]
+ mov edx, [edx + 8]
+ mov ecx, 1
+ xchg dword [edx], ecx
  mov esp, ebp
  pop ebp
  ret 4

@@ -51,6 +51,8 @@ complete OS can rebuild itself from inside the guest.
 
 ## Records
 
+- [Worker completion](WORKER-COMPLETION.md): callback lifetime and real
+  worker-pool failure controls before source-owner integration.
 - [Hosted heap serialization](HOSTED-HEAP-THREADS.md): opt-in allocator locking
   and checked Windows worker tests; installed seeds remain unchanged.
 - [Private integer updates](PRIVATE-INTEGER-UPDATES.md): typed lvalue mutation
