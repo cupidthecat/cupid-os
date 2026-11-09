@@ -5914,8 +5914,10 @@ The SDK policy also recognizes the exact incoming owner-plan seed context.
 The shared reader still validates the selected cohort before capture; the
 native policy retains manifest/tool identity checks and complete stage-pair
 comparisons. Both 186-method native/Python selections and both 73-method
-Cupid-built author selections pass. Fresh complete ordinary/long publications
-remain open. The
+Cupid-built author selections pass. All four fresh complete ordinary/long
+publications also pass on native Windows and Linux. Independent review checks
+336 complete pairs, 88 ELF artifacts and four actual native author replays.
+Every profile publishes the same 22 artifact bytes. The
 [SDK policy record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SDK-OWNER-SEED-CONTEXT.md)
 retains the original failures and accepted correction.
 
@@ -5925,5 +5927,5 @@ and the actual native Windows Make target also pass. Independent review checks
 all 3,492 Make products and sixty final pairs. The original Windows CLI succeeds;
 its old runtime-PE test golden is corrected from two retained qualified images.
 The [entry record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-PUBLIC-ENTRYPOINTS.md)
-retains the failure and rerun. Actual Linux Make and complete SDK publication
+retains the failure and rerun. Actual Linux Make and final repository checks
 remain separate from installed seed adoption.

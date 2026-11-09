@@ -43,4 +43,5 @@ retains 3,524 file records, 32 embedded payloads and 530 references to the
 qualified producer archive. It includes complete native Make products, fixture
 sources, guarded receipts, logs and independent review. Its SHA-256 is
 `2349ce315c0cc53f2e8a4c647eb2f721d5b4f7b3cce583341ffeb2f3659af274`.
-Complete SDK publication and installed seed adoption remain separate gates.
+The [four SDK publications](SOURCE-OWNER-SDK-PUBLICATIONS.md) pass their separate
+acceptance. Installed seed adoption remains open.

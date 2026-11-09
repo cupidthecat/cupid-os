@@ -1,5 +1,15 @@
 # Bootstrapping log
 
+## 2026-11-09: Accept all four source-owner SDK publications
+
+Fresh complete ordinary/long SDK builds pass on native Windows and Linux under
+the original bounds. Independent review accepts all 336 final-stage pairs,
+88 static i386 ELF products and four actual native author replays. All profiles
+publish the same 22 artifact bytes; six tools match the qualified Linux cohort.
+The [publication record](SOURCE-OWNER-SDK-PUBLICATIONS.md) retains complete
+products, requests and immutable source controls. Installed seeds remain
+unchanged while current repository replays and final cohort acceptance proceed.
+
 ## 2026-11-09: Accept current public bootstrap fixtures
 
 Historical disk fixtures now retain their exact source/link shape while current

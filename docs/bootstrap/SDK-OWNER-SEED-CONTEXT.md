@@ -47,9 +47,10 @@ remain recorded.
 This contract source is outside the 114 qualified producer inputs. Independent
 rereading confirms those inputs are unchanged, so the six-tool qualification
 remains separate from SDK policy acceptance. All fifteen installed seed files
-remain unchanged. Four fresh ordinary/long SDK builds now run in isolated
-checkouts with the corrected policy and original timeouts. Complete publication
-acceptance and seed adoption remain open.
+remain unchanged. Four fresh ordinary/long SDK builds pass in isolated checkouts
+with the corrected policy and original timeouts. Their
+[complete publication acceptance](SOURCE-OWNER-SDK-PUBLICATIONS.md) includes all
+336 final-stage pairs and four actual author replays. Seed adoption remains open.
 
 The [policy evidence](evidence/sdk-owner-context-policy-20261109.json.gz)
 retains the original full failures, 168 converged pairs, focused requests,

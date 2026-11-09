@@ -12,8 +12,9 @@ Cupid OS remains unfinished.
 - Source-owner modules are in current producer plans, and paired named
   preparations reach a fixed point. The C reader now recognizes their exact
   behavior profiles. Both refreshed full qualifications pass. Replacement-tool
-  cold OS/user consumers and four private boots also pass. SDK publication,
-  complete public-entry checks and the normal image-command handoff remain open.
+  cold OS/user consumers and four private boots also pass, along with four SDK
+  publication profiles. Full current repository replays, installed seed adoption
+  and the normal image-command handoff remain open.
 - The private in-OS compiler supports halfword storage, integer array lists
   and typed native calls. Its remaining language gaps and guest acceptance
   are separate from hosted compiler fixed points. The shell can inspect
@@ -55,6 +56,8 @@ complete OS can rebuild itself from inside the guest.
 
 - [SDK owner-seed context](SDK-OWNER-SEED-CONTEXT.md): exact captured-plan support,
   original full publication failures and native/Cupid-built policy checks.
+- [Four SDK publications](SOURCE-OWNER-SDK-PUBLICATIONS.md): complete paired
+  ordinary/long builds, retained stage pairs and actual author replays.
 - [Current private wide stores](PRIVATE-WIDE-STORES-CURRENT.md): retained
   extents, precise timestamps, executable marking and concurrent store checks.
 - [Current checked-output transfer](PRIVATE-OUTPUT-TRANSFER-CURRENT.md): retained

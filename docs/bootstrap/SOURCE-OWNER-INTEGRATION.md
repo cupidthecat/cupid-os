@@ -212,8 +212,9 @@ The [cold-consumer evidence](evidence/source-owner-cold-consumers-20261109.json.
 retains complete receipts, source controls, user products and serial logs. It
 references unchanged object and kernel payloads in the first-consumer archive.
 Its SHA-256 is `a90f33724ea1816ae7d568969182bdc5310986dd6ce43e9e557c34bb7f3f5e04`.
-Ordinary/long SDK publications, complete public bootstrap methods and seed
-installation remain open. The first SDK attempt rejected the fixture's output
+The later [four SDK publications](SOURCE-OWNER-SDK-PUBLICATIONS.md) and paired
+public bootstrap methods now pass. Seed installation remains open. The first
+SDK attempt rejected the fixture's output
 name before building; its corrected output uses a dedicated `cupidc-contracts`
 directory. Production seed files remain unchanged.
 
@@ -221,20 +222,21 @@ directory. Production seed files remain unchanged.
 
 The [public entry record](SOURCE-OWNER-PUBLIC-ENTRYPOINTS.md) retains the accepted
 paired full CLI methods, historical/current fixture selections and actual native
-Windows Make reconstruction. Fresh native Linux Make and complete SDK
-publications remain separate checks.
+Windows Make reconstruction. Fresh native Linux Make remains a separate check.
 
 Both first ordinary SDK builds complete their stage pairs and runtime checks,
 then reject the captured incoming owner-plan context. The
 [SDK policy correction](SDK-OWNER-SEED-CONTEXT.md) retains that failure and its
 focused native/Cupid-built acceptance. Fresh complete ordinary/long publications
-remain in progress. This changes the SDK contract source outside the qualified
+now pass with independent byte and author replay checks. This changes the SDK
+contract source outside the qualified
 114-input producer closure; installed seed files remain unchanged.
 
 Complete repository replays and replacement-tool consumers remain required
 before seed adoption. Cold OS/user builds and private runtime checks now use
-the qualified replacement tools and pass; SDK and complete public-entry checks
-remain separate gates.
+the qualified replacement tools and pass. Four complete SDK profiles and paired
+full public CLI methods also pass; fresh native Linux Make and complete current
+repository replays remain separate gates.
 
 Image publication, full-width retained stores, the normal image CLI/Make
 handoff and the three Python coordinators remain open. The normal graph still
