@@ -7,6 +7,7 @@ import os
 import shutil
 import struct
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -1926,7 +1927,7 @@ class CupidObjHostedCliTests(unittest.TestCase):
             actual = root / "actual.cc"
             oracle = subprocess.run(
                 [
-                    shutil.which("python") or "python",
+                    sys.executable,
                     str(REPO_ROOT / "tools" / "hostbuild.py"),
                     "gen-demos-programs",
                     "--out",
@@ -1984,7 +1985,7 @@ class CupidObjHostedCliTests(unittest.TestCase):
             ]
             oracle = subprocess.run(
                 [
-                    shutil.which("python") or "python",
+                    sys.executable,
                     str(REPO_ROOT / "tools" / "hostbuild.py"),
                     "gen-bin-programs",
                     "--out",
@@ -2043,7 +2044,7 @@ class CupidObjHostedCliTests(unittest.TestCase):
             ]
             oracle = subprocess.run(
                 [
-                    shutil.which("python") or "python",
+                    sys.executable,
                     str(REPO_ROOT / "tools" / "hostbuild.py"),
                     "gen-docs-programs",
                     "--out",
@@ -2147,7 +2148,7 @@ class CupidObjHostedCliTests(unittest.TestCase):
                 second = root / f"{mode}-second.cc"
                 oracle = subprocess.run(
                     [
-                        shutil.which("python") or "python",
+                        sys.executable,
                         str(REPO_ROOT / "tools" / "hostbuild.py"),
                         oracle_command,
                         "--out",
@@ -2311,7 +2312,7 @@ class CupidObjHostedCliTests(unittest.TestCase):
 
                     oracle = subprocess.run(
                         [
-                            shutil.which("python") or "python",
+                            sys.executable,
                             str(REPO_ROOT / "tools" / "hostbuild.py"),
                             commands[mode],
                             "--out",

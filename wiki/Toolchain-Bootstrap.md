@@ -5967,3 +5967,10 @@ Complete native-host replays cover all ten selected methods. Both actual user
 Make ABI targets pass with Python and nine conventional producers forbidden,
 agreeing on all 103 fields and 101 providers. The active checked recipe keeps
 its existing input selection.
+
+Historical release tests now keep image imports consistent with their declared
+plans, including rejection when hashes match but worker imports do not. Both
+native hosts pass the complete Cupid-built ABI module with the current Windows
+worker bridge. Sparse-file checks and Python oracles use portable host fixtures.
+The [image-profile record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-IMAGE-PROFILE-FIXTURES.md)
+retains the original failures; complete repository acceptance remains open.

@@ -72,6 +72,8 @@ complete OS can rebuild itself from inside the guest.
   fixtures, paired full CLI checks and both native Make reconstructions.
 - [Current fixture inventories](SOURCE-OWNER-INVENTORY-FIXTURES.md): exact source
   counts, observer-worker selection and paired native/Cupid-built checks.
+- [Image-profile fixtures](SOURCE-OWNER-IMAGE-PROFILE-FIXTURES.md): historical
+  imports, checked worker links and portable verification dependencies.
 - [Private integer updates](PRIVATE-INTEGER-UPDATES.md): typed lvalue mutation
   with paired-host source checks and installed JIT/AOT evidence.
 - [Private pointer difference](PRIVATE-POINTER-DIFFERENCE.md): signed element

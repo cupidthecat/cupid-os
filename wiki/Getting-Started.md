@@ -27,10 +27,11 @@ sudo apt-get install python3 make qemu-system-x86
 ```
 
 Install native compiler and comparison tools only when you plan to run the
-optional oracle targets:
+optional oracle targets. The complete `make test` suite includes native
+compiler comparisons too:
 
 ```bash
-sudo apt-get install gcc gcc-multilib binutils nasm
+sudo apt-get install gcc gcc-multilib clang binutils nasm
 ```
 
 ### Arch Linux
@@ -41,7 +42,7 @@ sudo pacman -S python make qemu-full
 The optional native oracles also use GCC, binutils, or NASM:
 
 ```bash
-sudo pacman -S gcc binutils nasm
+sudo pacman -S gcc clang binutils nasm
 ```
 
 ### Native Windows

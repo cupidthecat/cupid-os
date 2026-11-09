@@ -171,6 +171,28 @@ class CupidBuildArtifactTests(unittest.TestCase):
         image.write_bytes(payload)
         self.assertEqual(self.selected_cli().returncode, 0)
 
+    def test_historical_release_rejects_worker_image_even_with_matching_claims(self):
+        from tests.artifact_release_fixtures import replace_fixture_tool
+        from tests.test_toolchain_bootstrap_seed import ToolchainBootstrapSeedCliTests
+        from tools import bootstrap_toolchain as bootstrap
+        self.install_future_fixture(new_parent=True)
+        self.assertEqual(self.selected_cli().returncode, 0)
+        image = bytes(ToolchainBootstrapSeedCliTests._minimal_cupidbuild_profile_pe32(
+            bootstrap._windows_profile_imports("cupidbuild", utf8=True,
+                long_paths=True, user_link_aliases=True, observer_workers=True)))
+        replace_fixture_tool(self.root / "bootstrap/seeds/i386-windows/manifest.json",
+                             self.root / "bootstrap/seeds/release.json",
+                             "cupidbuild", "pe32", image)
+        policy = json.loads((self.root / self.policy).read_bytes())
+        artifact = next(row for row in policy["artifacts"]
+                        if row["path"] == "bootstrap/seeds/i386-windows/cupidbuild.exe")
+        artifact["exact_bytes"] = len(image)
+        (self.root / self.policy).write_text(json.dumps(policy), encoding="utf-8")
+        result = self.selected_cli()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, b"")
+        self.assertIn(b"seed image differs from the reviewed manifest or image profile", result.stderr)
+
     def test_selected_execution_accepts_current_cohort(self):
         result = self.selected_cli()
         self.assertEqual(result.returncode, 0, result.stderr)

@@ -1,4 +1,4 @@
-"""Synthetic release claims with real installed images for verifier boundary tests."""
+"""Synthetic release claims and coherent image profiles for verifier boundary tests."""
 import hashlib
 import json
 
@@ -85,6 +85,23 @@ def install_future_fixture(root, *, new_parent=False):
         parent_execution_seed_manifest_sha256=record["parent_windows_manifest_sha256"],
         parent_plan_seed_source_revision=record["parent_source_revision"],
         parent_plan_seed_manifest_sha256=record["parent_linux_manifest_sha256"])
+    # This fixture keeps the earlier 82-input ABI plan. Its verifier does not
+    # execute these images, so use an exact import-profile image for CupidBuild
+    # rather than copying a newer worker-enabled program into that older plan.
+    from tests.test_toolchain_bootstrap_seed import ToolchainBootstrapSeedCliTests
+    from tools import bootstrap_toolchain as bootstrap
+    image = bytes(ToolchainBootstrapSeedCliTests._minimal_cupidbuild_profile_pe32(
+        bootstrap._windows_utf8_imports("cupidbuild", long_paths=True,
+                                        user_link_aliases=True)))
+    artifact = next(row for row in windows["artifacts"] if row["name"] == "cupidbuild")
+    (root / "bootstrap/seeds/i386-windows" / artifact["file"]).write_bytes(image)
+    artifact.update(size=len(image), sha256=hashlib.sha256(image).hexdigest())
+    policy_path = root / "bootstrap/artifact-size-policy.json"
+    policy = json.loads(policy_path.read_bytes())
+    row = next(row for row in policy["artifacts"]
+               if row["path"] == "bootstrap/seeds/i386-windows/" + artifact["file"])
+    row["exact_bytes"] = len(image)
+    policy_path.write_text(json.dumps(policy, indent=2) + "\n", encoding="utf-8")
     record["artifacts"] = [
         {"name": row["name"], "format": fmt, "size": row["size"], "sha256": row["sha256"]}
         for fmt, document in (("elf32", linux), ("pe32", windows))

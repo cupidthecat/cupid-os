@@ -120,6 +120,11 @@ class SeedImageProfileTests(unittest.TestCase):
                 manifest = json.loads((ROOT / 'bootstrap/seeds/i386-windows/manifest.json').read_bytes())
                 digest = manifest['provenance']['native_build_plan_sha256']
                 current = {
+                    '0bf4abe248c229212b59293572a8437fc7fda357a642c550e334189a1be4332b': 6,
+                    '17664a10f3d08b88d57a0be8d2824859faa8cbc3503fcd9bae73a60e6b857ca1': 7,
+                    'f6465323611c509813922af67c31282fb30da97c0fd1c808118127656e8f9353': 8,
+                    'f5a6202d1bd694b062d3c70552441e833a0c6bdc4afde753e82c62797454f641': 9,
+                    'edf91edb181c104e9762ac7f68c4636b5da153ac43e24f1d4dc941424f96e63c': 10,
                     '70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9': 1,
                     'a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99': 2,
                     '6aba99be40f915aa2adcb92ecb8341bef6f4a8a290e275fe47823ad380bd3748': 2,

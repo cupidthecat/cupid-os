@@ -72,7 +72,9 @@ class HostedWideFileIOTests(unittest.TestCase):
             cls.products = Path(os.environ['CUPID_WIDE_FILE_PRODUCTS']).resolve()
             cls.products.mkdir(parents=True, exist_ok=True)
         else:
-            base = REPO_ROOT / 'build'
+            # POSIX sparse files need a native filesystem when the checkout is
+            # on a mounted Windows drive. Keep explicit product paths intact.
+            base = REPO_ROOT / 'build' if os.name == 'nt' else Path(tempfile.gettempdir())
             base.mkdir(exist_ok=True)
             cls.temporary = tempfile.TemporaryDirectory(prefix='wide-file-contract-', dir=base)
             cls.products = Path(cls.temporary.name)

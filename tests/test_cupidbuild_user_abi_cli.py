@@ -27,7 +27,8 @@ class CupidBuiltUserAbiCommandTests(unittest.TestCase):
         installed = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
         plan = bootstrap._candidate_build_plan(installed)
         if os.name == "nt":
-            plan = bootstrap._windows_build_plan(plan, utf8=True, user_link_aliases=True)
+            plan = bootstrap._windows_build_plan(plan, utf8=True, user_link_aliases=True,
+                                                  observer_workers=True)
         order = plan["links"]["cupidbuild"]
         rows = [row for row in plan["sources"] if row["name"] in order]
         assembly = [row for row in plan.get("assembly_sources", [
@@ -61,11 +62,13 @@ class CupidBuiltUserAbiCommandTests(unittest.TestCase):
             bootstrap._validate_i386_relocatable(output)
         if os.name == "nt":
             arguments = bootstrap._windows_link_arguments("cupidbuild", cls.program, objects, order,
-                                                          utf8=True, user_link_aliases=True)
+                                                          utf8=True, user_link_aliases=True,
+                                                          observer_workers=True)
             contract._run_checked_tool(checked, runner, "cupidld", arguments, "ABI command", 180)
             bootstrap._validate_static_i386_pe32(
                 cls.program, int(bootstrap.EXPECTED_WINDOWS_TARGET["entry"]),
-                bootstrap._windows_utf8_imports("cupidbuild", user_link_aliases=True))
+                bootstrap._windows_profile_imports("cupidbuild", utf8=True,
+                    user_link_aliases=True, observer_workers=True))
         else:
             contract._link_contract(checked, runner, [objects[name] for name in order], cls.program, False, 180)
             cls.program.chmod(0o700)

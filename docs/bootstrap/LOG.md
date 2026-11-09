@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-09: Keep verifier images and test hosts consistent
+
+Historical release fixtures now carry exact matching imports, and the current
+seed-image fixture selects all five worker profiles. A matching-hash worker
+image still rejects under the historical plan. The actual Cupid-built ABI
+command includes its worker bridge and passes its complete ten-method module
+on both hosts. Python oracles use the running interpreter, and POSIX wide-file
+fixtures retain all sparse/I/O assertions on native temporary storage. The
+[fixture record](SOURCE-OWNER-IMAGE-PROFILE-FIXTURES.md) retains the missing-bridge
+failure, corrected checks and full Linux replay. Other full-suite failures and
+installed seed adoption remain open.
+
 ## 2026-11-09: Refresh the guest guide and close original range replays
 
 The guide now includes SDK/public-entry acceptance and the combined retained
