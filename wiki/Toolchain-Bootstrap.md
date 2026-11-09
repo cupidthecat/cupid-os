@@ -6029,3 +6029,16 @@ match independent reconstruction. A four-CPU save/quit/`ls` run and an
 exact-image reboot/load/quit/`ls` run pass with all 62 TLS checks. The
 [input record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/DOOM-KEYBOARD-AND-HANDOFF.md)
 keeps full gameplay, audio quality, timedemo completion and seed adoption open.
+
+### Verification across seed generations
+
+Current verification keeps explicit release authority, all eight sealed runner
+inputs and all 194 active preprocessor vectors. The optional NASM boot oracle
+permits adjacent operand/address size-prefix ordering only inside strictly
+validated 16-bit instructions; the frozen CupidASM hash and all other bytes
+remain exact. Historical Windows API checks use the actual pre-worker
+CupidBuild profile separately from current tools. Complete 200-method native
+selections and sixteen release-operation methods pass. The
+[verification record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FINAL-REPLAY-VERIFICATION-FIXTURES.md)
+retains original failures and the open DrvFS parent-drift probe. Fresh full
+repository replays and installed seed adoption remain required.

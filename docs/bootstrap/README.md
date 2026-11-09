@@ -55,6 +55,10 @@ complete OS can rebuild itself from inside the guest.
 
 ## Records
 
+- [Verification across seed generations](FINAL-REPLAY-VERIFICATION-FIXTURES.md):
+  explicit release authority, exact sealed inputs, boot prefix comparison and
+  historical Windows compatibility, with full-replay limits retained.
+
 - [Doom keyboard and handoff](DOOM-KEYBOARD-AND-HANDOFF.md): complete key mapping,
   default save-name input, physical save/reboot checks and clean shell return.
 

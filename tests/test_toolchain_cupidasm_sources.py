@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from tools import bootstrap_baseline
+from tests.raw_x86_oracle import canonicalize_size_prefix_order
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -460,8 +461,9 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
             for fixture in RAW_FIXTURES:
                 with self.subTest(source=fixture["source"].relative_to(REPO_ROOT)):
                     cupid_path = root / f"{fixture['name']}.cupid.bin"
+                    range_map = root / f"{fixture['name']}.cupidmap"
                     cupid = self._assemble(
-                        (str(self.cli_path),),
+                        (str(self.cli_path), "--map", str(range_map)),
                         fixture["source"],
                         cupid_path,
                         "bin",
@@ -474,13 +476,70 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                         self.nasm_command is not None
                         and fixture.get("nasm_oracle", True)
                     ):
+                        oracle_path = root / f"{fixture['name']}.nasm.bin"
                         oracle = self._assemble(
                             self.nasm_command,
                             fixture["source"],
-                            root / f"{fixture['name']}.nasm.bin",
+                            oracle_path,
                             "bin",
                         )
-                        self.assertEqual(cupid, oracle)
+                        if fixture["name"] == "boot" and cupid != oracle:
+                            # NASM 3.01 commutes 66/67 in BITS 16. Keep the
+                            # frozen Cupid hash and compare every other byte.
+                            self.assertEqual(
+                                self._canonical_boot_image(cupid_path, range_map),
+                                self._canonical_boot_image(oracle_path, range_map),
+                            )
+                        else:
+                            self.assertEqual(cupid, oracle)
+
+    def _canonical_boot_image(self, image, range_map):
+        command = [str(self.dis_path), "--raw", "--range-map", str(range_map)]
+        checked = subprocess.run(
+            [*command, "--require-known", "--require-local-targets",
+             "--require-source-edges", str(image)],
+            cwd=REPO_ROOT, text=True, capture_output=True,
+        )
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        rendered = subprocess.run(
+            [*command, str(image)], cwd=REPO_ROOT, text=True, capture_output=True,
+        )
+        self.assertEqual(rendered.returncode, 0, rendered.stderr)
+        return canonicalize_size_prefix_order(
+            image.read_bytes(), range_map.read_text(encoding="ascii"), rendered.stdout,
+        )
+
+    def test_boot_oracle_prefix_rule_preserves_data_and_instruction_bytes(self):
+        with tempfile.TemporaryDirectory(prefix="cupidasm-boot-oracle-") as directory:
+            root = Path(directory)
+            image = root / "boot.bin"
+            range_map = root / "boot.cupidmap"
+            original = self._assemble(
+                (str(self.cli_path), "--map", str(range_map)),
+                REPO_ROOT / "boot" / "boot.asm", image, "bin",
+            )
+            baseline = self._canonical_boot_image(image, range_map)
+            prefix = bytes.fromhex("3e66678b06")
+            self.assertEqual(original.count(prefix), 1)
+            offset = original.index(prefix)
+            commuted = bytearray(original)
+            commuted[offset + 1:offset + 3] = bytes.fromhex("6766")
+            variant = root / "commuted.bin"
+            variant.write_bytes(commuted)
+            self.assertEqual(self._canonical_boot_image(variant, range_map), baseline)
+            data_offset = next(
+                int(line.split()[1], 0)
+                for line in range_map.read_text(encoding="ascii").splitlines()
+                if line.startswith("range ") and line.endswith(" data")
+            )
+            for name, position in [("data", data_offset), ("operand", offset + 4)]:
+                with self.subTest(changed=name):
+                    changed = bytearray(commuted)
+                    changed[position] ^= 1
+                    variant.write_bytes(changed)
+                    self.assertNotEqual(
+                        self._canonical_boot_image(variant, range_map), baseline,
+                    )
 
     def test_smp_map_drives_strict_source_derived_inspection(self):
         with tempfile.TemporaryDirectory(

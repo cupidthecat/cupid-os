@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-09: Preserve verification across seed generations
+
+The corrected fixtures pass complete 200-method selections on both native
+hosts and sixteen release-operation methods across prospective and installed
+cohorts. Strict boot comparison permits only validated 16-bit size-prefix
+ordering; all other bytes and the frozen boot hash remain exact. Explicit
+release authority, eight sealed inputs and all 194 preprocessor vectors retain
+their rejection checks. The [verification record](FINAL-REPLAY-VERIFICATION-FIXTURES.md)
+keeps the original full failures, independent archive review and unresolved
+DrvFS parent-drift probe explicit. Producer inputs and OS bytes are unchanged;
+fresh full replays and installed seed adoption remain open.
+
 ## 2026-11-09: Repair Doom keys, save names and the input handoff
 
 Doom now receives the complete letter/digit map and correct engine control

@@ -62456,7 +62456,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "7ffb24e31ed2eb436f06423db9a8a954cb74254a0ded3faf1928a8991d78e79f",
+    "active_source_digest": "6cea750db72a7b2b44730326637fb1eebf6f6c6c4bfa7ca2684c4cbda25857cc",
     "control_files": [
       {
         "path": "Makefile",
@@ -91377,7 +91377,7 @@
       "path": "toolchain/tests/cupidc_pp_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "8adcc630e88a7ff10892f140a065827feeca7e89aac45671c1a73b9245ee6b30"
+      "sha256": "66a93b46697bcd8e9bc127fbeee2e74c82247c2c7676cc07821f454c373585a8"
     },
     {
       "build_owners": [

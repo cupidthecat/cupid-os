@@ -2947,14 +2947,14 @@ int main(int argc, char **argv) {
   int index;
   int child_status = 0;
   int failure = 0;
-  if (argc != 3) return 91;
+  if (argc != 4) return 91;
   request.seed_manifest = argv[1];
   request.working_directory = argv[2];
   request.tool = "cupidobj";
   request.arguments = arguments;
   request.timeout_seconds = 1u;
   descriptors_before = descriptor_count();
-  status = cupidbuild_run_checked_tool(&request);
+  status = cupidbuild_run_checked_tool_with_release(&request, argv[3]);
   if (status != 1 || !child_was_live || !child_was_killed) failure = 92;
   errno = 0;
   if (__real_waitpid(observed_child, &child_status, WNOHANG) != -1 ||
@@ -3004,7 +3004,7 @@ int main(int argc, char **argv) {
             environment["CUPIDBUILD_PUBLICATION_TEST_READY"] = str(ready)
             environment["CUPIDBUILD_PUBLICATION_TEST_RESUME"] = str(root / "resume")
             result = subprocess.run(
-                [str(executable), str(manifest), str(root)],
+                [str(executable), str(manifest), str(root), str(root / "release.json")],
                 cwd=root, env=environment, text=True, capture_output=True, timeout=10,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -3253,7 +3253,14 @@ int main(int argc, char **argv) {
                     and "cupidbuild-stdout" not in link
                     and "cupidbuild-stderr" not in link
                 ]
-                self.assertEqual(len(frozen), 7)
+                self.assertCountEqual(
+                    [links[path] for path in frozen],
+                    [f"/memfd:{name} (deleted)" for name in (
+                        "manifest.json", "seed-release.json", "cupidasm.elf",
+                        "cupidc.elf", "cupiddis.elf", "cupidld.elf",
+                        "cupidobj.elf", "cupidbuild.elf",
+                    )],
+                )
                 for path in frozen:
                     descriptor = os.open(path, os.O_RDONLY)
                     try:

@@ -1,6 +1,7 @@
 """Caller-authorized releases across the real typed seeded transactions."""
 
 import copy
+import gzip
 import hashlib
 import json
 import os
@@ -85,6 +86,23 @@ class CupidBuildSeedReleaseOperationsTests(unittest.TestCase):
                    if row['name'] == 'cupidld' and row['format'] == ('pe32' if os.name == 'nt' else 'elf32'))
         row.update(size=len(payload), sha256=digest)
         self.release.write_text(json.dumps(self.record) + '\n', encoding='utf-8')
+        if os.name == 'nt':
+            # The historical plan predates observer-worker imports. Preserve
+            # its actual 4cb7bc80 producer image independently of seed adoption.
+            historical_directory = self.root / 'historical-seed'
+            shutil.copytree(self.root / 'seed', historical_directory)
+            self.historical = historical_directory / 'historical.json'
+            payload = gzip.decompress((ROOT / 'tests/fixtures/'
+                'seed-cupidbuild-pre-owner-windows.exe.gz').read_bytes())
+            digest = hashlib.sha256(payload).hexdigest()
+            self.assertEqual((len(payload), digest), (1117184,
+                'b5349a0f302e4ab98d081f5aaf1670d8fb20022d51795e22baf15b3a4218d4ad'))
+            (historical_directory / 'cupidbuild.exe').write_bytes(payload)
+            document = json.loads(self.historical.read_bytes())
+            row = next(row for row in document['artifacts']
+                       if row['name'] == 'cupidbuild')
+            row.update(size=len(payload), sha256=digest)
+            self.historical.write_text(json.dumps(document) + '\n', encoding='utf-8')
 
     def tool(self, name):
         suffix = '.exe' if os.name == 'nt' else '.elf'
