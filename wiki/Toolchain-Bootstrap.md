@@ -5938,3 +5938,11 @@ retains the failure and rerun. The actual Linux Make target also passes with
 all nine conventional producers forbidden. Independent review checks its 4,423
 published files and 51 final object/tool pairs against the qualified Linux
 cohort. Full current repository checks and installed seed adoption remain open.
+
+Current source-owner fixture checks select observer workers from the exact seed
+profile and include all later source modules. Both 65-test selections pass,
+alongside eight actual Cupid-built conditional executions. Exact inventories,
+negative checks and generated/checked comparisons remain enforced. The
+[fixture record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-INVENTORY-FIXTURES.md)
+retains the failures and source reconciliation; other full-replay failures
+remain under investigation.

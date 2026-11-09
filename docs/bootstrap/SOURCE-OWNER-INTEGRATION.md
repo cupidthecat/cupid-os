@@ -239,6 +239,10 @@ the qualified replacement tools and pass. Four complete SDK profiles and paired
 full public CLI methods and both native Make targets also pass. Complete current
 repository replays remain required before adoption.
 
+The [current fixture checks](SOURCE-OWNER-INVENTORY-FIXTURES.md) now pass on
+both hosts. They correct exact historical inventories and worker selection;
+other failures from the complete replays remain under investigation.
+
 Image publication, full-width retained stores, the normal image CLI/Make
 handoff and the three Python coordinators remain open. The normal graph still
 has 449 CupidBuild transforms and three Python transforms. Installed seed files

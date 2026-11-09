@@ -14,6 +14,7 @@ from unittest import mock
 
 from tools import bootstrap_stage_release as release
 from tools import bootstrap_toolchain as seed
+from tests.bootstrap_seed_fixture_profiles import observer_workers_for_seed
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,8 +33,11 @@ class BootstrapBehaviorContextTests(unittest.TestCase):
         self.record = self.root / 'release.json'
         self.record.write_bytes(RELEASE.read_bytes())
         self.plan = self.linux.manifest['build_plan']
+        provenance = self.windows.manifest['provenance']
+        self.observer_workers = observer_workers_for_seed(
+            provenance['native_build_plan_sha256'], provenance['source_input_count'])
         self.windows_plan = seed._windows_build_plan(self.plan, utf8=True,
-            long_paths=True, user_link_aliases=True)
+            long_paths=True, user_link_aliases=True, observer_workers=self.observer_workers)
 
     def request(self, paired=True):
         return release.capture_seed_behavior_release(self.record, self.linux,
@@ -72,7 +76,7 @@ class BootstrapBehaviorContextTests(unittest.TestCase):
 
     def test_other_windows_profile_cannot_reuse_this_release(self):
         other_plan = seed._windows_build_plan(self.plan, utf8=True,
-            long_paths=False, user_link_aliases=True)
+            long_paths=False, user_link_aliases=True, observer_workers=self.observer_workers)
         with self.assertRaisesRegex(seed.BootstrapError, 'plan differs'):
             self.authorize(self.request(), 'pe32', windows_plan=other_plan)
 

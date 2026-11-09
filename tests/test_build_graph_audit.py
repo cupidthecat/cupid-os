@@ -2573,7 +2573,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8")
             )
             contract = generated["contracts"]["c_preprocessor_line_directives"]
-            self.assertEqual(contract["source_files"], 745)
+            self.assertEqual(contract["source_files"], 758)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -2594,7 +2594,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 745 source files; max conditional depth 0",
+                "0 numeric markers; 758 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2950,11 +2950,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 452)
+            self.assertEqual(contract["if_occurrences"], 472)
             self.assertEqual(contract["elif_occurrences"], 24)
-            self.assertEqual(contract["expression_occurrences"], 476)
-            self.assertEqual(contract["unique_expressions"], 61)
-            self.assertEqual(contract["directive_expression_pairs"], 64)
+            self.assertEqual(contract["expression_occurrences"], 496)
+            self.assertEqual(contract["unique_expressions"], 63)
+            self.assertEqual(contract["directive_expression_pairs"], 66)
             executable_contract = CUPIDC_PP_CONTRACT.read_text(encoding="utf-8")
             totals_guard = re.search(
                 r"sizeof\(cases\) / sizeof\(cases\[0\]\)\) != (\d+)u \|\|"
@@ -3051,6 +3051,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "defined ( CUPIDBUILD_HOST_NATIVE_EINTR_TEST )": 0,
                     "defined ( CUPID_RUNTIME_WINDOWS )": 0,
                     "defined ( CUPIDBUILD_CUSTOM_LINUX )": 0,
+                    "defined ( CUPIDBUILD_DIRECTORY_SNAPSHOT_TEST )": 0,
+                    "defined ( CUPID_HOSTED_I386_WINDOWS_H )": 0,
                     "defined ( CUPIDBUILD_HOST_CLOSE_FAILURE_TEST )": 0,
                     "defined ( CUPIDBUILD_HOST_CLOSE_FAILURE_TEST ) && "
                     "! defined ( _WIN32 )": 0,
@@ -4454,10 +4456,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 745)
-            self.assertEqual(contract["include_occurrences"], 2608)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2280)
-            self.assertEqual(contract["direct_angle_occurrences"], 328)
+            self.assertEqual(contract["source_files"], 758)
+            self.assertEqual(contract["include_occurrences"], 2640)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2297)
+            self.assertEqual(contract["direct_angle_occurrences"], 343)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(
@@ -5119,7 +5121,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "CUPID_RUNTIME": 108,
                 "HOSTED_TOOLCHAIN_64": 0,
                 "HOSTED_KERNEL_BRIDGE_64": 0,
-                "HOSTED_I386_LINUX": 53,
+                "HOSTED_I386_LINUX": 59,
                 "HOSTED_I386_WINDOWS": 9,
                 "HOSTED_I386_KERNEL_BRIDGE": 2,
                 "HOSTED_I386_LINUX_GNU": 3,
@@ -5129,7 +5131,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "HOSTED_I386_WINDOWS_UTF8_GNU": 1,
             },
         )
-        self.assertEqual(len(active), 422)
+        self.assertEqual(len(active), 428)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.cc"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),

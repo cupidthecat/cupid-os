@@ -1,5 +1,16 @@
 # Bootstrapping log
 
+## 2026-11-09: Match test inventories to the current source cohort
+
+The behavior fixture now derives its observer-worker flag from the selected
+seed profile. Source audit expectations also include the thirteen later files,
+six hosted owner modules and two conditional expressions. All exact inventory,
+summary, profile and negative-path assertions remain. Both 65-test prospective
+selections and eight real Cupid-built conditional executions pass. The
+[fixture record](SOURCE-OWNER-INVENTORY-FIXTURES.md) preserves the original
+failures, source reconciliation and corrected checks. Full repository replays
+and installed seed adoption remain open.
+
 ## 2026-11-09: Retire verified redundant payloads
 
 Four superseded large store outputs are removed after complete old/replacement

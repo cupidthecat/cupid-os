@@ -68,6 +68,8 @@ complete OS can rebuild itself from inside the guest.
   flexible members, compiler-first stages and remaining acceptance.
 - [Public bootstrap entries](SOURCE-OWNER-PUBLIC-ENTRYPOINTS.md): historical
   fixtures, paired full CLI checks and both native Make reconstructions.
+- [Current fixture inventories](SOURCE-OWNER-INVENTORY-FIXTURES.md): exact source
+  counts, observer-worker selection and paired native/Cupid-built checks.
 - [Private integer updates](PRIVATE-INTEGER-UPDATES.md): typed lvalue mutation
   with paired-host source checks and installed JIT/AOT evidence.
 - [Private pointer difference](PRIVATE-POINTER-DIFFERENCE.md): signed element
