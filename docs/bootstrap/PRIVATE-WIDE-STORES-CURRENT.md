@@ -59,12 +59,51 @@ reread also initially assumes rejected metadata drift leaves no private entries;
 the corrected review records preserved entries and still checks the original
 public payload. The failed fixtures and probes remain in the evidence.
 
-## Large files and remaining work
+## Complete large files
 
-An earlier v15 host passes all four native/checked full-file publications above
-four GiB. Every byte is checked independently. Those results precede the later
-rollback and executable-marking fixes. Fresh full-file replays for the current
-host are running and are not accepted by this record.
+The current v26 host passes all four native/checked full-file publications on
+both hosts. Each file has 4,294,967,361 bytes, with markers across the signed
+32-bit and four-GiB boundaries. Both the original observer and a later independent
+review read every byte in all four outputs. Each has SHA-256
+`7405e774f407c464dbc90ebdc67aa4882d47ccbc49f19239204d48e707d2e882`.
+The caller is unchanged from the earlier v15 selection. Each case retains its
+18,000-second bound; Linux retains 32 MiB and 10,240 descriptors.
+
+Two redundant historical Windows v15 payloads are removed after their full
+digests, archived evidence and current replacements are verified. This frees
+8,589,934,722 bytes. Both current Windows outputs remain available.
+
+## Private tool-launch boundary
+
+The output-capturing launch path lacked the store-phase and failure checks used
+by the other launch APIs. A public caller reproduces twelve unauthorized real
+CupidObj launches across both hosts and caller types. Each captures 973 bytes
+of actual help output after a store has opened, finished or failed. The other
+forty controls pass.
+
+The private v37 adapter adds those same two checks. All 52 original executions
+pass with the original caller bytes, and 68 expanded executions also pass.
+The added cases preserve an earlier accepted private output when a later launch
+is rejected. The header, SDK and store implementation remain unchanged. These
+120 fixed executions concern v37; the earlier 104-case and full-file selections
+concern v26.
+
+The retained failures include an initial Linux indentation error and a fixture
+that gave a transaction less capacity than its existing public output. Correcting
+only the fixture exposes the real launch failure. An independent review also
+initially expects those red cases to publish candidate bytes. Their intentional
+failure branch closes before publication; the corrected review checks the
+original public bytes. Runtime fixtures and limits remain unchanged.
+
+The [large-file and launch evidence](evidence/private-wide-large-launch-20261109.json.gz)
+contains 891 file records, 121 embedded payloads and fourteen references to the
+qualified producer archive. It retains complete sources, caller programs,
+guards, failures, corrected reviews and cleanup receipts. Its SHA-256 is
+`da1eaae61f61a7a6153b763fbda555f065cd9ae64c5a38b2a87aead375c9fdab`.
+The archive records the complete large-file pattern and hash; the four large
+payloads remain local.
+
+## Remaining work
 
 The current reconstruction still needs the checked-output-to-input transfer and
 unused empty-candidate transition, followed by active ABI/source-plan integration,

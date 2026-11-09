@@ -5891,8 +5891,12 @@ The rebuilt private host passes 104 native and Cupid-built case executions on
 Linux and Windows: legacy tool launches, frozen-input marking, ranges, precise
 metadata drift and real four-thread store calls. Linux retains its 32 MiB process
 limit. The final thread fixture uses explicit 256 KiB stacks and a checked-stack
-canary after retained stack failures. Full-file checks for this host version,
-checked-output transfer and active integration remain open. Installed seeds and
+canary after retained stack failures. All four complete publications above four
+GiB also pass for that adapter, with every byte independently checked twice.
+A later private adapter adds the two missing store-phase guards to the
+output-capturing launch API. Its 52 original and 68 expanded executions pass
+after twelve real unauthorized launches reproduce before the fix.
+Checked-output transfer and active integration remain open. Installed seeds and
 the three Python-coordinated normal transforms are unchanged. The
 [current store record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-WIDE-STORES-CURRENT.md)
 links the source, failures, probes and independently reviewed evidence.

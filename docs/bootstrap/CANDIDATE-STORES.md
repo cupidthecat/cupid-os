@@ -1,8 +1,10 @@
 # Owned candidate stores
 
 The [current adapter replay](PRIVATE-WIDE-STORES-CURRENT.md) records the rebuilt
-prototype and its 104 accepted small-case executions on 2026-11-09. The dated
-results below describe the earlier prototype.
+prototype's 104 accepted small cases, four complete large-file publications and
+120 checks of its corrected launch boundary on 2026-11-09. Those selections
+retain their separate adapter versions. The dated results below describe the
+earlier prototype.
 
 The separate prototype adds a transaction-owned fixed-extent file store.
 Its open, extent, read, write and finish operations retain all offset and extent

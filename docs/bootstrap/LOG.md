@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-09: Accept current large stores and close the private launch gap
+
+All four current-host native/checked full-file publications pass on both hosts.
+Each has 4,294,967,361 independently checked bytes. The output-capturing launch
+path also now rejects an opened, finished or failed store, using the two guards
+already present in the other launch paths. Twelve real unauthorized launches
+reproduce before the fix; all 52 original and 68 expanded executions pass after
+it. The [current store record](PRIVATE-WIDE-STORES-CURRENT.md) distinguishes the
+adapter versions and retains failures, corrections and independent reviews.
+Two verified redundant historical Windows payloads are retired, freeing eight
+GiB while retaining both current replacements. Active sources and seeds are
+unchanged; checked-output transfer and native image ownership remain open.
+
 ## 2026-11-09: Admit captured owner-plan seeds in SDK policy
 
 Both ordinary SDK builds finish all 84 stage pairs and runtime checks, then
