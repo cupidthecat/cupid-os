@@ -51,6 +51,12 @@ A retained publication owner whose inputs are all registered explicitly. Its
 output authority is independent of selecting a repository source.
 _Avoid_: source observer, captured input, completed native image command
 
+**Borrowed external observer**:
+A caller-owned source observer registered with a publication transaction for a
+root distinct from its primary root. Borrowing retains observer authority
+through close and does not create a frozen input.
+_Avoid_: frozen payload, temporary selection, completed image capture
+
 **Host stage entry**:
 A mapping from a host source file to an absolute guest path in a Cupid OS disk image. Its host pathname and guest pathname belong to separate namespaces.
 _Avoid_: guest source file, host destination path

@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-09: Retain external observer authority through publication
+
+The current private wide adapter borrows distinct external roots after primary
+binding and revalidates their complete observations at publication. All 124
+native/Cupid-built executions pass across both hosts, including actual 528-root
+capacity, overflow rejection and rollback after installed-byte verification.
+Original requested-root rebinding rejects while physical source metadata and
+payloads stay unchanged. The [authority record](PRIVATE-WIDE-EXTERNAL-OBSERVERS.md)
+retains failed fixtures, native link checks and the independently read archive.
+External payload freezing and complete image-command ownership remain open;
+producer inputs, installed seeds and OS bytes are unchanged.
+
 ## 2026-11-09: Remove duplicate frozen-set walks
 
 The current private wide adapter validates the complete frozen set once within

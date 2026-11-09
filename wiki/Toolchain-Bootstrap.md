@@ -6050,6 +6050,14 @@ hosts. The [validation record](https://github.com/cupidthecat/cupid-os/blob/boot
 retains exact work counts, failed fixtures and the older handoff timeout as a
 separate result. Installed tools and the normal image command are unchanged.
 
+The current private wide adapter can also borrow distinct external observer
+roots after primary binding. Exact selected authority, original path requests,
+payloads, absences and complete root metadata stay checked through publication.
+All 124 native/Cupid-built executions pass across both hosts. They include
+actual 528-root capacity and rollback after installed-byte verification when an
+external payload or original alias changes. The [authority record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-WIDE-EXTERNAL-OBSERVERS.md)
+keeps external payload freezing and complete native image ownership open.
+
 ### Verification across seed generations
 
 Current verification keeps explicit release authority, all eight sealed runner

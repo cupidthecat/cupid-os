@@ -55,6 +55,10 @@ complete OS can rebuild itself from inside the guest.
 
 ## Records
 
+- [External observer authority](PRIVATE-WIDE-EXTERNAL-OBSERVERS.md): distinct
+  retained roots, exact selection, actual post-install rollback and original
+  path-rebinding checks in the current private wide adapter.
+
 - [Coalesced wide-input checks](PRIVATE-COALESCED-WIDE-INPUTS.md): one complete
   frozen-set walk per live-input call, with counted rejections and full clean
   image checks.

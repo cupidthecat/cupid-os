@@ -56,3 +56,18 @@ The capture fixture publishes a small replacement output. It does not establish
 integration into the optional FAT publisher or normal disk command.
 `docs/bootstrap/EXTERNAL-DISK-STAGES.md` records the exact evidence, fixture
 repairs, metadata-only oversized-file rejection and remaining ownership work.
+
+## Current wide-store authority, 2026-11-09
+
+The [current private adapter](../bootstrap/PRIVATE-WIDE-EXTERNAL-OBSERVERS.md)
+now retains external observer authority separately from payload capture. It
+requires the exact bound primary, rejects repeated physical roots and keeps
+complete external metadata and original-root request validation through
+publication. All 124 native/Cupid-built executions pass independent review,
+including actual 528-root capacity and post-install rollback on both hosts.
+
+Diagnostic hooks reconstruct the exact clean host when removed. Rebinding only
+the original alias rejects with the required binding diagnostic while both
+physical directories and payloads remain unchanged. External payload freezing,
+optional stage capture, full publisher handoff, producer qualification and
+normal command adoption remain separate work for this current adapter.
