@@ -55,6 +55,10 @@ complete OS can rebuild itself from inside the guest.
 
 ## Records
 
+- [Coalesced wide-input checks](PRIVATE-COALESCED-WIDE-INPUTS.md): one complete
+  frozen-set walk per live-input call, with counted rejections and full clean
+  image checks.
+
 - [Source-free publication](PRIVATE-SOURCE-FREE-PUBLICATION.md): explicit input
   registration, unchanged legacy capture, exact constructor extraction and
   complete staged images through the normal Windows bridge.

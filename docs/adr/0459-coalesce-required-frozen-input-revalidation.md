@@ -82,3 +82,17 @@ Lossless compression of closed outputs checks complete hashes, lengths and
 modification times without deletion. Root seed adoption, normal command
 ownership, producer qualification and retirement of the three Python
 coordinators remain open. TempleOS stays read-only and excluded.
+
+## Current wide-store follow-up, 2026-11-09
+
+The [current private adapter](../bootstrap/PRIVATE-COALESCED-WIDE-INPUTS.md)
+now applies the same within-call rule. Removing isolated counter instrumentation
+reconstructs both clean sources exactly. All 64 diagnostic cases, 80 clean
+constructor executions and 20 complete staged-image executions pass independent
+review across Windows and Linux. Ordinary drift, an accepted frozen-digest
+mismatch and failed previous-capture state still reject.
+
+These current image cases retain their existing 18,000-second caller limit and
+immutable earlier kernel/oracles. They do not repair or replace the older
+handoff's failed 600-second case. Active source integration, qualification,
+installed seeds and normal image-command ownership remain open.

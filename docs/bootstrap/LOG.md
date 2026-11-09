@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-09: Remove duplicate frozen-set walks
+
+The current private wide adapter validates the complete frozen set once within
+each live-input call when previous/private output rows require it. Separate
+calls and all other publication boundaries keep their checks. Sixty-four
+counted cases retain twelve expected original-code failures; eighty clean
+constructor and twenty complete staged-image executions pass across both hosts.
+The [validation record](PRIVATE-COALESCED-WIDE-INPUTS.md) keeps the failed count
+observer, exact source delta and independent archive review. The earlier
+handoff's failed 600-second case remains separate. Producer inputs, installed
+seeds, OS bytes and normal ownership counts stay unchanged.
+
 ## 2026-11-09: Open publication with explicit inputs
 
 The current private wide adapter restores publication without an implicit

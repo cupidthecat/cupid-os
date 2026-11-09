@@ -6042,6 +6042,14 @@ retains failures, independent review and exact image-oracle limits. External
 observer capture, active integration and the three Python coordinators remain
 open.
 
+The current private adapter also avoids duplicate complete frozen-set walks
+within a live-input validation call. Two qualifying rows cause one walk; a
+later call performs another. All other guard boundaries remain. Sixty-four
+counted checks and the complete clean constructor/image matrices pass on both
+hosts. The [validation record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-COALESCED-WIDE-INPUTS.md)
+retains exact work counts, failed fixtures and the older handoff timeout as a
+separate result. Installed tools and the normal image command are unchanged.
+
 ### Verification across seed generations
 
 Current verification keeps explicit release authority, all eight sealed runner
