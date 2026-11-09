@@ -216,7 +216,8 @@ int main(int argc, char **argv) {
         plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
         plan = _candidate_build_plan(plan)
         if os.name == "nt":
-            plan = _windows_build_plan(plan, utf8=True, user_link_aliases=True)
+            plan = _windows_build_plan(plan, utf8=True, user_link_aliases=True,
+                                       observer_workers=True)
         for source in plan["sources"]:
             if source["name"] not in plan["links"]["cupidbuild"]:
                 continue
@@ -243,7 +244,8 @@ int main(int argc, char **argv) {
                 checked_run([SEED / ("cupidasm" + SUFFIX), "-f", "elf32",
                              ROOT / source["path"].lstrip("/"), "-o", objects[name]])
         coordinator = self.target_directory / ("target-cupidbuild" + SUFFIX)
-        arguments = (_windows_link_arguments("cupidbuild", coordinator, objects, order, utf8=True, user_link_aliases=True)
+        arguments = (_windows_link_arguments("cupidbuild", coordinator, objects, order, utf8=True,
+                                              user_link_aliases=True, observer_workers=True)
                      if os.name == "nt" else
                      ["-m", "elf_i386", "--text-address", "0x08048000", "--entry", "_start",
                       "-o", coordinator, *[objects[name] for name in order]])

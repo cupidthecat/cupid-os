@@ -42,3 +42,34 @@ retains 1,813 file records, 206 local payloads and 936 references to two earlier
 archives. Its SHA-256 is
 `5bc71b6be1f7f10acc3e1c9a67e05eff821b84325959563300f8b7ff97695605`.
 Fresh complete repository replays and installed seed adoption remain open.
+
+## Current coordinator executables
+
+Five further executable fixture modules and their shared behavior-cohort helper now
+select the observer bridge, captured inputs and `CreateThread` import together.
+The change covers current Doom, kernel, generated-source, user-compile and
+user-link coordinators. Historical and mocked profiles retain their own
+selections. Removing only the added worker keywords makes each changed Python
+AST identical to its preceding version.
+
+The unchanged Doom method first failed at its coordinator link after 249.915
+seconds. Eight small link probes show why both pieces are required: the bridge
+resolves the observer callback but itself needs `CreateThread`; imports alone
+are rejected as unused. Relinking the exact original objects with both
+selections passes and runs both original Doom profiles. The first five-file
+correction still left the shared helper stale and produced three errors; that
+failed run remains in the evidence.
+
+A fresh complete 33-method Windows selection passes in 3,308.564 unittest
+seconds, including both complete user modules with the checked user-link caller
+enabled. Its three existing skips cover race hooks owned by the native caller.
+All original assertions and command bounds remain in place. Every producer
+input and all seventeen engineering seed, coordinator and policy guards remain
+unchanged.
+
+The [coordinator evidence](evidence/source-owner-current-coordinator-worker-fixtures-20261109.json.gz)
+retains 1,940 file records, 418 local payloads and 212 payload references to the
+qualified producer archive. Its SHA-256 is
+`8c6b00c62f7937fac5adb8345337d86526812f13f58d9131270cd8b0594cce25`.
+An independent reread verifies every payload and file binding. Full repository
+replays and installed seed adoption remain separate and unfinished.

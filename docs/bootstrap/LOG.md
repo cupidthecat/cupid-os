@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-09: Complete current coordinator worker selections
+
+Five fixture modules and their shared helper now bind observer workers in
+the plan, captured inputs and Windows imports together. The original Doom link
+failure, eight focused link probes and an exact-object relink identify the
+missing bridge/import pair. After correcting the shared helper too, all 33
+selected Windows methods pass under their original bounds, with only the three
+existing native-caller race-hook skips. Producer inputs and all seventeen
+engineering guards remain unchanged. The [closure record](SOURCE-OWNER-WORKER-KERNEL-FIXTURES.md#current-coordinator-executables)
+retains both failed selections, fresh products and the verified archive. Full
+repository acceptance and installed seed adoption remain open.
+
 ## 2026-11-09: Couple retained publication with complete FAT16 staging
 
 Twenty native/Cupid-built cases pass on Windows and Linux. Twelve complete

@@ -99,7 +99,8 @@ class CupidBuildUserLinkTests(unittest.TestCase):
         plan = bootstrap._candidate_build_plan(json.loads(
             (ROOT / 'bootstrap/seeds/i386-linux/manifest.json').read_bytes())['build_plan'])
         if os.name == 'nt':
-            plan = bootstrap._windows_build_plan(plan, utf8=True, long_paths=True, user_link_aliases=True)
+            plan = bootstrap._windows_build_plan(plan, utf8=True, long_paths=True,
+                                                 user_link_aliases=True, observer_workers=True)
         order = list(plan['links'][role])
         for name, _ in extra_assembly:
             if name in order:
@@ -125,7 +126,8 @@ class CupidBuildUserLinkTests(unittest.TestCase):
                 checked_run([SEED / ('cupidasm' + SUFFIX), '-f', 'elf32',
                              ROOT / row['path'].lstrip('/'), '-o', objects[row['name']]])
         arguments = (bootstrap._windows_link_arguments(role, program, objects, order,
-                                                       utf8=True, long_paths=True, user_link_aliases=True)
+                                                       utf8=True, long_paths=True, user_link_aliases=True,
+                                                       observer_workers=True)
                      if os.name == 'nt' else ['-m', 'elf_i386', '--text-address', '0x08048000',
                                              '--entry', '_start', '-o', program,
                                              *[objects[name] for name in order]])

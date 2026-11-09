@@ -318,7 +318,8 @@ int main(int argc, char **argv) {
         plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
         plan = _candidate_build_plan(plan)
         if os.name == "nt":
-            plan = _windows_build_plan(plan, utf8=True, user_link_aliases=True)
+            plan = _windows_build_plan(plan, utf8=True, user_link_aliases=True,
+                                       observer_workers=True)
         order = plan["links"]["cupidbuild"]
         objects = {name: self.directory / ("target-" + name + ".o") for name in order}
         for source in plan["sources"]:
@@ -342,7 +343,8 @@ int main(int argc, char **argv) {
                 checked_run([SEED / ("cupidasm" + SUFFIX), "-f", "elf32",
                              ROOT / source["path"].lstrip("/"), "-o", objects[source["name"]]])
         coordinator = self.directory / ("target-cupidbuild" + SUFFIX)
-        args = (_windows_link_arguments("cupidbuild", coordinator, objects, order, utf8=True, user_link_aliases=True)
+        args = (_windows_link_arguments("cupidbuild", coordinator, objects, order, utf8=True,
+                                         user_link_aliases=True, observer_workers=True)
                 if os.name == "nt" else ["-m", "elf_i386", "--text-address", "0x08048000",
                                         "--entry", "_start", "-o", coordinator,
                                         *[objects[name] for name in order]])

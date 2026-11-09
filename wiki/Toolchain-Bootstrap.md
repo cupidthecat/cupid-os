@@ -6014,3 +6014,10 @@ match the independent author, and the staged reuse oracle passes a strict
 four-CPU boot. The [staging record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-RETAINED-STAGED-PUBLISHER.md)
 retains that proof while external capture and the active image-command handoff
 remain open.
+
+Current Windows coordinator fixtures now select the observer bridge and its
+matching import in plans, source capture and executable links. All 33 selected
+methods pass, including complete checked user-compile and user-link modules;
+three native-only race-hook skips remain explicit. The [closure record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-WORKER-KERNEL-FIXTURES.md#current-coordinator-executables)
+retains the failed links and fresh proofs. Full repository acceptance and seed
+adoption remain open.
