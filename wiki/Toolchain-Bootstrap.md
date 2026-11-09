@@ -6006,3 +6006,11 @@ publication, range errors and live file drift. Independent NASM checks preserve
 all original bridge code and agree with the two added stubs. The
 [binding record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-WIDE-STORE-WINDOWS-BRIDGE.md)
 keeps this prerequisite separate from active integration and seed adoption.
+
+The private retained image publisher now also stages complete FAT16 files.
+Twenty native/Cupid-built cases pass across both hosts, including Unicode names,
+empty files, shorter replacement and guarded stage failures. Complete images
+match the independent author, and the staged reuse oracle passes a strict
+four-CPU boot. The [staging record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-RETAINED-STAGED-PUBLISHER.md)
+retains that proof while external capture and the active image-command handoff
+remain open.

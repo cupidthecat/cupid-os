@@ -39,10 +39,12 @@ images; it does not claim a later reread of removed output copies.
 
 The first fixture passes kernel/tool paths outside its isolated repository and
 correctly fails input capture. Copying the exact original bytes into that fixture
-corrects its setup without changing the C caller or adapter. Arbitrary external
-inputs, complete file staging, active ABI/source-plan integration, qualification
-and the normal image-command/Make handoff remain open. Installed seeds and the
-three Python-coordinated transforms are unchanged.
+corrects its setup without changing the C caller or adapter. The later
+[complete file-staging proof](PRIVATE-RETAINED-STAGED-PUBLISHER.md) passes twenty
+native/Cupid-built cases and a strict guest boot. Arbitrary external inputs,
+active ABI/source-plan integration, qualification and the normal image-command/
+Make handoff remain open. Installed seeds and the three Python-coordinated
+transforms are unchanged.
 
 The [evidence archive](evidence/private-retained-checked-image-publisher-20261109.json.gz)
 retains 510 file records, 48 local payloads, 183 qualified-archive references and

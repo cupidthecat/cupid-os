@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-09: Couple retained publication with complete FAT16 staging
+
+Twenty native/Cupid-built cases pass on Windows and Linux. Twelve complete
+images match the independent Python author after Unicode naming, empty-file
+creation and shorter replacement. Eight failed-stage cases preserve the old
+public image. Independent raw FAT checks and whole qualified core-object
+comparisons pass, as does one strict four-CPU boot of the identical staged reuse
+oracle. Original producer, caller and Linux resource bounds remain unchanged.
+The [staging record](PRIVATE-RETAINED-STAGED-PUBLISHER.md) retains sources,
+programs, comparisons, rejection receipts and the guest log. External capture,
+active integration, normal image-command ownership and seed adoption remain open.
+
 ## 2026-11-09: Isolate normal Windows wide-store bindings
 
 The private Windows bridge now needs only `SetEndOfFile` and
