@@ -68,8 +68,22 @@ actual programs, public payloads, failed fixtures, probes and independent review
 Its SHA-256 is
 `a06c6537b57cadc7c40c74a946ace6a6afb1ea46c17c043a6e67b5e09a796b1b`.
 
-Fresh full-file checks above four GiB are running against this adapter version.
-The accepted earlier large-file results concern v26. The
+Fresh full-file checks also pass against this adapter version on both hosts.
+All four native/checked callers publish 4,294,967,361 bytes; the original
+observer and a later independent review check every byte. The caller remains
+unchanged from v15, and the host, header and two implementation includes match
+v45 exactly. Each output has SHA-256
+`7405e774f407c464dbc90ebdc67aa4882d47ccbc49f19239204d48e707d2e882`.
+All original 18,000-second bounds remain, including Linux's 32 MiB memory and
+10,240-descriptor limits. This proves large store publication through the
+current adapter; a four-GiB checked-output transfer remains separate.
+
+The [current large-file archive](evidence/private-current-transfer-host-large-20261109.json.gz)
+retains 476 source, program, guard and receipt records, with 46 local payloads
+and 183 references to the qualified producer archive. Its SHA-256 is
+`737b7ce718657e46b9cfebe7119d97cca87d6072b4502d484d908cae3a6e997b`.
+Complete large outputs remain local. Earlier v26 acceptance remains recorded
+in the [store record](PRIVATE-WIDE-STORES-CURRENT.md). The
 [bounded registered-input reader](PRIVATE-REGISTERED-INPUT-RANGES.md) now passes
 its small complete-payload, metadata and concurrency checks. Complete retained
 image consumption, checked template/publisher reconstruction, active ABI/source-plan

@@ -5899,7 +5899,10 @@ after twelve real unauthorized launches reproduce before the fix.
 The current reconstruction also transfers accepted checked output into frozen
 input custody without copying its payload. Its final 92 transfer executions and
 68 unchanged launch regressions pass on both hosts. Complete ELF, stdout, empty
-and 3 MiB payloads are published byte for byte. The private bounded-input reader
+and 3 MiB payloads are published byte for byte. The same adapter also passes
+four complete 4,294,967,361-byte store publications; every byte receives two
+independent checks. Four-GiB checked-output transfer remains separate.
+The private bounded-input reader
 also passes seventy range and eight real-thread executions, including actual
 metadata changes around reads. Complete retained-image consumption and active
 image-command integration remain open. Installed seeds and

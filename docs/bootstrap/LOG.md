@@ -1,5 +1,15 @@
 # Bootstrapping log
 
+## 2026-11-09: Recheck full-width stores through the transfer adapter
+
+All four native/checked complete-file cases now pass on the unchanged private
+v45 transfer adapter. Each publishes 4,294,967,361 bytes with the expected
+boundary markers and digest. Original observers and independent review both
+check every byte. The original caller, time bounds and Linux limits remain
+unchanged. The [transfer record](PRIVATE-OUTPUT-TRANSFER-CURRENT.md) links this
+source-specific evidence. Four-GiB checked-output transfer and active adapter
+integration remain open.
+
 ## 2026-11-09: Accept native Linux Make reconstruction
 
 The actual supported `make bootstrap-from-seed` target passes on native Linux

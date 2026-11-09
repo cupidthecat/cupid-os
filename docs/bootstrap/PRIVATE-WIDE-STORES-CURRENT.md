@@ -69,6 +69,12 @@ review read every byte in all four outputs. Each has SHA-256
 The caller is unchanged from the earlier v15 selection. Each case retains its
 18,000-second bound; Linux retains 32 MiB and 10,240 descriptors.
 
+The later v45 transfer adapter now passes the same four complete-file cases
+with unchanged caller bytes. All outputs receive a second complete independent
+reread. Its [current transfer record](PRIVATE-OUTPUT-TRANSFER-CURRENT.md) links
+the separate source, program and receipt archive; the earlier v26 records
+remain valid for their own source version.
+
 Two redundant historical Windows v15 payloads are removed after their full
 digests, archived evidence and current replacements are verified. This frees
 8,589,934,722 bytes. Both current Windows outputs remain available.
