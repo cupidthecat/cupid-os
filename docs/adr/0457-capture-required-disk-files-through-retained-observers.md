@@ -86,3 +86,14 @@ installed seed files remain unchanged. Original parent-binding lifetime,
 external seed/output authority, distinct-input capacity, complete CLI behavior
 and accepted large geometries still need integration. Three normal coordinators
 remain Python-owned. TempleOS stays read-only and excluded.
+
+## Current wide-store constructor, 2026-11-09
+
+The [current private adapter](../bootstrap/PRIVATE-SOURCE-FREE-PUBLICATION.md)
+restores the source-free constructor with explicit input registration and the
+normal two-addition Windows bridge. Eighty constructor executions and twenty
+complete 200 MiB staged-image executions pass independent review across both
+hosts. Extracting the 558-line open body preserves complete checked objects.
+This accepts the current constructor prerequisite; complete external observed
+capture and active command ownership remain open. The earlier handoff failures
+and their original bounds remain separate results.

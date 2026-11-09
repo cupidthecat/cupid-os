@@ -40,7 +40,10 @@ retains 2,697 file records, 179 local payloads and 523 independently verified
 references to the preceding verification archive. SHA-256:
 `8bf58a05726b1681405cb95622603896d10bcd616eeeed9f0c6fa2dd3c488a48`.
 
-Paired full replays continue from the immutable `ec57b945` snapshot. Their source
-predates these two fixture corrections, so their results remain distinct from
-the focused final-source checks. Full final-source acceptance and installed
-source-owner seed adoption remain open.
+The incomplete paired `ec57b945` replays were deliberately superseded after
+these fixture corrections. Both original wrappers retained their partial
+products, checked their source guards and independently reread their archives;
+neither run establishes complete acceptance. Replacement paired full replays
+use the immutable `b22abffd` source, the complete original scope and tool bounds,
+and no aggregate test timeout. Full acceptance and installed source-owner seed
+adoption remain open.

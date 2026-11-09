@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-09: Open publication with explicit inputs
+
+The current private wide adapter restores publication without an implicit
+repository source. Eighty native/Cupid-built constructor cases and twenty
+complete staged-image cases pass across Windows and Linux. The normal Windows
+bridge needs only its two wide-store additions. Independent review checks all
+guards, qualified core objects, complete canonical images and raw FAT contents.
+A 558-line constructor extraction preserves complete checked objects. The
+[constructor record](PRIVATE-SOURCE-FREE-PUBLICATION.md) retains both failed
+caller fixtures and the verified implementation archive. Active producer inputs,
+installed seeds, OS bytes and the three Python coordinators remain unchanged.
+
 ## 2026-11-09: Follow actual filesystem rename exclusion
 
 The parent-drift fixture now uses its own launch checkpoint and follows the
@@ -9,7 +21,8 @@ on both native hosts, with five additional DrvFS repetitions. Two focused audit
 methods also pass after their include counts catch up with the Doom keyboard
 headers. The [fixture record](FILESYSTEM-VERIFICATION-FIXTURES.md) retains the
 failed probes and independently verified archive. Producer inputs and OS bytes
-stay exact. The running full replays retain their earlier source revision.
+stay exact. The incomplete earlier full replays were superseded with guarded
+partial archives; their replacements use the corrected immutable source.
 
 ## 2026-11-09: Preserve verification across seed generations
 

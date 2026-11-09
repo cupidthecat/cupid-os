@@ -6030,6 +6030,18 @@ exact-image reboot/load/quit/`ls` run pass with all 62 TLS checks. The
 [input record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/DOOM-KEYBOARD-AND-HANDOFF.md)
 keeps full gameplay, audio quality, timedemo completion and seed adoption open.
 
+### Publication without an implicit source
+
+The current private wide adapter can retain output authority before any input
+is selected. Every input is registered explicitly; the five existing
+constructors still capture their source. Eighty constructor cases and twenty
+complete staged-image cases pass across native/Cupid-built Windows and Linux,
+including the normal Windows bridge. A 558-line extraction preserves complete
+checked objects. The [constructor record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-SOURCE-FREE-PUBLICATION.md)
+retains failures, independent review and exact image-oracle limits. External
+observer capture, active integration and the three Python coordinators remain
+open.
+
 ### Verification across seed generations
 
 Current verification keeps explicit release authority, all eight sealed runner

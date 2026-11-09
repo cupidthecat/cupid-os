@@ -47,7 +47,9 @@ original identities.
 
 The Windows image callers retain their private fixture bridge. The separate
 [normal Windows binding proof](PRIVATE-WIDE-STORE-WINDOWS-BRIDGE.md) removes the
-fixture-time imports; these are distinct program builds. External input capture,
+fixture-time imports; these are distinct program builds. The later
+[source-free constructor matrix](PRIVATE-SOURCE-FREE-PUBLICATION.md) also passes
+complete staging with that normal bridge. External input capture,
 active API/runtime/source-plan integration, producer qualification and the normal
 image-command/Make handoff remain open. Installed seeds and ownership counts
 remain unchanged.

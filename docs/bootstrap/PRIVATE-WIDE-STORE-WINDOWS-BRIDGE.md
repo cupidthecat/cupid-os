@@ -7,7 +7,8 @@ imports omit the fixture-only `GetFileTime` and `SetFileTime` support.
 
 This is a tested prerequisite for active integration. Installed seeds, the 114
 producer inputs, OS artifacts and 449 CupidBuild / three Python ownership counts
-remain unchanged. The separate complete-image staging matrix is still running.
+remain unchanged. The later [source-free publisher](PRIVATE-SOURCE-FREE-PUBLICATION.md)
+couples this exact bridge with complete image composition and staging.
 
 ## Runtime and assembly checks
 

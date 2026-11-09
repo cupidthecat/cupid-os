@@ -55,6 +55,10 @@ complete OS can rebuild itself from inside the guest.
 
 ## Records
 
+- [Source-free publication](PRIVATE-SOURCE-FREE-PUBLICATION.md): explicit input
+  registration, unchanged legacy capture, exact constructor extraction and
+  complete staged images through the normal Windows bridge.
+
 - [Filesystem-aware fixtures](FILESYSTEM-VERIFICATION-FIXTURES.md): synchronized
   parent-drift checks, actual DrvFS exclusion and current include counts.
 
