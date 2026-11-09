@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-09: Accept paired cold image, user and private boot checks
+
+Both fresh full normal image and separate user builds pass with qualified
+tools and conventional producers forbidden. Independent review checks 429
+normal objects, three user objects, sixteen artifact gates, the complete ABI
+and all 2,354 guarded inputs on each host. Both images and all user products
+match. Four strict private four-CPU max/e1000 boots pass ls and feature 17 ISO,
+all 62 TLS checks and ordered completion. SDK publication, complete public
+bootstrap methods and seed adoption remain open. The
+[cold-consumer record](SOURCE-OWNER-INTEGRATION.md#cold-builds-and-private-boots)
+links the receipts and serial logs.
+
 ## 2026-11-08: Bind provisional artifact policy to the qualified seeds
 
 The first replacement-tool builds produce identical sets of 429 objects on

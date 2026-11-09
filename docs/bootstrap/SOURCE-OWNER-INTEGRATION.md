@@ -193,12 +193,36 @@ seed/coordinator files differ. The archive's SHA-256 is
 `572fad0d16098ef7e85805946a19134b0d61453d2e7fcbee5f3bd5161a6bc798`.
 The engineering checkout's fifteen installed seed files remain unchanged.
 
+## Cold builds and private boots
+
+Fresh complete normal image and separate user builds pass on Linux and
+Windows with the qualified tools and corrected seed-size bindings. Independent
+review checks all 2,354 guarded inputs per checkout, 429 normal objects, three
+user objects, sixteen artifact gates and the complete syscall ABI. The three
+user executables also pass independent entry-symbol and ELF validation.
+
+Both hosts produce identical objects, user products and complete 200 MiB
+images. The image retains the preceding baseline's SHA-256,
+`a397ae00957d2138fbd0a099df7d950a5dc349e467a89708544ad8504e6637f7`.
+All four strict private four-CPU max/e1000 boots pass: ls and feature 17 ISO
+checks on each host, all 62 TLS checks, ordered JIT/terminal completion and the
+post-command survival window. The original failed policy runs remain failed.
+
+The [cold-consumer evidence](evidence/source-owner-cold-consumers-20261109.json.gz)
+retains complete receipts, source controls, user products and serial logs. It
+references unchanged object and kernel payloads in the first-consumer archive.
+Its SHA-256 is `a90f33724ea1816ae7d568969182bdc5310986dd6ce43e9e557c34bb7f3f5e04`.
+Ordinary/long SDK publications, complete public bootstrap methods and seed
+installation remain open. The first SDK attempt rejected the fixture's output
+name before building; its corrected output uses a dedicated `cupidc-contracts`
+directory. Production seed files remain unchanged.
+
 ## Remaining acceptance
 
 Complete repository replays and replacement-tool consumers remain required
-before seed adoption. Their cold
-normal OS builds and runtime checks must use the qualified replacement tools.
-Stage-two success and the installed-seed image check do not satisfy those gates.
+before seed adoption. Cold OS/user builds and private runtime checks now use
+the qualified replacement tools and pass; SDK and complete public-entry checks
+remain separate gates.
 
 Image publication, full-width retained stores, the normal image CLI/Make
 handoff and the three Python coordinators remain open. The normal graph still
