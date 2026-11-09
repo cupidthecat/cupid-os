@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## 2026-11-09: Reconstruct checked-output input custody
+
+The private adapter transfers an accepted producer output into frozen-input
+custody without copying its payload. It retains the saved snapshot, verifies
+and discards only an unused empty candidate, and invalidates eligibility before
+every new producer request. The final 92 paired native/Cupid-built executions
+and 68 unchanged launch regressions pass independent review. Complete ELF,
+stdout, empty and 3 MiB payloads are published and compared byte for byte.
+The [current transfer record](PRIVATE-OUTPUT-TRANSFER-CURRENT.md) retains the
+fixture failures and a refuted sealing-flag hypothesis. Active sources and seeds
+remain unchanged. Fresh full large-file checks, registered-input range streaming
+and native image-command integration remain open.
+
+The updated guest guide also passes a guarded relink, sixteen artifact gates,
+seventeen policy tests, the audit and a strict four-CPU boot with all 62 TLS
+checks and ordered completion. Only its measured raw-kernel size row changes,
+from 9,415,688 to 9,416,096 bytes. The fifteen seed files remain unchanged.
+
 ## 2026-11-09: Accept current large stores and close the private launch gap
 
 All four current-host native/checked full-file publications pass on both hosts.

@@ -105,10 +105,13 @@ payloads remain local.
 
 ## Remaining work
 
-The current reconstruction still needs the checked-output-to-input transfer and
-unused empty-candidate transition, followed by active ABI/source-plan integration,
-exact reader/import profiles and paired qualification. Native image-command
-ownership and installed seed adoption remain separate gates.
+The [current checked-output transfer](PRIVATE-OUTPUT-TRANSFER-CURRENT.md) now
+passes its paired ownership and unused-candidate transition checks. It also
+publishes complete transferred payloads through the native store. Registered
+input-range streaming, checked template/publisher reconstruction, active
+ABI/source-plan integration, exact reader/import profiles and paired
+qualification remain open. Native image-command ownership and installed seed
+adoption remain separate gates.
 
 The [evidence archive](evidence/private-wide-stores-current-20261109.json.gz)
 contains 1,891 file records, 396 embedded payloads and 183 payload references to
@@ -118,6 +121,10 @@ It retains the earlier rollback, large-file and metadata evidence alongside the
 current source, failures, probes and accepted checks.
 
 ## Guest manual and image check
+
+This earlier manual check precedes the transfer update. The latest
+[manual/image acceptance](PRIVATE-OUTPUT-TRANSFER-CURRENT.md#guest-manual-and-image)
+records its new size and retained boot evidence.
 
 The guest manual now records these limits and the accepted source-owner cold
 builds. Its guarded relink verifies every reused normal object against the

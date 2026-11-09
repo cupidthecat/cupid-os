@@ -1,5 +1,11 @@
 # Retain a checked private output as an input
 
+The [current reconstruction](PRIVATE-OUTPUT-TRANSFER-CURRENT.md) passes its
+paired transfer, complete-payload and unchanged launch checks on 2026-11-09.
+The record below describes the earlier prototype and its retained evidence.
+
+## Historical prototype, 2026-10-08
+
 The separate prototype adds an ownership transfer between a checked producer
 and a native candidate writer. `cupidbuild_host_freeze_private_output` moves the
 retained private output into the transaction's frozen-input table. It allocates

@@ -5896,7 +5896,11 @@ GiB also pass for that adapter, with every byte independently checked twice.
 A later private adapter adds the two missing store-phase guards to the
 output-capturing launch API. Its 52 original and 68 expanded executions pass
 after twelve real unauthorized launches reproduce before the fix.
-Checked-output transfer and active integration remain open. Installed seeds and
+The current reconstruction also transfers accepted checked output into frozen
+input custody without copying its payload. Its final 92 transfer executions and
+68 unchanged launch regressions pass on both hosts. Complete ELF, stdout, empty
+and 3 MiB payloads are published byte for byte. Registered-input range streaming
+and active image-command integration remain open. Installed seeds and
 the three Python-coordinated normal transforms are unchanged. The
 [current store record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-WIDE-STORES-CURRENT.md)
 links the source, failures, probes and independently reviewed evidence.

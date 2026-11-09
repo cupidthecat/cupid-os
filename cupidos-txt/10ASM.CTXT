@@ -45,13 +45,18 @@ CupidBuild transforms and three Python transforms.
 >h2 Private wide-store checks
 >tree Private wide-store checks
 The rebuilt private adapter retains full-width extents and precise modification
-and change times. Its current native and Cupid-built callers pass 104 cases
+and change times. Its native and Cupid-built callers pass 104 cases
 across Linux and Windows, including real tool launches, earlier frozen-input
 drift, store ranges and four-thread reads and writes. Linux keeps its 32 MiB
 process limit. Executable marking accepts only its own permission change;
-foreign drift still rejects the frozen input. Full-file checks above four GiB
-for this adapter version and checked-output transfer remain open. Installed
-seeds and native image-command ownership are unchanged.
+foreign drift still rejects the frozen input. All four complete publications
+above four GiB pass for that adapter, with every byte independently checked.
+A later private adapter also retains accepted checked output as a frozen input
+without copying its payload. Its final 92 transfer checks and 68 unchanged
+launch regressions pass on both hosts. Complete ELF, stdout, empty and three-MiB
+payloads are published byte for byte. Fresh full-file checks for this transfer
+adapter, registered-input range streaming and active image-command integration
+remain open. Installed seeds and native image-command ownership are unchanged.
 >endtree
 
 >h2 Definition conditionals

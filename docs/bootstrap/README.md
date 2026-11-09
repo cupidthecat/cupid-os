@@ -57,6 +57,8 @@ complete OS can rebuild itself from inside the guest.
   original full publication failures and native/Cupid-built policy checks.
 - [Current private wide stores](PRIVATE-WIDE-STORES-CURRENT.md): retained
   extents, precise timestamps, executable marking and concurrent store checks.
+- [Current checked-output transfer](PRIVATE-OUTPUT-TRANSFER-CURRENT.md): retained
+  input custody, complete-payload publication and producer rejection checks.
 - [Source-owner integration](SOURCE-OWNER-INTEGRATION.md): producer plans,
   flexible members, compiler-first stages and remaining acceptance.
 - [Private integer updates](PRIVATE-INTEGER-UPDATES.md): typed lvalue mutation
