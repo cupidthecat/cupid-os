@@ -171,6 +171,28 @@ The two validation functions also match their isolated consumer counterparts
 by syntax-tree comparison. Provisional seed projections and cold consumer builds
 remain separate from the installed engineering seeds.
 
+## First replacement-tool consumers
+
+Both first cold builds compile all 429 objects and link the kernels with the
+qualified tools and conventional producers forbidden. Independent comparison
+finds identical objects between hosts. The raw kernel and both ELF files also
+match the preceding installed-seed baseline byte for byte.
+
+Both commands then stop at artifact verification: the provisional policy still
+lists the old seed sizes. Updating only its twelve seed-size rows to the
+qualified manifest sizes makes all sixteen artifact gates pass on both hosts.
+Kernel size rows remain unchanged. Fresh isolated worktrees now repeat the
+complete normal build with those corrected bindings. Image publication, separate
+user builds, runtime and SDK acceptance remain open.
+
+The [first-consumer evidence](evidence/source-owner-first-consumers-20261108.json.gz)
+retains the failures, 429 objects per host, kernels, policy replay, provisional
+files and independent source review. Each original checkout is checked against
+its Git blobs and the two Git LFS payload identifiers. Only the sixteen intended
+seed/coordinator files differ. The archive's SHA-256 is
+`572fad0d16098ef7e85805946a19134b0d61453d2e7fcbee5f3bd5161a6bc798`.
+The engineering checkout's fifteen installed seed files remain unchanged.
+
 ## Remaining acceptance
 
 Complete repository replays and replacement-tool consumers remain required

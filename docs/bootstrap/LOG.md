@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-08: Bind provisional artifact policy to the qualified seeds
+
+The first replacement-tool builds produce identical sets of 429 objects on
+both hosts, and their kernels match the preceding baseline byte for byte.
+Both full commands then reject the old seed-size rows. Replaying only the
+twelve qualified seed-size bindings passes all sixteen artifact gates per
+host. Fresh isolated worktrees repeat the complete build with that policy.
+The [first-consumer record](SOURCE-OWNER-INTEGRATION.md#first-replacement-tool-consumers)
+retains the failed commands, products, policy replay and independent review.
+Image, user, runtime and SDK acceptance remain open; installed seeds stay
+unchanged.
+
 ## 2026-11-08: Recognize source-owner profiles in Python consumers
 
 Python verification now accepts the exact 44-source plan and five worker

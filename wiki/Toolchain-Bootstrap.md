@@ -30,8 +30,11 @@ now pass for committed `3e83d557`. Independent checks verify 333 artifacts,
 Windows access-denied launch remains recorded alongside its passing full retry.
 Python consumers also recognize the exact owner source/link plan and five
 worker import profiles; twenty paired-host method executions pass. Production
-pins remain unchanged. Replacement-tool consumers remain required before seed
-adoption. Image
+pins remain unchanged. The first consumer builds produce identical sets of
+429 objects and baseline-identical kernels, then reject stale seed-size policy
+rows. A replay with twelve corrected seed-size bindings passes all sixteen
+artifact gates. Fresh complete builds remain in progress; consumer acceptance
+is still required before seed adoption. Image
 publication and the normal image-command handoff remain unfinished. The
 normal graph still has 449 CupidBuild transforms and three Python transforms.
 See the [integration record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-INTEGRATION.md)
