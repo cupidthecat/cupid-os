@@ -53,6 +53,8 @@ complete OS can rebuild itself from inside the guest.
 
 ## Records
 
+- [SDK owner-seed context](SDK-OWNER-SEED-CONTEXT.md): exact captured-plan support,
+  original full publication failures and native/Cupid-built policy checks.
 - [Current private wide stores](PRIVATE-WIDE-STORES-CURRENT.md): retained
   extents, precise timestamps, executable marking and concurrent store checks.
 - [Source-owner integration](SOURCE-OWNER-INTEGRATION.md): producer plans,

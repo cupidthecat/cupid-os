@@ -5901,3 +5901,12 @@ The updated guest manual passes a guarded relink, all sixteen artifact gates,
 seventeen policy tests, the ownership audit and a strict private four-CPU boot.
 All 62 TLS checks and ordered command completion pass. Only the measured
 raw-kernel size row changes; installed seed files remain unchanged.
+
+The SDK policy also recognizes the exact incoming owner-plan seed context.
+The shared reader still validates the selected cohort before capture; the
+native policy retains manifest/tool identity checks and complete stage-pair
+comparisons. Both 186-method native/Python selections and both 73-method
+Cupid-built author selections pass. Fresh complete ordinary/long publications
+remain open. The
+[SDK policy record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SDK-OWNER-SEED-CONTEXT.md)
+retains the original failures and accepted correction.

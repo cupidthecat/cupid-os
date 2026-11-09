@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-09: Admit captured owner-plan seeds in SDK policy
+
+Both ordinary SDK builds finish all 84 stage pairs and runtime checks, then
+reject their captured incoming-seed context. The native policy's allowlist
+stopped at the historical disk plan even though its publication rules already
+supported the owner plan. Adding that exact digest preserves the existing
+envelope and identity checks. Both 186-method native/Python selections and
+both 73-method Cupid-built author selections pass. The
+[SDK policy record](SDK-OWNER-SEED-CONTEXT.md) retains the red requests, diagnostic
+probes and fixed checks. Four fresh ordinary/long publications remain running;
+the qualified 114 producer inputs and fifteen installed seed files are unchanged.
+
 ## 2026-11-09: Check the rebuilt private wide-store adapter
 
 The current private host passes 104 native and Cupid-built case executions

@@ -102,6 +102,8 @@ static const char manifest_complete_build_plan_sha256[] =
     "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3";
 static const char manifest_disk_build_plan_sha256[] =
     "808d9a566c3dd200252cb6ca974dfa19992a923867dc60f500797efd5169c73e";
+static const char manifest_owner_build_plan_sha256[] =
+    "e58a047f92d21a9ffbae6cc19726477f95ca3a872f1238d9cbab58dae950faaa";
 static const char manifest_expected_seed_build_plan_sha256[] =
     "9e16b501a87c06ba6ae45d50a349dc96a03294e2ddd6769c57ec42a79eac08e5";
 static const char manifest_expected_seed_manifest_sha256[] =
@@ -428,7 +430,7 @@ static size_t manifest_bootstrap_c_object_count(const manifest_state_t *state) {
 
 static const char *manifest_bootstrap_plan(const manifest_state_t *state) {
   return state->bootstrap_file_count >= MANIFEST_OWNER_BOOTSTRAP_FILE_COUNT
-             ? "e58a047f92d21a9ffbae6cc19726477f95ca3a872f1238d9cbab58dae950faaa"
+             ? manifest_owner_build_plan_sha256
              : manifest_disk_bootstrap(state)
              ? manifest_disk_build_plan_sha256
              : manifest_complete_bootstrap(state)
@@ -788,7 +790,9 @@ static int manifest_read_captured_seed(error_context_t *context,
        !manifest_slice_equals_literal(&plan_digest,
            manifest_complete_build_plan_sha256) &&
        !manifest_slice_equals_literal(&plan_digest,
-           manifest_disk_build_plan_sha256)) ||
+           manifest_disk_build_plan_sha256) &&
+       !manifest_slice_equals_literal(&plan_digest,
+           manifest_owner_build_plan_sha256)) ||
       !cupid_contract_binary_read_u32(context, reader, &count) ||
       count != SEED_ARTIFACT_COUNT) {
     return cupid_contract_set_error(context, "captured seed context differs");

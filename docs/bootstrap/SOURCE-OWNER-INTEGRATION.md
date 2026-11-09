@@ -219,6 +219,13 @@ directory. Production seed files remain unchanged.
 
 ## Remaining acceptance
 
+Both first ordinary SDK builds complete their stage pairs and runtime checks,
+then reject the captured incoming owner-plan context. The
+[SDK policy correction](SDK-OWNER-SEED-CONTEXT.md) retains that failure and its
+focused native/Cupid-built acceptance. Fresh complete ordinary/long publications
+remain in progress. This changes the SDK contract source outside the qualified
+114-input producer closure; installed seed files remain unchanged.
+
 Complete repository replays and replacement-tool consumers remain required
 before seed adoption. Cold OS/user builds and private runtime checks now use
 the qualified replacement tools and pass; SDK and complete public-entry checks
