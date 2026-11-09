@@ -1,5 +1,15 @@
 # Bootstrapping log
 
+## 2026-11-08: Recognize source-owner profiles in Python consumers
+
+Python verification now accepts the exact 44-source plan and five worker
+import profiles while preserving historical profiles and all production pins.
+Seven new methods and three historical methods pass on both hosts. The first
+historical capture counted later owner and heap headers; its fixture now
+projects the original closure and retains the original count. Actual subprocess
+receipts verify twenty successful method executions. Installed seeds remain
+unchanged. See the [consumer profile record](SOURCE-OWNER-INTEGRATION.md#python-consumer-profiles).
+
 ## 2026-11-08: Qualify the refreshed source-owner producers
 
 Both complete named-source qualifications pass for `3e83d557`, including all

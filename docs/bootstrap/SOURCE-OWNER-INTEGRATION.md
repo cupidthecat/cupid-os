@@ -149,6 +149,28 @@ The archive has 8,522 file records and 700 distinct payloads; its SHA-256 is
 This establishes producer qualification. Replacement-tool consumers and seed
 installation remain separate gates.
 
+## Python consumer profiles
+
+Strict Python seed verification now recognizes the complete 44-source Linux
+plan and the five exact Windows worker plan/count pairs. Only CupidBuild gains
+CreateThread. Historical disk source, link and import profiles keep their
+original contracts. Production revision, parent, manifest and artifact pins
+remain unchanged; recognizing a plan does not authorize seed installation.
+
+Seven new methods cover complete source/link membership, changed names, paths,
+flags and order, crossed counts, unknown roles, peer imports and the installed
+pair. Three historical methods also pass on each host: twenty method executions
+in total. One historical fixture initially counted six later owner headers and
+the hosted heap header as original ISO inputs. Its explicit closure now excludes
+those later inputs while keeping its original counts and plan digests.
+
+The [Python consumer evidence](evidence/source-owner-python-consumers-20261108.json.gz)
+retains sources, tests, failed selections and actual subprocess receipts. Its
+SHA-256 is `849b1a1bec0c63e627b065bb2e277dd9471975d37c8eca2bc40485a5df3246cb`.
+The two validation functions also match their isolated consumer counterparts
+by syntax-tree comparison. Provisional seed projections and cold consumer builds
+remain separate from the installed engineering seeds.
+
 ## Remaining acceptance
 
 Complete repository replays and replacement-tool consumers remain required

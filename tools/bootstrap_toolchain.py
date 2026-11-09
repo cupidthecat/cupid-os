@@ -1883,10 +1883,11 @@ def _validate_build_plan(
     if tuple(producers) != PRODUCER_NAMES:
         raise BootstrapError("build plan producer tools differ")
 
+    source_owner = (promoted and manifest.get("build_plan_sha256") ==
+                    "e58a047f92d21a9ffbae6cc19726477f95ca3a872f1238d9cbab58dae950faaa")
     expected_sources = (
-        (*EXPECTED_SOURCES, *PROMOTED_SOURCES)
-        if promoted
-        else EXPECTED_SOURCES
+        (*EXPECTED_SOURCES, *CANDIDATE_SOURCES) if source_owner else
+        (*EXPECTED_SOURCES, *PROMOTED_SOURCES) if promoted else EXPECTED_SOURCES
     )
     sources = _require_list(plan.get("sources"), "build_plan.sources")
     if len(sources) != len(expected_sources):
@@ -1926,7 +1927,9 @@ def _validate_build_plan(
     links = _require_object(plan.get("links"), "build_plan.links")
     expected_links = dict(EXPECTED_LINKS)
     if promoted:
-        expected_links["cupidbuild"] = PROMOTED_CUPIDBUILD_LINK
+        expected_links["cupidbuild"] = (
+            CANDIDATE_CUPIDBUILD_LINK if source_owner else PROMOTED_CUPIDBUILD_LINK
+        )
         expected_links["cupidobj"] = PROMOTED_CUPIDOBJ_LINK
     if set(links) != set(expected_links):
         raise BootstrapError("build plan tool links differ")
@@ -2783,6 +2786,17 @@ def _promoted_windows_imports(
     if type(source_input_count) is not int:
         raise BootstrapError("promoted Windows import profile differs")
     profile = (plan_sha256, source_input_count)
+    owner_profiles = {
+        ('0bf4abe248c229212b59293572a8437fc7fda357a642c550e334189a1be4332b', 108): (False, False, False),
+        ('17664a10f3d08b88d57a0be8d2824859faa8cbc3503fcd9bae73a60e6b857ca1', 112): (True, False, False),
+        ('f6465323611c509813922af67c31282fb30da97c0fd1c808118127656e8f9353', 113): (True, True, False),
+        ('f5a6202d1bd694b062d3c70552441e833a0c6bdc4afde753e82c62797454f641', 113): (True, False, True),
+        ('edf91edb181c104e9762ac7f68c4636b5da153ac43e24f1d4dc941424f96e63c', 114): (True, True, True),
+    }
+    if profile in owner_profiles:
+        utf8, long_paths, aliases = owner_profiles[profile]
+        return _windows_profile_imports(tool_name, utf8=utf8, long_paths=long_paths,
+            user_link_aliases=aliases, observer_workers=True)
     if profile in (("70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9", 66),
                    ("0787562d0768485fa614c941fc79a7c6e329c64b6956261cca945a95c2ef9f56", 85),
                    ("5633a265a4076d8a544621735795dae2baf9b28653c6a5e4b6fa6d8ec37c3dc7", 92)):

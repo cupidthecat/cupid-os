@@ -28,7 +28,10 @@ Cupid-built CLI replays pass on both hosts. Both refreshed full qualifications
 now pass for committed `3e83d557`. Independent checks verify 333 artifacts,
 111 complete final-stage pairs and all 114 source inputs against Git. A first
 Windows access-denied launch remains recorded alongside its passing full retry.
-Replacement-tool consumers remain required before seed adoption. Image
+Python consumers also recognize the exact owner source/link plan and five
+worker import profiles; twenty paired-host method executions pass. Production
+pins remain unchanged. Replacement-tool consumers remain required before seed
+adoption. Image
 publication and the normal image-command handoff remain unfinished. The
 normal graph still has 449 CupidBuild transforms and three Python transforms.
 See the [integration record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-INTEGRATION.md)

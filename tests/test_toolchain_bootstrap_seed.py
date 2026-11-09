@@ -181,7 +181,14 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 self.assertEqual(_build_plan_sha256(actual_plan), digest)
                 snapshot = capture_source_snapshot(REPO_ROOT, plan, windows_utf8=utf8,
                     windows_long_paths=long_paths, windows_user_link_aliases=aliases)
-                historical_headers = {"toolchain/" + name + ".h" for name in ("fat16_stage", "fat16_names", "disk_image")}
+                # Reconstruct this historical closure instead of counting later
+                # source-owner and hosted-heap headers as original inputs.
+                historical_headers = {"toolchain/" + name + ".h" for name in (
+                    "fat16_stage", "fat16_names", "disk_image",
+                    "cupidbuild_disk_input_discovery", "cupidbuild_disk_integer",
+                    "cupidbuild_disk_options", "cupidbuild_source_file",
+                    "cupidbuild_source_path", "cupidbuild_source_stage")}
+                historical_headers.add("toolchain/hosted/i386-linux/include/cupid_runtime.h")
                 snapshot = {name: row for name, row in snapshot.items() if name not in historical_headers}
                 self.assertEqual(len(snapshot), count)
                 for role in CANDIDATE_TOOL_NAMES:
