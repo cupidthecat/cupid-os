@@ -49,5 +49,30 @@ The [evidence archive](evidence/private-registered-input-ranges-20261109.json.gz
 contains 379 file records, 84 embedded payloads and fourteen references to the
 qualified producer archive. Its SHA-256 is
 `3ee319a6268966e31fc2007adf37933d634534dae6ccc8c4336b4f727f35a373`.
-Complete retained-image consumption, checked template/publisher reconstruction,
-active ABI/source-plan integration and qualification remain open.
+## Complete retained images
+
+Twenty additional cases use the preserved 209,715,200-byte OS image. Twelve
+reconstructions read and write all 3,200 bounded chunks; eight EOF/capacity
+controls preserve the previous public image. Both retained previous-output
+capture and explicit bounded-input capture pass. Windows runs eight cases;
+Linux runs twelve, including three ordinary-input repetitions per caller.
+The adapter, header and three implementation includes match v48 exactly.
+
+Initial fixtures incorrectly use the ordinary primary-source limit, then omit
+closing a nonnull owner returned after an open failure. Correcting those callers
+requires no adapter change. A later Linux run returns 99 while storage is full;
+its caller does not record errno, so the exact error remains unattributed. The
+diagnostic replays pass after space recovery with the original memory limits.
+The original uninstrumented Linux replay remains a separate pending check.
+
+Independent review rereads the retained Windows outputs. Linux duplicate images
+are retired after complete hash and block comparisons; review checks their
+canonical source and retirement records rather than claiming another output
+reread after removal. The original image remains preserved locally.
+
+The [complete-image archive](evidence/private-complete-image-input-ranges-20261109.json.gz)
+retains 130 file records, 55 local payloads and fourteen qualified-archive
+references. Its SHA-256 is
+`0b26ede93fc8ef1f55eb34d45793e59a019e93f15f8d42b51c490b47d1b59e9e`.
+Checked template/publisher reconstruction, active ABI/source-plan integration
+and qualification remain open.

@@ -85,8 +85,8 @@ and 183 references to the qualified producer archive. Its SHA-256 is
 Complete large outputs remain local. Earlier v26 acceptance remains recorded
 in the [store record](PRIVATE-WIDE-STORES-CURRENT.md). The
 [bounded registered-input reader](PRIVATE-REGISTERED-INPUT-RANGES.md) now passes
-its small complete-payload, metadata and concurrency checks. Complete retained
-image consumption, checked template/publisher reconstruction, active ABI/source-plan
+its small complete-payload, metadata and concurrency checks, plus twenty
+complete-image range cases. Checked template/publisher reconstruction, active ABI/source-plan
 integration and qualification remain open. Native image-command ownership and
 installed seed adoption remain separate gates. The
 [historical transfer record](PRIVATE-OUTPUT-INPUTS.md) describes the earlier

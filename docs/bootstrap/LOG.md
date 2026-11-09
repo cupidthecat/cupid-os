@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-09: Read complete retained OS images through bounded ranges
+
+Twenty native/Cupid-built cases pass through the unchanged private range
+adapter. Twelve reconstruct the complete 200 MiB retained OS image and eight
+reject EOF/capacity errors while preserving public bytes. Independent review
+checks the guarded programs, source and canonical payloads. The
+[range record](PRIVATE-REGISTERED-INPUT-RANGES.md#complete-retained-images)
+retains the incorrect caller assumptions and a failed Linux run under full
+storage. Its exact errno was not captured; the original uninstrumented replay
+remains pending. Checked template/publisher and active command integration
+remain separate work.
+
 ## 2026-11-09: Match test inventories to the current source cohort
 
 The behavior fixture now derives its observer-worker flag from the selected

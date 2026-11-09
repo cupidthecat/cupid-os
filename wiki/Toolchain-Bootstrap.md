@@ -5906,8 +5906,10 @@ Superseded large outputs and closed debug-image duplicates are retired after
 complete digest checks; source, failure records and current replacements remain.
 The private bounded-input reader
 also passes seventy range and eight real-thread executions, including actual
-metadata changes around reads. Complete retained-image consumption and active
-image-command integration remain open. Installed seeds and
+metadata changes around reads. Twenty complete-image range cases also pass:
+twelve reconstruct the retained 200 MiB image and eight reject invalid requests.
+An earlier Linux failure under full storage remains recorded; its original
+uninstrumented replay and active image-command integration remain open. Installed seeds and
 the three Python-coordinated normal transforms are unchanged. The
 [current store record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-WIDE-STORES-CURRENT.md)
 links the source, failures, probes and independently reviewed evidence.
