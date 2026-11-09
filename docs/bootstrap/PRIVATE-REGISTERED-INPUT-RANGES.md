@@ -74,5 +74,6 @@ The [complete-image archive](evidence/private-complete-image-input-ranges-202611
 retains 130 file records, 55 local payloads and fourteen qualified-archive
 references. Its SHA-256 is
 `0b26ede93fc8ef1f55eb34d45793e59a019e93f15f8d42b51c490b47d1b59e9e`.
-Checked template/publisher reconstruction, active ABI/source-plan integration
-and qualification remain open.
+The [combined retained publisher](PRIVATE-RETAINED-CHECKED-PUBLISHER.md) now
+passes its separate sixteen-case reconstruction. Active ABI/source-plan
+integration and qualification remain open.

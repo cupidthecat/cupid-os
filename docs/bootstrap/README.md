@@ -64,6 +64,8 @@ complete OS can rebuild itself from inside the guest.
   input custody, complete-payload publication and producer rejection checks.
 - [Registered-input ranges](PRIVATE-REGISTERED-INPUT-RANGES.md): bounded reads,
   complete retained images, precise metadata checks and real mixed-thread calls.
+- [Retained image publisher](PRIVATE-RETAINED-CHECKED-PUBLISHER.md): actual checked
+  templates, complete image parity and guarded rejection in one private caller.
 - [Source-owner integration](SOURCE-OWNER-INTEGRATION.md): producer plans,
   flexible members, compiler-first stages and remaining acceptance.
 - [Public bootstrap entries](SOURCE-OWNER-PUBLIC-ENTRYPOINTS.md): historical

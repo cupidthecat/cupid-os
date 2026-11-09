@@ -86,8 +86,9 @@ Complete large outputs remain local. Earlier v26 acceptance remains recorded
 in the [store record](PRIVATE-WIDE-STORES-CURRENT.md). The
 [bounded registered-input reader](PRIVATE-REGISTERED-INPUT-RANGES.md) now passes
 its small complete-payload, metadata and concurrency checks, plus twenty
-complete-image range cases. Checked template/publisher reconstruction, active ABI/source-plan
-integration and qualification remain open. Native image-command ownership and
+complete-image range cases. The [combined retained publisher](PRIVATE-RETAINED-CHECKED-PUBLISHER.md)
+also passes sixteen reconstruction cases. Active ABI/source-plan integration
+and qualification remain open. Native image-command ownership and
 installed seed adoption remain separate gates. The
 [historical transfer record](PRIVATE-OUTPUT-INPUTS.md) describes the earlier
 prototype and its distinct evidence.

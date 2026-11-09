@@ -5914,6 +5914,15 @@ the three Python-coordinated normal transforms are unchanged. The
 [current store record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-WIDE-STORES-CURRENT.md)
 links the source, failures, probes and independently reviewed evidence.
 
+The combined private publisher also passes sixteen native/Cupid-built cases.
+It consumes an actual checked CupidObj template through frozen input ranges,
+composes and publishes the complete 200 MiB image, and preserves the previous
+FAT contents during reuse. That image matches the currently booted bytes.
+Formatting and absent-image cases match Python; a wrong checked template
+rejects before composition writes. The
+[publisher record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-RETAINED-CHECKED-PUBLISHER.md)
+links the complete evidence and remaining active-command integration work.
+
 The updated guest manual passes a guarded relink, all sixteen artifact gates,
 seventeen policy tests, the ownership audit and a strict private four-CPU boot.
 All 62 TLS checks and ordered command completion pass. Only the measured

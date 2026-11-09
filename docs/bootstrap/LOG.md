@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-09: Connect checked templates to retained image publication
+
+All sixteen native/Cupid-built reconstruction cases pass on both hosts. The
+private caller connects actual checked CupidObj generation, accepted-output
+transfer, bounded input caches, the existing C composer and guarded owned-store
+publication. Reuse reproduces the current booted image; formatting and missing
+images match Python. Wrong geometry rejects before composition writes and
+preserves the original public file. Independent review replays both actual
+producers and checks complete canonical images. The
+[publisher record](PRIVATE-RETAINED-CHECKED-PUBLISHER.md) retains the source,
+initial fixture-root error and original limits. Active command/Make ownership,
+file staging and seed adoption remain open.
+
 ## 2026-11-09: Restore current ownership and mutation fixtures
 
 The remaining source audit fixtures now include the observer startup, complete
