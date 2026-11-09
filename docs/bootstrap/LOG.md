@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-09: Accept current public bootstrap fixtures
+
+Historical disk fixtures now retain their exact source/link shape while current
+assertions cover the complete owner/worker plan. Four 159-method selections and
+both full public CLI methods pass. Native Windows long/alias preparation and the
+actual Windows Make entry also pass; independent review checks all 3,492 Make
+products and sixty final pairs. The original Windows CLI already returned zero,
+but its unittest used an older runtime-PE golden. The fresh complete method
+passes after that expectation is bound to two identical qualified references.
+The [entry record](SOURCE-OWNER-PUBLIC-ENTRYPOINTS.md) retains the original failure
+and accepted checks. Actual Linux Make, complete SDK publications and seed
+adoption remain separate.
+
 ## 2026-11-09: Reconstruct checked-output input custody
 
 The private adapter transfers an accepted producer output into frozen-input

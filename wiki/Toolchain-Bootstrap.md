@@ -5918,3 +5918,12 @@ Cupid-built author selections pass. Fresh complete ordinary/long publications
 remain open. The
 [SDK policy record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SDK-OWNER-SEED-CONTEXT.md)
 retains the original failures and accepted correction.
+
+The public full-bootstrap methods now pass on native Linux and Windows. Four
+159-method historical/current fixture selections, Windows long/alias preparation
+and the actual native Windows Make target also pass. Independent review checks
+all 3,492 Make products and sixty final pairs. The original Windows CLI succeeds;
+its old runtime-PE test golden is corrected from two retained qualified images.
+The [entry record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-PUBLIC-ENTRYPOINTS.md)
+retains the failure and rerun. Actual Linux Make and complete SDK publication
+remain separate from installed seed adoption.

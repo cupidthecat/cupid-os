@@ -219,6 +219,11 @@ directory. Production seed files remain unchanged.
 
 ## Remaining acceptance
 
+The [public entry record](SOURCE-OWNER-PUBLIC-ENTRYPOINTS.md) retains the accepted
+paired full CLI methods, historical/current fixture selections and actual native
+Windows Make reconstruction. Fresh native Linux Make and complete SDK
+publications remain separate checks.
+
 Both first ordinary SDK builds complete their stage pairs and runtime checks,
 then reject the captured incoming owner-plan context. The
 [SDK policy correction](SDK-OWNER-SEED-CONTEXT.md) retains that failure and its

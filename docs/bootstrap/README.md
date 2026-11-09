@@ -61,6 +61,8 @@ complete OS can rebuild itself from inside the guest.
   input custody, complete-payload publication and producer rejection checks.
 - [Source-owner integration](SOURCE-OWNER-INTEGRATION.md): producer plans,
   flexible members, compiler-first stages and remaining acceptance.
+- [Public bootstrap entries](SOURCE-OWNER-PUBLIC-ENTRYPOINTS.md): historical
+  fixtures, paired full CLI checks and native Windows Make products.
 - [Private integer updates](PRIVATE-INTEGER-UPDATES.md): typed lvalue mutation
   with paired-host source checks and installed JIT/AOT evidence.
 - [Private pointer difference](PRIVATE-POINTER-DIFFERENCE.md): signed element
