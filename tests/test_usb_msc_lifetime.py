@@ -24,6 +24,7 @@ class UsbMscLifetimeTests(unittest.TestCase):
             )
             command = compiler + [
                 "-std=gnu11",
+                "-fno-builtin",
                 "-Wall",
                 "-Wextra",
                 "-Werror",

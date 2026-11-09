@@ -5985,3 +5985,9 @@ five observer-bridge representatives. Native NASM/CupidASM bytes agree on both
 hosts, strict disassembly rejects every truncated prefix, and complete native
 and Cupid-built x86 contract selections pass. The encoder and decoder keep
 their existing instruction behavior.
+
+Strict native verification now checks current frontend and object inventories,
+explicit test-input alignment and required Make flags. Complete 159-method
+selections pass on both hosts; actual native Make builds also verify every ABI
+field. The [native fixture record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-NATIVE-ORACLE-FIXTURES.md)
+keeps the checked-runtime limits and remaining full-replay work explicit.

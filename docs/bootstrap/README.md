@@ -74,6 +74,8 @@ complete OS can rebuild itself from inside the guest.
   counts, observer-worker selection and paired native/Cupid-built checks.
 - [Image-profile fixtures](SOURCE-OWNER-IMAGE-PROFILE-FIXTURES.md): historical
   imports, checked worker links and portable verification dependencies.
+- [Native verification fixtures](SOURCE-OWNER-NATIVE-ORACLE-FIXTURES.md): current
+  frontend/object goldens, portable native inputs and required Make flags.
 - [Private integer updates](PRIVATE-INTEGER-UPDATES.md): typed lvalue mutation
   with paired-host source checks and installed JIT/AOT evidence.
 - [Private pointer difference](PRIVATE-POINTER-DIFFERENCE.md): signed element

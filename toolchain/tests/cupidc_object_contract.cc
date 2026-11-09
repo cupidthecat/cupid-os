@@ -32918,23 +32918,23 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 131u, 82u, 140u,
+      65u, 141u, 82u, 145u,
       31u, 143u, 270u, 374u,
       463u, 91u, 37u, 65u,
       46u};
   static const ctool_u32 expected_text_sizes[] = {
-      38666u, 175074u, 107997u, 169071u,
-      39036u, 176040u, 464755u, 559027u,
+      38666u, 192529u, 107997u, 177416u,
+      39036u, 176040u, 465485u, 560073u,
       855894u, 147794u, 64216u, 80016u,
       68406u};
   static const ctool_u32 expected_object_sizes[] = {
-      43268u, 200756u, 126964u, 206316u,
-      46308u, 212404u, 503792u, 630368u,
+      43268u, 223128u, 126964u, 215040u,
+      46308u, 212404u, 504548u, 631440u,
       1024260u, 169248u, 73196u, 136108u,
       75716u};
   static const ctool_u32 expected_text_fingerprints[] = {
-      0x48a54686u, 0xf8ee9ff6u, 0x0a88da1au, 0xf642da92u,
-      0x4183d364u, 0x66834032u, 0xd5699263u, 0x680b17dau,
+      0x48a54686u, 0xde4265c0u, 0x0a88da1au, 0x9ba89960u,
+      0x4183d364u, 0x66834032u, 0x482ce185u, 0xb66c1070u,
       0x2fc9a273u, 0x0f198856u, 0x9414825au, 0xef1d6767u,
       0x98038db6u};
   ctool_u32 index;
@@ -33254,6 +33254,7 @@ static int run_self_host_hosted_adapters(const char *host_root) {
       "getcwd"};
   static const char *const cupiddis_undefined[] = {
       "ctool_string",
+      "ctool_bytes",
       "ctool_default_limits",
       "ctool_status_name",
       "ctool_path_root",
@@ -33270,6 +33271,7 @@ static int run_self_host_hosted_adapters(const char *host_root) {
       "ctool_x86_decoder_prepare",
       "ctool_dis_inspect",
       "ctool_dis_inspect_indexed",
+      "ctool_dis_parse_raw_map",
       "ctool_dis_render",
       "stdout",
       "stderr",
@@ -33286,7 +33288,6 @@ static int run_self_host_hosted_adapters(const char *host_root) {
       "realloc",
       "free",
       "memcpy",
-      "memcmp",
       "memset",
       "strchr",
       "strcmp",
@@ -33297,8 +33298,8 @@ static int run_self_host_hosted_adapters(const char *host_root) {
        ctool_host_undefined, 10u, 25u, 38u, 28u, 10u},
       {"/toolchain/cupidasm_main.cc", 47u, 46547u, 54804u, 0x2cef590du,
        cupidasm_undefined, 41u, 127u, 368u, 319u, 49u},
-      {"/toolchain/cupiddis_main.cc", 28u, 43453u, 55924u, 0xd9551785u,
-       cupiddis_undefined, 39u, 186u, 358u, 216u, 142u}};
+      {"/toolchain/cupiddis_main.cc", 21u, 30392u, 38812u, 0xa54f14f9u,
+       cupiddis_undefined, 40u, 117u, 256u, 177u, 79u}};
   ctool_u32 index;
   for (index = 0u; index <
                        (ctool_u32)(sizeof(cases) / sizeof(cases[0]));
@@ -34730,8 +34731,8 @@ static int validate_inline_assembly_function(
   ctool_u32 cursor = 0u;
   ctool_u32 first_count = 0u;
   ctool_u32 second_count = 0u;
-  ctool_x86_value_t saved_ebx_slot;
-  ctool_x86_value_t ebx_output_slot;
+  ctool_x86_value_t saved_ebx_slot = {0};
+  ctool_x86_value_t ebx_output_slot = {0};
   ctool_bool saved_ebx = CTOOL_FALSE;
   ctool_bool snapped_ebx_output = CTOOL_FALSE;
   ctool_bool restored_ebx = CTOOL_FALSE;

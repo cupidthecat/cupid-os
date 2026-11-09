@@ -537,6 +537,7 @@ class CupidLdHostedCliTests(unittest.TestCase):
         _compile_i386(cls.source, cls.object)
         cls.helper_source.write_text(
             '.section .text,"ax",@progbits\n'
+            "  .balign 4\n"
             ".globl helper\n"
             ".type helper,@function\n"
             "helper:\n"

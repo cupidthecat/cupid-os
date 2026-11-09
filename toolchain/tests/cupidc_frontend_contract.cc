@@ -7936,20 +7936,20 @@ static int validate_toolchain_frontier(const char *host_root) {
   static const toolchain_frontier_case_t cases[] = {
       {"/toolchain/ctool.cc", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1012u,
        5981u, 133u, 33u, 0u, 0u},
-      {"/toolchain/cupiddis.cc", CTOOL_OK, 0u, 0u, 0u, "", 131u, 3424u,
-       24101u, 415u, 381u, 1u, 0u},
+      {"/toolchain/cupiddis.cc", CTOOL_OK, 0u, 0u, 0u, "", 141u, 3861u,
+       26472u, 461u, 413u, 1u, 1u},
       {"/toolchain/cupidld.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 2875u,
        18200u, 369u, 337u, 0u, 2u},
-      {"/toolchain/cupidobj.cc", CTOOL_OK, 0u, 0u, 0u, "", 140u, 3451u,
-       23768u, 532u, 452u, 0u, 0u},
+      {"/toolchain/cupidobj.cc", CTOOL_OK, 0u, 0u, 0u, "", 145u, 3538u,
+       24470u, 551u, 468u, 0u, 0u},
       {"/toolchain/cupidc_type.cc", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u,
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 270u, 7627u,
-       70653u, 1004u, 369u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 374u, 9581u,
-       80894u, 1191u, 796u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 270u, 7629u,
+       70758u, 1005u, 369u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 374u, 9583u,
+       81059u, 1192u, 796u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 463u,
        17781u, 116583u, 2650u, 1599u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 91u, 3379u,
@@ -8030,7 +8030,7 @@ static int validate_toolchain_frontier(const char *host_root) {
                           "/toolchain/cupiddis.cc") == 0) {
           static_string_valid =
               validate_toolchain_static_string(
-                  &unit, "hex", "/toolchain/cupiddis.cc", 1913u) == 0;
+                  &unit, "hex", "/toolchain/cupiddis.cc", 2452u) == 0;
         }
         if (status == CTOOL_OK && ctool_job_diagnostic_count(job) == 0u &&
             unit.function_definition_count ==

@@ -476,11 +476,12 @@ BOOTSTRAP_ARTIFACTS := $(CUPIDC_CONTRACT_ARTIFACTS) \
 CFLAGS ?= -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow \
           -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
           -Wmissing-prototypes -Wconversion -Wsign-conversion
-CPPFLAGS ?= -I.
+CPPFLAGS ?=
+override CPPFLAGS += -I.
 ifeq ($(OS),Windows_NT)
 # These modules bound their standard strcpy destinations before copying.
 # Microsoft's CRT deprecation is specific to the native oracle headers.
-$(BUILD_DIR)/cupidbuild_host.o $(BUILD_DIR)/cupidbuild_disk_options.o: CPPFLAGS += -D_CRT_SECURE_NO_WARNINGS
+$(BUILD_DIR)/cupidbuild_host.o $(BUILD_DIR)/cupidbuild_disk_options.o: override CPPFLAGS += -D_CRT_SECURE_NO_WARNINGS
 endif
 LDFLAGS ?=
 

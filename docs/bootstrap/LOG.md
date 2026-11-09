@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-09: Restore strict native verification inputs
+
+Complete 159-method native selections pass on both hosts and against the
+installed Windows cohort. Current source/object goldens, initialized inline
+comparison state, kernel builtin handling and explicit ELF helper alignment
+retain their existing rejection checks. Native Make preserves required flags
+under caller-supplied CPPFLAGS; both real cold builds reproduce the prototypes
+and verify the complete ABI. The audit refresh/check pass. Fresh checked callers
+also pass the frontend and inline selections; their larger source-frontier
+runtime cases remain separate. The [native fixture record](SOURCE-OWNER-NATIVE-ORACLE-FIXTURES.md)
+retains the original failures, corrected proofs and full Windows replay.
+Installed seed adoption and a fresh full repository replay remain open.
+
 ## 2026-11-09: Cover every observer-bridge instruction signature
 
 Five measured byte vectors complete the active-source assembly manifest at
