@@ -5902,6 +5902,8 @@ input custody without copying its payload. Its final 92 transfer executions and
 and 3 MiB payloads are published byte for byte. The same adapter also passes
 four complete 4,294,967,361-byte store publications; every byte receives two
 independent checks. Four-GiB checked-output transfer remains separate.
+Superseded large outputs and closed debug-image duplicates are retired after
+complete digest checks; source, failure records and current replacements remain.
 The private bounded-input reader
 also passes seventy range and eight real-thread executions, including actual
 metadata changes around reads. Complete retained-image consumption and active

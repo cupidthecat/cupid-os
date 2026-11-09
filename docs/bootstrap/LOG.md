@@ -1,5 +1,15 @@
 # Bootstrapping log
 
+## 2026-11-09: Retire verified redundant payloads
+
+Four superseded large store outputs are removed after complete old/replacement
+hash checks and verification of both committed evidence archives. Eighteen
+200 MiB debug-image duplicates also match the preserved original before removal.
+Only these exact files are deleted. Sources, programs, receipts, current large
+replacements and noncanonical failure artifacts remain. The
+[store record](PRIVATE-WIDE-STORES-CURRENT.md#complete-large-files) links the
+retirement evidence. The removed copies total 20,954,743,044 logical bytes.
+
 ## 2026-11-09: Recheck full-width stores through the transfer adapter
 
 All four native/checked complete-file cases now pass on the unchanged private

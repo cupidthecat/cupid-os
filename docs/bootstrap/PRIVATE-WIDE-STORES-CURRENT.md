@@ -77,7 +77,19 @@ remain valid for their own source version.
 
 Two redundant historical Windows v15 payloads are removed after their full
 digests, archived evidence and current replacements are verified. This frees
-8,589,934,722 bytes. Both current Windows outputs remain available.
+8,589,934,722 bytes. Later v46 payloads now provide the retained replacements.
+
+After the v45 replacement checks and their archive are committed, the four
+superseded v33 payloads are retired too. Full old/replacement digests and retained
+identities are checked first; current v46 payloads remain available. Eighteen
+canonical 200 MiB image copies from closed failed fixtures are also removed
+after matching the preserved original. Sources, programs, failure receipts and
+noncanonical failure artifacts remain. This retires 20,954,743,044 logical bytes;
+physical space savings depend on sparse-file allocation. The
+[retirement archive](evidence/verified-payload-retirements-20261109.json.gz)
+retains 143 file records, 53 local payloads and fourteen qualified-archive
+references. Its SHA-256 is
+`aef41672d9cf4d6302ddce533d2928d6d55def6d089b288ca746ba864b54d59b`.
 
 ## Private tool-launch boundary
 
