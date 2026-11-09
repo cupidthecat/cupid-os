@@ -8,7 +8,10 @@ Seven new methods and three historical methods pass on both hosts. The first
 historical capture counted later owner and heap headers; its fixture now
 projects the original closure and retains the original count. Actual subprocess
 receipts verify twenty successful method executions. Installed seeds remain
-unchanged. See the [consumer profile record](SOURCE-OWNER-INTEGRATION.md#python-consumer-profiles).
+unchanged. The canonical audit initially rejects its stale Python coordinator
+fingerprint; regeneration and its independent check now pass. Only that
+fingerprint changes, with ownership still at 449 CupidBuild and three Python
+transforms. See the [consumer profile record](SOURCE-OWNER-INTEGRATION.md#python-consumer-profiles).
 
 ## 2026-11-08: Qualify the refreshed source-owner producers
 
