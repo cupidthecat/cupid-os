@@ -6040,5 +6040,8 @@ remain exact. Historical Windows API checks use the actual pre-worker
 CupidBuild profile separately from current tools. Complete 200-method native
 selections and sixteen release-operation methods pass. The
 [verification record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FINAL-REPLAY-VERIFICATION-FIXTURES.md)
-retains original failures and the open DrvFS parent-drift probe. Fresh full
-repository replays and installed seed adoption remain required.
+retains original failures. The [filesystem follow-up](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FILESYSTEM-VERIFICATION-FIXTURES.md)
+explains blocked DrvFS renames and keeps rejection after actual parent drift.
+Complete 216-method native selections and five additional DrvFS repetitions
+pass; the include inventory also matches the two Doom keyboard headers.
+Fresh full repository acceptance and installed seed adoption remain required.

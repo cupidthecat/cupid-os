@@ -1,5 +1,16 @@
 # Bootstrapping log
 
+## 2026-11-09: Follow actual filesystem rename exclusion
+
+The parent-drift fixture now uses its own launch checkpoint and follows the
+observed rename result. DrvFS can block the rename; actual native Linux drift
+still rejects and preserves the old bytes. Complete 216-method selections pass
+on both native hosts, with five additional DrvFS repetitions. Two focused audit
+methods also pass after their include counts catch up with the Doom keyboard
+headers. The [fixture record](FILESYSTEM-VERIFICATION-FIXTURES.md) retains the
+failed probes and independently verified archive. Producer inputs and OS bytes
+stay exact. The running full replays retain their earlier source revision.
+
 ## 2026-11-09: Preserve verification across seed generations
 
 The corrected fixtures pass complete 200-method selections on both native

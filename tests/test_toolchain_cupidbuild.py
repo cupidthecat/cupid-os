@@ -6387,32 +6387,42 @@ int main(int argc, char **argv) {
                 encoding="utf-8",
             )
             output.write_bytes(b"last known good object")
-            before = self._private_roots()
+            ready = root / "publication-ready"
+            resume = root / "publication-resume"
             changed = threading.Event()
             blocked = threading.Event()
 
-            def replace_parent_after_assembly():
-                deadline = time.monotonic() + 20
-                while time.monotonic() < deadline:
-                    new_roots = self._private_roots() - before
-                    if any(
-                        self._private_entry(token, "candidate.o").is_file()
-                        for token in new_roots
-                    ):
-                        try:
-                            parent.rename(displaced)
-                        except PermissionError:
-                            blocked.set()
+            def replace_parent_after_launch():
+                try:
+                    deadline = time.monotonic() + 20
+                    while time.monotonic() < deadline:
+                        if ready.is_file():
+                            try:
+                                parent.rename(displaced)
+                            except PermissionError:
+                                blocked.set()
+                                return
+                            parent.mkdir()
+                            changed.set()
                             return
-                        parent.mkdir()
-                        changed.set()
-                        return
-                    time.sleep(0.001)
+                        time.sleep(0.001)
+                finally:
+                    resume.write_bytes(b"continue")
 
-            mutator = threading.Thread(target=replace_parent_after_assembly, daemon=True)
+            environment = os.environ.copy()
+            environment["CUPIDBUILD_PUBLICATION_TEST_PHASE"] = "after-tool-launch"
+            environment["CUPIDBUILD_PUBLICATION_TEST_READY"] = str(ready)
+            environment["CUPIDBUILD_PUBLICATION_TEST_RESUME"] = str(resume)
+            command = self._assembly_command("assemble-cupidasm-object", source, output)
+            command[0] = str(self.race_cli_path)
+            mutator = threading.Thread(target=replace_parent_after_launch, daemon=True)
             mutator.start()
-            result = self._run_object(source, output)
+            result = subprocess.run(
+                command, cwd=REPO_ROOT, env=environment, text=True,
+                capture_output=True, timeout=90,
+            )
             mutator.join(timeout=20)
+            self.assertTrue(ready.is_file(), "publication checkpoint was not observed")
 
             self.assertTrue(
                 changed.is_set() or blocked.is_set(),
@@ -6420,6 +6430,8 @@ int main(int argc, char **argv) {
             )
             if os.name == "nt":
                 self.assertTrue(blocked.is_set())
+            if blocked.is_set():
+                # DrvFS can retain Windows directory sharing restrictions too.
                 self.assertFalse(displaced.exists())
                 self.assertTrue(output.is_file())
                 if result.returncode == 0:

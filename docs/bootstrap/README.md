@@ -55,6 +55,9 @@ complete OS can rebuild itself from inside the guest.
 
 ## Records
 
+- [Filesystem-aware fixtures](FILESYSTEM-VERIFICATION-FIXTURES.md): synchronized
+  parent-drift checks, actual DrvFS exclusion and current include counts.
+
 - [Verification across seed generations](FINAL-REPLAY-VERIFICATION-FIXTURES.md):
   explicit release authority, exact sealed inputs, boot prefix comparison and
   historical Windows compatibility, with full-replay limits retained.

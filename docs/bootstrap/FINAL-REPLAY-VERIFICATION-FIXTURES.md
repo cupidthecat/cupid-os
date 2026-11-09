@@ -44,8 +44,9 @@ fresh full replays remain required before adoption.
 
 A concurrent DrvFS module selection also failed a parent-drift check and
 rejected a changing directory closure. The isolated native selection passes.
-A proposed publication checkpoint still reproduces the DrvFS parent failure;
-its cause remains open and the original assertion is unchanged. An auxiliary
+A proposed publication checkpoint still reproduces the DrvFS parent failure.
+The [follow-up](FILESYSTEM-VERIFICATION-FIXTURES.md) identifies its denied-rename
+handling and preserves the successful-rename rejection checks. An auxiliary
 clone first stopped on a mistyped revision guard before running tests.
 The initial four-method reproduction used an older 189-row private input,
 so its preprocessor pass is kept separate from the final 194-row proof.
