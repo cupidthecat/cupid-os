@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-08: Qualify the refreshed source-owner producers
+
+Both complete named-source qualifications pass for `3e83d557`, including all
+behavior checks with the reviewed release. Independent rereading checks 333
+artifacts, 111 complete stage-three/four pairs, 114 Git-bound inputs and 7,593
+behavior files. The first Windows run stops on an access-denied parent-tool
+launch; the original failure and later direct checks remain preserved. A fresh
+complete retry passes without changing permissions, validation or deadlines.
+All fifteen installed seed files remain unchanged. Replacement-tool consumers,
+cold OS builds and seed adoption remain open. The
+[integration record](SOURCE-OWNER-INTEGRATION.md#refreshed-producer-qualification)
+links the complete evidence archive.
+
 ## 2026-11-08: Admit source-owner behavior manifests in the C reader
 
 Paired named preparations match all stage-three and stage-four objects and

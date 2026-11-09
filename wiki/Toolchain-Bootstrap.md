@@ -24,8 +24,11 @@ tools still need their own cold OS builds and consumer acceptance.
 Named producer preparations now match stages three and four on both hosts.
 Behavior qualification exposed a missing C manifest-reader profile. The reader
 now checks the complete owner plan and exact worker imports; native tests and
-Cupid-built CLI replays pass on both hosts. Refreshed full qualification and
-replacement-tool consumers remain required before seed adoption. Image
+Cupid-built CLI replays pass on both hosts. Both refreshed full qualifications
+now pass for committed `3e83d557`. Independent checks verify 333 artifacts,
+111 complete final-stage pairs and all 114 source inputs against Git. A first
+Windows access-denied launch remains recorded alongside its passing full retry.
+Replacement-tool consumers remain required before seed adoption. Image
 publication and the normal image-command handoff remain unfinished. The
 normal graph still has 449 CupidBuild transforms and three Python transforms.
 See the [integration record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-INTEGRATION.md)

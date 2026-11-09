@@ -11,7 +11,8 @@ Cupid OS remains unfinished.
   Python coordination. GNU Make still schedules the build.
 - Source-owner modules are in current producer plans, and paired named
   preparations reach a fixed point. The C reader now recognizes their exact
-  behavior profiles. Refreshed qualification, disk/SDK publication and the normal image-command handoff remain open.
+  behavior profiles. Both refreshed full qualifications pass. Replacement-tool
+  consumers, disk/SDK publication and the normal image-command handoff remain open.
 - The private in-OS compiler supports halfword storage, integer array lists
   and typed native calls. Its remaining language gaps and guest acceptance
   are separate from hosted compiler fixed points. The shell can inspect

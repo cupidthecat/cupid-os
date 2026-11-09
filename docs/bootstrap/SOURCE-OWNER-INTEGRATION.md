@@ -123,10 +123,36 @@ retains the old named preparations, failed qualification, original replay,
 current reader sources, native and checked results, independent review and
 manual/image checks. All fifteen installed seed files remain unchanged.
 
+## Refreshed producer qualification
+
+Both full qualifications pass for committed `3e83d557`. The 114-input source
+snapshot is `8dccf54316a29ab55262a680ef269903bccf60dea64f5b06dc58ad20871ec39e`.
+Each run rebuilds stages two through four and completes behavior checks with
+the reviewed release. Independent rereading verifies all 333 artifact files,
+111 complete final-stage pairs, 114 inputs against their raw Git blobs and
+7,593 retained behavior files. All twelve final tool images match the reviewed
+release. The fifteen installed seed files remain unchanged.
+
+The first Windows qualification stops with operating-system access denied
+while launching the captured parent CupidDis. Its original executable and
+failure log remain retained. That same executable subsequently passes direct
+help and strict-object checks; the cause remains unresolved. A fresh complete
+Windows qualification passes with the same source, release, guards and timeout.
+No permission or security setting changes, validator fallback or deadline
+extension are used.
+
+The [qualified producer evidence](evidence/source-owner-qualified-producers-20261108.json.gz)
+retains both preparations, both accepted qualifications, the first Windows
+failure and probe, reviewed release, controllers and independent verification.
+The archive has 8,522 file records and 700 distinct payloads; its SHA-256 is
+`792843ab9299232854c74500fdd543c8f91cf06b9a942b3dcb766e48217f16ff`.
+This establishes producer qualification. Replacement-tool consumers and seed
+installation remain separate gates.
+
 ## Remaining acceptance
 
-Complete repository replays, refreshed named-source producer qualification and
-replacement-tool consumers remain required before seed adoption. Their cold
+Complete repository replays and replacement-tool consumers remain required
+before seed adoption. Their cold
 normal OS builds and runtime checks must use the qualified replacement tools.
 Stage-two success and the installed-seed image check do not satisfy those gates.
 
