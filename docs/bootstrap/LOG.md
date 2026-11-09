@@ -1,5 +1,16 @@
 # Bootstrapping log
 
+## 2026-11-09: Cover every observer-bridge instruction signature
+
+Five measured byte vectors complete the active-source assembly manifest at
+194 mode-specific signatures. Both native eighteen-method selections pass;
+actual NASM/CupidASM bytes agree, and strict CupidDis rejects all truncated
+prefixes. Fresh Cupid-built ELF callers pass all sixteen modes on both host
+runners with identical products. The canonical audit refresh/check pass.
+The [fixture record](SOURCE-OWNER-INVENTORY-FIXTURES.md) retains the source,
+byte oracles and execution boundaries. No instruction implementation or OS
+output changes in this step.
+
 ## 2026-11-09: Separate historical profiles from current source capture
 
 Historical plan tests retain their exact digest/count/import gates through the

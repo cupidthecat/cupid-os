@@ -5979,3 +5979,9 @@ The exact historical profile tests now keep their earlier plans independent of
 installed source-owner plans. Current captures still require every owner input.
 Complete ninety-method selections pass on both native hosts and with the
 installed Windows cohort; full repository acceptance remains open.
+
+The active assembly manifest covers all 194 mode-specific signatures, including
+five observer-bridge representatives. Native NASM/CupidASM bytes agree on both
+hosts, strict disassembly rejects every truncated prefix, and complete native
+and Cupid-built x86 contract selections pass. The encoder and decoder keep
+their existing instruction behavior.

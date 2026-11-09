@@ -62456,7 +62456,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "1ef7a5e9d888420e32e8db4ed6e790428d50a9318bc021def9c365bfd2404208",
+    "active_source_digest": "fc14ee3f771d70d2e8896d5ee463319b879d47e133693cd2b730c404e49650f7",
     "control_files": [
       {
         "path": "Makefile",
@@ -91926,7 +91926,7 @@
       "path": "toolchain/tests/x86_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "05b612dc39708afcc031e297fd96bcf4c3cab1c99860cbe7923d7120e4776a6b"
+      "sha256": "cee5262d64ed9f795f30ead872b1b6b0b2273a447239209d6aa6db6ae18e5f02"
     },
     {
       "build_owners": [

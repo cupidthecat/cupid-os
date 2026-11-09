@@ -83,3 +83,25 @@ retains 42 file records and 42 payloads, including measured profile differences,
 original failures and complete corrected runs. Its SHA-256 is
 `b1361f76462fd69ec2641ced3ad7d7ddf1628f857e05f29c3d79c96825e82ff1`.
 These fixture changes do not alter production plans or installed seeds.
+
+## Observer assembly vectors
+
+The exact active-source manifest now has 194 mode-specific vectors. Five added
+representatives cover the observer bridge's two memory comparisons, indirect
+call, memory exchange and callee-cleanup return. All 189 earlier vectors remain.
+The source scan measures 38 assembly inputs, 36 containing instructions,
+2,024 statements, 92 opcodes and 171 mode-independent signatures.
+
+Both native eighteen-method selections pass. Windows NASM 2.16.01 and Linux
+NASM 3.01 independently match qualified native CupidASM bytes for all five
+representatives. Qualified CupidDis accepts each complete instruction and
+rejects every nonempty truncated prefix, nine per host. Fresh Cupid-built ELF
+callers pass all sixteen modes on Linux and through the existing Windows WSL
+runner, with identical objects and executables. Nine conventional producers
+are forbidden during those checked builds. The audit refresh and check pass.
+
+The [assembly-vector archive](evidence/source-owner-observer-x86-fixtures-20261109.json.gz)
+retains 325 file records, 115 local payloads and 164 qualified-archive references.
+Its SHA-256 is
+`e1d3215a7fbba8dcd6e9050cf1ab35a353a0f16c7a64ac7408614f2eb578e66d`.
+This adds coverage for existing instructions; assembler and OS behavior do not change.

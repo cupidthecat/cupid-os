@@ -1,11 +1,11 @@
 /*
  * Active-source x86 oracle manifest.
  *
- * The 189 rows represent every mode-specific signature across 31 active
- * assembly inputs. Of those, 29 contain instructions, with 1,414 statements
- * and 166 mode-independent signatures. Signatures retain semantic prefixes,
+ * The 194 rows represent every mode-specific signature across 38 active
+ * assembly inputs. Of those, 36 contain instructions, with 2,024 statements
+ * and 171 mode-independent signatures. Signatures retain semantic prefixes,
  * operand classes, explicit memory/far widths, address shape, and explicit a32.
- * NASM 2.16.01 assembled each representative in isolation; symbolic values
+ * NASM assembled each representative in isolation; symbolic values
  * are replaced only for byte selection. Active C/Cupid C inline assembly is
  * recorded separately in x86_inline_cases.inc. Define X86_ACTIVE_CASE before
  * including this file.
@@ -199,3 +199,8 @@ X86_ACTIVE_CASE("asm:demos/parity_priv.asm:41:bits32:wbinvd()", CTOOL_X86_MODE_3
 X86_ACTIVE_CASE("asm:demos/parity_priv.asm:40:bits32:wrmsr()", CTOOL_X86_MODE_32, CTOOL_X86_MN_WRMSR, 2u, {0x0fu, 0x30u})
 X86_ACTIVE_CASE("asm:demos/parity_priv.asm:52:bits32:xadd(r32,r32)", CTOOL_X86_MODE_32, CTOOL_X86_MN_XADD, 3u, {0x0fu, 0xc1u, 0xc3u})
 X86_ACTIVE_CASE("asm:demos/jcc_aliases.asm:30:bits32:xor(r32,r32)", CTOOL_X86_MODE_32, CTOOL_X86_MN_XOR, 2u, {0x31u, 0xc0u})
+X86_ACTIVE_CASE("asm:toolchain/hosted/i386-windows/observer_thread.asm:20:bits32:cmp(m32:base,imm)", CTOOL_X86_MODE_32, CTOOL_X86_MN_CMP, 3u, {0x83u, 0x38u, 0x00u})
+X86_ACTIVE_CASE("asm:toolchain/hosted/i386-windows/observer_thread.asm:22:bits32:cmp(m32:base-disp,imm)", CTOOL_X86_MODE_32, CTOOL_X86_MN_CMP, 4u, {0x83u, 0x78u, 0x08u, 0x00u})
+X86_ACTIVE_CASE("asm:toolchain/hosted/i386-windows/observer_thread.asm:45:bits32:call(m32:base)", CTOOL_X86_MODE_32, CTOOL_X86_MN_CALL, 2u, {0xffu, 0x10u})
+X86_ACTIVE_CASE("asm:toolchain/hosted/i386-windows/observer_thread.asm:52:bits32:xchg(m32:base,r32)", CTOOL_X86_MODE_32, CTOOL_X86_MN_XCHG, 2u, {0x87u, 0x0au})
+X86_ACTIVE_CASE("asm:toolchain/hosted/i386-windows/observer_thread.asm:55:bits32:ret(imm)", CTOOL_X86_MODE_32, CTOOL_X86_MN_RET, 3u, {0xc2u, 0x04u, 0x00u})
