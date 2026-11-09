@@ -12,6 +12,7 @@ import tempfile
 import unittest
 from tests.test_seed_release import DRAFT, ROOT, encode, _host_compiler, release as installed_release
 from tests.test_seed_release_match import manifest as installed_manifest
+from tests.bootstrap_seed_fixture_profiles import observer_workers_for_seed
 from tools import bootstrap_toolchain as seed
 
 
@@ -297,21 +298,24 @@ class ManifestTests(unittest.TestCase):
         windows = seed.verify_seed_inputs(ROOT / "bootstrap/seeds/i386-windows/manifest.json")
         linux = seed.verify_seed_inputs(ROOT / "bootstrap/seeds/i386-linux/manifest.json")
         self.assertEqual(windows.manifest["provenance"]["source_input_count"], seed.PROMOTED_SOURCE_INPUT_COUNT)
-        plan = copy.deepcopy(linux.manifest["build_plan"])
+        plan = seed._candidate_build_plan(linux.manifest["build_plan"])
         snapshot = seed.capture_source_snapshot(ROOT, plan, windows_utf8=True, windows_user_link_aliases=True)
-        self.assertEqual(len(snapshot), 105)
+        self.assertEqual(len(snapshot), 112)
         digest = seed._build_plan_sha256(seed._windows_build_plan(plan, utf8=True, user_link_aliases=True))
         changed = seed._retarget_native_windows_behavior_seed(windows, digest, plan, snapshot,
             utf8=True, user_link_aliases=True, parent_plan_seed=linux)
         self.assertIsNot(changed, windows)
         provenance = changed.manifest["provenance"]
-        self.assertEqual(provenance["source_input_count"], 105)
+        self.assertEqual(provenance["source_input_count"], 112)
         self.assertEqual(provenance["native_build_plan_sha256"], digest)
         self.assertEqual(provenance["parent_execution_seed_manifest_sha256"], windows.manifest_sha256)
         self.assertEqual(provenance["parent_plan_seed_manifest_sha256"], linux.manifest_sha256)
         self.assertEqual(provenance["parent_execution_seed_source_revision"], windows.manifest["provenance"]["source_revision"])
         self.assertEqual(provenance["parent_plan_seed_source_revision"], linux.manifest["provenance"]["source_revision"])
-        self.check_release(installed_release(), windows.manifest, 2, expected=(6, 5))
+        profile = 10 if observer_workers_for_seed(
+            windows.manifest["provenance"]["native_build_plan_sha256"],
+            windows.manifest["provenance"]["source_input_count"]) else 5
+        self.check_release(installed_release(), windows.manifest, 2, expected=(6, profile))
         self.check(changed.manifest, 2, False)
         data = encode(changed.manifest)
         incoming = ctypes.create_string_buffer(data)
@@ -319,7 +323,7 @@ class ManifestTests(unittest.TestCase):
         result = Result()
         self.assertEqual(self.api(incoming, len(data), 2, ctypes.byref(result), error, len(error)), 0)
         self.assertIn(b"fixed-point provenance differs", error.value)
-        self.check_release(installed_release(), windows.manifest, 2, expected=(6, 5))
+        self.check_release(installed_release(), windows.manifest, 2, expected=(6, profile))
 
     def test_explicit_release_retains_strict_historical_reader(self):
         from tests.test_seed_pair import released_alias_pair

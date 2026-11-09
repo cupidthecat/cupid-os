@@ -59,3 +59,27 @@ retains 91 file records, 46 local payloads and 21 qualified-archive references.
 Its SHA-256 is
 `d28cf71496db422326372e2d5a24e796561dbab7cac81e511950f9751c6bc15d`.
 Full repository replays and installed seed adoption remain open.
+
+## Historical plans and current captures
+
+Exact historical disk, UTF-8, long-path and user-link fixtures now obtain their
+37-source plan from the existing historical helper. Their digest, input-count
+and import rejection checks remain unchanged. Current 44-source plans retain
+separate checks for all owner modules and the 114-input worker closure.
+
+Live alias captures contain 112 or 113 inputs; the SDK closure contains 112.
+Driver assertions now include the worker selection they actually forward.
+Installed-profile reconstruction derives that selection from exact imports,
+and strict C-reader tests still reject unqualified retargets.
+
+Both native hosts pass the complete 90-method selection. The installed Windows
+cohort also passes all ninety. The original focused run has 26 failures and one
+error. An intermediate rerun catches one remaining ISO fixture: its historical
+parent must remove all seven later owner/codec sources before reconstructing
+the current ordered plan. Exact equality and parent immutability remain required.
+
+The [historical/current archive](evidence/source-owner-historical-current-fixtures-20261109.json.gz)
+retains 42 file records and 42 payloads, including measured profile differences,
+original failures and complete corrected runs. Its SHA-256 is
+`b1361f76462fd69ec2641ced3ad7d7ddf1628f857e05f29c3d79c96825e82ff1`.
+These fixture changes do not alter production plans or installed seeds.

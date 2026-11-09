@@ -58,7 +58,7 @@ class IsoFixtureBundlePlanTests(unittest.TestCase):
 
     def test_guarded_publication_modules_reach_both_build_links(self):
         plan = bootstrap._candidate_build_plan(self.installed['build_plan'])
-        self.assertEqual(len(plan['sources']), 37)
+        self.assertEqual(len(plan['sources']), 44)
         self.assertEqual(plan['links']['cupidbuild'], list(bootstrap.CANDIDATE_CUPIDBUILD_LINK))
         windows = bootstrap._windows_build_plan(plan, utf8=True, long_paths=True, user_link_aliases=True)
         for name in ('iso_fixture_bundle', 'cupidbuild_iso', 'cupidbuild_iso_capture',
@@ -70,7 +70,8 @@ class IsoFixtureBundlePlanTests(unittest.TestCase):
         self.assertEqual(plan, before)
         previous = copy.deepcopy(plan)
         removed = {'cupidbuild_iso', 'cupidbuild_iso_capture', 'cupidbuild_iso_image', 'cupidbuild_iso_publication',
-                   'fat16_stage', 'fat16_names', 'disk_image'}
+                   'fat16_stage', 'fat16_names', 'disk_image',
+                   *(name for name, _, _ in bootstrap.SOURCE_OWNER_SOURCES)}
         previous['sources'] = [r for r in previous['sources'] if r['name'] not in removed]
         previous['links']['cupidbuild'] = list(bootstrap.ISO_BUNDLE_CUPIDBUILD_LINK)
         self.assertEqual(bootstrap._candidate_build_plan(previous), plan)

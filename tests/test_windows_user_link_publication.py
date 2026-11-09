@@ -85,7 +85,7 @@ class WindowsUserLinkPublicationTests(unittest.TestCase):
                                 compare_fixed_point=True, windows_user_link_aliases=selected)
                     self.assertEqual(capture.call_args.kwargs,
                                      {"windows_utf8": True, "windows_long_paths": False,
-                                      **({"windows_user_link_aliases": True} if selected else {})})
+                                      "windows_observer_workers": True, **({"windows_user_link_aliases": True} if selected else {})})
                     self.assertFalse(output.exists())
 
     def test_default_and_long_path_only_drivers_capture_the_required_bridge(self):
@@ -105,7 +105,7 @@ class WindowsUserLinkPublicationTests(unittest.TestCase):
                                 compare_fixed_point=True, windows_long_paths=long_paths)
                     self.assertEqual(capture.call_args.kwargs,
                         {"windows_utf8": True, "windows_long_paths": long_paths,
-                         "windows_user_link_aliases": True})
+                         "windows_user_link_aliases": True, "windows_observer_workers": True})
                     self.assertFalse(output.exists())
 
     def test_invalid_selection_is_rejected_before_input_or_output_mutation(self):
@@ -148,8 +148,8 @@ class WindowsUserLinkPublicationTests(unittest.TestCase):
         with artifact_size_policy._PinnedRepository(ROOT) as reader:
             short = verifier._bootstrap_input_logical_paths(reader, linux)
             long = verifier._bootstrap_input_logical_paths(reader, linux, windows_user_link_aliases=True)
-            self.assertEqual(len(short), 97)
-            self.assertEqual(len(long), 98)
+            self.assertEqual(len(short), 111)
+            self.assertEqual(len(long), 112)
             self.assertNotIn(SHIM, short)
             self.assertEqual(set(long) - set(short), {SHIM})
             reader.require_unchanged()
@@ -180,7 +180,7 @@ class WindowsUserLinkPublicationTests(unittest.TestCase):
             changed = bootstrap._retarget_native_windows_behavior_seed(native, digest, linux, snapshot,
                 utf8=True, long_paths=long_paths, user_link_aliases=True, parent_plan_seed=parent)
             provenance = changed.manifest["provenance"]
-            self.assertEqual(provenance["source_input_count"], 99 if long_paths else 98)
+            self.assertEqual(provenance["source_input_count"], 113 if long_paths else 112)
             self.assertEqual(provenance["native_build_plan_sha256"], digest)
             same_profile = native.manifest["provenance"]["native_build_plan_sha256"] == digest and (
                 native.manifest["provenance"]["source_snapshot_sha256"] == bootstrap._source_snapshot_sha256(snapshot))

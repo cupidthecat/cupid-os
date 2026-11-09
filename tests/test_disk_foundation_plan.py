@@ -6,6 +6,7 @@ import shutil
 import tempfile
 import unittest
 
+from tests.bootstrap_seed_fixture_profiles import historical_disk_manifest
 from tools import artifact_size_policy as policy
 from tools import bootstrap_toolchain as bootstrap
 from tools import toolchain_manifest_contract as sdk
@@ -19,10 +20,11 @@ TABLE = 'toolchain/fat16_name_profiles.inc'
 class DiskFoundationPlanTests(unittest.TestCase):
     def setUp(self):
         self.installed = json.loads((ROOT / 'bootstrap/seeds/i386-linux/manifest.json').read_bytes())
+        self.parent = historical_disk_manifest(self.installed)
         self.plan = bootstrap._candidate_build_plan(self.installed['build_plan'])
 
     def test_complete_plan_adds_exact_portable_cores_and_keeps_parent_immutable(self):
-        parent = copy.deepcopy(self.installed['build_plan'])
+        parent = copy.deepcopy(self.parent['build_plan'])
         self.assertEqual(len(self.plan['sources']), 44)
         self.assertEqual(len(self.plan['links']['cupidbuild']), 30)
         self.assertEqual(self.plan['links']['cupidbuild'][-11:-8], list(MODULES))
@@ -30,13 +32,13 @@ class DiskFoundationPlanTests(unittest.TestCase):
             self.assertEqual([row for row in self.plan['sources'] if row['name'] == name],
                              [{'name': name, 'path': '/toolchain/' + name + '.cc', 'gnu_extensions': False}])
         self.assertEqual(bootstrap._candidate_build_plan(self.plan), self.plan)
-        self.assertEqual(self.installed['build_plan'], parent)
+        self.assertEqual(self.parent['build_plan'], parent)
         self.assertEqual(len(parent['sources']), 37)
         self.assertEqual(tuple(parent['links']['cupidbuild']), bootstrap.PROMOTED_CUPIDBUILD_LINK)
-        bootstrap._validate_build_plan(self.installed, promoted=True)
+        bootstrap._validate_build_plan(self.parent, promoted=True)
 
     def test_historical_iso_parent_upgrades_without_mutating_its_exact_plan(self):
-        parent = copy.deepcopy(self.installed['build_plan'])
+        parent = copy.deepcopy(self.parent['build_plan'])
         parent['sources'] = [row for row in parent['sources'] if row['name'] not in MODULES]
         parent['links']['cupidbuild'] = list(bootstrap.ISO_PUBLICATION_CUPIDBUILD_LINK)
         before = copy.deepcopy(parent)
@@ -54,7 +56,7 @@ class DiskFoundationPlanTests(unittest.TestCase):
             (True, False, True, 98, 42, 4, '6023235b95ec568a107b163b2e107dc5979d9dc0d8a811f2bf605baa26d79bf5'),
             (True, True, True, 99, 42, 5, '754895566b00e6e53b045a1414e7b734872f04d4f0c84d62e3dfcf8dd9bc57ab'),
         )
-        historical = self.installed['build_plan']
+        historical = self.parent['build_plan']
         self.assertEqual(bootstrap._build_plan_sha256(historical),
                          '808d9a566c3dd200252cb6ca974dfa19992a923867dc60f500797efd5169c73e')
         for utf8, long_paths, aliases, count, sources, assembly, digest in profiles:
@@ -92,7 +94,7 @@ class DiskFoundationPlanTests(unittest.TestCase):
         for utf8, long_paths, aliases, count in ((False, False, False, 92),
                 (True, False, False, 97), (True, True, False, 98),
                 (True, False, True, 98), (True, True, True, 99)):
-            native = bootstrap._windows_build_plan(self.installed['build_plan'], utf8=utf8,
+            native = bootstrap._windows_build_plan(self.parent['build_plan'], utf8=utf8,
                 long_paths=long_paths, user_link_aliases=aliases)
             digest = bootstrap._build_plan_sha256(native)
             for name in bootstrap.CANDIDATE_TOOL_NAMES:
@@ -150,5 +152,5 @@ class DiskFoundationPlanTests(unittest.TestCase):
     def test_installed_paired_parent_cohort_still_verifies(self):
         for host in ('linux', 'windows'):
             checked = bootstrap.verify_seed_inputs(ROOT / 'bootstrap/seeds' / ('i386-' + host) / 'manifest.json')
-            self.assertEqual(checked.manifest['provenance']['source_input_count'], 99)
+            self.assertEqual(checked.manifest['provenance']['source_input_count'], bootstrap.PROMOTED_SOURCE_INPUT_COUNT)
             bootstrap.require_live_seed_inputs(checked)

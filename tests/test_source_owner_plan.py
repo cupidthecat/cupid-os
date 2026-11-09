@@ -6,6 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from tests.bootstrap_seed_fixture_profiles import historical_disk_manifest
 from tools import artifact_size_policy as policy
 from tools import bootstrap_toolchain as b
 from tools import toolchain_manifest_contract as sdk
@@ -19,7 +20,8 @@ MODULES = ('cupidbuild_source_path', 'cupidbuild_source_file', 'cupidbuild_sourc
 
 class SourceOwnerPlanTests(unittest.TestCase):
     def setUp(self):
-        self.parent = json.loads((ROOT / 'bootstrap/seeds/i386-linux/manifest.json').read_bytes())
+        self.parent = historical_disk_manifest(json.loads(
+            (ROOT / 'bootstrap/seeds/i386-linux/manifest.json').read_bytes()))
         self.plan = b._candidate_build_plan(self.parent['build_plan'])
         self.flags = dict(windows_utf8=True, windows_long_paths=True,
                           windows_user_link_aliases=True, windows_observer_workers=True)

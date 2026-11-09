@@ -1,5 +1,15 @@
 # Bootstrapping log
 
+## 2026-11-09: Separate historical profiles from current source capture
+
+Historical plan tests retain their exact digest/count/import gates through the
+existing fixture helper. Current captures retain the complete owner inventory,
+and driver assertions include observer workers. Both prospective native hosts
+and the installed Windows cohort pass the complete ninety-method selection.
+The [fixture record](SOURCE-OWNER-INVENTORY-FIXTURES.md) retains the initial
+failures and the missed historical ISO source-order case. Production plans,
+installed seeds and complete repository acceptance remain unchanged.
+
 ## 2026-11-09: Keep verifier images and test hosts consistent
 
 Historical release fixtures now carry exact matching imports, and the current

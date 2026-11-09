@@ -5974,3 +5974,8 @@ native hosts pass the complete Cupid-built ABI module with the current Windows
 worker bridge. Sparse-file checks and Python oracles use portable host fixtures.
 The [image-profile record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-IMAGE-PROFILE-FIXTURES.md)
 retains the original failures; complete repository acceptance remains open.
+
+The exact historical profile tests now keep their earlier plans independent of
+installed source-owner plans. Current captures still require every owner input.
+Complete ninety-method selections pass on both native hosts and with the
+installed Windows cohort; full repository acceptance remains open.

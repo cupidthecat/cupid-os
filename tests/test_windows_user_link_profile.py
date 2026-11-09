@@ -7,6 +7,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from tests.bootstrap_seed_fixture_profiles import historical_disk_manifest
 from tools import bootstrap_toolchain as bootstrap
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,8 +17,8 @@ API = 'GetFinalPathNameByHandleW'
 
 class WindowsUserLinkProfileTests(unittest.TestCase):
     def setUp(self):
-        self.linux = json.loads(
-            (ROOT / 'bootstrap/seeds/i386-linux/manifest.json').read_bytes())['build_plan']
+        self.linux = historical_disk_manifest(json.loads(
+            (ROOT / 'bootstrap/seeds/i386-linux/manifest.json').read_bytes()))['build_plan']
 
     def plan(self, long_paths=False):
         return bootstrap._windows_build_plan(self.linux, utf8=True,

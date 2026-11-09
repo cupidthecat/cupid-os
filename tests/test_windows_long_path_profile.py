@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from unittest import mock
 
+from tests.bootstrap_seed_fixture_profiles import historical_disk_manifest
 from tools import bootstrap_toolchain as bootstrap
 from tools import cupidc_toolchain_contracts as contracts
 from tools import artifact_size_policy, toolchain_manifest_contract as verifier
@@ -18,7 +19,7 @@ SHIM = "toolchain/hosted/i386-windows/utf8_long_path_start.asm"
 
 class WindowsLongPathProfileTests(unittest.TestCase):
     def test_exact_import_profile_keeps_count_and_plan_bound(self):
-        linux = json.loads(LINUX.read_bytes())["build_plan"]
+        linux = historical_disk_manifest(json.loads(LINUX.read_bytes()))["build_plan"]
         plan = bootstrap._windows_build_plan(linux, utf8=True, long_paths=True)
         self.assertEqual(bootstrap._build_plan_sha256(plan), LONG_PLAN)
         self.assertEqual(bootstrap._windows_plan_profile(plan), (True, True, False))
@@ -92,23 +93,24 @@ class WindowsLongPathProfileTests(unittest.TestCase):
 
     def test_behavior_retarget_retains_long_profile_and_installed_parent_pair(self):
         native = bootstrap.verify_seed_inputs(WINDOWS)
-        linux = json.loads(LINUX.read_bytes())["build_plan"]
+        linux = bootstrap._candidate_build_plan(json.loads(LINUX.read_bytes())["build_plan"])
+        digest = bootstrap._build_plan_sha256(bootstrap._windows_build_plan(linux, utf8=True, long_paths=True))
         snapshot = bootstrap.capture_source_snapshot(ROOT, linux, windows_utf8=True, windows_long_paths=True)
-        self.assertEqual(len(snapshot), 105)
+        self.assertEqual(len(snapshot), 112)
         self.assertIn('toolchain/hosted/i386-linux/include/cupid_runtime.h', snapshot)
         self.assertIn(SHIM, snapshot)
-        changed = bootstrap._retarget_native_windows_behavior_seed(native, LONG_PLAN, linux, snapshot,
+        changed = bootstrap._retarget_native_windows_behavior_seed(native, digest, linux, snapshot,
             utf8=True, long_paths=True, parent_plan_seed=bootstrap.verify_seed_inputs(LINUX))
         provenance = changed.manifest["provenance"]
-        self.assertEqual(provenance["source_input_count"], 105)
+        self.assertEqual(provenance["source_input_count"], 112)
         self.assertEqual(provenance["parent_execution_seed_manifest_sha256"], native.manifest_sha256)
         self.assertEqual(provenance["parent_plan_seed_manifest_sha256"], bootstrap.verify_seed_inputs(LINUX).manifest_sha256)
-        self.assertEqual(provenance["native_build_plan_sha256"], LONG_PLAN)
+        self.assertEqual(provenance["native_build_plan_sha256"], digest)
         self.assertEqual(changed.artifact_bytes, native.artifact_bytes)
         with self.assertRaisesRegex(bootstrap.BootstrapError, "parent plan seed is unavailable"):
-            bootstrap._retarget_native_windows_behavior_seed(native, LONG_PLAN, linux, snapshot, utf8=True, long_paths=True)
+            bootstrap._retarget_native_windows_behavior_seed(native, digest, linux, snapshot, utf8=True, long_paths=True)
         with self.assertRaisesRegex(bootstrap.BootstrapError, "build plan differs"):
-            bootstrap._retarget_native_windows_behavior_seed(native, LONG_PLAN, linux, snapshot, utf8=True)
+            bootstrap._retarget_native_windows_behavior_seed(native, digest, linux, snapshot, utf8=True)
 
     def test_publication_driver_passes_selection_to_the_manifest_author(self):
         with tempfile.TemporaryDirectory(dir=ROOT) as temporary, mock.patch.object(

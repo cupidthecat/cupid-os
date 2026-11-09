@@ -128,13 +128,18 @@ class WindowsUtf8PlanTests(unittest.TestCase):
         coordinator = {name for _, names in bootstrap._promoted_windows_imports("cupidbuild", digest, count) for name in names}
         long_paths = "GetFullPathNameW" in compiler
         aliases = "GetFinalPathNameByHandleW" in coordinator
+        workers = "CreateThread" in coordinator
         self.assertEqual(digest, bootstrap._build_plan_sha256(bootstrap._windows_build_plan(
-            installed_plan, utf8=True, long_paths=long_paths, user_link_aliases=aliases)))
+            installed_plan, utf8=True, long_paths=long_paths, user_link_aliases=aliases,
+            observer_workers=workers)))
         snapshot = bootstrap.capture_source_snapshot(ROOT, installed_plan, windows_utf8=True,
-            windows_long_paths=long_paths, windows_user_link_aliases=aliases)
+            windows_long_paths=long_paths, windows_user_link_aliases=aliases,
+            windows_observer_workers=workers)
         extra_headers = 0 if any(row['name'] == 'fat16_names' for row in installed_plan['sources']) else 3
         self.assertIn('toolchain/hosted/i386-linux/include/cupid_runtime.h', snapshot)
-        self.assertEqual(len(snapshot), count + extra_headers + 7)
+        owner_headers = 0 if any(row["name"] == "cupidbuild_source_path"
+                                 for row in installed_plan["sources"]) else 7
+        self.assertEqual(len(snapshot), count + extra_headers + owner_headers)
 
     def test_promoted_profiles_select_exact_imports_for_every_role(self):
         for utf8, count in ((False, 66), (True, 73)):
