@@ -31,11 +31,27 @@ and checked input-owner callers pass the eleven API methods on both hosts.
 Fresh lifetime checks pass 236 calls, and all twelve 4096-input capacity cases
 pass with their existing time and memory limits. Named producer preparations
 match stages three and four on both hosts. The C seed reader checks the complete
-owner plan and exact worker imports through an explicit release. Full behavior
-qualification and replacement-tool consumers remain required before seed adoption.
+owner plan and exact worker imports through an explicit release. Both refreshed
+full behavior qualifications pass. Fresh replacement-tool OS and user builds
+also pass on both hosts, with identical objects and complete images. Four strict
+four-CPU private boots pass ls and feature 17 ISO checks, all 62 TLS checks and
+ordered command completion. SDK publication, complete public bootstrap checks
+and seed adoption remain separate gates.
 Native image publication and the normal
 image-command handoff remain unfinished. The normal graph retains 449
 CupidBuild transforms and three Python transforms.
+>endtree
+
+>h2 Private wide-store checks
+>tree Private wide-store checks
+The rebuilt private adapter retains full-width extents and precise modification
+and change times. Its current native and Cupid-built callers pass 104 cases
+across Linux and Windows, including real tool launches, earlier frozen-input
+drift, store ranges and four-thread reads and writes. Linux keeps its 32 MiB
+process limit. Executable marking accepts only its own permission change;
+foreign drift still rejects the frozen input. Full-file checks above four GiB
+for this adapter version and checked-output transfer remain open. Installed
+seeds and native image-command ownership are unchanged.
 >endtree
 
 >h2 Definition conditionals

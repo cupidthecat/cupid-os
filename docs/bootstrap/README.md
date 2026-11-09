@@ -53,6 +53,8 @@ complete OS can rebuild itself from inside the guest.
 
 ## Records
 
+- [Current private wide stores](PRIVATE-WIDE-STORES-CURRENT.md): retained
+  extents, precise timestamps, executable marking and concurrent store checks.
 - [Source-owner integration](SOURCE-OWNER-INTEGRATION.md): producer plans,
   flexible members, compiler-first stages and remaining acceptance.
 - [Private integer updates](PRIVATE-INTEGER-UPDATES.md): typed lvalue mutation

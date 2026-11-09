@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## 2026-11-09: Check the rebuilt private wide-store adapter
+
+The current private host passes 104 native and Cupid-built case executions
+across both hosts, with independent source, program and public-payload rereading.
+The selection includes real legacy tool launches, earlier frozen-input drift,
+store ranges, precise metadata changes and four-thread store calls. Linux keeps
+its 32 MiB process bound; its final thread fixture uses explicit 256 KiB stacks
+and a checked-stack canary after two retained stack failures. Fresh current-host
+full-file replays remain open. The [current store record](PRIVATE-WIDE-STORES-CURRENT.md)
+retains the evidence and remaining transfer/integration work. Active host sources,
+installed seeds and normal ownership counts remain unchanged.
+
+The updated guest manual also passes a guarded normal-object relink, all sixteen
+artifact gates, seventeen policy tests, the ownership audit and a strict private
+four-CPU boot with all 62 TLS checks and ordered completion. Only its measured
+raw-kernel size row changes. Both the store and manual/image evidence archives
+are linked from the current store record.
+
 ## 2026-11-09: Accept paired cold image, user and private boot checks
 
 Both fresh full normal image and separate user builds pass with qualified

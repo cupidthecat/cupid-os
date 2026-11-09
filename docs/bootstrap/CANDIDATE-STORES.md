@@ -1,5 +1,9 @@
 # Owned candidate stores
 
+The [current adapter replay](PRIVATE-WIDE-STORES-CURRENT.md) records the rebuilt
+prototype and its 104 accepted small-case executions on 2026-11-09. The dated
+results below describe the earlier prototype.
+
 The separate prototype adds a transaction-owned fixed-extent file store.
 Its open, extent, read, write and finish operations retain all offset and extent
 bits on i386. Ordinary and bounded transaction capacities keep their existing

@@ -5884,3 +5884,20 @@ The corrected four-method Linux rerun also passes with the explicit Git paths.
 Both hosts now pass every affected method, including missing-resolver rejection
 and the final manifest-drift failure. The full initial 125-method run and the
 separate corrected reruns remain recorded as distinct evidence.
+
+## Current private wide-store checks, 2026-11-09
+
+The rebuilt private host passes 104 native and Cupid-built case executions on
+Linux and Windows: legacy tool launches, frozen-input marking, ranges, precise
+metadata drift and real four-thread store calls. Linux retains its 32 MiB process
+limit. The final thread fixture uses explicit 256 KiB stacks and a checked-stack
+canary after retained stack failures. Full-file checks for this host version,
+checked-output transfer and active integration remain open. Installed seeds and
+the three Python-coordinated normal transforms are unchanged. The
+[current store record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-WIDE-STORES-CURRENT.md)
+links the source, failures, probes and independently reviewed evidence.
+
+The updated guest manual passes a guarded relink, all sixteen artifact gates,
+seventeen policy tests, the ownership audit and a strict private four-CPU boot.
+All 62 TLS checks and ordered command completion pass. Only the measured
+raw-kernel size row changes; installed seed files remain unchanged.
