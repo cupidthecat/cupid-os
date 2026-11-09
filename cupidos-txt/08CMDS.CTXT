@@ -259,6 +259,11 @@ Media/runtime commands:
 - doom                run DOOM with auto-discovered Freedoom WAD
 - doom -iwad <path>   choose an IWAD manually
 
+DOOM uses arrows to move, Ctrl to fire, Space to use, Shift to run, and Alt
+to strafe. F2 saves and F3 loads. Save names accept letters, digits, spaces
+and punctuation. Doom's default save-name mapping ignores Shift; Backspace
+edits the name. Game keys are discarded before input returns to the terminal.
+
 WADs are staged under /disk/wads with make stage-wads.
 default.cfg and save slots live under /home/doom. They are written to a
 temporary file and committed with native same-mount rename.

@@ -243,6 +243,12 @@ static unsigned char GetTypedChar(unsigned char key)
 {
     key = TranslateKey(key);
 
+    // The game binding uses KEY_USE; text input still needs a literal space.
+    if (key == KEY_USE)
+    {
+        key = ' ';
+    }
+
     // Is shift held down?  If so, perform a translation.
 
     if (shiftdown > 0)

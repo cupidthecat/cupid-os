@@ -1597,7 +1597,7 @@ boolean M_Responder (event_t* ev)
 
             if (vanilla_keyboard_mapping)
             {
-                ch = key;
+                ch = key == KEY_USE ? ' ' : key;
             }
 
             ch = toupper(ch);

@@ -410,7 +410,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         features = {item["id"]: item for item in audit["features"]}
-        self.assertEqual(features["c.control.if"]["occurrences"], 46058)
+        self.assertEqual(features["c.control.if"]["occurrences"], 46062)
         self.assertEqual(len(features["c.control.if"]["files"]), 405)
         self.assertEqual(features["c.control.else"]["occurrences"], 5794)
         self.assertEqual(len(features["c.control.else"]["files"]), 307)

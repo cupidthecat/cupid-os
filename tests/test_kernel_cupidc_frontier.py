@@ -1986,7 +1986,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                4253360,
+                4253532,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -2071,10 +2071,9 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                                       "a03b4d7213f849127840fbba869c9f0a",
                                   ),
                 "drivers/keyboard.cc": (
-                                           11480,
-                                           "50ba7bae23f16b91e714d71cbf1fc3cf"
-                                           "1c1b5d7f8761b8bcb36407350fb8ff61",
-                                       ),
+                    11652,
+                    'ca7fbe3eb5f78a5dcc93c9ab8e812688aa4798fe154db11a16c8fc181c361f79',
+                ),
                 "drivers/mouse.cc": (
                                         12580,
                                         "a087b17123ee4f6f085f02e8fb50912c"
@@ -2339,8 +2338,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["input_snapshot"]["count"], 486)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                '0270ff0c29d28630bc08277268efd72ef'
-                '9ce772a1ff472931f27b2b0f0329074',
+                'b792d9b734ccfcd13cdfc2a671ee0d78'
+                '4a59c5e601317747c7e08e8132263756',
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

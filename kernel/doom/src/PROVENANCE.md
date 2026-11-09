@@ -34,3 +34,8 @@ Modified files (compile fixes under -nostdinc -ffreestanding):
   - Patching boolean type conflicts
 
   Git commit messages record the per-file notes.
+
+Runtime input integration also normalizes the port's `KEY_USE` token to a
+literal space in `GetTypedChar` and the vanilla save-name key path. Gameplay
+keeps its action binding, and the vanilla policy still ignores Shift for save
+names.

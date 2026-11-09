@@ -11227,12 +11227,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 '8ac1971586b322ff112291c45251b74f34da8e5b9199ddeb8beb32b9b66e96d1',
             ),
             "/kernel/doom/doomgeneric_cupidos.cc": (
-                13788,
-                409,
-                "13c9bdfe659443e227d9cec6a770e9bce"
-                "26714fb83a62b2338d8b6a295d4e725",
-                10156,
-                'be4c857c2c6cc32e34dd567ef3d5c77784be2b68eec6613eddf5c4cbd6bc8bb7',
+                15098,
+                445,
+                "c43ffef0c941b1a13133d12bc3f7a039"
+                "7bb47826a0555a24f61dd70c03edaaa1",
+                10792,
+                '91b1255399b4cf7f3b71cbeeccddb9f1471bd0241c4af71470efa034e8af11c0',
             ),
         }
         from tools.cupidc_kernel_compile import APPROVED_DOOM_COMPAT_SOURCES

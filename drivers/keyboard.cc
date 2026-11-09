@@ -518,6 +518,12 @@ char getchar(void) {
     return event.character;
 }
 
+void keyboard_discard_events(void) {
+    keyboard_state.buffer.head = 0;
+    keyboard_state.buffer.tail = 0;
+    keyboard_state.buffer.count = 0;
+}
+
 bool keyboard_read_event(key_event_t* event) {
     if (!event) {
         return false;

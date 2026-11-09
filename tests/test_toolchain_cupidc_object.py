@@ -153,9 +153,9 @@ DOOM_COMPAT_OBJECTS = {
                                            "34da8e5b9199ddeb8beb32b9b66e96d1",
                                        ),
     "/kernel/doom/doomgeneric_cupidos.cc": (
-                                               10156,
-                                               "be4c857c2c6cc32e34dd567ef3d5c777"
-                                               "84be2b68eec6613eddf5c4cbd6bc8bb7",
+                                               10792,
+                                               "91b1255399b4cf7f3b71cbeeccddb9f1"
+                                               "471bd0241c4af71470efa034e8af11c0",
                                            ),
 }
 DOOM_I_VIDEO_OBJECT_SIZE = 9088

@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-09: Repair Doom keys, save names and the input handoff
+
+Doom now receives the complete letter/digit map and correct engine control
+codes. Typed and vanilla-menu spaces work, and buffered game keys are discarded
+under the keyboard lock before returning input to the shell. Busy subscriptions
+preserve the existing owner. Both hosts pass 27 focused checks; all 83 Doom and
+156 kernel objects match independent reconstruction and production. The fresh
+integration checkout passes 205 tests. A saved `CUPID A1` slot survives an
+exact-image reboot, and both four-CPU guests quit and run `ls` with all 62 TLS
+checks. Three measured kernel-size rows change. The [input record](DOOM-KEYBOARD-AND-HANDOFF.md)
+retains failed attempts and the verified archive. Full gameplay/audio/timedemo
+acceptance, installed seed adoption and the image-command handoff remain open.
+
 ## 2026-11-09: Complete current coordinator worker selections
 
 Five fixture modules and their shared helper now bind observer workers in

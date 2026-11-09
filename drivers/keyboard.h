@@ -28,6 +28,9 @@ bool keyboard_get_ctrl(void);
 bool keyboard_get_alt(void);
 char getchar(void);
 bool keyboard_read_event(key_event_t* event);
+/* Drop buffered consumer events during an input-owner handoff. The caller
+ * holds the BKL. Physical key/modifier state and COM1 input are preserved. */
+void keyboard_discard_events(void);
 
 /* Inject a PS/2-style scancode byte (high bit = release) as if it came
  * from the IRQ1 ISR. Used by USB HID driver to unify input paths.*/

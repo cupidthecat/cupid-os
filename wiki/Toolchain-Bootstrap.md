@@ -6021,3 +6021,11 @@ methods pass, including complete checked user-compile and user-link modules;
 three native-only race-hook skips remain explicit. The [closure record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-WORKER-KERNEL-FIXTURES.md#current-coordinator-executables)
 retains the failed links and fresh proofs. Full repository acceptance and seed
 adoption remain open.
+
+Doom now receives its complete letter/digit map and correct Use, Run and Strafe
+codes. Save names accept spaces under the default mapping, and game keys no
+longer replay at the shell after quitting. All 83 Doom and 156 kernel objects
+match independent reconstruction. A four-CPU save/quit/`ls` run and an
+exact-image reboot/load/quit/`ls` run pass with all 62 TLS checks. The
+[input record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/DOOM-KEYBOARD-AND-HANDOFF.md)
+keeps full gameplay, audio quality, timedemo completion and seed adoption open.

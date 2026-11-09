@@ -22,6 +22,8 @@
 #include "vfs.h"
 #include "types.h"
 #include "usb.h"
+#include "bkl.h"
+#include "i_system.h"
 
 extern void process_yield(void);
 
@@ -49,12 +51,13 @@ static volatile uint32_t s_kbd_tail = 0;
 #define DOOM_KEY_UPARROW     0xAD
 #define DOOM_KEY_DOWNARROW   0xAF
 #define DOOM_KEY_FIRE        0xA3   /* CTRL */
-#define DOOM_KEY_USE         0x20   /* SPACE */
-#define DOOM_KEY_RSHIFT      0xA0
-#define DOOM_KEY_RALT        0xA2
+#define DOOM_KEY_USE         0xA2   /* SPACE; typed text is handled by I_GetEvent */
+#define DOOM_KEY_RSHIFT      0xB6
+#define DOOM_KEY_RALT        0xB8
 #define DOOM_KEY_ESCAPE      27
 #define DOOM_KEY_ENTER       13
 #define DOOM_KEY_TAB         9
+#define DOOM_KEY_BACKSPACE   0x7F
 #define DOOM_KEY_F1          (0x80 + 0x3B)
 #define DOOM_KEY_F2          (0x80 + 0x3C)
 #define DOOM_KEY_F3          (0x80 + 0x3D)
@@ -65,6 +68,8 @@ static volatile uint32_t s_kbd_tail = 0;
 #define DOOM_KEY_F8          (0x80 + 0x42)
 #define DOOM_KEY_F9          (0x80 + 0x43)
 #define DOOM_KEY_F10         (0x80 + 0x44)
+#define DOOM_KEY_F11         (0x80 + 0x57)
+#define DOOM_KEY_F12         (0x80 + 0x58)
 
 static unsigned char s_scan_to_doom[128] = {
     [0x4B] = DOOM_KEY_LEFTARROW,
@@ -80,6 +85,17 @@ static unsigned char s_scan_to_doom[128] = {
     [0x34] = '.',
     [0x02] = '1', [0x03] = '2', [0x04] = '3', [0x05] = '4',
     [0x06] = '5', [0x07] = '6', [0x08] = '7',
+    [0x09] = '8', [0x0A] = '9', [0x0B] = '0',
+    [0x0C] = '-', [0x0D] = '=', [0x0E] = DOOM_KEY_BACKSPACE,
+    [0x10] = 'q', [0x11] = 'w', [0x12] = 'e', [0x13] = 'r',
+    [0x14] = 't', [0x15] = 'y', [0x16] = 'u', [0x17] = 'i',
+    [0x18] = 'o', [0x19] = 'p', [0x1A] = '[', [0x1B] = ']',
+    [0x1E] = 'a', [0x1F] = 's', [0x20] = 'd', [0x21] = 'f',
+    [0x22] = 'g', [0x23] = 'h', [0x24] = 'j', [0x25] = 'k',
+    [0x26] = 'l', [0x27] = ';', [0x28] = '\'', [0x29] = '`',
+    [0x2B] = '\\', [0x2C] = 'z', [0x2D] = 'x', [0x2E] = 'c',
+    [0x2F] = 'v', [0x30] = 'b', [0x31] = 'n', [0x32] = 'm',
+    [0x35] = '/',
     [0x01] = DOOM_KEY_ESCAPE,
     [0x1C] = DOOM_KEY_ENTER,
     [0x0F] = DOOM_KEY_TAB,
@@ -87,15 +103,14 @@ static unsigned char s_scan_to_doom[128] = {
     [0x3E] = DOOM_KEY_F4,  [0x3F] = DOOM_KEY_F5,  [0x40] = DOOM_KEY_F6,
     [0x41] = DOOM_KEY_F7,  [0x42] = DOOM_KEY_F8,  [0x43] = DOOM_KEY_F9,
     [0x44] = DOOM_KEY_F10,
-    [0x15] = 'y',
-    [0x31] = 'n',
+    [0x57] = DOOM_KEY_F11, [0x58] = DOOM_KEY_F12,
 };
 
 /* Keyboard IRQ callback runs with IRQs disabled; push only, no process */
 static void on_kbd(uint8_t sc, bool pressed, void *ctx) {
     (void)ctx;
     /* Ignore scancodes we don't map */
-    if (sc >= 128u) { return; }
+    if (sc >= 128u || s_scan_to_doom[sc] == 0) { return; }
     uint32_t next = (s_kbd_head + 1u) % INPUT_RING;
     if (next == s_kbd_tail) { return; } /* drop on overflow */
     s_kbd_ring[s_kbd_head].scancode = sc;
@@ -103,12 +118,33 @@ static void on_kbd(uint8_t sc, bool pressed, void *ctx) {
     s_kbd_head = next;
 }
 
+static bool s_input_owned = false;
+
+static void cup_input_stop(void) {
+    bkl_lock();
+    if (s_input_owned) {
+        keyboard_discard_events();
+        keyboard_unsubscribe();
+        s_input_owned = false;
+    }
+    bkl_unlock();
+}
+
 /* DG_Init */
 
 void DG_Init(void) {
     s_kbd_head = 0;
     s_kbd_tail = 0;
-    keyboard_subscribe(on_kbd, (void *)0);
+    bkl_lock();
+    int subscribed = keyboard_subscribe(on_kbd, (void *)0);
+    if (subscribed == 0) {
+        s_input_owned = true;
+        keyboard_discard_events();
+    }
+    bkl_unlock();
+    if (subscribed != 0) {
+        I_Error("DOOM keyboard subscriber is busy");
+    }
     /* Best-effort: ensure /home/doom exists for savegames. */
     vfs_mkdir("/home/doom");
     serial_write_string("[doom] DG_Init: platform shim ready\n");
@@ -339,7 +375,7 @@ int doom_main(int argc, char **argv) {
     if (dg_setjmp(s_doom_env) != 0) {
         /* Arrived here via dg_longjmp from dg_exit/dg_abort */
         dg_disarm_exit();
-        keyboard_unsubscribe();
+        cup_input_stop();
         I_ResetExitState();
         gfx2d_fullscreen_exit();
         serial_write_string("[doom] returned to shell\n");

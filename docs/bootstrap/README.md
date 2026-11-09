@@ -19,7 +19,8 @@ Cupid OS remains unfinished.
   and typed native calls. Its remaining language gaps and guest acceptance
   are separate from hosted compiler fixed points. The shell can inspect
   saved raw files through the shared disassembler.
-- Full Doom gameplay and audio acceptance remain open.
+- Doom keyboard, save-name and exact-image reboot checks pass; full gameplay
+  and audio acceptance remain open.
 - TempleOS is read-only reference material and is excluded from build counts.
 
 See the [ownership audit](ACTIVE-SOURCE-AUDIT.md),
@@ -53,6 +54,9 @@ record stage comparisons and behavior checks; they do not prove that the
 complete OS can rebuild itself from inside the guest.
 
 ## Records
+
+- [Doom keyboard and handoff](DOOM-KEYBOARD-AND-HANDOFF.md): complete key mapping,
+  default save-name input, physical save/reboot checks and clean shell return.
 
 - [SDK owner-seed context](SDK-OWNER-SEED-CONTEXT.md): exact captured-plan support,
   original full publication failures and native/Cupid-built policy checks.

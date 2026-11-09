@@ -46101,10 +46101,10 @@
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
       "direct_angle_occurrences": 343,
-      "direct_quoted_occurrences": 2297,
-      "include_occurrences": 2640,
+      "direct_quoted_occurrences": 2299,
+      "include_occurrences": 2642,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2640,
+      "ordinary_marker_occurrences": 2642,
       "pp_token_operand_occurrences": 0,
       "source_files": 758,
       "status": "pass"
@@ -53139,7 +53139,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 46058
+      "occurrences": 46062
     },
     {
       "category": "control",
@@ -55136,7 +55136,7 @@
         "toolchain/tests/x86_contract.cc"
       ],
       "id": "c.initializer.designated",
-      "occurrences": 690
+      "occurrences": 729
     },
     {
       "category": "preprocessor",
@@ -55640,7 +55640,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3485
+      "occurrences": 3488
     },
     {
       "category": "preprocessor",
@@ -57295,7 +57295,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2640
+      "occurrences": 2642
     },
     {
       "category": "preprocessor",
@@ -58487,7 +58487,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10984
+      "occurrences": 10986
     },
     {
       "category": "type",
@@ -59808,7 +59808,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 26329
+      "occurrences": 26330
     },
     {
       "category": "type",
@@ -61527,7 +61527,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 16396
+      "occurrences": 16402
     },
     {
       "category": "declaration",
@@ -62456,7 +62456,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "b2db3f3f2efc5b9d90426cbd8a3aedce54ce8a319592faeb5d9d6b412f23d5b1",
+    "active_source_digest": "7ffb24e31ed2eb436f06423db9a8a954cb74254a0ded3faf1928a8991d78e79f",
     "control_files": [
       {
         "path": "Makefile",
@@ -68064,12 +68064,12 @@
         "kernel/lang/shell.h"
       ],
       "language": "cupid_c",
-      "lines": 594,
+      "lines": 600,
       "origin": "tracked",
       "path": "drivers/keyboard.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e0a904025160ee380d16856e60cd68b2038239ce4b6ad05dbb28c007d256bded"
+      "sha256": "797b64e8f700e98dedf61a70ca14526dfe66e68b41974fd332550961eb659fe6"
     },
     {
       "build_owners": [
@@ -68098,12 +68098,12 @@
         "kernel/cpu/irq.h"
       ],
       "language": "c_header",
-      "lines": 60,
+      "lines": 63,
       "origin": "tracked",
       "path": "drivers/keyboard.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "3facc8d2fe4091c0db5e52b869f96fd8d9bc7db97252c2e1db81a7c75fa66260"
+      "sha256": "50095919a2b251a574e06c3657dbd3bfa1baf63ddf631587d9cedd03a4dbce82"
     },
     {
       "build_owners": [
@@ -72357,17 +72357,19 @@
         "kernel/core/types.h",
         "kernel/doom/dglibc.h",
         "kernel/doom/doomgeneric_cupidos.h",
+        "kernel/doom/src/i_system.h",
         "kernel/fs/vfs.h",
         "kernel/gfx/gfx2d.h",
+        "kernel/smp/bkl.h",
         "kernel/usb/usb.h"
       ],
       "language": "cupid_c",
-      "lines": 409,
+      "lines": 445,
       "origin": "tracked",
       "path": "kernel/doom/doomgeneric_cupidos.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "13c9bdfe659443e227d9cec6a770e9bce26714fb83a62b2338d8b6a295d4e725"
+      "sha256": "c43ffef0c941b1a13133d12bc3f7a0397bb47826a0555a24f61dd70c03edaaa1"
     },
     {
       "build_owners": [
@@ -74431,12 +74433,12 @@
         "kernel/doom/src/z_zone.h"
       ],
       "language": "cupid_c",
-      "lines": 341,
+      "lines": 347,
       "origin": "tracked",
       "path": "kernel/doom/src/i_input.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "0453da1c5223ff3b75a3d9fa228db71732b7672ae280e5691bc166ee4d50c381"
+      "sha256": "39dac3aac74f4c0ea1b400e590c70bcaa41e9b5c8b3190d3ad6383c9376cd963"
     },
     {
       "build_owners": [
@@ -75919,7 +75921,7 @@
       "path": "kernel/doom/src/m_menu.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "5ea3e7c7cbfd1c2387498b96b65375c51ff38af12fe92ace3c61d4a8f2ae5726"
+      "sha256": "86be336b3397e7231d3a3273aac0cb8373b64cbefe07cf1334b28ce8f096ddec"
     },
     {
       "build_owners": [
