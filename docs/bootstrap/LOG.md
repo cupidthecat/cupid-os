@@ -1,5 +1,15 @@
 # Bootstrapping log
 
+## 2026-11-09: Accept native Linux Make reconstruction
+
+The actual supported `make bootstrap-from-seed` target passes on native Linux
+with all nine conventional producers forbidden. Independent review checks all
+4,423 published files, the guarded source and 51 final object/tool pairs against
+the qualified Linux cohort. The run takes 2,808.426 seconds within its original
+bound. The [entry record](SOURCE-OWNER-PUBLIC-ENTRYPOINTS.md) links the complete
+products and review. Both native Make targets now pass; full repository checks
+and installed seed adoption remain open.
+
 ## 2026-11-09: Read registered inputs through bounded retained ranges
 
 The private adapter adds one range-reading interface for ordinary and transferred

@@ -5929,5 +5929,7 @@ and the actual native Windows Make target also pass. Independent review checks
 all 3,492 Make products and sixty final pairs. The original Windows CLI succeeds;
 its old runtime-PE test golden is corrected from two retained qualified images.
 The [entry record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-PUBLIC-ENTRYPOINTS.md)
-retains the failure and rerun. Actual Linux Make and final repository checks
-remain separate from installed seed adoption.
+retains the failure and rerun. The actual Linux Make target also passes with
+all nine conventional producers forbidden. Independent review checks its 4,423
+published files and 51 final object/tool pairs against the qualified Linux
+cohort. Full current repository checks and installed seed adoption remain open.

@@ -222,7 +222,8 @@ directory. Production seed files remain unchanged.
 
 The [public entry record](SOURCE-OWNER-PUBLIC-ENTRYPOINTS.md) retains the accepted
 paired full CLI methods, historical/current fixture selections and actual native
-Windows Make reconstruction. Fresh native Linux Make remains a separate check.
+Windows and Linux Make reconstructions, including independent checks of all
+published products and final stage pairs.
 
 Both first ordinary SDK builds complete their stage pairs and runtime checks,
 then reject the captured incoming owner-plan context. The
@@ -235,8 +236,8 @@ contract source outside the qualified
 Complete repository replays and replacement-tool consumers remain required
 before seed adoption. Cold OS/user builds and private runtime checks now use
 the qualified replacement tools and pass. Four complete SDK profiles and paired
-full public CLI methods also pass; fresh native Linux Make and complete current
-repository replays remain separate gates.
+full public CLI methods and both native Make targets also pass. Complete current
+repository replays remain required before adoption.
 
 Image publication, full-width retained stores, the normal image CLI/Make
 handoff and the three Python coordinators remain open. The normal graph still
