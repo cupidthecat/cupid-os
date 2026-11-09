@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-09: Isolate normal Windows wide-store bindings
+
+The private Windows bridge now needs only `SetEndOfFile` and
+`NtQueryInformationFile`; fixture-time imports and the native race-test macro
+are absent. Ten native/Cupid-built cases pass publication and drift rejection,
+including 7,680 direct valid/invalid bridge calls. Independent NASM agrees on
+complete text, function offsets and resolved relocations; all original bridge
+code remains intact. Strict disassembly and four wrong-import-profile rejections
+also pass. The [binding record](PRIVATE-WIDE-STORE-WINDOWS-BRIDGE.md) retains the
+sources, programs, outputs and checks. Active integration, complete-image staging
+acceptance and the two full source-owner repository replays remain open.
+
 ## 2026-11-09: Close worker and checked-caller fixtures
 
 Actual Windows user-ELF and Unicode builds now carry the complete worker

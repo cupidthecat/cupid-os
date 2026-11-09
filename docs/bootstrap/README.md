@@ -66,6 +66,8 @@ complete OS can rebuild itself from inside the guest.
   complete retained images, precise metadata checks and real mixed-thread calls.
 - [Retained image publisher](PRIVATE-RETAINED-CHECKED-PUBLISHER.md): actual checked
   templates, complete image parity and guarded rejection in one private caller.
+- [Private Windows store bindings](PRIVATE-WIDE-STORE-WINDOWS-BRIDGE.md): normal
+  build configuration, two added imports and native/Cupid-built rejection checks.
 - [Source-owner integration](SOURCE-OWNER-INTEGRATION.md): producer plans,
   flexible members, compiler-first stages and remaining acceptance.
 - [Public bootstrap entries](SOURCE-OWNER-PUBLIC-ENTRYPOINTS.md): historical

@@ -5999,3 +5999,10 @@ A native-storage kernel diagnostic retains all 156 repeated object checks under
 the original timeout; its earlier input snapshot remains distinct from final
 repository acceptance. The [closure record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-WORKER-KERNEL-FIXTURES.md)
 retains those boundaries before the next full replay.
+
+The private Windows wide store also passes a normal build with only two added
+runtime imports. Ten native/Cupid-built cases cover nonempty and empty
+publication, range errors and live file drift. Independent NASM checks preserve
+all original bridge code and agree with the two added stubs. The
+[binding record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-WIDE-STORE-WINDOWS-BRIDGE.md)
+keeps this prerequisite separate from active integration and seed adoption.
