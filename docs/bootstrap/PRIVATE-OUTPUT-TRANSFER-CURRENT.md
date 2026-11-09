@@ -69,8 +69,10 @@ Its SHA-256 is
 `a06c6537b57cadc7c40c74a946ace6a6afb1ea46c17c043a6e67b5e09a796b1b`.
 
 Fresh full-file checks above four GiB are running against this adapter version.
-The accepted earlier large-file results concern v26. Registered-input range
-streaming, checked template/publisher reconstruction, active ABI/source-plan
+The accepted earlier large-file results concern v26. The
+[bounded registered-input reader](PRIVATE-REGISTERED-INPUT-RANGES.md) now passes
+its small complete-payload, metadata and concurrency checks. Complete retained
+image consumption, checked template/publisher reconstruction, active ABI/source-plan
 integration and qualification remain open. Native image-command ownership and
 installed seed adoption remain separate gates. The
 [historical transfer record](PRIVATE-OUTPUT-INPUTS.md) describes the earlier

@@ -62,6 +62,8 @@ complete OS can rebuild itself from inside the guest.
   extents, precise timestamps, executable marking and concurrent store checks.
 - [Current checked-output transfer](PRIVATE-OUTPUT-TRANSFER-CURRENT.md): retained
   input custody, complete-payload publication and producer rejection checks.
+- [Registered-input ranges](PRIVATE-REGISTERED-INPUT-RANGES.md): bounded reads,
+  staged results, precise metadata checks and real mixed-thread calls.
 - [Source-owner integration](SOURCE-OWNER-INTEGRATION.md): producer plans,
   flexible members, compiler-first stages and remaining acceptance.
 - [Public bootstrap entries](SOURCE-OWNER-PUBLIC-ENTRYPOINTS.md): historical

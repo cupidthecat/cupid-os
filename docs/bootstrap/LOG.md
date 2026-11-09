@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-09: Read registered inputs through bounded retained ranges
+
+The private adapter adds one range-reading interface for ordinary and transferred
+frozen inputs. It stages at most 64 KiB, checks accepted metadata before and after
+I/O, and serializes Windows cursor changes with store calls. All seventy range
+executions and eight real-thread executions pass independent review, with two
+explicit native-interposition skips. Complete ELF, empty and 3 MiB-plus-33-byte
+payloads compose and publish byte for byte. The
+[range record](PRIVATE-REGISTERED-INPUT-RANGES.md) retains the real metadata
+faults, failed fixtures and original limits. Active sources and seeds remain
+unchanged; complete retained-image and native command integration remain open.
+
 ## 2026-11-09: Accept all four source-owner SDK publications
 
 Fresh complete ordinary/long SDK builds pass on native Windows and Linux under

@@ -107,8 +107,10 @@ payloads remain local.
 
 The [current checked-output transfer](PRIVATE-OUTPUT-TRANSFER-CURRENT.md) now
 passes its paired ownership and unused-candidate transition checks. It also
-publishes complete transferred payloads through the native store. Registered
-input-range streaming, checked template/publisher reconstruction, active
+publishes complete transferred payloads through the native store. The
+[registered-input range reader](PRIVATE-REGISTERED-INPUT-RANGES.md) also passes
+its paired small-payload and real-thread checks. Complete retained-image
+consumption, checked template/publisher reconstruction, active
 ABI/source-plan integration, exact reader/import profiles and paired
 qualification remain open. Native image-command ownership and installed seed
 adoption remain separate gates.
