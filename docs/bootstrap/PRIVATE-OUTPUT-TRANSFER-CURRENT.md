@@ -107,3 +107,7 @@ retains complete linked products, guards and serial output. Its SHA-256 is
 `a544887edd5bb1f8ecf6bf734e12a8d46cdcd247730f9dbd9bb89a1e873ff20d`.
 The preceding complete image and kernel remain preserved locally. This manual
 relink is separate from the earlier cold replacement-tool acceptance.
+
+The later [publisher-guide relink](RETAINED-PUBLISHER-MANUAL-IMAGE.md) updates the
+manual after the combined publisher and SDK checks. It changes two measured
+kernel-size rows and passes its own complete artifact and private-boot checks.

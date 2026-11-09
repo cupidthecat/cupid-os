@@ -5908,8 +5908,9 @@ The private bounded-input reader
 also passes seventy range and eight real-thread executions, including actual
 metadata changes around reads. Twenty complete-image range cases also pass:
 twelve reconstruct the retained 200 MiB image and eight reject invalid requests.
-An earlier Linux failure under full storage remains recorded; its original
-uninstrumented replay and active image-command integration remain open. Installed seeds and
+An earlier Linux failure under full storage remains recorded. Both original
+uninstrumented programs now pass all eight replay cases after recovery.
+Active image-command integration remains open. Installed seeds and
 the three Python-coordinated normal transforms are unchanged. The
 [current store record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-WIDE-STORES-CURRENT.md)
 links the source, failures, probes and independently reviewed evidence.
@@ -5917,7 +5918,7 @@ links the source, failures, probes and independently reviewed evidence.
 The combined private publisher also passes sixteen native/Cupid-built cases.
 It consumes an actual checked CupidObj template through frozen input ranges,
 composes and publishes the complete 200 MiB image, and preserves the previous
-FAT contents during reuse. That image matches the currently booted bytes.
+FAT contents during reuse. That image matches the earlier accepted manual image.
 Formatting and absent-image cases match Python; a wrong checked template
 rejects before composition writes. The
 [publisher record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-RETAINED-CHECKED-PUBLISHER.md)
@@ -5925,8 +5926,10 @@ links the complete evidence and remaining active-command integration work.
 
 The updated guest manual passes a guarded relink, all sixteen artifact gates,
 seventeen policy tests, the ownership audit and a strict private four-CPU boot.
-All 62 TLS checks and ordered command completion pass. Only the measured
-raw-kernel size row changes; installed seed files remain unchanged.
+All 62 TLS checks and ordered command completion pass. Two measured kernel-size
+rows change; installed seed files remain unchanged. The
+[manual/image record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/RETAINED-PUBLISHER-MANUAL-IMAGE.md)
+retains the linked products, preceding image and serial evidence.
 
 The SDK policy also recognizes the exact incoming owner-plan seed context.
 The shared reader still validates the selected cohort before capture; the

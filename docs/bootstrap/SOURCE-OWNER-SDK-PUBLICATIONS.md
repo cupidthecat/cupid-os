@@ -27,7 +27,7 @@ and focused correction separately.
 
 The SDK checkouts retain the raw-kernel policy selected at their start. Later
 guest-manual acceptance changes the engineering checkout's raw-kernel size to
-9,416,096 bytes; it does not rewrite accepted SDK inputs. Installed seeds remain
+9,416,960 bytes; it does not rewrite accepted SDK inputs. Installed seeds remain
 unchanged. Both native Make targets now pass their separate reconstruction
 checks. Complete current repository replays and final installed-cohort
 acceptance remain open before adoption.

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-09-19
+Updated: 2026-11-09
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -35,8 +35,9 @@ owner plan and exact worker imports through an explicit release. Both refreshed
 full behavior qualifications pass. Fresh replacement-tool OS and user builds
 also pass on both hosts, with identical objects and complete images. Four strict
 four-CPU private boots pass ls and feature 17 ISO checks, all 62 TLS checks and
-ordered command completion. SDK publication, complete public bootstrap checks
-and seed adoption remain separate gates.
+ordered command completion. Four ordinary/long SDK publications and both native
+public bootstrap CLI and Make checks also pass. Complete repository replays
+and installed seed adoption remain open.
 Native image publication and the normal
 image-command handoff remain unfinished. The normal graph retains 449
 CupidBuild transforms and three Python transforms.
@@ -54,9 +55,23 @@ above four GiB pass for that adapter, with every byte independently checked.
 A later private adapter also retains accepted checked output as a frozen input
 without copying its payload. Its final 92 transfer checks and 68 unchanged
 launch regressions pass on both hosts. Complete ELF, stdout, empty and three-MiB
-payloads are published byte for byte. Fresh full-file checks for this transfer
-adapter, registered-input range streaming and active image-command integration
-remain open. Installed seeds and native image-command ownership are unchanged.
+payloads are published byte for byte. The same adapter passes all four complete
+four-GiB-plus-65-byte store publications with every byte checked.
+
+Registered frozen inputs support bounded reads of at most 64 KiB. Seventy range
+and eight real-thread executions pass, including precise metadata rejection.
+Twenty further image cases include twelve complete 200 MiB reconstructions and
+eight EOF/capacity rejections.
+
+The combined private publisher passes sixteen native/Cupid-built cases. It runs
+the actual checked CupidObj, transfers its accepted template, composes through
+bounded caches and publishes a complete candidate. Reuse preserves the previous
+FAT contents and reproduces the earlier accepted image. Formatting and missing
+images match Python; wrong geometry rejects before composition writes.
+
+These are private host checks. Complete file staging, external input handling,
+active source-plan integration and the normal image-command handoff remain open.
+Installed seeds and the three Python-coordinated transforms are unchanged.
 >endtree
 
 >h2 Definition conditionals

@@ -15,10 +15,10 @@ version. Both checked callers use the qualified composer's exact object bytes.
 ## Complete images and rejection
 
 Twelve positive cases cover reuse, formatting and an absent previous image.
-Reuse preserves the previous FAT suffix and reproduces the currently booted
+Reuse preserves the previous FAT suffix and reproduces the earlier accepted manual
 image at 209,715,200 bytes, SHA-256
 `06f5996c06ec5da1c027bafa22fb6511d3e011fe6ffa9f40d3bdd1bd081b57ff`.
-The kernel has 9,416,096 bytes. Formatting and missing-image cases match the
+That image's kernel has 9,416,096 bytes. Formatting and missing-image cases match the
 independent Python author, including the complete zero data area.
 
 Four wrong-template cases use a real checked template for different geometry.
@@ -48,3 +48,6 @@ The [evidence archive](evidence/private-retained-checked-image-publisher-2026110
 retains 510 file records, 48 local payloads, 183 qualified-archive references and
 eight large-payload references. Complete canonical images remain local. SHA-256:
 `c734f6f6a92c9013cd3c87e59400a15e08fe2b3256a30362cd479d89af7aab4c`.
+
+The later [guest-manual relink](RETAINED-PUBLISHER-MANUAL-IMAGE.md) records its
+separate image, measured size changes and runtime acceptance.

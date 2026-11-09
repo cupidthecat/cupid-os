@@ -63,7 +63,9 @@ closing a nonnull owner returned after an open failure. Correcting those callers
 requires no adapter change. A later Linux run returns 99 while storage is full;
 its caller does not record errno, so the exact error remains unattributed. The
 diagnostic replays pass after space recovery with the original memory limits.
-The original uninstrumented Linux replay remains a separate pending check.
+The original uninstrumented Linux caller subsequently passes all eight original
+cases after storage recovery, using the same program bytes and original limits.
+The [replay record](RETAINED-PUBLISHER-MANUAL-IMAGE.md) links that separate evidence.
 
 Independent review rereads the retained Windows outputs. Linux duplicate images
 are retired after complete hash and block comparisons; review checks their

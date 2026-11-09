@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-09: Refresh the guest guide and close original range replays
+
+The guide now includes SDK/public-entry acceptance and the combined retained
+publisher. A guarded relink and image completion pass all sixteen artifact gates,
+seventeen policy tests, the audit and a strict private four-CPU boot. All 62 TLS
+checks and ordered JIT/terminal completion pass. Only the raw-kernel and final-ELF
+size rows change; fifteen installed seed files remain unchanged. The
+[manual/image record](RETAINED-PUBLISHER-MANUAL-IMAGE.md) retains the linked
+products, source review and serial output. Both original uninstrumented Linux
+range programs also pass their complete eight-case replay after storage recovery.
+The prior failure remains recorded without assigning an uncaptured errno.
+
 ## 2026-11-09: Connect checked templates to retained image publication
 
 All sixteen native/Cupid-built reconstruction cases pass on both hosts. The
