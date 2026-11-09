@@ -25,9 +25,15 @@ int main(int argc, char **argv) {
   int accepted;
   if (argc != 6) return 2;
   for (index = 0; index < 4; index++) {
-    if (strlen(argv[index + 2]) != 1u || argv[index + 2][0] < '0' ||
-        argv[index + 2][0] > '9') return 2;
-    values[index] = argv[index + 2][0] - '0';
+    size_t digit;
+    size_t length = strlen(argv[index + 2]);
+    if (length == 0u || length > 2u) return 2;
+    values[index] = 0;
+    for (digit = 0u; digit < length; digit++) {
+      char c = argv[index + 2][digit];
+      if (c < '0' || c > '9') return 2;
+      values[index] = values[index] * 10 + c - '0';
+    }
   }
   if (strcmp(argv[1], "null") == 0 || strcmp(argv[1], "oversize") == 0) {
     unsigned char sentinel = 0xa5u;
@@ -165,7 +171,7 @@ class SeedImageProfileTests(unittest.TestCase):
     def test_invalid_profile_arguments_reject(self):
         for fmt, role, promoted, current in ((0, 1, 1, 0), (9, 1, 1, 0),
                 (2, 6, 1, 1), (2, 5, 0, 0), (2, 1, 2, 1),
-                (2, 1, 1, 6), (2, 1, 0, 1), (1, 1, 1, 1),
+                (2, 1, 1, 11), (2, 1, 0, 1), (1, 1, 1, 1),
                 (2, 1, 0, 2), (1, 1, 1, 2),
                 (2, 1, 0, 3), (1, 1, 1, 3)):
             with self.subTest(profile=(fmt, role, promoted, current)):
@@ -313,6 +319,32 @@ class SeedImageProfileTests(unittest.TestCase):
         for index in range(count):
             struct.pack_into('<I', data, phoff + phsize * index, 0)
         self.check(bytes(data), 1)
+
+
+    def test_worker_profiles_preserve_exact_role_imports(self):
+        from tests.test_toolchain_bootstrap_seed import ToolchainBootstrapSeedCliTests
+        from tools import bootstrap_toolchain as bootstrap
+        for base, utf8, long_paths, aliases in (
+                (1, False, False, False), (2, True, False, False),
+                (3, True, True, False), (4, True, False, True), (5, True, True, True)):
+            for role, name in enumerate(ROLES):
+                imports = bootstrap._windows_profile_imports(name, utf8=utf8,
+                    long_paths=long_paths, user_link_aliases=aliases, observer_workers=True)
+                data = bytes(ToolchainBootstrapSeedCliTests._minimal_cupidbuild_profile_pe32(imports))
+                with self.subTest(profile=base + 5, role=name):
+                    self.check(data, 2, role, current=base + 5, accept=True)
+                    self.check(data, 2, role, current=base, accept=role != 5)
+                    changed = list(imports)
+                    procedures = imports[0][1]
+                    changed[0] = (imports[0][0], tuple(sorted(
+                        tuple(p for p in procedures if p != 'CreateThread') if role == 5 else
+                        (*procedures, 'CreateThread'))))
+                    wrong = bytes(ToolchainBootstrapSeedCliTests._minimal_cupidbuild_profile_pe32(tuple(changed)))
+                    self.check(wrong, 2, role, current=base + 5)
+                    self.check(data, 2, role, current=base + 5, promoted=0)
+                    if role == 5:
+                        self.check(data.replace(b'CreateThread\0', b'CreateThreXd\0'),
+                            2, role, current=base + 5)
 
 
 if __name__ == '__main__':

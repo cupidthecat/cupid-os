@@ -3246,16 +3246,18 @@ int cupidbuild_validate_seed_image_bytes(
   ctool_job_t *job = (ctool_job_t *)0;
   ctool_source_t source;
   int valid = 0;
+  int observer_workers = current_windows_plan >= 6;
   if (bytes == (const unsigned char *)0 || size == 0u ||
       size > CUPIDBUILD_TOOL_BYTES ||
       (format != CUPIDBUILD_SEED_ELF32 && format != CUPIDBUILD_SEED_PE32) ||
       artifact_index >= (promoted ? CUPIDBUILD_SEED_ARTIFACTS : 5u) ||
       (promoted != 0 && promoted != 1) ||
-      (current_windows_plan < 0 || current_windows_plan > 5) ||
+      (current_windows_plan < 0 || current_windows_plan > 10) ||
       (current_windows_plan && (!promoted || format != CUPIDBUILD_SEED_PE32)) ||
       ctool_host_adapter_init(&adapter, ".") != CTOOL_OK) {
     return 0;
   }
+  if (observer_workers) current_windows_plan -= 5;
   config = ctool_host_job_config(&adapter, ctool_default_limits());
   if (ctool_job_open(&config, &job) != CTOOL_OK) {
     return 0;
@@ -3478,6 +3480,8 @@ int cupidbuild_validate_seed_image_bytes(
         "NtSetInformationFile"};
     static const char *const cupidbuild_current_ntdll_imports[] = {
         "NtCreateFile", "NtQueryDirectoryFile", "NtSetInformationFile"};
+    const char *worker_imports[sizeof(cupidbuild_user_link_imports) /
+                               sizeof(cupidbuild_user_link_imports[0]) + 1u];
     const char *const *expected_imports =
         current_windows_plan ? ordinary_current_imports
                              : ordinary_seed_imports;
@@ -3549,6 +3553,17 @@ int cupidbuild_validate_seed_image_bytes(
           expected_count = legacy_count;
           expected_ntdll_imports = cupidbuild_legacy_ntdll_imports;
           expected_ntdll_count = legacy_ntdll_count;
+        }
+        if (observer_workers) {
+          size_t import_index;
+          /* Each exact Build profile sorts CreateProcess before DeleteFile. */
+          for (import_index = 0u; import_index < expected_count; import_index++) {
+            worker_imports[import_index < 4u ? import_index : import_index + 1u] =
+                expected_imports[import_index];
+          }
+          worker_imports[4] = "CreateThread";
+          expected_imports = worker_imports;
+          expected_count++;
         }
         if (!cupidbuild_string_equals(image.import_libraries[1].name,
                                       "NTDLL.dll") ||

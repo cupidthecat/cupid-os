@@ -199,7 +199,8 @@ def user_abi_plan():
     plan = seed._candidate_build_plan(manifest(1)["build_plan"])
     removed = {"iso_fixture_bundle", "cupidbuild_iso", "cupidbuild_iso_capture",
                "cupidbuild_iso_image", "cupidbuild_iso_publication",
-               "fat16_stage", "fat16_names", "disk_image"}
+               "fat16_stage", "fat16_names", "disk_image",
+               *(row[0] for row in seed.SOURCE_OWNER_SOURCES)}
     plan["sources"] = [row for row in plan["sources"] if row["name"] not in removed]
     plan["links"]["cupidobj"] = [name for name in plan["links"]["cupidobj"] if name != "iso_fixture_bundle"]
     plan["links"]["cupidbuild"] = [name for name in plan["links"]["cupidbuild"] if name not in removed]
@@ -298,13 +299,13 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(windows.manifest["provenance"]["source_input_count"], seed.PROMOTED_SOURCE_INPUT_COUNT)
         plan = copy.deepcopy(linux.manifest["build_plan"])
         snapshot = seed.capture_source_snapshot(ROOT, plan, windows_utf8=True, windows_user_link_aliases=True)
-        self.assertEqual(len(snapshot), 98)
+        self.assertEqual(len(snapshot), 105)
         digest = seed._build_plan_sha256(seed._windows_build_plan(plan, utf8=True, user_link_aliases=True))
         changed = seed._retarget_native_windows_behavior_seed(windows, digest, plan, snapshot,
             utf8=True, user_link_aliases=True, parent_plan_seed=linux)
         self.assertIsNot(changed, windows)
         provenance = changed.manifest["provenance"]
-        self.assertEqual(provenance["source_input_count"], 98)
+        self.assertEqual(provenance["source_input_count"], 105)
         self.assertEqual(provenance["native_build_plan_sha256"], digest)
         self.assertEqual(provenance["parent_execution_seed_manifest_sha256"], windows.manifest_sha256)
         self.assertEqual(provenance["parent_plan_seed_manifest_sha256"], linux.manifest_sha256)
@@ -748,10 +749,11 @@ class ManifestTests(unittest.TestCase):
                 Path(temporary) / "seed",
             )
             plan = seed._candidate_build_plan(manifest(1)["build_plan"])
-            digest = seed._build_plan_sha256(seed._windows_build_plan(plan, utf8=True))
-            snapshot = seed.capture_source_snapshot(ROOT, plan, windows_utf8=True)
+            digest = seed._build_plan_sha256(seed._windows_build_plan(plan, utf8=True, observer_workers=True))
+            snapshot = seed.capture_source_snapshot(ROOT, plan, windows_utf8=True, windows_observer_workers=True)
             retargeted = seed._retarget_native_windows_behavior_seed(
-                frozen, digest, plan, snapshot, utf8=True)
+                frozen, digest, plan, snapshot, utf8=True, observer_workers=True,
+                parent_plan_seed=seed.verify_seed_inputs(ROOT / "bootstrap/seeds/i386-linux/manifest.json"))
             self.check(retargeted.manifest, 2, False)
             provenance = retargeted.manifest['provenance']
             record = release()
@@ -763,7 +765,7 @@ class ManifestTests(unittest.TestCase):
                 parent_windows_manifest_sha256=provenance['parent_execution_seed_manifest_sha256'],
                 linux_plan_sha256=provenance['linux_candidate_build_plan_sha256'],
                 windows_plan_sha256=provenance['native_build_plan_sha256'])
-            self.check_release(record, retargeted.manifest, 2, expected=(6, 2))
+            self.check_release(record, retargeted.manifest, 2, expected=(6, 7))
             for field in ("source_input_count", "linux_candidate_build_plan_sha256"):
                 altered = copy.deepcopy(retargeted.manifest)
                 altered["provenance"][field] = historical_manifest(2)["provenance"][field]

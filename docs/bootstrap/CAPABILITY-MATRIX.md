@@ -7,8 +7,10 @@ profile. CupidC supports their flexible-array member access; stages build
 and validate that compiler before compiling peers. Both stage-two builds and
 all four native/checked owner caller selections pass. Fresh lifetime and all
 twelve capacity cases pass. The installed-seed image passes its exact artifact
-and four-CPU boot checks. Full fixed points and replacement-tool consumers
-remain required before seed adoption.
+and four-CPU boot checks. Named preparations match stages three and four.
+The C reader checks the complete owner plan and worker profiles through an
+explicit release; native and checked reader regressions pass on both hosts.
+Refreshed full qualification and replacement-tool consumers remain required before seed adoption.
 See the [integration record](SOURCE-OWNER-INTEGRATION.md).
 
 ## Private source-owner worker qualification, 2026-11-08

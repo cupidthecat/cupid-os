@@ -84,9 +84,48 @@ The [evidence archive](evidence/source-owner-integration-20261108.json.gz)
 retains the source and stage-two products, complete lifetime/capacity receipts,
 independent outcome review, final tests, OS controls and earlier failures.
 
+## Named producers and reader profiles
+
+The named `a01f6957` preparations rebuild stages two through four on both hosts.
+Independent rereading verifies 333 artifact files, 111 complete stage-three/
+stage-four object and tool pairs, all 114 named source inputs and unchanged
+installed seeds. These preparations remain unqualified until behavior passes.
+
+Both subsequent behavior runs reject their generated manifests with
+`fixed-point provenance differs`. The C reader still recognizes the older
+37-source disk plan. The SDK author had been updated, but that reader and the
+PE image validator had not. A short replay reproduces the failure on both
+hosts with the retained manifests and real stage-four images.
+
+The reader now binds the 44-source plan and ordered thirty-object CupidBuild
+link to five worker profiles. Their captured counts are 108, 112, 113, 113 and
+114; the equal-count long-path and alias variants retain distinct plan hashes.
+Windows profiles six through ten preserve profiles one through five and add
+CreateThread only to CupidBuild. An explicit matching release remains required.
+Unknown counts, changed parents, source/link drift and unexpected imports fail.
+
+All 118 native manifest, release and image methods pass. Cupid-compiled readers
+also pass all 53 profile methods and eighteen image methods on each host,
+the original complete CLI replay and all twelve actual stage-four image
+validations. These diagnostic relinks isolate
+the reader fix; they do not establish a new named-source fixed point.
+
+The updated guest manual is relinked with the preceding normal build's objects,
+each independently matched before reuse. All other active OS source remains
+unchanged. The raw kernel is now 9,414,748 bytes; both ELF sizes stay unchanged,
+so only the raw-kernel exact-size row changes. All sixteen artifact gates and
+the four-CPU private-image smoke pass, including all 62 TLS checks and ordered
+JIT/terminal completion. This is a guarded manual relink and installed-seed
+image check, not a cold replacement-tool build.
+
+The [reader evidence](evidence/seed-reader-source-owner-20261108.json.gz)
+retains the old named preparations, failed qualification, original replay,
+current reader sources, native and checked results, independent review and
+manual/image checks. All fifteen installed seed files remain unchanged.
+
 ## Remaining acceptance
 
-Complete repository replays, full named-source producer fixed points and
+Complete repository replays, refreshed named-source producer qualification and
 replacement-tool consumers remain required before seed adoption. Their cold
 normal OS builds and runtime checks must use the qualified replacement tools.
 Stage-two success and the installed-seed image check do not satisfy those gates.

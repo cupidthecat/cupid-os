@@ -1,5 +1,20 @@
 # Bootstrapping log
 
+## 2026-11-08: Admit source-owner behavior manifests in the C reader
+
+Paired named preparations match all stage-three and stage-four objects and
+tools. Behavior qualification then finds a missing C manifest profile, despite
+the updated SDK author. The reader now checks the exact 44-source plan,
+thirty-object Build link and five worker variants through explicit releases.
+The PE validator adds CreateThread only to Build in these variants. Historical
+profiles retain their exact contracts. All 118 native reader/release/image
+methods pass, and Cupid-built readers pass the original CLI failure, 53 profile methods and
+eighteen image methods on both hosts. Stale historical fixtures now project their original inventories instead
+of inheriting new source rows. Full qualification must be rerun from the fixed
+source. The updated guest manual passes a guarded relink, all sixteen artifact
+gates and the four-CPU runtime smoke. Only its measured raw-kernel size row
+changes. The [integration record](SOURCE-OWNER-INTEGRATION.md) retains the scope.
+
 ## 2026-11-08: Integrate source owners and bootstrap the compiler first
 
 Current source plans carry the six owner modules, integer Unicode table,

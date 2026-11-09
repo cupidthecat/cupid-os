@@ -51,6 +51,7 @@ class IsoSeedProfileTests(unittest.TestCase):
     profiles = PROFILES
     publication = False
     disk_foundation = False
+    source_owner = False
     unload = classmethod(historical.ManifestTests.unload.__func__)
 
     @classmethod
@@ -60,6 +61,10 @@ class IsoSeedProfileTests(unittest.TestCase):
         cls.windows = bootstrap.verify_seed_inputs(ROOT / 'bootstrap/seeds/i386-windows/manifest.json')
         bootstrap._require_seed_pair_identity(cls.windows, cls.linux)
         cls.plan = bootstrap._candidate_build_plan(cls.linux.manifest['build_plan'])
+        if not cls.source_owner:
+            owner_names = {row[0] for row in bootstrap.SOURCE_OWNER_SOURCES}
+            cls.plan['sources'] = [r for r in cls.plan['sources'] if r['name'] not in owner_names]
+            cls.plan['links']['cupidbuild'] = list(bootstrap.PROMOTED_CUPIDBUILD_LINK)
         if not cls.disk_foundation:
             cls.plan['sources'] = [r for r in cls.plan['sources'] if r['name'] not in DISK_OBJECTS]
             cls.plan['links']['cupidbuild'] = list(bootstrap.ISO_PUBLICATION_CUPIDBUILD_LINK)
@@ -68,7 +73,12 @@ class IsoSeedProfileTests(unittest.TestCase):
         cls.fixtures = []
         for utf8, long_paths, aliases, expected_count, profile in cls.profiles:
             snapshot = bootstrap.capture_source_snapshot(ROOT, cls.plan, windows_utf8=utf8,
-                windows_long_paths=long_paths, windows_user_link_aliases=aliases)
+                windows_long_paths=long_paths, windows_user_link_aliases=aliases,
+                windows_observer_workers=cls.source_owner)
+            if not cls.source_owner:
+                owner_headers = {'toolchain/' + row[0] + '.h' for row in bootstrap.SOURCE_OWNER_SOURCES if row[0] != 'path_encoding'}
+                owner_headers.add('toolchain/hosted/i386-linux/include/cupid_runtime.h')
+                snapshot = {name: row for name, row in snapshot.items() if name not in owner_headers}
             if not cls.disk_foundation:
                 snapshot = {name: row for name, row in snapshot.items()
                             if name not in {'toolchain/' + object_name + '.h' for object_name in DISK_OBJECTS}}
@@ -78,11 +88,11 @@ class IsoSeedProfileTests(unittest.TestCase):
             if len(snapshot) != expected_count:
                 raise AssertionError((profile, len(snapshot), expected_count))
             native = bootstrap._windows_build_plan(cls.plan, utf8=utf8, long_paths=long_paths,
-                user_link_aliases=aliases)
+                user_link_aliases=aliases, observer_workers=cls.source_owner)
             windows = bootstrap._retarget_native_windows_behavior_seed(cls.windows,
                 bootstrap._build_plan_sha256(native), cls.plan, snapshot,
                 utf8=utf8, long_paths=long_paths, user_link_aliases=aliases,
-                parent_plan_seed=cls.linux)
+                observer_workers=cls.source_owner, parent_plan_seed=cls.linux)
             linux = copy.deepcopy(cls.linux.manifest)
             linux['build_plan'] = copy.deepcopy(cls.plan)
             linux['build_plan_sha256'] = bootstrap._build_plan_sha256(cls.plan)
@@ -122,7 +132,7 @@ class IsoSeedProfileTests(unittest.TestCase):
         else:
             if record is None:
                 original = next((linux if fmt == 1 else windows for linux, windows, number in self.fixtures
-                    if number == (profile or 1)), self.fixtures[0][0])
+                    if number == (profile or self.profiles[0][-1])), self.fixtures[0][0])
                 record = self.release(original, fmt)
             release_raw = encode(record)
             release_buffer = ctypes.create_string_buffer(release_raw)
@@ -197,7 +207,7 @@ class IsoSeedProfileTests(unittest.TestCase):
                 changed = copy.deepcopy(windows)
                 changed['provenance']['native_build_plan_sha256'] = other['provenance']['native_build_plan_sha256']
                 # Long-path and alias profiles share a count but have distinct plans.
-                accepted = profile in (3, 4) and other_profile in (3, 4)
+                accepted = (profile - 1) % 5 in (2, 3) and (other_profile - 1) % 5 in (2, 3)
                 self.check(changed, 2, other_profile if accepted else profile, accepted,
                     record=self.release(changed if accepted else windows, 2))
 
@@ -261,7 +271,7 @@ class IsoSeedProfileTests(unittest.TestCase):
     def test_failure_clears_result_and_recovers_with_bounded_diagnostics(self):
         for capacity in (0, 1, 2, 8, 128):
             self.check(b'bad', 2, accepted=False, capacity=capacity)
-            self.check(self.fixtures[-1][1], 2, 5, capacity=capacity)
+            self.check(self.fixtures[-1][1], 2, self.fixtures[-1][2], capacity=capacity)
 
     def test_new_profiles_require_explicit_release_before_and_after_authorized_calls(self):
         for linux, windows, profile in self.fixtures:
@@ -360,6 +370,9 @@ class DiskFoundationSeedProfileTests(IsoSeedProfileTests):
             windows_long_paths=True, windows_user_link_aliases=True)
         snapshot = {name: value for name, value in snapshot.items()
                     if name not in {'toolchain/' + object_name + '.h' for object_name in DISK_OBJECTS}}
+        removed = {'toolchain/' + row[0] + '.h' for row in bootstrap.SOURCE_OWNER_SOURCES if row[0] != 'path_encoding'}
+        removed.add('toolchain/hosted/i386-linux/include/cupid_runtime.h')
+        snapshot = {name: row for name, row in snapshot.items() if name not in removed}
         native = bootstrap._windows_build_plan(historical_plan, utf8=True, long_paths=True,
                                                user_link_aliases=True)
         digest = bootstrap._build_plan_sha256(native)
@@ -378,5 +391,37 @@ class DiskFoundationSeedProfileTests(IsoSeedProfileTests):
                 self.check(changed, 2, accepted=False, record=self.release(changed, 2))
 
 
+class SourceOwnerSeedProfileTests(IsoSeedProfileTests):
+    profiles = (
+        (False, False, False, 108, 6),
+        (True, False, False, 112, 7),
+        (True, True, False, 113, 8),
+        (True, False, True, 113, 9),
+        (True, True, True, 114, 10),
+    )
+    publication = True
+    disk_foundation = True
+    source_owner = True
+
+    def test_every_owner_source_and_link_member_is_required(self):
+        linux = self.fixtures[0][0]
+        for name, _, _ in bootstrap.SOURCE_OWNER_SOURCES:
+            index = next(i for i, row in enumerate(linux['build_plan']['sources']) if row['name'] == name)
+            for field in ('name', 'path', 'gnu_extensions'):
+                changed = copy.deepcopy(linux)
+                old = changed['build_plan']['sources'][index][field]
+                changed['build_plan']['sources'][index][field] = not old if isinstance(old, bool) else 'wrong'
+                self.check(changed, 1, accepted=False)
+            for section in ('sources', 'links'):
+                for operation in ('remove', 'duplicate', 'reorder'):
+                    changed = copy.deepcopy(linux)
+                    rows = changed['build_plan']['sources'] if section == 'sources' else changed['build_plan']['links']['cupidbuild']
+                    at = index if section == 'sources' else rows.index(name)
+                    if operation == 'remove': rows.pop(at)
+                    elif operation == 'duplicate': rows.append(copy.deepcopy(rows[at]))
+                    else: rows[at], rows[at - 1] = rows[at - 1], rows[at]
+                    self.check(changed, 1, accepted=False)
+
+
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(verbosity=2)

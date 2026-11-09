@@ -10,7 +10,8 @@ typedef struct {
 typedef struct {
   uint32_t artifact_count;
   /* PE32 profiles: legacy 0, ANSI 1, UTF-8 2, long paths 3,
-   * directory aliases 4, directory aliases with long paths 5. ELF32 uses 0. */
+   * directory aliases 4, directory aliases with long paths 5. Profiles 6..10
+   * add the Build observer worker to profiles 1..5. ELF32 uses 0. */
   uint32_t current_windows_plan;
   /* Role order: ASM, C, Dis, LD, Obj, Build. Unused legacy rows are zero. */
   cupid_seed_manifest_artifact_t artifacts[6];

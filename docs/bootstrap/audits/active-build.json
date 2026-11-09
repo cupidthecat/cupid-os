@@ -44608,31 +44608,31 @@
             },
             {
               "directive": "if",
-              "line": 3637,
+              "line": 3652,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 3680,
+              "line": 3695,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 3769,
+              "line": 3784,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 3814,
+              "line": 3829,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 5185,
+              "line": 5200,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -52644,7 +52644,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 5093
+      "occurrences": 5094
     },
     {
       "category": "control",
@@ -53139,7 +53139,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 46056
+      "occurrences": 46058
     },
     {
       "category": "control",
@@ -54251,7 +54251,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 3089
+      "occurrences": 3091
     },
     {
       "category": "declarator",
@@ -54550,7 +54550,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 7245
+      "occurrences": 7247
     },
     {
       "category": "extension",
@@ -57917,7 +57917,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 19102
+      "occurrences": 19106
     },
     {
       "category": "qualifier",
@@ -58487,7 +58487,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10981
+      "occurrences": 10983
     },
     {
       "category": "type",
@@ -58980,7 +58980,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 12646
+      "occurrences": 12649
     },
     {
       "category": "type",
@@ -59808,7 +59808,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 26328
+      "occurrences": 26329
     },
     {
       "category": "type",
@@ -62456,7 +62456,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "76eed845dc327bcc68e9340d3df2032d184b797e36b61478cf2a52b1b333f804",
+    "active_source_digest": "40e96d3d6950d0993f8702ac53b02c8573c3449b13f3ebcd4772f256a371ecf2",
     "control_files": [
       {
         "path": "Makefile",
@@ -87408,12 +87408,12 @@
         "toolchain/seed_manifest.h"
       ],
       "language": "cupid_c",
-      "lines": 6728,
+      "lines": 6743,
       "origin": "tracked",
       "path": "toolchain/cupidbuild.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "211bdc1739cab5814152018ceda212895cd8d488199bca1e4061903282ed3dfb"
+      "sha256": "7d6b4980194d7e665a662c5a2ae9ec50944c04a27f5a4ff5e87736e160d4da82"
     },
     {
       "build_owners": [
@@ -90807,12 +90807,12 @@
         "toolchain/seed_release.h"
       ],
       "language": "cupid_c",
-      "lines": 1634,
+      "lines": 1656,
       "origin": "tracked",
       "path": "toolchain/seed_manifest.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "12ebee0a718a7f194c1662ca0c90983234daf0828eb60a55f672295424e6f483"
+      "sha256": "3de1146361b86736f7cefb9fdfdab12d547b2819f6f41f2d28d1e59e9ab0950d"
     },
     {
       "build_owners": [
@@ -90842,12 +90842,12 @@
         "kernel/doom/src/include_stubs/stdint.h"
       ],
       "language": "c_header",
-      "lines": 50,
+      "lines": 51,
       "origin": "tracked",
       "path": "toolchain/seed_manifest.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b32a701355ddf819e5e0b8fd4dc58828153bdc521097ecb090cfdfef6202fbb1"
+      "sha256": "8099a6f7a58eb746cb964f03ba3e16378ab0f729ac4d87c7028eaffdc074ee48"
     },
     {
       "build_owners": [

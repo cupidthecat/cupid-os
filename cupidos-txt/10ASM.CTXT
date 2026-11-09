@@ -29,8 +29,10 @@ on a pointer to that whole array remain errors.
 Checked stage-two builds produce all six tools on Linux and Windows. Native
 and checked input-owner callers pass the eleven API methods on both hosts.
 Fresh lifetime checks pass 236 calls, and all twelve 4096-input capacity cases
-pass with their existing time and memory limits. Complete producer fixed
-points and replacement-tool consumers remain required before seed adoption.
+pass with their existing time and memory limits. Named producer preparations
+match stages three and four on both hosts. The C seed reader checks the complete
+owner plan and exact worker imports through an explicit release. Full behavior
+qualification and replacement-tool consumers remain required before seed adoption.
 Native image publication and the normal
 image-command handoff remain unfinished. The normal graph retains 449
 CupidBuild transforms and three Python transforms.

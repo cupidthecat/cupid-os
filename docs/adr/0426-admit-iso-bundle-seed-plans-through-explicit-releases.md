@@ -105,3 +105,17 @@ Guarded ISO publication, seed installation, SDK integration and the normal
 recipe handoff remain open. Normal ownership remains 447 CupidBuild and five
 Python actions across 452 transforms. New sources use `.cc`; `TempleOS/`
 remains read-only reference material and is excluded from these counts.
+
+## Source-owner worker profiles, 2026-11-08
+
+Extend the same release boundary to the exact 44-source owner plan and its
+thirty-object Build link. Five worker variants bind counts 108, 112, 113, 113
+and 114 to their exact Linux and Windows plan hashes. Windows import profiles
+six through ten add CreateThread only to Build while preserving profiles one
+through five. Equal counts never exchange the long-path and alias plan hashes.
+Historical fixtures retain their original plans and header inventories.
+
+Named preparations reached a fixed point before behavior exposed this missing
+reader support. Diagnostic Cupid-built relinks now pass that original failure
+on both hosts. They qualify the reader fix, not a new seed cohort. See the
+[integration record](../bootstrap/SOURCE-OWNER-INTEGRATION.md).

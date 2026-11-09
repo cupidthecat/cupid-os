@@ -21,8 +21,11 @@ four-CPU boot with all 62 TLS checks and ordered JIT/terminal completion. The
 final CTXT update changes three measured kernel size-policy rows. Replacement
 tools still need their own cold OS builds and consumer acceptance.
 
-Complete producer fixed points and replacement-tool consumers remain required
-before seed adoption. Image
+Named producer preparations now match stages three and four on both hosts.
+Behavior qualification exposed a missing C manifest-reader profile. The reader
+now checks the complete owner plan and exact worker imports; native tests and
+Cupid-built CLI replays pass on both hosts. Refreshed full qualification and
+replacement-tool consumers remain required before seed adoption. Image
 publication and the normal image-command handoff remain unfinished. The
 normal graph still has 449 CupidBuild transforms and three Python transforms.
 See the [integration record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-INTEGRATION.md)

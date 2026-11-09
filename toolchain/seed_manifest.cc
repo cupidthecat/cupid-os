@@ -582,6 +582,8 @@ static const char cupidbuild_iso_publication_linux_plan_sha256[] =
     "ac8edd3ceb4e253439858bbe77c2674933517ec7939bcbe81f1b65ada0d921e3";
 static const char cupidbuild_disk_foundation_linux_plan_sha256[] =
     "808d9a566c3dd200252cb6ca974dfa19992a923867dc60f500797efd5169c73e";
+static const char cupidbuild_source_owner_linux_plan_sha256[] =
+    "e58a047f92d21a9ffbae6cc19726477f95ca3a872f1238d9cbab58dae950faaa";
 static const cupidbuild_current_seed_profile_t cupidbuild_iso_seed_profiles[] = {
     {80u, "9e316adc7804aa619b2ad9b0199b2e1d5e19dfa433bf696d735a1cd159636741", 1u, cupidbuild_iso_linux_plan_sha256},
     {85u, "fac6966af84cd362d43c3f8b5beb3b55c37a8d5c7184cc4c1d221e64b12b4627", 2u, cupidbuild_iso_linux_plan_sha256},
@@ -597,7 +599,12 @@ static const cupidbuild_current_seed_profile_t cupidbuild_iso_seed_profiles[] = 
     {97u, "b84cf24ca21c5024c0ccda5bc470a4c6f97f2bb1073b846381dceec6413239ba", 2u, cupidbuild_disk_foundation_linux_plan_sha256},
     {98u, "4e05c478b4628fc71aadc9ab2d2ac564abdc537402f4b713fe6d02c746ed18d5", 3u, cupidbuild_disk_foundation_linux_plan_sha256},
     {98u, "6023235b95ec568a107b163b2e107dc5979d9dc0d8a811f2bf605baa26d79bf5", 4u, cupidbuild_disk_foundation_linux_plan_sha256},
-    {99u, "754895566b00e6e53b045a1414e7b734872f04d4f0c84d62e3dfcf8dd9bc57ab", 5u, cupidbuild_disk_foundation_linux_plan_sha256}};
+    {99u, "754895566b00e6e53b045a1414e7b734872f04d4f0c84d62e3dfcf8dd9bc57ab", 5u, cupidbuild_disk_foundation_linux_plan_sha256},
+    {108u, "0bf4abe248c229212b59293572a8437fc7fda357a642c550e334189a1be4332b", 6u, cupidbuild_source_owner_linux_plan_sha256},
+    {112u, "17664a10f3d08b88d57a0be8d2824859faa8cbc3503fcd9bae73a60e6b857ca1", 7u, cupidbuild_source_owner_linux_plan_sha256},
+    {113u, "f6465323611c509813922af67c31282fb30da97c0fd1c808118127656e8f9353", 8u, cupidbuild_source_owner_linux_plan_sha256},
+    {113u, "f5a6202d1bd694b062d3c70552441e833a0c6bdc4afde753e82c62797454f641", 9u, cupidbuild_source_owner_linux_plan_sha256},
+    {114u, "edf91edb181c104e9762ac7f68c4636b5da153ac43e24f1d4dc941424f96e63c", 10u, cupidbuild_source_owner_linux_plan_sha256}};
 
 static int cupidbuild_json_iso_seed_profile(const unsigned char *bytes,
     const cupidbuild_json_token_t *tokens, size_t count, size_t provenance,
@@ -614,7 +621,7 @@ static int cupidbuild_json_iso_seed_profile(const unsigned char *bytes,
             "source_input_count", profile->source_input_count) &&
         (!windows || cupidbuild_json_string_field(bytes, tokens, count, provenance,
             "native_build_plan_sha256", profile->windows_plan_sha256))) {
-      return windows ? (int)index + 11 : index >= 10u ? 21 : index >= 5u ? 16 : 11;
+      return windows ? (int)index + 11 : index >= 15u ? 26 : index >= 10u ? 21 : index >= 5u ? 16 : 11;
     }
   }
   return 0;
@@ -1131,10 +1138,17 @@ static int cupidbuild_json_sources(const unsigned char *bytes,
       {"cupidbuild_iso_publication", "/toolchain/cupidbuild_iso_publication.cc", 0},
       {"fat16_stage", "/toolchain/fat16_stage.cc", 0},
       {"fat16_names", "/toolchain/fat16_names.cc", 0},
-      {"disk_image", "/toolchain/disk_image.cc", 0}};
+      {"disk_image", "/toolchain/disk_image.cc", 0},
+      {"cupidbuild_source_path", "/toolchain/cupidbuild_source_path.cc", 0},
+      {"cupidbuild_source_file", "/toolchain/cupidbuild_source_file.cc", 0},
+      {"cupidbuild_source_stage", "/toolchain/cupidbuild_source_stage.cc", 0},
+      {"cupidbuild_disk_integer", "/toolchain/cupidbuild_disk_integer.cc", 0},
+      {"cupidbuild_disk_options", "/toolchain/cupidbuild_disk_options.cc", 0},
+      {"cupidbuild_disk_input_discovery", "/toolchain/cupidbuild_disk_input_discovery.cc", 0},
+      {"path_encoding", "/toolchain/path_encoding.cc", 0}};
   size_t cursor;
   size_t index;
-   size_t expected_count = promoted ? (candidate >= 21 ? 37u : candidate >= 16 ? 34u : candidate >= 11 ? 30u : candidate >= 7 ? 29u : candidate >= 3 ? 27u : candidate ? 25u : 22u) : 19u;
+   size_t expected_count = promoted ? (candidate >= 26 ? 44u : candidate >= 21 ? 37u : candidate >= 16 ? 34u : candidate >= 11 ? 30u : candidate >= 7 ? 29u : candidate >= 3 ? 27u : candidate ? 25u : 22u) : 19u;
   if (array >= count || tokens[array].type != CUPIDBUILD_JSON_ARRAY ||
       tokens[array].count != expected_count) {
     return 0;
@@ -1218,6 +1232,14 @@ static int cupidbuild_json_links(const unsigned char *bytes,
       "user_syscall_abi", "cupidbuild_user_abi", "iso_fixture_bundle", "cupidbuild_iso",
       "cupidbuild_iso_capture", "cupidbuild_iso_image", "cupidbuild_iso_publication",
       "fat16_stage", "fat16_names", "disk_image", "runtime"};
+  static const char *const source_owner_cupidbuild[] = {
+      "start", "cupidbuild_main", "cupidbuild", "cupidbuild_host",
+      "ctool_host", "ctool", "elf32", "seed_manifest", "seed_release",
+      "contract_parse_internal", "cupidbuild_artifacts", "artifact_size_policy",
+      "user_syscall_abi", "cupidbuild_user_abi", "iso_fixture_bundle", "cupidbuild_iso",
+      "cupidbuild_iso_capture", "cupidbuild_iso_image", "cupidbuild_iso_publication",
+      "fat16_stage", "fat16_names", "disk_image",
+      "cupidbuild_source_path", "cupidbuild_source_file", "cupidbuild_source_stage", "cupidbuild_disk_integer", "cupidbuild_disk_options", "cupidbuild_disk_input_discovery", "path_encoding", "runtime"};
   size_t value;
   if (object >= count ||
       !cupidbuild_json_exact(bytes, tokens, count, object, names,
@@ -1254,8 +1276,8 @@ static int cupidbuild_json_links(const unsigned char *bytes,
   }
   value = cupidbuild_json_required(bytes, tokens, count, object, "cupidbuild");
   return cupidbuild_json_string_array(bytes, tokens, count, value,
-                                      candidate >= 21 ? disk_foundation_cupidbuild : candidate >= 16 ? iso_publication_cupidbuild : candidate >= 7 ? user_abi_cupidbuild : candidate >= 3 ? artifact_cupidbuild : candidate ? candidate_cupidbuild : cupidbuild,
-                                      candidate >= 21 ? 23u : candidate >= 16 ? 20u : candidate >= 7 ? 15u : candidate >= 3 ? 13u : candidate ? 11u : 8u);
+                                      candidate >= 26 ? source_owner_cupidbuild : candidate >= 21 ? disk_foundation_cupidbuild : candidate >= 16 ? iso_publication_cupidbuild : candidate >= 7 ? user_abi_cupidbuild : candidate >= 3 ? artifact_cupidbuild : candidate ? candidate_cupidbuild : cupidbuild,
+                                      candidate >= 26 ? 30u : candidate >= 21 ? 23u : candidate >= 16 ? 20u : candidate >= 7 ? 15u : candidate >= 3 ? 13u : candidate ? 11u : 8u);
 }
 
 static int cupidbuild_json_build_plan(const unsigned char *bytes,

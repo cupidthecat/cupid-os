@@ -9,8 +9,9 @@ Cupid OS remains unfinished.
 
 - The normal graph has 452 transforms: 449 use CupidBuild and three retain
   Python coordination. GNU Make still schedules the build.
-- Source-owner modules are in current producer plans. Complete qualification,
-  disk/SDK publication and the normal image-command handoff remain open.
+- Source-owner modules are in current producer plans, and paired named
+  preparations reach a fixed point. The C reader now recognizes their exact
+  behavior profiles. Refreshed qualification, disk/SDK publication and the normal image-command handoff remain open.
 - The private in-OS compiler supports halfword storage, integer array lists
   and typed native calls. Its remaining language gaps and guest acceptance
   are separate from hosted compiler fixed points. The shell can inspect
