@@ -5948,3 +5948,10 @@ negative checks and generated/checked comparisons remain enforced. The
 [fixture record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-INVENTORY-FIXTURES.md)
 retains the failures and source reconciliation; other full-replay failures
 remain under investigation.
+
+The remaining ownership and fixed-point fixtures also retain every rejection
+case while checking the current startup, source and manifest inventories.
+Complete native-host replays cover all ten selected methods. Both actual user
+Make ABI targets pass with Python and nine conventional producers forbidden,
+agreeing on all 103 fields and 101 providers. The active checked recipe keeps
+its existing input selection.

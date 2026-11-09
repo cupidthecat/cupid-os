@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-09: Restore current ownership and mutation fixtures
+
+The remaining source audit fixtures now include the observer startup, complete
+owner source set and current source/manifest counts. Four no-op mutation strings
+again exercise real rejection paths. The retained native user-ABI Make
+declaration also matches its exported runtime-header closure; the active checked
+recipe is unchanged. All ten selected methods pass across complete native-host
+replays, with AST checks for the unchanged methods. Both real user Make ABI
+targets also pass with Python and nine conventional producers forbidden.
+The [fixture record](SOURCE-OWNER-INVENTORY-FIXTURES.md) retains the original
+failures and complete corrected checks. Full repository replays remain open.
+
 ## 2026-11-09: Read complete retained OS images through bounded ranges
 
 Twenty native/Cupid-built cases pass through the unchanged private range

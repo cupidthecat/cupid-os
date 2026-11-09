@@ -36,3 +36,26 @@ Its SHA-256 is
 `dee2625a691b8fff49609d139dc2eafb4f621bfd8b8e213698c33989e3c1bbd2`.
 Complete repository replays and their other failures remain open. These focused
 results do not authorize installed seed adoption.
+
+## Remaining ownership and fixed-point fixtures
+
+Seven further methods now include the eleven startup assemblies, 44 tool C
+sources, 112 manifest inputs, 164 SDK/audit inputs and 149 toolchain-cohort
+sources. Four stale mutation strings now match the worker-aware calls and
+complete accepted link family. Disk-foundation mutations target the existing
+`PROMOTED_SOURCES` binding. Every original rejection check remains.
+
+The retained native user-ABI Make declaration also includes the current
+`cupid_runtime.h` interface. The active checked-input override remains unchanged.
+Both actual `make test-syscall-abi` targets pass in isolated repositories with
+Python and nine conventional producers forbidden. Their reports agree on all
+103 fields, 101 providers and the exact version-five ABI digest.
+
+Nine methods pass in each complete ten-method selection. The remaining inventory
+method passes complete native-host reruns after its final cohort/summary update.
+AST comparison verifies that all other methods and module globals are unchanged.
+The [companion archive](evidence/source-owner-remaining-inventory-fixtures-20261109.json.gz)
+retains 91 file records, 46 local payloads and 21 qualified-archive references.
+Its SHA-256 is
+`d28cf71496db422326372e2d5a24e796561dbab7cac81e511950f9751c6bc15d`.
+Full repository replays and installed seed adoption remain open.

@@ -73,6 +73,7 @@ NATIVE_WINDOWS_USER_SYSCALL_ABI_INPUTS := \
 	../toolchain/ctool_host.cc \
 	../toolchain/ctool_host.h \
 	../toolchain/hosted/i386-linux/include/cupid_host_abi.h \
+	../toolchain/hosted/i386-linux/include/cupid_runtime.h \
 	../toolchain/hosted/i386-linux/include/direct.h \
 	../toolchain/hosted/i386-linux/include/errno.h \
 	../toolchain/hosted/i386-linux/include/stddef.h \
