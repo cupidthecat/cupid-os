@@ -15,7 +15,7 @@ from tools.bootstrap_toolchain import (
     _validate_static_i386_elf,
     _validate_static_i386_pe32,
     _windows_build_plan,
-    _windows_utf8_imports,
+    _windows_profile_imports,
     _windows_link_arguments,
     freeze_seed_inputs,
     require_live_seed_inputs,
@@ -80,7 +80,8 @@ class CupidBuildUserElfTests(unittest.TestCase):
         plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
         plan = _candidate_build_plan(plan)
         if os.name == "nt":
-            plan = _windows_build_plan(plan, utf8=True, user_link_aliases=True)
+            plan = _windows_build_plan(plan, utf8=True, user_link_aliases=True,
+                                       observer_workers=True)
         order = plan["links"]["cupidbuild"]
         objects = {name: cls.directory / (name + ".target.o") for name in order}
         for source in plan["sources"]:
@@ -107,7 +108,9 @@ class CupidBuildUserElfTests(unittest.TestCase):
                 _validate_i386_relocatable(objects[source["name"]])
                 require_live_seed_inputs(cls.seed)
         cls.checked = cls.directory / ("checked-contract.exe" if os.name == "nt" else "checked-contract.elf")
-        arguments = (_windows_link_arguments("cupidbuild", cls.checked, objects, order, utf8=True, user_link_aliases=True)
+        arguments = (_windows_link_arguments("cupidbuild", cls.checked, objects, order,
+                                            utf8=True, user_link_aliases=True,
+                                            observer_workers=True)
                      if os.name == "nt" else ["-m", "elf_i386", "--text-address", "0x08048000",
                                              "--entry", "_start", "-o", cls.checked,
                                              *[objects[name] for name in order]])
@@ -115,7 +118,8 @@ class CupidBuildUserElfTests(unittest.TestCase):
         require_live_seed_inputs(cls.seed)
         if os.name == "nt":
             _validate_static_i386_pe32(cls.checked, 0x00401000,
-                                      _windows_utf8_imports("cupidbuild", user_link_aliases=True))
+                                      _windows_profile_imports("cupidbuild", utf8=True,
+                                          user_link_aliases=True, observer_workers=True))
         else:
             _validate_static_i386_elf(cls.checked, 0x08048000)
             cls.checked.chmod(0o755)

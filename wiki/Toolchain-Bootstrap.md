@@ -5991,3 +5991,11 @@ explicit test-input alignment and required Make flags. Complete 159-method
 selections pass on both hosts; actual native Make builds also verify every ABI
 field. The [native fixture record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-NATIVE-ORACLE-FIXTURES.md)
 keeps the checked-runtime limits and remaining full-replay work explicit.
+
+Actual Windows Unicode and user-ELF fixtures now carry the complete observer
+worker profile. Both hosts pass their corrected complete modules. Fresh
+Cupid-built callers also pass the larger self-host frontier and adapter cases.
+A native-storage kernel diagnostic retains all 156 repeated object checks under
+the original timeout; its earlier input snapshot remains distinct from final
+repository acceptance. The [closure record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/SOURCE-OWNER-WORKER-KERNEL-FIXTURES.md)
+retains those boundaries before the next full replay.

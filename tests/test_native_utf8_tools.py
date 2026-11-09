@@ -42,19 +42,21 @@ class NativeUtf8ToolTests(unittest.TestCase):
             execution = bootstrap.freeze_seed_inputs(cls.seed / "manifest.json", cls.root / "execution-seed")
             cls.addClassCleanup(bootstrap.require_live_seed_inputs, execution)
             parent_plan = bootstrap.verify_seed_inputs(ROOT / "bootstrap/seeds/i386-linux/manifest.json")
-            linux = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"]
+            linux = bootstrap._candidate_build_plan(json.loads(
+                (ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"])
             plan = bootstrap._windows_build_plan(linux, utf8=True,
-                long_paths=windows_long_paths, user_link_aliases=True)
+                long_paths=windows_long_paths, user_link_aliases=True, observer_workers=True)
             sources = bootstrap.freeze_source_inputs(
                 ROOT, linux, cls.root / "checked-source", windows_utf8=True,
-                windows_long_paths=windows_long_paths, windows_user_link_aliases=True)
+                windows_long_paths=windows_long_paths, windows_user_link_aliases=True,
+                windows_observer_workers=True)
             cls.addClassCleanup(bootstrap.require_source_closures, sources, ROOT, linux)
             stage = bootstrap._build_windows_stage(
                 bootstrap.ToolRunner(sources.root), sources.root, sources.root / "stage",
                 execution.tools, plan, "UTF-8 test cohort")
             behavior = bootstrap._retarget_native_windows_behavior_seed(
                 execution, bootstrap._build_plan_sha256(plan), linux, sources.inventory, utf8=True,
-                long_paths=windows_long_paths, user_link_aliases=True,
+                long_paths=windows_long_paths, user_link_aliases=True, observer_workers=True,
                 parent_plan_seed=parent_plan)
             from tests.artifact_release_fixtures import released_behavior_fixture
             behavior, _ = released_behavior_fixture(
@@ -83,8 +85,9 @@ class NativeUtf8ToolTests(unittest.TestCase):
     def test_platform_selects_matching_entry_and_host_objects(self):
         selected = {path.name for path in self.build.glob("*.o")}
         wide = {"native_utf8.o", "native_utf8_entry.o", "ctool_host_utf8.o",
-                "cupidbuild_host_utf8.o", "path_encoding.o",
+                "cupidbuild_host_utf8.o",
                 *(role + "_native_utf8_main.o" for role in ROLES)}
+        self.assertIn("path_encoding.o", selected)
         if os.name == "nt":
             self.assertTrue(wide <= selected)
             self.assertNotIn("ctool_host.o", selected)
@@ -99,9 +102,9 @@ class NativeUtf8ToolTests(unittest.TestCase):
         if os.name == "nt":
             import json
             profile = json.loads((self.seed / "manifest.json").read_bytes())["provenance"]
-            self.assertEqual(profile["source_input_count"], 99)
+            self.assertEqual(profile["source_input_count"], 114)
             self.assertEqual(profile["native_build_plan_sha256"],
-                             "754895566b00e6e53b045a1414e7b734872f04d4f0c84d62e3dfcf8dd9bc57ab")
+                             "edf91edb181c104e9762ac7f68c4636b5da153ac43e24f1d4dc941424f96e63c")
             for role in ROLES:
                 self.invoke(self.seed, role, ["--help"], self.root)
         expected_artifacts = None

@@ -31,10 +31,11 @@ The normal 449 CupidBuild / three Python ownership count remains unchanged.
 
 Fresh Cupid-built frontend and object callers compile. The frontend passes its
 aggregate/frontier, error and semantic modes; the object caller passes an
-independent inline-assembly replay. Larger checked source-frontier cases remain
-pending in a separate bounded auxiliary run. They are excluded from acceptance
-in this record. Auxiliary runtime bounds are private; the existing native
-Python methods have no runtime timeout. Published compile limits remain unchanged.
+independent inline-assembly replay. The larger checked source-frontier cases
+subsequently pass in the complete [follow-up record](SOURCE-OWNER-WORKER-KERNEL-FIXTURES.md).
+This archive retains the earlier focused checkpoint. Auxiliary runtime bounds
+are private; existing native Python methods have no runtime timeout. Published
+compile limits remain unchanged.
 
 The original Windows full replay completed 3,410 methods with 72 failures,
 30 errors and 61 skips. Other fixture corrections and a new complete replay

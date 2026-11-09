@@ -76,6 +76,8 @@ complete OS can rebuild itself from inside the guest.
   imports, checked worker links and portable verification dependencies.
 - [Native verification fixtures](SOURCE-OWNER-NATIVE-ORACLE-FIXTURES.md): current
   frontend/object goldens, portable native inputs and required Make flags.
+- [Worker/kernel fixture closure](SOURCE-OWNER-WORKER-KERNEL-FIXTURES.md): actual
+  current Windows tools, native-storage kernel replay and checked frontier cases.
 - [Private integer updates](PRIVATE-INTEGER-UPDATES.md): typed lvalue mutation
   with paired-host source checks and installed JIT/AOT evidence.
 - [Private pointer difference](PRIVATE-POINTER-DIFFERENCE.md): signed element

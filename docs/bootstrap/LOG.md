@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-09: Close worker and checked-caller fixtures
+
+Actual Windows user-ELF and Unicode builds now carry the complete worker
+selection. Both hosts pass all seven user-ELF methods and the complete corrected
+three-method Unicode module. The kernel input fixture retains every object and
+provenance assertion with its current 486-input digest. A native-filesystem
+diagnostic passes all 156 repeated kernel objects under the original timeout;
+its earlier test-vector snapshot remains explicit. Fresh checked frontend/object
+callers also pass all seven selected modes, closing the larger frontier cases.
+The [closure record](SOURCE-OWNER-WORKER-KERNEL-FIXTURES.md) retains the failures,
+complete replays, products and final-source boundary. Full repository replays
+and installed seed adoption remain open.
+
 ## 2026-11-09: Restore strict native verification inputs
 
 Complete 159-method native selections pass on both hosts and against the
