@@ -5,19 +5,28 @@ publication errors. [Getting Started](Getting-Started) covers host setup.
 
 ## Formatted tools, 2026-11-10
 
-Both ordinary SDK publications pass with a private qualified tool projection.
-All 22 published ELF files and the complete manifest match between Linux and
-the Windows controller using WSL. The checked author and Python oracle agree
-on 84 complete stage pairs during each build. Separate readback checks every
-published file and frozen input. Long-path profiles and cold OS/user and guest
-acceptance remain open; installed seeds have not changed. The
+Ordinary and long-path SDK publications pass on both hosts with a private
+qualified tool projection. All 22 published ELF files match across the four
+runs, and each profile's complete manifest matches between hosts. The checked
+author and Python oracle agree on 84 complete stage pairs during each build.
+Paired cold OS/user builds and four strict private boots also pass. Complete
+public-entry acceptance remains required before seed adoption. The
 [consumer record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FORMATTED-SDK-CONSUMERS.md)
 retains exact scope and evidence.
 
-A private Freedoom run renders a level and quits, then fails its first shell
-command. Audio quality and timedemo completion remain open. The
+A later uninterrupted Windows guest renders Freedoom, quits and runs its first
+fresh shell command. The earlier failed handoff remains unresolved. Audio
+quality and timedemo completion remain open. The
 [Doom diagnostic](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FORMATTED-DOOM-DIAGNOSTIC.md)
 retains the failure and a separate sample-identical synthesis comparison.
+
+A freestanding compiler engine also rebuilds all nine of its own objects and
+relinks to the same complete image in a Linux harness. It fits the reserved
+guest compiler arena. This establishes host execution of the loaded engine;
+guest loading, process cleanup and self-recompilation inside Cupid OS remain
+unfinished. The
+[engine experiment](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md)
+retains the sources, binaries and negative controls.
 
 ## Source-owner integration, 2026-11-08
 

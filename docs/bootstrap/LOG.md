@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## 2026-11-10: Rebuild a freestanding compiler engine through its loaded entry
+
+Checked Cupid tools build a complete freestanding compiler engine that fits
+the existing nine-MiB guest compiler arena. A Cupid-built Linux harness calls
+the loaded engine to rebuild all nine source files. Every object and the
+relinked complete module match the first generation. All 54 negative controls
+reject their requests, and every call returns its tracked allocations.
+
+The first harness failed on an unavailable `exit` declaration. Its Linux-only
+replacement uses the existing syscall adapter; production compiler and runtime
+source stay unchanged. Independent readback verifies the frozen inputs, ELF
+load ranges, object pairs, module and complete exported archive.
+
+The [engine record](FREESTANDING-COMPILER-ENGINE.md) keeps the API experiment,
+failure and measured memory use. This is host execution. Guest loading,
+ownership, worker-stack sizing, kill cleanup and actual guest self-recompilation
+remain required.
+
 ## 2026-11-10: Repair the raw scancode FIFO reader
 
 The raw scancode reader now consumes `tail`, preserving the writer's `head`.

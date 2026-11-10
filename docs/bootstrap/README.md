@@ -55,6 +55,10 @@ complete OS can rebuild itself from inside the guest.
 
 ## Records
 
+- [Freestanding compiler engine](FREESTANDING-COMPILER-ENGINE.md): all nine
+  objects and the complete engine reproduce themselves in a Linux harness;
+  guest loading and self-recompilation remain unfinished.
+
 - [Keyboard FIFO repair](KEYBOARD-FIFO-REPAIR.md): shared reader cursor, checked
   tool fixtures, complete kernel rechecks and the 31-command guest frontier.
 
