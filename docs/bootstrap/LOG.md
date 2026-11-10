@@ -1,5 +1,21 @@
 # Bootstrapping log
 
+## 2026-11-09: Add wiki publication on push
+
+The `Publish wiki` workflow copies tracked `wiki/` pages and assets to the
+separate wiki repository on documentation pushes to the bootstrap branch.
+It uses a pinned official checkout action and requests content-write access
+for the workflow token. One concurrency group serializes publication; each run
+reads the current branch to avoid restoring pages from a queued older push.
+Only paths deleted between the push's previous commit and the current source
+are removed. Other remote pages remain intact.
+
+Seven synchronization tests pass on Windows and Linux, covering byte-exact
+assets, unchanged files, unmanaged pages, deletions, path conflicts, links and
+missing source or revision inputs. Actionlint 1.7.12 accepts the workflow.
+Remote token access and publication still require the first pushed run.
+The workflow adds no dependency to the normal OS build.
+
 ## 2026-11-09: Read formatted compile-policy tables
 
 The kernel and generated-source closure checks now accept line breaks between

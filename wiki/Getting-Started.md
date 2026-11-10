@@ -261,6 +261,18 @@ clang-format -i path/to/file.cc
 clang-format --dry-run --Werror path/to/file.cc
 ```
 
+## Editing the wiki
+
+Edit the Markdown pages, sidebar and images in `wiki/`. Pushing changes to
+`bootstrap/cupid-self-hosting` runs **Publish wiki**, which copies the tracked
+files into the GitHub wiki and commits any changes. Pages edited only on the
+website remain there unless the same path is tracked in `wiki/`.
+
+To remove or rename a tracked page, make that change in the repository. The
+workflow removes paths deleted by the push and publishes the current files.
+It leaves other wiki pages alone. Check the workflow run after pushing; a failed
+run can be rerun from the repository's Actions page.
+
 ## Next Steps
 
 - **[Shell Commands](Shell-Commands)** - Full command reference
