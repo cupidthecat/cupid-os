@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## 2026-11-10: Match the ordinary SDK publications across hosts
+
+The private formatted-cohort ordinary SDK publications pass on Linux and
+Windows in 5,498.510 and 6,269.436 seconds. Their 22 published ELF files and
+complete manifests match byte for byte. Both builds retain two workers, nine
+forbidden producer variables, existing tool limits and the 7,200-second outer
+deadline. The checked author and Python oracle agree on all 84 stage pairs.
+
+Independent readback verifies every published file and frozen input and matches
+the six tools to the qualified producer. Normal cleanup has already retired
+the private stage directories, so the later readback covers publications;
+the original builds establish the stage-pair comparisons. Both long-path
+profiles now run under the same limits. Installed seeds remain unchanged.
+
+[The SDK record](FORMATTED-SDK-CONSUMERS.md) retains the complete publications,
+controllers and byte-verified archive. Cold OS/user and guest consumers still
+precede any installed-seed transition.
+
 ## 2026-11-10: Repair source guards and restore ABI mutations
 
 USB ownership, CupidDis summary and CupidBuild publication checks now read C

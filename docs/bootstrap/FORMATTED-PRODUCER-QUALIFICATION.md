@@ -42,9 +42,11 @@ measured image sizes; other artifact rows remain unchanged. This is a
 17-file private projection per host, with no change to the 114 producer inputs.
 Both private paired-seed verifiers pass.
 
-Fresh ordinary SDK publications are running on both hosts with two workers,
-the original limits and the reviewed release. Long-path publication, cold
+Both ordinary SDK publications now pass. Independent readback matches all 22
+published images and the complete manifest across hosts. Both long-path
+profiles are running with the original limits and reviewed release. Cold
 OS/user builds, guest acceptance and the final seed transition remain open.
+The [SDK consumer record](FORMATTED-SDK-CONSUMERS.md) gives the exact scope.
 The normal graph still has 449 CupidBuild transforms and three Python
 coordinators.
 

@@ -3,6 +3,17 @@
 See [CupidBuild](CupidBuild) for normal build commands, seed selection and
 publication errors. [Getting Started](Getting-Started) covers host setup.
 
+## Formatted tools, 2026-11-10
+
+Both ordinary SDK publications pass with a private qualified tool projection.
+All 22 published ELF files and the complete manifest match between Linux and
+the Windows controller using WSL. The checked author and Python oracle agree
+on 84 complete stage pairs during each build. Separate readback checks every
+published file and frozen input. Long-path profiles and cold OS/user and guest
+acceptance remain open; installed seeds have not changed. The
+[consumer record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FORMATTED-SDK-CONSUMERS.md)
+retains exact scope and evidence.
+
 ## Source-owner integration, 2026-11-08
 
 Current producer plans include the path, file, stage, integer, option and
