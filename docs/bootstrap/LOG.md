@@ -1,5 +1,24 @@
 # Bootstrapping log
 
+## 2026-11-09: Repair standalone observer verification from clean checkouts
+
+The checked Windows observer fixture now binds the current worker adapter and
+`CreateThread` together. Its original build failed at the final link. Two
+worker-profile methods now create their temporary directories beneath the
+checkout without requiring an earlier build to create `build/`.
+
+The complete native Windows selection passes 123 methods with nine platform
+skips. The checked Windows observer passes 75 methods in 232.515 seconds with
+four POSIX-only skips. Ubuntu through WSL passes 48 native methods in 24.564
+seconds and 75 checked methods in 97.750 seconds, each with one platform skip.
+The seven worker-profile methods also pass on the integrated remote revision.
+Existing negative cases retain their assertions and time limits.
+
+The [fixture record](SOURCE-OWNER-WORKER-KERNEL-FIXTURES.md#standalone-observer-and-clean-checkouts)
+links the failed and passing transcripts. These changes affect verification
+only; full repository acceptance, seed adoption and guest self-hosting remain
+unfinished.
+
 ## 2026-11-09: Retain external observer authority through publication
 
 The current private wide adapter borrows distinct external roots after primary

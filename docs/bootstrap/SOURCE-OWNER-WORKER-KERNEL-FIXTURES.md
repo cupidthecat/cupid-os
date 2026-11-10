@@ -73,3 +73,32 @@ qualified producer archive. Its SHA-256 is
 `8c6b00c62f7937fac5adb8345337d86526812f13f58d9131270cd8b0594cce25`.
 An independent reread verifies every payload and file binding. Full repository
 replays and installed seed adoption remain separate and unfinished.
+
+## Standalone observer and clean checkouts
+
+The standalone checked observer caller now selects the Windows worker bridge
+and `CreateThread` import together. Its previous profile compiled the current
+host adapter but failed at the final link with an unresolved strong symbol.
+Linux keeps its existing link profile. The caller still builds with the installed
+checked tools; its behavior assertions and time limits are unchanged.
+
+Two worker-profile methods also assumed that `build/` already existed. Their
+temporary directories now live directly under the checkout, which preserves
+the stage builder's logical-path requirement and works before any OS build.
+Both directories are removed by their existing context managers.
+
+The fresh-checkout Windows selection initially ran 48 methods with two errors
+and four platform skips. After correction, the seven worker-profile methods
+pass without skips. The full native Windows observer selection runs 123 methods
+successfully with nine platform skips. Under Ubuntu through WSL, the native
+selection runs 48 methods successfully with one platform skip, and the checked
+observer runs all 75 methods successfully with one Windows-only skip.
+The checked Windows observer also runs 75 methods successfully, with four
+POSIX-only skips. Its complete run takes 232.515 seconds. The seven
+worker-profile methods pass again after integrating the remote branch changes.
+
+The [standalone evidence](evidence/standalone-observer-fixtures-20261109.json.gz)
+contains both failed runs, passing transcripts and the two corrected fixtures.
+
+These are fixture corrections. They transfer no production ownership and do
+not qualify installed seed adoption or a complete repository replay.

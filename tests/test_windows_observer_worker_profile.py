@@ -98,7 +98,7 @@ class WindowsObserverWorkerProfileTests(unittest.TestCase):
                 bootstrap._windows_plan_configuration(changed)
 
     def test_checked_linker_emits_the_exact_worker_import_profile(self):
-        with tempfile.TemporaryDirectory(dir=ROOT / 'build') as temporary:
+        with tempfile.TemporaryDirectory(prefix='.worker-profile-', dir=ROOT) as temporary:
             directory = Path(temporary)
             host = 'windows' if os.name == 'nt' else 'linux'
             seed = bootstrap.freeze_seed_inputs(ROOT / ('bootstrap/seeds/i386-' + host + '/manifest.json'),
@@ -127,7 +127,7 @@ class WindowsObserverWorkerProfileTests(unittest.TestCase):
     def test_stage_uses_the_worker_profile_for_linking_and_pe_validation(self):
         plan = bootstrap._windows_build_plan(self.linux, utf8=True,
             long_paths=True, user_link_aliases=True, observer_workers=True)
-        with tempfile.TemporaryDirectory(dir=ROOT / 'build') as temporary, mock.patch.object(
+        with tempfile.TemporaryDirectory(prefix='.worker-profile-', dir=ROOT) as temporary, mock.patch.object(
                 bootstrap, '_run_clean') as run, mock.patch.object(
                 bootstrap, '_validate_i386_relocatable'), mock.patch.object(
                 bootstrap, '_certify_relocatable_code_anchors'), mock.patch.object(
