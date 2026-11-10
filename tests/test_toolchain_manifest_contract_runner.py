@@ -684,6 +684,9 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                 output, _manifest, windows_user_link_aliases=aliases,
                 windows_long_paths=long_paths
             )
+            self.assertIn(
+                "toolchain/tests/cupidc_source_spelling_fixture.h", _manifest["inputs"]
+            )
             with mock.patch.object(
                 toolchain_manifest_contract,
                 "_capture_live_manifest_closure",
@@ -709,6 +712,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                         )
         expected = _expected_report()
         expected["bootstrap_source_input_count"] = 112 + int(aliases) + int(long_paths)
+        expected["input_count"] = 113
         self.assertEqual(report, expected)
 
     def test_checked_seed_build_runs_the_manifest_contract(self):

@@ -66,6 +66,15 @@ def c_block(source, fragment):
     raise ValueError("unterminated C fixture block")
 
 
+def c_replace(source, fragment, replacement):
+    """Replace one token sequence, rejecting missing or ambiguous fixtures."""
+    matches = _c_spelling_ranges(source, fragment)
+    if len(matches) != 1:
+        raise ValueError(f"expected one mutation fixture, found {len(matches)}: {fragment}")
+    start, end = matches[0]
+    return source[:start] + replacement + source[end:]
+
+
 def c_literal_text(source):
     """Join adjacent ordinary string literals while retaining escape spelling."""
     groups = []

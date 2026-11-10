@@ -11,6 +11,7 @@ import struct
 import sys
 import tempfile
 import unittest
+from tests.c_source_spelling import _c_spelling_ranges
 from pathlib import Path
 from unittest import mock
 
@@ -1171,7 +1172,6 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "cupidbuild_current_imports",
             "DeleteProcThreadAttributeList",
             "InitializeProcThreadAttributeList",
-            '"SetFilePointer",\n        "SetHandleInformation",',
             "UpdateProcThreadAttribute",
             "cupidbuild_legacy_ntdll_imports",
             "cupidbuild_current_ntdll_imports",
@@ -1180,6 +1180,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "expected_ntdll_imports[index]",
         ):
             self.assertIn(required, source)
+        self.assertTrue(_c_spelling_ranges(
+            source, '"SetFilePointer", "SetHandleInformation",'
+        ))
         self.assertNotIn("expected_total_minimum", source)
         self.assertNotIn("expected_total_maximum", source)
 

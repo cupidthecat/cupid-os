@@ -1,9 +1,17 @@
 import unittest
 
-from tests.c_source_spelling import _c_spelling_ranges, c_block, c_literal_text
+from tests.c_source_spelling import _c_spelling_ranges, c_block, c_literal_text, c_replace
 
 
 class CSourceSpellingTests(unittest.TestCase):
+    def test_mutations_change_code_and_preserve_other_spelling(self):
+        source = '/* f(x); */ f ( /* value */ x ); g("f(x);");'
+        self.assertEqual(c_replace(source, 'f(x);', 'f(y);'),
+                         '/* f(x); */ f(y); g("f(x);");')
+        for source in ('g(x);', 'f(x); f(x);', '/* f(x); */', 'g("f(x);");'):
+            with self.subTest(source=source), self.assertRaises(ValueError):
+                c_replace(source, 'f(x);', 'f(y);')
+
     def test_blocks_ignore_literal_and_comment_braces_and_reject_ambiguity(self):
         source = 'before(); if (ready) { f("}"); /* } */ if (x) { g(); } } after();'
         start, end = c_block(source, 'if(ready)')

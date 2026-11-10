@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
+from tests.c_source_spelling import c_replace
 
 from tools.bootstrap_toolchain import (
     BootstrapError,
@@ -186,7 +187,8 @@ class UserSyscallAbiTests(unittest.TestCase):
 
     def test_missing_kernel_initializer_is_rejected(self):
         implementation = self.root / "kernel/core/syscall.cc"
-        source = implementation.read_text(encoding="utf-8").replace(
+        source = c_replace(
+            implementation.read_text(encoding="utf-8"),
             "  syscall_table.print_hex = print_hex;\n",
             "",
         )
@@ -200,7 +202,8 @@ class UserSyscallAbiTests(unittest.TestCase):
 
     def test_kernel_provider_drift_is_rejected(self):
         implementation = self.root / "kernel/core/syscall.cc"
-        source = implementation.read_text(encoding="utf-8").replace(
+        source = c_replace(
+            implementation.read_text(encoding="utf-8"),
             "syscall_table.ntohs            = htons;",
             "syscall_table.ntohs            = ntohs;",
         )
@@ -527,7 +530,8 @@ class CupidBuiltUserSyscallAbiContractTests(unittest.TestCase):
 
     def test_contract_rejects_layout_and_provider_mutations(self):
         header = self.root / "user/cupid.h"
-        source = header.read_text(encoding="utf-8").replace(
+        source = c_replace(
+            header.read_text(encoding="utf-8"),
             "    uint8_t  type;\n} cupid_dirent_t;",
             "    uint16_t type;\n} cupid_dirent_t;",
         )
@@ -540,7 +544,8 @@ class CupidBuiltUserSyscallAbiContractTests(unittest.TestCase):
 
         self._copy_inputs(self.root)
         implementation = self.root / "kernel/core/syscall.cc"
-        source = implementation.read_text(encoding="utf-8").replace(
+        source = c_replace(
+            implementation.read_text(encoding="utf-8"),
             "syscall_table.ntohs            = htons;",
             "syscall_table.ntohs            = ntohs;",
         )

@@ -11,6 +11,7 @@ import tempfile
 import threading
 import time
 import unittest
+from tests.c_source_spelling import _c_spelling_ranges
 from pathlib import Path
 
 from tests.artifact_release_fixtures import replace_fixture_tool
@@ -1640,15 +1641,23 @@ class CupidBuildCliTests(unittest.TestCase):
         operation = source.split("int cupidbuild_generate_profile_manifest(", 1)[
             1
         ].split("int cupidbuild_run_checked_tool(", 1)[0]
-        equality = host.split("int cupidbuild_host_snapshot_equal(", 1)[1].split(
-            "static int cupidbuild_host_snapshot_identity_equal(", 1
-        )[0]
+        equality_start = _c_spelling_ranges(
+            host, "int cupidbuild_host_snapshot_equal("
+        )[0][0]
+        equality_end = _c_spelling_ranges(
+            host, "static int cupidbuild_host_snapshot_identity_equal("
+        )[0][0]
+        equality = host[equality_start:equality_end]
         boundary = host.split(
             "static int cupidbuild_host_require_public_binding(", 1
         )[1].split("int cupidbuild_host_require_publication_boundary(", 1)[0]
-        closure = host.split(
-            "static int cupidbuild_host_require_discovery_directories(", 1
-        )[1].split("static int cupidbuild_host_write_lock_exclusive(", 1)[0]
+        closure_start = _c_spelling_ranges(
+            host, "static int cupidbuild_host_require_discovery_directories("
+        )[0][0]
+        closure_end = _c_spelling_ranges(
+            host, "static int cupidbuild_host_write_lock_exclusive("
+        )[0][0]
+        closure = host[closure_start:closure_end]
         validation = "cupidbuild_host_require_discovery_directory_pass(transaction)"
         first_validation = closure.index(validation)
         after_first_pass = closure.index(
@@ -1976,9 +1985,12 @@ class CupidBuildCliTests(unittest.TestCase):
         )[1].split("int cupidbuild_generate_profile_manifest(", 1)[0]
 
         independent_render = operation.index("cupidbuild_render_flat_image(")
-        object_transform = operation.index(
-            "status = cupidbuild_host_run_in_private(\n      transaction, seed.frozen_tools[4]"
+        object_transforms = _c_spelling_ranges(
+            operation,
+            "status = cupidbuild_host_run_in_private(transaction, seed.frozen_tools[4]",
         )
+        self.assertEqual(len(object_transforms), 1)
+        object_transform = object_transforms[0][0]
         parity = operation.index("memcmp(candidate, expected, expected_size)")
 
         self.assertLess(independent_render, object_transform)
@@ -1990,7 +2002,7 @@ class CupidBuildCliTests(unittest.TestCase):
             operation,
         )
         self.assertIn("disassembler_arguments, 300000u", operation)
-        self.assertIn("linked_arguments, 600000u", operation)
+        self.assertTrue(_c_spelling_ranges(operation, "linked_arguments, 600000u"))
         self.assertNotIn("CUPIDBUILD_CODE_BATCH", source)
 
     def test_typed_kernel_flatten_names_its_manifest_in_the_public_request(self):

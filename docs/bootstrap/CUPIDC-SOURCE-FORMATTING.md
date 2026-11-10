@@ -1,5 +1,8 @@
 # Cupid C source formatting
 
+The [source-guard follow-up](FORMATTED-SOURCE-GUARDS.md) records the remaining
+token-reader repairs, restored ABI mutations and paired-host verification.
+
 All 492 tracked `.cc` files use the repository's `.clang-format`: LLVM style,
 four spaces, attached braces, a 100-column limit and pointers aligned with
 their declarators. TempleOS is excluded.

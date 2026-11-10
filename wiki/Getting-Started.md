@@ -254,6 +254,15 @@ telnet telehack.com
 
 ## Source formatting
 
+Source-based tests compare C tokens while keeping identifiers, operators,
+literal contents and operation ordering exact. Mutation tests require a real,
+unique code target; a formatting change cannot turn a negative test into a
+silent no-op. Run their focused checks with:
+
+```bash
+python -B -m unittest tests.test_c_source_spelling tests.test_user_syscall_abi
+```
+
 Use the repository's `.clang-format` for Cupid C source:
 
 ```sh

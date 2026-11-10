@@ -3,6 +3,7 @@ import shlex
 import subprocess
 import tempfile
 import unittest
+from tests.c_source_spelling import _c_spelling_ranges
 from pathlib import Path
 
 
@@ -83,7 +84,9 @@ class UsbInterruptOwnershipTests(unittest.TestCase):
             poll = source[poll_start:poll_end]
             claim = poll.index("usb_interrupt_ownership_claim")
             submit = poll.index(f"{prefix}_submit_sync")
-            callback = poll.index("if (deliver) cb(0, &local);")
+            callbacks = _c_spelling_ranges(poll, "if (deliver) cb(0, &local);")
+            self.assertEqual(len(callbacks), 1)
+            callback = callbacks[0][0]
             finish = poll.index("usb_interrupt_ownership_finish")
             self.assertLess(claim, submit)
             self.assertLess(submit, callback)

@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from tests.c_source_spelling import _c_spelling_ranges
 from pathlib import Path
 from unittest import mock
 
@@ -1308,9 +1309,9 @@ class CupidDisContractTests(unittest.TestCase):
         exec_start = source.index(
             "static ctool_status_t dis_prepare_exec_policy_summaries("
         )
-        exec_end = source.index(
-            "static ctool_status_t\ndis_summarize_region(", exec_start
-        )
+        exec_end = _c_spelling_ranges(
+            source, "static ctool_status_t dis_summarize_region(", exec_start
+        )[0][0]
         exec_helper = source[exec_start:exec_end]
         self.assertEqual(exec_helper.count("dis_summarize_region("), 1)
         self.assertEqual(
@@ -1318,9 +1319,9 @@ class CupidDisContractTests(unittest.TestCase):
         )
         self.assertNotIn("CTOOL_TRUE", exec_helper)
 
-        ownership_start = source.index(
-            "typedef struct {\n  const ctool_dis_report_t *report;"
-        )
+        ownership_start = _c_spelling_ranges(
+            source, "typedef struct { const ctool_dis_report_t *report;"
+        )[0][0]
         ownership_end = source.index(
             "} dis_relocation_ownership_t;", ownership_start
         )

@@ -1,5 +1,24 @@
 # Bootstrapping log
 
+## 2026-11-10: Repair source guards and restore ABI mutations
+
+USB ownership, CupidDis summary and CupidBuild publication checks now read C
+tokens where formatting changes their layout. The syscall ABI negative tests
+require one real mutation target, so missing or ambiguous fixtures fail early.
+The live SDK reader binds its exact 113-input contract inventory and spelling
+header while retaining its producer inventory.
+
+All 35 focused methods pass on Linux. Windows passes 34 initially, then passes
+the unchanged remaining method after a concurrent directory-change rejection.
+Seven actual-source mutations fail on each host. The completed older full Make
+run retains all 3,274 methods and its 51 failures, 11 errors and 74 skips; it is
+diagnostic evidence, not a current acceptance result. No production source,
+seed, artifact lock or normal-build owner changes here.
+
+[Source-guard evidence and limits](FORMATTED-SOURCE-GUARDS.md) includes the
+original failures, quiet retry and byte-verified archive. Full current suites,
+kernel fingerprint calibration and replacement consumers remain open.
+
 ## 2026-11-10: Bind the SDK authority fixture to its spelling header
 
 The frozen replay finds another SDK inventory assertion at the old 112-input
