@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-10: Bind the SDK authority fixture to its spelling header
+
+The frozen replay finds another SDK inventory assertion at the old 112-input
+count. It now requires 113 and explicitly checks the shared C spelling fixture.
+All other test AST remains unchanged. Ten authority methods pass on Windows
+and Linux, retaining release, seed-drift, CLI and strict-author checks.
+
+The [inventory evidence](evidence/sdk-authority-inventory-20261110.json)
+retains the original failure, exact path list and focused results. Complete
+private SDK publication remains a separate live check. The kernel frontier's
+object-fingerprint calibration also remains under its original full-method
+verification on both hosts.
+
 ## 2026-11-10: Shorten the wiki landing page and explain CupidBuild
 
 The wiki home page now leads with setup, programming guides and system
