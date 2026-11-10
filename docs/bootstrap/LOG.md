@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## 2026-11-10: Repair kernel source locks without changing emitted code
+
+Nine original compiler and checked-seed methods now bind the formatted source
+bytes and the previously verified complete object fingerprints. Libm, string,
+per-CPU and SIMD objects stay identical; kernel entry and SMP follow the
+recorded relocation/allocator-line comparison. All object sizes stay fixed.
+
+The `str_floor` fixture uses balanced braces and an exact 44-token body digest
+instead of line position and line count. Its original and formatted tokens
+match, and its 420-byte object lock stays unchanged. Rounding-mode, instruction,
+clobber and raw-source mutations are rejected before compilation.
+
+All nine methods and four controls pass on both hosts with unchanged individual
+bounds. AST review preserves every unrelated method and helper. The
+[fixture record](FORMATTED-KERNEL-SOURCE-FIXTURES.md) retains source comparisons,
+passing logs and the byte-verified archive. No production source, compiler or
+seed changes here. Doom profile locks and the full current replay remain open.
+
 ## 2026-11-10: Reconcile frontend inventories and check the hosted header
 
 Source-level readback across 418 changed audited files accounts for every

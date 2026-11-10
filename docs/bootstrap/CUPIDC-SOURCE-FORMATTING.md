@@ -6,6 +6,8 @@ The [kernel fingerprint record](FORMATTED-KERNEL-FINGERPRINTS.md) covers all
 60 pinned objects and passing original full-method rechecks on both hosts.
 The [frontend profile record](FRONTEND-INVENTORY-PROFILES.md) accounts for the
 changed inventories and keeps the new hosted header under its checked ABI.
+The [kernel source-fixture record](FORMATTED-KERNEL-SOURCE-FIXTURES.md) covers
+nine compiler/seed methods and the format-independent `str_floor` body check.
 
 All 492 tracked `.cc` files use the repository's `.clang-format`: LLVM style,
 four spaces, attached braces, a 100-column limit and pointers aligned with

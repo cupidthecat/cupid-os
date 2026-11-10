@@ -265,6 +265,8 @@ python -B -m unittest tests.test_c_source_spelling tests.test_user_syscall_abi
 
 Hosted fixture checks use the checked i386 Linux ABI headers. The kernel-header
 sweep keeps its own include profile and checks conflicting definitions.
+When changing formatting, compare the source and emitted objects before
+updating their byte locks.
 
 Use the repository's `.clang-format` for Cupid C source:
 

@@ -8,6 +8,7 @@ import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from tests.c_source_spelling import _c_spelling_tokens, c_block
 
 from tools.cupidc_kernel_compile import validate_i386_relocatable_bytes
 from tools.bootstrap_toolchain import _validate_static_i386_pe32
@@ -162,15 +163,13 @@ DOOM_I_VIDEO_OBJECT_SIZE = 9088
 DOOM_I_VIDEO_OBJECT_SHA256 = (
     "ed30a9e3a00d10b98ce6ca4f2da4cad216a73ea971f7da15254434dc296834b7"
 )
-LIBM_SOURCE_SIZE = 43736
+LIBM_SOURCE_SIZE = 46508
 LIBM_SOURCE_SHA256 = (
-    "baffe801c7573b8500c60251298a753f"
-    "60732608d58443178be8ce9ab809ef93"
+    '2b10a62a7aefdafa09020e69205fafc278fd130477f95944e6c6ac3bda378169'
 )
-KERNEL_SOURCE_SIZE = 31278
+KERNEL_SOURCE_SIZE = 31164
 KERNEL_SOURCE_SHA256 = (
-    "258bb51ea67e3159add45400c2652c2e"
-    "1674dc61f788f747104a63353404a276"
+    'c3b53e5fc75e2a8704c864f2bdfc15296985d14e35f650204c99d80b14133eee'
 )
 
 
@@ -1197,9 +1196,8 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(
             (len(source_image), source_digest),
             (
-                5175,
-                "d4b1a87ee6b8efab71a40263e3ed29104855326b35a15de2"
-                "c253920e35010da7",
+                5303,
+                'e99c8298916b8dfd34b90f45a924443403f6a88d836ef1282abfb46d6202ecb1',
             ),
             (
                 "percpu source lock changed: "
@@ -1428,11 +1426,13 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         active_source = (
             REPO_ROOT / "kernel/core/string.cc"
         ).read_text(encoding="utf-8")
-        start = active_source.index("static double str_floor(double x) {")
-        end = active_source.index("\n}\n", start) + 3
-        floor_source = active_source[start:end]
-        self.assertEqual(active_source[:start].count("\n") + 1, 131)
-        self.assertEqual(floor_source.count("\n"), 18)
+        start, end = c_block(active_source, "static double str_floor(double x)")
+        floor_source = active_source[start:end] + "\n"
+        tokens = [value for value, _start, _end in _c_spelling_tokens(floor_source)]
+        self.assertEqual(
+            hashlib.sha256(json.dumps(tokens, separators=(",", ":")).encode()).hexdigest(),
+            "363cd4284b53b496df0baf41050b7cf3c3a816878b81e8f439079caef48be6af",
+        )
         self.assertIn(': "ax", "memory");', floor_source)
 
         with tempfile.TemporaryDirectory(
@@ -1491,12 +1491,11 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
     def test_unchanged_string_source_emits_a_deterministic_object(self):
         source = REPO_ROOT / "kernel/core/string.cc"
         source_bytes = source.read_bytes()
-        self.assertEqual(len(source_bytes), 8751)
-        self.assertEqual(source_bytes.count(b"\n"), 333)
+        self.assertEqual(len(source_bytes), 9247)
+        self.assertEqual(source_bytes.count(b"\n"), 374)
         self.assertEqual(
             hashlib.sha256(source_bytes).hexdigest(),
-            "d376b489757cc7835b1e249310dd3c9c26bc920b4799d61ae"
-            "619613e0765d17f",
+            'd334e6ed1938ba89f3c9ecf861f6a82e044ca107c6305256cb527aa84c88a144',
         )
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
@@ -1572,7 +1571,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         source = REPO_ROOT / "kernel/core/kernel.cc"
         source_bytes = source.read_bytes()
         self.assertEqual(len(source_bytes), KERNEL_SOURCE_SIZE)
-        self.assertEqual(source_bytes.count(b"\n"), 952)
+        self.assertEqual(source_bytes.count(b"\n"), 956)
         self.assertEqual(
             hashlib.sha256(source_bytes).hexdigest(),
             KERNEL_SOURCE_SHA256,
@@ -1643,8 +1642,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 (len(objects[0]), digest),
                 (
                     25384,
-                    "dbc62ff2103e9afcdf92a421820b22c0"
-                    "d4e7b301aa7aee8b052c6154e84b3663",
+                    '1854937a0925b88b60ff8b4db42e7ff97b0a05fc38aee5ec5805f00c4b0e8da7',
                 ),
                 (
                     "kernel object lock changed: "
@@ -1656,7 +1654,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         source = REPO_ROOT / "kernel/cpu/libm.cc"
         source_bytes = source.read_bytes()
         self.assertEqual(len(source_bytes), LIBM_SOURCE_SIZE)
-        self.assertEqual(source_bytes.count(b"\n"), 1500)
+        self.assertEqual(source_bytes.count(b"\n"), 1376)
         self.assertEqual(
             hashlib.sha256(source_bytes).hexdigest(),
             LIBM_SOURCE_SHA256,
@@ -1983,8 +1981,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 (len(objects[0]), digest),
                 (
                     8032,
-                    "c21b0097d625494a1a9a536a0a491b8b"
-                    "6bdde2ea5d81f0eb46c4f23558c25e75",
+                    '2d89990c376bbb0ef122c0b360728cf3eb0d8dd7b7c3d7694b4cf0c3d6824f86',
                 ),
                 f"SMP object lock changed: {len(objects[0])} {digest}",
             )

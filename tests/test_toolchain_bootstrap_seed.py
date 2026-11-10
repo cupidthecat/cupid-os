@@ -11051,9 +11051,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     def test_checked_seed_emits_complete_active_libm_object(self):
         self._assert_checked_seed_emits_complete_unchanged_kernel_object(
             "kernel/cpu/libm.cc",
-            43736,
-            1500,
-            "baffe801c7573b8500c60251298a753f60732608d58443178be8ce9ab809ef93",
+            46508,
+            1376,
+            '2b10a62a7aefdafa09020e69205fafc278fd130477f95944e6c6ac3bda378169',
             16004,
             '91cb378447c48e9aac0d94ea858257b2d5c44540ea77a78ed8abfb1ae83bcf36',
         )
@@ -11061,11 +11061,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     def test_checked_seed_emits_complete_unchanged_kernel_entry_object(self):
         self._assert_checked_seed_emits_complete_unchanged_kernel_object(
             "kernel/core/kernel.cc",
-            31278,
-            952,
-            "258bb51ea67e3159add45400c2652c2e1674dc61f788f747104a63353404a276",
+            31164,
+            956,
+            'c3b53e5fc75e2a8704c864f2bdfc15296985d14e35f650204c99d80b14133eee',
             25384,
-            'dbc62ff2103e9afcdf92a421820b22c0d4e7b301aa7aee8b052c6154e84b3663',
+            '1854937a0925b88b60ff8b4db42e7ff97b0a05fc38aee5ec5805f00c4b0e8da7',
         )
 
     def test_checked_seed_emits_page_aligned_kernel_stack_top(self):
@@ -11131,9 +11131,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     def test_checked_seed_emits_complete_unchanged_simd_object(self):
         self._assert_checked_seed_emits_complete_unchanged_kernel_object(
             "kernel/cpu/simd.cc",
-            13971,
-            487,
-            "5b4c892322d41e901cdeda34817f79a6547139a2ed703fb6a90eb4b06d34692d",
+            14189,
+            462,
+            '40a83184a29a5846cc058623d70b63ef61543d13eab132abc6616f2376329da2',
             8008,
             '7f63adc1b925f8cf8e0f8c3e202a1a5be0bbd53fc378e086a849da3495870378',
         )
