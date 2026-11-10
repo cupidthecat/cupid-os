@@ -4,6 +4,8 @@ The [source-guard follow-up](FORMATTED-SOURCE-GUARDS.md) records the remaining
 token-reader repairs, restored ABI mutations and paired-host verification.
 The [kernel fingerprint record](FORMATTED-KERNEL-FINGERPRINTS.md) covers all
 60 pinned objects and passing original full-method rechecks on both hosts.
+The [frontend profile record](FRONTEND-INVENTORY-PROFILES.md) accounts for the
+changed inventories and keeps the new hosted header under its checked ABI.
 
 All 492 tracked `.cc` files use the repository's `.clang-format`: LLVM style,
 four spaces, attached braces, a 100-column limit and pointers aligned with

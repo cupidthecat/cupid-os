@@ -1,5 +1,25 @@
 # Bootstrapping log
 
+## 2026-11-10: Reconcile frontend inventories and check the hosted header
+
+Source-level readback across 418 changed audited files accounts for every
+stale control-keyword count. Only the help repair, two contract fixtures and
+the new spelling header add occurrences. The five inventory tests now bind
+the measured counts and require the added header explicitly.
+
+The kernel sweep retains all 193 inputs and its four preceding diagnostics.
+The hosted fixture also rejects that mixed ABI profile through its conflicting
+`NULL` definitions. A separate positive compiles the unchanged header twice
+through each checked host compiler under the hosted profile; all four complete
+9,100-byte ELF objects match. No preprocessing rule or source is weakened.
+
+All 99 frontend tests pass on both hosts, along with six focused methods,
+nine mutation controls and the complete audit check. The first attempted
+header expectation and its real ABI diagnostic remain in the evidence.
+[The profile record](FRONTEND-INVENTORY-PROFILES.md) retains source accounting,
+objects and the independently verified archive. No seed, production-source or
+normal-build ownership change belongs to this repair.
+
 ## 2026-11-10: Pass both complete kernel fingerprint rechecks
 
 The original 156-source kernel method passes on Windows and native Linux in

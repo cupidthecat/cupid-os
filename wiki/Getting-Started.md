@@ -263,6 +263,9 @@ silent no-op. Run their focused checks with:
 python -B -m unittest tests.test_c_source_spelling tests.test_user_syscall_abi
 ```
 
+Hosted fixture checks use the checked i386 Linux ABI headers. The kernel-header
+sweep keeps its own include profile and checks conflicting definitions.
+
 Use the repository's `.clang-format` for Cupid C source:
 
 ```sh

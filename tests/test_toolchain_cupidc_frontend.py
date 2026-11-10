@@ -5,6 +5,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tools.bootstrap_toolchain import run_seed_tool
+from tools.cupidc_kernel_compile import validate_i386_relocatable_bytes
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
@@ -367,7 +370,8 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.return"
         )
-        self.assertEqual(feature["occurrences"], 28579)
+        self.assertEqual(feature["occurrences"], 28598)
+        self.assertIn("toolchain/tests/cupidc_source_spelling_fixture.h", feature["files"])
 
     def test_active_for_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -375,7 +379,8 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.for"
         )
-        self.assertEqual(feature["occurrences"], 5094)
+        self.assertEqual(feature["occurrences"], 5097)
+        self.assertIn("toolchain/tests/cupidc_source_spelling_fixture.h", feature["files"])
 
     def test_active_while_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -383,8 +388,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.while"
         )
-        self.assertEqual(feature["occurrences"], 3153)
-        self.assertEqual(len(feature["files"]), 292)
+        self.assertEqual(feature["occurrences"], 3163)
+        self.assertEqual(len(feature["files"]), 293)
+        self.assertIn("toolchain/tests/cupidc_source_spelling_fixture.h", feature["files"])
 
     def test_active_do_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -410,10 +416,12 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         features = {item["id"]: item for item in audit["features"]}
-        self.assertEqual(features["c.control.if"]["occurrences"], 46062)
-        self.assertEqual(len(features["c.control.if"]["files"]), 405)
-        self.assertEqual(features["c.control.else"]["occurrences"], 5794)
-        self.assertEqual(len(features["c.control.else"]["files"]), 307)
+        self.assertEqual(features["c.control.if"]["occurrences"], 46085)
+        self.assertEqual(len(features["c.control.if"]["files"]), 406)
+        self.assertEqual(features["c.control.else"]["occurrences"], 5800)
+        self.assertEqual(len(features["c.control.else"]["files"]), 308)
+        self.assertIn("toolchain/tests/cupidc_source_spelling_fixture.h", features["c.control.if"]["files"])
+        self.assertIn("toolchain/tests/cupidc_source_spelling_fixture.h", features["c.control.else"]["files"])
 
     def test_active_goto_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -450,6 +458,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
             and source["path"] not in excluded
         )
         failures = {
+            "/toolchain/tests/cupidc_source_spelling_fixture.h": (
+                "/kernel/core/types.h", 4, 9, "0x09000005",
+            ),
             "/toolchain/native_utf8.h": (
                 "/toolchain/native_utf8.h", 20, 9, "0x09000005",
             ),
@@ -472,8 +483,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
                 "0x0b000003",
             ),
         }
-        self.assertEqual(len(headers), 192)
-        self.assertEqual(len(failures), 4)
+        self.assertEqual(len(headers), 193)
+        self.assertIn("/toolchain/tests/cupidc_source_spelling_fixture.h", headers)
+        self.assertEqual(len(failures), 5)
         expected_lines = []
         for header in headers:
             if header not in failures:
@@ -483,7 +495,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
             expected_lines.append(
                 f"FAIL\t{header}\tinput\t{code}\t{path}\t{line}\t{column}"
             )
-        expected_lines.append("header-sweep: ok 188 4")
+        expected_lines.append("header-sweep: ok 188 5")
         result = subprocess.run(
             [
                 str(self.contract_path),
@@ -498,6 +510,38 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stderr, "")
         self.assertEqual(result.stdout, "\n".join(expected_lines) + "\n")
+
+    def test_hosted_spelling_header_compiles_with_its_checked_abi_profile(self):
+        manifest = REPO_ROOT / "bootstrap/seeds" / (
+            "i386-windows" if os.name == "nt" else "i386-linux"
+        ) / "manifest.json"
+        objects = []
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-hosted-header-", dir=REPO_ROOT
+        ) as directory:
+            for index in range(2):
+                output = Path(directory) / f"spelling-{index}.o"
+                logical = "/" + output.relative_to(REPO_ROOT).as_posix()
+                result = run_seed_tool(
+                    manifest,
+                    REPO_ROOT,
+                    "cupidc",
+                    (
+                        "--root", REPO_ROOT,
+                        "-c", "/toolchain/tests/cupidc_source_spelling_fixture.h",
+                        "-I", "/toolchain",
+                        "--include-angle", "/toolchain/hosted/i386-linux/include",
+                        "-o", logical,
+                    ),
+                    timeout=180,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "")
+                image = output.read_bytes()
+                validate_i386_relocatable_bytes(image)
+                objects.append(image)
+        self.assertEqual(objects[0], objects[1])
 
     def test_invalid_declarations_are_transactional_and_recoverable(self):
         self.run_contract("errors")
