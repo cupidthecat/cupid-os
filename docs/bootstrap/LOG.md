@@ -20,7 +20,12 @@ the actual 29-file wiki tree also passes local validation. Actionlint accepts
 the unchanged workflow. The
 [first publication run](https://github.com/cupidthecat/cupid-os/actions/runs/42757035594)
 retains the successful token, checkout, copy and push steps.
-Remote validation of this follow-up remains pending until its workflow runs.
+The [validated publication run](https://github.com/cupidthecat/cupid-os/actions/runs/42757839764)
+also succeeds. Independent remote comparison verifies all 29 source files,
+the stored source revision and the eight preserved website-only pages.
+[Issue #40](https://github.com/cupidthecat/cupid-os/issues/40) is closed with
+that evidence. The [publication record](evidence/wiki-publication-20261109.json)
+retains both Actions results, both independent readbacks and input hashes.
 The toolchain qualifications continue in their unchanged producer checkouts.
 
 ## 2026-11-09: Repair formatted runtime-source fixtures

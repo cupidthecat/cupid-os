@@ -1,0 +1,510 @@
+{
+  "first_readback": {
+    "actions_run": 42757035594,
+    "files": {
+      "Architecture.md": {
+        "sha256": "91f1daa8623d6cccd7227b5fc1f95c7a75d6120a74ac7643164200965b5716b5",
+        "size": 38169
+      },
+      "Commands-cupidfetch.md": {
+        "sha256": "61a341aac9e93ef2e56b0a9302f5827b72b1ad7cf44f020c86ffd807b83db1f8",
+        "size": 1308
+      },
+      "Commands-rm.md": {
+        "sha256": "73e5efce4353ff506324be20f7d4baa5804019675867b23ea6246bd487e3626c",
+        "size": 2546
+      },
+      "CupidASM-Assembler.md": {
+        "sha256": "3e4c49db61a4341bd3f6198c2ff0c054b80e3e4b22f6bcebf16d842d61600a50",
+        "size": 75398
+      },
+      "CupidC-2D-Graphics-Library.md": {
+        "sha256": "9dbb545ce0da6768d1683a43d2f642ee1548faa1fd74327bae0a7e056014c46a",
+        "size": 22670
+      },
+      "CupidC-Compiler.md": {
+        "sha256": "c0e884393babddbf0cdfa316d071040356c0ee8cfde040fcb92786e8915b948e",
+        "size": 194038
+      },
+      "CupidC-Language-Reference.md": {
+        "sha256": "583b6b3ee6e9c55dc225f2748833bc66a29085b752f18c96074267a1752edd14",
+        "size": 56866
+      },
+      "CupidDoc-CTXT.md": {
+        "sha256": "6cc2c0734edcaa42692cf9e272621e96a12bb74adc6aac969c0453f6b655bd0a",
+        "size": 4535
+      },
+      "CupidScript.md": {
+        "sha256": "f96438d8d41e8aac3ef3c5a1aaa5bc6f856622e483cc391067eb58daa308576b",
+        "size": 15201
+      },
+      "Debugging.md": {
+        "sha256": "13866a24df16fba87cc111655c4463d4a2a7d38944b78e2d8a64bf36234ddbfa",
+        "size": 7484
+      },
+      "Desktop-Environment.md": {
+        "sha256": "806567ef2f56ed1330a7f985da893f8f9b29f49f3ff6db0f1b8f3f72caf180b9",
+        "size": 11071
+      },
+      "Disk-Setup.md": {
+        "sha256": "fdd8e966d62fd187f99ea6d2584204d14e366d7f569cae35644f2f1e53b6d627",
+        "size": 8604
+      },
+      "ELF-Programs.md": {
+        "sha256": "5b63e3342c16105780147cb91bfea8a2e251cc85f7b8a51e2ec4e5f983ec6132",
+        "size": 48758
+      },
+      "Ed-Editor.md": {
+        "sha256": "6463bcaca9af987974d0ba5436a1cc52b39f6dcd0a77f2d32c68ef3a6286201d",
+        "size": 5967
+      },
+      "Filesystem.md": {
+        "sha256": "db73fc86eda647018c210663ca824fbbc6362d69276f6953b6bab793ad39fae3",
+        "size": 21485
+      },
+      "Floating-Point.md": {
+        "sha256": "980c1923a75c3fe17d4c9d22ce4275e2fefef09196d33639acf61d88ec7db48f",
+        "size": 42496
+      },
+      "Getting-Started.md": {
+        "sha256": "01cac72416202e5f1a17cea241e37d5ddb20f6ce96b3059500de9b170a01e1e0",
+        "size": 9032
+      },
+      "Home.md": {
+        "sha256": "aff448a820808429447ef58ec1df30d4fcdba59b9c143fff8f572f0e7dfa0271",
+        "size": 17831
+      },
+      "ISO9660.md": {
+        "sha256": "c72e5595f67c86141a8a3a85e23e90a12df4c850eea1b2758b632d10111143e4",
+        "size": 5735
+      },
+      "Networking.md": {
+        "sha256": "378783f25e8dc5f92b4dedeec625db4fd654b0d0a52dc1894cc463d35a387204",
+        "size": 46418
+      },
+      "Process-Management.md": {
+        "sha256": "0cfe3f29fa3aaa298bf9c96993c324e733b738b5a1eda1f07f8ced1dc8674f77",
+        "size": 10032
+      },
+      "Real-Hardware.md": {
+        "sha256": "2134a80402b2be10ac56de899ca8d8fe896243f92e4471cdf3e78ee420ed776d",
+        "size": 9547
+      },
+      "SMP.md": {
+        "sha256": "b3841e1bd7012588c8d8688cf2ab9b038b6bafa0e14aa619fb07cd3d716691b5",
+        "size": 25640
+      },
+      "Shell-Commands.md": {
+        "sha256": "409574cd43847fa059272363c691ba36a308fa36c20b75f0e682e42b1afb01c1",
+        "size": 12910
+      },
+      "Swap.md": {
+        "sha256": "b31a532ff1468f980883f0a6a6ab62086e228affe8e0b5ca05b10299c7ae6eec",
+        "size": 3333
+      },
+      "Toolchain-Bootstrap.md": {
+        "sha256": "d808851799b86c8e55ec122349ea8ddd09a6e2262ba8beafe3ecd61e6fdd1e49",
+        "size": 387623
+      },
+      "USB.md": {
+        "sha256": "fed3229ffa2571f2b704799a75f8eedf76b10d55bdc2f81b7f4fb057fe818229",
+        "size": 32060
+      },
+      "User-Programs.md": {
+        "sha256": "0ff3ab9969cfa976470e51659b0bc65c8d8988fe211f17b6d455bf0c4ec5483f",
+        "size": 29685
+      },
+      "_Sidebar.md": {
+        "sha256": "7897918d76d4ef4648fd5a388c7e587a935c7b0455aeb08319a095c83f58df40",
+        "size": 1033
+      }
+    },
+    "scope": "Remote Git blob readback after actual Actions publication",
+    "source_commit": "e6acd1a2e3c34033af8f30a00c4d8f9aaf013b92",
+    "tracked_files_verified": 29,
+    "unmanaged_files_preserved": [
+      "Bootloader.md",
+      "Development-Guide.md",
+      "Drivers.md",
+      "Interrupts-and-Exceptions.md",
+      "Memory-Management.md",
+      "Page-Fault-Handler.md",
+      "Shell-Guide.md",
+      "cupidfetch.md"
+    ],
+    "wiki_after": "2934bf43baa6af9058571749e5be0212180b5e8b",
+    "wiki_before": "aff387167048478dedf4acb74fc7e9b17711b115",
+    "wiki_commit": "2934bf43baa6af9058571749e5be0212180b5e8b\nFrank <101807917+frankischilling@users.noreply.github.com>\nFrank <101807917+frankischilling@users.noreply.github.com>\nUpdate wiki documentation"
+  },
+  "focused_tests": {
+    "linux": {
+      "methods": 13,
+      "status": "pass"
+    },
+    "windows": {
+      "methods": 13,
+      "status": "pass"
+    }
+  },
+  "inputs": {
+    ".github/workflows/wiki-sync.yml": {
+      "sha256": "c3967df23855f27d52c9ba6538b3d19252e095af36c95f96f8c6092dfcddfda8",
+      "size": 1986
+    },
+    "tests/test_sync_wiki.py": {
+      "sha256": "5b801366f7291700f072a5642b8defdf9216b8fc957f1eb20142ce9950d32ca9",
+      "size": 10659
+    },
+    "tools/sync_wiki.py": {
+      "sha256": "8498b14eae1d8eb15e6c9f9592c5b4c887f52de564888118bf27e6502d201ea8",
+      "size": 10435
+    }
+  },
+  "runs": [
+    {
+      "conclusion": "success",
+      "headSha": "e6acd1a2e3c34033af8f30a00c4d8f9aaf013b92",
+      "jobs": [
+        {
+          "completedAt": "2026-11-10T04:37:35Z",
+          "conclusion": "success",
+          "databaseId": 129633679240,
+          "name": "publish",
+          "startedAt": "2026-11-10T04:37:28Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-11-10T04:37:29Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-11-10T04:37:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-10T04:37:30Z",
+              "conclusion": "success",
+              "name": "Read current documentation",
+              "number": 2,
+              "startedAt": "2026-11-10T04:37:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-10T04:37:31Z",
+              "conclusion": "success",
+              "name": "Read published wiki",
+              "number": 3,
+              "startedAt": "2026-11-10T04:37:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-10T04:37:32Z",
+              "conclusion": "success",
+              "name": "Copy pages and tracked deletions",
+              "number": 4,
+              "startedAt": "2026-11-10T04:37:31Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-10T04:37:33Z",
+              "conclusion": "success",
+              "name": "Publish changes",
+              "number": 5,
+              "startedAt": "2026-11-10T04:37:32Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-10T04:37:33Z",
+              "conclusion": "success",
+              "name": "Post Read published wiki",
+              "number": 9,
+              "startedAt": "2026-11-10T04:37:33Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-10T04:37:33Z",
+              "conclusion": "success",
+              "name": "Post Read current documentation",
+              "number": 10,
+              "startedAt": "2026-11-10T04:37:33Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-10T04:37:33Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 11,
+              "startedAt": "2026-11-10T04:37:33Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/cupidthecat/cupid-os/actions/runs/42757035594/job/129633679240"
+        }
+      ],
+      "status": "completed",
+      "url": "https://github.com/cupidthecat/cupid-os/actions/runs/42757035594"
+    },
+    {
+      "conclusion": "success",
+      "headSha": "45268520abe3bc23815d448cc8a4756458e5521b",
+      "jobs": [
+        {
+          "completedAt": "2026-11-10T04:45:24Z",
+          "conclusion": "success",
+          "databaseId": 129636265783,
+          "name": "publish",
+          "startedAt": "2026-11-10T04:45:17Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-11-10T04:45:18Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-11-10T04:45:18Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-10T04:45:20Z",
+              "conclusion": "success",
+              "name": "Read current documentation",
+              "number": 2,
+              "startedAt": "2026-11-10T04:45:18Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-10T04:45:21Z",
+              "conclusion": "success",
+              "name": "Read published wiki",
+              "number": 3,
+              "startedAt": "2026-11-10T04:45:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-10T04:45:21Z",
+              "conclusion": "success",
+              "name": "Copy pages and tracked deletions",
+              "number": 4,
+              "startedAt": "2026-11-10T04:45:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-10T04:45:22Z",
+              "conclusion": "success",
+              "name": "Publish changes",
+              "number": 5,
+              "startedAt": "2026-11-10T04:45:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-10T04:45:23Z",
+              "conclusion": "success",
+              "name": "Post Read published wiki",
+              "number": 9,
+              "startedAt": "2026-11-10T04:45:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-10T04:45:23Z",
+              "conclusion": "success",
+              "name": "Post Read current documentation",
+              "number": 10,
+              "startedAt": "2026-11-10T04:45:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-10T04:45:23Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 11,
+              "startedAt": "2026-11-10T04:45:23Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/cupidthecat/cupid-os/actions/runs/42757839764/job/129636265783"
+        }
+      ],
+      "status": "completed",
+      "url": "https://github.com/cupidthecat/cupid-os/actions/runs/42757839764"
+    }
+  ],
+  "schema": "cupid.wiki-publication-check.v1",
+  "scope": "Actual GitHub Actions publication and independent remote Git-blob comparisons; no self-hosting completion claim",
+  "validated_readback": {
+    "actions_run": 42757839764,
+    "files": {
+      "Architecture.md": {
+        "sha256": "91f1daa8623d6cccd7227b5fc1f95c7a75d6120a74ac7643164200965b5716b5",
+        "size": 38169
+      },
+      "Commands-cupidfetch.md": {
+        "sha256": "61a341aac9e93ef2e56b0a9302f5827b72b1ad7cf44f020c86ffd807b83db1f8",
+        "size": 1308
+      },
+      "Commands-rm.md": {
+        "sha256": "73e5efce4353ff506324be20f7d4baa5804019675867b23ea6246bd487e3626c",
+        "size": 2546
+      },
+      "CupidASM-Assembler.md": {
+        "sha256": "9d316e2fc75dce6d43680467e92d42cc697c4577624923aa97fc56cd6eb660cc",
+        "size": 75611
+      },
+      "CupidC-2D-Graphics-Library.md": {
+        "sha256": "9dbb545ce0da6768d1683a43d2f642ee1548faa1fd74327bae0a7e056014c46a",
+        "size": 22670
+      },
+      "CupidC-Compiler.md": {
+        "sha256": "68012d82b62054cacb60059540b28aaf1824ed964992a868667bf7ca1eec0456",
+        "size": 195174
+      },
+      "CupidC-Language-Reference.md": {
+        "sha256": "6384771b7de97accf9f8c9da49d81682c8e5679163230b8e426e29ebe7e4ef52",
+        "size": 58002
+      },
+      "CupidDoc-CTXT.md": {
+        "sha256": "6cc2c0734edcaa42692cf9e272621e96a12bb74adc6aac969c0453f6b655bd0a",
+        "size": 4535
+      },
+      "CupidScript.md": {
+        "sha256": "f96438d8d41e8aac3ef3c5a1aaa5bc6f856622e483cc391067eb58daa308576b",
+        "size": 15201
+      },
+      "Debugging.md": {
+        "sha256": "13866a24df16fba87cc111655c4463d4a2a7d38944b78e2d8a64bf36234ddbfa",
+        "size": 7484
+      },
+      "Desktop-Environment.md": {
+        "sha256": "806567ef2f56ed1330a7f985da893f8f9b29f49f3ff6db0f1b8f3f72caf180b9",
+        "size": 11071
+      },
+      "Disk-Setup.md": {
+        "sha256": "5076fbf222f8994839873f49d025553f0a086b9fd17088bf6740b4c166b97d21",
+        "size": 8675
+      },
+      "ELF-Programs.md": {
+        "sha256": "ff27f9867010a417eda3a7007da493a689e06c3ce4d9b1237dffed4bab944e3d",
+        "size": 49823
+      },
+      "Ed-Editor.md": {
+        "sha256": "6463bcaca9af987974d0ba5436a1cc52b39f6dcd0a77f2d32c68ef3a6286201d",
+        "size": 5967
+      },
+      "Filesystem.md": {
+        "sha256": "db73fc86eda647018c210663ca824fbbc6362d69276f6953b6bab793ad39fae3",
+        "size": 21485
+      },
+      "Floating-Point.md": {
+        "sha256": "980c1923a75c3fe17d4c9d22ce4275e2fefef09196d33639acf61d88ec7db48f",
+        "size": 42496
+      },
+      "Getting-Started.md": {
+        "sha256": "acefa325f9cbf529e47090476db94af37e2b37e6addc397ae3650cb9cbdcf261",
+        "size": 9938
+      },
+      "Home.md": {
+        "sha256": "aff448a820808429447ef58ec1df30d4fcdba59b9c143fff8f572f0e7dfa0271",
+        "size": 17831
+      },
+      "ISO9660.md": {
+        "sha256": "c72e5595f67c86141a8a3a85e23e90a12df4c850eea1b2758b632d10111143e4",
+        "size": 5735
+      },
+      "Networking.md": {
+        "sha256": "378783f25e8dc5f92b4dedeec625db4fd654b0d0a52dc1894cc463d35a387204",
+        "size": 46418
+      },
+      "Process-Management.md": {
+        "sha256": "0cfe3f29fa3aaa298bf9c96993c324e733b738b5a1eda1f07f8ced1dc8674f77",
+        "size": 10032
+      },
+      "Real-Hardware.md": {
+        "sha256": "2134a80402b2be10ac56de899ca8d8fe896243f92e4471cdf3e78ee420ed776d",
+        "size": 9547
+      },
+      "SMP.md": {
+        "sha256": "b3841e1bd7012588c8d8688cf2ab9b038b6bafa0e14aa619fb07cd3d716691b5",
+        "size": 25640
+      },
+      "Shell-Commands.md": {
+        "sha256": "409574cd43847fa059272363c691ba36a308fa36c20b75f0e682e42b1afb01c1",
+        "size": 12910
+      },
+      "Swap.md": {
+        "sha256": "b31a532ff1468f980883f0a6a6ab62086e228affe8e0b5ca05b10299c7ae6eec",
+        "size": 3333
+      },
+      "Toolchain-Bootstrap.md": {
+        "sha256": "87cef3b58ec97970393b6a75e9daf6ca49a0b52bb1e0519b53f53d71e18ee537",
+        "size": 388617
+      },
+      "USB.md": {
+        "sha256": "fed3229ffa2571f2b704799a75f8eedf76b10d55bdc2f81b7f4fb057fe818229",
+        "size": 32060
+      },
+      "User-Programs.md": {
+        "sha256": "0ff3ab9969cfa976470e51659b0bc65c8d8988fe211f17b6d455bf0c4ec5483f",
+        "size": 29685
+      },
+      "_Sidebar.md": {
+        "sha256": "7897918d76d4ef4648fd5a388c7e587a935c7b0455aeb08319a095c83f58df40",
+        "size": 1033
+      }
+    },
+    "scope": "Remote validated wiki Git blobs and deletion state after actual Actions publication",
+    "source_commit": "45268520abe3bc23815d448cc8a4756458e5521b",
+    "synchronization_state": {
+      "files": [
+        "Architecture.md",
+        "Commands-cupidfetch.md",
+        "Commands-rm.md",
+        "CupidASM-Assembler.md",
+        "CupidC-2D-Graphics-Library.md",
+        "CupidC-Compiler.md",
+        "CupidC-Language-Reference.md",
+        "CupidDoc-CTXT.md",
+        "CupidScript.md",
+        "Debugging.md",
+        "Desktop-Environment.md",
+        "Disk-Setup.md",
+        "ELF-Programs.md",
+        "Ed-Editor.md",
+        "Filesystem.md",
+        "Floating-Point.md",
+        "Getting-Started.md",
+        "Home.md",
+        "ISO9660.md",
+        "Networking.md",
+        "Process-Management.md",
+        "Real-Hardware.md",
+        "SMP.md",
+        "Shell-Commands.md",
+        "Swap.md",
+        "Toolchain-Bootstrap.md",
+        "USB.md",
+        "User-Programs.md",
+        "_Sidebar.md"
+      ],
+      "schema": 1,
+      "source_revision": "45268520abe3bc23815d448cc8a4756458e5521b"
+    },
+    "tracked_files_verified": 29,
+    "unmanaged_files_preserved": [
+      "Bootloader.md",
+      "Development-Guide.md",
+      "Drivers.md",
+      "Interrupts-and-Exceptions.md",
+      "Memory-Management.md",
+      "Page-Fault-Handler.md",
+      "Shell-Guide.md",
+      "cupidfetch.md"
+    ],
+    "wiki_after": "aa97462585101a151110dfbb481818df371f9f8a",
+    "wiki_before": "aff387167048478dedf4acb74fc7e9b17711b115",
+    "wiki_commit": "aa97462585101a151110dfbb481818df371f9f8a\nFrank <101807917+frankischilling@users.noreply.github.com>\nFrank <101807917+frankischilling@users.noreply.github.com>\nUpdate wiki documentation"
+  },
+  "workflow_lint": {
+    "status": "pass",
+    "tool": "actionlint",
+    "version": "1.7.12"
+  }
+}
