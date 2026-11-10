@@ -229,6 +229,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/tests/cupidc_pp_active_cases.inc",
     "toolchain/tests/cupidc_pp_conditional_cases.inc",
     "toolchain/tests/cupidc_pp_contract.cc",
+    "toolchain/tests/cupidc_source_spelling_fixture.h",
     "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
     "toolchain/tests/cupidc_static_long_double_control_fixture.h",
     "toolchain/tests/cupidc_static_long_double_integer_fixture.h",
@@ -589,6 +590,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/tests/cupidc_pp_active_cases.inc",
     "toolchain/tests/cupidc_pp_conditional_cases.inc",
     "toolchain/tests/cupidc_pp_contract.cc",
+    "toolchain/tests/cupidc_source_spelling_fixture.h",
     "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
     "toolchain/tests/cupidc_static_long_double_control_fixture.h",
     "toolchain/tests/cupidc_static_long_double_integer_fixture.h",
@@ -10118,14 +10120,6 @@ def _cupid_toolchain_fixed_point_contract(
         "    result = directory_contract();\n"
         "  }",
     )
-    if any(
-        active_windows_runtime_contract_source.count(fragment) != 1
-        for fragment in required_windows_runtime_contract_fragments
-    ):
-        raise AuditError(
-            "Cupid Toolchain fixed-point Windows runtime contract differs"
-        )
-
     def sequence_positions(
         tokens: tuple[str, ...], expected: tuple[str, ...]
     ) -> list[int]:
@@ -10136,6 +10130,21 @@ def _cupid_toolchain_fixed_point_contract(
             if tokens[index : index + width] == expected
         ]
 
+    def c_tokens(source: str, path: Path) -> tuple[str, ...]:
+        return _normalize_c_preprocessing_tokens(source, str(path), 1)
+
+    windows_runtime_source_tokens = c_tokens(
+        active_windows_runtime_contract_source, windows_runtime_contract_path
+    )
+    if any(
+        len(sequence_positions(windows_runtime_source_tokens,
+            c_tokens(fragment, windows_runtime_contract_path))) != 1
+        for fragment in required_windows_runtime_contract_fragments
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point Windows runtime contract differs"
+        )
+
     def brace_depth(tokens: tuple[str, ...], end: int) -> int:
         depth = 0
         for token in tokens[:end]:
@@ -10144,9 +10153,6 @@ def _cupid_toolchain_fixed_point_contract(
             elif token == "}":
                 depth -= 1
         return depth
-
-    def c_tokens(source: str, path: Path) -> tuple[str, ...]:
-        return _normalize_c_preprocessing_tokens(source, str(path), 1)
 
     def c_function_tokens(
         source: str,

@@ -1,16 +1,17 @@
-//help: Create empty files
-//help: Usage: touch <file1> [file2] ...
-//help: Creates files if they do not exist. Existing files are left unchanged.
+// help: Create empty files
+// help: Usage: touch <file1> [file2] ...
+// help: Creates files if they do not exist. Existing files are left unchanged.
 
-enum {
-    VFS_WRONLY = 1,
-    VFS_CREAT  = 256
-};
+enum { VFS_WRONLY = 1, VFS_CREAT = 256 };
 
 int parse_token(char *str, int start, char *out, int maxlen) {
     int i = start;
-    while (str[i] == ' ' || str[i] == '\t') i = i + 1;
-    if (str[i] == 0) { out[0] = 0; return 0; }
+    while (str[i] == ' ' || str[i] == '\t')
+        i = i + 1;
+    if (str[i] == 0) {
+        out[0] = 0;
+        return 0;
+    }
 
     int j = 0;
     while (str[i] != 0 && str[i] != ' ' && str[i] != '\t' && j < maxlen - 1) {
@@ -23,7 +24,7 @@ int parse_token(char *str, int start, char *out, int maxlen) {
 }
 
 void main() {
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
     if (strlen(args) == 0) {
         println("Usage: touch <file1> [file2] ...");
         return;
@@ -37,7 +38,8 @@ void main() {
 
     while (1) {
         int len = parse_token(args, pos, name, 256);
-        if (len == 0) break;
+        if (len == 0)
+            break;
         pos = pos + len;
 
         resolve_path(name, path);

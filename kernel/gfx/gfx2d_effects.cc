@@ -4,18 +4,20 @@
  * All filters operate on the current framebuffer (screen or active surface).
  * They read pixels with gfx2d_getpixel and write with gfx2d_pixel, so all
  * operations respect the current clipping rect.
-*/
+ */
 
 #include "gfx2d_effects.h"
 #include "gfx2d.h"
 #include "memory.h"
+#include "serial.h"
 #include "simd.h"
 #include "string.h"
-#include "serial.h"
 
 static int clamp255(int v) {
-    if (v < 0) return 0;
-    if (v > 255) return 255;
+    if (v < 0)
+        return 0;
+    if (v > 255)
+        return 255;
     return v;
 }
 
@@ -33,9 +35,8 @@ static uint32_t xorshift32(uint32_t *state) {
 #define R(c) (int)(((c) >> 16) & 0xFF)
 #define G(c) (int)(((c) >> 8) & 0xFF)
 #define B(c) (int)((c) & 0xFF)
-#define RGB(r, g, b) ((uint32_t)(clamp255(r) << 16) | \
-                      (uint32_t)(clamp255(g) << 8)  | \
-                      (uint32_t)clamp255(b))
+#define RGB(r, g, b)                                                                               \
+    ((uint32_t)(clamp255(r) << 16) | (uint32_t)(clamp255(g) << 8) | (uint32_t)clamp255(b))
 
 void gfx2d_effects_init(void) {
     /* Nothing to initialize currently */
@@ -56,9 +57,12 @@ void gfx2d_blur_box(int x, int y, int w, int h, int radius) {
     int x1;
     int y1;
 
-    if (radius < 1) radius = 1;
-    if (radius > 8) radius = 8;
-    if (w <= 0 || h <= 0) return;
+    if (radius < 1)
+        radius = 1;
+    if (radius > 8)
+        radius = 8;
+    if (w <= 0 || h <= 0)
+        return;
 
     fbuf = gfx2d_get_active_fb();
     fbuf_w = gfx2d_width();
@@ -68,18 +72,24 @@ void gfx2d_blur_box(int x, int y, int w, int h, int radius) {
     y0 = y;
     x1 = x + w;
     y1 = y + h;
-    if (x0 < 0) x0 = 0;
-    if (y0 < 0) y0 = 0;
-    if (x1 > fbuf_w) x1 = fbuf_w;
-    if (y1 > fbuf_h) y1 = fbuf_h;
-    if (x1 <= x0 || y1 <= y0) return;
+    if (x0 < 0)
+        x0 = 0;
+    if (y0 < 0)
+        y0 = 0;
+    if (x1 > fbuf_w)
+        x1 = fbuf_w;
+    if (y1 > fbuf_h)
+        y1 = fbuf_h;
+    if (x1 <= x0 || y1 <= y0)
+        return;
 
     w = x1 - x0;
     h = y1 - y0;
 
     tmp_size = (uint32_t)w * (uint32_t)h * 4u;
     tmp = (uint32_t *)kmalloc(tmp_size);
-    if (!tmp) return;
+    if (!tmp)
+        return;
 
     tmp2 = (uint32_t *)kmalloc(tmp_size);
     if (!tmp2) {
@@ -98,8 +108,7 @@ void gfx2d_blur_box(int x, int y, int w, int h, int radius) {
 
     for (row = 0; row < h; row++) {
         simd_memcpy(fbuf + (uint32_t)(y0 + row) * (uint32_t)fbuf_w + (uint32_t)x0,
-                    tmp + (uint32_t)row * (uint32_t)w,
-                    (uint32_t)w * 4u);
+                    tmp + (uint32_t)row * (uint32_t)w, (uint32_t)w * 4u);
     }
 
     kfree(tmp2);
@@ -120,37 +129,56 @@ void gfx2d_blur_gaussian(int x, int y, int w, int h, int radius) {
     gfx2d_blur_box(x, y, w, h, radius);
 }
 
-void gfx2d_blur_motion(int x, int y, int w, int h,
-                       int angle, int distance) {
+void gfx2d_blur_motion(int x, int y, int w, int h, int angle, int distance) {
     int row, col, i;
     uint32_t *tmp;
     uint32_t tmp_size;
     int dx_step, dy_step;
 
-    if (distance < 1) distance = 1;
-    if (distance > 16) distance = 16;
-    if (w <= 0 || h <= 0) return;
+    if (distance < 1)
+        distance = 1;
+    if (distance > 16)
+        distance = 16;
+    if (w <= 0 || h <= 0)
+        return;
 
     /* Direction vector (simplified: 8 primary directions) */
     angle = ((angle % 360) + 360) % 360;
-    if (angle < 23 || angle >= 338) { dx_step = 1; dy_step = 0; }
-    else if (angle < 68)           { dx_step = 1; dy_step = 1; }
-    else if (angle < 113)          { dx_step = 0; dy_step = 1; }
-    else if (angle < 158)          { dx_step = -1; dy_step = 1; }
-    else if (angle < 203)          { dx_step = -1; dy_step = 0; }
-    else if (angle < 248)          { dx_step = -1; dy_step = -1; }
-    else if (angle < 293)          { dx_step = 0; dy_step = -1; }
-    else                           { dx_step = 1; dy_step = -1; }
+    if (angle < 23 || angle >= 338) {
+        dx_step = 1;
+        dy_step = 0;
+    } else if (angle < 68) {
+        dx_step = 1;
+        dy_step = 1;
+    } else if (angle < 113) {
+        dx_step = 0;
+        dy_step = 1;
+    } else if (angle < 158) {
+        dx_step = -1;
+        dy_step = 1;
+    } else if (angle < 203) {
+        dx_step = -1;
+        dy_step = 0;
+    } else if (angle < 248) {
+        dx_step = -1;
+        dy_step = -1;
+    } else if (angle < 293) {
+        dx_step = 0;
+        dy_step = -1;
+    } else {
+        dx_step = 1;
+        dy_step = -1;
+    }
 
     tmp_size = (uint32_t)w * (uint32_t)h * 4u;
     tmp = (uint32_t *)kmalloc(tmp_size);
-    if (!tmp) return;
+    if (!tmp)
+        return;
 
     /* Read source */
     for (row = 0; row < h; row++)
         for (col = 0; col < w; col++)
-            tmp[(uint32_t)row * (uint32_t)w + (uint32_t)col] =
-                gfx2d_getpixel(x + col, y + row);
+            tmp[(uint32_t)row * (uint32_t)w + (uint32_t)col] = gfx2d_getpixel(x + col, y + row);
 
     /* Average along motion direction */
     for (row = 0; row < h; row++) {
@@ -159,7 +187,8 @@ void gfx2d_blur_motion(int x, int y, int w, int h,
             for (i = -distance; i <= distance; i++) {
                 int sc = col + i * dx_step;
                 int sr2 = row + i * dy_step;
-                if (sc < 0 || sc >= w || sr2 < 0 || sr2 >= h) continue;
+                if (sc < 0 || sc >= w || sr2 < 0 || sr2 >= h)
+                    continue;
                 uint32_t px = tmp[(uint32_t)sr2 * (uint32_t)w + (uint32_t)sc];
                 sr += R(px);
                 sg += G(px);
@@ -167,7 +196,9 @@ void gfx2d_blur_motion(int x, int y, int w, int h,
                 cnt++;
             }
             if (cnt > 0) {
-                sr /= cnt; sg /= cnt; sb /= cnt;
+                sr /= cnt;
+                sg /= cnt;
+                sb /= cnt;
             }
             gfx2d_pixel(x + col, y + row, RGB(sr, sg, sb));
         }
@@ -197,7 +228,8 @@ void gfx2d_contrast(int x, int y, int w, int h, int amount) {
     /* Scaled to 256 for integer math */
     int factor;
     int denom = 255 * (259 - amount);
-    if (denom == 0) denom = 1;
+    if (denom == 0)
+        denom = 1;
     factor = (259 * (amount + 255) * 256) / denom;
 
     for (row = 0; row < h; row++) {
@@ -237,7 +269,8 @@ void gfx2d_hue_shift(int x, int y, int w, int h, int degrees) {
 
     /* Normalize */
     degrees = ((degrees % 360) + 360) % 360;
-    if (degrees == 0) return;
+    if (degrees == 0)
+        return;
 
     for (row = 0; row < h; row++) {
         for (col = 0; col < w; col++) {
@@ -268,13 +301,14 @@ void gfx2d_hue_shift(int x, int y, int w, int h, int degrees) {
     }
 }
 
-void gfx2d_tint_ex(int x, int y, int w, int h, uint32_t color,
-                   int alpha, int mode) {
+void gfx2d_tint_ex(int x, int y, int w, int h, uint32_t color, int alpha, int mode) {
     int row, col;
     int tr = R(color), tg = G(color), tb = B(color);
 
-    if (alpha < 0) alpha = 0;
-    if (alpha > 255) alpha = 255;
+    if (alpha < 0)
+        alpha = 0;
+    if (alpha > 255)
+        alpha = 255;
 
     for (row = 0; row < h; row++) {
         for (col = 0; col < w; col++) {
@@ -283,27 +317,26 @@ void gfx2d_tint_ex(int x, int y, int w, int h, uint32_t color,
             int nr, ng, nb;
 
             switch (mode) {
-            case GFX2D_TINT_MULTIPLY:
-                nr = (r * tr) >> 8;
-                ng = (g * tg) >> 8;
-                nb = (b * tb) >> 8;
-                break;
-            case GFX2D_TINT_SCREEN:
-                nr = 255 - (((255 - r) * (255 - tr)) >> 8);
-                ng = 255 - (((255 - g) * (255 - tg)) >> 8);
-                nb = 255 - (((255 - b) * (255 - tb)) >> 8);
-                break;
-            case GFX2D_TINT_OVERLAY:
-                nr = r < 128 ? (2 * r * tr) >> 8
-                             : 255 - ((2 * (255 - r) * (255 - tr)) >> 8);
-                ng = g < 128 ? (2 * g * tg) >> 8
-                             : 255 - ((2 * (255 - g) * (255 - tg)) >> 8);
-                nb = b < 128 ? (2 * b * tb) >> 8
-                             : 255 - ((2 * (255 - b) * (255 - tb)) >> 8);
-                break;
-            default:
-                nr = tr; ng = tg; nb = tb;
-                break;
+                case GFX2D_TINT_MULTIPLY:
+                    nr = (r * tr) >> 8;
+                    ng = (g * tg) >> 8;
+                    nb = (b * tb) >> 8;
+                    break;
+                case GFX2D_TINT_SCREEN:
+                    nr = 255 - (((255 - r) * (255 - tr)) >> 8);
+                    ng = 255 - (((255 - g) * (255 - tg)) >> 8);
+                    nb = 255 - (((255 - b) * (255 - tb)) >> 8);
+                    break;
+                case GFX2D_TINT_OVERLAY:
+                    nr = r < 128 ? (2 * r * tr) >> 8 : 255 - ((2 * (255 - r) * (255 - tr)) >> 8);
+                    ng = g < 128 ? (2 * g * tg) >> 8 : 255 - ((2 * (255 - g) * (255 - tg)) >> 8);
+                    nb = b < 128 ? (2 * b * tb) >> 8 : 255 - ((2 * (255 - b) * (255 - tb)) >> 8);
+                    break;
+                default:
+                    nr = tr;
+                    ng = tg;
+                    nb = tb;
+                    break;
             }
 
             /* Blend with alpha */
@@ -324,17 +357,18 @@ void gfx2d_edges(int x, int y, int w, int h, uint32_t edge_color) {
     uint32_t *tmp;
     uint32_t tmp_size;
 
-    if (w <= 2 || h <= 2) return;
+    if (w <= 2 || h <= 2)
+        return;
 
     tmp_size = (uint32_t)w * (uint32_t)h * 4u;
     tmp = (uint32_t *)kmalloc(tmp_size);
-    if (!tmp) return;
+    if (!tmp)
+        return;
 
     /* Read source */
     for (row = 0; row < h; row++)
         for (col = 0; col < w; col++)
-            tmp[(uint32_t)row * (uint32_t)w + (uint32_t)col] =
-                gfx2d_getpixel(x + col, y + row);
+            tmp[(uint32_t)row * (uint32_t)w + (uint32_t)col] = gfx2d_getpixel(x + col, y + row);
 
     /* Sobel operator */
     for (row = 1; row < h - 1; row++) {
@@ -346,20 +380,21 @@ void gfx2d_edges(int x, int y, int w, int h, uint32_t edge_color) {
             int gx, gy, mag;
             for (dy = -1; dy <= 1; dy++) {
                 for (dx = -1; dx <= 1; dx++) {
-                    uint32_t px = tmp[(uint32_t)(row + dy) * (uint32_t)w +
-                                      (uint32_t)(col + dx)];
+                    uint32_t px = tmp[(uint32_t)(row + dy) * (uint32_t)w + (uint32_t)(col + dx)];
                     gray[idx++] = (R(px) * 77 + G(px) * 150 + B(px) * 29) >> 8;
                 }
             }
 
             /* Sobel Gx = [-1 0 1; -2 0 2; -1 0 1] */
-            gx = -gray[0] + gray[2] - 2*gray[3] + 2*gray[5] - gray[6] + gray[8];
+            gx = -gray[0] + gray[2] - 2 * gray[3] + 2 * gray[5] - gray[6] + gray[8];
             /* Sobel Gy = [-1 -2 -1; 0 0 0; 1 2 1] */
-            gy = -gray[0] - 2*gray[1] - gray[2] + gray[6] + 2*gray[7] + gray[8];
+            gy = -gray[0] - 2 * gray[1] - gray[2] + gray[6] + 2 * gray[7] + gray[8];
 
             /* Magnitude (approximate) */
-            if (gx < 0) gx = -gx;
-            if (gy < 0) gy = -gy;
+            if (gx < 0)
+                gx = -gx;
+            if (gy < 0)
+                gy = -gy;
             mag = gx + gy;
 
             if (mag > 128)
@@ -379,23 +414,30 @@ void gfx2d_emboss(int x, int y, int w, int h, int angle) {
     uint32_t *tmp;
     uint32_t tmp_size;
 
-    (void)angle;  /* Simplified: use standard emboss kernel */
+    (void)angle; /* Simplified: use standard emboss kernel */
 
     /* Standard emboss kernel: [-2 -1 0; -1 1 1; 0 1 2] */
-    kernel[0] = -2; kernel[1] = -1; kernel[2] = 0;
-    kernel[3] = -1; kernel[4] = 1;  kernel[5] = 1;
-    kernel[6] = 0;  kernel[7] = 1;  kernel[8] = 2;
+    kernel[0] = -2;
+    kernel[1] = -1;
+    kernel[2] = 0;
+    kernel[3] = -1;
+    kernel[4] = 1;
+    kernel[5] = 1;
+    kernel[6] = 0;
+    kernel[7] = 1;
+    kernel[8] = 2;
 
-    if (w <= 2 || h <= 2) return;
+    if (w <= 2 || h <= 2)
+        return;
 
     tmp_size = (uint32_t)w * (uint32_t)h * 4u;
     tmp = (uint32_t *)kmalloc(tmp_size);
-    if (!tmp) return;
+    if (!tmp)
+        return;
 
     for (row = 0; row < h; row++)
         for (col = 0; col < w; col++)
-            tmp[(uint32_t)row * (uint32_t)w + (uint32_t)col] =
-                gfx2d_getpixel(x + col, y + row);
+            tmp[(uint32_t)row * (uint32_t)w + (uint32_t)col] = gfx2d_getpixel(x + col, y + row);
 
     for (row = 1; row < h - 1; row++) {
         for (col = 1; col < w - 1; col++) {
@@ -404,8 +446,7 @@ void gfx2d_emboss(int x, int y, int w, int h, int angle) {
             int dy, dx;
             for (dy = -1; dy <= 1; dy++) {
                 for (dx = -1; dx <= 1; dx++) {
-                    uint32_t px = tmp[(uint32_t)(row + dy) * (uint32_t)w +
-                                      (uint32_t)(col + dx)];
+                    uint32_t px = tmp[(uint32_t)(row + dy) * (uint32_t)w + (uint32_t)(col + dx)];
                     sr += R(px) * kernel[ki];
                     sg += G(px) * kernel[ki];
                     sb += B(px) * kernel[ki];
@@ -427,8 +468,10 @@ void gfx2d_posterize(int x, int y, int w, int h, int levels) {
     int row, col;
     int step;
 
-    if (levels < 2) levels = 2;
-    if (levels > 256) levels = 256;
+    if (levels < 2)
+        levels = 2;
+    if (levels > 256)
+        levels = 256;
     step = 256 / levels;
 
     for (row = 0; row < h; row++) {
@@ -444,23 +487,24 @@ void gfx2d_posterize(int x, int y, int w, int h, int levels) {
 
 /* Convolution Kernel System */
 
-void gfx2d_convolve_3x3(int x, int y, int w, int h,
-                         int kernel[9], int divisor) {
+void gfx2d_convolve_3x3(int x, int y, int w, int h, int kernel[9], int divisor) {
     int row, col;
     uint32_t *tmp;
     uint32_t tmp_size;
 
-    if (w <= 2 || h <= 2) return;
-    if (divisor == 0) divisor = 1;
+    if (w <= 2 || h <= 2)
+        return;
+    if (divisor == 0)
+        divisor = 1;
 
     tmp_size = (uint32_t)w * (uint32_t)h * 4u;
     tmp = (uint32_t *)kmalloc(tmp_size);
-    if (!tmp) return;
+    if (!tmp)
+        return;
 
     for (row = 0; row < h; row++)
         for (col = 0; col < w; col++)
-            tmp[(uint32_t)row * (uint32_t)w + (uint32_t)col] =
-                gfx2d_getpixel(x + col, y + row);
+            tmp[(uint32_t)row * (uint32_t)w + (uint32_t)col] = gfx2d_getpixel(x + col, y + row);
 
     for (row = 1; row < h - 1; row++) {
         for (col = 1; col < w - 1; col++) {
@@ -469,8 +513,7 @@ void gfx2d_convolve_3x3(int x, int y, int w, int h,
             int dy, dx;
             for (dy = -1; dy <= 1; dy++) {
                 for (dx = -1; dx <= 1; dx++) {
-                    uint32_t px = tmp[(uint32_t)(row + dy) * (uint32_t)w +
-                                      (uint32_t)(col + dx)];
+                    uint32_t px = tmp[(uint32_t)(row + dy) * (uint32_t)w + (uint32_t)(col + dx)];
                     sr += R(px) * kernel[ki];
                     sg += G(px) * kernel[ki];
                     sb += B(px) * kernel[ki];
@@ -487,23 +530,24 @@ void gfx2d_convolve_3x3(int x, int y, int w, int h,
     kfree(tmp);
 }
 
-void gfx2d_convolve_5x5(int x, int y, int w, int h,
-                         int kernel[25], int divisor) {
+void gfx2d_convolve_5x5(int x, int y, int w, int h, int kernel[25], int divisor) {
     int row, col;
     uint32_t *tmp;
     uint32_t tmp_size;
 
-    if (w <= 4 || h <= 4) return;
-    if (divisor == 0) divisor = 1;
+    if (w <= 4 || h <= 4)
+        return;
+    if (divisor == 0)
+        divisor = 1;
 
     tmp_size = (uint32_t)w * (uint32_t)h * 4u;
     tmp = (uint32_t *)kmalloc(tmp_size);
-    if (!tmp) return;
+    if (!tmp)
+        return;
 
     for (row = 0; row < h; row++)
         for (col = 0; col < w; col++)
-            tmp[(uint32_t)row * (uint32_t)w + (uint32_t)col] =
-                gfx2d_getpixel(x + col, y + row);
+            tmp[(uint32_t)row * (uint32_t)w + (uint32_t)col] = gfx2d_getpixel(x + col, y + row);
 
     for (row = 2; row < h - 2; row++) {
         for (col = 2; col < w - 2; col++) {
@@ -512,8 +556,7 @@ void gfx2d_convolve_5x5(int x, int y, int w, int h,
             int dy, dx;
             for (dy = -2; dy <= 2; dy++) {
                 for (dx = -2; dx <= 2; dx++) {
-                    uint32_t px = tmp[(uint32_t)(row + dy) * (uint32_t)w +
-                                      (uint32_t)(col + dx)];
+                    uint32_t px = tmp[(uint32_t)(row + dy) * (uint32_t)w + (uint32_t)(col + dx)];
                     sr += R(px) * kernel[ki];
                     sg += G(px) * kernel[ki];
                     sb += B(px) * kernel[ki];
@@ -537,16 +580,17 @@ void gfx2d_chromatic_aberration(int x, int y, int w, int h, int offset) {
     uint32_t *tmp;
     uint32_t tmp_size;
 
-    if (w <= 0 || h <= 0 || offset == 0) return;
+    if (w <= 0 || h <= 0 || offset == 0)
+        return;
 
     tmp_size = (uint32_t)w * (uint32_t)h * 4u;
     tmp = (uint32_t *)kmalloc(tmp_size);
-    if (!tmp) return;
+    if (!tmp)
+        return;
 
     for (row = 0; row < h; row++)
         for (col = 0; col < w; col++)
-            tmp[(uint32_t)row * (uint32_t)w + (uint32_t)col] =
-                gfx2d_getpixel(x + col, y + row);
+            tmp[(uint32_t)row * (uint32_t)w + (uint32_t)col] = gfx2d_getpixel(x + col, y + row);
 
     for (row = 0; row < h; row++) {
         for (col = 0; col < w; col++) {
@@ -578,33 +622,34 @@ void gfx2d_chromatic_aberration(int x, int y, int w, int h, int offset) {
     kfree(tmp);
 }
 
-void gfx2d_scanlines_ex(int x, int y, int w, int h,
-                        int alpha, int pattern) {
+void gfx2d_scanlines_ex(int x, int y, int w, int h, int alpha, int pattern) {
     int row, col;
 
-    if (alpha < 0) alpha = 0;
-    if (alpha > 255) alpha = 255;
+    if (alpha < 0)
+        alpha = 0;
+    if (alpha > 255)
+        alpha = 255;
 
     for (row = 0; row < h; row++) {
         for (col = 0; col < w; col++) {
             int darken = 0;
 
             switch (pattern) {
-            case GFX2D_SCANLINE_HORIZONTAL:
-                darken = ((row + y) & 1);
-                break;
-            case GFX2D_SCANLINE_VERTICAL:
-                darken = ((col + x) & 1);
-                break;
-            case GFX2D_SCANLINE_GRID:
-                darken = ((row + y) & 1) || ((col + x) & 1);
-                break;
-            case GFX2D_SCANLINE_APERTURE:
-                darken = (((row + y) % 3) == 0) || (((col + x) % 3) == 0);
-                break;
-            default:
-                darken = ((row + y) & 1);
-                break;
+                case GFX2D_SCANLINE_HORIZONTAL:
+                    darken = ((row + y) & 1);
+                    break;
+                case GFX2D_SCANLINE_VERTICAL:
+                    darken = ((col + x) & 1);
+                    break;
+                case GFX2D_SCANLINE_GRID:
+                    darken = ((row + y) & 1) || ((col + x) & 1);
+                    break;
+                case GFX2D_SCANLINE_APERTURE:
+                    darken = (((row + y) % 3) == 0) || (((col + x) % 3) == 0);
+                    break;
+                default:
+                    darken = ((row + y) & 1);
+                    break;
             }
 
             if (darken) {
@@ -618,14 +663,16 @@ void gfx2d_scanlines_ex(int x, int y, int w, int h,
     }
 }
 
-void gfx2d_noise(int x, int y, int w, int h,
-                 int intensity, uint32_t seed) {
+void gfx2d_noise(int x, int y, int w, int h, int intensity, uint32_t seed) {
     int row, col;
     uint32_t rng = seed;
 
-    if (intensity < 0) intensity = 0;
-    if (intensity > 255) intensity = 255;
-    if (rng == 0) rng = 0x12345678;
+    if (intensity < 0)
+        intensity = 0;
+    if (intensity > 255)
+        intensity = 255;
+    if (rng == 0)
+        rng = 0x12345678;
 
     for (row = 0; row < h; row++) {
         for (col = 0; col < w; col++) {

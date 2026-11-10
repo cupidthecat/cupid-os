@@ -1,6 +1,6 @@
 #include "math.h"
-#include "types.h"
 #include "kernel.h"
+#include "types.h"
 
 // 64-bit unsigned division
 uint64_t udiv64(uint64_t dividend, uint32_t divisor) {
@@ -17,7 +17,7 @@ uint64_t udiv64(uint64_t dividend, uint32_t divisor) {
 }
 
 // Converts an integer to a string.
-char* itoa(int value, char* str) {
+char *itoa(int value, char *str) {
     int i = 0;
     int is_negative = 0;
 
@@ -101,7 +101,7 @@ void print_hex_byte(uint8_t num) {
  *
  * Returns:
  *   The 64-bit quotient.
-*/
+ */
 uint64_t __udivdi3(uint64_t dividend, uint64_t divisor) {
     uint64_t quotient = 0;
     uint64_t remainder = 0;

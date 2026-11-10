@@ -1,6 +1,6 @@
-//help: CupidC critical feature test #2
-//help: Usage: cupidc_test2
-//help: Verifies sizeof(struct), sizeof(*ptr), object macros, include, and hex literals.
+// help: CupidC critical feature test #2
+// help: Usage: cupidc_test2
+// help: Verifies sizeof(struct), sizeof(*ptr), object macros, include, and hex literals.
 
 #ifndef CUPIDC_TEST2_DEFS
 #define CUPIDC_TEST2_DEFS
@@ -33,10 +33,14 @@ void main() {
     int sz_deref_int = sizeof(*xp);
     int hv = T2_HEX_VALUE;
 
-    if (sz_struct != T2_EXPECT_STRUCT_SIZE) ok = 0;
-    if (sz_deref_struct != T2_EXPECT_STRUCT_SIZE) ok = 0;
-    if (sz_deref_int != 4) ok = 0;
-    if (hv != 255) ok = 0;
+    if (sz_struct != T2_EXPECT_STRUCT_SIZE)
+        ok = 0;
+    if (sz_deref_struct != T2_EXPECT_STRUCT_SIZE)
+        ok = 0;
+    if (sz_deref_int != 4)
+        ok = 0;
+    if (hv != 255)
+        ok = 0;
 
     serial_printf("[cupidc_test2] sizeof(struct)=%u sizeof(*ip)=%u sizeof(*xp)=%u hv=0x%x ok=%u\n",
                   sz_struct, sz_deref_struct, sz_deref_int, hv, ok);

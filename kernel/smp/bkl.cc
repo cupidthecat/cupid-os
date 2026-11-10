@@ -5,7 +5,7 @@
 typedef struct {
     volatile uint32_t ticket_head;
     volatile uint32_t ticket_tail;
-    int32_t  owner_cpu;
+    int32_t owner_cpu;
     uint32_t depth;
 } bkl_t;
 
@@ -20,7 +20,9 @@ void bkl_init(void) {
     bkl_init_done = true;
 }
 
-bool bkl_is_initialized(void) { return bkl_init_done; }
+bool bkl_is_initialized(void) {
+    return bkl_init_done;
+}
 
 static uint32_t save_and_cli(void) {
     uint32_t eflags;
@@ -29,7 +31,8 @@ static uint32_t save_and_cli(void) {
 }
 
 static void restore_if(uint32_t eflags) {
-    if (eflags & (1u << 9)) __asm__ volatile("sti");
+    if (eflags & (1u << 9))
+        __asm__ volatile("sti");
 }
 
 void bkl_lock(void) {
@@ -38,7 +41,7 @@ void bkl_lock(void) {
     if (klock.owner_cpu == (int32_t)c->cpu_id) {
         klock.depth++;
         c->bkl_depth = klock.depth;
-        return;  /* inner acquisition; outer saved eflags already */
+        return; /* inner acquisition; outer saved eflags already */
     }
     uint32_t my_ticket = __atomic_fetch_add(&klock.ticket_tail, 1, __ATOMIC_SEQ_CST);
     while (__atomic_load_n(&klock.ticket_head, __ATOMIC_ACQUIRE) != my_ticket) {
@@ -53,7 +56,7 @@ void bkl_lock(void) {
 void bkl_unlock(void) {
     per_cpu_t *c = this_cpu();
     if (klock.depth == 0 || klock.owner_cpu != (int32_t)c->cpu_id) {
-        return;   /* programming error - ignore */
+        return; /* programming error - ignore */
     }
     uint32_t eflags = c->bkl_eflags_saved;
     klock.depth--;
@@ -76,8 +79,7 @@ bool bkl_held_by_this_cpu(void) {
 
 uint32_t bkl_context_switch_eflags(void) {
     per_cpu_t *c = this_cpu();
-    if (klock.owner_cpu != (int32_t)c->cpu_id || klock.depth != 1u ||
-        c->bkl_depth != 1u) {
+    if (klock.owner_cpu != (int32_t)c->cpu_id || klock.depth != 1u || c->bkl_depth != 1u) {
         return 0u;
     }
     return c->bkl_eflags_saved;
@@ -85,8 +87,7 @@ uint32_t bkl_context_switch_eflags(void) {
 
 bool bkl_context_switch_release(void) {
     per_cpu_t *c = this_cpu();
-    if (klock.owner_cpu != (int32_t)c->cpu_id || klock.depth != 1u ||
-        c->bkl_depth != 1u) {
+    if (klock.owner_cpu != (int32_t)c->cpu_id || klock.depth != 1u || c->bkl_depth != 1u) {
         return false;
     }
 

@@ -4,12 +4,12 @@
  * Provides a unified file API across multiple filesystem types
  * (RamFS, DevFS, FAT16) with hierarchical mount points and
  * Linux-style path resolution.
-*/
+ */
 
 #include "vfs.h"
-#include "string.h"
 #include "memory.h"
 #include "serial.h"
+#include "string.h"
 
 /* Registered filesystem types */
 #define VFS_MAX_FS_TYPES 8
@@ -25,11 +25,12 @@ static vfs_file_t fd_table[VFS_MAX_OPEN_FILES];
 
 /*
  *  Internal helpers
-*/
+ */
 
 static size_t vfs_strlen(const char *s) {
     size_t len = 0;
-    while (s[len]) len++;
+    while (s[len])
+        len++;
     return len;
 }
 
@@ -45,13 +46,14 @@ static void vfs_strcpy(char *dst, const char *src, size_t max) {
 /**
  * Find the mount point with the longest matching prefix for `path`.
  * Returns NULL if no mount matches.
-*/
+ */
 static vfs_mount_t *find_mount(const char *path, const char **rel_path) {
     vfs_mount_t *best = NULL;
     size_t best_len = 0;
 
     for (int i = 0; i < mount_count; i++) {
-        if (!mounts[i].mounted) continue;
+        if (!mounts[i].mounted)
+            continue;
 
         size_t mlen = vfs_strlen(mounts[i].path);
 
@@ -83,7 +85,8 @@ static vfs_mount_t *find_mount(const char *path, const char **rel_path) {
         } else {
             /* Skip mount prefix and any trailing '/' */
             const char *rp = path + best_len;
-            if (*rp == '/') rp++;
+            if (*rp == '/')
+                rp++;
             *rel_path = rp;
         }
     }
@@ -93,7 +96,7 @@ static vfs_mount_t *find_mount(const char *path, const char **rel_path) {
 
 /**
  * Find a filesystem type by name.
-*/
+ */
 static vfs_fs_ops_t *find_fs_type(const char *name) {
     for (int i = 0; i < fs_type_count; i++) {
         if (strcmp(fs_types[i]->name, name) == 0) {
@@ -105,7 +108,7 @@ static vfs_fs_ops_t *find_fs_type(const char *name) {
 
 /**
  * Allocate a file descriptor. Returns index or -1.
-*/
+ */
 static int alloc_fd(void) {
     for (int i = 0; i < VFS_MAX_OPEN_FILES; i++) {
         if (!fd_table[i].in_use) {
@@ -119,7 +122,7 @@ static int alloc_fd(void) {
 
 /*
  *  Public API
-*/
+ */
 
 int vfs_init(void) {
     memset(mounts, 0, sizeof(mounts));
@@ -132,18 +135,21 @@ int vfs_init(void) {
 }
 
 int vfs_register_fs(vfs_fs_ops_t *ops) {
-    if (!ops || !ops->name) return VFS_EINVAL;
-    if (fs_type_count >= VFS_MAX_FS_TYPES) return VFS_ENOSPC;
+    if (!ops || !ops->name)
+        return VFS_EINVAL;
+    if (fs_type_count >= VFS_MAX_FS_TYPES)
+        return VFS_ENOSPC;
 
     fs_types[fs_type_count++] = ops;
     KINFO("VFS: registered filesystem '%s'", ops->name);
     return VFS_OK;
 }
 
-int vfs_mount(const char *source, const char *target,
-              const char *fs_type) {
-    if (!target || !fs_type) return VFS_EINVAL;
-    if (mount_count >= VFS_MAX_MOUNTS) return VFS_ENOSPC;
+int vfs_mount(const char *source, const char *target, const char *fs_type) {
+    if (!target || !fs_type)
+        return VFS_EINVAL;
+    if (mount_count >= VFS_MAX_MOUNTS)
+        return VFS_ENOSPC;
 
     vfs_fs_ops_t *ops = find_fs_type(fs_type);
     if (!ops) {
@@ -160,8 +166,7 @@ int vfs_mount(const char *source, const char *target,
     if (ops->mount) {
         int rc = ops->mount(source, &m->fs_private);
         if (rc < 0) {
-            KERROR("VFS: mount '%s' at '%s' failed (%d)",
-                   fs_type, target, rc);
+            KERROR("VFS: mount '%s' at '%s' failed (%d)", fs_type, target, rc);
             return rc;
         }
     }
@@ -174,13 +179,16 @@ int vfs_mount(const char *source, const char *target,
 }
 
 int vfs_umount(const char *target) {
-    if (!target) return VFS_EINVAL;
+    if (!target)
+        return VFS_EINVAL;
 
     /* Find a mount whose path exactly matches target. */
     for (int i = 0; i < VFS_MAX_MOUNTS; i++) {
         vfs_mount_t *m = &mounts[i];
-        if (!m->mounted) continue;
-        if (strcmp(m->path, target) != 0) continue;
+        if (!m->mounted)
+            continue;
+        if (strcmp(m->path, target) != 0)
+            continue;
 
         /* Close any open files rooted at this mount. */
         int close_status = VFS_OK;
@@ -193,8 +201,7 @@ int vfs_umount(const char *target) {
             }
         }
         if (close_status < 0) {
-            KERROR("VFS: close failed while unmounting '%s' (%d)",
-                   target, close_status);
+            KERROR("VFS: close failed while unmounting '%s' (%d)", target, close_status);
             return close_status;
         }
 
@@ -206,10 +213,10 @@ int vfs_umount(const char *target) {
             KERROR("VFS: unmount '%s' failed (%d)", target, rc);
             return rc;
         }
-        m->mounted    = 0;
+        m->mounted = 0;
         m->fs_private = NULL;
-        m->path[0]    = '\0';
-        m->ops        = NULL;
+        m->path[0] = '\0';
+        m->ops = NULL;
 
         KINFO("VFS: unmounted '%s'", target);
         return rc;
@@ -269,8 +276,10 @@ int vfs_open(const char *path, uint32_t flags) {
 }
 
 int vfs_close(int fd) {
-    if (fd < 0 || fd >= VFS_MAX_OPEN_FILES) return VFS_EINVAL;
-    if (!fd_table[fd].in_use) return VFS_EINVAL;
+    if (fd < 0 || fd >= VFS_MAX_OPEN_FILES)
+        return VFS_EINVAL;
+    if (!fd_table[fd].in_use)
+        return VFS_EINVAL;
 
     int rc = VFS_OK;
     if (fd_table[fd].mount && fd_table[fd].mount->ops->close) {
@@ -284,13 +293,18 @@ int vfs_close(int fd) {
 }
 
 int vfs_read(int fd, void *buffer, uint32_t count) {
-    if (fd < 0 || fd >= VFS_MAX_OPEN_FILES) return VFS_EINVAL;
-    if (!fd_table[fd].in_use) return VFS_EINVAL;
-    if (!buffer) return VFS_EINVAL;
+    if (fd < 0 || fd >= VFS_MAX_OPEN_FILES)
+        return VFS_EINVAL;
+    if (!fd_table[fd].in_use)
+        return VFS_EINVAL;
+    if (!buffer)
+        return VFS_EINVAL;
 
     vfs_file_t *f = &fd_table[fd];
-    if ((f->flags & (O_WRONLY | O_RDWR)) == O_WRONLY) return VFS_EACCES;
-    if (!f->mount || !f->mount->ops->read) return VFS_ENOSYS;
+    if ((f->flags & (O_WRONLY | O_RDWR)) == O_WRONLY)
+        return VFS_EACCES;
+    if (!f->mount || !f->mount->ops->read)
+        return VFS_ENOSYS;
 
     int rc = f->mount->ops->read(f->fs_data, buffer, count);
     if (rc > 0) {
@@ -316,15 +330,18 @@ int vfs_write(int fd, const void *buffer, uint32_t count) {
     KDEBUG("vfs_write fd=%d count=%u buffer=%p", fd, count, buffer);
 
     vfs_file_t *f = &fd_table[fd];
-    if ((f->flags & (O_WRONLY | O_RDWR)) == O_RDONLY) return VFS_EACCES;
+    if ((f->flags & (O_WRONLY | O_RDWR)) == O_RDONLY)
+        return VFS_EACCES;
     if (!f->mount || !f->mount->ops->write) {
         KDEBUG("vfs_write ENOSYS: no write op");
         return VFS_ENOSYS;
     }
     if ((f->flags & O_APPEND) != 0u) {
-        if (!f->mount->ops->seek) return VFS_ENOSYS;
+        if (!f->mount->ops->seek)
+            return VFS_ENOSYS;
         int append_pos = f->mount->ops->seek(f->fs_data, 0, SEEK_END);
-        if (append_pos < 0) return append_pos;
+        if (append_pos < 0)
+            return append_pos;
         f->position = (uint32_t)append_pos;
     }
 
@@ -337,55 +354,71 @@ int vfs_write(int fd, const void *buffer, uint32_t count) {
 }
 
 int vfs_seek(int fd, int32_t offset, int whence) {
-    if (fd < 0 || fd >= VFS_MAX_OPEN_FILES) return VFS_EINVAL;
-    if (!fd_table[fd].in_use) return VFS_EINVAL;
+    if (fd < 0 || fd >= VFS_MAX_OPEN_FILES)
+        return VFS_EINVAL;
+    if (!fd_table[fd].in_use)
+        return VFS_EINVAL;
 
     vfs_file_t *f = &fd_table[fd];
-    if (!f->mount || !f->mount->ops->seek) return VFS_ENOSYS;
+    if (!f->mount || !f->mount->ops->seek)
+        return VFS_ENOSYS;
 
     return f->mount->ops->seek(f->fs_data, offset, whence);
 }
 
 int vfs_stat(const char *path, vfs_stat_t *st) {
-    if (!path || path[0] != '/' || !st) return VFS_EINVAL;
+    if (!path || path[0] != '/' || !st)
+        return VFS_EINVAL;
 
     const char *rel_path = NULL;
     vfs_mount_t *m = find_mount(path, &rel_path);
-    if (!m) return VFS_ENOENT;
-    if (!m->ops->stat) return VFS_ENOSYS;
+    if (!m)
+        return VFS_ENOENT;
+    if (!m->ops->stat)
+        return VFS_ENOSYS;
 
     return m->ops->stat(m->fs_private, rel_path, st);
 }
 
 int vfs_readdir(int fd, vfs_dirent_t *dirent) {
-    if (fd < 0 || fd >= VFS_MAX_OPEN_FILES) return VFS_EINVAL;
-    if (!fd_table[fd].in_use) return VFS_EINVAL;
-    if (!dirent) return VFS_EINVAL;
+    if (fd < 0 || fd >= VFS_MAX_OPEN_FILES)
+        return VFS_EINVAL;
+    if (!fd_table[fd].in_use)
+        return VFS_EINVAL;
+    if (!dirent)
+        return VFS_EINVAL;
 
     vfs_file_t *f = &fd_table[fd];
-    if (!f->mount || !f->mount->ops->readdir) return VFS_ENOSYS;
+    if (!f->mount || !f->mount->ops->readdir)
+        return VFS_ENOSYS;
 
     return f->mount->ops->readdir(f->fs_data, dirent);
 }
 
 int vfs_mkdir(const char *path) {
-    if (!path || path[0] != '/') return VFS_EINVAL;
+    if (!path || path[0] != '/')
+        return VFS_EINVAL;
 
     const char *rel_path = NULL;
     vfs_mount_t *m = find_mount(path, &rel_path);
-    if (!m) return VFS_ENOENT;
-    if (!m->ops->mkdir) return VFS_ENOSYS;
+    if (!m)
+        return VFS_ENOENT;
+    if (!m->ops->mkdir)
+        return VFS_ENOSYS;
 
     return m->ops->mkdir(m->fs_private, rel_path);
 }
 
 int vfs_unlink(const char *path) {
-    if (!path || path[0] != '/') return VFS_EINVAL;
+    if (!path || path[0] != '/')
+        return VFS_EINVAL;
 
     const char *rel_path = NULL;
     vfs_mount_t *m = find_mount(path, &rel_path);
-    if (!m) return VFS_ENOENT;
-    if (!m->ops->unlink) return VFS_ENOSYS;
+    if (!m)
+        return VFS_ENOENT;
+    if (!m->ops->unlink)
+        return VFS_ENOSYS;
 
     return m->ops->unlink(m->fs_private, rel_path);
 }
@@ -393,24 +426,27 @@ int vfs_unlink(const char *path) {
 /* Rename / Move */
 
 int vfs_rename(const char *old_path, const char *new_path) {
-    if (!old_path || old_path[0] != '/' ||
-        !new_path || new_path[0] != '/') return VFS_EINVAL;
+    if (!old_path || old_path[0] != '/' || !new_path || new_path[0] != '/')
+        return VFS_EINVAL;
 
     /* Stat the source to confirm it exists and is a file */
     vfs_stat_t st;
     int rc = vfs_stat(old_path, &st);
-    if (rc < 0) return rc;
-    if (st.type == VFS_TYPE_DIR) return VFS_EISDIR; /* dirs not yet supported */
-    if (strcmp(old_path, new_path) == 0) return VFS_OK;
+    if (rc < 0)
+        return rc;
+    if (st.type == VFS_TYPE_DIR)
+        return VFS_EISDIR; /* dirs not yet supported */
+    if (strcmp(old_path, new_path) == 0)
+        return VFS_OK;
 
     const char *old_relative = NULL;
     const char *new_relative = NULL;
     vfs_mount_t *old_mount = find_mount(old_path, &old_relative);
     vfs_mount_t *new_mount = find_mount(new_path, &new_relative);
-    if (!old_mount || !new_mount) return VFS_ENOENT;
+    if (!old_mount || !new_mount)
+        return VFS_ENOENT;
     if (old_mount == new_mount && old_mount->ops->rename) {
-        return old_mount->ops->rename(old_mount->fs_private,
-                                      old_relative, new_relative);
+        return old_mount->ops->rename(old_mount->fs_private, old_relative, new_relative);
     }
     return old_mount == new_mount ? VFS_ENOSYS : VFS_EXDEV;
 }
@@ -422,6 +458,7 @@ int vfs_mount_count(void) {
 }
 
 const vfs_mount_t *vfs_get_mount(int index) {
-    if (index < 0 || index >= mount_count) return NULL;
+    if (index < 0 || index >= mount_count)
+        return NULL;
     return &mounts[index];
 }

@@ -17,44 +17,32 @@
 //   mode.
 //
 
-#include "doomtype.h"
 #include "d_mode.h"
+#include "doomtype.h"
 
 // Valid game mode/mission combinations, with the number of
 // episodes/maps for each.
 
-static struct
-{
+static struct {
     GameMission_t mission;
     GameMode_t mode;
     int episode;
     int map;
 } valid_modes[] = {
-    { pack_chex, shareware,  1, 5 },
-    { doom,      shareware,  1, 9 },
-    { doom,      registered, 3, 9 },
-    { doom,      retail,     4, 9 },
-    { doom2,     commercial, 1, 32 },
-    { pack_tnt,  commercial, 1, 32 },
-    { pack_plut, commercial, 1, 32 },
-    { pack_hacx, commercial, 1, 32 },
-    { heretic,   shareware,  1, 9 },
-    { heretic,   registered, 3, 9 },
-    { heretic,   retail,     5, 9 },
-    { hexen,     commercial, 1, 60 },
-    { strife,    commercial, 1, 34 },
+    {pack_chex, shareware, 1, 5},   {doom, shareware, 1, 9},        {doom, registered, 3, 9},
+    {doom, retail, 4, 9},           {doom2, commercial, 1, 32},     {pack_tnt, commercial, 1, 32},
+    {pack_plut, commercial, 1, 32}, {pack_hacx, commercial, 1, 32}, {heretic, shareware, 1, 9},
+    {heretic, registered, 3, 9},    {heretic, retail, 5, 9},        {hexen, commercial, 1, 60},
+    {strife, commercial, 1, 34},
 };
 
 // Check that a gamemode+gamemission received over the network is valid.
 
-boolean D_ValidGameMode(GameMission_t mission, GameMode_t mode)
-{
+boolean D_ValidGameMode(GameMission_t mission, GameMode_t mode) {
     int i;
 
-    for (i=0; i<arrlen(valid_modes); ++i)
-    {
-        if (valid_modes[i].mode == mode && valid_modes[i].mission == mission)
-        {
+    for (i = 0; i < arrlen(valid_modes); ++i) {
+        if (valid_modes[i].mode == mode && valid_modes[i].mission == mission) {
             return true;
         }
     }
@@ -62,34 +50,25 @@ boolean D_ValidGameMode(GameMission_t mission, GameMode_t mode)
     return false;
 }
 
-boolean D_ValidEpisodeMap(GameMission_t mission, GameMode_t mode,
-                          int episode, int map)
-{
+boolean D_ValidEpisodeMap(GameMission_t mission, GameMode_t mode, int episode, int map) {
     int i;
 
     // Hacks for Heretic secret episodes
 
-    if (mission == heretic)
-    {
-        if (mode == retail && episode == 6)
-        {
+    if (mission == heretic) {
+        if (mode == retail && episode == 6) {
             return map >= 1 && map <= 3;
-        }
-        else if (mode == registered && episode == 4)
-        {
+        } else if (mode == registered && episode == 4) {
             return map == 1;
         }
     }
 
     // Find the table entry for this mission/mode combination.
 
-    for (i=0; i<arrlen(valid_modes); ++i) 
-    {
-        if (mission == valid_modes[i].mission
-         && mode == valid_modes[i].mode)
-        {
-            return episode >= 1 && episode <= valid_modes[i].episode
-                && map >= 1 && map <= valid_modes[i].map;
+    for (i = 0; i < arrlen(valid_modes); ++i) {
+        if (mission == valid_modes[i].mission && mode == valid_modes[i].mode) {
+            return episode >= 1 && episode <= valid_modes[i].episode && map >= 1 &&
+                   map <= valid_modes[i].map;
         }
     }
 
@@ -100,14 +79,12 @@ boolean D_ValidEpisodeMap(GameMission_t mission, GameMode_t mode,
 
 // Get the number of valid episodes for the specified mission/mode.
 
-int D_GetNumEpisodes(GameMission_t mission, GameMode_t mode)
-{
+int D_GetNumEpisodes(GameMission_t mission, GameMode_t mode) {
     int episode;
 
     episode = 1;
 
-    while (D_ValidEpisodeMap(mission, mode, episode, 1))
-    {
+    while (D_ValidEpisodeMap(mission, mode, episode, 1)) {
         ++episode;
     }
 
@@ -120,35 +97,24 @@ static struct {
     GameMission_t mission;
     GameVersion_t version;
 } valid_versions[] = {
-    { doom,     exe_doom_1_9 },
-    { doom,     exe_hacx },
-    { doom,     exe_ultimate },
-    { doom,     exe_final },
-    { doom,     exe_final2 },
-    { doom,     exe_chex },
-    { heretic,  exe_heretic_1_3 },
-    { hexen,    exe_hexen_1_1 },
-    { strife,   exe_strife_1_2 },
-    { strife,   exe_strife_1_31 },
+    {doom, exe_doom_1_9},       {doom, exe_hacx},       {doom, exe_ultimate},
+    {doom, exe_final},          {doom, exe_final2},     {doom, exe_chex},
+    {heretic, exe_heretic_1_3}, {hexen, exe_hexen_1_1}, {strife, exe_strife_1_2},
+    {strife, exe_strife_1_31},
 };
 
-boolean D_ValidGameVersion(GameMission_t mission, GameVersion_t version)
-{
+boolean D_ValidGameVersion(GameMission_t mission, GameVersion_t version) {
     int i;
 
     // All Doom variants can use the Doom versions.
 
-    if (mission == doom2 || mission == pack_plut || mission == pack_tnt
-     || mission == pack_hacx || mission == pack_chex)
-    {
+    if (mission == doom2 || mission == pack_plut || mission == pack_tnt || mission == pack_hacx ||
+        mission == pack_chex) {
         mission = doom;
     }
 
-    for (i=0; i<arrlen(valid_versions); ++i) 
-    {
-        if (valid_versions[i].mission == mission 
-         && valid_versions[i].version == version)
-        {
+    for (i = 0; i < arrlen(valid_versions); ++i) {
+        if (valid_versions[i].mission == mission && valid_versions[i].version == version) {
             return true;
         }
     }
@@ -158,10 +124,8 @@ boolean D_ValidGameVersion(GameMission_t mission, GameVersion_t version)
 
 // Does this mission type use ExMy form, rather than MAPxy form?
 
-boolean D_IsEpisodeMap(GameMission_t mission)
-{
-    switch (mission)
-    {
+boolean D_IsEpisodeMap(GameMission_t mission) {
+    switch (mission) {
         case doom:
         case heretic:
         case pack_chex:
@@ -179,10 +143,8 @@ boolean D_IsEpisodeMap(GameMission_t mission)
     }
 }
 
-char *D_GameMissionString(GameMission_t mission)
-{
-    switch (mission)
-    {
+char *D_GameMissionString(GameMission_t mission) {
+    switch (mission) {
         case none:
         default:
             return "none";
@@ -206,4 +168,3 @@ char *D_GameMissionString(GameMission_t mission)
             return "strife";
     }
 }
-

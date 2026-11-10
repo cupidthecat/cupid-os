@@ -36,12 +36,9 @@ class UsbPollSerializationTests(unittest.TestCase):
         )
         self.assertIsNotNone(poll)
         body = poll.group(0)
-        self.assertIn(
-            "__atomic_exchange_n(\n"
-            "            &usb_poll_active,\n"
-            "            1u,\n"
-            "            __ATOMIC_ACQUIRE",
+        self.assertRegex(
             body,
+            r"__atomic_exchange_n\(\s*&usb_poll_active,\s*1u,\s*__ATOMIC_ACQUIRE\)",
         )
         self.assertIn(
             "__atomic_store_n(&usb_poll_active, 0u, __ATOMIC_RELEASE);",

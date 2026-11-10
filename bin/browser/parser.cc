@@ -14,20 +14,21 @@ enum {
     ST_VALUE_SQ,
     ST_VALUE_UQ,
     ST_SELF_CLOSE,
-    ST_MARKUP_DECL,    /* sees "<!" -- decide between Comment and Doctype */
-    ST_COMMENT,        /* skip to "-->" */
-    ST_DOCTYPE,        /* skip to ">" */
-    ST_RAWTEXT,        /* used inside <script>/<style> */
-    ST_RCDATA          /* used inside <title>/<textarea> */
+    ST_MARKUP_DECL, /* sees "<!" -- decide between Comment and Doctype */
+    ST_COMMENT,     /* skip to "-->" */
+    ST_DOCTYPE,     /* skip to ">" */
+    ST_RAWTEXT,     /* used inside <script>/<style> */
+    ST_RCDATA       /* used inside <title>/<textarea> */
 };
 
-int emit_token(int kind, int tag, int text_off, int text_len,
-               int attr_first, int attr_count, int self_close) {
-    if (tok_count >= MAX_TOKENS) return -1;
-    tok_kind[tok_count]       = kind;
-    tok_tag[tok_count]        = tag;
-    tok_text_off[tok_count]   = text_off;
-    tok_text_len[tok_count]   = text_len;
+int emit_token(int kind, int tag, int text_off, int text_len, int attr_first, int attr_count,
+               int self_close) {
+    if (tok_count >= MAX_TOKENS)
+        return -1;
+    tok_kind[tok_count] = kind;
+    tok_tag[tok_count] = tag;
+    tok_text_off[tok_count] = text_off;
+    tok_text_len[tok_count] = text_len;
     tok_attr_first[tok_count] = attr_first;
     tok_attr_count[tok_count] = attr_count;
     tok_self_close[tok_count] = self_close;
@@ -36,13 +37,13 @@ int emit_token(int kind, int tag, int text_off, int text_len,
 
 void tokenize(int html_len) {
     tok_count = 0;
-    ap_count  = 0;
+    ap_count = 0;
     int state = ST_DATA;
     int i = 0;
     int text_start = 0;
     int tag_start = 0;
     int tag_is_end = 0;
-    int cur_tag = 0;            /* T_* during ST_TAG_NAME */
+    int cur_tag = 0; /* T_* during ST_TAG_NAME */
     int cur_attr_first = 0;
     int cur_attr_count = 0;
     int cur_self_close = 0;
@@ -76,12 +77,20 @@ void tokenize(int html_len) {
         }
 
         if (state == ST_TAG_OPEN) {
-            if (c == '/') { state = ST_END_TAG_OPEN; i++; continue; }
-            if (c == '!') { state = ST_MARKUP_DECL; i++; continue; }
+            if (c == '/') {
+                state = ST_END_TAG_OPEN;
+                i++;
+                continue;
+            }
+            if (c == '!') {
+                state = ST_MARKUP_DECL;
+                i++;
+                continue;
+            }
             if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
                 state = ST_TAG_NAME;
                 tag_start = i;
-                continue;            /* re-process this byte in TAG_NAME */
+                continue; /* re-process this byte in TAG_NAME */
             }
             /* anything else: treat '<' as text, fall back */
             text_start = i - 1;
@@ -97,8 +106,10 @@ void tokenize(int html_len) {
                 continue;
             }
             /* malformed; skip to '>' */
-            while (i < html_len && page_buf[i] != '>') i++;
-            if (i < html_len) i++;
+            while (i < html_len && page_buf[i] != '>')
+                i++;
+            if (i < html_len)
+                i++;
             state = ST_DATA;
             text_start = i;
             continue;
@@ -108,18 +119,25 @@ void tokenize(int html_len) {
             if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '/' || c == '>') {
                 cur_tag = tag_id(page_buf + tag_start, i - tag_start);
                 state = ST_BEFORE_ATTR;
-                continue;          /* let BEFORE_ATTR re-handle byte */
+                continue; /* let BEFORE_ATTR re-handle byte */
             }
             i++;
             continue;
         }
 
         if (state == ST_BEFORE_ATTR) {
-            if (c == ' ' || c == '\t' || c == '\n' || c == '\r') { i++; continue; }
-            if (c == '/') { cur_self_close = 1; i++; continue; }
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+                i++;
+                continue;
+            }
+            if (c == '/') {
+                cur_self_close = 1;
+                i++;
+                continue;
+            }
             if (c == '>') {
-                emit_token(tag_is_end ? TK_END : TK_START, cur_tag,
-                           0, 0, cur_attr_first, cur_attr_count, cur_self_close);
+                emit_token(tag_is_end ? TK_END : TK_START, cur_tag, 0, 0, cur_attr_first,
+                           cur_attr_count, cur_self_close);
                 if (!tag_is_end) {
                     if (cur_tag == T_SCRIPT || cur_tag == T_STYLE) {
                         state = ST_RAWTEXT;
@@ -145,20 +163,20 @@ void tokenize(int html_len) {
             if (c == '=') {
                 int name_off = attr_intern(page_buf + tag_start, i - tag_start);
                 if (ap_count < MAX_ATTR_PAIRS) {
-                    ap_name_off[ap_count]  = name_off;
-                    ap_value_off[ap_count] = -1;       /* filled at value end */
+                    ap_name_off[ap_count] = name_off;
+                    ap_value_off[ap_count] = -1; /* filled at value end */
                     ap_count++;
                     cur_attr_count++;
                 }
                 state = ST_BEFORE_VALUE;
-                i++; continue;
+                i++;
+                continue;
             }
-            if (c == ' ' || c == '\t' || c == '\n' || c == '\r' ||
-                c == '/' || c == '>') {
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '/' || c == '>') {
                 /* boolean attribute (no '=') */
                 int name_off = attr_intern(page_buf + tag_start, i - tag_start);
                 if (ap_count < MAX_ATTR_PAIRS) {
-                    ap_name_off[ap_count]  = name_off;
+                    ap_name_off[ap_count] = name_off;
                     ap_value_off[ap_count] = attr_intern("", 0);
                     ap_count++;
                     cur_attr_count++;
@@ -171,10 +189,25 @@ void tokenize(int html_len) {
         }
 
         if (state == ST_BEFORE_VALUE) {
-            if (c == ' ' || c == '\t' || c == '\n' || c == '\r') { i++; continue; }
-            if (c == '"')  { state = ST_VALUE_DQ; i++; tag_start = i; continue; }
-            if (c == '\'') { state = ST_VALUE_SQ; i++; tag_start = i; continue; }
-            state = ST_VALUE_UQ; tag_start = i; continue;
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+                i++;
+                continue;
+            }
+            if (c == '"') {
+                state = ST_VALUE_DQ;
+                i++;
+                tag_start = i;
+                continue;
+            }
+            if (c == '\'') {
+                state = ST_VALUE_SQ;
+                i++;
+                tag_start = i;
+                continue;
+            }
+            state = ST_VALUE_UQ;
+            tag_start = i;
+            continue;
         }
 
         if (state == ST_VALUE_DQ || state == ST_VALUE_SQ) {
@@ -184,49 +217,59 @@ void tokenize(int html_len) {
                 /* fast path: no '&' -> intern directly */
                 int has_amp = 0;
                 for (int k = tag_start; k < i; k++) {
-                    if (page_buf[k] == '&') { has_amp = 1; break; }
+                    if (page_buf[k] == '&') {
+                        has_amp = 1;
+                        break;
+                    }
                 }
                 int voff;
                 if (!has_amp) {
                     voff = attr_intern(page_buf + tag_start, i - tag_start);
                 } else {
-                    int dec_len = decode_entities(page_buf + tag_start, i - tag_start,
-                                                  ctype_buf, dec_max < 4096 ? dec_max : 4096);
+                    int dec_len = decode_entities(page_buf + tag_start, i - tag_start, ctype_buf,
+                                                  dec_max < 4096 ? dec_max : 4096);
                     voff = attr_intern(ctype_buf, dec_len);
                 }
-                if (ap_count > 0) ap_value_off[ap_count - 1] = voff;
+                if (ap_count > 0)
+                    ap_value_off[ap_count - 1] = voff;
                 state = ST_BEFORE_ATTR;
-                i++; continue;
+                i++;
+                continue;
             }
-            i++; continue;
+            i++;
+            continue;
         }
 
         if (state == ST_VALUE_UQ) {
-            if (c == ' ' || c == '\t' || c == '\n' || c == '\r' ||
-                c == '>' || c < 0) {
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '>' || c < 0) {
                 int has_amp = 0;
                 for (int k = tag_start; k < i; k++) {
-                    if (page_buf[k] == '&') { has_amp = 1; break; }
+                    if (page_buf[k] == '&') {
+                        has_amp = 1;
+                        break;
+                    }
                 }
                 int voff;
                 if (!has_amp) {
                     voff = attr_intern(page_buf + tag_start, i - tag_start);
                 } else {
                     int dec_max = (i - tag_start) + 1;
-                    int dec_len = decode_entities(page_buf + tag_start, i - tag_start,
-                                                  ctype_buf, dec_max < 4096 ? dec_max : 4096);
+                    int dec_len = decode_entities(page_buf + tag_start, i - tag_start, ctype_buf,
+                                                  dec_max < 4096 ? dec_max : 4096);
                     voff = attr_intern(ctype_buf, dec_len);
                 }
-                if (ap_count > 0) ap_value_off[ap_count - 1] = voff;
+                if (ap_count > 0)
+                    ap_value_off[ap_count - 1] = voff;
                 state = ST_BEFORE_ATTR;
                 continue;
             }
-            i++; continue;
+            i++;
+            continue;
         }
 
         if (state == ST_MARKUP_DECL) {
             /* If next two bytes are "--", it's a comment; otherwise treat as DOCTYPE-like */
-            if (i + 1 < html_len && page_buf[i] == '-' && page_buf[i+1] == '-') {
+            if (i + 1 < html_len && page_buf[i] == '-' && page_buf[i + 1] == '-') {
                 state = ST_COMMENT;
                 i += 2;
                 continue;
@@ -238,18 +281,23 @@ void tokenize(int html_len) {
         if (state == ST_COMMENT) {
             /* skip until '-->' */
             while (i + 2 < html_len &&
-                   !(page_buf[i] == '-' && page_buf[i+1] == '-' && page_buf[i+2] == '>')) {
+                   !(page_buf[i] == '-' && page_buf[i + 1] == '-' && page_buf[i + 2] == '>')) {
                 i++;
             }
-            if (i + 2 < html_len) i += 3; else i = html_len;
+            if (i + 2 < html_len)
+                i += 3;
+            else
+                i = html_len;
             state = ST_DATA;
             text_start = i;
             continue;
         }
 
         if (state == ST_DOCTYPE) {
-            while (i < html_len && page_buf[i] != '>') i++;
-            if (i < html_len) i++;
+            while (i < html_len && page_buf[i] != '>')
+                i++;
+            if (i < html_len)
+                i++;
             state = ST_DATA;
             text_start = i;
             continue;
@@ -258,37 +306,49 @@ void tokenize(int html_len) {
         if (state == ST_RAWTEXT || state == ST_RCDATA) {
             /* find matching </tag> for the most recently emitted START. */
             int last_start = tok_count - 1;
-            while (last_start >= 0 && tok_kind[last_start] != TK_START) last_start--;
+            while (last_start >= 0 && tok_kind[last_start] != TK_START)
+                last_start--;
             int close_tag = (last_start >= 0) ? tok_tag[last_start] : 0;
             char *close_name = 0;
             int close_name_len = 0;
-            if (close_tag == T_SCRIPT)        { close_name = "script";   close_name_len = 6; }
-            else if (close_tag == T_STYLE)    { close_name = "style";    close_name_len = 5; }
-            else if (close_tag == T_TITLE)    { close_name = "title";    close_name_len = 5; }
-            else if (close_tag == T_TEXTAREA) { close_name = "textarea"; close_name_len = 8; }
-            else { state = ST_DATA; continue; }
+            if (close_tag == T_SCRIPT) {
+                close_name = "script";
+                close_name_len = 6;
+            } else if (close_tag == T_STYLE) {
+                close_name = "style";
+                close_name_len = 5;
+            } else if (close_tag == T_TITLE) {
+                close_name = "title";
+                close_name_len = 5;
+            } else if (close_tag == T_TEXTAREA) {
+                close_name = "textarea";
+                close_name_len = 8;
+            } else {
+                state = ST_DATA;
+                continue;
+            }
 
             int t_start = i;
             while (i < html_len) {
                 if (page_buf[i] == '<' && i + 1 + close_name_len < html_len &&
-                    page_buf[i+1] == '/' &&
+                    page_buf[i + 1] == '/' &&
                     b_strieq_n(page_buf + i + 2, close_name, close_name_len) &&
                     (page_buf[i + 2 + close_name_len] == '>' ||
                      page_buf[i + 2 + close_name_len] == ' ' ||
                      page_buf[i + 2 + close_name_len] == '\t' ||
-                     page_buf[i + 2 + close_name_len] == '\n')) break;
+                     page_buf[i + 2 + close_name_len] == '\n'))
+                    break;
                 i++;
             }
             int t_end = i;
 
             if (t_end > t_start) {
                 if (state == ST_RCDATA) {
-                    int dec_len = decode_entities(page_buf + t_start, t_end - t_start,
-                                                  ctype_buf, 4096);
+                    int dec_len =
+                        decode_entities(page_buf + t_start, t_end - t_start, ctype_buf, 4096);
                     int off = attr_intern(ctype_buf, dec_len);
                     /* Sentinel bit 0x40000000 on tok_text_len marks attr_pool-backed text. */
-                    emit_token(TK_TEXT, 0, off,
-                               dec_len | 0x40000000, 0, 0, 0);
+                    emit_token(TK_TEXT, 0, off, dec_len | 0x40000000, 0, 0, 0);
                 } else {
                     /* RAWTEXT (<style>, <script>): no entity decoding per HTML
                      * spec, so intern raw bytes directly. The downstream
@@ -299,8 +359,7 @@ void tokenize(int html_len) {
                     int raw_len = t_end - t_start;
                     int off = attr_intern(page_buf + t_start, raw_len);
                     if (off >= 0) {
-                        emit_token(TK_TEXT, 0, off,
-                                   raw_len | 0x40000000, 0, 0, 0);
+                        emit_token(TK_TEXT, 0, off, raw_len | 0x40000000, 0, 0, 0);
                     } else {
                         emit_token(TK_TEXT, 0, t_start, raw_len, 0, 0, 0);
                     }
@@ -311,8 +370,10 @@ void tokenize(int html_len) {
             if (i < html_len) {
                 emit_token(TK_END, close_tag, 0, 0, 0, 0, 0);
                 i += 2 + close_name_len;
-                while (i < html_len && page_buf[i] != '>') i++;
-                if (i < html_len) i++;
+                while (i < html_len && page_buf[i] != '>')
+                    i++;
+                if (i < html_len)
+                    i++;
             }
             state = ST_DATA;
             text_start = i;
@@ -320,79 +381,140 @@ void tokenize(int html_len) {
         }
 
         /* catch-all fallback: skip to '>' and resume in DATA */
-        while (i < html_len && page_buf[i] != '>') i++;
-        if (i < html_len) i++;
+        while (i < html_len && page_buf[i] != '>')
+            i++;
+        if (i < html_len)
+            i++;
         state = ST_DATA;
         text_start = i;
     }
 }
 
 int tag_id(char *name, int len) {
-    if (len == 0) return T_OTHER;
-    char b[16]; int i = 0;
-    while (i < len && i < 15) { b[i] = (char)b_lc(name[i]); i = i + 1; }
+    if (len == 0)
+        return T_OTHER;
+    char b[16];
+    int i = 0;
+    while (i < len && i < 15) {
+        b[i] = (char)b_lc(name[i]);
+        i = i + 1;
+    }
     b[i] = 0;
-    if (b_streq(b, "html"))   return T_HTML;
-    if (b_streq(b, "head"))   return T_HEAD;
-    if (b_streq(b, "title"))  return T_TITLE;
-    if (b_streq(b, "body"))   return T_BODY;
-    if (b_streq(b, "p"))      return T_P;
-    if (b_streq(b, "h1"))     return T_H1;
-    if (b_streq(b, "h2"))     return T_H2;
-    if (b_streq(b, "h3"))     return T_H3;
-    if (b_streq(b, "h4"))     return T_H4;
-    if (b_streq(b, "h5"))     return T_H5;
-    if (b_streq(b, "h6"))     return T_H6;
-    if (b_streq(b, "a"))      return T_A;
-    if (b_streq(b, "br"))     return T_BR;
-    if (b_streq(b, "hr"))     return T_HR;
-    if (b_streq(b, "ul"))     return T_UL;
-    if (b_streq(b, "ol"))     return T_OL;
-    if (b_streq(b, "li"))     return T_LI;
-    if (b_streq(b, "pre"))    return T_PRE;
-    if (b_streq(b, "code"))   return T_CODE;
-    if (b_streq(b, "b"))      return T_B;
-    if (b_streq(b, "strong")) return T_STRONG;
-    if (b_streq(b, "i"))      return T_I;
-    if (b_streq(b, "em"))     return T_EM;
-    if (b_streq(b, "span"))   return T_SPAN;
-    if (b_streq(b, "div"))    return T_DIV;
-    if (b_streq(b, "img"))    return T_IMG;
-    if (b_streq(b, "form"))   return T_FORM;
-    if (b_streq(b, "input"))  return T_INPUT;
-    if (b_streq(b, "button")) return T_BUTTON;
-    if (b_streq(b, "font"))   return T_FONT;
-    if (b_streq(b, "script")) return T_SCRIPT;
-    if (b_streq(b, "style"))  return T_STYLE;
-    if (b_streq(b, "noscript")) return T_NOSCRIPT;
-    if (b_streq(b, "textarea")) return T_TEXTAREA;
-    if (b_streq(b, "dt"))       return T_DT;
-    if (b_streq(b, "dd"))       return T_DD;
-    if (b_streq(b, "dl"))       return T_DL;
-    if (b_streq(b, "thead"))    return T_THEAD;
-    if (b_streq(b, "tbody"))    return T_TBODY;
-    if (b_streq(b, "tfoot"))    return T_TFOOT;
-    if (b_streq(b, "caption"))  return T_CAPTION;
-    if (b_streq(b, "option"))   return T_OPTION;
-    if (b_streq(b, "header"))   return T_HEADER;
-    if (b_streq(b, "footer"))   return T_FOOTER;
-    if (b_streq(b, "nav"))      return T_NAV;
-    if (b_streq(b, "section"))  return T_SECTION;
-    if (b_streq(b, "article"))  return T_ARTICLE;
-    if (b_streq(b, "aside"))    return T_ASIDE;
-    if (b_streq(b, "main"))     return T_MAIN;
-    if (b_streq(b, "table"))    return T_TABLE;
-    if (b_streq(b, "tr"))       return T_TR;
-    if (b_streq(b, "td"))       return T_TD;
-    if (b_streq(b, "th"))       return T_TH;
-    if (b_streq(b, "blockquote")) return T_BLOCKQUOTE;
-    if (b_streq(b, "link"))     return T_LINK;
+    if (b_streq(b, "html"))
+        return T_HTML;
+    if (b_streq(b, "head"))
+        return T_HEAD;
+    if (b_streq(b, "title"))
+        return T_TITLE;
+    if (b_streq(b, "body"))
+        return T_BODY;
+    if (b_streq(b, "p"))
+        return T_P;
+    if (b_streq(b, "h1"))
+        return T_H1;
+    if (b_streq(b, "h2"))
+        return T_H2;
+    if (b_streq(b, "h3"))
+        return T_H3;
+    if (b_streq(b, "h4"))
+        return T_H4;
+    if (b_streq(b, "h5"))
+        return T_H5;
+    if (b_streq(b, "h6"))
+        return T_H6;
+    if (b_streq(b, "a"))
+        return T_A;
+    if (b_streq(b, "br"))
+        return T_BR;
+    if (b_streq(b, "hr"))
+        return T_HR;
+    if (b_streq(b, "ul"))
+        return T_UL;
+    if (b_streq(b, "ol"))
+        return T_OL;
+    if (b_streq(b, "li"))
+        return T_LI;
+    if (b_streq(b, "pre"))
+        return T_PRE;
+    if (b_streq(b, "code"))
+        return T_CODE;
+    if (b_streq(b, "b"))
+        return T_B;
+    if (b_streq(b, "strong"))
+        return T_STRONG;
+    if (b_streq(b, "i"))
+        return T_I;
+    if (b_streq(b, "em"))
+        return T_EM;
+    if (b_streq(b, "span"))
+        return T_SPAN;
+    if (b_streq(b, "div"))
+        return T_DIV;
+    if (b_streq(b, "img"))
+        return T_IMG;
+    if (b_streq(b, "form"))
+        return T_FORM;
+    if (b_streq(b, "input"))
+        return T_INPUT;
+    if (b_streq(b, "button"))
+        return T_BUTTON;
+    if (b_streq(b, "font"))
+        return T_FONT;
+    if (b_streq(b, "script"))
+        return T_SCRIPT;
+    if (b_streq(b, "style"))
+        return T_STYLE;
+    if (b_streq(b, "noscript"))
+        return T_NOSCRIPT;
+    if (b_streq(b, "textarea"))
+        return T_TEXTAREA;
+    if (b_streq(b, "dt"))
+        return T_DT;
+    if (b_streq(b, "dd"))
+        return T_DD;
+    if (b_streq(b, "dl"))
+        return T_DL;
+    if (b_streq(b, "thead"))
+        return T_THEAD;
+    if (b_streq(b, "tbody"))
+        return T_TBODY;
+    if (b_streq(b, "tfoot"))
+        return T_TFOOT;
+    if (b_streq(b, "caption"))
+        return T_CAPTION;
+    if (b_streq(b, "option"))
+        return T_OPTION;
+    if (b_streq(b, "header"))
+        return T_HEADER;
+    if (b_streq(b, "footer"))
+        return T_FOOTER;
+    if (b_streq(b, "nav"))
+        return T_NAV;
+    if (b_streq(b, "section"))
+        return T_SECTION;
+    if (b_streq(b, "article"))
+        return T_ARTICLE;
+    if (b_streq(b, "aside"))
+        return T_ASIDE;
+    if (b_streq(b, "main"))
+        return T_MAIN;
+    if (b_streq(b, "table"))
+        return T_TABLE;
+    if (b_streq(b, "tr"))
+        return T_TR;
+    if (b_streq(b, "td"))
+        return T_TD;
+    if (b_streq(b, "th"))
+        return T_TH;
+    if (b_streq(b, "blockquote"))
+        return T_BLOCKQUOTE;
+    if (b_streq(b, "link"))
+        return T_LINK;
     return T_OTHER;
 }
 
 int is_void_tag(int tag) {
-    return tag == T_BR || tag == T_HR || tag == T_IMG || tag == T_INPUT ||
-           tag == T_LINK;
+    return tag == T_BR || tag == T_HR || tag == T_IMG || tag == T_INPUT || tag == T_LINK;
 }
 
 int is_block_tag(int tag) {
@@ -403,14 +525,12 @@ int is_block_tag(int tag) {
      * fix), pop body, and reparent every following element under root.
      * Sibling combinators (h2 + p, h2 ~ p.note) silently fail because
      * the p ends up as a sibling of body, not a child of body.*/
-    return tag == T_P || tag == T_DIV || tag == T_H1 || tag == T_H2 ||
-           tag == T_H3 || tag == T_H4 || tag == T_H5 || tag == T_H6 ||
-           tag == T_UL || tag == T_OL || tag == T_LI || tag == T_PRE ||
-           tag == T_BLOCKQUOTE || tag == T_HR || tag == T_TABLE ||
-           tag == T_FORM || tag == T_HEADER || tag == T_FOOTER ||
-           tag == T_NAV || tag == T_SECTION || tag == T_ARTICLE ||
-           tag == T_ASIDE || tag == T_MAIN ||
-           tag == T_BODY || tag == T_HTML || tag == T_ROOT;
+    return tag == T_P || tag == T_DIV || tag == T_H1 || tag == T_H2 || tag == T_H3 || tag == T_H4 ||
+           tag == T_H5 || tag == T_H6 || tag == T_UL || tag == T_OL || tag == T_LI ||
+           tag == T_PRE || tag == T_BLOCKQUOTE || tag == T_HR || tag == T_TABLE || tag == T_FORM ||
+           tag == T_HEADER || tag == T_FOOTER || tag == T_NAV || tag == T_SECTION ||
+           tag == T_ARTICLE || tag == T_ASIDE || tag == T_MAIN || tag == T_BODY || tag == T_HTML ||
+           tag == T_ROOT;
 }
 
 int is_list_container(int tag) {
@@ -427,8 +547,7 @@ int is_list_container(int tag) {
  * and per-navigation in navigate() before tokenize() starts.*/
 void parse_html(int html_len) {
     tokenize(html_len);
-    serial_printf("[browser] tokenize: %d tokens, %d attr-pairs\n",
-                  tok_count, ap_count);
+    serial_printf("[browser] tokenize: %d tokens, %d attr-pairs\n", tok_count, ap_count);
 
     nodes_count = 0;
     dom_ap_count = 0;
@@ -442,9 +561,9 @@ void parse_html(int html_len) {
     for (int k = 0; k < 4096; k = k + 1) {
         n_pseudo_before_off[k] = -1;
         n_pseudo_before_len[k] = 0;
-        n_pseudo_after_off [k] = -1;
-        n_pseudo_after_len [k] = 0;
-        n_checkbox_state   [k] = 0;
+        n_pseudo_after_off[k] = -1;
+        n_pseudo_after_len[k] = 0;
+        n_checkbox_state[k] = 0;
     }
 
     /* §2 reset CSS state - author rules accumulate per page */
@@ -478,15 +597,16 @@ void parse_html(int html_len) {
 
     for (int ti = 0; ti < tok_count; ti = ti + 1) {
         int kind = tok_kind[ti];
-        int tag  = tok_tag[ti];
+        int tag = tok_tag[ti];
 
-        if (kind == TK_EOF) break;
+        if (kind == TK_EOF)
+            break;
 
         if (kind == TK_TEXT) {
             int parent = stack[sp - 1];
             int len_field = tok_text_len[ti];
             int from_attr = (len_field >> 30) & 1;
-            int real_len  = len_field & 0x3FFFFFFF;
+            int real_len = len_field & 0x3FFFFFFF;
             int text_off;
             int text_len;
             if (from_attr) {
@@ -496,19 +616,22 @@ void parse_html(int html_len) {
             } else {
                 /* DATA: decode entities into ctype_buf, then intern */
                 int dec_max = real_len + 1;
-                if (dec_max > 4096) dec_max = 4096;
-                int dec_len = decode_entities(page_buf + tok_text_off[ti],
-                                              real_len, ctype_buf, dec_max);
+                if (dec_max > 4096)
+                    dec_max = 4096;
+                int dec_len =
+                    decode_entities(page_buf + tok_text_off[ti], real_len, ctype_buf, dec_max);
                 text_off = attr_intern(ctype_buf, dec_len);
                 text_len = dec_len;
             }
-            if (text_off < 0) continue;
+            if (text_off < 0)
+                continue;
             /* whitespace check */
             int ws_only = 1;
             for (int k = 0; k < text_len; k = k + 1) {
                 char c = attr_pool[text_off + k];
                 if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
-                    ws_only = 0; break;
+                    ws_only = 0;
+                    break;
                 }
             }
             /* In <table> outside cells, foster-parent non-whitespace text:
@@ -518,13 +641,19 @@ void parse_html(int html_len) {
             if (mode == IM_IN_TABLE && !ws_only) {
                 int table_idx = -1;
                 for (int k = sp - 1; k >= 1; k = k - 1) {
-                    if (n_tag[stack[k]] == T_TABLE) { table_idx = stack[k]; break; }
+                    if (n_tag[stack[k]] == T_TABLE) {
+                        table_idx = stack[k];
+                        break;
+                    }
                 }
-                if (table_idx < 0) continue;
+                if (table_idx < 0)
+                    continue;
                 int table_parent = n_parent[table_idx];
-                if (table_parent < 0) continue;
+                if (table_parent < 0)
+                    continue;
                 int fn = alloc_node(T_TEXT, table_parent, -1);
-                if (fn < 0) continue;
+                if (fn < 0)
+                    continue;
                 n_text_off[fn] = text_off;
                 n_text_len[fn] = text_len;
                 dom_insert_before(fn, table_idx);
@@ -537,11 +666,12 @@ void parse_html(int html_len) {
              * spaces when the parent has block-level siblings.*/
             if (ws_only) {
                 int parent_tag = (parent >= 0) ? n_tag[parent] : -1;
-                if (parent_tag != T_PRE && parent_tag != T_CODE &&
-                    parent_tag != T_TITLE) {
-                    ctype_buf[0] = ' '; ctype_buf[1] = 0;
+                if (parent_tag != T_PRE && parent_tag != T_CODE && parent_tag != T_TITLE) {
+                    ctype_buf[0] = ' ';
+                    ctype_buf[1] = 0;
                     int sp_off = attr_intern(ctype_buf, 1);
-                    if (sp_off < 0) continue;
+                    if (sp_off < 0)
+                        continue;
                     text_off = sp_off;
                     text_len = 1;
                 }
@@ -550,7 +680,8 @@ void parse_html(int html_len) {
             int parent_tag = (parent >= 0) ? n_tag[parent] : -1;
             if (parent_tag == T_TITLE && title_buf[0] == 0) {
                 int copy = text_len;
-                if (copy > 255) copy = 255;
+                if (copy > 255)
+                    copy = 255;
                 for (int k = 0; k < copy; k = k + 1) {
                     title_buf[k] = attr_pool[text_off + k];
                 }
@@ -572,7 +703,8 @@ void parse_html(int html_len) {
                 continue;
             }
             int n = alloc_node(T_TEXT, parent, -1);
-            if (n < 0) continue;
+            if (n < 0)
+                continue;
             n_text_off[n] = text_off;
             n_text_len[n] = text_len;
             continue;
@@ -585,14 +717,15 @@ void parse_html(int html_len) {
              * they keep the existing structure. Once body_implicit is set,
              * subsequent body content nests inside it via the regular
              * stack mechanism.*/
-            if (body_implicit < 0 &&
-                tag != T_HTML && tag != T_HEAD && tag != T_TITLE &&
-                tag != T_STYLE && tag != T_SCRIPT && tag != T_NOSCRIPT &&
-                tag != T_BODY) {
+            if (body_implicit < 0 && tag != T_HTML && tag != T_HEAD && tag != T_TITLE &&
+                tag != T_STYLE && tag != T_SCRIPT && tag != T_NOSCRIPT && tag != T_BODY) {
                 int has_body = 0;
                 for (int k = 0; k < sp; k = k + 1) {
                     int kt = n_tag[stack[k]];
-                    if (kt == T_BODY || kt == T_HEAD) { has_body = 1; break; }
+                    if (kt == T_BODY || kt == T_HEAD) {
+                        has_body = 1;
+                        break;
+                    }
                 }
                 if (!has_body) {
                     body_implicit = alloc_node(T_BODY, root, -1);
@@ -608,61 +741,72 @@ void parse_html(int html_len) {
             if (tag == T_P) {
                 /* close any currently-open <p> */
                 while (sp > 1 && n_tag[stack[sp - 1]] != T_P) {
-                    if (is_block_tag(n_tag[stack[sp - 1]])) break;
+                    if (is_block_tag(n_tag[stack[sp - 1]]))
+                        break;
                     sp = sp - 1;
                 }
-                if (sp > 1 && n_tag[stack[sp - 1]] == T_P) sp = sp - 1;
+                if (sp > 1 && n_tag[stack[sp - 1]] == T_P)
+                    sp = sp - 1;
             } else if (is_block_tag(tag)) {
                 /* close <p> if open as direct ancestor */
-                if (sp > 1 && n_tag[stack[sp - 1]] == T_P) sp = sp - 1;
+                if (sp > 1 && n_tag[stack[sp - 1]] == T_P)
+                    sp = sp - 1;
             } else if (tag == T_LI) {
                 while (sp > 1 && n_tag[stack[sp - 1]] != T_LI &&
-                       !is_list_container(n_tag[stack[sp - 1]])) sp = sp - 1;
-                if (sp > 1 && n_tag[stack[sp - 1]] == T_LI) sp = sp - 1;
+                       !is_list_container(n_tag[stack[sp - 1]]))
+                    sp = sp - 1;
+                if (sp > 1 && n_tag[stack[sp - 1]] == T_LI)
+                    sp = sp - 1;
             } else if (tag == T_DT || tag == T_DD) {
-                while (sp > 1 &&
-                       n_tag[stack[sp - 1]] != T_DT &&
-                       n_tag[stack[sp - 1]] != T_DD &&
-                       n_tag[stack[sp - 1]] != T_DL) sp = sp - 1;
-                if (sp > 1 &&
-                    (n_tag[stack[sp - 1]] == T_DT ||
-                     n_tag[stack[sp - 1]] == T_DD)) sp = sp - 1;
+                while (sp > 1 && n_tag[stack[sp - 1]] != T_DT && n_tag[stack[sp - 1]] != T_DD &&
+                       n_tag[stack[sp - 1]] != T_DL)
+                    sp = sp - 1;
+                if (sp > 1 && (n_tag[stack[sp - 1]] == T_DT || n_tag[stack[sp - 1]] == T_DD))
+                    sp = sp - 1;
             } else if (tag == T_TR) {
-                while (sp > 1 && n_tag[stack[sp - 1]] != T_TR &&
-                       n_tag[stack[sp - 1]] != T_TABLE &&
-                       n_tag[stack[sp - 1]] != T_THEAD &&
-                       n_tag[stack[sp - 1]] != T_TBODY &&
-                       n_tag[stack[sp - 1]] != T_TFOOT) sp = sp - 1;
-                if (sp > 1 && n_tag[stack[sp - 1]] == T_TR) sp = sp - 1;
+                while (sp > 1 && n_tag[stack[sp - 1]] != T_TR && n_tag[stack[sp - 1]] != T_TABLE &&
+                       n_tag[stack[sp - 1]] != T_THEAD && n_tag[stack[sp - 1]] != T_TBODY &&
+                       n_tag[stack[sp - 1]] != T_TFOOT)
+                    sp = sp - 1;
+                if (sp > 1 && n_tag[stack[sp - 1]] == T_TR)
+                    sp = sp - 1;
             } else if (tag == T_TD || tag == T_TH) {
-                while (sp > 1 &&
-                       n_tag[stack[sp - 1]] != T_TD &&
-                       n_tag[stack[sp - 1]] != T_TH &&
-                       n_tag[stack[sp - 1]] != T_TR) sp = sp - 1;
-                if (sp > 1 &&
-                    (n_tag[stack[sp - 1]] == T_TD ||
-                     n_tag[stack[sp - 1]] == T_TH)) sp = sp - 1;
+                while (sp > 1 && n_tag[stack[sp - 1]] != T_TD && n_tag[stack[sp - 1]] != T_TH &&
+                       n_tag[stack[sp - 1]] != T_TR)
+                    sp = sp - 1;
+                if (sp > 1 && (n_tag[stack[sp - 1]] == T_TD || n_tag[stack[sp - 1]] == T_TH))
+                    sp = sp - 1;
             } else if (tag == T_OPTION) {
-                if (sp > 1 && n_tag[stack[sp - 1]] == T_OPTION) sp = sp - 1;
+                if (sp > 1 && n_tag[stack[sp - 1]] == T_OPTION)
+                    sp = sp - 1;
             } else if (tag == T_A) {
                 /* close any open <a> (avoid nesting) */
-                if (sp > 1 && n_tag[stack[sp - 1]] == T_A) sp = sp - 1;
+                if (sp > 1 && n_tag[stack[sp - 1]] == T_A)
+                    sp = sp - 1;
             } else if (tag == T_BODY) {
                 /* close <head> if currently open as direct ancestor */
-                if (sp > 1 && n_tag[stack[sp - 1]] == T_HEAD) sp = sp - 1;
+                if (sp > 1 && n_tag[stack[sp - 1]] == T_HEAD)
+                    sp = sp - 1;
             }
 
             int parent = stack[sp - 1];
             int n = alloc_node(tag, parent, ti);
-            if (n < 0) continue;
+            if (n < 0)
+                continue;
 
             /* mode transitions */
-            if (tag == T_TABLE)        mode = IM_IN_TABLE;
-            else if (tag == T_TR)      mode = IM_IN_ROW;
-            else if (tag == T_TD || tag == T_TH) mode = IM_IN_CELL;
-            else if (tag == T_CAPTION) mode = IM_IN_CAPTION;
-            else if (tag == T_BODY)    mode = IM_IN_BODY;
-            else if (tag == T_HEAD)    mode = IM_IN_HEAD;
+            if (tag == T_TABLE)
+                mode = IM_IN_TABLE;
+            else if (tag == T_TR)
+                mode = IM_IN_ROW;
+            else if (tag == T_TD || tag == T_TH)
+                mode = IM_IN_CELL;
+            else if (tag == T_CAPTION)
+                mode = IM_IN_CAPTION;
+            else if (tag == T_BODY)
+                mode = IM_IN_BODY;
+            else if (tag == T_HEAD)
+                mode = IM_IN_HEAD;
 
             /* push unless void or self-closing */
             if (!is_void_tag(tag) && !tok_self_close[ti]) {
@@ -680,7 +824,7 @@ void parse_html(int html_len) {
             if (tag == T_FORM && forms_count < MAX_FORMS) {
                 int a_off = dom_attr_get(n, "action");
                 form_action[forms_count] = a_off;
-                form_node[forms_count]   = n;
+                form_node[forms_count] = n;
                 forms_count = forms_count + 1;
             }
 
@@ -692,16 +836,13 @@ void parse_html(int html_len) {
                 int is_text = 1;
                 int is_toggle = 0;
                 if (type_s) {
-                    if (b_strieq(type_s, "submit") ||
-                        b_strieq(type_s, "button") ||
-                        b_strieq(type_s, "hidden") ||
-                        b_strieq(type_s, "reset") ||
-                        b_strieq(type_s, "image") ||
-                        b_strieq(type_s, "file")  ||
-                        b_strieq(type_s, "checkbox") ||
-                        b_strieq(type_s, "radio")) is_text = 0;
-                    if (b_strieq(type_s, "checkbox") ||
-                        b_strieq(type_s, "radio")) is_toggle = 1;
+                    if (b_strieq(type_s, "submit") || b_strieq(type_s, "button") ||
+                        b_strieq(type_s, "hidden") || b_strieq(type_s, "reset") ||
+                        b_strieq(type_s, "image") || b_strieq(type_s, "file") ||
+                        b_strieq(type_s, "checkbox") || b_strieq(type_s, "radio"))
+                        is_text = 0;
+                    if (b_strieq(type_s, "checkbox") || b_strieq(type_s, "radio"))
+                        is_toggle = 1;
                 }
                 if (is_toggle && dom_attr_get(n, "checked") >= 0) {
                     n_checkbox_state[n] = 1;
@@ -713,7 +854,8 @@ void parse_html(int html_len) {
                     if (v_off >= 0) {
                         char *v = attr_pool + v_off;
                         int len = b_strlen(v);
-                        if (len > 127) len = 127;
+                        if (len > 127)
+                            len = 127;
                         for (int k = 0; k < len; k = k + 1) {
                             input_value[ii * 128 + k] = v[k];
                         }
@@ -722,8 +864,8 @@ void parse_html(int html_len) {
                         input_value[ii * 128] = 0;
                     }
                     input_name_off[ii] = n_off;
-                    input_form[ii]     = (forms_count > 0) ? forms_count - 1 : -1;
-                    input_node[ii]     = n;
+                    input_form[ii] = (forms_count > 0) ? forms_count - 1 : -1;
+                    input_node[ii] = n;
                     inputs_count = inputs_count + 1;
                 }
             }
@@ -735,9 +877,13 @@ void parse_html(int html_len) {
             /* close until matching open tag */
             int found = -1;
             for (int k = sp - 1; k >= 1; k = k - 1) {
-                if (n_tag[stack[k]] == tag) { found = k; break; }
+                if (n_tag[stack[k]] == tag) {
+                    found = k;
+                    break;
+                }
             }
-            if (found < 0) continue;
+            if (found < 0)
+                continue;
 
             /* Simplified adoption-agency: any formatting elements (b/i/em/
              * strong/font/u/s) on the stack ABOVE the matched end tag are
@@ -750,8 +896,7 @@ void parse_html(int html_len) {
             int n_saved = 0;
             for (int k = found + 1; k < sp && n_saved < 8; k = k + 1) {
                 int t = n_tag[stack[k]];
-                if (t == T_B || t == T_I || t == T_EM || t == T_STRONG ||
-                    t == T_FONT) {
+                if (t == T_B || t == T_I || t == T_EM || t == T_STRONG || t == T_FONT) {
                     saved[n_saved] = t;
                     n_saved = n_saved + 1;
                 }
@@ -760,22 +905,27 @@ void parse_html(int html_len) {
             for (int k = 0; k < n_saved && sp < 64; k = k + 1) {
                 int new_parent = stack[sp - 1];
                 int nn = alloc_node(saved[k], new_parent, -1);
-                if (nn < 0) break;
+                if (nn < 0)
+                    break;
                 stack[sp] = nn;
                 sp = sp + 1;
             }
 
             /* mode transitions on close */
-            if (tag == T_TABLE)        mode = IM_IN_BODY;
-            else if (tag == T_TR)      mode = IM_IN_TABLE;
-            else if (tag == T_TD || tag == T_TH) mode = IM_IN_ROW;
-            else if (tag == T_CAPTION) mode = IM_IN_TABLE;
+            if (tag == T_TABLE)
+                mode = IM_IN_BODY;
+            else if (tag == T_TR)
+                mode = IM_IN_TABLE;
+            else if (tag == T_TD || tag == T_TH)
+                mode = IM_IN_ROW;
+            else if (tag == T_CAPTION)
+                mode = IM_IN_TABLE;
             continue;
         }
     }
 
-    serial_printf("[browser] css: %d rules, %d sels, %d val-bytes\n",
-                  css_rule_count, css_sel_count, css_value_pool_pos);
+    serial_printf("[browser] css: %d rules, %d sels, %d val-bytes\n", css_rule_count, css_sel_count,
+                  css_value_pool_pos);
 
     /* §2.x Fetch external <link rel=stylesheet> sheets BEFORE the cascade
      * runs so their rules participate in style resolution. Defined in
@@ -807,8 +957,7 @@ void parse_html(int html_len) {
                 dom_dirty = 0;
             }
         } else {
-            serial_printf("[browser] js: global install failed: %s\n",
-                          js_last_error);
+            serial_printf("[browser] js: global install failed: %s\n", js_last_error);
         }
     }
 }

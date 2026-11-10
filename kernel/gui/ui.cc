@@ -5,13 +5,13 @@
  * provide composite, self-contained widgets (buttons, labels, panels,
  * text fields, scrollbars) that handle their own text centering,
  * padding, and 3D effects.
-*/
+ */
 
 #include "ui.h"
-#include "gui_themes.h"
+#include "font_8x8.h"
 #include "gfx2d.h"
 #include "graphics.h"
-#include "font_8x8.h"
+#include "gui_themes.h"
 #include "string.h"
 #include "vga.h"
 
@@ -19,9 +19,7 @@ static int ui_channel(uint32_t color, int shift) {
     return (int)((color >> shift) & 0xFFu);
 }
 
-static uint32_t ui_titlebar_text_color(uint32_t preferred,
-                                       uint32_t start,
-                                       uint32_t end) {
+static uint32_t ui_titlebar_text_color(uint32_t preferred, uint32_t start, uint32_t end) {
     int br = (ui_channel(start, 16) + ui_channel(end, 16)) / 2;
     int bg = (ui_channel(start, 8) + ui_channel(end, 8)) / 2;
     int bb = (ui_channel(start, 0) + ui_channel(end, 0)) / 2;
@@ -50,7 +48,7 @@ static void ui_draw_3d_frame(ui_rect_t r, bool raised) {
 
 /*
  *  Constructors / layout helpers
-*/
+ */
 
 ui_rect_t ui_rect(int16_t x, int16_t y, uint16_t w, uint16_t h) {
     ui_rect_t r;
@@ -135,20 +133,19 @@ ui_rect_t ui_cut_right(ui_rect_t *r, uint16_t width) {
 
 /*
  *  Hit testing
-*/
+ */
 
 bool ui_contains(ui_rect_t r, int16_t px, int16_t py) {
-    return px >= r.x && px < (int16_t)(r.x + (int16_t)r.w) &&
-           py >= r.y && py < (int16_t)(r.y + (int16_t)r.h);
+    return px >= r.x && px < (int16_t)(r.x + (int16_t)r.w) && py >= r.y &&
+           py < (int16_t)(r.y + (int16_t)r.h);
 }
 
 /*
  *  Drawing: low-level
-*/
+ */
 
 void ui_draw_shadow(ui_rect_t r, uint32_t color, int16_t offset) {
-    gfx_fill_rect((int16_t)(r.x + offset), (int16_t)(r.y + offset),
-                  r.w, r.h, color);
+    gfx_fill_rect((int16_t)(r.x + offset), (int16_t)(r.y + offset), r.w, r.h, color);
 }
 
 void ui_draw_panel(ui_rect_t r, uint32_t bg, bool border_3d, bool raised) {
@@ -166,7 +163,7 @@ void ui_draw_panel(ui_rect_t r, uint32_t bg, bool border_3d, bool raised) {
 
 /*
  *  Drawing: composite widgets
-*/
+ */
 
 /* Button */
 
@@ -177,9 +174,8 @@ void ui_draw_button(ui_rect_t r, const char *label, bool focused) {
 
     /* Focus ring (black outline) */
     if (focused) {
-        gfx_draw_rect((int16_t)(r.x - 1), (int16_t)(r.y - 1),
-                      (uint16_t)(r.w + 2), (uint16_t)(r.h + 2),
-                      theme->accent_primary);
+        gfx_draw_rect((int16_t)(r.x - 1), (int16_t)(r.y - 1), (uint16_t)(r.w + 2),
+                      (uint16_t)(r.h + 2), theme->accent_primary);
     }
 
     /* Auto-center label text */
@@ -191,8 +187,7 @@ void ui_draw_button(ui_rect_t r, const char *label, bool focused) {
 
 /* Label */
 
-void ui_draw_label(ui_rect_t r, const char *text, uint32_t color,
-                   ui_align_t align) {
+void ui_draw_label(ui_rect_t r, const char *text, uint32_t color, ui_align_t align) {
     uint16_t tw = gfx_text_width(text);
     int16_t tx;
 
@@ -274,8 +269,7 @@ void ui_draw_textfield(ui_rect_t r, const char *text, int cursor_pos) {
         int16_t cx = (int16_t)(tx + (int16_t)(rel_cursor * FONT_W));
         int16_t max_x = (int16_t)(r.x + (int16_t)r.w - 2);
         if (cx < max_x) {
-            gfx_draw_vline(cx, (int16_t)(r.y + 2),
-                           (uint16_t)(r.h - 4), theme->input_text);
+            gfx_draw_vline(cx, (int16_t)(r.y + 2), (uint16_t)(r.h - 4), theme->input_text);
         }
     }
 }
@@ -284,10 +278,8 @@ void ui_draw_textfield(ui_rect_t r, const char *text, int cursor_pos) {
 
 void ui_draw_titlebar(ui_rect_t r, const char *title, bool focused) {
     const ui_theme_t *theme = ui_theme_get();
-    uint32_t start = focused ? theme->titlebar_active_start
-                             : theme->titlebar_inactive_start;
-    uint32_t end = focused ? theme->titlebar_active_end
-                           : theme->titlebar_inactive_end;
+    uint32_t start = focused ? theme->titlebar_active_start : theme->titlebar_inactive_start;
+    uint32_t end = focused ? theme->titlebar_active_end : theme->titlebar_inactive_end;
     uint32_t text = ui_titlebar_text_color(theme->titlebar_text, start, end);
     gfx2d_gradient_h(r.x, r.y, r.w, r.h, start, end);
 
@@ -310,23 +302,21 @@ void ui_draw_vscrollbar(ui_rect_t r, int total, int visible, int offset) {
     /* Up arrow button */
     ui_rect_t up_btn = ui_rect(r.x, r.y, r.w, r.w);
     ui_draw_panel(up_btn, theme->button_face, true, true);
-    gfx_draw_char((int16_t)(r.x + 2), (int16_t)(r.y + 2), '^',
-                  theme->button_text);
+    gfx_draw_char((int16_t)(r.x + 2), (int16_t)(r.y + 2), '^', theme->button_text);
 
     /* Down arrow button */
-    ui_rect_t dn_btn = ui_rect(r.x,
-                               (int16_t)(r.y + (int16_t)r.h - (int16_t)r.w),
-                               r.w, r.w);
+    ui_rect_t dn_btn = ui_rect(r.x, (int16_t)(r.y + (int16_t)r.h - (int16_t)r.w), r.w, r.w);
     ui_draw_panel(dn_btn, theme->button_face, true, true);
-    gfx_draw_char((int16_t)(dn_btn.x + 2), (int16_t)(dn_btn.y + 2),
-                  'v', theme->button_text);
+    gfx_draw_char((int16_t)(dn_btn.x + 2), (int16_t)(dn_btn.y + 2), 'v', theme->button_text);
 
     /* Thumb (only if content overflows) */
     int track_h = rh - 2 * rw;
     if (track_h > 4 && total > visible && visible > 0) {
         int thumb_h = (track_h * visible) / total;
-        if (thumb_h < 8) thumb_h = 8;
-        if (thumb_h > track_h) thumb_h = track_h;
+        if (thumb_h < 8)
+            thumb_h = 8;
+        if (thumb_h > track_h)
+            thumb_h = track_h;
 
         int thumb_max = track_h - thumb_h;
         int thumb_off = 0;
@@ -336,8 +326,8 @@ void ui_draw_vscrollbar(ui_rect_t r, int total, int visible, int offset) {
         }
 
         int16_t thumb_y = (int16_t)(r.y + (int16_t)r.w + (int16_t)thumb_off);
-        ui_rect_t thumb = ui_rect((int16_t)(r.x + 1), thumb_y,
-                                  (uint16_t)(rw - 2), (uint16_t)thumb_h);
+        ui_rect_t thumb =
+            ui_rect((int16_t)(r.x + 1), thumb_y, (uint16_t)(rw - 2), (uint16_t)thumb_h);
         ui_draw_panel(thumb, theme->button_face, true, true);
     }
 }
@@ -345,9 +335,11 @@ void ui_draw_vscrollbar(ui_rect_t r, int total, int visible, int offset) {
 /* Vertical scrollbar hit test */
 
 int ui_vscrollbar_hit(ui_rect_t r, int16_t mx, int16_t my, bool *page) {
-    if (!ui_contains(r, mx, my)) return 0;
+    if (!ui_contains(r, mx, my))
+        return 0;
 
-    if (page) *page = false;
+    if (page)
+        *page = false;
 
     int rw = (int)r.w;
     int ry = (int)r.y;
@@ -364,7 +356,8 @@ int ui_vscrollbar_hit(ui_rect_t r, int16_t mx, int16_t my, bool *page) {
     }
 
     /* Track area - page scroll */
-    if (page) *page = true;
+    if (page)
+        *page = true;
     int mid = ry + rh / 2;
     return (my < (int16_t)mid) ? -1 : 1;
 }

@@ -6,12 +6,12 @@
  * - Provides functions to play tones at specific frequencies
  * - Handles speaker enable/disable
  * - Implements basic beep functionality
-*/
+ */
 
 #include "speaker.h"
+#include "pit.h"
 #include "ports.h"
 #include "timer.h"
-#include "pit.h"
 
 // PC speaker ports and bits
 #define PC_SPEAKER_PORT 0x61
@@ -21,12 +21,12 @@
 
 void pc_speaker_on(uint32_t frequency) {
     if (frequency == 0) {
-        return;  // Avoid divide-by-zero on PIT setup
+        return; // Avoid divide-by-zero on PIT setup
     }
-    
+
     // Configure PIT channel 2 for square wave generation
     pit_set_frequency(2, frequency);
-    
+
     // Enable PC speaker by setting bits 0 and 1
     uint8_t tmp = inb(PC_SPEAKER_PORT);
     outb(PC_SPEAKER_PORT, tmp | PC_SPEAKER_ENABLE_BITS);
@@ -40,19 +40,17 @@ void pc_speaker_off(void) {
 
 // Simple beep function that plays a 1kHz tone for 100ms
 void beep(void) {
-    pc_speaker_on(1000);  // 1kHz frequency
-    
-    // Use a more reliable delay
-    timer_sleep_ms(100);  // Sleep for 100 ms
-    
-    pc_speaker_off();
-    
-    // Additional delay between beeps
-    timer_sleep_ms(50);   // Sleep for 50 ms
-} 
+    pc_speaker_on(1000); // 1kHz frequency
 
-     
-     
+    // Use a more reliable delay
+    timer_sleep_ms(100); // Sleep for 100 ms
+
+    pc_speaker_off();
+
+    // Additional delay between beeps
+    timer_sleep_ms(50); // Sleep for 50 ms
+}
+
 /**
  * test_speaker - Test PC speaker functionality
  *
@@ -60,7 +58,7 @@ void beep(void) {
  * 1. Simple beep
  * 2. Rising tone
  * 3. Falling tone
-*/
+ */
 /**
  * test_speaker - Test PC speaker functionality
  *

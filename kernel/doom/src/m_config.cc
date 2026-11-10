@@ -17,19 +17,18 @@
 //    Configuration file interface.
 //
 
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "config.h"
 
-#include "doomtype.h"
-#include "doomkeys.h"
 #include "doomfeatures.h"
+#include "doomkeys.h"
+#include "doomtype.h"
 #include "i_system.h"
 #include "m_argv.h"
 #include "m_misc.h"
@@ -37,7 +36,7 @@
 #include "z_zone.h"
 
 #define CONFIG_VALUE_BUFFER_SIZE 512
-#define CONFIG_LINE_BUFFER_SIZE  640
+#define CONFIG_LINE_BUFFER_SIZE 640
 
 //
 // DEFAULTS
@@ -54,8 +53,7 @@ static char *owned_configdir;
 static char *default_main_config;
 static char *default_extra_config;
 
-typedef enum 
-{
+typedef enum {
     DEFAULT_INT,
     DEFAULT_INT_HEX,
     DEFAULT_STRING,
@@ -63,8 +61,7 @@ typedef enum
     DEFAULT_KEY,
 } default_type_t;
 
-typedef struct
-{
+typedef struct {
     // Name of the variable
     char *name;
 
@@ -98,8 +95,7 @@ typedef struct
     char *initial_string;
 } default_t;
 
-typedef struct
-{
+typedef struct {
     default_t *defaults;
     int numdefaults;
     char *filename;
@@ -108,24 +104,18 @@ typedef struct
 
 static void ResetCollectionDefaults(default_collection_t *collection);
 
-#define CONFIG_VARIABLE_GENERIC(name, type) \
-    { #name, NULL, type, 0, 0, false, NULL, false, 0, 0.0f, NULL }
+#define CONFIG_VARIABLE_GENERIC(name, type)                                                        \
+    {#name, NULL, type, 0, 0, false, NULL, false, 0, 0.0f, NULL}
 
-#define CONFIG_VARIABLE_KEY(name) \
-    CONFIG_VARIABLE_GENERIC(name, DEFAULT_KEY)
-#define CONFIG_VARIABLE_INT(name) \
-    CONFIG_VARIABLE_GENERIC(name, DEFAULT_INT)
-#define CONFIG_VARIABLE_INT_HEX(name) \
-    CONFIG_VARIABLE_GENERIC(name, DEFAULT_INT_HEX)
-#define CONFIG_VARIABLE_FLOAT(name) \
-    CONFIG_VARIABLE_GENERIC(name, DEFAULT_FLOAT)
-#define CONFIG_VARIABLE_STRING(name) \
-    CONFIG_VARIABLE_GENERIC(name, DEFAULT_STRING)
+#define CONFIG_VARIABLE_KEY(name) CONFIG_VARIABLE_GENERIC(name, DEFAULT_KEY)
+#define CONFIG_VARIABLE_INT(name) CONFIG_VARIABLE_GENERIC(name, DEFAULT_INT)
+#define CONFIG_VARIABLE_INT_HEX(name) CONFIG_VARIABLE_GENERIC(name, DEFAULT_INT_HEX)
+#define CONFIG_VARIABLE_FLOAT(name) CONFIG_VARIABLE_GENERIC(name, DEFAULT_FLOAT)
+#define CONFIG_VARIABLE_STRING(name) CONFIG_VARIABLE_GENERIC(name, DEFAULT_STRING)
 
 //! @begin_config_file default
 
-static default_t	doom_defaults_list[] =
-{
+static default_t doom_defaults_list[] = {
     //!
     // Mouse sensitivity.  This value is used to multiply input mouse
     // movement to control the effect of moving the mouse.
@@ -688,8 +678,7 @@ static default_t	doom_defaults_list[] =
     CONFIG_VARIABLE_INT(comport),
 };
 
-static default_collection_t doom_defaults =
-{
+static default_collection_t doom_defaults = {
     doom_defaults_list,
     arrlen(doom_defaults_list),
     NULL,
@@ -698,8 +687,7 @@ static default_collection_t doom_defaults =
 
 //! @begin_config_file extended
 
-static default_t extra_defaults_list[] =
-{
+static default_t extra_defaults_list[] = {
     //!
     // @game heretic hexen strife
     //
@@ -1568,8 +1556,7 @@ static default_t extra_defaults_list[] =
     CONFIG_VARIABLE_KEY(key_multi_msgplayer8),
 };
 
-static default_collection_t extra_defaults =
-{
+static default_collection_t extra_defaults = {
     extra_defaults_list,
     arrlen(extra_defaults_list),
     NULL,
@@ -1578,14 +1565,11 @@ static default_collection_t extra_defaults =
 
 // Search a collection for a variable
 
-static default_t *SearchCollection(default_collection_t *collection, char *name)
-{
+static default_t *SearchCollection(default_collection_t *collection, char *name) {
     int i;
 
-    for (i=0; i<collection->numdefaults; ++i) 
-    {
-        if (!strcmp(name, collection->defaults[i].name))
-        {
+    for (i = 0; i < collection->numdefaults; ++i) {
+        if (!strcmp(name, collection->defaults[i].name)) {
             return &collection->defaults[i];
         }
     }
@@ -1603,100 +1587,196 @@ static default_t *SearchCollection(default_collection_t *collection, char *name)
 //    sends an interrupt). So I added a fake scan code of 126 for it.
 //    The presence of this is important so we can bind PrintScreen as
 //    a screenshot key.
-static const int scantokey[128] =
-{
-    0  ,    27,     '1',    '2',    '3',    '4',    '5',    '6',
-    '7',    '8',    '9',    '0',    '-',    '=',    KEY_BACKSPACE, 9,
-    'q',    'w',    'e',    'r',    't',    'y',    'u',    'i',
-    'o',    'p',    '[',    ']',    13,		KEY_RCTRL, 'a',    's',
-    'd',    'f',    'g',    'h',    'j',    'k',    'l',    ';',
-    '\'',   '`',    KEY_RSHIFT,'\\',   'z',    'x',    'c',    'v',
-    'b',    'n',    'm',    ',',    '.',    '/',    KEY_RSHIFT,KEYP_MULTIPLY,
-    KEY_RALT,  ' ',  KEY_CAPSLOCK,KEY_F1,  KEY_F2,   KEY_F3,   KEY_F4,   KEY_F5,
-    KEY_F6,   KEY_F7,   KEY_F8,   KEY_F9,   KEY_F10,  /* KEY_NUMLOCK? */KEY_PAUSE,KEY_SCRLCK,KEY_HOME,
-    KEY_UPARROW,KEY_PGUP,KEY_MINUS,KEY_LEFTARROW,KEYP_5,KEY_RIGHTARROW,KEYP_PLUS,KEY_END,
-    KEY_DOWNARROW,KEY_PGDN,KEY_INS,KEY_DEL,0,   0,      0,      KEY_F11,
-    KEY_F12,  0,      0,      0,      0,      0,      0,      0,
-    0,      0,      0,      0,      0,      0,      0,      0,
-    0,      0,      0,      0,      0,      0,      0,      0,
-    0,      0,      0,      0,      0,      0,      0,      0,
-    0,      0,      0,      0,      0,      0,      KEY_PRTSCR, 0
-};
+static const int scantokey[128] = {0,
+                                   27,
+                                   '1',
+                                   '2',
+                                   '3',
+                                   '4',
+                                   '5',
+                                   '6',
+                                   '7',
+                                   '8',
+                                   '9',
+                                   '0',
+                                   '-',
+                                   '=',
+                                   KEY_BACKSPACE,
+                                   9,
+                                   'q',
+                                   'w',
+                                   'e',
+                                   'r',
+                                   't',
+                                   'y',
+                                   'u',
+                                   'i',
+                                   'o',
+                                   'p',
+                                   '[',
+                                   ']',
+                                   13,
+                                   KEY_RCTRL,
+                                   'a',
+                                   's',
+                                   'd',
+                                   'f',
+                                   'g',
+                                   'h',
+                                   'j',
+                                   'k',
+                                   'l',
+                                   ';',
+                                   '\'',
+                                   '`',
+                                   KEY_RSHIFT,
+                                   '\\',
+                                   'z',
+                                   'x',
+                                   'c',
+                                   'v',
+                                   'b',
+                                   'n',
+                                   'm',
+                                   ',',
+                                   '.',
+                                   '/',
+                                   KEY_RSHIFT,
+                                   KEYP_MULTIPLY,
+                                   KEY_RALT,
+                                   ' ',
+                                   KEY_CAPSLOCK,
+                                   KEY_F1,
+                                   KEY_F2,
+                                   KEY_F3,
+                                   KEY_F4,
+                                   KEY_F5,
+                                   KEY_F6,
+                                   KEY_F7,
+                                   KEY_F8,
+                                   KEY_F9,
+                                   KEY_F10,
+                                   /* KEY_NUMLOCK? */ KEY_PAUSE,
+                                   KEY_SCRLCK,
+                                   KEY_HOME,
+                                   KEY_UPARROW,
+                                   KEY_PGUP,
+                                   KEY_MINUS,
+                                   KEY_LEFTARROW,
+                                   KEYP_5,
+                                   KEY_RIGHTARROW,
+                                   KEYP_PLUS,
+                                   KEY_END,
+                                   KEY_DOWNARROW,
+                                   KEY_PGDN,
+                                   KEY_INS,
+                                   KEY_DEL,
+                                   0,
+                                   0,
+                                   0,
+                                   KEY_F11,
+                                   KEY_F12,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   KEY_PRTSCR,
+                                   0};
 
-
-static void SaveDefaultCollection(default_collection_t *collection)
-{
+static void SaveDefaultCollection(default_collection_t *collection) {
 #if defined(ORIGCODE) || defined(DOOM_PORT_CUPIDOS)
     default_t *defaults;
     int i, v;
     FILE *f;
-	char *temporary_filename;
-	boolean failed;
+    char *temporary_filename;
+    boolean failed;
 
-	temporary_filename = M_StringJoin(collection->filename,
-	                                  ".tmp.cfg", NULL);
-	
-    f = fopen (temporary_filename, "w");
-    if (!f)
-	{
-		fprintf(stderr, "Could not open temporary config %s\n",
-		        temporary_filename);
-		free(temporary_filename);
-		return;
-	}
+    temporary_filename = M_StringJoin(collection->filename, ".tmp.cfg", NULL);
+
+    f = fopen(temporary_filename, "w");
+    if (!f) {
+        fprintf(stderr, "Could not open temporary config %s\n", temporary_filename);
+        free(temporary_filename);
+        return;
+    }
 
     defaults = collection->defaults;
-	failed = false;
-		
-    for (i=0 ; i<collection->numdefaults ; i++)
-    {
+    failed = false;
+
+    for (i = 0; i < collection->numdefaults; i++) {
         int chars_written;
 
         // Ignore unbound variables
 
-        if (!defaults[i].bound)
-        {
+        if (!defaults[i].bound) {
             continue;
         }
 
         // Print the name and line up all values at 30 characters
 
         chars_written = fprintf(f, "%s ", defaults[i].name);
-		if (chars_written < 0)
-		{
-			failed = true;
-			break;
-		}
+        if (chars_written < 0) {
+            failed = true;
+            break;
+        }
 
-        for (; chars_written < 30; ++chars_written)
-		{
-            if (fprintf(f, " ") < 0)
-			{
-				failed = true;
-				break;
-			}
-		}
-		if (failed)
-		{
-			break;
-		}
+        for (; chars_written < 30; ++chars_written) {
+            if (fprintf(f, " ") < 0) {
+                failed = true;
+                break;
+            }
+        }
+        if (failed) {
+            break;
+        }
 
         // Print the value
 
         int value_status = -1;
 
-        switch (defaults[i].type)
-        {
+        switch (defaults[i].type) {
             case DEFAULT_KEY:
 
                 // use the untranslated version if we can, to reduce
                 // the possibility of screwing up the user's config
                 // file
-                
-                v = * (int *) defaults[i].location;
 
-                if (v == KEY_RSHIFT)
-                {
+                v = *(int *)defaults[i].location;
+
+                if (v == KEY_RSHIFT) {
                     // Special case: for shift, force scan code for
                     // right shift, as this is what Vanilla uses.
                     // This overrides the change check below, to fix
@@ -1704,164 +1784,132 @@ static void SaveDefaultCollection(default_collection_t *collection)
                     // mistakenly used the scan code for left shift.
 
                     v = 54;
-                }
-                else if (defaults[i].untranslated
-                      && v == defaults[i].original_translated)
-                {
+                } else if (defaults[i].untranslated && v == defaults[i].original_translated) {
                     // Has not been changed since the last time we
                     // read the config file.
 
                     v = defaults[i].untranslated;
-                }
-                else
-                {
+                } else {
                     // search for a reverse mapping back to a scancode
                     // in the scantokey table
 
                     int s;
 
-                    for (s=0; s<128; ++s)
-                    {
-                        if (scantokey[s] == v)
-                        {
+                    for (s = 0; s < 128; ++s) {
+                        if (scantokey[s] == v) {
                             v = s;
                             break;
                         }
                     }
                 }
 
-	        value_status = fprintf(f, "%i", v);
+                value_status = fprintf(f, "%i", v);
                 break;
 
             case DEFAULT_INT:
-	        value_status = fprintf(f, "%i",
-	                               * (int *) defaults[i].location);
+                value_status = fprintf(f, "%i", *(int *)defaults[i].location);
                 break;
 
             case DEFAULT_INT_HEX:
-	        value_status = fprintf(f, "0x%x",
-	                               * (int *) defaults[i].location);
+                value_status = fprintf(f, "0x%x", *(int *)defaults[i].location);
                 break;
 
             case DEFAULT_FLOAT:
-				value_status = fprintf(
-				    f, "%f", * (float *) defaults[i].location);
+                value_status = fprintf(f, "%f", *(float *)defaults[i].location);
                 break;
 
             case DEFAULT_STRING:
-	        value_status = fprintf(
-	            f, "\"%s\"", * (char **) (defaults[i].location));
+                value_status = fprintf(f, "\"%s\"", *(char **)(defaults[i].location));
                 break;
         }
 
-		if (value_status < 0 || fprintf(f, "\n") < 0)
-		{
-			failed = true;
-			break;
-		}
+        if (value_status < 0 || fprintf(f, "\n") < 0) {
+            failed = true;
+            break;
+        }
     }
 
-	if (ferror(f))
-	{
-		failed = true;
-	}
-	if (fclose(f) != 0)
-	{
-		failed = true;
-	}
+    if (ferror(f)) {
+        failed = true;
+    }
+    if (fclose(f) != 0) {
+        failed = true;
+    }
 
-	if (!failed && rename(temporary_filename, collection->filename) == 0)
-	{
-		free(temporary_filename);
-		return;
-	}
+    if (!failed && rename(temporary_filename, collection->filename) == 0) {
+        free(temporary_filename);
+        return;
+    }
 
-	fprintf(stderr, "Could not commit config %s\n", collection->filename);
-	remove(temporary_filename);
-	free(temporary_filename);
+    fprintf(stderr, "Could not commit config %s\n", collection->filename);
+    remove(temporary_filename);
+    free(temporary_filename);
 #endif
 }
 
 // Parses integer values in the configuration file
 
-static boolean ParseIntParameter(char *strparm, int *result)
-{
+static boolean ParseIntParameter(char *strparm, int *result) {
     char *end;
     char *digits;
     long value;
 
-    if (strparm == NULL || result == NULL)
-    {
+    if (strparm == NULL || result == NULL) {
         return false;
     }
 
     digits = strparm;
-    while (isspace((unsigned char) *digits))
-    {
+    while (isspace((unsigned char)*digits)) {
         ++digits;
     }
-    if (*digits == '+' || *digits == '-')
-    {
+    if (*digits == '+' || *digits == '-') {
         ++digits;
     }
-    if (digits[0] == '0' && (digits[1] == 'x' || digits[1] == 'X'))
-    {
+    if (digits[0] == '0' && (digits[1] == 'x' || digits[1] == 'X')) {
         digits += 2;
-        if (!isxdigit((unsigned char) *digits))
-        {
+        if (!isxdigit((unsigned char)*digits)) {
             return false;
         }
-    }
-    else if (!isdigit((unsigned char) *digits))
-    {
+    } else if (!isdigit((unsigned char)*digits)) {
         return false;
     }
 
     errno = 0;
     value = strtol(strparm, &end, 0);
-    while (isspace((unsigned char) *end))
-    {
+    while (isspace((unsigned char)*end)) {
         ++end;
     }
-    if (*end != '\0' || errno == ERANGE ||
-        value < INT_MIN || value > INT_MAX)
-    {
+    if (*end != '\0' || errno == ERANGE || value < INT_MIN || value > INT_MAX) {
         return false;
     }
 
-    *result = (int) value;
+    *result = (int)value;
     return true;
 }
 
-static void SetVariable(default_t *def, char *value)
-{
+static void SetVariable(default_t *def, char *value) {
     int intparm;
 
     // parameter found
 
-    switch (def->type)
-    {
-        case DEFAULT_STRING:
-		{
-			char *replacement = strdup(value);
-			if (replacement != NULL)
-			{
-				if (def->owned_string != NULL)
-				{
-					free(def->owned_string);
-				}
-                * (char **) def->location = replacement;
-				def->owned_string = replacement;
-			}
+    switch (def->type) {
+        case DEFAULT_STRING: {
+            char *replacement = strdup(value);
+            if (replacement != NULL) {
+                if (def->owned_string != NULL) {
+                    free(def->owned_string);
+                }
+                *(char **)def->location = replacement;
+                def->owned_string = replacement;
+            }
             break;
-		}
+        }
 
         case DEFAULT_INT:
         case DEFAULT_INT_HEX:
-			if (ParseIntParameter(value, &intparm))
-			{
-                * (int *) def->location = intparm;
-			}
+            if (ParseIntParameter(value, &intparm)) {
+                *(int *)def->location = intparm;
+            }
             break;
 
         case DEFAULT_KEY:
@@ -1869,79 +1917,62 @@ static void SetVariable(default_t *def, char *value)
             // translate scancodes read from config
             // file (save the old value in untranslated)
 
-			if (!ParseIntParameter(value, &intparm))
-			{
-				break;
-			}
-            def->untranslated = intparm;
-            if (intparm >= 0 && intparm < 128)
-            {
-                intparm = scantokey[intparm];
+            if (!ParseIntParameter(value, &intparm)) {
+                break;
             }
-            else
-            {
+            def->untranslated = intparm;
+            if (intparm >= 0 && intparm < 128) {
+                intparm = scantokey[intparm];
+            } else {
                 intparm = 0;
             }
 
             def->original_translated = intparm;
-            * (int *) def->location = intparm;
+            *(int *)def->location = intparm;
             break;
 
         case DEFAULT_FLOAT:
-            * (float *) def->location = (float) atof(value);
+            *(float *)def->location = (float)atof(value);
             break;
     }
 }
 
-static boolean ParseConfigLine(char *line, char *name, size_t name_size,
-                               char *value, size_t value_size)
-{
+static boolean ParseConfigLine(char *line, char *name, size_t name_size, char *value,
+                               size_t value_size) {
     char *cursor;
     size_t length;
 
-    if (line == NULL || name == NULL || value == NULL ||
-        name_size < 2 || value_size < 2)
-    {
+    if (line == NULL || name == NULL || value == NULL || name_size < 2 || value_size < 2) {
         return false;
     }
 
     cursor = line;
-    while (*cursor != '\0' && *cursor != '\n'
-        && isspace((unsigned char) *cursor))
-    {
+    while (*cursor != '\0' && *cursor != '\n' && isspace((unsigned char)*cursor)) {
         ++cursor;
     }
 
     length = 0;
-    while (*cursor != '\0' && !isspace((unsigned char) *cursor))
-    {
-        if (length + 1 >= name_size)
-        {
+    while (*cursor != '\0' && !isspace((unsigned char)*cursor)) {
+        if (length + 1 >= name_size) {
             return false;
         }
         name[length++] = *cursor++;
     }
-    if (length == 0)
-    {
+    if (length == 0) {
         return false;
     }
     name[length] = '\0';
 
-    while (*cursor != '\0' && *cursor != '\n'
-        && isspace((unsigned char) *cursor))
-    {
+    while (*cursor != '\0' && *cursor != '\n' && isspace((unsigned char)*cursor)) {
         ++cursor;
     }
-    if (*cursor == '\0' || *cursor == '\n')
-    {
+    if (*cursor == '\0' || *cursor == '\n') {
         return false;
     }
 
     length = 0;
-    while (*cursor != '\0' && *cursor != '\n')
-    {
-        if (length + 1 >= value_size)
-        {
+    while (*cursor != '\0' && *cursor != '\n') {
+        if (length + 1 >= value_size) {
             return false;
         }
         value[length++] = *cursor++;
@@ -1950,8 +1981,7 @@ static boolean ParseConfigLine(char *line, char *name, size_t name_size,
     return length > 0;
 }
 
-static void LoadDefaultCollection(default_collection_t *collection)
-{
+static void LoadDefaultCollection(default_collection_t *collection) {
 #if defined(ORIGCODE) || defined(DOOM_PORT_CUPIDOS)
     FILE *f;
     default_t *def;
@@ -1962,30 +1992,24 @@ static void LoadDefaultCollection(default_collection_t *collection)
     // read the file in, overriding any set defaults
     f = fopen(collection->filename, "r");
 
-    if (f == NULL)
-    {
+    if (f == NULL) {
         // File not opened, but don't complain.
         // It's probably just the first time they ran the game.
 
         return;
     }
 
-    while (fgets(line, sizeof(line), f) != NULL)
-    {
-        if (strchr(line, '\n') == NULL && !feof(f))
-        {
+    while (fgets(line, sizeof(line), f) != NULL) {
+        if (strchr(line, '\n') == NULL && !feof(f)) {
             int c;
-            do
-            {
+            do {
                 c = fgetc(f);
             } while (c >= 0 && c != '\n');
 
             continue;
         }
 
-        if (!ParseConfigLine(line, defname, sizeof(defname),
-                             strparm, sizeof(strparm)))
-        {
+        if (!ParseConfigLine(line, defname, sizeof(defname), strparm, sizeof(strparm))) {
             continue;
         }
 
@@ -1993,8 +2017,7 @@ static void LoadDefaultCollection(default_collection_t *collection)
 
         def = SearchCollection(collection, defname);
 
-        if (def == NULL || !def->bound)
-        {
+        if (def == NULL || !def->bound) {
             // Unknown variable?  Unbound variables are also treated
             // as unknown.
 
@@ -2004,15 +2027,12 @@ static void LoadDefaultCollection(default_collection_t *collection)
         // Strip off trailing non-printable characters (\r characters
         // from DOS text files)
 
-        while (strlen(strparm) > 0 && !isprint(strparm[strlen(strparm)-1]))
-        {
-            strparm[strlen(strparm)-1] = '\0';
+        while (strlen(strparm) > 0 && !isprint(strparm[strlen(strparm) - 1])) {
+            strparm[strlen(strparm) - 1] = '\0';
         }
 
         // Surrounded by quotes? If so, remove them.
-        if (strlen(strparm) >= 2
-         && strparm[0] == '"' && strparm[strlen(strparm) - 1] == '"')
-        {
+        if (strlen(strparm) >= 2 && strparm[0] == '"' && strparm[strlen(strparm) - 1] == '"') {
             strparm[strlen(strparm) - 1] = '\0';
             memmove(strparm, strparm + 1, sizeof(strparm) - 1);
         }
@@ -2020,25 +2040,19 @@ static void LoadDefaultCollection(default_collection_t *collection)
         SetVariable(def, strparm);
     }
 
-    if (ferror(f))
-    {
-        fprintf(stderr, "Could not finish reading config %s\n",
-                collection->filename);
+    if (ferror(f)) {
+        fprintf(stderr, "Could not finish reading config %s\n", collection->filename);
     }
-    if (fclose(f) != 0)
-    {
-        fprintf(stderr, "Could not close config %s\n",
-                collection->filename);
+    if (fclose(f) != 0) {
+        fprintf(stderr, "Could not close config %s\n", collection->filename);
     }
 #endif
 }
 
 #if defined(DOOM_PORT_CUPIDOS)
-int M_ConfigFilesystemTest(void)
-{
+int M_ConfigFilesystemTest(void) {
     const char *filename = ".dglibc-config-roundtrip.cfg";
-    const char *temporary_filename =
-        ".dglibc-config-roundtrip.cfg.tmp.cfg";
+    const char *temporary_filename = ".dglibc-config-roundtrip.cfg.tmp.cfg";
     default_t defaults[6];
     default_collection_t collection;
     int integer_value = 123;
@@ -2103,15 +2117,12 @@ int M_ConfigFilesystemTest(void)
     string_value = (char *)"changed";
     key_value = 0;
     LoadDefaultCollection(&collection);
-    if (integer_value != 123 || hex_value != 0x2a ||
-        float_value != 3.25f || strcmp(string_value, "Cupid config value") ||
-        key_value != KEY_RSHIFT)
-    {
+    if (integer_value != 123 || hex_value != 0x2a || float_value != 3.25f ||
+        strcmp(string_value, "Cupid config value") || key_value != KEY_RSHIFT) {
         goto done;
     }
 
-    for (i = 0; i + 1 < (int)sizeof(boundary_value); ++i)
-    {
+    for (i = 0; i + 1 < (int)sizeof(boundary_value); ++i) {
         boundary_value[i] = 'b';
     }
     boundary_value[sizeof(boundary_value) - 1] = '\0';
@@ -2119,13 +2130,11 @@ int M_ConfigFilesystemTest(void)
     SaveDefaultCollection(&collection);
     string_value = (char *)"changed at the boundary";
     LoadDefaultCollection(&collection);
-    if (strcmp(string_value, boundary_value))
-    {
+    if (strcmp(string_value, boundary_value)) {
         goto done;
     }
 
-    for (i = 0; i + 1 < (int)sizeof(oversized_value); ++i)
-    {
+    for (i = 0; i + 1 < (int)sizeof(oversized_value); ++i) {
         oversized_value[i] = 'x';
     }
     oversized_value[sizeof(oversized_value) - 1] = '\0';
@@ -2135,74 +2144,57 @@ int M_ConfigFilesystemTest(void)
     integer_value = 0;
     string_value = (char *)"changed again";
     LoadDefaultCollection(&collection);
-    if (integer_value != 123 || strcmp(string_value, boundary_value))
-    {
+    if (integer_value != 123 || strcmp(string_value, boundary_value)) {
         goto done;
     }
 
     f = fopen(filename, "w");
-    if (f == NULL || fputs("test_int 7\n", f) < 0 || fclose(f) != 0)
-    {
+    if (f == NULL || fputs("test_int 7\n", f) < 0 || fclose(f) != 0) {
         goto done;
     }
     ResetCollectionDefaults(&collection);
     LoadDefaultCollection(&collection);
-    if (integer_value != 7 || hex_value != 0x2a)
-    {
+    if (integer_value != 7 || hex_value != 0x2a) {
         goto done;
     }
 
-    for (i = 0; i + 2 < (int)sizeof(oversized_line); ++i)
-    {
+    for (i = 0; i + 2 < (int)sizeof(oversized_line); ++i) {
         oversized_line[i] = 'z';
     }
     oversized_line[sizeof(oversized_line) - 2] = '\n';
     oversized_line[sizeof(oversized_line) - 1] = '\0';
     f = fopen(filename, "w");
-    if (f == NULL ||
-        fputs("test_int 2147483648\n", f) < 0 ||
-        fputs("test_hex 0x2b\r\n", f) < 0 ||
-        fputs("test_unbound 12\n", f) < 0 ||
-        fputs("unknown_setting 1\n", f) < 0 ||
-        fputs(oversized_line, f) < 0 ||
-        fputs("test_float 1.500000\n", f) < 0 ||
-        fputs("test_string \"Cupid CRLF\"\r\n", f) < 0 ||
-        fputs("test_key 54\n", f) < 0 || fclose(f) != 0)
-    {
+    if (f == NULL || fputs("test_int 2147483648\n", f) < 0 || fputs("test_hex 0x2b\r\n", f) < 0 ||
+        fputs("test_unbound 12\n", f) < 0 || fputs("unknown_setting 1\n", f) < 0 ||
+        fputs(oversized_line, f) < 0 || fputs("test_float 1.500000\n", f) < 0 ||
+        fputs("test_string \"Cupid CRLF\"\r\n", f) < 0 || fputs("test_key 54\n", f) < 0 ||
+        fclose(f) != 0) {
         goto done;
     }
     ResetCollectionDefaults(&collection);
     LoadDefaultCollection(&collection);
-    if (integer_value != 123 || hex_value != 0x2b ||
-        float_value != 1.5f || strcmp(string_value, "Cupid CRLF") ||
-        key_value != KEY_RSHIFT || unbound_value != 77)
-    {
+    if (integer_value != 123 || hex_value != 0x2b || float_value != 1.5f ||
+        strcmp(string_value, "Cupid CRLF") || key_value != KEY_RSHIFT || unbound_value != 77) {
         goto done;
     }
 
     f = fopen(filename, "w");
-    if (f == NULL || fputs("test_int -2147483648\n", f) < 0 ||
-        fclose(f) != 0)
-    {
+    if (f == NULL || fputs("test_int -2147483648\n", f) < 0 || fclose(f) != 0) {
         goto done;
     }
     ResetCollectionDefaults(&collection);
     LoadDefaultCollection(&collection);
-    if (integer_value != (-2147483647 - 1))
-    {
+    if (integer_value != (-2147483647 - 1)) {
         goto done;
     }
 
     f = fopen(filename, "w");
-    if (f == NULL || fputs("test_int 2147483647\n", f) < 0 ||
-        fclose(f) != 0)
-    {
+    if (f == NULL || fputs("test_int 2147483647\n", f) < 0 || fclose(f) != 0) {
         goto done;
     }
     ResetCollectionDefaults(&collection);
     LoadDefaultCollection(&collection);
-    if (integer_value != 2147483647)
-    {
+    if (integer_value != 2147483647) {
         goto done;
     }
 
@@ -2210,8 +2202,7 @@ int M_ConfigFilesystemTest(void)
     ResetCollectionDefaults(&collection);
     integer_value = 88;
     LoadDefaultCollection(&collection);
-    if (integer_value != 88)
-    {
+    if (integer_value != 88) {
         goto done;
     }
     result = 0;
@@ -2226,8 +2217,7 @@ done:
 
 // Set the default filenames to use for configuration files.
 
-void M_SetConfigFilenames(char *main_config, char *extra_config)
-{
+void M_SetConfigFilenames(char *main_config, char *extra_config) {
     default_main_config = main_config;
     default_extra_config = extra_config;
 }
@@ -2236,8 +2226,7 @@ void M_SetConfigFilenames(char *main_config, char *extra_config)
 // M_SaveDefaults
 //
 
-void M_SaveDefaults (void)
-{
+void M_SaveDefaults(void) {
     SaveDefaultCollection(&doom_defaults);
     SaveDefaultCollection(&extra_defaults);
 }
@@ -2246,8 +2235,7 @@ void M_SaveDefaults (void)
 // Save defaults to alternate filenames
 //
 
-void M_SaveDefaultsAlternate(char *main, char *extra)
-{
+void M_SaveDefaultsAlternate(char *main, char *extra) {
     char *orig_main;
     char *orig_extra;
 
@@ -2267,44 +2255,36 @@ void M_SaveDefaultsAlternate(char *main, char *extra)
     extra_defaults.filename = orig_extra;
 }
 
-static void SetCollectionFilename(default_collection_t *collection,
-                                  char *filename, boolean owned)
-{
-    if (collection->owned_filename != NULL)
-    {
+static void SetCollectionFilename(default_collection_t *collection, char *filename, boolean owned) {
+    if (collection->owned_filename != NULL) {
         free(collection->owned_filename);
     }
     collection->filename = filename;
     collection->owned_filename = owned ? filename : NULL;
 }
 
-static void ResetCollectionDefaults(default_collection_t *collection)
-{
+static void ResetCollectionDefaults(default_collection_t *collection) {
     int i;
 
-    for (i = 0; i < collection->numdefaults; ++i)
-    {
+    for (i = 0; i < collection->numdefaults; ++i) {
         default_t *def = &collection->defaults[i];
-        if (!def->bound || !def->initial_captured)
-        {
+        if (!def->bound || !def->initial_captured) {
             continue;
         }
 
-        if (def->owned_string != NULL)
-        {
+        if (def->owned_string != NULL) {
             free(def->owned_string);
             def->owned_string = NULL;
         }
-        switch (def->type)
-        {
+        switch (def->type) {
             case DEFAULT_STRING:
-                * (char **) def->location = def->initial_string;
+                *(char **)def->location = def->initial_string;
                 break;
             case DEFAULT_FLOAT:
-                * (float *) def->location = def->initial_float;
+                *(float *)def->location = def->initial_float;
                 break;
             default:
-                * (int *) def->location = def->initial_int;
+                *(int *)def->location = def->initial_int;
                 break;
         }
         def->untranslated = 0;
@@ -2316,13 +2296,12 @@ static void ResetCollectionDefaults(default_collection_t *collection)
 // M_LoadDefaults
 //
 
-void M_LoadDefaults (void)
-{
+void M_LoadDefaults(void) {
     int i;
 
     ResetCollectionDefaults(&doom_defaults);
     ResetCollectionDefaults(&extra_defaults);
- 
+
     // check for a custom default file
 
     //!
@@ -2335,16 +2314,12 @@ void M_LoadDefaults (void)
 
     i = M_CheckParmWithArgs("-config", 1);
 
-    if (i)
-    {
-	SetCollectionFilename(&doom_defaults, myargv[i+1], false);
-	printf ("	default file: %s\n",doom_defaults.filename);
-    }
-    else
-    {
-        SetCollectionFilename(
-            &doom_defaults,
-            M_StringJoin(configdir, default_main_config, NULL), true);
+    if (i) {
+        SetCollectionFilename(&doom_defaults, myargv[i + 1], false);
+        printf("	default file: %s\n", doom_defaults.filename);
+    } else {
+        SetCollectionFilename(&doom_defaults, M_StringJoin(configdir, default_main_config, NULL),
+                              true);
     }
 
     printf("saving config in %s\n", doom_defaults.filename);
@@ -2358,17 +2333,12 @@ void M_LoadDefaults (void)
 
     i = M_CheckParmWithArgs("-extraconfig", 1);
 
-    if (i)
-    {
-        SetCollectionFilename(&extra_defaults, myargv[i+1], false);
-        printf("        extra configuration file: %s\n", 
-               extra_defaults.filename);
-    }
-    else
-    {
-        SetCollectionFilename(
-            &extra_defaults,
-            M_StringJoin(configdir, default_extra_config, NULL), true);
+    if (i) {
+        SetCollectionFilename(&extra_defaults, myargv[i + 1], false);
+        printf("        extra configuration file: %s\n", extra_defaults.filename);
+    } else {
+        SetCollectionFilename(&extra_defaults, M_StringJoin(configdir, default_extra_config, NULL),
+                              true);
     }
 
     LoadDefaultCollection(&doom_defaults);
@@ -2377,23 +2347,20 @@ void M_LoadDefaults (void)
 
 // Get a configuration file variable by its name
 
-static default_t *GetDefaultForName(char *name)
-{
+static default_t *GetDefaultForName(char *name) {
     default_t *result;
 
     // Try the main list and the extras
 
     result = SearchCollection(&doom_defaults, name);
 
-    if (result == NULL)
-    {
+    if (result == NULL) {
         result = SearchCollection(&extra_defaults, name);
     }
 
     // Not found? Internal error.
 
-    if (result == NULL)
-    {
+    if (result == NULL) {
         I_Error("Unknown configuration variable: '%s'", name);
     }
 
@@ -2404,26 +2371,23 @@ static default_t *GetDefaultForName(char *name)
 // Bind a variable to a given configuration file variable, by name.
 //
 
-void M_BindVariable(char *name, void *location)
-{
+void M_BindVariable(char *name, void *location) {
     default_t *variable;
 
     variable = GetDefaultForName(name);
 
     variable->location = location;
     variable->bound = true;
-    if (!variable->initial_captured)
-    {
-        switch (variable->type)
-        {
+    if (!variable->initial_captured) {
+        switch (variable->type) {
             case DEFAULT_STRING:
-                variable->initial_string = * (char **) location;
+                variable->initial_string = *(char **)location;
                 break;
             case DEFAULT_FLOAT:
-                variable->initial_float = * (float *) location;
+                variable->initial_float = *(float *)location;
                 break;
             default:
-                variable->initial_int = * (int *) location;
+                variable->initial_int = *(int *)location;
                 break;
         }
         variable->initial_captured = true;
@@ -2433,14 +2397,12 @@ void M_BindVariable(char *name, void *location)
 // Set the value of a particular variable; an API function for other
 // parts of the program to assign values to config variables by name.
 
-boolean M_SetVariable(char *name, char *value)
-{
+boolean M_SetVariable(char *name, char *value) {
     default_t *variable;
 
     variable = GetDefaultForName(name);
 
-    if (variable == NULL || !variable->bound)
-    {
+    if (variable == NULL || !variable->bound) {
         return false;
     }
 
@@ -2451,59 +2413,49 @@ boolean M_SetVariable(char *name, char *value)
 
 // Get the value of a variable.
 
-int M_GetIntVariable(char *name)
-{
+int M_GetIntVariable(char *name) {
     default_t *variable;
 
     variable = GetDefaultForName(name);
 
-    if (variable == NULL || !variable->bound
-     || (variable->type != DEFAULT_INT && variable->type != DEFAULT_INT_HEX))
-    {
+    if (variable == NULL || !variable->bound ||
+        (variable->type != DEFAULT_INT && variable->type != DEFAULT_INT_HEX)) {
         return 0;
     }
 
-    return *((int *) variable->location);
+    return *((int *)variable->location);
 }
 
-const char *M_GetStrVariable(char *name)
-{
+const char *M_GetStrVariable(char *name) {
     default_t *variable;
 
     variable = GetDefaultForName(name);
 
-    if (variable == NULL || !variable->bound
-     || variable->type != DEFAULT_STRING)
-    {
+    if (variable == NULL || !variable->bound || variable->type != DEFAULT_STRING) {
         return NULL;
     }
 
-    return *((const char **) variable->location);
+    return *((const char **)variable->location);
 }
 
-float M_GetFloatVariable(char *name)
-{
+float M_GetFloatVariable(char *name) {
     default_t *variable;
 
     variable = GetDefaultForName(name);
 
-    if (variable == NULL || !variable->bound
-     || variable->type != DEFAULT_FLOAT)
-    {
+    if (variable == NULL || !variable->bound || variable->type != DEFAULT_FLOAT) {
         return 0;
     }
 
-    return *((float *) variable->location);
+    return *((float *)variable->location);
 }
 
 // Get the path to the default configuration dir to use, if NULL
 // is passed to M_SetConfigDir.
 
-static char *GetDefaultConfigDir(void)
-{
+static char *GetDefaultConfigDir(void) {
     char *result = (char *)malloc(2);
-    if (result == NULL)
-    {
+    if (result == NULL) {
         I_Error("Could not allocate the config directory path");
     }
     result[0] = '.';
@@ -2519,30 +2471,24 @@ static char *GetDefaultConfigDir(void)
 // files are stored - default.cfg, chocolate-doom.cfg, savegames, etc.
 //
 
-void M_SetConfigDir(char *dir)
-{
+void M_SetConfigDir(char *dir) {
     char *next_configdir;
 
     // Use the directory that was passed, or find the default.
 
-    if (dir != NULL)
-    {
+    if (dir != NULL) {
         next_configdir = dir;
-    }
-    else
-    {
+    } else {
         next_configdir = GetDefaultConfigDir();
     }
 
-    if (owned_configdir != NULL)
-    {
+    if (owned_configdir != NULL) {
         free(owned_configdir);
     }
     owned_configdir = dir == NULL ? next_configdir : NULL;
     configdir = next_configdir;
 
-    if (strcmp(configdir, "") != 0)
-    {
+    if (strcmp(configdir, "") != 0) {
         printf("Using %s for configuration and saves\n", configdir);
     }
 
@@ -2556,8 +2502,7 @@ void M_SetConfigDir(char *dir)
 // Creates the directory as necessary.
 //
 
-char *M_GetSaveGameDir(char *iwadname)
-{
+char *M_GetSaveGameDir(char *iwadname) {
     char *savegamedir;
 #if ORIGCODE
     char *topdir;
@@ -2566,12 +2511,9 @@ char *M_GetSaveGameDir(char *iwadname)
     // If not "doing" a configuration directory (Windows), don't "do"
     // a savegame directory, either.
 
-    if (!strcmp(configdir, ""))
-    {
-    	savegamedir = strdup("");
-    }
-    else
-    {
+    if (!strcmp(configdir, "")) {
+        savegamedir = strdup("");
+    } else {
 #if ORIGCODE
         // ~/.chocolate-doom/savegames
 
@@ -2580,8 +2522,7 @@ char *M_GetSaveGameDir(char *iwadname)
 
         // eg. ~/.chocolate-doom/savegames/doom2.wad/
 
-        savegamedir = M_StringJoin(topdir, DIR_SEPARATOR_S, iwadname,
-                                   DIR_SEPARATOR_S, NULL);
+        savegamedir = M_StringJoin(topdir, DIR_SEPARATOR_S, iwadname, DIR_SEPARATOR_S, NULL);
 
         M_MakeDirectory(savegamedir);
 
@@ -2591,7 +2532,7 @@ char *M_GetSaveGameDir(char *iwadname)
 
         M_MakeDirectory(savegamedir);
 
-        printf ("Using %s for savegames\n", savegamedir);
+        printf("Using %s for savegames\n", savegamedir);
 #endif
     }
 

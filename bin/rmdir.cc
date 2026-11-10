@@ -1,8 +1,8 @@
-//help: Remove empty directories
-//help: Usage: rmdir <dir1> [dir2] ...
-//help: Removes one or more empty directories. The directories
-//help: must be empty (contain no files or subdirectories) to be
-//help: removed. Use 'rm' to delete files.
+// help: Remove empty directories
+// help: Usage: rmdir <dir1> [dir2] ...
+// help: Removes one or more empty directories. The directories
+// help: must be empty (contain no files or subdirectories) to be
+// help: removed. Use 'rm' to delete files.
 
 // Parse a single token from a string
 // Returns the length of the token (0 if no token found)
@@ -33,7 +33,7 @@ int parse_token(char *str, int start, char *out, int maxlen) {
 }
 
 void main() {
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
 
     // Check if arguments provided
     if (strlen(args) == 0) {
@@ -52,7 +52,8 @@ void main() {
     while (1) {
         // Parse next directory name
         int len = parse_token(args, pos, dirname, 256);
-        if (len == 0) break;  // No more tokens
+        if (len == 0)
+            break; // No more tokens
         pos = pos + len;
 
         // Resolve path

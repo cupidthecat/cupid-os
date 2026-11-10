@@ -1,6 +1,6 @@
-//help: CupidC medium feature test #4
-//help: Usage: cupidc_test4
-//help: Verifies sizeof(*ptr), const-in-params parsing, and char** support.
+// help: CupidC medium feature test #4
+// help: Usage: cupidc_test4
+// help: Verifies sizeof(*ptr), const-in-params parsing, and char** support.
 
 struct t4_pair {
     char c;
@@ -51,8 +51,8 @@ void main() {
         ok = 0;
     }
 
-    serial_printf("[cupidc_test4] s_int=%u s_struct=%u c1=%u c2=%u ok=%u\n",
-                  sizeof(*xp), sizeof(*pp), c1, c2, ok);
+    serial_printf("[cupidc_test4] s_int=%u s_struct=%u c1=%u c2=%u ok=%u\n", sizeof(*xp),
+                  sizeof(*pp), c1, c2, ok);
 
     if (ok) {
         println("cupidc_test4: PASS");

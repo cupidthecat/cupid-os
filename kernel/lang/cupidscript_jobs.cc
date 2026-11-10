@@ -3,14 +3,14 @@
  *
  * Manages background jobs started with & operator.
  * Tracks job status and prints completion notifications.
-*/
+ */
 
 #include "cupidscript_jobs.h"
-#include "process.h"
-#include "string.h"
-#include "memory.h"
 #include "math.h"
+#include "memory.h"
+#include "process.h"
 #include "serial.h"
+#include "string.h"
 
 /* Initialize job table */
 void job_table_init(job_table_t *table) {
@@ -44,15 +44,13 @@ int job_add(job_table_t *table, uint32_t pid, const char *command) {
     table->last_bg_pid = pid;
     table->job_count++;
 
-    KDEBUG("CupidScript: added job [%d] PID %u: %s",
-           job->job_id, pid, command);
+    KDEBUG("CupidScript: added job [%d] PID %u: %s", job->job_id, pid, command);
 
     return job->job_id;
 }
 
 /* Check for completed jobs */
-void job_check_completed(job_table_t *table,
-                         void (*print_fn)(const char *)) {
+void job_check_completed(job_table_t *table, void (*print_fn)(const char *)) {
     for (int i = 0; i < table->job_count; i++) {
         job_t *job = &table->jobs[i];
         if (job->state == JOB_RUNNING) {
@@ -71,14 +69,16 @@ void job_check_completed(job_table_t *table,
                     char tmp[8];
                     int ti = 0;
                     int jid = job->job_id;
-                    if (jid == 0) { tmp[ti++] = '0'; }
-                    else {
+                    if (jid == 0) {
+                        tmp[ti++] = '0';
+                    } else {
                         while (jid > 0 && ti < 7) {
                             tmp[ti++] = (char)('0' + (jid % 10));
                             jid /= 10;
                         }
                     }
-                    while (ti > 0) buf[p++] = tmp[--ti];
+                    while (ti > 0)
+                        buf[p++] = tmp[--ti];
                     buf[p++] = ']';
                     buf[p++] = '+';
                     buf[p++] = ' ';
@@ -87,7 +87,8 @@ void job_check_completed(job_table_t *table,
                     /* "Done" */
                     const char *done = "Done                    ";
                     int di = 0;
-                    while (done[di]) buf[p++] = done[di++];
+                    while (done[di])
+                        buf[p++] = done[di++];
 
                     /* command */
                     int ci = 0;
@@ -105,13 +106,14 @@ void job_check_completed(job_table_t *table,
 }
 
 /* List all active jobs */
-void job_list(job_table_t *table, bool show_pids,
-              void (*print_fn)(const char *)) {
-    if (!print_fn) return;
+void job_list(job_table_t *table, bool show_pids, void (*print_fn)(const char *)) {
+    if (!print_fn)
+        return;
 
     for (int i = 0; i < table->job_count; i++) {
         job_t *job = &table->jobs[i];
-        if (job->state == JOB_DONE) continue;
+        if (job->state == JOB_DONE)
+            continue;
 
         char buf[320];
         int p = 0;
@@ -121,14 +123,16 @@ void job_list(job_table_t *table, bool show_pids,
         char tmp[8];
         int ti = 0;
         int jid = job->job_id;
-        if (jid == 0) { tmp[ti++] = '0'; }
-        else {
+        if (jid == 0) {
+            tmp[ti++] = '0';
+        } else {
             while (jid > 0 && ti < 7) {
                 tmp[ti++] = (char)('0' + (jid % 10));
                 jid /= 10;
             }
         }
-        while (ti > 0) buf[p++] = tmp[--ti];
+        while (ti > 0)
+            buf[p++] = tmp[--ti];
         buf[p++] = ']';
 
         /* Optional PID */
@@ -137,27 +141,31 @@ void job_list(job_table_t *table, bool show_pids,
             buf[p++] = ' ';
             ti = 0;
             uint32_t pid = job->pid;
-            if (pid == 0) { tmp[ti++] = '0'; }
-            else {
+            if (pid == 0) {
+                tmp[ti++] = '0';
+            } else {
                 while (pid > 0 && ti < 7) {
                     tmp[ti++] = (char)('0' + (pid % 10));
                     pid /= 10;
                 }
             }
-            while (ti > 0) buf[p++] = tmp[--ti];
+            while (ti > 0)
+                buf[p++] = tmp[--ti];
         }
 
         /* State */
         buf[p++] = ' ';
         buf[p++] = ' ';
-        const char *state_str = (job->state == JOB_RUNNING) ? "Running"
-                              : (job->state == JOB_STOPPED) ? "Stopped"
-                              : "Done";
+        const char *state_str = (job->state == JOB_RUNNING)   ? "Running"
+                                : (job->state == JOB_STOPPED) ? "Stopped"
+                                                              : "Done";
         int si = 0;
-        while (state_str[si]) buf[p++] = state_str[si++];
+        while (state_str[si])
+            buf[p++] = state_str[si++];
 
         /* Padding + command */
-        for (int pad = 0; pad < 17 - si; pad++) buf[p++] = ' ';
+        for (int pad = 0; pad < 17 - si; pad++)
+            buf[p++] = ' ';
         int ci = 0;
         while (job->command[ci] && p < 318) {
             buf[p++] = job->command[ci++];
@@ -191,7 +199,8 @@ job_t *job_find_by_pid(job_table_t *table, uint32_t pid) {
 
 /* Parse job spec: %1 -> 1, %2 -> 2, etc. */
 int job_parse_spec(const char *spec) {
-    if (!spec || spec[0] != '%') return -1;
+    if (!spec || spec[0] != '%')
+        return -1;
 
     int val = 0;
     int i = 1;

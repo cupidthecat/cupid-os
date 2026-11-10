@@ -6,10 +6,10 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 
 - Root Make target: `all`
 - Supplemental builds: `user:all`, `toolchain:all`
-- Active source inputs: 800
+- Active source inputs: 801
 - Unreachable source-like files: 84
 - Reachable output transforms: 452
-- Distinct feature requirements: 256
+- Distinct feature requirements: 257
 - Make conditionals use the canonical `OS=Windows_NT` graph and the C locale fixes wildcard order on every host. Direct Linux build tests cover the Linux execution branch.
 - The `TempleOS/` reference tree is excluded.
 - Source and control-file SHA-256 values use canonical LF text bytes.
@@ -21,7 +21,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Language | Files |
 | --- | ---: |
 | `assembly` | 38 |
-| `c_header` | 326 |
+| `c_header` | 327 |
 | `cupid_c` | 436 |
 
 ## Source cohorts
@@ -30,39 +30,39 @@ Generated C translation units are recorded as reachable build inputs but have no
 | --- | ---: | ---: |
 | `boot_assembly` | 1 | 298 |
 | `cupid_asm_demo` | 22 | 1470 |
-| `cupid_c_browser_fragment` | 22 | 15958 |
-| `cupid_c_program` | 108 | 20767 |
+| `cupid_c_browser_fragment` | 22 | 19539 |
+| `cupid_c_program` | 108 | 23029 |
 | `cupid_c_runtime_header` | 2 | 286 |
-| `cupidasm` | 7 | 10891 |
-| `cupidc` | 8 | 20464 |
-| `cupiddis` | 5 | 6457 |
-| `doom_port` | 7 | 4025 |
-| `driver` | 22 | 3897 |
+| `cupidasm` | 7 | 10317 |
+| `cupidc` | 8 | 20012 |
+| `cupiddis` | 5 | 5949 |
+| `doom_port` | 7 | 4354 |
+| `driver` | 22 | 4118 |
 | `generated_install_table` | 3 | 0 |
 | `generated_symbol_table` | 1 | 0 |
 | `kernel_assembly` | 3 | 536 |
-| `kernel_audio` | 14 | 4541 |
-| `kernel_core` | 17 | 4210 |
-| `kernel_cpu` | 19 | 3347 |
-| `kernel_crypto` | 40 | 5149 |
-| `kernel_fs` | 27 | 7361 |
-| `kernel_gfx` | 29 | 13670 |
-| `kernel_gui` | 28 | 12486 |
-| `kernel_lang` | 20 | 10546 |
-| `kernel_mm` | 7 | 1302 |
-| `kernel_network` | 20 | 3629 |
-| `kernel_smp` | 14 | 1162 |
-| `kernel_tls` | 13 | 6661 |
-| `kernel_usb` | 8 | 3527 |
-| `kernel_util` | 2 | 660 |
+| `kernel_audio` | 14 | 4115 |
+| `kernel_core` | 17 | 4233 |
+| `kernel_cpu` | 19 | 3230 |
+| `kernel_crypto` | 40 | 5431 |
+| `kernel_fs` | 27 | 7783 |
+| `kernel_gfx` | 29 | 14208 |
+| `kernel_gui` | 28 | 12525 |
+| `kernel_lang` | 20 | 11039 |
+| `kernel_mm` | 7 | 1330 |
+| `kernel_network` | 20 | 4057 |
+| `kernel_smp` | 14 | 1223 |
+| `kernel_tls` | 13 | 5866 |
+| `kernel_usb` | 8 | 3151 |
+| `kernel_util` | 2 | 692 |
 | `project_source` | 1 | 5 |
-| `toolchain_contract` | 24 | 168794 |
-| `toolchain_core` | 101 | 128929 |
-| `toolchain_host_adapter` | 2 | 270 |
-| `toolchain_kernel_adapter` | 2 | 627 |
+| `toolchain_contract` | 25 | 148479 |
+| `toolchain_core` | 101 | 116497 |
+| `toolchain_host_adapter` | 2 | 255 |
+| `toolchain_kernel_adapter` | 2 | 579 |
 | `user_program` | 3 | 139 |
 | `user_runtime_interface` | 1 | 360 |
-| `vendored_doom` | 197 | 66539 |
+| `vendored_doom` | 197 | 59446 |
 
 ## Supported build roots
 
@@ -100,16 +100,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1533 |
 | `asm.relocation` | 1 | 95 |
-| `c.control` | 12 | 98142 |
+| `c.control` | 12 | 98206 |
 | `c.declaration` | 1 | 32 |
-| `c.declarator` | 4 | 4191 |
-| `c.expression` | 2 | 7289 |
-| `c.extension` | 19 | 427 |
-| `c.initializer` | 1 | 729 |
-| `c.preprocessor` | 18 | 8663 |
-| `c.qualifier` | 2 | 19378 |
-| `c.storage` | 4 | 11836 |
-| `c.type` | 15 | 65022 |
+| `c.declarator` | 4 | 4193 |
+| `c.expression` | 2 | 7292 |
+| `c.extension` | 20 | 428 |
+| `c.initializer` | 1 | 650 |
+| `c.preprocessor` | 18 | 8674 |
+| `c.qualifier` | 2 | 19399 |
+| `c.storage` | 4 | 11845 |
+| `c.type` | 15 | 65067 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
@@ -140,15 +140,15 @@ It is also a declared Make prerequisite.
 
 | Rank | Capability | Source evidence |
 | ---: | --- | ---: |
-| 1 | `host_runnable_toolchain_core` - Establish a host-runnable shared Cupid Toolchain core | 149 |
+| 1 | `host_runnable_toolchain_core` - Establish a host-runnable shared Cupid Toolchain core | 150 |
 | 2 | `elf32_relocatable_interchange` - Emit and consume deterministic ELF32 relocatable objects | 248 |
 | 3 | `shared_i386_abi_and_instruction_model` - Share one i386 ABI and instruction model | 78 |
 | 4 | `cupiddis_object_inspection` - Make CupidDis inspect raw and ELF32 relocatable output | 21 |
 | 5 | `cupidasm_source_controls_and_expressions` - Implement the active Cupid ASM directives and expression language | 38 |
 | 6 | `cupidasm_encoding_and_raw_parity` - Reach byte parity for boot and trampoline binaries | 26 |
 | 7 | `cupidasm_symbols_and_relocations` - Emit ELF32 sections, symbols, and i386 relocations | 14 |
-| 8 | `cupidc_preprocessor` - Implement the active C and Cupid C preprocessing contract | 616 |
-| 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 723 |
+| 8 | `cupidc_preprocessor` - Implement the active C and Cupid C preprocessing contract | 617 |
+| 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 724 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 60 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 204 |
 | 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 382 |
@@ -157,7 +157,7 @@ It is also a declared Make prerequisite.
 
 | Rank | Cohort step | Files | Rationale |
 | ---: | --- | ---: | --- |
-| 1 | `toolchain_sources` | 149 | Bootstrap the tools that transfer ownership to every later cohort. |
+| 1 | `toolchain_sources` | 150 | Bootstrap the tools that transfer ownership to every later cohort. |
 | 2 | `boot_and_kernel_assembly` | 4 | Keep the four boot and kernel transforms plus the ISO lane fixture CupidASM-owned while retaining NASM only as an optional parity oracle. |
 | 3 | `kernel_and_drivers` | 280 | Move foundational strict C before vendored compatibility cohorts. |
 | 4 | `doom_and_vendored_c` | 204 | Preserve upstream behavior under a deliberate compatibility mode. |
@@ -191,9 +191,9 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bin/fat16_vfs.c` | `c` | `historical_copy` | 423 | historical_copy_of: `kernel/fs/fat16_vfs.cc` |
 | `bin/kernel.c` | `c` | `historical_copy` | 719 | historical_copy_of: `kernel/core/kernel.cc` |
 | `bin/old_cc2.cc` | `cupid_c` | `explicitly_excluded` | 2 | listed in a Make filter-out expression |
-| `bin/old_cc2_single.cc` | `cupid_c` | `explicitly_excluded` | 6744 | listed in a Make filter-out expression |
+| `bin/old_cc2_single.cc` | `cupid_c` | `explicitly_excluded` | 8238 | listed in a Make filter-out expression |
 | `bin/terminal_app.c` | `c` | `historical_copy` | 318 | historical_copy_of: `kernel/gui/terminal_app.cc` |
-| `demos/paint.cc` | `cupid_c` | `superseded` | 627 | superseded_by: `bin/paint.cc` |
+| `demos/paint.cc` | `cupid_c` | `superseded` | 629 | superseded_by: `bin/paint.cc` |
 | `kernel/core/scheduler.c` | `c` | `superseded` | 154 | superseded_by: `kernel/core/process.cc` |
 | `kernel/gui/notepad.c` | `c` | `superseded` | 5683 | superseded_by: `bin/notepad.cc` |
 | `kernel/gui/terminal_ansi.c` | `c` | `superseded` | 285 | superseded_by: `kernel/gui/ansi.cc` |
@@ -201,69 +201,69 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `tests/kernel_contract_support/percpu.h` | `c_header` | `not_reached` | 43 | not reachable from the supported Make target or include closure |
 | `tests/kernel_exec_contract.c` | `c` | `host_fixture` | 601 | native kernel behavior fixture compiled by the host test harness |
 | `tests/kernel_process_contract.c` | `c` | `host_fixture` | 950 | native kernel behavior fixture compiled by the host test harness |
-| `tests/support/windows_i386_oracle.cc` | `cupid_c` | `not_reached` | 140 | not reachable from the supported Make target or include closure |
+| `tests/support/windows_i386_oracle.cc` | `cupid_c` | `not_reached` | 181 | not reachable from the supported Make target or include closure |
 | `tests/support/windows_i386_stack.S` | `assembly` | `not_reached` | 19 | not reachable from the supported Make target or include closure |
 | `tests/usb_interrupt_ownership_contract.c` | `c` | `host_fixture` | 50 | native USB behavior fixture compiled by the host test harness |
 | `tests/usb_msc_lifetime_contract.c` | `c` | `host_fixture` | 150 | native USB behavior fixture compiled by the host test harness |
 | `tests/usb_reconciliation_runtime.c` | `c` | `host_fixture` | 728 | native USB behavior fixture compiled by the host test harness |
-| `toolchain/native_utf8.cc` | `cupid_c` | `not_reached` | 170 | not reachable from the supported Make target or include closure |
-| `toolchain/native_utf8_entry.cc` | `cupid_c` | `not_reached` | 21 | not reachable from the supported Make target or include closure |
+| `toolchain/native_utf8.cc` | `cupid_c` | `not_reached` | 367 | not reachable from the supported Make target or include closure |
+| `toolchain/native_utf8_entry.cc` | `cupid_c` | `not_reached` | 28 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/artifact_size_policy_contract.cc` | `cupid_c` | `not_reached` | 97 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_artifact_allocation_contract.cc` | `cupid_c` | `not_reached` | 110 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_artifact_race_contract.cc` | `cupid_c` | `not_reached` | 55 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_candidate_extent_contract.cc` | `cupid_c` | `not_reached` | 281 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_disk_input_discovery_contract.cc` | `cupid_c` | `not_reached` | 178 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_frozen_stream_contract.cc` | `cupid_c` | `not_reached` | 156 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_artifact_allocation_contract.cc` | `cupid_c` | `not_reached` | 134 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_artifact_race_contract.cc` | `cupid_c` | `not_reached` | 63 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_candidate_extent_contract.cc` | `cupid_c` | `not_reached` | 307 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_disk_input_discovery_contract.cc` | `cupid_c` | `not_reached` | 267 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_frozen_stream_contract.cc` | `cupid_c` | `not_reached` | 182 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_hash_workload.cc` | `cupid_c` | `not_reached` | 17 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_host_runner_contract.cc` | `cupid_c` | `not_reached` | 1431 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_iso_capture_contract.cc` | `cupid_c` | `not_reached` | 162 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_iso_image_contract.cc` | `cupid_c` | `not_reached` | 139 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_iso_inventory_contract.cc` | `cupid_c` | `not_reached` | 70 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_iso_publication_contract.cc` | `cupid_c` | `not_reached` | 64 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_jpeg_contract.cc` | `cupid_c` | `not_reached` | 535 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_observer_batch_contract.cc` | `cupid_c` | `not_reached` | 60 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_observer_directory_snapshot_contract.cc` | `cupid_c` | `not_reached` | 288 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_observer_kind_contract.cc` | `cupid_c` | `not_reached` | 141 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_previous_output_contract.cc` | `cupid_c` | `not_reached` | 244 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_snapshot_blocks_contract.cc` | `cupid_c` | `not_reached` | 188 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_stream_contract.cc` | `cupid_c` | `not_reached` | 126 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_user_elf_contract.cc` | `cupid_c` | `not_reached` | 162 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidc_flexible_array_runtime.cc` | `cupid_c` | `not_reached` | 35 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidc_frame_load_runtime.cc` | `cupid_c` | `not_reached` | 62 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidc_mixed_wide_mutation_runtime.cc` | `cupid_c` | `not_reached` | 108 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidc_rotate_call_runtime.cc` | `cupid_c` | `not_reached` | 111 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidc_rotate_leaf_runtime.cc` | `cupid_c` | `not_reached` | 78 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidc_stack_transfer_entry_contract.cc` | `cupid_c` | `not_reached` | 129 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidc_stack_transfer_runtime.cc` | `cupid_c` | `not_reached` | 77 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidc_wide_pointer_runtime.cc` | `cupid_c` | `not_reached` | 65 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupiddis_kernel_adapter_contract.cc` | `cupid_c` | `host_oracle` | 649 | native public kernel-adapter contract outside production build roots |
-| `toolchain/tests/cupidobj_disk_stream_contract.cc` | `cupid_c` | `not_reached` | 502 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/disk_image_contract.cc` | `cupid_c` | `not_reached` | 95 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/disk_stage_contract.cc` | `cupid_c` | `not_reached` | 167 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_host_runner_contract.cc` | `cupid_c` | `not_reached` | 1297 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_iso_capture_contract.cc` | `cupid_c` | `not_reached` | 216 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_iso_image_contract.cc` | `cupid_c` | `not_reached` | 181 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_iso_inventory_contract.cc` | `cupid_c` | `not_reached` | 67 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_iso_publication_contract.cc` | `cupid_c` | `not_reached` | 84 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_jpeg_contract.cc` | `cupid_c` | `not_reached` | 470 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_observer_batch_contract.cc` | `cupid_c` | `not_reached` | 84 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_observer_directory_snapshot_contract.cc` | `cupid_c` | `not_reached` | 310 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_observer_kind_contract.cc` | `cupid_c` | `not_reached` | 179 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_previous_output_contract.cc` | `cupid_c` | `not_reached` | 299 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_snapshot_blocks_contract.cc` | `cupid_c` | `not_reached` | 204 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_stream_contract.cc` | `cupid_c` | `not_reached` | 144 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_user_elf_contract.cc` | `cupid_c` | `not_reached` | 165 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidc_flexible_array_runtime.cc` | `cupid_c` | `not_reached` | 95 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidc_frame_load_runtime.cc` | `cupid_c` | `not_reached` | 83 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidc_mixed_wide_mutation_runtime.cc` | `cupid_c` | `not_reached` | 201 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidc_rotate_call_runtime.cc` | `cupid_c` | `not_reached` | 134 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidc_rotate_leaf_runtime.cc` | `cupid_c` | `not_reached` | 80 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidc_stack_transfer_entry_contract.cc` | `cupid_c` | `not_reached` | 135 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidc_stack_transfer_runtime.cc` | `cupid_c` | `not_reached` | 90 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidc_wide_pointer_runtime.cc` | `cupid_c` | `not_reached` | 102 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupiddis_kernel_adapter_contract.cc` | `cupid_c` | `host_oracle` | 634 | native public kernel-adapter contract outside production build roots |
+| `toolchain/tests/cupidobj_disk_stream_contract.cc` | `cupid_c` | `not_reached` | 531 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/disk_image_contract.cc` | `cupid_c` | `not_reached` | 116 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/disk_stage_contract.cc` | `cupid_c` | `not_reached` | 208 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/elf32_oracle.c` | `c` | `host_oracle` | 8 | optional host compiler input for ELF32 reader comparison |
-| `toolchain/tests/fat16_allocation_contract.cc` | `cupid_c` | `not_reached` | 144 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/fat16_names_contract.cc` | `cupid_c` | `not_reached` | 75 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/fat16_stage_contract.cc` | `cupid_c` | `not_reached` | 140 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/hosted_fgets_contract.cc` | `cupid_c` | `not_reached` | 96 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/hosted_heap_density_contract.cc` | `cupid_c` | `not_reached` | 163 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/hosted_heap_fault_contract.cc` | `cupid_c` | `not_reached` | 128 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/hosted_heap_thread_contract.cc` | `cupid_c` | `not_reached` | 140 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/hosted_putchar_contract.cc` | `cupid_c` | `not_reached` | 29 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/hosted_strtoull_contract.cc` | `cupid_c` | `not_reached` | 46 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/hosted_update_modes_contract.cc` | `cupid_c` | `not_reached` | 46 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/hosted_wide_file_contract.cc` | `cupid_c` | `not_reached` | 110 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/hosted_windows_thread_contract.cc` | `cupid_c` | `not_reached` | 110 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/fat16_allocation_contract.cc` | `cupid_c` | `not_reached` | 197 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/fat16_names_contract.cc` | `cupid_c` | `not_reached` | 87 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/fat16_stage_contract.cc` | `cupid_c` | `not_reached` | 156 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/hosted_fgets_contract.cc` | `cupid_c` | `not_reached` | 126 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/hosted_heap_density_contract.cc` | `cupid_c` | `not_reached` | 203 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/hosted_heap_fault_contract.cc` | `cupid_c` | `not_reached` | 143 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/hosted_heap_thread_contract.cc` | `cupid_c` | `not_reached` | 171 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/hosted_putchar_contract.cc` | `cupid_c` | `not_reached` | 33 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/hosted_strtoull_contract.cc` | `cupid_c` | `not_reached` | 62 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/hosted_update_modes_contract.cc` | `cupid_c` | `not_reached` | 61 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/hosted_wide_file_contract.cc` | `cupid_c` | `not_reached` | 144 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/hosted_windows_thread_contract.cc` | `cupid_c` | `not_reached` | 125 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/hosted_windows_thread_exit.asm` | `assembly` | `not_reached` | 38 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/iso_fixture_bundle_contract.cc` | `cupid_c` | `not_reached` | 188 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/native_utf8_argv_contract.cc` | `cupid_c` | `not_reached` | 7 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/native_utf8_fault_contract.cc` | `cupid_c` | `not_reached` | 124 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/path_encoding_contract.cc` | `cupid_c` | `not_reached` | 91 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/seed_manifest_iso_profile_contract.cc` | `cupid_c` | `not_reached` | 117 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/user_abi_allocation_probe.cc` | `cupid_c` | `host_fixture` | 44 | native syscall ABI allocation-failure probe compiled by the host test harness |
-| `toolchain/tests/user_abi_observer_probe.cc` | `cupid_c` | `host_fixture` | 37 | native syscall ABI observer-failure probe compiled by the host test harness |
-| `toolchain/tests/windows_long_path_contract.cc` | `cupid_c` | `not_reached` | 159 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/windows_utf8_contract.cc` | `cupid_c` | `not_reached` | 234 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/windows_utf8_entry_contract.cc` | `cupid_c` | `not_reached` | 29 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/iso_fixture_bundle_contract.cc` | `cupid_c` | `not_reached` | 245 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/native_utf8_argv_contract.cc` | `cupid_c` | `not_reached` | 9 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/native_utf8_fault_contract.cc` | `cupid_c` | `not_reached` | 202 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/path_encoding_contract.cc` | `cupid_c` | `not_reached` | 158 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/seed_manifest_iso_profile_contract.cc` | `cupid_c` | `not_reached` | 135 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/user_abi_allocation_probe.cc` | `cupid_c` | `host_fixture` | 54 | native syscall ABI allocation-failure probe compiled by the host test harness |
+| `toolchain/tests/user_abi_observer_probe.cc` | `cupid_c` | `host_fixture` | 41 | native syscall ABI observer-failure probe compiled by the host test harness |
+| `toolchain/tests/windows_long_path_contract.cc` | `cupid_c` | `not_reached` | 286 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/windows_utf8_contract.cc` | `cupid_c` | `not_reached` | 380 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/windows_utf8_entry_contract.cc` | `cupid_c` | `not_reached` | 36 | not reachable from the supported Make target or include closure |
 
 ## Audit contracts
 
@@ -273,8 +273,8 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bootstrap_artifact_coverage` | `pass` | 429 linked objects; 436 declared artifacts; 0 missing |
 | `c_preprocessor_conditionals` | `pass` | 496 conditional expressions (472 #if, 24 #elif); 63 normalized expressions; 66 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |
-| `c_preprocessor_include_operands` | `pass` | 2642 C include operands (2299 quoted, 343 angle, 0 pp-token); 758 source files; max conditional depth 2 |
-| `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 758 source files; max conditional depth 0 |
+| `c_preprocessor_include_operands` | `pass` | 2649 C include operands (2303 quoted, 346 angle, 0 pp-token); 759 source files; max conditional depth 2 |
+| `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 759 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 428 tracked + 4 generated translation units (KERNEL_I386=156, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, FREESTANDING_I386=1, CUPID_RUNTIME=108, HOSTED_TOOLCHAIN_64=0, HOSTED_KERNEL_BRIDGE_64=0, HOSTED_I386_LINUX=59, HOSTED_I386_WINDOWS=9, HOSTED_I386_KERNEL_BRIDGE=2, HOSTED_I386_LINUX_GNU=3, HOSTED_I386_WINDOWS_UTF8=1, HOSTED_I386_WINDOWS_PUBLICATION=1, HOSTED_I386_WINDOWS_BUILD=1, HOSTED_I386_WINDOWS_UTF8_GNU=1); 22 include-only, 2 non-root headers; 0 hosted deferred (0 external, 0 hermetic) |
 | `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable; 492 tracked .cc sources; 432 active with independent CupidC evidence; 60 unreachable |

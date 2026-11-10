@@ -4,36 +4,33 @@
  * Provides a transform stack with translate/rotate/scale operations
  * using 16.16 fixed-point arithmetic. Transformed image and sprite drawing
  * re-sample source pixels through the inverse matrix. Text moves its origin.
-*/
+ */
 
 #include "gfx2d_transform.h"
 #include "gfx2d.h"
 #include "gfx2d_assets.h"
 #include "math.h"
-#include "string.h"
 #include "serial.h"
+#include "string.h"
 
 /* Integer sine/cosine lookup (returns fixed-point, 1.0 = FP_ONE)
  * Table covers 0-359 degrees.  Values stored as 16.16 fixed-point.
-*/
+ */
 
 /* sin/cos for 0..90 degrees, 16.16 fixed-point (65536 = 1.0) */
 static const int sin_table_q1[91] = {
-        0,  1143,  2287,  3429,  4571,  5711,  6850,  7986,  9120, 10252,
-    11380, 12504, 13625, 14742, 15854, 16961, 18064, 19160, 20251, 21336,
-    22414, 23486, 24550, 25606, 26655, 27696, 28729, 29752, 30767, 31772,
-    32768, 33753, 34728, 35693, 36647, 37589, 38521, 39440, 40347, 41243,
-    42125, 42995, 43852, 44695, 45525, 46340, 47142, 47930, 48702, 49460,
-    50203, 50931, 51643, 52339, 53019, 53683, 54331, 54963, 55577, 56175,
-    56755, 57319, 57864, 58393, 58903, 59395, 59870, 60326, 60763, 61183,
-    61583, 61965, 62328, 62672, 62997, 63302, 63589, 63856, 64103, 64331,
-    64540, 64729, 64898, 65047, 65176, 65286, 65376, 65446, 65496, 65526,
-    65536
-};
+    0,     1143,  2287,  3429,  4571,  5711,  6850,  7986,  9120,  10252, 11380, 12504, 13625,
+    14742, 15854, 16961, 18064, 19160, 20251, 21336, 22414, 23486, 24550, 25606, 26655, 27696,
+    28729, 29752, 30767, 31772, 32768, 33753, 34728, 35693, 36647, 37589, 38521, 39440, 40347,
+    41243, 42125, 42995, 43852, 44695, 45525, 46340, 47142, 47930, 48702, 49460, 50203, 50931,
+    51643, 52339, 53019, 53683, 54331, 54963, 55577, 56175, 56755, 57319, 57864, 58393, 58903,
+    59395, 59870, 60326, 60763, 61183, 61583, 61965, 62328, 62672, 62997, 63302, 63589, 63856,
+    64103, 64331, 64540, 64729, 64898, 65047, 65176, 65286, 65376, 65446, 65496, 65526, 65536};
 
 static int fp_sin(int deg) {
     int d = deg % 360;
-    if (d < 0) d += 360;
+    if (d < 0)
+        d += 360;
 
     if (d <= 90)
         return sin_table_q1[d];
@@ -56,7 +53,7 @@ static int fp_cos(int deg) {
  * | 0  0  1  |
  * a,b,c,d are 16.16 fixed-point; tx,ty are pixel offsets in
  * fixed-point (FP_TO_INT to get screen coords).
-*/
+ */
 
 typedef struct {
     int m[6]; /* a, b, c, d, tx, ty */
@@ -64,17 +61,16 @@ typedef struct {
 
 /* Identity matrix */
 static void mat_identity(g2d_mat_t *m) {
-    m->m[0] = FP_ONE;   /* a */
-    m->m[1] = 0;        /* b */
-    m->m[2] = 0;        /* c */
-    m->m[3] = FP_ONE;   /* d */
-    m->m[4] = 0;        /* tx */
-    m->m[5] = 0;        /* ty */
+    m->m[0] = FP_ONE; /* a */
+    m->m[1] = 0;      /* b */
+    m->m[2] = 0;      /* c */
+    m->m[3] = FP_ONE; /* d */
+    m->m[4] = 0;      /* tx */
+    m->m[5] = 0;      /* ty */
 }
 
 /* Multiply: result = A * B */
-static void mat_mul(g2d_mat_t *result, const g2d_mat_t *A,
-                    const g2d_mat_t *B) {
+static void mat_mul(g2d_mat_t *result, const g2d_mat_t *A, const g2d_mat_t *B) {
     g2d_mat_t r;
     r.m[0] = FP_MUL(A->m[0], B->m[0]) + FP_MUL(A->m[1], B->m[2]);
     r.m[1] = FP_MUL(A->m[0], B->m[1]) + FP_MUL(A->m[1], B->m[3]);
@@ -107,8 +103,7 @@ static void gfx2d_push_transform_locked(void) {
         serial_printf("[gfx2d_transform] stack overflow\n");
         return;
     }
-    memcpy(&g2d_mat_stack[g2d_mat_sp], &g2d_current_mat ,
-           sizeof(g2d_mat_t));
+    memcpy(&g2d_mat_stack[g2d_mat_sp], &g2d_current_mat, sizeof(g2d_mat_t));
     g2d_mat_sp++;
 }
 
@@ -124,8 +119,7 @@ static void gfx2d_pop_transform_locked(void) {
         return;
     }
     g2d_mat_sp--;
-    memcpy(&g2d_current_mat, &g2d_mat_stack[g2d_mat_sp],
-           sizeof(g2d_mat_t));
+    memcpy(&g2d_current_mat, &g2d_mat_stack[g2d_mat_sp], sizeof(g2d_mat_t));
 }
 
 void gfx2d_pop_transform(void) {
@@ -222,16 +216,13 @@ void gfx2d_get_matrix(int m[6]) {
     gfx2d_shared_writer_end(writer_lease);
 }
 
-static void gfx2d_transform_point_locked(int x, int y,
-                                         int *out_x, int *out_y) {
+static void gfx2d_transform_point_locked(int x, int y, int *out_x, int *out_y) {
     int fx = INT_TO_FP(x);
     int fy = INT_TO_FP(y);
-    *out_x = FP_TO_INT(FP_MUL(g2d_current_mat.m[0], fx) +
-                        FP_MUL(g2d_current_mat.m[1], fy) +
-                        g2d_current_mat.m[4]);
-    *out_y = FP_TO_INT(FP_MUL(g2d_current_mat.m[2], fx) +
-                        FP_MUL(g2d_current_mat.m[3], fy) +
-                        g2d_current_mat.m[5]);
+    *out_x = FP_TO_INT(FP_MUL(g2d_current_mat.m[0], fx) + FP_MUL(g2d_current_mat.m[1], fy) +
+                       g2d_current_mat.m[4]);
+    *out_y = FP_TO_INT(FP_MUL(g2d_current_mat.m[2], fx) + FP_MUL(g2d_current_mat.m[3], fy) +
+                       g2d_current_mat.m[5]);
 }
 
 void gfx2d_transform_point(int x, int y, int *out_x, int *out_y) {
@@ -244,7 +235,7 @@ void gfx2d_transform_point(int x, int y, int *out_x, int *out_y) {
  * Strategy: For each destination pixel in the bounding box, compute
  * the inverse-transformed source coordinate and sample from the
  * original image/sprite.
-*/
+ */
 
 static uint64_t mat_abs64(int64_t value) {
     if (value < 0)
@@ -254,33 +245,35 @@ static uint64_t mat_abs64(int64_t value) {
 
 /* Encode one inverse coefficient from a 16.16 source coefficient and the
  * full 32.32 determinant. */
-static int mat_div_coeff(int64_t coefficient, int64_t determinant,
-                         int *result) {
+static int mat_div_coeff(int64_t coefficient, int64_t determinant, int *result) {
     uint64_t coefficient_abs;
     uint64_t numerator_abs;
     uint64_t denominator_abs;
     uint64_t quotient;
-    uint64_t negative_limit =
-        (uint64_t)2147483647 + (uint64_t)1;
+    uint64_t negative_limit = (uint64_t)2147483647 + (uint64_t)1;
     int negative;
 
-    if (!result || determinant == 0) return -1;
+    if (!result || determinant == 0)
+        return -1;
 
     coefficient_abs = mat_abs64(coefficient);
-    if (coefficient_abs > negative_limit) return -1;
+    if (coefficient_abs > negative_limit)
+        return -1;
     numerator_abs = coefficient_abs << (FP_SHIFT * 2);
     denominator_abs = mat_abs64(determinant);
     quotient = __udivdi3(numerator_abs, denominator_abs);
     negative = (coefficient < 0) != (determinant < 0);
 
     if (negative) {
-        if (quotient > negative_limit) return -1;
+        if (quotient > negative_limit)
+            return -1;
         if (quotient == negative_limit)
             *result = -2147483647 - 1;
         else
             *result = -(int)quotient;
     } else {
-        if (quotient > (uint64_t)2147483647) return -1;
+        if (quotient > (uint64_t)2147483647)
+            return -1;
         *result = (int)quotient;
     }
     return 0;
@@ -288,13 +281,10 @@ static int mat_div_coeff(int64_t coefficient, int64_t determinant,
 
 /* Preserve the existing fixed-point rounding for two products, but keep the
  * shifted terms and their sum wide until the negated result is range-checked. */
-static int mat_inverse_translation(int inverse_a, int source_x,
-                                   int inverse_b, int source_y,
+static int mat_inverse_translation(int inverse_a, int source_x, int inverse_b, int source_y,
                                    int *result) {
-    int64_t first =
-        ((int64_t)inverse_a * (int64_t)source_x) >> FP_SHIFT;
-    int64_t second =
-        ((int64_t)inverse_b * (int64_t)source_y) >> FP_SHIFT;
+    int64_t first = ((int64_t)inverse_a * (int64_t)source_x) >> FP_SHIFT;
+    int64_t second = ((int64_t)inverse_b * (int64_t)source_y) >> FP_SHIFT;
     int64_t sum = first + second;
     int64_t positive_limit = (int64_t)2147483647;
     int64_t negative_input_limit = positive_limit + (int64_t)1;
@@ -311,10 +301,10 @@ static int mat_inverse_translation(int inverse_a, int source_x,
 /* Invert the current 2x2 + translation matrix */
 static int mat_invert(const g2d_mat_t *src, g2d_mat_t *inv) {
     /* Products of two 16.16 values form the full 32.32 determinant. */
-    int64_t det64 = (int64_t)src->m[0] * src->m[3] -
-                    (int64_t)src->m[1] * src->m[2];
+    int64_t det64 = (int64_t)src->m[0] * src->m[3] - (int64_t)src->m[1] * src->m[2];
 
-    if (det64 == 0) return -1;
+    if (det64 == 0)
+        return -1;
 
     if (mat_div_coeff((int64_t)src->m[3], det64, &inv->m[0]) < 0 ||
         mat_div_coeff(-(int64_t)src->m[1], det64, &inv->m[1]) < 0 ||
@@ -323,10 +313,8 @@ static int mat_invert(const g2d_mat_t *src, g2d_mat_t *inv) {
         return -1;
 
     /* Inverse translation: -inv([a,b;c,d]) * [tx;ty] */
-    if (mat_inverse_translation(inv->m[0], src->m[4],
-                                inv->m[1], src->m[5], &inv->m[4]) < 0 ||
-        mat_inverse_translation(inv->m[2], src->m[4],
-                                inv->m[3], src->m[5], &inv->m[5]) < 0)
+    if (mat_inverse_translation(inv->m[0], src->m[4], inv->m[1], src->m[5], &inv->m[4]) < 0 ||
+        mat_inverse_translation(inv->m[2], src->m[4], inv->m[3], src->m[5], &inv->m[5]) < 0)
         return -1;
     return 0;
 }
@@ -339,9 +327,11 @@ static void gfx2d_image_draw_transformed_locked(int handle, int x, int y) {
     int dx, dy;
 
     img = gfx2d_image_data(handle, &iw, &ih);
-    if (!img || iw <= 0 || ih <= 0) return;
+    if (!img || iw <= 0 || ih <= 0)
+        return;
 
-    if (mat_invert(&g2d_current_mat, &inv) < 0) return;
+    if (mat_invert(&g2d_current_mat, &inv) < 0)
+        return;
 
     /* Compute bounding box by transforming corners */
     {
@@ -354,25 +344,36 @@ static void gfx2d_image_draw_transformed_locked(int handle, int x, int y) {
         by1 = by0;
         for (i = 1; i < 4; i++) {
             gfx2d_transform_point_locked(corners[i][0], corners[i][1], &tx, &ty);
-            if (tx < bx0) bx0 = tx;
-            if (tx > bx1) bx1 = tx;
-            if (ty < by0) by0 = ty;
-            if (ty > by1) by1 = ty;
+            if (tx < bx0)
+                bx0 = tx;
+            if (tx > bx1)
+                bx1 = tx;
+            if (ty < by0)
+                by0 = ty;
+            if (ty > by1)
+                by1 = ty;
         }
     }
 
     /* Add margin for rounding */
-    bx0 -= 1; by0 -= 1;
-    bx1 += 1; by1 += 1;
+    bx0 -= 1;
+    by0 -= 1;
+    bx1 += 1;
+    by1 += 1;
 
     {
         int sw = gfx2d_width();
         int sh = gfx2d_height();
-        if (bx0 < 0) bx0 = 0;
-        if (by0 < 0) by0 = 0;
-        if (bx1 >= sw) bx1 = sw - 1;
-        if (by1 >= sh) by1 = sh - 1;
-        if (bx0 > bx1 || by0 > by1) return;
+        if (bx0 < 0)
+            bx0 = 0;
+        if (by0 < 0)
+            by0 = 0;
+        if (bx1 >= sw)
+            bx1 = sw - 1;
+        if (by1 >= sh)
+            by1 = sh - 1;
+        if (bx0 > bx1 || by0 > by1)
+            return;
     }
 
     /* Scan bounding box, inverse-transform to source coords */
@@ -410,9 +411,11 @@ static void gfx2d_sprite_draw_transformed_locked(int handle, int x, int y) {
 
     sw = gfx2d_sprite_width(handle);
     sh = gfx2d_sprite_height(handle);
-    if (sw <= 0 || sh <= 0) return;
+    if (sw <= 0 || sh <= 0)
+        return;
 
-    if (mat_invert(&g2d_current_mat, &inv) < 0) return;
+    if (mat_invert(&g2d_current_mat, &inv) < 0)
+        return;
 
     /* Compute bounding box by transforming corners */
     {
@@ -425,24 +428,35 @@ static void gfx2d_sprite_draw_transformed_locked(int handle, int x, int y) {
         by1 = by0;
         for (i = 1; i < 4; i++) {
             gfx2d_transform_point_locked(corners[i][0], corners[i][1], &tx, &ty);
-            if (tx < bx0) bx0 = tx;
-            if (tx > bx1) bx1 = tx;
-            if (ty < by0) by0 = ty;
-            if (ty > by1) by1 = ty;
+            if (tx < bx0)
+                bx0 = tx;
+            if (tx > bx1)
+                bx1 = tx;
+            if (ty < by0)
+                by0 = ty;
+            if (ty > by1)
+                by1 = ty;
         }
     }
 
-    bx0 -= 1; by0 -= 1;
-    bx1 += 1; by1 += 1;
+    bx0 -= 1;
+    by0 -= 1;
+    bx1 += 1;
+    by1 += 1;
 
     {
         int swd = gfx2d_width();
         int shd = gfx2d_height();
-        if (bx0 < 0) bx0 = 0;
-        if (by0 < 0) by0 = 0;
-        if (bx1 >= swd) bx1 = swd - 1;
-        if (by1 >= shd) by1 = shd - 1;
-        if (bx0 > bx1 || by0 > by1) return;
+        if (bx0 < 0)
+            bx0 = 0;
+        if (by0 < 0)
+            by0 = 0;
+        if (bx1 >= swd)
+            bx1 = swd - 1;
+        if (by1 >= shd)
+            by1 = shd - 1;
+        if (bx0 > bx1 || by0 > by1)
+            return;
     }
 
     for (dy = by0; dy <= by1; dy++) {
@@ -471,16 +485,14 @@ void gfx2d_sprite_draw_transformed(int handle, int x, int y) {
     gfx2d_shared_writer_end(writer_lease);
 }
 
-static void gfx2d_text_transformed_locked(int x, int y, const char *str,
-                                          uint32_t color, int font) {
+static void gfx2d_text_transformed_locked(int x, int y, const char *str, uint32_t color, int font) {
     int ox, oy;
     /* Text keeps axis-aligned glyphs and transforms only the origin. */
     gfx2d_transform_point_locked(x, y, &ox, &oy);
     gfx2d_text_ex(ox, oy, str, color, font, 0);
 }
 
-void gfx2d_text_transformed(int x, int y, const char *str,
-                            uint32_t color, int font) {
+void gfx2d_text_transformed(int x, int y, const char *str, uint32_t color, int font) {
     int writer_lease = gfx2d_shared_writer_begin();
     gfx2d_text_transformed_locked(x, y, str, color, font);
     gfx2d_shared_writer_end(writer_lease);

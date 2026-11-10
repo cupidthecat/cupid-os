@@ -1,5 +1,5 @@
-//help: Smoke test: continue reaches the nearest loop through a switch
-//help: Usage: feature25
+// help: Smoke test: continue reaches the nearest loop through a switch
+// help: Usage: feature25
 
 int condition_calls;
 char nested_statement_source[8192];
@@ -217,21 +217,23 @@ void main() {
     int statement_recovery_ok = test_statement_depth_recovery();
     int nearest_ok = test_nearest_loop_continue();
 
-    if (do_ok && for_ok && while_ok && stack_ok && reject_ok &&
-        depth_ok && overflow_ok && recover_ok && statement_ok &&
-        statement_overflow_ok && statement_recovery_ok && nearest_ok) {
+    if (do_ok && for_ok && while_ok && stack_ok && reject_ok && depth_ok && overflow_ok &&
+        recover_ok && statement_ok && statement_overflow_ok && statement_recovery_ok &&
+        nearest_ok) {
         println("feature25: PASS");
         serial_printf("[feature25] PASS do=%d for=%d while=%d stack=%d reject=%d nearest=%d\n",
                       do_ok, for_ok, while_ok, stack_ok, reject_ok, nearest_ok);
-        serial_printf("[feature25-depth] PASS control=%d overflow=%d recovery=%d statement=%d statement-overflow=%d statement-recovery=%d\n",
-                      depth_ok, overflow_ok, recover_ok, statement_ok,
-                      statement_overflow_ok, statement_recovery_ok);
+        serial_printf("[feature25-depth] PASS control=%d overflow=%d recovery=%d statement=%d "
+                      "statement-overflow=%d statement-recovery=%d\n",
+                      depth_ok, overflow_ok, recover_ok, statement_ok, statement_overflow_ok,
+                      statement_recovery_ok);
     } else {
         println("feature25: FAIL");
         serial_printf("[feature25] FAIL do=%d for=%d while=%d stack=%d reject=%d nearest=%d\n",
                       do_ok, for_ok, while_ok, stack_ok, reject_ok, nearest_ok);
-        serial_printf("[feature25-depth] FAIL control=%d overflow=%d recovery=%d statement=%d statement-overflow=%d statement-recovery=%d\n",
-                      depth_ok, overflow_ok, recover_ok, statement_ok,
-                      statement_overflow_ok, statement_recovery_ok);
+        serial_printf("[feature25-depth] FAIL control=%d overflow=%d recovery=%d statement=%d "
+                      "statement-overflow=%d statement-recovery=%d\n",
+                      depth_ok, overflow_ok, recover_ok, statement_ok, statement_overflow_ok,
+                      statement_recovery_ok);
     }
 }

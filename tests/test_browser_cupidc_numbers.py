@@ -48,7 +48,7 @@ class BrowserCupidCNumberTests(unittest.TestCase):
             "else if (op == JS_TOK_PERCENT_EQ) r = fmod(na, nb);",
         ):
             with self.subTest(fragment=fragment):
-                self.assertIn(fragment, self.interpreter)
+                self.assertIn(_compact(fragment), self.compact_interpreter)
 
         self.assertNotIn("js_dcmp", self.interpreter)
         self.assertNotIn("js_dnz", self.interpreter)
@@ -149,11 +149,11 @@ class BrowserCupidCNumberTests(unittest.TestCase):
 
     def test_decimal_literals_keep_double_tokens_and_ast_values(self):
         for declaration in (
-            "double jtk_num  [8192];",
-            "double jn_num  [8192];",
-            "double jvs_num    [1024];",
-            "double jb_num     [1024];",
-            "double jp_num     [4096];",
+            "double jtk_num[8192];",
+            "double jn_num[8192];",
+            "double jvs_num[1024];",
+            "double jb_num[1024];",
+            "double jp_num[4096];",
         ):
             with self.subTest(declaration=declaration):
                 self.assertIn(declaration, self.main)
@@ -256,7 +256,7 @@ class BrowserCupidCNumberTests(unittest.TestCase):
             "unicode_whitespace_ok",
         ):
             with self.subTest(fragment=fragment):
-                self.assertIn(fragment, self.interpreter)
+                self.assertIn(_compact(fragment), self.compact_interpreter)
 
     def test_equality_and_string_order_use_primitive_semantics(self):
         self.assertIn("int js_same_type_eq_at(int a, int b)", self.interpreter)
@@ -292,7 +292,7 @@ class BrowserCupidCNumberTests(unittest.TestCase):
             "(jvs_tag[a] == JS_VAL_STR || jvs_tag[b] == JS_VAL_STR))",
             self.compact_interpreter,
         )
-        self.assertIn("else if (op == JS_TOK_PERCENT_EQ) r = fmod(na, nb);", self.interpreter)
+        self.assertIn("else if (op == JS_TOK_PERCENT_EQ) r = fmod(na, nb);", self.compact_interpreter)
 
     def test_compound_assignments_resolve_side_effecting_targets_once(self):
         for fragment in (
@@ -323,7 +323,7 @@ class BrowserCupidCNumberTests(unittest.TestCase):
     def test_bindings_keep_their_owning_scope_after_nested_rhs_calls(self):
         combined = _compact(self.interpreter + self.main)
         for fragment in (
-            "int jb_scope [1024];",
+            "int jb_scope[1024];",
             "jb_scope[b] = scope;",
             "if (jb_scope[b] == scope &&",
             "int js_lookup_binding_in_scope(int scope,",
@@ -430,7 +430,7 @@ class BrowserCupidCNumberTests(unittest.TestCase):
 
     def test_native_function_ids_survive_user_function_round_trips(self):
         for fragment in (
-            "jb_native_id[b]= jvs_native_id[src];",
+            "jb_native_id[b] = jvs_native_id[src];",
             "jvs_native_id[dst] = jvs_native_id[src];",
             "function cupidNativeIdentity(cupidNativeValue)",
             "cupidNativeIdentity(cupidNativeProbe)",
@@ -445,7 +445,7 @@ class BrowserCupidCNumberTests(unittest.TestCase):
     def test_array_indices_use_the_full_unsigned_length_lane(self):
         combined = _compact(self.interpreter + self.main)
         for fragment in (
-            "unsigned int jobj_arr_len [512];",
+            "unsigned int jobj_arr_len[512];",
             "int js_array_index_from_key(int off, int len, "
             "unsigned int *out_index)",
             "unsigned int value = 0u;",
@@ -521,7 +521,7 @@ class BrowserCupidCNumberTests(unittest.TestCase):
             "if (t < 0) return;",
         ):
             with self.subTest(dom_fragment=fragment):
-                self.assertIn(fragment, self.dom)
+                self.assertIn(_compact(fragment), _compact(self.dom))
 
         self.assertNotRegex(
             self.interpreter + self.dom,
@@ -529,7 +529,7 @@ class BrowserCupidCNumberTests(unittest.TestCase):
         )
 
     def test_selftest_returns_before_window_creation(self):
-        args_offset = self.main.index("char *raw = (char*)get_args();")
+        args_offset = self.main.index("char *raw = (char *)get_args();")
         selftest_offset = self.main.index("js_number_selftest();")
         window_offset = self.main.index('gui_win_create("Browser"')
 

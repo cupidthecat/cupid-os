@@ -1,21 +1,23 @@
 /* CupidC-owned panic implementation. */
 #include "panic.h"
-#include "kernel.h"
-#include "string.h"
-#include "math.h"
 #include "fpu.h"
-#include "serial.h"
-#include "timer.h"
-#include "memory.h"
+#include "kernel.h"
 #include "ksyms.h"
+#include "math.h"
+#include "memory.h"
+#include "serial.h"
+#include "string.h"
+#include "timer.h"
 
 /* Output function pointers (can be overridden for GUI mode) */
-static void (*panic_print)(const char*) = print;
+static void (*panic_print)(const char *) = print;
 static void (*panic_putchar)(char) = putchar;
 
-void panic_set_output(void (*print_fn)(const char*), void (*putchar_fn)(char)) {
-    if (print_fn) panic_print = print_fn;
-    if (putchar_fn) panic_putchar = putchar_fn;
+void panic_set_output(void (*print_fn)(const char *), void (*putchar_fn)(char)) {
+    if (print_fn)
+        panic_print = print_fn;
+    if (putchar_fn)
+        panic_putchar = putchar_fn;
 }
 
 static void panic_serial_message(const char *fmt) {
@@ -37,52 +39,66 @@ static void print_separator(void) {
 /* print_hex_word - print a 16-bit value like 0x001F */
 static void vga_hex_word(uint16_t num) {
     const char hex[] = "0123456789ABCDEF";
-    panic_putchar('0'); panic_putchar('x');
+    panic_putchar('0');
+    panic_putchar('x');
     panic_putchar(hex[(num >> 12) & 0xF]);
-    panic_putchar(hex[(num >> 8)  & 0xF]);
-    panic_putchar(hex[(num >> 4)  & 0xF]);
-    panic_putchar(hex[ num        & 0xF]);
+    panic_putchar(hex[(num >> 8) & 0xF]);
+    panic_putchar(hex[(num >> 4) & 0xF]);
+    panic_putchar(hex[num & 0xF]);
 }
 
 /* print_hex_byte - print one byte as 2 hex digits */
 static void vga_hex_byte(uint8_t num) {
     const char hex[] = "0123456789ABCDEF";
     panic_putchar(hex[(num >> 4) & 0xF]);
-    panic_putchar(hex[ num       & 0xF]);
+    panic_putchar(hex[num & 0xF]);
 }
 
 static void print_registers(struct registers *regs) {
     dual_print("\nREGISTERS:\n");
 
     /* EAX-EDX */
-    serial_printf("  EAX: 0x%x  EBX: 0x%x  ECX: 0x%x  EDX: 0x%x\n",
-                  regs->eax, regs->ebx, regs->ecx, regs->edx);
-    panic_print("  EAX: "); print_hex(regs->eax);
-    panic_print("  EBX: "); print_hex(regs->ebx);
-    panic_print("  ECX: "); print_hex(regs->ecx);
-    panic_print("  EDX: "); print_hex(regs->edx);
+    serial_printf("  EAX: 0x%x  EBX: 0x%x  ECX: 0x%x  EDX: 0x%x\n", regs->eax, regs->ebx, regs->ecx,
+                  regs->edx);
+    panic_print("  EAX: ");
+    print_hex(regs->eax);
+    panic_print("  EBX: ");
+    print_hex(regs->ebx);
+    panic_print("  ECX: ");
+    print_hex(regs->ecx);
+    panic_print("  EDX: ");
+    print_hex(regs->edx);
     panic_print("\n");
 
     /* ESI-ESP */
-    serial_printf("  ESI: 0x%x  EDI: 0x%x  EBP: 0x%x  ESP: 0x%x\n",
-                  regs->esi, regs->edi, regs->ebp, regs->esp);
-    panic_print("  ESI: "); print_hex(regs->esi);
-    panic_print("  EDI: "); print_hex(regs->edi);
-    panic_print("  EBP: "); print_hex(regs->ebp);
-    panic_print("  ESP: "); print_hex(regs->esp);
+    serial_printf("  ESI: 0x%x  EDI: 0x%x  EBP: 0x%x  ESP: 0x%x\n", regs->esi, regs->edi, regs->ebp,
+                  regs->esp);
+    panic_print("  ESI: ");
+    print_hex(regs->esi);
+    panic_print("  EDI: ");
+    print_hex(regs->edi);
+    panic_print("  EBP: ");
+    print_hex(regs->ebp);
+    panic_print("  ESP: ");
+    print_hex(regs->esp);
     panic_print("\n");
 
     /* EIP + EFLAGS */
     serial_printf("  EIP: 0x%x  EFLAGS: 0x%x\n", regs->eip, regs->eflags);
-    panic_print("  EIP: "); print_hex(regs->eip);
-    panic_print("  EFLAGS: "); print_hex(regs->eflags);
+    panic_print("  EIP: ");
+    print_hex(regs->eip);
+    panic_print("  EFLAGS: ");
+    print_hex(regs->eflags);
     panic_print("\n");
 
     /* Segments */
     serial_printf("  CS: 0x%x  DS: 0x%x  SS: 0x%x\n", regs->cs, regs->ds, regs->ss);
-    panic_print("  CS: "); vga_hex_word((uint16_t)regs->cs);
-    panic_print("  DS: "); vga_hex_word((uint16_t)regs->ds);
-    panic_print("  SS: "); vga_hex_word((uint16_t)regs->ss);
+    panic_print("  CS: ");
+    vga_hex_word((uint16_t)regs->cs);
+    panic_print("  DS: ");
+    vga_hex_word((uint16_t)regs->ds);
+    panic_print("  SS: ");
+    vga_hex_word((uint16_t)regs->ss);
     panic_print("\n");
 }
 
@@ -90,8 +106,7 @@ static void print_registers(struct registers *regs) {
  * the print_line callback for ksym_backtrace().  Output is mirrored to
  * VGA and serial.  Note: serial_print_hex (the %x backend) already
  * emits its own "0x" prefix, so format strings here use bare "%x".*/
-static void panic_print_frame(int frame, uint32_t addr,
-                              const char *name, uint32_t off) {
+static void panic_print_frame(int frame, uint32_t addr, const char *name, uint32_t off) {
     if (name) {
         serial_printf("  #%d: %x  %s+%x\n", frame, addr, name, off);
         panic_print("  #");
@@ -125,13 +140,13 @@ static void print_stack_dump(uint32_t esp) {
         uint32_t addr = esp + (uint32_t)i;
 
         serial_printf("  0x%x: ", addr);
-        panic_print("  "); print_hex(addr); print(": ");
+        panic_print("  ");
+        print_hex(addr);
+        print(": ");
 
         for (int j = 0; j < 16; j++) {
             uint8_t b = *((uint8_t *)(addr + (uint32_t)j));
-            serial_printf("%c%c ",
-                          "0123456789abcdef"[(b >> 4) & 0xF],
-                          "0123456789abcdef"[b & 0xF]);
+            serial_printf("%c%c ", "0123456789abcdef"[(b >> 4) & 0xF], "0123456789abcdef"[b & 0xF]);
             vga_hex_byte(b);
             panic_putchar(' ');
         }
@@ -144,15 +159,20 @@ static void print_system_state(void) {
 
     uint32_t ms = timer_get_uptime_ms();
     serial_printf("  Uptime: %u.%us\n", ms / 1000, ms % 1000);
-    panic_print("  Uptime: "); print_int(ms / 1000); panic_putchar('.');
-    print_int(ms % 1000); print("s\n");
+    panic_print("  Uptime: ");
+    print_int(ms / 1000);
+    panic_putchar('.');
+    print_int(ms % 1000);
+    print("s\n");
 
-    uint32_t free_pg  = pmm_free_pages();
+    uint32_t free_pg = pmm_free_pages();
     uint32_t total_pg = pmm_total_pages();
-    serial_printf("  Memory: %u KB free / %u KB total\n",
-                  free_pg * 4, total_pg * 4);
-    panic_print("  Memory: "); print_int(free_pg * 4); print(" KB free / ");
-    print_int(total_pg * 4); print(" KB total\n");
+    serial_printf("  Memory: %u KB free / %u KB total\n", free_pg * 4, total_pg * 4);
+    panic_print("  Memory: ");
+    print_int(free_pg * 4);
+    print(" KB free / ");
+    print_int(total_pg * 4);
+    print(" KB total\n");
 }
 
 void panic_fpu(const char *msg, uint32_t eip) {
@@ -161,8 +181,8 @@ void panic_fpu(const char *msg, uint32_t eip) {
     __asm__ volatile("fnstsw %0" : "=m"(fsw));
     __asm__ volatile("fnstcw %0" : "=m"(fcw));
     __asm__ volatile("stmxcsr %0" : "=m"(mxcsr));
-    serial_printf("[panic_fpu] %s at eip=0x%x FSW=0x%x FCW=0x%x MXCSR=0x%x\n",
-                  msg, eip, fsw, fcw, mxcsr);
+    serial_printf("[panic_fpu] %s at eip=0x%x FSW=0x%x FCW=0x%x MXCSR=0x%x\n", msg, eip, fsw, fcw,
+                  mxcsr);
     kernel_panic(msg);
 }
 
@@ -197,7 +217,9 @@ void kernel_panic(const char *fmt, ...) {
     dual_print("\nSystem halted. Press reset to reboot.\n");
     print_separator();
 
-    while (1) { __asm__ volatile("hlt"); }
+    while (1) {
+        __asm__ volatile("hlt");
+    }
 }
 
 void kernel_panic_regs(struct registers *regs, const char *fmt, ...) {
@@ -227,5 +249,7 @@ void kernel_panic_regs(struct registers *regs, const char *fmt, ...) {
     dual_print("\nSystem halted. Press reset to reboot.\n");
     print_separator();
 
-    while (1) { __asm__ volatile("hlt"); }
+    while (1) {
+        __asm__ volatile("hlt");
+    }
 }

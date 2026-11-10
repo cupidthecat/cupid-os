@@ -3,30 +3,30 @@
  *
  * Provides /dev with pseudo-devices like null, zero, random, serial.
  * Each device is registered with read/write callbacks.
-*/
+ */
 
 #include "devfs.h"
-#include "vfs.h"
-#include "string.h"
-#include "memory.h"
 #include "csprng.h"
+#include "memory.h"
 #include "serial.h"
+#include "string.h"
+#include "vfs.h"
 
 typedef struct {
-    char    name[VFS_MAX_NAME];
-    int   (*read)(void *buf, uint32_t count);
-    int   (*write)(const void *buf, uint32_t count);
-    int     in_use;
+    char name[VFS_MAX_NAME];
+    int (*read)(void *buf, uint32_t count);
+    int (*write)(const void *buf, uint32_t count);
+    int in_use;
 } devfs_device_t;
 
 typedef struct {
     devfs_device_t devices[DEVFS_MAX_DEVICES];
-    int            device_count;
+    int device_count;
 } devfs_t;
 
 typedef struct {
     devfs_device_t *device;
-    int             readdir_index;   /* For directory enumeration */
+    int readdir_index; /* For directory enumeration */
 } devfs_handle_t;
 
 /* Singleton instance pointer for device registration before mount */
@@ -35,13 +35,14 @@ static devfs_t *g_devfs = NULL;
 /* Built-in devices */
 
 static int dev_null_read(void *buf, uint32_t count) {
-    (void)buf; (void)count;
-    return 0;  /* EOF always */
+    (void)buf;
+    (void)count;
+    return 0; /* EOF always */
 }
 
 static int dev_null_write(const void *buf, uint32_t count) {
     (void)buf;
-    return (int)count;  /* Discard, report success */
+    return (int)count; /* Discard, report success */
 }
 
 static int dev_zero_read(void *buf, uint32_t count) {
@@ -51,7 +52,7 @@ static int dev_zero_read(void *buf, uint32_t count) {
 
 static int dev_zero_write(const void *buf, uint32_t count) {
     (void)buf;
-    return (int)count;  /* Discard */
+    return (int)count; /* Discard */
 }
 
 /* /dev/random is backed by the ChaCha20-DRBG in kernel/crypto/csprng.cc.
@@ -67,8 +68,9 @@ static int dev_random_write(const void *buf, uint32_t count) {
 }
 
 static int dev_serial_read(void *buf, uint32_t count) {
-    (void)buf; (void)count;
-    return 0;  /* Serial input not yet supported */
+    (void)buf;
+    (void)count;
+    return 0; /* Serial input not yet supported */
 }
 
 static int dev_serial_write(const void *buf, uint32_t count) {
@@ -101,7 +103,8 @@ static int devfs_mount(const char *source, void **fs_private) {
         fs = g_devfs;
     } else {
         fs = kmalloc(sizeof(devfs_t));
-        if (!fs) return VFS_EIO;
+        if (!fs)
+            return VFS_EIO;
         memset(fs, 0, sizeof(devfs_t));
         g_devfs = fs;
     }
@@ -115,30 +118,33 @@ static int devfs_unmount(void *fs_private) {
     return VFS_OK;
 }
 
-static int devfs_open(void *fs_private, const char *path,
-                      uint32_t flags, void **file_handle) {
+static int devfs_open(void *fs_private, const char *path, uint32_t flags, void **file_handle) {
     devfs_t *fs = (devfs_t *)fs_private;
     (void)flags;
 
     /* Strip leading slashes */
-    while (*path == '/') path++;
+    while (*path == '/')
+        path++;
 
     /* Empty path => open the /dev directory itself */
     if (path[0] == '\0') {
         devfs_handle_t *h = kmalloc(sizeof(devfs_handle_t));
-        if (!h) return VFS_EIO;
+        if (!h)
+            return VFS_EIO;
         memset(h, 0, sizeof(devfs_handle_t));
-        h->device = NULL;  /* Indicates directory */
+        h->device = NULL; /* Indicates directory */
         h->readdir_index = 0;
         *file_handle = h;
         return VFS_OK;
     }
 
     devfs_device_t *dev = devfs_find_device(fs, path);
-    if (!dev) return VFS_ENOENT;
+    if (!dev)
+        return VFS_ENOENT;
 
     devfs_handle_t *h = kmalloc(sizeof(devfs_handle_t));
-    if (!h) return VFS_EIO;
+    if (!h)
+        return VFS_EIO;
     memset(h, 0, sizeof(devfs_handle_t));
     h->device = dev;
     h->readdir_index = 0;
@@ -148,36 +154,42 @@ static int devfs_open(void *fs_private, const char *path,
 }
 
 static int devfs_close(void *file_handle) {
-    if (file_handle) kfree(file_handle);
+    if (file_handle)
+        kfree(file_handle);
     return VFS_OK;
 }
 
 static int devfs_read(void *file_handle, void *buffer, uint32_t count) {
     devfs_handle_t *h = (devfs_handle_t *)file_handle;
-    if (!h || !h->device) return VFS_EINVAL;
-    if (!h->device->read) return VFS_ENOSYS;
+    if (!h || !h->device)
+        return VFS_EINVAL;
+    if (!h->device->read)
+        return VFS_ENOSYS;
     return h->device->read(buffer, count);
 }
 
-static int devfs_write(void *file_handle, const void *buffer,
-                       uint32_t count) {
+static int devfs_write(void *file_handle, const void *buffer, uint32_t count) {
     devfs_handle_t *h = (devfs_handle_t *)file_handle;
-    if (!h || !h->device) return VFS_EINVAL;
-    if (!h->device->write) return VFS_ENOSYS;
+    if (!h || !h->device)
+        return VFS_EINVAL;
+    if (!h->device->write)
+        return VFS_ENOSYS;
     return h->device->write(buffer, count);
 }
 
 static int devfs_seek(void *file_handle, int32_t offset, int whence) {
-    (void)file_handle; (void)offset; (void)whence;
-    return VFS_ENOSYS;  /* Devices are not seekable */
+    (void)file_handle;
+    (void)offset;
+    (void)whence;
+    return VFS_ENOSYS; /* Devices are not seekable */
 }
 
-static int devfs_stat(void *fs_private, const char *path,
-                      vfs_stat_t *st) {
+static int devfs_stat(void *fs_private, const char *path, vfs_stat_t *st) {
     devfs_t *fs = (devfs_t *)fs_private;
 
     /* Strip leading slashes */
-    while (*path == '/') path++;
+    while (*path == '/')
+        path++;
 
     if (path[0] == '\0') {
         st->type = VFS_TYPE_DIR;
@@ -186,7 +198,8 @@ static int devfs_stat(void *fs_private, const char *path,
     }
 
     devfs_device_t *dev = devfs_find_device(fs, path);
-    if (!dev) return VFS_ENOENT;
+    if (!dev)
+        return VFS_ENOENT;
 
     st->type = VFS_TYPE_DEV;
     st->size = 0;
@@ -195,8 +208,10 @@ static int devfs_stat(void *fs_private, const char *path,
 
 static int devfs_readdir(void *file_handle, vfs_dirent_t *dirent) {
     devfs_handle_t *h = (devfs_handle_t *)file_handle;
-    if (!h) return VFS_EINVAL;
-    if (h->device != NULL) return VFS_ENOTDIR; /* Not a directory */
+    if (!h)
+        return VFS_EINVAL;
+    if (h->device != NULL)
+        return VFS_ENOTDIR; /* Not a directory */
 
     /* Walk through devices */
     while (h->readdir_index < DEVFS_MAX_DEVICES) {
@@ -204,8 +219,10 @@ static int devfs_readdir(void *file_handle, vfs_dirent_t *dirent) {
         h->readdir_index++;
 
         /* Need g_devfs to iterate devices */
-        if (!g_devfs) return 0;
-        if (!g_devfs->devices[idx].in_use) continue;
+        if (!g_devfs)
+            return 0;
+        if (!g_devfs->devices[idx].in_use)
+            continue;
 
         size_t i = 0;
         const char *name = g_devfs->devices[idx].name;
@@ -223,31 +240,31 @@ static int devfs_readdir(void *file_handle, vfs_dirent_t *dirent) {
 }
 
 static int devfs_mkdir_op(void *fs_private, const char *path) {
-    (void)fs_private; (void)path;
-    return VFS_ENOSYS;  /* Cannot create directories in devfs */
+    (void)fs_private;
+    (void)path;
+    return VFS_ENOSYS; /* Cannot create directories in devfs */
 }
 
 static int devfs_unlink_op(void *fs_private, const char *path) {
-    (void)fs_private; (void)path;
-    return VFS_ENOSYS;  /* Cannot unlink devices */
+    (void)fs_private;
+    (void)path;
+    return VFS_ENOSYS; /* Cannot unlink devices */
 }
 
 /* VFS operations struct */
 
-static vfs_fs_ops_t devfs_ops = {
-    .name     = "devfs",
-    .mount    = devfs_mount,
-    .unmount  = devfs_unmount,
-    .open     = devfs_open,
-    .close    = devfs_close,
-    .read     = devfs_read,
-    .write    = devfs_write,
-    .seek     = devfs_seek,
-    .stat     = devfs_stat,
-    .readdir  = devfs_readdir,
-    .mkdir    = devfs_mkdir_op,
-    .unlink   = devfs_unlink_op
-};
+static vfs_fs_ops_t devfs_ops = {.name = "devfs",
+                                 .mount = devfs_mount,
+                                 .unmount = devfs_unmount,
+                                 .open = devfs_open,
+                                 .close = devfs_close,
+                                 .read = devfs_read,
+                                 .write = devfs_write,
+                                 .seek = devfs_seek,
+                                 .stat = devfs_stat,
+                                 .readdir = devfs_readdir,
+                                 .mkdir = devfs_mkdir_op,
+                                 .unlink = devfs_unlink_op};
 
 vfs_fs_ops_t *devfs_get_ops(void) {
     return &devfs_ops;
@@ -255,17 +272,18 @@ vfs_fs_ops_t *devfs_get_ops(void) {
 
 /* Device registration */
 
-int devfs_register_device(const char *name,
-                          int (*read)(void *buf, uint32_t count),
+int devfs_register_device(const char *name, int (*read)(void *buf, uint32_t count),
                           int (*write)(const void *buf, uint32_t count)) {
     /* Create instance if needed */
     if (!g_devfs) {
         g_devfs = kmalloc(sizeof(devfs_t));
-        if (!g_devfs) return VFS_EIO;
+        if (!g_devfs)
+            return VFS_EIO;
         memset(g_devfs, 0, sizeof(devfs_t));
     }
 
-    if (g_devfs->device_count >= DEVFS_MAX_DEVICES) return VFS_ENOSPC;
+    if (g_devfs->device_count >= DEVFS_MAX_DEVICES)
+        return VFS_ENOSPC;
 
     devfs_device_t *dev = &g_devfs->devices[g_devfs->device_count];
     size_t i = 0;
@@ -285,8 +303,8 @@ int devfs_register_device(const char *name,
 /* Register built-in devices (call during init) */
 
 void devfs_register_builtins(void) {
-    devfs_register_device("null",   dev_null_read,   dev_null_write);
-    devfs_register_device("zero",   dev_zero_read,   dev_zero_write);
-    devfs_register_device("random", dev_random_read,  dev_random_write);
-    devfs_register_device("serial", dev_serial_read,  dev_serial_write);
+    devfs_register_device("null", dev_null_read, dev_null_write);
+    devfs_register_device("zero", dev_zero_read, dev_zero_write);
+    devfs_register_device("random", dev_random_read, dev_random_write);
+    devfs_register_device("serial", dev_serial_read, dev_serial_write);
 }

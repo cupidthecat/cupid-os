@@ -9,7 +9,7 @@
  * If the blob is absent or has bad magic, all lookups return NULL and
  * callers fall back to printing raw addresses.  This keeps panics
  * functional even before the symbol pipeline has run.
-*/
+ */
 
 #include "ksyms.h"
 
@@ -18,14 +18,13 @@
 /* Defined either by the generated ksyms_data.cc (real blob) or below as
  * a weak fallback so an un-extracted build still links.*/
 extern const unsigned int ksym_blob[];
-extern const unsigned int  ksym_blob_size;
+extern const unsigned int ksym_blob_size;
 
 /* Weak fallbacks: a 16-byte zero header so the blob is "present but
  * empty".  ksym_lookup() detects bad magic and returns NULL.  These
  * symbols are overridden by ksyms_data.o once the second-pass link
  * runs.*/
-const unsigned int ksym_blob[4] __attribute__((weak,
-    section(".ksyms"), aligned(4))) = {0};
+const unsigned int ksym_blob[4] __attribute__((weak, section(".ksyms"), aligned(4))) = {0};
 const unsigned int ksym_blob_size __attribute__((weak)) = 0;
 
 typedef struct {
@@ -41,51 +40,62 @@ typedef struct {
 } ksym_entry_t;
 
 static const ksym_header_t *ksym_header(void) {
-    if (ksym_blob_size < sizeof(ksym_header_t)) return 0;
+    if (ksym_blob_size < sizeof(ksym_header_t))
+        return 0;
     const ksym_header_t *h = (const ksym_header_t *)ksym_blob;
-    if (h->magic != KSYM_MAGIC) return 0;
-    if (h->total_size > ksym_blob_size) return 0;
-    if (h->string_off < sizeof(*h)) return 0;
-    if (h->string_off > h->total_size) return 0;
+    if (h->magic != KSYM_MAGIC)
+        return 0;
+    if (h->total_size > ksym_blob_size)
+        return 0;
+    if (h->string_off < sizeof(*h))
+        return 0;
+    if (h->string_off > h->total_size)
+        return 0;
     return h;
 }
 
 const char *ksym_lookup(uint32_t addr, uint32_t *off_out) {
     const ksym_header_t *h = ksym_header();
-    if (!h || h->count == 0) return 0;
+    if (!h || h->count == 0)
+        return 0;
 
-    const ksym_entry_t *ents =
-        (const ksym_entry_t *)((const unsigned char *)h + sizeof(*h));
-    const char *strtab =
-        (const char *)((const unsigned char *)h + h->string_off);
+    const ksym_entry_t *ents = (const ksym_entry_t *)((const unsigned char *)h + sizeof(*h));
+    const char *strtab = (const char *)((const unsigned char *)h + h->string_off);
 
     /* Binary search for the largest entry with addr <= target. */
     uint32_t lo = 0, hi = h->count;
     while (lo < hi) {
         uint32_t mid = lo + (hi - lo) / 2;
-        if (ents[mid].addr <= addr) lo = mid + 1;
-        else hi = mid;
+        if (ents[mid].addr <= addr)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
-    if (lo == 0) return 0;
+    if (lo == 0)
+        return 0;
     const ksym_entry_t *e = &ents[lo - 1];
 
     /* Sanity-bound the offset against the next entry (or 0x10000 cap if
      * this is the last symbol - function bodies > 64K are rejected so a
      * stray PC doesn't get mis-attributed to the final symbol).*/
     uint32_t func_end;
-    if (lo < h->count) func_end = ents[lo].addr;
-    else               func_end = e->addr + 0x10000U;
-    if (addr >= func_end) return 0;
+    if (lo < h->count)
+        func_end = ents[lo].addr;
+    else
+        func_end = e->addr + 0x10000U;
+    if (addr >= func_end)
+        return 0;
 
-    if (off_out) *off_out = addr - e->addr;
+    if (off_out)
+        *off_out = addr - e->addr;
     /* name_off is bounded by string_off..total_size; trust the encoder. */
     return strtab + e->name_off;
 }
 
 void ksym_backtrace(uint32_t start_ebp, uint32_t start_eip, int max_frames,
-                    void (*print_line)(int frame, uint32_t addr,
-                                       const char *name, uint32_t off)) {
-    if (!print_line || max_frames <= 0) return;
+                    void (*print_line)(int frame, uint32_t addr, const char *name, uint32_t off)) {
+    if (!print_line || max_frames <= 0)
+        return;
 
     /* Frame 0: the faulting instruction itself. */
     uint32_t off = 0;
@@ -97,7 +107,8 @@ void ksym_backtrace(uint32_t start_ebp, uint32_t start_eip, int max_frames,
         /* Stop if EBP looks bogus.  The kernel stack window per
          * docs/code is roughly 0x1000..0x900000; outside that, refuse
          * to deref to avoid faulting inside the panic path.*/
-        if (ebp < 0x1000U || ebp > 0x900000U) break;
+        if (ebp < 0x1000U || ebp > 0x900000U)
+            break;
 
         uint32_t ret_addr = *(const uint32_t *)(ebp + 4);
         uint32_t prev_ebp = *(const uint32_t *)ebp;
@@ -113,7 +124,8 @@ void ksym_backtrace(uint32_t start_ebp, uint32_t start_eip, int max_frames,
         name = ksym_lookup(lookup_addr, &off);
         print_line(i, ret_addr, name, off);
 
-        if (prev_ebp <= ebp) break;
+        if (prev_ebp <= ebp)
+            break;
         ebp = prev_ebp;
     }
 }

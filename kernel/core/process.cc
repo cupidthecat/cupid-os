@@ -16,80 +16,68 @@
  *
  *   New processes have their initial EIP set to their entry function
  *   with a return address of process_exit_trampoline on the stack.
-*/
+ */
 
 #include "process.h"
-#include "kernel.h"
-#include "memory.h"
-#include "string.h"
-#include "types.h"
+#include "bkl.h"
 #include "debug.h"
-#include "shell.h"
-#include "gui.h"
 #include "gfx2d.h"
 #include "gfx2d_icons.h"
-#include "simd.h"
+#include "gui.h"
+#include "kernel.h"
+#include "memory.h"
 #include "percpu.h"
-#include "bkl.h"
-#include "smp.h"
 #include "serial.h"
+#include "shell.h"
+#include "simd.h"
+#include "smp.h"
+#include "string.h"
 #include "timer.h"
+#include "types.h"
 
-extern void context_switch(process_t *old_proc, process_t *new_proc,
-                           uint32_t resume_eflags);
-extern void context_switch_resume(void);  /* resume label address */
+extern void context_switch(process_t *old_proc, process_t *new_proc, uint32_t resume_eflags);
+extern void context_switch_resume(void); /* resume label address */
 
 _Static_assert(__alignof__(((process_t *)0)->fp_state) >= 16,
                "fp_state must be 16-byte aligned for FXSAVE/FXRSTOR");
-_Static_assert(sizeof(((process_t *)0)->fp_state) == 512,
-               "fp_state must be 512 bytes");
+_Static_assert(sizeof(((process_t *)0)->fp_state) == 512, "fp_state must be 512 bytes");
 
 /* PCB field offsets baked into kernel/context_switch.asm.  If any of
  * these asserts fire, update the matching %define in that file.*/
-_Static_assert(__builtin_offsetof(process_t, context) +
-               __builtin_offsetof(cpu_context_t, esp) == 32,
+_Static_assert(__builtin_offsetof(process_t, context) + __builtin_offsetof(cpu_context_t, esp) ==
+                   32,
                "PCB ESP offset baked into context_switch.asm "
                "(PCB_ESP_OFFSET=32)");
-_Static_assert(__builtin_offsetof(process_t, context) +
-               __builtin_offsetof(cpu_context_t, eip) == 40,
+_Static_assert(__builtin_offsetof(process_t, context) + __builtin_offsetof(cpu_context_t, eip) ==
+                   40,
                "PCB EIP offset baked into context_switch.asm "
                "(PCB_EIP_OFFSET=40)");
-_Static_assert(__builtin_offsetof(process_t, context) +
-               __builtin_offsetof(cpu_context_t, eflags) == 44,
+_Static_assert(__builtin_offsetof(process_t, context) + __builtin_offsetof(cpu_context_t, eflags) ==
+                   44,
                "PCB EFLAGS offset baked into context_switch.asm "
                "(PCB_EFLAGS_OFFSET=44)");
 _Static_assert(__builtin_offsetof(process_t, fp_state) == 80,
                "PCB fp_state offset baked into context_switch.asm "
                "(PCB_FP_STATE_OFFSET=80)");
 
-static process_t  process_table[MAX_PROCESSES];
+static process_t process_table[MAX_PROCESSES];
 /* Each CPU that enters the scheduler without a process (the AP idle loop)
  * captures that stack/FPU context here.  It is a scheduler refuge, not a PID:
  * a terminating AP task can switch back to its own idle stack without
  * stealing PID 1's single PCB/stack from another CPU. */
-static process_t  cpu_idle_contexts[SMP_MAX_CPUS]
-    __attribute__((aligned(16)));
-static bool       cpu_idle_context_valid[SMP_MAX_CPUS];
-static uint32_t   next_schedule_index  = 0;
-static uint32_t   process_count        = 0;
-static bool       scheduler_active     = false;
-static uint32_t   external_image_generation = 0;
-static uint32_t   external_image_owner_pid = 0;
-static uint32_t   next_external_image_generation = 0;
-static uint32_t   next_process_lifetime_generation = 0;
+static process_t cpu_idle_contexts[SMP_MAX_CPUS] __attribute__((aligned(16)));
+static bool cpu_idle_context_valid[SMP_MAX_CPUS];
+static uint32_t next_schedule_index = 0;
+static uint32_t process_count = 0;
+static bool scheduler_active = false;
+static uint32_t external_image_generation = 0;
+static uint32_t external_image_owner_pid = 0;
+static uint32_t next_external_image_generation = 0;
+static uint32_t next_process_lifetime_generation = 0;
 
-static const char *state_names[] = {
-    "READY",
-    "RUNNING",
-    "BLOCKED",
-    "TERMINATED"
-};
+static const char *state_names[] = {"READY", "RUNNING", "BLOCKED", "TERMINATED"};
 
-static const char *domain_names[] = {
-    "kernel",
-    "hosted",
-    "external"
-};
+static const char *domain_names[] = {"kernel", "hosted", "external"};
 
 static void idle_process(void);
 static void process_delayed_kill_entry(uint32_t request_address);
@@ -99,27 +87,21 @@ static void process_reap_terminated(void);
 static void process_release_image_locked(process_t *process);
 static bool process_cleanup_resources_locked(process_t *process);
 static bool process_reclaim_locked(process_t *process);
-static uint32_t process_create_common_locked(void (*entry_point)(void),
-                                             const char *name,
-                                             uint32_t stack_size,
-                                             bool with_arg,
-                                             uint32_t arg,
-                                             process_domain_t domain,
-                                             process_image_t *image);
-static uint32_t process_create_common(void (*entry_point)(void),
-                                      const char *name,
-                                      uint32_t stack_size,
-                                      bool with_arg,
-                                      uint32_t arg,
-                                      process_domain_t domain,
-                                      process_image_t *image);
+static uint32_t process_create_common_locked(void (*entry_point)(void), const char *name,
+                                             uint32_t stack_size, bool with_arg, uint32_t arg,
+                                             process_domain_t domain, process_image_t *image);
+static uint32_t process_create_common(void (*entry_point)(void), const char *name,
+                                      uint32_t stack_size, bool with_arg, uint32_t arg,
+                                      process_domain_t domain, process_image_t *image);
 
 /* Trampoline: if a process entry function returns, we land here
  *  and call process_exit() to clean up.
  **/
 static void process_exit_trampoline(void) {
     process_exit();
-    while (1) { __asm__ volatile("hlt"); }
+    while (1) {
+        __asm__ volatile("hlt");
+    }
 }
 
 /*  *  Idle process - PID 1, always present
@@ -145,22 +127,19 @@ typedef struct {
 
 static void process_kill_expected(uint32_t pid, uint32_t expected_generation);
 
-static bool process_pid_generation_changed(uint32_t pid,
-                                           uint32_t expected_generation) {
+static bool process_pid_generation_changed(uint32_t pid, uint32_t expected_generation) {
     bool changed;
     if (pid == 0u || pid > MAX_PROCESSES)
         return false;
     bkl_lock();
     changed = process_table[pid - 1u].pid == pid &&
-              process_table[pid - 1u].lifetime_generation !=
-                  expected_generation;
+              process_table[pid - 1u].lifetime_generation != expected_generation;
     bkl_unlock();
     return changed;
 }
 
 static void process_delayed_kill_entry(uint32_t request_address) {
-    process_delayed_kill_request_t *request =
-        (process_delayed_kill_request_t *)request_address;
+    process_delayed_kill_request_t *request = (process_delayed_kill_request_t *)request_address;
     uint32_t target_pid;
     uint32_t target_generation;
     uint32_t delay_ms;
@@ -175,8 +154,7 @@ static void process_delayed_kill_entry(uint32_t request_address) {
     kfree(request);
 
     if (wait_for_reuse) {
-        while (!process_pid_generation_changed(target_pid,
-                                               target_generation))
+        while (!process_pid_generation_changed(target_pid, target_generation))
             process_yield();
         process_kill_expected(target_pid, target_generation);
         return;
@@ -216,13 +194,13 @@ static void process_release_image_locked(process_t *process) {
     if (ownership == PROCESS_IMAGE_EXTERNAL_LEASE) {
         if (generation != 0 && generation == external_image_generation &&
             process->pid == external_image_owner_pid) {
-            serial_printf("[PROCESS] PID %u released external image lease %u\n",
-                          process->pid, generation);
+            serial_printf("[PROCESS] PID %u released external image lease %u\n", process->pid,
+                          generation);
             external_image_generation = 0;
             external_image_owner_pid = 0;
         } else {
-            serial_printf("[PROCESS] PID %u has stale external image lease %u\n",
-                          process->pid, generation);
+            serial_printf("[PROCESS] PID %u has stale external image lease %u\n", process->pid,
+                          generation);
         }
     }
 }
@@ -232,8 +210,7 @@ static bool process_cleanup_resources_locked(process_t *process) {
         process->state != PROCESS_TERMINATED || process->on_cpu != 0xFFu) {
         serial_printf("[PROCESS] Refused unsafe cleanup pid=%u state=%u "
                       "on_cpu=%u\n",
-                      process ? process->pid : 0u,
-                      process ? (uint32_t)process->state : 0u,
+                      process ? process->pid : 0u, process ? (uint32_t)process->state : 0u,
                       process ? (uint32_t)process->on_cpu : 0u);
         return false;
     }
@@ -277,8 +254,8 @@ static void process_reap_terminated_impl(void) {
         return;
     }
     for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
-        if (process_table[i].state != PROCESS_TERMINATED ||
-            process_table[i].pid == 0 || process_table[i].on_cpu != 0xFFu) {
+        if (process_table[i].state != PROCESS_TERMINATED || process_table[i].pid == 0 ||
+            process_table[i].on_cpu != 0xFFu) {
             continue;
         }
 
@@ -300,8 +277,8 @@ void process_init(void) {
     memset(cpu_idle_context_valid, 0, sizeof(cpu_idle_context_valid));
     this_cpu()->current_pid = 0;
     next_schedule_index = 0;
-    process_count       = 0;
-    scheduler_active    = false;
+    process_count = 0;
+    scheduler_active = false;
     external_image_generation = 0;
     external_image_owner_pid = 0;
     next_external_image_generation = 0;
@@ -317,13 +294,9 @@ void process_init(void) {
 
 /*  *  process_create
  **/
-static uint32_t process_create_common_locked(void (*entry_point)(void),
-                                             const char *name,
-                                             uint32_t stack_size,
-                                             bool with_arg,
-                                             uint32_t arg,
-                                             process_domain_t domain,
-                                             process_image_t *image) {
+static uint32_t process_create_common_locked(void (*entry_point)(void), const char *name,
+                                             uint32_t stack_size, bool with_arg, uint32_t arg,
+                                             process_domain_t domain, process_image_t *image) {
     process_reap_terminated_impl();
 
     if (!entry_point) {
@@ -331,34 +304,25 @@ static uint32_t process_create_common_locked(void (*entry_point)(void),
         return 0;
     }
     if (image) {
-        bool range_valid = image->size > 0 &&
-                           image->base <= 0xFFFFFFFFu - image->size;
+        bool range_valid = image->size > 0 && image->base <= 0xFFFFFFFFu - image->size;
         if (image->ownership == PROCESS_IMAGE_NONE) {
-            range_valid = image->base == 0 && image->size == 0 &&
-                          image->lease_generation == 0;
+            range_valid = image->base == 0 && image->size == 0 && image->lease_generation == 0;
         } else if (image->ownership == PROCESS_IMAGE_EXTERNAL_LEASE) {
-            range_valid = range_valid &&
-                          image->base == EXTERNAL_EXEC_ARENA_START &&
-                          image->size == EXTERNAL_EXEC_ARENA_END -
-                                         EXTERNAL_EXEC_ARENA_START &&
+            range_valid = range_valid && image->base == EXTERNAL_EXEC_ARENA_START &&
+                          image->size == EXTERNAL_EXEC_ARENA_END - EXTERNAL_EXEC_ARENA_START &&
                           image->lease_generation != 0 &&
-                          image->lease_generation ==
-                              external_image_generation &&
-                          external_image_owner_pid == 0 &&
-                          domain == PROCESS_DOMAIN_EXTERNAL;
+                          image->lease_generation == external_image_generation &&
+                          external_image_owner_pid == 0 && domain == PROCESS_DOMAIN_EXTERNAL;
         } else if (image->ownership == PROCESS_IMAGE_PERMANENT) {
-            uint32_t image_end = range_valid
-                                     ? image->base + image->size
-                                     : 0u;
-            bool in_cupidc = image->base >= CUPIDC_EXEC_ARENA_START &&
-                             image_end <= CUPIDC_EXEC_ARENA_END;
-            bool in_cupidasm = image->base >= CUPIDASM_EXEC_ARENA_START &&
-                               image_end <= CUPIDASM_EXEC_ARENA_END;
+            uint32_t image_end = range_valid ? image->base + image->size : 0u;
+            bool in_cupidc =
+                image->base >= CUPIDC_EXEC_ARENA_START && image_end <= CUPIDC_EXEC_ARENA_END;
+            bool in_cupidasm =
+                image->base >= CUPIDASM_EXEC_ARENA_START && image_end <= CUPIDASM_EXEC_ARENA_END;
             range_valid = range_valid && image->lease_generation == 0u &&
                           domain == PROCESS_DOMAIN_EXTERNAL &&
                           (image->base & (PAGE_SIZE - 1u)) == 0u &&
-                          (image->size & (PAGE_SIZE - 1u)) == 0u &&
-                          (in_cupidc || in_cupidasm);
+                          (image->size & (PAGE_SIZE - 1u)) == 0u && (in_cupidc || in_cupidasm);
         } else {
             range_valid = false;
         }
@@ -368,8 +332,7 @@ static uint32_t process_create_common_locked(void (*entry_point)(void),
         }
     }
     if (process_count >= MAX_PROCESSES) {
-        KWARN("process_create: table full (%u/%u)",
-              process_count, (uint32_t)MAX_PROCESSES);
+        KWARN("process_create: table full (%u/%u)", process_count, (uint32_t)MAX_PROCESSES);
         return 0;
     }
     if (stack_size < 1024) {
@@ -394,15 +357,15 @@ static uint32_t process_create_common_locked(void (*entry_point)(void),
     process_t *p = &process_table[slot];
     memset(p, 0, sizeof(process_t));
 
-    p->on_cpu     = 0xFFu;   /* not running on any CPU yet */
-    p->last_cpu   = 0u;
-    p->state      = PROCESS_TERMINATED; /* not published until complete */
+    p->on_cpu = 0xFFu; /* not running on any CPU yet */
+    p->last_cpu = 0u;
+    p->state = PROCESS_TERMINATED; /* not published until complete */
     p->stack_base = stack;
     p->stack_size = stack_size;
     if (domain > PROCESS_DOMAIN_EXTERNAL) {
         domain = PROCESS_DOMAIN_KERNEL;
     }
-    p->domain     = domain;
+    p->domain = domain;
     next_process_lifetime_generation++;
     if (next_process_lifetime_generation == 0u)
         next_process_lifetime_generation++;
@@ -428,7 +391,7 @@ static uint32_t process_create_common_locked(void (*entry_point)(void),
      * context.eip = entry_point and pre-place process_exit_trampoline
      * as a fake return address on its stack, so when entry_point
      * returns, `ret` lands in the trampoline.
-*/
+     */
     uint32_t top = ((uint32_t)stack + stack_size) & ~0xFu;
     uint32_t *sp = (uint32_t *)top;
     if (with_arg) {
@@ -438,8 +401,8 @@ static uint32_t process_create_common_locked(void (*entry_point)(void),
     sp--;
     *sp = (uint32_t)process_exit_trampoline;
 
-    p->context.esp    = (uint32_t)sp;
-    p->context.eip    = (uint32_t)entry_point;
+    p->context.esp = (uint32_t)sp;
+    p->context.eip = (uint32_t)entry_point;
     p->context.eflags = 0x00000202u; /* reserved bit + interrupts enabled */
 
     /* Seed fp_state with a fresh FXSAVE from the currently-init'd FPU
@@ -472,80 +435,60 @@ static uint32_t process_create_common_locked(void (*entry_point)(void),
     if (with_arg) {
         serial_printf("[PROCESS] Created PID %u \"%s\" domain=%s arg=0x%x "
                       "(stack=%u, entry=0x%x)\n",
-                      p->pid, p->name, process_domain_name(p->domain), arg,
-                      stack_size, (uint32_t)entry_point);
+                      p->pid, p->name, process_domain_name(p->domain), arg, stack_size,
+                      (uint32_t)entry_point);
     } else {
         serial_printf("[PROCESS] Created PID %u \"%s\" domain=%s "
                       "(stack=%u, entry=0x%x)\n",
-                      p->pid, p->name, process_domain_name(p->domain),
-                      stack_size, (uint32_t)entry_point);
+                      p->pid, p->name, process_domain_name(p->domain), stack_size,
+                      (uint32_t)entry_point);
     }
 
     return p->pid;
 }
 
-static uint32_t process_create_common(void (*entry_point)(void),
-                                      const char *name,
-                                      uint32_t stack_size,
-                                      bool with_arg,
-                                      uint32_t arg,
-                                      process_domain_t domain,
-                                      process_image_t *image) {
+static uint32_t process_create_common(void (*entry_point)(void), const char *name,
+                                      uint32_t stack_size, bool with_arg, uint32_t arg,
+                                      process_domain_t domain, process_image_t *image) {
     bkl_lock();
-    uint32_t pid = process_create_common_locked(entry_point, name, stack_size,
-                                                with_arg, arg, domain, image);
+    uint32_t pid =
+        process_create_common_locked(entry_point, name, stack_size, with_arg, arg, domain, image);
     bkl_unlock();
     return pid;
 }
 
-uint32_t process_create(void (*entry_point)(void),
-                        const char *name,
-                        uint32_t stack_size) {
-    return process_create_common(entry_point, name, stack_size, false, 0,
-                                 PROCESS_DOMAIN_KERNEL, NULL);
+uint32_t process_create(void (*entry_point)(void), const char *name, uint32_t stack_size) {
+    return process_create_common(entry_point, name, stack_size, false, 0, PROCESS_DOMAIN_KERNEL,
+                                 NULL);
 }
 
-uint32_t process_create_ex(void (*entry_point)(void),
-                           const char *name,
-                           uint32_t stack_size,
+uint32_t process_create_ex(void (*entry_point)(void), const char *name, uint32_t stack_size,
                            process_domain_t domain) {
-    return process_create_common(entry_point, name, stack_size, false, 0,
-                                 domain, NULL);
+    return process_create_common(entry_point, name, stack_size, false, 0, domain, NULL);
 }
 
 /*  *  process_create_with_arg - like process_create but pushes one
  *  uint32_t argument onto the stack so the entry function receives it.
  **/
-uint32_t process_create_with_arg(void (*entry_point)(void),
-                                 const char *name,
-                                 uint32_t stack_size,
+uint32_t process_create_with_arg(void (*entry_point)(void), const char *name, uint32_t stack_size,
                                  uint32_t arg) {
-    return process_create_common(entry_point, name, stack_size, true, arg,
-                                 PROCESS_DOMAIN_KERNEL, NULL);
+    return process_create_common(entry_point, name, stack_size, true, arg, PROCESS_DOMAIN_KERNEL,
+                                 NULL);
 }
 
-uint32_t process_create_with_arg_ex(void (*entry_point)(void),
-                                    const char *name,
-                                    uint32_t stack_size,
-                                    uint32_t arg,
-                                    process_domain_t domain) {
-    return process_create_common(entry_point, name, stack_size, true, arg,
-                                 domain, NULL);
+uint32_t process_create_with_arg_ex(void (*entry_point)(void), const char *name,
+                                    uint32_t stack_size, uint32_t arg, process_domain_t domain) {
+    return process_create_common(entry_point, name, stack_size, true, arg, domain, NULL);
 }
 
-uint32_t process_create_with_arg_image_ex(void (*entry_point)(void),
-                                          const char *name,
-                                          uint32_t stack_size,
-                                          uint32_t arg,
-                                          process_domain_t domain,
-                                          process_image_t *image) {
-    return process_create_common(entry_point, name, stack_size, true, arg,
-                                 domain, image);
+uint32_t process_create_with_arg_image_ex(void (*entry_point)(void), const char *name,
+                                          uint32_t stack_size, uint32_t arg,
+                                          process_domain_t domain, process_image_t *image) {
+    return process_create_common(entry_point, name, stack_size, true, arg, domain, image);
 }
 
 bool process_external_image_claim(process_image_t *image) {
-    if (!image || image->base != 0 || image->size != 0 ||
-        image->ownership != PROCESS_IMAGE_NONE ||
+    if (!image || image->base != 0 || image->size != 0 || image->ownership != PROCESS_IMAGE_NONE ||
         image->lease_generation != 0) {
         return false;
     }
@@ -567,22 +510,19 @@ bool process_external_image_claim(process_image_t *image) {
     image->size = EXTERNAL_EXEC_ARENA_END - EXTERNAL_EXEC_ARENA_START;
     image->ownership = PROCESS_IMAGE_EXTERNAL_LEASE;
     image->lease_generation = external_image_generation;
-    serial_printf("[PROCESS] Claimed external image lease %u\n",
-                  external_image_generation);
+    serial_printf("[PROCESS] Claimed external image lease %u\n", external_image_generation);
     bkl_unlock();
     return true;
 }
 
 void process_image_discard(process_image_t *image) {
-    if (!image) return;
+    if (!image)
+        return;
 
     bkl_lock();
-    if (image->ownership == PROCESS_IMAGE_EXTERNAL_LEASE &&
-        image->lease_generation != 0) {
-        if (image->lease_generation == external_image_generation &&
-            external_image_owner_pid == 0) {
-            serial_printf("[PROCESS] Cancelled external image lease %u\n",
-                          image->lease_generation);
+    if (image->ownership == PROCESS_IMAGE_EXTERNAL_LEASE && image->lease_generation != 0) {
+        if (image->lease_generation == external_image_generation && external_image_owner_pid == 0) {
+            serial_printf("[PROCESS] Cancelled external image lease %u\n", image->lease_generation);
             external_image_generation = 0;
         } else {
             serial_printf("[PROCESS] Ignored stale external image lease %u\n",
@@ -609,8 +549,8 @@ void process_exit(void) {
 
     process_t *p = &process_table[exit_pid - 1];
     if (p->pid != exit_pid || p->on_cpu != this_cpu()->cpu_id) {
-        serial_printf("[PROCESS] Refused inconsistent exit pid=%u on_cpu=%u\n",
-                      exit_pid, (uint32_t)p->on_cpu);
+        serial_printf("[PROCESS] Refused inconsistent exit pid=%u on_cpu=%u\n", exit_pid,
+                      (uint32_t)p->on_cpu);
         bkl_unlock();
         return;
     }
@@ -628,15 +568,18 @@ void process_exit(void) {
     serial_printf("[EXIT] BUG: schedule returned in process_exit\n");
 
     /* Should never reach here */
-    while (1) { __asm__ volatile("hlt"); }
+    while (1) {
+        __asm__ volatile("hlt");
+    }
 }
 
 /*  *  process_yield
  **/
 void process_yield(void) {
-    if (!scheduler_active || this_cpu()->current_pid == 0) return;
+    if (!scheduler_active || this_cpu()->current_pid == 0)
+        return;
     extern void kernel_clear_reschedule(void);
-    kernel_clear_reschedule();   /* consume the deferred flag */
+    kernel_clear_reschedule(); /* consume the deferred flag */
     schedule();
 }
 
@@ -648,8 +591,7 @@ uint32_t process_get_current_pid(void) {
 
 /*  *  process_kill
  **/
-static void process_kill_expected(uint32_t pid,
-                                  uint32_t expected_generation) {
+static void process_kill_expected(uint32_t pid, uint32_t expected_generation) {
     if (pid == 0 || pid == 1) {
         KWARN("Cannot kill PID %u", pid);
         return;
@@ -683,12 +625,10 @@ static void process_kill_expected(uint32_t pid,
 
     process_t *p = &process_table[pid - 1];
     if (p->pid == 0 ||
-        (expected_generation != 0u &&
-         p->lifetime_generation != expected_generation)) {
+        (expected_generation != 0u && p->lifetime_generation != expected_generation)) {
         bkl_unlock();
         if (expected_generation != 0u) {
-            serial_printf("[PROCESS] Delayed kill skipped stale PID %u\n",
-                          pid);
+            serial_printf("[PROCESS] Delayed kill skipped stale PID %u\n", pid);
         } else {
             KWARN("PID %u does not exist", pid);
         }
@@ -732,8 +672,7 @@ uint32_t process_kill_after_ms(uint32_t pid, uint32_t delay_ms) {
     if (pid <= 1u || pid > MAX_PROCESSES)
         return 0u;
     bkl_lock();
-    if (process_table[pid - 1u].pid != pid ||
-        process_table[pid - 1u].state == PROCESS_TERMINATED) {
+    if (process_table[pid - 1u].pid != pid || process_table[pid - 1u].state == PROCESS_TERMINATED) {
         bkl_unlock();
         return 0u;
     }
@@ -746,12 +685,8 @@ uint32_t process_kill_after_ms(uint32_t pid, uint32_t delay_ms) {
     request->target_generation = target_generation;
     request->delay_ms = delay_ms;
     request->wait_for_reuse = wait_for_reuse;
-    helper_pid = process_create_with_arg(
-        (void (*)(void))process_delayed_kill_entry,
-        "delayed-kill",
-        DEFAULT_STACK_SIZE,
-        (uint32_t)request
-    );
+    helper_pid = process_create_with_arg((void (*)(void))process_delayed_kill_entry, "delayed-kill",
+                                         DEFAULT_STACK_SIZE, (uint32_t)request);
     if (helper_pid == 0u) {
         kfree(request);
         return 0u;
@@ -788,9 +723,11 @@ void process_list(void) {
     print("---  ---------  --------  ----------------\n");
     for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
         process_t *p = &process_table[i];
-        if (p->pid == 0) continue;
+        if (p->pid == 0)
+            continue;
 
-        if (p->pid < 10) print(" ");
+        if (p->pid < 10)
+            print(" ");
         print_int(p->pid);
         print("   ");
 
@@ -801,15 +738,19 @@ void process_list(void) {
         print(sname);
 
         uint32_t slen = 0;
-        while (sname[slen]) slen++;
-        for (uint32_t pad = slen; pad < 11; pad++) print(" ");
+        while (sname[slen])
+            slen++;
+        for (uint32_t pad = slen; pad < 11; pad++)
+            print(" ");
 
         {
             const char *dname = process_domain_name(p->domain);
             uint32_t dlen = 0;
             print(dname);
-            while (dname[dlen]) dlen++;
-            for (uint32_t pad = dlen; pad < 10; pad++) print(" ");
+            while (dname[dlen])
+                dlen++;
+            for (uint32_t pad = dlen; pad < 10; pad++)
+                print(" ");
         }
 
         print(p->name);
@@ -848,11 +789,8 @@ void process_list_adam(void) {
 
     print("+ Adam (pid 1, cupid-os ring 0)\n");
 
-    static const process_domain_t domains[] = {
-        PROCESS_DOMAIN_KERNEL,
-        PROCESS_DOMAIN_HOSTED,
-        PROCESS_DOMAIN_EXTERNAL
-    };
+    static const process_domain_t domains[] = {PROCESS_DOMAIN_KERNEL, PROCESS_DOMAIN_HOSTED,
+                                               PROCESS_DOMAIN_EXTERNAL};
 
     for (int d = 0; d < 3; d++) {
         process_domain_t dom = domains[d];
@@ -861,10 +799,13 @@ void process_list_adam(void) {
         uint32_t count = 0;
         for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
             process_t *p = &process_table[i];
-            if (p->pid == 0 || p->pid == 1) continue;
-            if (p->domain == dom) count++;
+            if (p->pid == 0 || p->pid == 1)
+                continue;
+            if (p->domain == dom)
+                count++;
         }
-        if (count == 0) continue;
+        if (count == 0)
+            continue;
 
         print("|-- ");
         print(dname);
@@ -874,8 +815,10 @@ void process_list_adam(void) {
 
         for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
             process_t *p = &process_table[i];
-            if (p->pid == 0 || p->pid == 1) continue;
-            if (p->domain != dom) continue;
+            if (p->pid == 0 || p->pid == 1)
+                continue;
+            if (p->domain != dom)
+                continue;
 
             print("|   `-- [");
             print_int(p->pid);
@@ -926,15 +869,18 @@ void process_list_adam(void) {
 /* schedule_locked - called with BKL held (or from context before BKL exists).
  * Does the actual round-robin pick and context switch.*/
 static bool schedule_locked(void) {
-    if (process_count == 0 || !scheduler_active) return false;
+    if (process_count == 0 || !scheduler_active)
+        return false;
 
     /* Switching while a caller owns an outer critical section would transfer
      * that caller's lock ownership to an unrelated process.  Keep the request
      * pending; the outer bkl_unlock() safe point will retry it. */
-    if (this_cpu()->bkl_depth != 1u) return false;
+    if (this_cpu()->bkl_depth != 1u)
+        return false;
 
     uint32_t cpu_id = this_cpu()->cpu_id;
-    if (cpu_id >= SMP_MAX_CPUS) return false;
+    if (cpu_id >= SMP_MAX_CPUS)
+        return false;
 
     /* Mark current process as READY (if it's still running) */
     uint32_t cur_pid = this_cpu()->current_pid;
@@ -945,10 +891,8 @@ static bool schedule_locked(void) {
         }
 
         /* Stack canary check */
-        if (current->stack_base &&
-            *(uint32_t *)current->stack_base != STACK_CANARY) {
-            serial_printf("[PROCESS] Stack overflow PID %u \"%s\"\n",
-                          current->pid, current->name);
+        if (current->stack_base && *(uint32_t *)current->stack_base != STACK_CANARY) {
+            serial_printf("[PROCESS] Stack overflow PID %u \"%s\"\n", current->pid, current->name);
             current->state = PROCESS_TERMINATED;
             /* This CPU still owns the current stack.  Cleanup is deferred
              * until the context switch below clears on_cpu. */
@@ -965,10 +909,8 @@ static bool schedule_locked(void) {
         process_t *candidate = &process_table[next_schedule_index];
 
         /* Skip the current process - we want a DIFFERENT one */
-        if (candidate->pid != 0 &&
-            candidate->pid != cur_pid &&
-            (candidate->pid != 1u || cpu_id == 0u) &&
-            candidate->state == PROCESS_READY &&
+        if (candidate->pid != 0 && candidate->pid != cur_pid &&
+            (candidate->pid != 1u || cpu_id == 0u) && candidate->state == PROCESS_READY &&
             candidate->on_cpu == 0xFFu) {
             next = candidate;
             break;
@@ -983,8 +925,7 @@ static bool schedule_locked(void) {
     if (!next) {
         if (cur_pid != 0 && cur_pid <= MAX_PROCESSES) {
             process_t *current = &process_table[cur_pid - 1];
-            if (current->pid == cur_pid &&
-                current->state == PROCESS_READY &&
+            if (current->pid == cur_pid && current->state == PROCESS_READY &&
                 current->on_cpu == (uint8_t)cpu_id) {
                 next = current;
             }
@@ -993,7 +934,8 @@ static bool schedule_locked(void) {
             next = &cpu_idle_contexts[cpu_id];
             next_is_cpu_idle = true;
         }
-        if (!next) return false;
+        if (!next)
+            return false;
     }
 
     /* Same process - just mark running and return */
@@ -1007,9 +949,9 @@ static bool schedule_locked(void) {
     uint32_t old_pid = cur_pid;
     this_cpu()->current_pid = next_is_cpu_idle ? 0u : next->pid;
     if (!next_is_cpu_idle) {
-        next->state    = PROCESS_RUNNING;
+        next->state = PROCESS_RUNNING;
         next->last_cpu = (uint8_t)cpu_id;
-        next->on_cpu   = (uint8_t)cpu_id;
+        next->on_cpu = (uint8_t)cpu_id;
     }
 
     /* context_switch(old_proc, new_proc):
@@ -1087,8 +1029,8 @@ void schedule(void) {
 
 void process_reschedule_if_pending(void) {
     per_cpu_t *cpu = this_cpu();
-    if (!scheduler_active || !percpu_reschedule_is_pending(cpu) ||
-        percpu_in_interrupt(cpu) || bkl_held_by_this_cpu()) {
+    if (!scheduler_active || !percpu_reschedule_is_pending(cpu) || percpu_in_interrupt(cpu) ||
+        bkl_held_by_this_cpu()) {
         return;
     }
     if (percpu_take_reschedule(cpu)) {
@@ -1107,8 +1049,7 @@ uint32_t process_get_count(void) {
     {
         uint32_t live_count = 0;
         for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
-            if (process_table[i].pid != 0 &&
-                process_table[i].state != PROCESS_TERMINATED) {
+            if (process_table[i].pid != 0 && process_table[i].state != PROCESS_TERMINATED) {
                 live_count++;
             }
         }
@@ -1144,11 +1085,11 @@ uint32_t process_register_current(const char *name) {
     process_t *p = &process_table[slot];
     memset(p, 0, sizeof(process_t));
 
-    p->pid        = slot + 1;
-    p->state      = PROCESS_RUNNING;
-    p->stack_base = NULL;           /* We don't own this stack */
+    p->pid = slot + 1;
+    p->state = PROCESS_RUNNING;
+    p->stack_base = NULL; /* We don't own this stack */
     p->stack_size = 0;
-    p->domain     = PROCESS_DOMAIN_KERNEL;
+    p->domain = PROCESS_DOMAIN_KERNEL;
 
     if (name) {
         uint32_t i = 0;
@@ -1159,8 +1100,8 @@ uint32_t process_register_current(const char *name) {
         p->name[i] = '\0';
     }
 
-    p->on_cpu     = (uint8_t)this_cpu()->cpu_id;
-    p->last_cpu   = (uint8_t)this_cpu()->cpu_id;
+    p->on_cpu = (uint8_t)this_cpu()->cpu_id;
+    p->last_cpu = (uint8_t)this_cpu()->cpu_id;
     process_count++;
     this_cpu()->current_pid = p->pid;
 
@@ -1168,8 +1109,7 @@ uint32_t process_register_current(const char *name) {
      * switch away from this thread has a valid image to restore.*/
     __asm__ volatile("fxsave (%0)" : : "r"(p->fp_state) : "memory");
 
-    serial_printf("[PROCESS] Registered current thread as PID %u \"%s\"\n",
-                  p->pid, p->name);
+    serial_printf("[PROCESS] Registered current thread as PID %u \"%s\"\n", p->pid, p->name);
 
     return p->pid;
 }
@@ -1188,7 +1128,8 @@ const char *process_domain_name(process_domain_t domain) {
  *  code that belongs to a different process.
  **/
 void process_block(uint32_t pid) {
-    if (pid == 0 || pid == 1 || pid > MAX_PROCESSES) return;
+    if (pid == 0 || pid == 1 || pid > MAX_PROCESSES)
+        return;
     bkl_lock();
     process_t *p = &process_table[pid - 1];
     if (p->pid == pid && p->state == PROCESS_READY) {
@@ -1198,7 +1139,8 @@ void process_block(uint32_t pid) {
 }
 
 void process_unblock(uint32_t pid) {
-    if (pid == 0 || pid > MAX_PROCESSES) return;
+    if (pid == 0 || pid > MAX_PROCESSES)
+        return;
     bkl_lock();
     process_t *p = &process_table[pid - 1];
     if (p->pid == pid && p->state == PROCESS_BLOCKED) {

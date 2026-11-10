@@ -252,6 +252,15 @@ telnet telehack.com
 
 ---
 
+## Source formatting
+
+Use the repository's `.clang-format` for Cupid C source:
+
+```sh
+clang-format -i path/to/file.cc
+clang-format --dry-run --Werror path/to/file.cc
+```
+
 ## Next Steps
 
 - **[Shell Commands](Shell-Commands)** - Full command reference

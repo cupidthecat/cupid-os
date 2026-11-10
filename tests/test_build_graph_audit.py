@@ -1,4 +1,5 @@
 import ast
+from functools import lru_cache
 import importlib.util
 import json
 import re
@@ -62,6 +63,45 @@ LINUX_PRODUCTION_SEED_INPUTS = (
     "bootstrap/seeds/release.json",
     *LINUX_BOOTSTRAP_SEED_INPUTS[1:],
 )
+
+
+_C_SPELLING_TOKEN = re.compile(
+    r'//[^\n]*|/\*.*?\*/|(?:u8|[LuU])?"(?:\\.|[^"\\\n])*"'
+    r"|(?:[LuU])?'(?:\\.|[^'\\\n])*'"
+    r'|[A-Za-z_][A-Za-z_0-9]*'
+    r'|(?:\d|\.\d)(?:[A-Za-z_0-9.]|(?<=[eEpP])[+-])*'
+    r'|>>=|<<=|\.\.\.|->|\+\+|--|&&|\|\||<=|>=|==|!=|<<|>>'
+    r'|[+*/%&|^=-]=|##|[^\s]',
+    re.S,
+)
+
+
+@lru_cache(maxsize=16)
+def _c_spelling_tokens(source):
+    tokens = []
+    for match in _C_SPELLING_TOKEN.finditer(source):
+        value = match.group()
+        if value == '/' and source.startswith('/*', match.start()):
+            raise ValueError('incomplete C comment in source fixture')
+        if value.startswith(('//', '/*')):
+            continue
+        if value in ('"', "'"):
+            raise ValueError('incomplete C literal in source fixture')
+        tokens.append((value, match.start(), match.end()))
+    return tuple(tokens)
+
+
+def _c_spelling_ranges(source, fragment, start=0):
+    tokens = _c_spelling_tokens(source)
+    wanted = tuple(value for value, _start, _end in _c_spelling_tokens(fragment))
+    if not wanted:
+        raise ValueError('empty C source fixture')
+    values = tuple(value for value, _start, _end in tokens)
+    count = len(wanted)
+    return [(tokens[index][1], tokens[index + count - 1][2])
+            for index in range(len(tokens) - count + 1)
+            if tokens[index][1] >= start and values[index] == wanted[0]
+            and values[index:index + count] == wanted]
 
 
 
@@ -135,6 +175,25 @@ def _load_audit_module():
 
 
 class BuildGraphAuditCliTests(unittest.TestCase):
+    def test_c_spelling_fixture_preserves_tokens_and_literals(self):
+        self.assertEqual(
+            len(_c_spelling_ranges('int /* type */ *value = 0;', 'int * value=0;')), 1)
+        self.assertEqual(
+            len(_c_spelling_ranges('f(\n value, "two words");', 'f(value,"two words");')), 1)
+        for source, fragment in (
+            ('value++;', 'value + +;'),
+            ('foobar;', 'foo;'),
+            ('f("two words");', 'f("twowords");'),
+            ('/* target(); */ other();', 'target();'),
+            ('L"wide";', 'L "wide";'),
+            ('1e+2;', '1e + 2;'),
+        ):
+            with self.subTest(source=source, fragment=fragment):
+                self.assertEqual(_c_spelling_ranges(source, fragment), [])
+        for fragment in ('', '/* incomplete', '"incomplete'):
+            with self.subTest(fragment=fragment), self.assertRaises(ValueError):
+                _c_spelling_ranges('int value;', fragment)
+
 
     def test_windows_worktree_inventory_translates_metadata_and_excludes_untracked_sources(self):
         module = _load_audit_module()
@@ -2575,7 +2634,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8")
             )
             contract = generated["contracts"]["c_preprocessor_line_directives"]
-            self.assertEqual(contract["source_files"], 758)
+            self.assertEqual(contract["source_files"], 759)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -2596,7 +2655,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 758 source files; max conditional depth 0",
+                "0 numeric markers; 759 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2960,7 +3019,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             executable_contract = CUPIDC_PP_CONTRACT.read_text(encoding="utf-8")
             totals_guard = re.search(
                 r"sizeof\(cases\) / sizeof\(cases\[0\]\)\) != (\d+)u \|\|"
-                r"\s*if_occurrences != (\d+)u \|\| elif_occurrences != (\d+)u \|\|"
+                r"\s*if_occurrences != (\d+)u \|\|\s*elif_occurrences != (\d+)u \|\|"
                 r"\s*probe_count != (\d+)u",
                 executable_contract,
             )
@@ -3133,9 +3192,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         contract = (
             REPO_ROOT / "toolchain" / "tests" / "x86_contract.cc"
         ).read_text(encoding="utf-8")
-        usage = re.search(r'"usage: x86-contract ([^"]+)\\n"', contract)
+        literal = r'"(?:\\.|[^"\\])*"'
+        usage = re.search(r'("usage: x86-contract (?:\\.|[^"\\])*"(?:\s*' + literal + r')*)', contract)
         self.assertIsNotNone(usage)
-        public_selectors = set(usage.group(1).split("|"))
+        usage_text = "".join(ast.literal_eval(text) for text in re.findall(literal, usage.group(1)))
+        self.assertTrue(usage_text.endswith("\n"))
+        public_selectors = set(usage_text.removeprefix("usage: x86-contract ").strip().split("|"))
         required_selectors = set(
             re.findall(
                 r"^\t\$\(X86_CONTRACT\) ([a-z0-9-]+)$",
@@ -4458,10 +4520,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 758)
-            self.assertEqual(contract["include_occurrences"], 2642)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2299)
-            self.assertEqual(contract["direct_angle_occurrences"], 343)
+            self.assertEqual(contract["source_files"], 759)
+            self.assertEqual(contract["include_occurrences"], 2649)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2303)
+            self.assertEqual(contract["direct_angle_occurrences"], 346)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(
@@ -6718,6 +6780,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         contract = (
             REPO_ROOT / "toolchain" / "tests" / "cupidc_object_contract.cc"
         ).read_text(encoding="utf-8")
+        def fragment_pattern(text):
+            return r"\s*".join(re.escape(piece) for piece in text.split())
+
         mutations = {
             "codec source removed": (
                 '      {"/toolchain/iso_fixture_bundle.cc", "/toolchain/iso_fixture_bundle.o",\n'
@@ -6758,7 +6823,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             row = (f'      {{"/toolchain/{module_name}.cc", '
                    f'"/toolchain/{module_name}.o",\n'
                    "       HOST_TOOL_SOURCE_C, CTOOL_FALSE}")
-            self.assertEqual(contract.count(row), 1)
+            self.assertEqual(len(re.findall(fragment_pattern(row), contract)), 1)
             mutations[f"{module_name} source removed"] = (
                 row, row.replace(module_name + ".cc", "unknown_disk.cc", 1),
                 "source-profile rows differ.*" + module_name,
@@ -6767,10 +6832,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 row, row.replace("CTOOL_FALSE", "CTOOL_TRUE", 1),
                 "source-profile rows differ.*" + module_name,
             )
-        self.assertIn(
-            "34u, 35u, 36u, 37u, 38u, 39u, 40u, 41u,\n"
-            "      42u, 43u, 44u, 45u, 46u, 47u, 29u, 1u};",
-            contract,
+        self.assertRegex(
+            contract, fragment_pattern("34u, 35u, 36u, 37u, 38u, 39u, 40u, 41u,\n"
+            "      42u, 43u, 44u, 45u, 46u, 47u, 29u, 1u};"),
         )
         for name, (old, new, message) in mutations.items():
             with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
@@ -6779,7 +6843,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     root / "toolchain" / "tests" / "cupidc_object_contract.cc"
                 )
                 target.parent.mkdir(parents=True)
-                mutated = contract.replace(old, new, 1)
+                matches = list(re.finditer(fragment_pattern(old), contract))
+                self.assertEqual(len(matches), 1, name)
+                mutated = contract[:matches[0].start()] + new + contract[matches[0].end():]
                 self.assertNotEqual(mutated, contract)
                 target.write_text(mutated, encoding="utf-8")
                 with self.assertRaisesRegex(module.AuditError, message):
@@ -6810,7 +6876,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["tool_c_sources"], 44)
         self.assertEqual(contract["compared_c_objects"], 44)
-        self.assertEqual(contract["contract_manifest_inputs"], 112)
+        self.assertEqual(contract["contract_manifest_inputs"], 113)
         names = (
             "tests/test_toolchain_cupidc_object.py", "toolchain/cupidc_main.cc",
             "toolchain/cupidld.h", "toolchain/cupidld_main.cc", "toolchain/cupidld.cc",
@@ -6865,6 +6931,25 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 with self.assertRaisesRegex(module.AuditError, "fixed-point source freeze differs"):
                     module._cupid_toolchain_fixed_point_contract(root)
 
+    def test_windows_runtime_contract_accepts_layout_but_rejects_changed_calls(self):
+        module = _load_audit_module()
+        path = REPO_ROOT / "toolchain/tests/hosted_i386_windows_runtime_contract.cc"
+        original = path.read_text(encoding="utf-8")
+        read_text = Path.read_text
+        formatted = re.sub(r"(?m)^    ", "\t", original)
+        changed = original.replace("result = allocator_contract();",
+                                   "result = directory_contract();", 1)
+        self.assertNotEqual(changed, original)
+        for payload, accepted in ((formatted, True), (changed, False)):
+            def read(candidate, *args, **kwargs):
+                return payload if candidate == path else read_text(candidate, *args, **kwargs)
+            with self.subTest(accepted=accepted), mock.patch.object(Path, "read_text", read):
+                if accepted:
+                    module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
+                else:
+                    with self.assertRaisesRegex(module.AuditError, "Windows runtime contract differs"):
+                        module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
+
     def test_cupid_toolchain_fixed_point_contract_fails_closed(self):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
@@ -6878,13 +6963,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["windows_help_cases"], 7)
         self.assertEqual(contract["windows_success_behavior_cases"], 60)
         self.assertEqual(contract["windows_failure_behavior_cases"], 54)
-        self.assertEqual(contract["contract_manifest_inputs"], 112)
-        self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 112)
+        self.assertEqual(contract["contract_manifest_inputs"], 113)
+        self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 113)
         self.assertIn(
             "toolchain/x86.cc",
             module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
         )
-        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 164)
+        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 165)
         self.assertTrue(
             set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS).issubset(
                 module.TOOLCHAIN_CONTRACT_LINUX_INPUTS
@@ -6999,12 +7084,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         serializer_feature = linker_core[serializer_start:serializer_end]
         core_dispatch_start = linker_core.index(
-            "  if (status == CTOOL_OK) {\n"
-            '    phase = "CupidLD executable serialization failed";\n'
-            "    if (request->image_kind == CTOOL_LD_IMAGE_PE32_FIXED) {\n"
+            "    if (status == CTOOL_OK) {\n"
+            '        phase = "CupidLD executable serialization failed";\n'
+            "        if (request->image_kind == CTOOL_LD_IMAGE_PE32_FIXED) {\n"
         )
         core_dispatch_end = linker_core.index(
-            "\n  if (status != CTOOL_OK &&", core_dispatch_start
+            "\n    if (status != CTOOL_OK &&", core_dispatch_start
         )
         core_dispatch_feature = linker_core[
             core_dispatch_start:core_dispatch_end
@@ -7055,6 +7140,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         native_build_loop_feature = bootstrap[
             native_build_loop_start:native_build_loop_end
         ]
+        def replace_c_fragment(source, old, new):
+            matches = _c_spelling_ranges(source, old)
+            self.assertEqual(len(matches), 1, 'ambiguous or absent C mutation: ' + old)
+            start, end = matches[0]
+            return source[:start] + new + source[end:]
+
         mutations = {
             "Windows seek header loses its LONG pointer type": (
                 "windows_publication_header",
@@ -9463,7 +9554,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 linker_cli_payload = linker_cli
                 linker_core_payload = linker_core
                 if target_name == "driver":
-                    driver_payload = driver_payload.replace(old, new, 1)
+                    driver_payload = replace_c_fragment(driver_payload, old, new)
                     self.assertNotEqual(driver_payload, driver)
                 elif target_name == "test":
                     test_payload = test_payload.replace(old, new, 1)
@@ -9480,7 +9571,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 elif target_name == "windows_runtime_contract":
                     windows_runtime_contract_payload = (
-                        windows_runtime_contract_payload.replace(old, new, 1)
+                        replace_c_fragment(windows_runtime_contract_payload, old, new)
                     )
                     self.assertNotEqual(
                         windows_runtime_contract_payload,
@@ -9496,9 +9587,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 elif target_name == "windows_publication_runtime":
                     windows_publication_runtime_payload = (
-                        windows_publication_runtime_payload.replace(
-                            old, new, 1
-                        )
+                        replace_c_fragment(windows_publication_runtime_payload, old, new)
                     )
                     self.assertNotEqual(
                         windows_publication_runtime_payload,
@@ -9518,15 +9607,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                     self.assertNotEqual(linker_header_payload, linker_header)
                 elif target_name == "linker_cli":
-                    linker_cli_payload = linker_cli_payload.replace(
-                        old, new, 1
-                    )
+                    linker_cli_payload = replace_c_fragment(linker_cli_payload, old, new)
                     self.assertNotEqual(linker_cli_payload, linker_cli)
                 else:
                     self.assertEqual(target_name, "linker_core")
-                    linker_core_payload = linker_core_payload.replace(
-                        old, new, 1
-                    )
+                    linker_core_payload = replace_c_fragment(linker_core_payload, old, new)
                     self.assertNotEqual(linker_core_payload, linker_core)
                 driver_target.write_text(driver_payload, encoding="utf-8")
                 test_target.write_text(test_payload, encoding="utf-8")
@@ -10382,8 +10467,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 800,
-                    "features": 256,
+                    "active_sources": 801,
+                    "features": 257,
                     "transforms": 452,
                     "unreachable_sources": 84,
                 },
@@ -10410,7 +10495,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 self.assertEqual(unreachable[fixture], "host_fixture")
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (32, 8),
-                "c.expression.sizeof": (7247, 197),
+                "c.expression.sizeof": (7250, 198),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -10429,7 +10514,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 features["c.extension.gnu_alignof"]["examples"][0]["line"],
-                42,
+                41,
             )
             root_transform_by_output = {
                 transform["output"]: transform
@@ -11008,7 +11093,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 149)
+            self.assertEqual(toolchain_cohort["source_count"], 150)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]

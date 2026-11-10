@@ -13,23 +13,25 @@
  *   ${var^^}         - Uppercase all
  *   ${var,,}         - Lowercase all
  *   ${var^}          - Capitalize first
-*/
+ */
 
 #include "cupidscript.h"
-#include "string.h"
 #include "memory.h"
 #include "serial.h"
+#include "string.h"
 
 static bool simple_match(const char *pattern, const char *str, int str_len) {
     int pi = 0, si = 0;
     int plen = 0;
-    while (pattern[plen]) plen++;
+    while (pattern[plen])
+        plen++;
 
     /* Handle * at end of pattern */
     if (plen > 0 && pattern[plen - 1] == '*') {
         /* Match prefix only */
         for (int i = 0; i < plen - 1 && i < str_len; i++) {
-            if (pattern[i] != str[i] && pattern[i] != '?') return false;
+            if (pattern[i] != str[i] && pattern[i] != '?')
+                return false;
         }
         return true;
     }
@@ -39,18 +41,21 @@ static bool simple_match(const char *pattern, const char *str, int str_len) {
         /* Match suffix only */
         const char *pat_rest = pattern + 1;
         int rest_len = plen - 1;
-        if (rest_len > str_len) return false;
+        if (rest_len > str_len)
+            return false;
         for (int i = 0; i < rest_len; i++) {
-            if (pat_rest[i] != str[str_len - rest_len + i] &&
-                pat_rest[i] != '?') return false;
+            if (pat_rest[i] != str[str_len - rest_len + i] && pat_rest[i] != '?')
+                return false;
         }
         return true;
     }
 
     /* Exact match (with ? wildcards) */
-    if (plen != str_len) return false;
+    if (plen != str_len)
+        return false;
     while (pi < plen && si < str_len) {
-        if (pattern[pi] != str[si] && pattern[pi] != '?') return false;
+        if (pattern[pi] != str[si] && pattern[pi] != '?')
+            return false;
         pi++;
         si++;
     }
@@ -60,10 +65,12 @@ static bool simple_match(const char *pattern, const char *str, int str_len) {
 /* String length: ${#var} */
 char *cs_string_length(const char *value) {
     char *result = kmalloc(16);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     int len = 0;
-    while (value[len]) len++;
+    while (value[len])
+        len++;
 
     /* int to string */
     if (len == 0) {
@@ -89,26 +96,31 @@ char *cs_string_length(const char *value) {
 /* Substring: ${var:start:len} */
 char *cs_string_substring(const char *value, int start, int len) {
     int vlen = 0;
-    while (value[vlen]) vlen++;
+    while (value[vlen])
+        vlen++;
 
     /* Handle negative start (from end) */
     if (start < 0) {
         start = vlen + start;
-        if (start < 0) start = 0;
+        if (start < 0)
+            start = 0;
     }
 
     if (start >= vlen) {
         char *r = kmalloc(1);
-        if (r) r[0] = '\0';
+        if (r)
+            r[0] = '\0';
         return r;
     }
 
     /* If len < 0 or not specified (use -1), go to end */
     int available = vlen - start;
-    if (len < 0 || len > available) len = available;
+    if (len < 0 || len > available)
+        len = available;
 
     char *result = kmalloc((size_t)len + 1);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     for (int i = 0; i < len; i++) {
         result[i] = value[start + i];
@@ -118,23 +130,27 @@ char *cs_string_substring(const char *value, int start, int len) {
 }
 
 /* Suffix removal: ${var%pattern} (shortest) / ${var%%pattern} (longest) */
-char *cs_string_remove_suffix(const char *value, const char *pattern,
-                               bool longest) {
+char *cs_string_remove_suffix(const char *value, const char *pattern, bool longest) {
     int vlen = 0;
-    while (value[vlen]) vlen++;
+    while (value[vlen])
+        vlen++;
 
     int plen = 0;
-    while (pattern[plen]) plen++;
+    while (pattern[plen])
+        plen++;
 
     if (plen == 0 || vlen == 0) {
         char *r = kmalloc((size_t)vlen + 1);
-        if (r) { memcpy(r, value, (size_t)vlen); r[vlen] = '\0'; }
+        if (r) {
+            memcpy(r, value, (size_t)vlen);
+            r[vlen] = '\0';
+        }
         return r;
     }
 
     /* Try suffixes: for shortest, start from longest suffix;
      * for longest, start from shortest suffix (entire string)*/
-    int best_end = vlen;  /* How many chars to keep */
+    int best_end = vlen; /* How many chars to keep */
 
     if (longest) {
         /* Try removing the longest possible suffix */
@@ -155,24 +171,29 @@ char *cs_string_remove_suffix(const char *value, const char *pattern,
     }
 
     char *result = kmalloc((size_t)best_end + 1);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
     memcpy(result, value, (size_t)best_end);
     result[best_end] = '\0';
     return result;
 }
 
 /* Prefix removal: ${var#pattern} (shortest) / ${var##pattern} (longest) */
-char *cs_string_remove_prefix(const char *value, const char *pattern,
-                               bool longest) {
+char *cs_string_remove_prefix(const char *value, const char *pattern, bool longest) {
     int vlen = 0;
-    while (value[vlen]) vlen++;
+    while (value[vlen])
+        vlen++;
 
     int plen = 0;
-    while (pattern[plen]) plen++;
+    while (pattern[plen])
+        plen++;
 
     if (plen == 0 || vlen == 0) {
         char *r = kmalloc((size_t)vlen + 1);
-        if (r) { memcpy(r, value, (size_t)vlen); r[vlen] = '\0'; }
+        if (r) {
+            memcpy(r, value, (size_t)vlen);
+            r[vlen] = '\0';
+        }
         return r;
     }
 
@@ -198,35 +219,44 @@ char *cs_string_remove_prefix(const char *value, const char *pattern,
 
     int result_len = vlen - best_start;
     char *result = kmalloc((size_t)result_len + 1);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
     memcpy(result, value + best_start, (size_t)result_len);
     result[result_len] = '\0';
     return result;
 }
 
 /* String replacement: ${var/old/new} or ${var//old/new} */
-char *cs_string_replace(const char *value, const char *pattern,
-                         const char *replacement, bool replace_all) {
+char *cs_string_replace(const char *value, const char *pattern, const char *replacement,
+                        bool replace_all) {
     int vlen = 0;
-    while (value[vlen]) vlen++;
+    while (value[vlen])
+        vlen++;
 
     int plen = 0;
-    while (pattern[plen]) plen++;
+    while (pattern[plen])
+        plen++;
 
     int rlen = 0;
-    while (replacement[rlen]) rlen++;
+    while (replacement[rlen])
+        rlen++;
 
     if (plen == 0) {
         char *r = kmalloc((size_t)vlen + 1);
-        if (r) { memcpy(r, value, (size_t)vlen); r[vlen] = '\0'; }
+        if (r) {
+            memcpy(r, value, (size_t)vlen);
+            r[vlen] = '\0';
+        }
         return r;
     }
 
     /* Worst case: every char replaced with longer string */
     size_t max_size = (size_t)(vlen * (rlen + 1)) + 1;
-    if (max_size < 256) max_size = 256;
+    if (max_size < 256)
+        max_size = 256;
     char *result = kmalloc(max_size);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     int out = 0;
     int i = 0;
@@ -262,10 +292,12 @@ char *cs_string_replace(const char *value, const char *pattern,
 /* Case conversion: ${var^^} / ${var,,} / ${var^} */
 char *cs_string_toupper(const char *value) {
     int len = 0;
-    while (value[len]) len++;
+    while (value[len])
+        len++;
 
     char *result = kmalloc((size_t)len + 1);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     for (int i = 0; i < len; i++) {
         if (value[i] >= 'a' && value[i] <= 'z') {
@@ -280,10 +312,12 @@ char *cs_string_toupper(const char *value) {
 
 char *cs_string_tolower(const char *value) {
     int len = 0;
-    while (value[len]) len++;
+    while (value[len])
+        len++;
 
     char *result = kmalloc((size_t)len + 1);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     for (int i = 0; i < len; i++) {
         if (value[i] >= 'A' && value[i] <= 'Z') {
@@ -298,10 +332,12 @@ char *cs_string_tolower(const char *value) {
 
 char *cs_string_capitalize(const char *value) {
     int len = 0;
-    while (value[len]) len++;
+    while (value[len])
+        len++;
 
     char *result = kmalloc((size_t)len + 1);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     memcpy(result, value, (size_t)len);
     result[len] = '\0';
@@ -315,10 +351,11 @@ char *cs_string_capitalize(const char *value) {
 /* Main advanced variable expansion entry point
  * Called from cupidscript_runtime.cc when ${...} is detected.
  * `expr` points to the content after "${" (before closing "}").
-*/
+ */
 char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
     int elen = 0;
-    while (expr[elen] && expr[elen] != '}') elen++;
+    while (expr[elen] && expr[elen] != '}')
+        elen++;
 
     /* ${#var} - string length */
     if (expr[0] == '#') {
@@ -337,9 +374,8 @@ char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
     char varname[MAX_VAR_NAME];
     int vi = 0;
     int pos = 0;
-    while (pos < elen && expr[pos] != ':' && expr[pos] != '%' &&
-           expr[pos] != '#' && expr[pos] != '/' && expr[pos] != '^' &&
-           expr[pos] != ',') {
+    while (pos < elen && expr[pos] != ':' && expr[pos] != '%' && expr[pos] != '#' &&
+           expr[pos] != '/' && expr[pos] != '^' && expr[pos] != ',') {
         if (vi < MAX_VAR_NAME - 1) {
             varname[vi++] = expr[pos];
         }
@@ -348,14 +384,19 @@ char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
     varname[vi] = '\0';
 
     const char *value = cupidscript_get_variable(ctx, varname);
-    if (!value) value = "";
+    if (!value)
+        value = "";
 
     /* No operator - just return the variable value */
     if (pos >= elen) {
         int vlen = 0;
-        while (value[vlen]) vlen++;
+        while (value[vlen])
+            vlen++;
         char *r = kmalloc((size_t)vlen + 1);
-        if (r) { memcpy(r, value, (size_t)vlen); r[vlen] = '\0'; }
+        if (r) {
+            memcpy(r, value, (size_t)vlen);
+            r[vlen] = '\0';
+        }
         return r;
     }
 
@@ -363,22 +404,27 @@ char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
 
     /* ${var:start:len} - substring */
     if (op == ':') {
-        pos++;  /* skip : */
+        pos++; /* skip : */
         /* Parse start */
         int start = 0;
         bool neg_start = false;
         /* Skip spaces */
-        while (pos < elen && expr[pos] == ' ') pos++;
-        if (pos < elen && expr[pos] == '-') { neg_start = true; pos++; }
+        while (pos < elen && expr[pos] == ' ')
+            pos++;
+        if (pos < elen && expr[pos] == '-') {
+            neg_start = true;
+            pos++;
+        }
         while (pos < elen && expr[pos] >= '0' && expr[pos] <= '9') {
             start = start * 10 + (expr[pos] - '0');
             pos++;
         }
-        if (neg_start) start = -start;
+        if (neg_start)
+            start = -start;
 
-        int len = -1;  /* -1 = to end */
+        int len = -1; /* -1 = to end */
         if (pos < elen && expr[pos] == ':') {
-            pos++;  /* skip second : */
+            pos++; /* skip second : */
             len = 0;
             while (pos < elen && expr[pos] >= '0' && expr[pos] <= '9') {
                 len = len * 10 + (expr[pos] - '0');
@@ -443,7 +489,7 @@ char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
         char new_pat[MAX_VAR_VALUE];
         int ni = 0;
         if (pos < elen && expr[pos] == '/') {
-            pos++;  /* skip / */
+            pos++; /* skip / */
             while (pos < elen && ni < MAX_VAR_VALUE - 1) {
                 new_pat[ni++] = expr[pos++];
             }
@@ -469,7 +515,8 @@ char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
         }
         /* Single , - lowercase first char */
         int vlen = 0;
-        while (value[vlen]) vlen++;
+        while (value[vlen])
+            vlen++;
         char *r = kmalloc((size_t)vlen + 1);
         if (r) {
             memcpy(r, value, (size_t)vlen);
@@ -484,9 +531,13 @@ char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
     /* Fallback: just return the value */
     {
         int vlen = 0;
-        while (value[vlen]) vlen++;
+        while (value[vlen])
+            vlen++;
         char *r = kmalloc((size_t)vlen + 1);
-        if (r) { memcpy(r, value, (size_t)vlen); r[vlen] = '\0'; }
+        if (r) {
+            memcpy(r, value, (size_t)vlen);
+            r[vlen] = '\0';
+        }
         return r;
     }
 }

@@ -1,6 +1,6 @@
-//help: P1 Phase E feature test: double precision + transcendentals
-//help: Usage: feature13_double
-//help: Verifies sin/cos/sqrt/exp/log/pow/tanh/cbrt within tight tolerances.
+// help: P1 Phase E feature test: double precision + transcendentals
+// help: Usage: feature13_double
+// help: Verifies sin/cos/sqrt/exp/log/pow/tanh/cbrt within tight tolerances.
 
 float feature13_update_global_float;
 double feature13_update_global_double;
@@ -27,8 +27,7 @@ int feature13_indirect_index() {
     return 1;
 }
 
-struct feature13_record *feature13_indirect_record(
-        struct feature13_record *value) {
+struct feature13_record *feature13_indirect_record(struct feature13_record *value) {
     feature13_indirect_record_calls += 1;
     return value;
 }
@@ -42,8 +41,7 @@ int feature13_unsigned_next_index() {
     return 1;
 }
 
-int feature13_within(double actual, double expected, double scale,
-                     int max_scaled_error) {
+int feature13_within(double actual, double expected, double scale, int max_scaled_error) {
     double scaled_error = fabs(actual - expected) * scale;
     int scaled = (int)scaled_error;
     return scaled >= 0 && scaled <= max_scaled_error;
@@ -64,64 +62,44 @@ void main() {
     double negative_double = -positive_double;
     int negative_double_scaled = (int)(negative_double * 4.0);
     float negative_zero = -0.0;
-    int negative_zero_bits = *(int*)&negative_zero;
+    int negative_zero_bits = *(int *)&negative_zero;
     double plus_double = +positive_double;
     int plus_double_scaled = (int)(plus_double * 4.0);
     int unary_reject = repl_eval("-\"not arithmetic\";") == -1;
     int unary_recovery = repl_eval("1 + 1;") == 0;
-    if (negative_float_scaled != -15 ||
-        negative_double_scaled != -9 ||
-        negative_zero_bits != 0x80000000 ||
-        plus_double_scaled != 9 ||
-        !unary_reject || !unary_recovery) {
-        serial_printf("[feature13-unary] FAIL float=%d double=%d zero=%x plus=%d reject=%d recovery=%d\n",
-                      negative_float_scaled, negative_double_scaled,
-                      negative_zero_bits, plus_double_scaled,
-                      unary_reject, unary_recovery);
+    if (negative_float_scaled != -15 || negative_double_scaled != -9 ||
+        negative_zero_bits != 0x80000000 || plus_double_scaled != 9 || !unary_reject ||
+        !unary_recovery) {
+        serial_printf(
+            "[feature13-unary] FAIL float=%d double=%d zero=%x plus=%d reject=%d recovery=%d\n",
+            negative_float_scaled, negative_double_scaled, negative_zero_bits, plus_double_scaled,
+            unary_reject, unary_recovery);
         ok = 0;
     } else {
-        serial_printf("[feature13-unary] PASS float=%d double=%d zero=%x plus=%d reject=%d recovery=%d\n",
-                      negative_float_scaled, negative_double_scaled,
-                      negative_zero_bits, plus_double_scaled,
-                      unary_reject, unary_recovery);
+        serial_printf(
+            "[feature13-unary] PASS float=%d double=%d zero=%x plus=%d reject=%d recovery=%d\n",
+            negative_float_scaled, negative_double_scaled, negative_zero_bits, plus_double_scaled,
+            unary_reject, unary_recovery);
     }
 
     /* Exercise every scalar floating comparison. Mixed widths compare as
      * double, signed zero compares equal to positive zero, and unordered
      * comparisons follow C rules. */
     int compare_ordered =
-        (1.0 == 1.0) +
-        (1.0 != 2.0) +
-        (1.0 < 2.0) +
-        (2.0 > 1.0) +
-        (1.0 <= 1.0) +
-        (2.0 >= 2.0);
-    int compare_mixed =
-        (1.0f < 2.0) +
-        (2.0 > 1.0f) +
-        (2.0f == 2.0) +
-        (1.0 != 2.0f);
-    int compare_zero =
-        (negative_zero == 0.0) +
-        !(negative_zero != 0.0);
+        (1.0 == 1.0) + (1.0 != 2.0) + (1.0 < 2.0) + (2.0 > 1.0) + (1.0 <= 1.0) + (2.0 >= 2.0);
+    int compare_mixed = (1.0f < 2.0) + (2.0 > 1.0f) + (2.0f == 2.0) + (1.0 != 2.0f);
+    int compare_zero = (negative_zero == 0.0) + !(negative_zero != 0.0);
     double compare_nan = 0.0 / 0.0;
-    int compare_unordered =
-        (compare_nan != compare_nan) +
-        !(compare_nan == compare_nan) +
-        !(compare_nan < 0.0) +
-        !(compare_nan > 0.0) +
-        !(compare_nan <= 0.0) +
-        !(compare_nan >= 0.0);
-    if (compare_ordered != 6 || compare_mixed != 4 ||
-        compare_zero != 2 || compare_unordered != 6) {
+    int compare_unordered = (compare_nan != compare_nan) + !(compare_nan == compare_nan) +
+                            !(compare_nan < 0.0) + !(compare_nan > 0.0) + !(compare_nan <= 0.0) +
+                            !(compare_nan >= 0.0);
+    if (compare_ordered != 6 || compare_mixed != 4 || compare_zero != 2 || compare_unordered != 6) {
         serial_printf("[feature13-compare] FAIL ordered=%d mixed=%d zero=%d unordered=%d\n",
-                      compare_ordered, compare_mixed,
-                      compare_zero, compare_unordered);
+                      compare_ordered, compare_mixed, compare_zero, compare_unordered);
         ok = 0;
     } else {
         serial_printf("[feature13-compare] PASS ordered=%d mixed=%d zero=%d unordered=%d\n",
-                      compare_ordered, compare_mixed,
-                      compare_zero, compare_unordered);
+                      compare_ordered, compare_mixed, compare_zero, compare_unordered);
     }
 
     /* Scalar floating truth follows C rules in every private compiler
@@ -131,13 +109,8 @@ void main() {
     double truth_negative_zero = -0.0;
     double truth_nonzero = -0.25;
     double truth_nan = 0.0 / 0.0;
-    int truth_zero_score =
-        (!truth_zero) +
-        (!truth_negative_zero);
-    int truth_nonzero_score =
-        !!1.0f +
-        !!truth_nonzero +
-        !!truth_nan;
+    int truth_zero_score = (!truth_zero) + (!truth_negative_zero);
+    int truth_nonzero_score = !!1.0f + !!truth_nonzero + !!truth_nan;
     int truth_control = 0;
     if (truth_nonzero)
         truth_control += 1;
@@ -166,16 +139,13 @@ void main() {
     if (truth_nan)
         truth_control += 128;
 
-    if (truth_zero_score != 2 || truth_nonzero_score != 3 ||
-        truth_control != 255) {
+    if (truth_zero_score != 2 || truth_nonzero_score != 3 || truth_control != 255) {
         serial_printf("[feature13-truth] FAIL zero=%d nonzero=%d control=%d nan=%d\n",
-                      truth_zero_score, truth_nonzero_score,
-                      truth_control, !!truth_nan);
+                      truth_zero_score, truth_nonzero_score, truth_control, !!truth_nan);
         ok = 0;
     } else {
         serial_printf("[feature13-truth] PASS zero=%d nonzero=%d control=%d nan=%d\n",
-                      truth_zero_score, truth_nonzero_score,
-                      truth_control, !!truth_nan);
+                      truth_zero_score, truth_nonzero_score, truth_control, !!truth_nan);
     }
 
     /* Prefix and postfix floating updates preserve their expression result
@@ -191,13 +161,9 @@ void main() {
     double update_double_new = --((update_double));
     update_double++;
 
-    int update_local_score =
-        (int)(update_float_old * 4.0f) +
-        (int)(update_float_new * 4.0f) +
-        (int)(update_float * 4.0f) +
-        (int)(update_double_old * 2.0) +
-        (int)(update_double_new * 2.0) +
-        (int)(update_double * 2.0);
+    int update_local_score = (int)(update_float_old * 4.0f) + (int)(update_float_new * 4.0f) +
+                             (int)(update_float * 4.0f) + (int)(update_double_old * 2.0) +
+                             (int)(update_double_new * 2.0) + (int)(update_double * 2.0);
 
     feature13_update_global_float = 0.5f;
     feature13_update_global_double = 5.25;
@@ -205,11 +171,9 @@ void main() {
     --feature13_update_global_double;
     double update_global_old = feature13_update_global_double--;
     float update_global_new = ++feature13_update_global_float;
-    int update_global_score =
-        (int)(update_global_old * 4.0) +
-        (int)(update_global_new * 2.0f) +
-        (int)(feature13_update_global_float * 2.0f) +
-        (int)(feature13_update_global_double * 4.0);
+    int update_global_score = (int)(update_global_old * 4.0) + (int)(update_global_new * 2.0f) +
+                              (int)(feature13_update_global_float * 2.0f) +
+                              (int)(feature13_update_global_double * 4.0);
 
     float update_for = 0.0f;
     int update_iterations = 0;
@@ -218,22 +182,21 @@ void main() {
 
     float update_negative_zero = -0.0f;
     float update_zero_old = update_negative_zero++;
-    int update_zero_bits = *(int*)&update_zero_old;
+    int update_zero_bits = *(int *)&update_zero_old;
     double update_nan = 0.0 / 0.0;
     double update_nan_old = update_nan++;
     int update_nan_score = !!update_nan_old + !!update_nan;
 
-    if (update_local_score != 48 || update_global_score != 40 ||
-        (int)update_for != 3 || update_zero_bits != 0x80000000 ||
-        update_nan_score != 2) {
+    if (update_local_score != 48 || update_global_score != 40 || (int)update_for != 3 ||
+        update_zero_bits != 0x80000000 || update_nan_score != 2) {
         serial_printf("[feature13-update] FAIL local=%d global=%d for=%d zero=%x nan=%d\n",
-                      update_local_score, update_global_score,
-                      (int)update_for, update_zero_bits, update_nan_score);
+                      update_local_score, update_global_score, (int)update_for, update_zero_bits,
+                      update_nan_score);
         ok = 0;
     } else {
         serial_printf("[feature13-update] PASS local=%d global=%d for=%d zero=%x nan=%d\n",
-                      update_local_score, update_global_score,
-                      (int)update_for, update_zero_bits, update_nan_score);
+                      update_local_score, update_global_score, (int)update_for, update_zero_bits,
+                      update_nan_score);
     }
 
     /* Derived floating updates keep one evaluated address while postfix
@@ -247,32 +210,23 @@ void main() {
     feature13_indirect_index_calls = 0;
     feature13_indirect_record_calls = 0;
 
-    float pointer_old =
-        (*feature13_indirect_float_pointer(&pointer_value))++;
+    float pointer_old = (*feature13_indirect_float_pointer(&pointer_value))++;
     float indexed_new = ++indirect_values[feature13_indirect_index()];
-    double member_old =
-        feature13_indirect_record(&indirect_record)->bias--;
-    int indirect_update_score =
-        (int)(pointer_value * 4.0f) +
-        (int)(indexed_new * 4.0f) +
-        (int)(indirect_record.bias * 2.0) +
-        (int)(member_old * 2.0);
-    int indirect_update_once =
-        feature13_indirect_pointer_calls +
-        feature13_indirect_index_calls +
-        feature13_indirect_record_calls;
-    int pointer_old_bits = *(int*)&pointer_old;
+    double member_old = feature13_indirect_record(&indirect_record)->bias--;
+    int indirect_update_score = (int)(pointer_value * 4.0f) + (int)(indexed_new * 4.0f) +
+                                (int)(indirect_record.bias * 2.0) + (int)(member_old * 2.0);
+    int indirect_update_once = feature13_indirect_pointer_calls + feature13_indirect_index_calls +
+                               feature13_indirect_record_calls;
+    int pointer_old_bits = *(int *)&pointer_old;
 
     if (indirect_update_score != 41 || indirect_update_once != 3 ||
         pointer_old_bits != (int)0x80000000) {
         serial_printf("[feature13-indirect-update] FAIL score=%d once=%d zero=%x\n",
-                      indirect_update_score, indirect_update_once,
-                      pointer_old_bits);
+                      indirect_update_score, indirect_update_once, pointer_old_bits);
         ok = 0;
     } else {
         serial_printf("[feature13-indirect-update] PASS score=%d once=%d zero=%x\n",
-                      indirect_update_score, indirect_update_once,
-                      pointer_old_bits);
+                      indirect_update_score, indirect_update_once, pointer_old_bits);
     }
 
     /* Keep floating widths attached to arrays, pointers, and record fields.
@@ -305,36 +259,27 @@ void main() {
     record->gain += 0.5f;
     record->bias *= 2.0;
 
-    int lvalue_array_score =
-        (int)(matrix[0][0] * 4.0f) +
-        (int)(row[0] * 4.0f) +
-        (int)(row[1] * 4.0f) +
-        (int)(feature13_lvalue_row()[2] * 2.0f);
-    int lvalue_pointer_score =
-        (int)(*cube_cell * 2.0) +
-        (int)(cube_cell[1] * 2.0);
+    int lvalue_array_score = (int)(matrix[0][0] * 4.0f) + (int)(row[0] * 4.0f) +
+                             (int)(row[1] * 4.0f) + (int)(feature13_lvalue_row()[2] * 2.0f);
+    int lvalue_pointer_score = (int)(*cube_cell * 2.0) + (int)(cube_cell[1] * 2.0);
     int lvalue_record_score =
-        (int)(record->gain * 2.0f) +
-        (int)(record->bias * 2.0) +
-        (int)(records[1].taps[2] * 4.0f);
+        (int)(record->gain * 2.0f) + (int)(record->bias * 2.0) + (int)(records[1].taps[2] * 4.0f);
     int lvalue_size_score =
-        sizeof(matrix[index++]) + sizeof(cube[0]) +
-        sizeof(*row) + sizeof(*cube_cell);
+        sizeof(matrix[index++]) + sizeof(cube[0]) + sizeof(*row) + sizeof(*cube_cell);
     int lvalue_unevaluated = index == 0;
 
-    if (lvalue_array_score != 42 || lvalue_pointer_score != 13 ||
-        lvalue_record_score != 26 || lvalue_size_score != 56 ||
-        !lvalue_unevaluated) {
-        serial_printf("[feature13-lvalue] FAIL array=%d pointer=%d record=%d sizes=%d unevaluated=%d\n",
-                      lvalue_array_score, lvalue_pointer_score,
-                      lvalue_record_score, lvalue_size_score,
-                      lvalue_unevaluated);
+    if (lvalue_array_score != 42 || lvalue_pointer_score != 13 || lvalue_record_score != 26 ||
+        lvalue_size_score != 56 || !lvalue_unevaluated) {
+        serial_printf(
+            "[feature13-lvalue] FAIL array=%d pointer=%d record=%d sizes=%d unevaluated=%d\n",
+            lvalue_array_score, lvalue_pointer_score, lvalue_record_score, lvalue_size_score,
+            lvalue_unevaluated);
         ok = 0;
     } else {
-        serial_printf("[feature13-lvalue] PASS array=%d pointer=%d record=%d sizes=%d unevaluated=%d\n",
-                      lvalue_array_score, lvalue_pointer_score,
-                      lvalue_record_score, lvalue_size_score,
-                      lvalue_unevaluated);
+        serial_printf(
+            "[feature13-lvalue] PASS array=%d pointer=%d record=%d sizes=%d unevaluated=%d\n",
+            lvalue_array_score, lvalue_pointer_score, lvalue_record_score, lvalue_size_score,
+            lvalue_unevaluated);
     }
 
     /* Cross the unsigned-word sign boundary at both floating widths. The
@@ -344,25 +289,20 @@ void main() {
     float unsigned_float_above = 2147483904.0f;
     double unsigned_double_below = 2147483647.75;
     double unsigned_double_above = 4294967295.75;
-    uint32_t unsigned_from_float_below =
-        (uint32_t)unsigned_float_below;
+    uint32_t unsigned_from_float_below = (uint32_t)unsigned_float_below;
     uint32_t unsigned_from_float_above = unsigned_float_above;
-    uint32_t unsigned_from_double_below =
-        (uint32_t)unsigned_double_below;
+    uint32_t unsigned_from_double_below = (uint32_t)unsigned_double_below;
     uint32_t unsigned_from_double_above;
     unsigned_from_double_above = unsigned_double_above;
 
     int unsigned_conversion_ok =
-        unsigned_from_float_below == 0x7fffff80u &&
-        unsigned_from_float_above == 0x80000100u &&
-        unsigned_from_double_below == 0x7fffffffu &&
-        unsigned_from_double_above == 0xffffffffu;
+        unsigned_from_float_below == 0x7fffff80u && unsigned_from_float_above == 0x80000100u &&
+        unsigned_from_double_below == 0x7fffffffu && unsigned_from_double_above == 0xffffffffu;
     if (!unsigned_conversion_ok) {
-        serial_printf("[feature13-unsigned-convert] FAIL float-low=%x float-high=%x double-low=%x double-high=%x\n",
-                      unsigned_from_float_below,
-                      unsigned_from_float_above,
-                      unsigned_from_double_below,
-                      unsigned_from_double_above);
+        serial_printf("[feature13-unsigned-convert] FAIL float-low=%x float-high=%x double-low=%x "
+                      "double-high=%x\n",
+                      unsigned_from_float_below, unsigned_from_float_above,
+                      unsigned_from_double_below, unsigned_from_double_above);
         ok = 0;
     }
 
@@ -371,10 +311,8 @@ void main() {
     feature13_unsigned_values[1] = 0xfffffffeu;
     signed_remainder %= 6;
     feature13_unsigned_values[feature13_unsigned_next_index()] %= 7;
-    int unsigned_remainder_ok =
-        signed_remainder == -5 &&
-        feature13_unsigned_values[1] == 2u &&
-        feature13_unsigned_index_calls == 1;
+    int unsigned_remainder_ok = signed_remainder == -5 && feature13_unsigned_values[1] == 2u &&
+                                feature13_unsigned_index_calls == 1;
     if (!unsigned_remainder_ok) {
         serial_printf("[feature13-unsigned-remainder] FAIL signed=%d unsigned=%x once=%d\n",
                       signed_remainder, feature13_unsigned_values[1],
@@ -397,8 +335,7 @@ void main() {
         literal_double_checks++;
     else
         literal_ok = 0;
-    double literal_double_tie =
-        1.00000000000000011102230246251565404236316680908203125;
+    double literal_double_tie = 1.00000000000000011102230246251565404236316680908203125;
     literal_bits = (int *)&literal_double_tie;
     if (literal_bits[0] == 0 && literal_bits[1] == 0x3ff00000)
         literal_double_checks++;
@@ -430,19 +367,17 @@ void main() {
         literal_ok = 0;
     double literal_negative_zero = -0e-9999;
     literal_bits = (int *)&literal_negative_zero;
-    if (literal_bits[0] == 0 &&
-        literal_bits[1] == (int)0x80000000)
+    if (literal_bits[0] == 0 && literal_bits[1] == (int)0x80000000)
         literal_edge_checks++;
     else
         literal_ok = 0;
 
-    if (literal_ok && literal_double_checks == 2 &&
-        literal_float_checks == 2 && literal_edge_checks == 3) {
+    if (literal_ok && literal_double_checks == 2 && literal_float_checks == 2 &&
+        literal_edge_checks == 3) {
         serial_printf("[feature13-literal] PASS double=2 float=2 edge=3\n");
     } else {
         serial_printf("[feature13-literal] FAIL double=%d float=%d edge=%d\n",
-                      literal_double_checks, literal_float_checks,
-                      literal_edge_checks);
+                      literal_double_checks, literal_float_checks, literal_edge_checks);
         ok = 0;
     }
 
@@ -468,8 +403,7 @@ void main() {
 
     /* sqrt(2) = 1.41421356... */
     double sq = sqrt(2.0);
-    if (!feature13_within(
-            sq, 1.4142135623730951, 1000000000000.0, 0)) {
+    if (!feature13_within(sq, 1.4142135623730951, 1000000000000.0, 0)) {
         int sq10000 = (int)(sq * 10000.0);
         serial_printf("[feature13] FAIL sqrt(2) *10000=%d\n", sq10000);
         ok = 0;
@@ -510,8 +444,7 @@ void main() {
 
     /* tanh(1) = 0.7615941559557649 */
     double tn = tanh(1.0);
-    if (!feature13_within(
-            tn, 0.7615941559557649, 10000000000.0, 0)) {
+    if (!feature13_within(tn, 0.7615941559557649, 10000000000.0, 0)) {
         int tn10000 = (int)(tn * 10000.0);
         serial_printf("[feature13] FAIL tanh(1) *10000=%d\n", tn10000);
         ok = 0;
@@ -532,8 +465,7 @@ void main() {
 
     /* atan2(1, 1) = pi/4 = 0.7853981633974483 */
     double a2 = atan2(1.0, 1.0);
-    if (!feature13_within(
-            a2, 0.7853981633974483, 1000000000000.0, 0)) {
+    if (!feature13_within(a2, 0.7853981633974483, 1000000000000.0, 0)) {
         int a210000 = (int)(a2 * 10000.0);
         serial_printf("[feature13] FAIL atan2(1,1) *10000=%d\n", a210000);
         ok = 0;

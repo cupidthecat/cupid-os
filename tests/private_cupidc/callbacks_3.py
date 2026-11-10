@@ -10,9 +10,8 @@ class Callbacks3Cases:
         for fragment in (
             "typedef int (*susp_entry_cb)(const uint8_t *entry, "
             "uint32_t elen, void *ctx);",
-            "static int susp_walk(block_device_t *bdev,\n"
-            "                     const uint8_t *su, uint32_t su_len,\n"
-            "                     susp_entry_cb cb, void *ctx)",
+            "static int susp_walk(block_device_t *bdev, const uint8_t *su, uint32_t su_len, "
+            "susp_entry_cb cb,\n                     void *ctx)",
             "uint8_t elen = cur[i + 2];",
             "int rc = cb(cur + i, elen, ctx);",
             "static int nm_entry_cb(const uint8_t *e, uint32_t elen, "
@@ -69,7 +68,7 @@ class Callbacks3Cases:
             "static vpatchclipfunc_t patchclip_callback = NULL;",
             "void V_SetPatchClipCallback(vpatchclipfunc_t func)",
             "patchclip_callback = func;",
-            "if(!patchclip_callback(patch, x, y))",
+            "if (!patchclip_callback(patch, x, y))",
         ):
             with self.subTest(active_doom_fragment=fragment):
                 self.assertIn(fragment, doom_source)

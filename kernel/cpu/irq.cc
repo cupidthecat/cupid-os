@@ -1,10 +1,10 @@
-#include "isr.h"
 #include "irq.h"
-#include "pic.h"
-#include "math.h"
-#include "lapic.h"
-#include "ioapic.h"
 #include "bkl.h"
+#include "ioapic.h"
+#include "isr.h"
+#include "lapic.h"
+#include "math.h"
+#include "pic.h"
 
 #define IRQ_MAX_HANDLERS 4
 
@@ -22,24 +22,33 @@ static volatile irq_handler_t irq_handlers[16][IRQ_MAX_HANDLERS];
  * point only the BSP is running and the IOAPIC has not yet been
  * unmasked, so no IRQ can observe a half-built slot.*/
 static inline bool irq_lock(void) {
-    if (bkl_is_initialized()) { bkl_lock(); return true; }
+    if (bkl_is_initialized()) {
+        bkl_lock();
+        return true;
+    }
     return false;
 }
+
 static inline void irq_unlock(bool was_locked) {
-    if (was_locked) bkl_unlock();
+    if (was_locked)
+        bkl_unlock();
 }
 
 // Install a custom IRQ handler (appends to chain for shared IRQs)
 void irq_install_handler(int irq, irq_handler_t handler) {
     int slot;
-    if (irq < 0 || irq >= 16 || !handler) return;
+    if (irq < 0 || irq >= 16 || !handler)
+        return;
 
     bool locked = irq_lock();
 
     /* Append into first free slot. Silently refuse dup registrations
      * of the same fn pointer.*/
     for (slot = 0; slot < IRQ_MAX_HANDLERS; slot++) {
-        if (irq_handlers[irq][slot] == handler) { irq_unlock(locked); return; }
+        if (irq_handlers[irq][slot] == handler) {
+            irq_unlock(locked);
+            return;
+        }
     }
     for (slot = 0; slot < IRQ_MAX_HANDLERS; slot++) {
         if (!irq_handlers[irq][slot]) {
@@ -69,13 +78,15 @@ void irq_install_handler(int irq, irq_handler_t handler) {
 // Remove an IRQ handler (clears entire chain)
 void irq_uninstall_handler(int irq) {
     int i;
-    if (irq < 0 || irq >= 16) return;
+    if (irq < 0 || irq >= 16)
+        return;
     bool locked = irq_lock();
-    for (i = 0; i < IRQ_MAX_HANDLERS; i++) irq_handlers[irq][i] = 0;
+    for (i = 0; i < IRQ_MAX_HANDLERS; i++)
+        irq_handlers[irq][i] = 0;
     irq_unlock(locked);
 }
 
-static void default_irq_handler(struct registers* r) {
+static void default_irq_handler(struct registers *r) {
     print("Unhandled IRQ: ");
     char irq_str[3];
     itoa((int)(r->int_no - 32U), irq_str);
@@ -84,7 +95,7 @@ static void default_irq_handler(struct registers* r) {
 }
 
 // IRQ handler dispatcher - walks full chain so shared lines work
-void irq_handler(struct registers* r) {
+void irq_handler(struct registers *r) {
     int irq = (int)(r->int_no - 32U);
     int i;
     int dispatched = 0;
@@ -97,7 +108,8 @@ void irq_handler(struct registers* r) {
             }
         }
     }
-    if (!dispatched) default_irq_handler(r);
+    if (!dispatched)
+        default_irq_handler(r);
 
     /* Send EOI via Local APIC (8259 is fully masked) */
     lapic_eoi();
@@ -124,6 +136,7 @@ void irq_list_handlers(void) {
 void irq_init(void) {
     int i, j;
     for (i = 0; i < 16; i++)
-        for (j = 0; j < IRQ_MAX_HANDLERS; j++) irq_handlers[i][j] = 0;
+        for (j = 0; j < IRQ_MAX_HANDLERS; j++)
+            irq_handlers[i][j] = 0;
     print("IRQ subsystem initialized\n");
 }

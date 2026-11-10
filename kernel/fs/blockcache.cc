@@ -10,15 +10,15 @@
  * - LRU eviction policy
  * - Write-back with periodic flush (every 5 seconds)
  * - Cache statistics tracking
-*/
+ */
 
 #include "blockcache.h"
+#include "bkl.h"
+#include "debug.h"
 #include "homefs.h"
 #include "kernel.h"
 #include "memory.h"
-#include "bkl.h"
 #include "string.h"
-#include "debug.h"
 
 static block_cache_t cache;
 static uint32_t access_counter = 0;
@@ -30,21 +30,25 @@ static uint32_t access_counter = 0;
  * transaction while a sector operation is in flight. */
 static bool blockcache_guard_enter(void) {
     bool locked = bkl_is_initialized();
-    if (locked) bkl_lock();
+    if (locked)
+        bkl_lock();
     return locked;
 }
 
 static void blockcache_guard_leave(bool locked) {
-    if (locked) bkl_unlock();
+    if (locked)
+        bkl_unlock();
 }
 
 /* Output function pointers (can be overridden for GUI mode) */
-static void (*cache_print)(const char*) = print;
+static void (*cache_print)(const char *) = print;
 static void (*cache_print_int)(uint32_t) = print_int;
 
-void blockcache_set_output(void (*print_fn)(const char*), void (*print_int_fn)(uint32_t)) {
-    if (print_fn) cache_print = print_fn;
-    if (print_int_fn) cache_print_int = print_int_fn;
+void blockcache_set_output(void (*print_fn)(const char *), void (*print_int_fn)(uint32_t)) {
+    if (print_fn)
+        cache_print = print_fn;
+    if (print_int_fn)
+        cache_print_int = print_int_fn;
 }
 
 /**
@@ -52,14 +56,14 @@ void blockcache_set_output(void (*print_fn)(const char*), void (*print_int_fn)(u
  *
  * @param device: Block device to cache
  * @return 0 on success, -1 on failure
-*/
-int blockcache_init(block_device_t* device) {
+ */
+int blockcache_init(block_device_t *device) {
     if (!device) {
         return -1;
     }
 
     // Allocate cache entries
-    cache.entries = (cache_entry_t*)kmalloc(CACHE_SIZE * sizeof(cache_entry_t));
+    cache.entries = (cache_entry_t *)kmalloc(CACHE_SIZE * sizeof(cache_entry_t));
     if (!cache.entries) {
         print("Block cache: kmalloc failed\n");
         return -1;
@@ -93,8 +97,8 @@ int blockcache_init(block_device_t* device) {
  *
  * @param lba: Logical block address
  * @return Pointer to cache entry, or NULL if not found
-*/
-static cache_entry_t* find_cache_entry(uint32_t lba) {
+ */
+static cache_entry_t *find_cache_entry(uint32_t lba) {
     for (int i = 0; i < CACHE_SIZE; i++) {
         if (cache.entries[i].valid && cache.entries[i].lba == lba) {
             return &cache.entries[i];
@@ -110,8 +114,8 @@ static cache_entry_t* find_cache_entry(uint32_t lba) {
  * entry with oldest last_access time.
  *
  * @return Pointer to LRU cache entry
-*/
-static cache_entry_t* find_lru_entry(void) {
+ */
+static cache_entry_t *find_lru_entry(void) {
     uint32_t oldest = 0xFFFFFFFF;
     int lru_idx = 0;
 
@@ -134,11 +138,11 @@ static cache_entry_t* find_lru_entry(void) {
  * @param lba: Logical block address
  * @param buffer: Buffer to read into
  * @return 0 on success, -1 on error
-*/
-static int blockcache_read_unlocked(uint32_t lba, void* buffer) {
+ */
+static int blockcache_read_unlocked(uint32_t lba, void *buffer) {
     uint8_t loaded[SECTOR_SIZE];
     // Search for cached entry
-    cache_entry_t* entry = find_cache_entry(lba);
+    cache_entry_t *entry = find_cache_entry(lba);
 
     if (entry) {
         // Cache hit
@@ -191,7 +195,7 @@ static int blockcache_read_unlocked(uint32_t lba, void* buffer) {
     return 0;
 }
 
-int blockcache_read(uint32_t lba, void* buffer) {
+int blockcache_read(uint32_t lba, void *buffer) {
     bool locked = blockcache_guard_enter();
     int rc = blockcache_read_unlocked(lba, buffer);
     blockcache_guard_leave(locked);
@@ -204,10 +208,10 @@ int blockcache_read(uint32_t lba, void* buffer) {
  * @param lba: Logical block address
  * @param buffer: Buffer containing data to write
  * @return 0 on success, -1 on error
-*/
-static int blockcache_write_unlocked(uint32_t lba, const void* buffer) {
+ */
+static int blockcache_write_unlocked(uint32_t lba, const void *buffer) {
     uint8_t loaded[SECTOR_SIZE];
-    cache_entry_t* entry = find_cache_entry(lba);
+    cache_entry_t *entry = find_cache_entry(lba);
 
     if (entry) {
         // Cache hit - update in place
@@ -255,7 +259,7 @@ static int blockcache_write_unlocked(uint32_t lba, const void* buffer) {
     return 0;
 }
 
-int blockcache_write(uint32_t lba, const void* buffer) {
+int blockcache_write(uint32_t lba, const void *buffer) {
     bool locked = blockcache_guard_enter();
     int rc = blockcache_write_unlocked(lba, buffer);
     blockcache_guard_leave(locked);
@@ -264,7 +268,7 @@ int blockcache_write(uint32_t lba, const void* buffer) {
 
 /**
  * blockcache_flush_all - Flush all dirty cache entries to disk
-*/
+ */
 static int blockcache_flush_all_unlocked(void) {
     uint32_t flushed = 0;
     int status = 0;
@@ -309,8 +313,8 @@ int blockcache_flush_all(void) {
  *
  * @param r: Interrupt registers (unused)
  * @param channel: Timer channel (unused)
-*/
-void blockcache_periodic_flush(struct registers* r, uint32_t channel) {
+ */
+void blockcache_periodic_flush(struct registers *r, uint32_t channel) {
     (void)r;
     (void)channel;
     blockcache_flush_all();
@@ -318,7 +322,7 @@ void blockcache_periodic_flush(struct registers* r, uint32_t channel) {
 
 /**
  * blockcache_sync - Manual cache flush (sync command)
-*/
+ */
 int blockcache_sync(void) {
     bool locked = blockcache_guard_enter();
     int home_status = homefs_sync();
@@ -334,10 +338,9 @@ typedef struct {
     int bad_write;
 } blockcache_failure_test_t;
 
-static int blockcache_failure_test_read(void *driver_data, uint32_t lba,
-                                        uint32_t count, void *buffer) {
-    blockcache_failure_test_t *test =
-        (blockcache_failure_test_t *)driver_data;
+static int blockcache_failure_test_read(void *driver_data, uint32_t lba, uint32_t count,
+                                        void *buffer) {
+    blockcache_failure_test_t *test = (blockcache_failure_test_t *)driver_data;
     (void)lba;
     (void)count;
     test->reads++;
@@ -345,14 +348,13 @@ static int blockcache_failure_test_read(void *driver_data, uint32_t lba,
     return -1;
 }
 
-static int blockcache_failure_test_write(void *driver_data, uint32_t lba,
-                                         uint32_t count,
+static int blockcache_failure_test_write(void *driver_data, uint32_t lba, uint32_t count,
                                          const void *buffer) {
-    blockcache_failure_test_t *test =
-        (blockcache_failure_test_t *)driver_data;
+    blockcache_failure_test_t *test = (blockcache_failure_test_t *)driver_data;
     const uint8_t *bytes = (const uint8_t *)buffer;
     test->writes++;
-    if (lba != test->expected_lba || count != 1u) test->bad_write = 1;
+    if (lba != test->expected_lba || count != 1u)
+        test->bad_write = 1;
     for (uint32_t i = 0; i < SECTOR_SIZE; i++) {
         if (bytes[i] != 0xa5u) {
             test->bad_write = 1;
@@ -364,21 +366,21 @@ static int blockcache_failure_test_write(void *driver_data, uint32_t lba,
 
 static int blockcache_failure_victim_is_safe(cache_entry_t *entry,
                                              blockcache_failure_test_t *test) {
-    if (!entry->valid || entry->dirty ||
-        entry->lba != test->expected_lba ||
-        test->reads != 1u || test->writes != 1u || test->bad_write) {
+    if (!entry->valid || entry->dirty || entry->lba != test->expected_lba || test->reads != 1u ||
+        test->writes != 1u || test->bad_write) {
         return 0;
     }
     for (uint32_t i = 0; i < SECTOR_SIZE; i++) {
-        if (entry->data[i] != 0xa5u) return 0;
+        if (entry->data[i] != 0xa5u)
+            return 0;
     }
     return 1;
 }
 
 int blockcache_failure_selftest(void) {
-    cache_entry_t *entries =
-        (cache_entry_t *)kmalloc(CACHE_SIZE * sizeof(cache_entry_t));
-    if (!entries) return -1;
+    cache_entry_t *entries = (cache_entry_t *)kmalloc(CACHE_SIZE * sizeof(cache_entry_t));
+    if (!entries)
+        return -1;
 
     block_device_t device;
     blockcache_failure_test_t test;
@@ -430,7 +432,7 @@ int blockcache_failure_selftest(void) {
 
 /**
  * blockcache_stats - Print cache statistics
-*/
+ */
 void blockcache_stats(void) {
     cache_print("Cache statistics:\n");
     cache_print("  Hits: ");

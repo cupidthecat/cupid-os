@@ -7,8 +7,8 @@
 
 #include "chacha20poly1305.h"
 #include "chacha20.h"
-#include "poly1305.h"
 #include "ct.h"
+#include "poly1305.h"
 
 static void store_le64(uint8_t out[8], uint64_t v) {
     int i;
@@ -17,10 +17,9 @@ static void store_le64(uint8_t out[8], uint64_t v) {
     }
 }
 
-static void mac_data(poly1305_ctx_t *ctx,
-                     const uint8_t *aad, uint32_t aad_len,
-                     const uint8_t *ct,  uint32_t ct_len) {
-    static const uint8_t zeros[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+static void mac_data(poly1305_ctx_t *ctx, const uint8_t *aad, uint32_t aad_len, const uint8_t *ct,
+                     uint32_t ct_len) {
+    static const uint8_t zeros[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     uint8_t lengths[16];
 
     if (aad_len > 0u) {
@@ -35,16 +34,15 @@ static void mac_data(poly1305_ctx_t *ctx,
             poly1305_update(ctx, zeros, 16u - (ct_len & 0xFu));
         }
     }
-    store_le64(lengths,     (uint64_t)aad_len);
+    store_le64(lengths, (uint64_t)aad_len);
     store_le64(lengths + 8, (uint64_t)ct_len);
     poly1305_update(ctx, lengths, 16u);
 }
 
-void chacha20poly1305_seal(const uint8_t key[32], const uint8_t nonce[12],
-                           const uint8_t *aad, uint32_t aad_len,
-                           const uint8_t *pt, uint32_t pt_len,
-                           uint8_t *ct_out, uint8_t tag_out[16]) {
-    uint8_t        otk_block[64];
+void chacha20poly1305_seal(const uint8_t key[32], const uint8_t nonce[12], const uint8_t *aad,
+                           uint32_t aad_len, const uint8_t *pt, uint32_t pt_len, uint8_t *ct_out,
+                           uint8_t tag_out[16]) {
+    uint8_t otk_block[64];
     poly1305_ctx_t mac;
 
     chacha20_block(key, 0u, nonce, otk_block);
@@ -58,14 +56,13 @@ void chacha20poly1305_seal(const uint8_t key[32], const uint8_t nonce[12],
     ct_wipe(&mac, sizeof(mac));
 }
 
-int chacha20poly1305_open(const uint8_t key[32], const uint8_t nonce[12],
-                          const uint8_t *aad, uint32_t aad_len,
-                          const uint8_t *ct, uint32_t ct_len,
+int chacha20poly1305_open(const uint8_t key[32], const uint8_t nonce[12], const uint8_t *aad,
+                          uint32_t aad_len, const uint8_t *ct, uint32_t ct_len,
                           const uint8_t tag[16], uint8_t *pt_out) {
-    uint8_t        otk_block[64];
-    uint8_t        computed_tag[16];
+    uint8_t otk_block[64];
+    uint8_t computed_tag[16];
     poly1305_ctx_t mac;
-    int            ok;
+    int ok;
 
     chacha20_block(key, 0u, nonce, otk_block);
     poly1305_init(&mac, otk_block);

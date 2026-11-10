@@ -2,24 +2,26 @@
  * cupidscript_parse.cc - Parser for CupidScript
  *
  * Transforms a flat token array into an Abstract Syntax Tree (AST).
-*/
+ */
 #include "cupidscript.h"
-#include "string.h"
 #include "memory.h"
 #include "serial.h"
+#include "string.h"
 
 static token_t *toks;
 static int tok_count;
 static int tok_pos;
 
 static token_t *peek(void) {
-    if (tok_pos < tok_count) return &toks[tok_pos];
+    if (tok_pos < tok_count)
+        return &toks[tok_pos];
     return &toks[tok_count - 1]; /* EOF */
 }
 
 static token_t *advance(void) {
     token_t *t = peek();
-    if (tok_pos < tok_count - 1) tok_pos++;
+    if (tok_pos < tok_count - 1)
+        tok_pos++;
     return t;
 }
 
@@ -44,8 +46,7 @@ static void skip_newlines(void) {
 
 /* Is this token one that starts/is a "word-like" thing? */
 static int is_word_token(token_type_t t) {
-    return t == TOK_WORD || t == TOK_STRING || t == TOK_VARIABLE ||
-           t == TOK_ARITH;
+    return t == TOK_WORD || t == TOK_STRING || t == TOK_VARIABLE || t == TOK_ARITH;
 }
 
 static ast_node_t *alloc_node(node_type_t type) {
@@ -65,11 +66,12 @@ static void copy_token_to_argv(char *dst, token_t *t, int max);
 
 /* Parse one redirection token + optional target into command metadata. */
 static int parse_redirection(ast_node_t *cmd, token_type_t tt) {
-    if (!cmd || cmd->type != NODE_COMMAND) return 0;
-    if (cmd->data.command.redir_count >= MAX_REDIRECTIONS) return 0;
+    if (!cmd || cmd->type != NODE_COMMAND)
+        return 0;
+    if (cmd->data.command.redir_count >= MAX_REDIRECTIONS)
+        return 0;
 
-    redirection_t *r = &cmd->data.command
-                            .redirections[cmd->data.command.redir_count++];
+    redirection_t *r = &cmd->data.command.redirections[cmd->data.command.redir_count++];
     r->filename = NULL;
     r->source_fd = 1;
     r->target_fd = -1;
@@ -96,8 +98,7 @@ static int parse_redirection(ast_node_t *cmd, token_type_t tt) {
 
     /* File target is required for >, >>, <, 2> */
     if (!is_word_token(peek()->type)) {
-        KERROR("CupidScript: expected redirection target on line %d",
-               peek()->line);
+        KERROR("CupidScript: expected redirection target on line %d", peek()->line);
         return 0;
     }
 
@@ -105,13 +106,15 @@ static int parse_redirection(ast_node_t *cmd, token_type_t tt) {
     char tmp[MAX_TOKEN_LEN];
     copy_token_to_argv(tmp, t, MAX_TOKEN_LEN);
     int len = 0;
-    while (tmp[len]) len++;
+    while (tmp[len])
+        len++;
     char *fname = kmalloc((size_t)len + 1);
     if (!fname) {
         KERROR("CupidScript: out of memory for redirection target");
         return 0;
     }
-    for (int i = 0; i <= len; i++) fname[i] = tmp[i];
+    for (int i = 0; i <= len; i++)
+        fname[i] = tmp[i];
     r->filename = fname;
     return 1;
 }
@@ -119,50 +122,56 @@ static int parse_redirection(ast_node_t *cmd, token_type_t tt) {
 static void copy_token_to_argv(char *dst, token_t *t, int max) {
     int i = 0;
     switch (t->type) {
-    case TOK_VARIABLE:
-        /* Restore $name form so expand() will recognize it */
-        dst[i++] = '$';
-        {
-            int j = 0;
-            while (t->value[j] && i < max - 1) {
-                dst[i++] = t->value[j++];
+        case TOK_VARIABLE:
+            /* Restore $name form so expand() will recognize it */
+            dst[i++] = '$';
+            {
+                int j = 0;
+                while (t->value[j] && i < max - 1) {
+                    dst[i++] = t->value[j++];
+                }
             }
-        }
-        dst[i] = '\0';
-        return;
-    case TOK_ARITH:
-        /* Restore $((expr)) form so expand() will evaluate it */
-        if (i < max - 1) dst[i++] = '$';
-        if (i < max - 1) dst[i++] = '(';
-        if (i < max - 1) dst[i++] = '(';
-        {
-            int j = 0;
-            while (t->value[j] && i < max - 1) {
-                dst[i++] = t->value[j++];
+            dst[i] = '\0';
+            return;
+        case TOK_ARITH:
+            /* Restore $((expr)) form so expand() will evaluate it */
+            if (i < max - 1)
+                dst[i++] = '$';
+            if (i < max - 1)
+                dst[i++] = '(';
+            if (i < max - 1)
+                dst[i++] = '(';
+            {
+                int j = 0;
+                while (t->value[j] && i < max - 1) {
+                    dst[i++] = t->value[j++];
+                }
             }
-        }
-        if (i < max - 1) dst[i++] = ')';
-        if (i < max - 1) dst[i++] = ')';
-        dst[i] = '\0';
-        return;
-    default:
-        /* TOK_WORD, TOK_STRING, etc - copy as-is */
-        {
-            int j = 0;
-            while (t->value[j] && j < max - 1) {
-                dst[j] = t->value[j];
-                j++;
+            if (i < max - 1)
+                dst[i++] = ')';
+            if (i < max - 1)
+                dst[i++] = ')';
+            dst[i] = '\0';
+            return;
+        default:
+            /* TOK_WORD, TOK_STRING, etc - copy as-is */
+            {
+                int j = 0;
+                while (t->value[j] && j < max - 1) {
+                    dst[j] = t->value[j];
+                    j++;
+                }
+                dst[j] = '\0';
             }
-            dst[j] = '\0';
-        }
-        return;
+            return;
     }
 }
 
 /* Parse one command segment starting with already-consumed first token. */
 static ast_node_t *parse_simple_command_from_first(token_t *first) {
     ast_node_t *n = alloc_node(NODE_COMMAND);
-    if (!n) return NULL;
+    if (!n)
+        return NULL;
 
     n->data.command.argc = 0;
     n->data.command.redir_count = 0;
@@ -171,23 +180,21 @@ static ast_node_t *parse_simple_command_from_first(token_t *first) {
     copy_token_to_argv(n->data.command.argv[0], first, MAX_TOKEN_LEN);
     n->data.command.argc = 1;
 
-    while (!at_end() && peek()->type != TOK_NEWLINE &&
-           peek()->type != TOK_SEMICOLON && peek()->type != TOK_RBRACE) {
+    while (!at_end() && peek()->type != TOK_NEWLINE && peek()->type != TOK_SEMICOLON &&
+           peek()->type != TOK_RBRACE) {
         token_type_t tt = peek()->type;
 
         if (is_word_token(tt)) {
             token_t *arg = advance();
             if (n->data.command.argc < MAX_ARGS) {
                 int idx = n->data.command.argc++;
-                copy_token_to_argv(n->data.command.argv[idx],
-                                   arg, MAX_TOKEN_LEN);
+                copy_token_to_argv(n->data.command.argv[idx], arg, MAX_TOKEN_LEN);
             }
             continue;
         }
 
-        if (tt == TOK_REDIR_OUT || tt == TOK_REDIR_APPEND ||
-            tt == TOK_REDIR_IN || tt == TOK_REDIR_ERR ||
-            tt == TOK_REDIR_ERR_OUT) {
+        if (tt == TOK_REDIR_OUT || tt == TOK_REDIR_APPEND || tt == TOK_REDIR_IN ||
+            tt == TOK_REDIR_ERR || tt == TOK_REDIR_ERR_OUT) {
             advance();
             parse_redirection(n, tt);
             continue;
@@ -206,12 +213,14 @@ static ast_node_t *parse_simple_command_from_first(token_t *first) {
 static ast_node_t *parse_test(void) {
     /* The [ has already been consumed by the caller */
     ast_node_t *n = alloc_node(NODE_TEST);
-    if (!n) return NULL;
+    if (!n)
+        return NULL;
 
     n->data.test.argc = 0;
 
     while (!at_end() && peek()->type != TOK_RBRACKET) {
-        if (peek()->type == TOK_NEWLINE) break;
+        if (peek()->type == TOK_NEWLINE)
+            break;
 
         token_t *t = advance();
         if (n->data.test.argc < MAX_ARGS) {
@@ -229,7 +238,8 @@ static ast_node_t *parse_test(void) {
 
 static ast_node_t *parse_if(void) {
     ast_node_t *n = alloc_node(NODE_IF);
-    if (!n) return NULL;
+    if (!n)
+        return NULL;
 
     /* Parse condition: everything up to 'then'
      * Typically: [ test expression ]*/
@@ -245,7 +255,8 @@ static ast_node_t *parse_if(void) {
 
     /* expect: ; then  or  \n then */
     skip_newlines();
-    if (peek()->type == TOK_SEMICOLON) advance();
+    if (peek()->type == TOK_SEMICOLON)
+        advance();
     skip_newlines();
     if (peek()->type != TOK_THEN) {
         KERROR("CupidScript: expected 'then' on line %d", peek()->line);
@@ -274,7 +285,8 @@ static ast_node_t *parse_if(void) {
 
 static ast_node_t *parse_while(void) {
     ast_node_t *n = alloc_node(NODE_WHILE);
-    if (!n) return NULL;
+    if (!n)
+        return NULL;
 
     skip_newlines();
 
@@ -288,7 +300,8 @@ static ast_node_t *parse_while(void) {
 
     /* expect: ; do  or  \n do */
     skip_newlines();
-    if (peek()->type == TOK_SEMICOLON) advance();
+    if (peek()->type == TOK_SEMICOLON)
+        advance();
     skip_newlines();
     if (peek()->type != TOK_DO) {
         KERROR("CupidScript: expected 'do' on line %d", peek()->line);
@@ -310,7 +323,8 @@ static ast_node_t *parse_while(void) {
 
 static ast_node_t *parse_for(void) {
     ast_node_t *n = alloc_node(NODE_FOR);
-    if (!n) return NULL;
+    if (!n)
+        return NULL;
 
     skip_newlines();
 
@@ -324,8 +338,7 @@ static ast_node_t *parse_for(void) {
         }
         n->data.for_stmt.var_name[i] = '\0';
     } else {
-        KERROR("CupidScript: expected variable name after 'for' on line %d",
-               peek()->line);
+        KERROR("CupidScript: expected variable name after 'for' on line %d", peek()->line);
         return n;
     }
 
@@ -339,14 +352,13 @@ static ast_node_t *parse_for(void) {
 
     /* Word list until ; or newline or do */
     n->data.for_stmt.word_count = 0;
-    while (!at_end() && peek()->type != TOK_SEMICOLON &&
-           peek()->type != TOK_NEWLINE && peek()->type != TOK_DO) {
+    while (!at_end() && peek()->type != TOK_SEMICOLON && peek()->type != TOK_NEWLINE &&
+           peek()->type != TOK_DO) {
         if (is_word_token(peek()->type)) {
             token_t *w = advance();
             if (n->data.for_stmt.word_count < MAX_WORD_LIST) {
                 int idx = n->data.for_stmt.word_count++;
-                copy_token_to_argv(n->data.for_stmt.word_list[idx],
-                                   w, MAX_TOKEN_LEN);
+                copy_token_to_argv(n->data.for_stmt.word_list[idx], w, MAX_TOKEN_LEN);
             }
         } else {
             advance(); /* skip unexpected tokens in word list */
@@ -355,7 +367,8 @@ static ast_node_t *parse_for(void) {
 
     /* expect ; do or \n do */
     skip_newlines();
-    if (peek()->type == TOK_SEMICOLON) advance();
+    if (peek()->type == TOK_SEMICOLON)
+        advance();
     skip_newlines();
     if (peek()->type != TOK_DO) {
         KERROR("CupidScript: expected 'do' on line %d", peek()->line);
@@ -377,7 +390,8 @@ static ast_node_t *parse_for(void) {
 
 static ast_node_t *parse_function_def(const char *name) {
     ast_node_t *n = alloc_node(NODE_FUNCTION_DEF);
-    if (!n) return NULL;
+    if (!n)
+        return NULL;
 
     int i = 0;
     while (name[i] && i < MAX_VAR_NAME - 1) {
@@ -389,8 +403,7 @@ static ast_node_t *parse_function_def(const char *name) {
     /* We've already consumed name( ) - now expect { */
     skip_newlines();
     if (peek()->type != TOK_LBRACE) {
-        KERROR("CupidScript: expected '{' for function '%s' on line %d",
-               name, peek()->line);
+        KERROR("CupidScript: expected '{' for function '%s' on line %d", name, peek()->line);
         return n;
     }
     advance(); /* consume { */
@@ -413,7 +426,8 @@ static ast_node_t *parse_command_or_assignment(void) {
     /* Check for assignment: WORD = VALUE */
     if (first->type == TOK_WORD && peek()->type == TOK_ASSIGN) {
         ast_node_t *n = alloc_node(NODE_ASSIGNMENT);
-        if (!n) return NULL;
+        if (!n)
+            return NULL;
 
         int i = 0;
         while (first->value[i] && i < MAX_VAR_NAME - 1) {
@@ -435,8 +449,7 @@ static ast_node_t *parse_command_or_assignment(void) {
             if (val->value[0] == '\0' && is_word_token(peek()->type)) {
                 val = advance();
             }
-            copy_token_to_argv(n->data.assignment.value, val,
-                               MAX_VAR_VALUE);
+            copy_token_to_argv(n->data.assignment.value, val, MAX_VAR_VALUE);
         } else {
             /* Empty value */
             n->data.assignment.value[0] = '\0';
@@ -461,7 +474,8 @@ static ast_node_t *parse_command_or_assignment(void) {
     /* Check for return statement */
     if (first->type == TOK_RETURN) {
         ast_node_t *n = alloc_node(NODE_RETURN);
-        if (!n) return NULL;
+        if (!n)
+            return NULL;
         n->data.return_stmt.exit_code = 0;
         /* Optional exit code */
         if (peek()->type == TOK_WORD) {
@@ -480,12 +494,14 @@ static ast_node_t *parse_command_or_assignment(void) {
 
     /* Regular command: collect args + redirections until separator */
     ast_node_t *n = parse_simple_command_from_first(first);
-    if (!n) return NULL;
+    if (!n)
+        return NULL;
 
     /* Pipeline: cmd1 | cmd2 | ... */
     if (peek()->type == TOK_PIPE) {
         ast_node_t *pipe = alloc_node(NODE_PIPELINE);
-        if (!pipe) return n;
+        if (!pipe)
+            return n;
         pipe->data.pipeline.command_count = 0;
         pipe->data.pipeline.background = false;
         pipe->data.pipeline.commands[pipe->data.pipeline.command_count++] = n;
@@ -494,26 +510,22 @@ static ast_node_t *parse_command_or_assignment(void) {
             advance(); /* consume | */
 
             if (!is_word_token(peek()->type)) {
-                KERROR("CupidScript: expected command after '|' on line %d",
-                       peek()->line);
+                KERROR("CupidScript: expected command after '|' on line %d", peek()->line);
                 break;
             }
 
             if (pipe->data.pipeline.command_count >= MAX_PIPELINE_CMDS) {
-                KERROR("CupidScript: pipeline too long (max %d)",
-                       MAX_PIPELINE_CMDS);
+                KERROR("CupidScript: pipeline too long (max %d)", MAX_PIPELINE_CMDS);
                 break;
             }
 
-                 token_t *seg_first = advance();
-                 ast_node_t *next_cmd = parse_simple_command_from_first(seg_first);
-                 if (!next_cmd) {
-                KERROR("CupidScript: invalid pipeline command on line %d",
-                       peek()->line);
+            token_t *seg_first = advance();
+            ast_node_t *next_cmd = parse_simple_command_from_first(seg_first);
+            if (!next_cmd) {
+                KERROR("CupidScript: invalid pipeline command on line %d", peek()->line);
                 break;
             }
-            pipe->data.pipeline.commands[pipe->data.pipeline.command_count++] =
-                next_cmd;
+            pipe->data.pipeline.commands[pipe->data.pipeline.command_count++] = next_cmd;
 
             if (peek()->type != TOK_PIPE) {
                 break;
@@ -539,13 +551,23 @@ static ast_node_t *parse_command_or_assignment(void) {
 static ast_node_t *parse_statement(void) {
     skip_newlines();
 
-    if (at_end()) return NULL;
+    if (at_end())
+        return NULL;
 
     token_type_t tt = peek()->type;
 
-    if (tt == TOK_IF)    { advance(); return parse_if();    }
-    if (tt == TOK_WHILE) { advance(); return parse_while(); }
-    if (tt == TOK_FOR)   { advance(); return parse_for();   }
+    if (tt == TOK_IF) {
+        advance();
+        return parse_if();
+    }
+    if (tt == TOK_WHILE) {
+        advance();
+        return parse_while();
+    }
+    if (tt == TOK_FOR) {
+        advance();
+        return parse_for();
+    }
 
     /* Word-like tokens start commands, assignments, or function defs */
     if (is_word_token(tt) || tt == TOK_RETURN) {
@@ -559,16 +581,19 @@ static ast_node_t *parse_statement(void) {
 
 static ast_node_t *parse_block(token_type_t end1, token_type_t end2) {
     ast_node_t *seq = alloc_node(NODE_SEQUENCE);
-    if (!seq) return NULL;
+    if (!seq)
+        return NULL;
 
     seq->data.sequence.count = 0;
 
     while (!at_end()) {
         skip_newlines();
-        if (at_end()) break;
+        if (at_end())
+            break;
 
         token_type_t tt = peek()->type;
-        if (tt == end1 || tt == end2) break;
+        if (tt == end1 || tt == end2)
+            break;
 
         ast_node_t *stmt = parse_statement();
         if (stmt && seq->data.sequence.count < MAX_SEQUENCE) {
@@ -581,20 +606,22 @@ static ast_node_t *parse_block(token_type_t end1, token_type_t end2) {
 
 /* cupidscript_parse
  * Parses `tokens` (token_count entries) and returns an AST root.
-*/
+ */
 ast_node_t *cupidscript_parse(token_t *tokens, int token_count) {
     toks = tokens;
     tok_count = token_count;
     tok_pos = 0;
 
     ast_node_t *root = alloc_node(NODE_SEQUENCE);
-    if (!root) return NULL;
+    if (!root)
+        return NULL;
 
     root->data.sequence.count = 0;
 
     while (!at_end()) {
         skip_newlines();
-        if (at_end()) break;
+        if (at_end())
+            break;
 
         ast_node_t *stmt = parse_statement();
         if (stmt && root->data.sequence.count < MAX_SEQUENCE) {
@@ -602,56 +629,56 @@ ast_node_t *cupidscript_parse(token_t *tokens, int token_count) {
         }
     }
 
-    KDEBUG("CupidScript parser: %d top-level statements",
-           root->data.sequence.count);
+    KDEBUG("CupidScript parser: %d top-level statements", root->data.sequence.count);
     return root;
 }
 
 /* cupidscript_free_ast
  * Recursively frees an AST node and all its children.
-*/
+ */
 void cupidscript_free_ast(ast_node_t *node) {
-    if (!node) return;
+    if (!node)
+        return;
 
     switch (node->type) {
-    case NODE_IF:
-        cupidscript_free_ast(node->data.if_stmt.condition);
-        cupidscript_free_ast(node->data.if_stmt.then_body);
-        cupidscript_free_ast(node->data.if_stmt.else_body);
-        break;
-    case NODE_WHILE:
-        cupidscript_free_ast(node->data.while_stmt.condition);
-        cupidscript_free_ast(node->data.while_stmt.body);
-        break;
-    case NODE_FOR:
-        cupidscript_free_ast(node->data.for_stmt.body);
-        break;
-    case NODE_FUNCTION_DEF:
-        /* Don't free function body - it may be referenced by context */
-        break;
-    case NODE_PIPELINE:
-        for (int i = 0; i < node->data.pipeline.command_count; i++) {
-            cupidscript_free_ast(node->data.pipeline.commands[i]);
-        }
-        break;
-    case NODE_SEQUENCE:
-        for (int i = 0; i < node->data.sequence.count; i++) {
-            cupidscript_free_ast(node->data.sequence.statements[i]);
-        }
-        break;
-    case NODE_COMMAND:
-        for (int i = 0; i < node->data.command.redir_count; i++) {
-            if (node->data.command.redirections[i].filename) {
-                kfree(node->data.command.redirections[i].filename);
-                node->data.command.redirections[i].filename = NULL;
+        case NODE_IF:
+            cupidscript_free_ast(node->data.if_stmt.condition);
+            cupidscript_free_ast(node->data.if_stmt.then_body);
+            cupidscript_free_ast(node->data.if_stmt.else_body);
+            break;
+        case NODE_WHILE:
+            cupidscript_free_ast(node->data.while_stmt.condition);
+            cupidscript_free_ast(node->data.while_stmt.body);
+            break;
+        case NODE_FOR:
+            cupidscript_free_ast(node->data.for_stmt.body);
+            break;
+        case NODE_FUNCTION_DEF:
+            /* Don't free function body - it may be referenced by context */
+            break;
+        case NODE_PIPELINE:
+            for (int i = 0; i < node->data.pipeline.command_count; i++) {
+                cupidscript_free_ast(node->data.pipeline.commands[i]);
             }
-        }
-        break;
-    case NODE_ASSIGNMENT:
-    case NODE_RETURN:
-    case NODE_TEST:
-        /* No child nodes to free */
-        break;
+            break;
+        case NODE_SEQUENCE:
+            for (int i = 0; i < node->data.sequence.count; i++) {
+                cupidscript_free_ast(node->data.sequence.statements[i]);
+            }
+            break;
+        case NODE_COMMAND:
+            for (int i = 0; i < node->data.command.redir_count; i++) {
+                if (node->data.command.redirections[i].filename) {
+                    kfree(node->data.command.redirections[i].filename);
+                    node->data.command.redirections[i].filename = NULL;
+                }
+            }
+            break;
+        case NODE_ASSIGNMENT:
+        case NODE_RETURN:
+        case NODE_TEST:
+            /* No child nodes to free */
+            break;
     }
 
     kfree(node);

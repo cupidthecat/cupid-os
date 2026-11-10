@@ -11,19 +11,19 @@
  *
  * The PIC allows the kernel to handle hardware interrupts from
  * devices like the keyboard, timer, etc in a controlled way.
-*/
+ */
 
 #include "pic.h"
 #include "kernel.h"
 
 // Helper functions for port I/O
 static inline void outb(uint16_t port, uint8_t value) {
-    __asm__ volatile ("outb %0, %1" : : "a"(value), "Nd"(port));
+    __asm__ volatile("outb %0, %1" : : "a"(value), "Nd"(port));
 }
 
 static inline uint8_t inb(uint16_t port) {
     uint8_t ret;
-    __asm__ volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
+    __asm__ volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
     return ret;
 }
 
@@ -37,12 +37,12 @@ void pic_init(void) {
     outb(PIC2_COMMAND, ICW1_INIT | ICW1_ICW4);
 
     // Set vector offsets
-    outb(PIC1_DATA, 32);   // IRQ 0-7: 32-39
-    outb(PIC2_DATA, 40);   // IRQ 8-15: 40-47
+    outb(PIC1_DATA, 32); // IRQ 0-7: 32-39
+    outb(PIC2_DATA, 40); // IRQ 8-15: 40-47
 
     // Tell Master PIC there is a slave at IRQ2
-    outb(PIC1_DATA, 4);    // Slave at IRQ2
-    outb(PIC2_DATA, 2);    // Slave's cascade identity
+    outb(PIC1_DATA, 4); // Slave at IRQ2
+    outb(PIC2_DATA, 2); // Slave's cascade identity
 
     // Set 8086 mode
     outb(PIC1_DATA, ICW4_8086);
@@ -53,16 +53,16 @@ void pic_init(void) {
     outb(PIC2_DATA, mask2);
 
     // Clear masks for timer (IRQ0) and keyboard (IRQ1)
-    pic_clear_mask(0);  // Timer
-    pic_clear_mask(1);  // Keyboard
+    pic_clear_mask(0); // Timer
+    pic_clear_mask(1); // Keyboard
 
     print("PIC initialized.\n");
 }
 
 void pic_send_eoi(uint8_t irq) {
     if (irq >= 8)
-        outb(PIC2_COMMAND, 0x20);  // Send EOI to slave PIC
-    outb(PIC1_COMMAND, 0x20);      // Send EOI to master PIC
+        outb(PIC2_COMMAND, 0x20); // Send EOI to slave PIC
+    outb(PIC1_COMMAND, 0x20);     // Send EOI to master PIC
 }
 
 void pic_set_mask(uint8_t irq) {
@@ -94,6 +94,6 @@ void pic_clear_mask(uint8_t irq) {
 }
 
 void pic_mask_all(void) {
-    outb(0x21, 0xFFu);   /* mask all master IRQs */
-    outb(0xA1, 0xFFu);   /* mask all slave IRQs */
+    outb(0x21, 0xFFu); /* mask all master IRQs */
+    outb(0xA1, 0xFFu); /* mask all slave IRQs */
 }

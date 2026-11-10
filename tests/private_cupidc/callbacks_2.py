@@ -137,12 +137,12 @@ class Callbacks2Cases:
                     REPO_ROOT / "kernel" / "usb" / relative_path
                 ).read_text(encoding="utf-8")
                 self.assertIn(f"void {poll_name}(void) {{", source)
-                self.assertIn("usb_complete_cb_t         cb;", source)
+                self.assertIn("usb_complete_cb_t cb;", source)
                 self.assertIn("c->interrupt_slots[i].cb = NULL;", source)
                 self.assertIn("slot->cb = cb;", source)
                 self.assertIn("usb_complete_cb_t cb = NULL;", source)
                 self.assertIn("cb = slot->cb;", source)
-                self.assertIn("if (deliver) cb(0, &local);", source)
+                self.assertRegex(source, r"if \(deliver\)\s+cb\(0, &local\);")
 
     def test_active_callback_fields_use_direct_postfix_calls(self):
         timer_header = (REPO_ROOT / "drivers" / "timer.h").read_text(
@@ -611,9 +611,9 @@ class Callbacks2Cases:
 
         for fragment in (
             "static int (*wipes[])(int, int, int)",
-            "(*wipes[wipeno*3])(width, height, ticks);",
-            "(*wipes[wipeno*3+1])(width, height, ticks);",
-            "(*wipes[wipeno*3+2])(width, height, ticks);",
+            "(*wipes[wipeno * 3])(width, height, ticks);",
+            "(*wipes[wipeno * 3 + 1])(width, height, ticks);",
+            "(*wipes[wipeno * 3 + 2])(width, height, ticks);",
         ):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, source)

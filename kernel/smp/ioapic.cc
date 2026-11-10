@@ -40,24 +40,27 @@ static ioapic_info_t *find_ioapic_for_gsi(uint32_t gsi) {
 }
 
 uint32_t ioapic_irq_to_gsi(uint8_t irq) {
-    if (irq < 16u) return (uint32_t)isa_to_gsi[irq];
+    if (irq < 16u)
+        return (uint32_t)isa_to_gsi[irq];
     return (uint32_t)irq;
 }
 
-void ioapic_set_redirect(uint32_t gsi, uint8_t vector, uint8_t dest,
-                         bool level, bool active_low) {
+void ioapic_set_redirect(uint32_t gsi, uint8_t vector, uint8_t dest, bool level, bool active_low) {
     ioapic_info_t *io = find_ioapic_for_gsi(gsi);
     uint8_t lo_reg;
     uint8_t hi_reg;
     uint32_t idx;
     uint32_t lo;
     uint32_t hi;
-    if (!io) return;
+    if (!io)
+        return;
     idx = gsi - io->gsi_base;
     lo = (uint32_t)vector;
-    if (active_low) lo |= (1u << 13);
-    if (level)      lo |= (1u << 15);
-    lo |= (1u << 16);   /* start masked */
+    if (active_low)
+        lo |= (1u << 13);
+    if (level)
+        lo |= (1u << 15);
+    lo |= (1u << 16); /* start masked */
     hi = (uint32_t)dest << 24;
     lo_reg = (uint8_t)(IOAPIC_REG_REDIR0 + idx * 2u);
     hi_reg = (uint8_t)(IOAPIC_REG_REDIR0 + idx * 2u + 1u);
@@ -70,16 +73,25 @@ static void set_mask(uint32_t gsi, bool mask) {
     uint8_t lo_reg;
     uint32_t idx;
     uint32_t lo;
-    if (!io) return;
+    if (!io)
+        return;
     idx = gsi - io->gsi_base;
     lo_reg = (uint8_t)(IOAPIC_REG_REDIR0 + idx * 2u);
     lo = ioapic_read(io, lo_reg);
-    if (mask) lo |= (1u << 16); else lo &= ~(1u << 16);
+    if (mask)
+        lo |= (1u << 16);
+    else
+        lo &= ~(1u << 16);
     ioapic_write(io, lo_reg, lo);
 }
 
-void ioapic_mask_gsi(uint32_t gsi)   { set_mask(gsi, true); }
-void ioapic_unmask_gsi(uint32_t gsi) { set_mask(gsi, false); }
+void ioapic_mask_gsi(uint32_t gsi) {
+    set_mask(gsi, true);
+}
+
+void ioapic_unmask_gsi(uint32_t gsi) {
+    set_mask(gsi, false);
+}
 
 void ioapic_init_all(uint8_t bsp_apic_id) {
     int i;
@@ -91,7 +103,8 @@ void ioapic_init_all(uint8_t bsp_apic_id) {
         ioapics_discovered[0].gsi_base = 0;
         ioapics_discovered[0].gsi_count = 24;
         ioapic_count = 1;
-        for (i = 0; i < 16; i++) isa_to_gsi[i] = (uint8_t)i;
+        for (i = 0; i < 16; i++)
+            isa_to_gsi[i] = (uint8_t)i;
     }
 
     for (i = 0; i < ioapic_count; i++) {
@@ -101,8 +114,8 @@ void ioapic_init_all(uint8_t bsp_apic_id) {
         paging_map_mmio(io->mmio_base, 4096);
         ver = ioapic_read(io, IOAPIC_REG_VER);
         io->gsi_count = (uint8_t)(((ver >> 16) & 0xFFu) + 1u);
-        KINFO("ioapic: id=%u base=%x gsis=%u",
-              (uint32_t)io->id, io->mmio_base, (uint32_t)io->gsi_count);
+        KINFO("ioapic: id=%u base=%x gsis=%u", (uint32_t)io->id, io->mmio_base,
+              (uint32_t)io->gsi_count);
 
         for (g = io->gsi_base; g < (uint32_t)(io->gsi_base + io->gsi_count); g++) {
             ioapic_set_redirect(g, (uint8_t)(0x20u + g), bsp_apic_id, false, false);

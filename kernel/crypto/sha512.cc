@@ -8,12 +8,12 @@ static uint64_t rotr64(uint64_t x, uint32_t n) {
     return (x >> n) | (x << (64u - n));
 }
 
-#define Ch(x,y,z)  (((x) & (y)) ^ (~(x) & (z)))
-#define Maj(x,y,z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
-#define BSIG0(x)   (rotr64((x),28) ^ rotr64((x),34) ^ rotr64((x),39))
-#define BSIG1(x)   (rotr64((x),14) ^ rotr64((x),18) ^ rotr64((x),41))
-#define SSIG0(x)   (rotr64((x), 1) ^ rotr64((x), 8) ^ ((x) >> 7))
-#define SSIG1(x)   (rotr64((x),19) ^ rotr64((x),61) ^ ((x) >> 6))
+#define Ch(x, y, z) (((x) & (y)) ^ (~(x) & (z)))
+#define Maj(x, y, z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+#define BSIG0(x) (rotr64((x), 28) ^ rotr64((x), 34) ^ rotr64((x), 39))
+#define BSIG1(x) (rotr64((x), 14) ^ rotr64((x), 18) ^ rotr64((x), 41))
+#define SSIG0(x) (rotr64((x), 1) ^ rotr64((x), 8) ^ ((x) >> 7))
+#define SSIG1(x) (rotr64((x), 19) ^ rotr64((x), 61) ^ ((x) >> 6))
 
 static const uint64_t K[80] = {
     0x428a2f98d728ae22ULL, 0x7137449123ef65cdULL, 0xb5c0fbcfec4d3b2fULL, 0xe9b5dba58189dbbcULL,
@@ -35,8 +35,7 @@ static const uint64_t K[80] = {
     0xca273eceea26619cULL, 0xd186b8c721c0c207ULL, 0xeada7dd6cde0eb1eULL, 0xf57d4f7fee6ed178ULL,
     0x06f067aa72176fbaULL, 0x0a637dc5a2c898a6ULL, 0x113f9804bef90daeULL, 0x1b710b35131c471bULL,
     0x28db77f523047d84ULL, 0x32caab7b40c72493ULL, 0x3c9ebe0a15c9bebcULL, 0x431d67c49c100d4cULL,
-    0x4cc5d4becb3e42b6ULL, 0x597f299cfc657e2aULL, 0x5fcb6fab3ad6faecULL, 0x6c44198c4a475817ULL
-};
+    0x4cc5d4becb3e42b6ULL, 0x597f299cfc657e2aULL, 0x5fcb6fab3ad6faecULL, 0x6c44198c4a475817ULL};
 
 static uint64_t load_be64(const uint8_t *p) {
     uint64_t v = 0;
@@ -68,20 +67,36 @@ static void sha512_compress(uint64_t state[8], const uint8_t block[128]) {
         W[t] = SSIG1(W[t - 2]) + W[t - 7] + SSIG0(W[t - 15]) + W[t - 16];
     }
 
-    a = state[0]; b = state[1]; c = state[2]; d = state[3];
-    e = state[4]; f = state[5]; g = state[6]; h = state[7];
+    a = state[0];
+    b = state[1];
+    c = state[2];
+    d = state[3];
+    e = state[4];
+    f = state[5];
+    g = state[6];
+    h = state[7];
 
     for (t = 0; t < 80; t++) {
         t1 = h + BSIG1(e) + Ch(e, f, g) + K[t] + W[t];
         t2 = BSIG0(a) + Maj(a, b, c);
-        h = g; g = f; f = e;
+        h = g;
+        g = f;
+        f = e;
         e = d + t1;
-        d = c; c = b; b = a;
+        d = c;
+        c = b;
+        b = a;
         a = t1 + t2;
     }
 
-    state[0] += a; state[1] += b; state[2] += c; state[3] += d;
-    state[4] += e; state[5] += f; state[6] += g; state[7] += h;
+    state[0] += a;
+    state[1] += b;
+    state[2] += c;
+    state[3] += d;
+    state[4] += e;
+    state[5] += f;
+    state[6] += g;
+    state[7] += h;
 }
 
 void sha512_init(sha512_ctx_t *ctx) {
@@ -116,12 +131,14 @@ void sha512_update(sha512_ctx_t *ctx, const uint8_t *data, uint32_t len) {
     uint32_t i = 0;
     uint64_t old_lo = ctx->bitlen_lo;
     ctx->bitlen_lo += (uint64_t)len * 8u;
-    if (ctx->bitlen_lo < old_lo) ctx->bitlen_hi++;
+    if (ctx->bitlen_lo < old_lo)
+        ctx->bitlen_hi++;
 
     while (i < len) {
         uint32_t take = SHA512_BLOCK_SIZE - ctx->buflen;
         uint32_t avail = len - i;
-        if (avail < take) take = avail;
+        if (avail < take)
+            take = avail;
         {
             uint32_t k;
             for (k = 0; k < take; k++) {
@@ -146,7 +163,8 @@ static void sha512_finalize_state(sha512_ctx_t *ctx) {
 
     /* Append 0x80 then zero-pad until length is 112 mod 128. */
     pad[0] = 0x80u;
-    for (i = 1; i < SHA512_BLOCK_SIZE; i++) pad[i] = 0u;
+    for (i = 1; i < SHA512_BLOCK_SIZE; i++)
+        pad[i] = 0u;
 
     if (ctx->buflen < 112u) {
         padlen = 112u - ctx->buflen;

@@ -39,7 +39,7 @@ class KeyboardSubscriberIsolationTests(unittest.TestCase):
         self.assertIn("yield();", program)
         self.assertIn("last_sc != 0x2A", program)
         self.assertNotIn("keyboard_test_sub_inject", program)
-        self.assertIn("if (sc != 0x2Au) return;", driver)
+        self.assertRegex(driver, r"if \(sc != 0x2Au\)\s+return;")
 
         adapter = (ROOT / "kernel" / "lang" / "cupidc.cc").read_text(
             encoding="utf-8"

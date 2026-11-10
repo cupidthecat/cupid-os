@@ -3,21 +3,21 @@
  *
  * Menu bars, context menus, toolbars, status bars,
  * tooltips, and keyboard shortcuts.
-*/
+ */
 
 #include "gui_menus.h"
-#include "gui_themes.h"
+#include "font_8x8.h"
 #include "gfx2d.h"
 #include "graphics.h"
-#include "font_8x8.h"
+#include "gui_themes.h"
 #include "string.h"
 #include "vga.h"
 
 #define MENU_ITEM_W_MIN 120
-#define MENU_ITEM_H      20
-#define MENU_PAD          6
+#define MENU_ITEM_H 20
+#define MENU_PAD 6
 #define TOOLBAR_BTN_SIZE 24
-#define TOOLTIP_PAD       4
+#define TOOLTIP_PAD 4
 
 void gui_menus_init(void) {
     /* Nothing to initialize */
@@ -25,9 +25,8 @@ void gui_menus_init(void) {
 
 /* Menu Bar */
 
-int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
-                    ui_menubar_state_t *state, int16_t mx, int16_t my,
-                    bool clicked, bool released) {
+int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count, ui_menubar_state_t *state,
+                    int16_t mx, int16_t my, bool clicked, bool released) {
     const ui_theme_t *theme = ui_theme_get();
     int i, tx;
     int result = 0;
@@ -42,8 +41,7 @@ int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
 
     for (i = 0; i < menu_count; i++) {
         int tw = (int)strlen(menus[i].title) * FONT_W + MENU_PAD * 2;
-        ui_rect_t title_r = ui_rect((int16_t)tx, r.y,
-                                    (uint16_t)tw, r.h);
+        ui_rect_t title_r = ui_rect((int16_t)tx, r.y, (uint16_t)tw, r.h);
         bool hover = ui_contains(title_r, mx, my);
         bool is_open = (state->open_menu == i);
 
@@ -53,9 +51,8 @@ int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
         }
 
         /* Title text */
-        gfx2d_text(tx + MENU_PAD,
-                   r.y + ((int)r.h - FONT_H) / 2,
-                   menus[i].title, theme->menu_text, GFX2D_FONT_NORMAL);
+        gfx2d_text(tx + MENU_PAD, r.y + ((int)r.h - FONT_H) / 2, menus[i].title, theme->menu_text,
+                   GFX2D_FONT_NORMAL);
 
         /* Open on click, or hover-switch when one is already open */
         if (clicked && hover) {
@@ -75,12 +72,14 @@ int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
             /* Calculate dropdown width (max of all item labels + shortcut) */
             for (j = 0; j < menus[i].item_count; j++) {
                 int iw;
-                if (menus[i].items[j].separator) continue;
+                if (menus[i].items[j].separator)
+                    continue;
                 iw = (int)strlen(menus[i].items[j].label) * FONT_W + 40;
                 if (menus[i].items[j].shortcut) {
                     iw += (int)strlen(menus[i].items[j].shortcut) * FONT_W + 20;
                 }
-                if (iw > mw) mw = iw;
+                if (iw > mw)
+                    mw = iw;
             }
 
             mh = 0;
@@ -105,48 +104,40 @@ int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
 
                 if (mi->separator) {
                     /* Separator line */
-                    gfx2d_hline(tx + 3, item_y + 3, mw - 6,
-                                theme->menu_separator);
+                    gfx2d_hline(tx + 3, item_y + 3, mw - 6, theme->menu_separator);
                     item_y += 8;
                     continue;
                 }
 
                 {
-                    ui_rect_t item_r = ui_rect((int16_t)(tx + 1),
-                                               (int16_t)item_y,
-                                               (uint16_t)(mw - 2),
-                                               MENU_ITEM_H);
+                    ui_rect_t item_r = ui_rect((int16_t)(tx + 1), (int16_t)item_y,
+                                               (uint16_t)(mw - 2), MENU_ITEM_H);
                     bool item_hover = ui_contains(item_r, mx, my);
 
                     if (item_hover && mi->enabled) {
                         state->hover_item = j;
-                        gfx2d_rect_fill(tx + 1, item_y, mw - 2,
-                                        MENU_ITEM_H, theme->menu_hover);
+                        gfx2d_rect_fill(tx + 1, item_y, mw - 2, MENU_ITEM_H, theme->menu_hover);
                     }
 
                     /* Checkmark */
                     if (mi->checked) {
-                        gfx2d_text(tx + 4,
-                                   item_y + (MENU_ITEM_H - FONT_H) / 2,
-                                   "*", theme->menu_text, GFX2D_FONT_NORMAL);
+                        gfx2d_text(tx + 4, item_y + (MENU_ITEM_H - FONT_H) / 2, "*",
+                                   theme->menu_text, GFX2D_FONT_NORMAL);
                     }
 
                     /* Label */
                     {
-                        uint32_t col = mi->enabled ? theme->menu_text
-                                                   : theme->menu_disabled_text;
-                        gfx2d_text(tx + 20,
-                                   item_y + (MENU_ITEM_H - FONT_H) / 2,
-                                   mi->label, col, GFX2D_FONT_NORMAL);
+                        uint32_t col = mi->enabled ? theme->menu_text : theme->menu_disabled_text;
+                        gfx2d_text(tx + 20, item_y + (MENU_ITEM_H - FONT_H) / 2, mi->label, col,
+                                   GFX2D_FONT_NORMAL);
                     }
 
                     /* Shortcut text */
                     if (mi->shortcut) {
                         int sw = (int)strlen(mi->shortcut) * FONT_W;
-                        uint32_t col = mi->enabled ? theme->button_disabled_text
-                                                   : theme->menu_disabled_text;
-                        gfx2d_text(tx + mw - sw - 8,
-                                   item_y + (MENU_ITEM_H - FONT_H) / 2,
+                        uint32_t col =
+                            mi->enabled ? theme->button_disabled_text : theme->menu_disabled_text;
+                        gfx2d_text(tx + mw - sw - 8, item_y + (MENU_ITEM_H - FONT_H) / 2,
                                    mi->shortcut, col, GFX2D_FONT_NORMAL);
                     }
 
@@ -162,11 +153,8 @@ int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
 
             /* Dismiss if clicked outside */
             {
-                ui_rect_t dropdown_r = ui_rect((int16_t)tx, my2,
-                                               (uint16_t)mw,
-                                               (uint16_t)mh);
-                if (clicked && !ui_contains(dropdown_r, mx, my) &&
-                    !ui_contains(title_r, mx, my)) {
+                ui_rect_t dropdown_r = ui_rect((int16_t)tx, my2, (uint16_t)mw, (uint16_t)mh);
+                if (clicked && !ui_contains(dropdown_r, mx, my) && !ui_contains(title_r, mx, my)) {
                     state->open_menu = -1;
                 }
             }
@@ -179,29 +167,26 @@ int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
 }
 
 ui_rect_t ui_menubar_content_rect(ui_rect_t window, int menubar_height) {
-    return ui_rect(window.x,
-                   (int16_t)(window.y + (int16_t)menubar_height),
-                   window.w,
+    return ui_rect(window.x, (int16_t)(window.y + (int16_t)menubar_height), window.w,
                    (uint16_t)((int)window.h - menubar_height));
 }
 
 /* Context Menu */
 
-void ui_context_menu_show(ui_context_menu_state_t *state,
-                          int16_t x, int16_t y) {
+void ui_context_menu_show(ui_context_menu_state_t *state, int16_t x, int16_t y) {
     state->visible = true;
     state->x = x;
     state->y = y;
     state->hover_item = -1;
 }
 
-int ui_draw_context_menu(ui_menu_item_t *items, int count,
-                         ui_context_menu_state_t *state,
+int ui_draw_context_menu(ui_menu_item_t *items, int count, ui_context_menu_state_t *state,
                          int16_t mx, int16_t my, bool clicked) {
     const ui_theme_t *theme = ui_theme_get();
     int i, mw, mh, item_y, result;
 
-    if (!state->visible) return 0;
+    if (!state->visible)
+        return 0;
 
     result = 0;
 
@@ -216,7 +201,8 @@ int ui_draw_context_menu(ui_menu_item_t *items, int count,
             if (items[i].shortcut) {
                 iw += (int)strlen(items[i].shortcut) * FONT_W + 20;
             }
-            if (iw > mw) mw = iw;
+            if (iw > mw)
+                mw = iw;
             mh += MENU_ITEM_H;
         }
     }
@@ -232,48 +218,39 @@ int ui_draw_context_menu(ui_menu_item_t *items, int count,
 
     for (i = 0; i < count; i++) {
         if (items[i].separator) {
-            gfx2d_hline(state->x + 3, item_y + 3, mw - 6,
-                        theme->menu_separator);
+            gfx2d_hline(state->x + 3, item_y + 3, mw - 6, theme->menu_separator);
             item_y += 8;
             continue;
         }
 
         {
-            ui_rect_t ir = ui_rect((int16_t)(state->x + 1),
-                                   (int16_t)item_y,
-                                   (uint16_t)(mw - 2),
-                                   MENU_ITEM_H);
+            ui_rect_t ir =
+                ui_rect((int16_t)(state->x + 1), (int16_t)item_y, (uint16_t)(mw - 2), MENU_ITEM_H);
             bool hover = ui_contains(ir, mx, my);
 
             if (hover && items[i].enabled) {
                 state->hover_item = i;
-                gfx2d_rect_fill(state->x + 1, item_y, mw - 2,
-                                MENU_ITEM_H, theme->menu_hover);
+                gfx2d_rect_fill(state->x + 1, item_y, mw - 2, MENU_ITEM_H, theme->menu_hover);
             }
 
             /* Checkmark */
             if (items[i].checked) {
-                gfx2d_text(state->x + 4,
-                           item_y + (MENU_ITEM_H - FONT_H) / 2,
-                           "*", theme->menu_text, GFX2D_FONT_NORMAL);
+                gfx2d_text(state->x + 4, item_y + (MENU_ITEM_H - FONT_H) / 2, "*", theme->menu_text,
+                           GFX2D_FONT_NORMAL);
             }
 
             /* Label */
             {
-                uint32_t col = items[i].enabled ? theme->menu_text
-                                                : theme->menu_disabled_text;
-                gfx2d_text(state->x + 20,
-                           item_y + (MENU_ITEM_H - FONT_H) / 2,
-                           items[i].label, col, GFX2D_FONT_NORMAL);
+                uint32_t col = items[i].enabled ? theme->menu_text : theme->menu_disabled_text;
+                gfx2d_text(state->x + 20, item_y + (MENU_ITEM_H - FONT_H) / 2, items[i].label, col,
+                           GFX2D_FONT_NORMAL);
             }
 
             /* Shortcut */
             if (items[i].shortcut) {
                 int sw = (int)strlen(items[i].shortcut) * FONT_W;
-                gfx2d_text(state->x + mw - sw - 8,
-                           item_y + (MENU_ITEM_H - FONT_H) / 2,
-                           items[i].shortcut, theme->button_disabled_text,
-                           GFX2D_FONT_NORMAL);
+                gfx2d_text(state->x + mw - sw - 8, item_y + (MENU_ITEM_H - FONT_H) / 2,
+                           items[i].shortcut, theme->button_disabled_text, GFX2D_FONT_NORMAL);
             }
 
             if (clicked && hover && items[i].enabled) {
@@ -287,8 +264,7 @@ int ui_draw_context_menu(ui_menu_item_t *items, int count,
 
     /* Dismiss if clicked outside */
     {
-        ui_rect_t menu_r = ui_rect(state->x, state->y,
-                                   (uint16_t)mw, (uint16_t)mh);
+        ui_rect_t menu_r = ui_rect(state->x, state->y, (uint16_t)mw, (uint16_t)mh);
         if (clicked && !ui_contains(menu_r, mx, my)) {
             state->visible = false;
             result = -1;
@@ -298,10 +274,8 @@ int ui_draw_context_menu(ui_menu_item_t *items, int count,
     return result;
 }
 
-void ui_context_menu_handle_input(ui_context_menu_state_t *state,
-                                  ui_rect_t trigger_area,
-                                  int16_t mx, int16_t my,
-                                  uint8_t buttons) {
+void ui_context_menu_handle_input(ui_context_menu_state_t *state, ui_rect_t trigger_area,
+                                  int16_t mx, int16_t my, uint8_t buttons) {
     /* Right-click (bit 1) inside trigger area */
     if ((buttons & 0x02) && ui_contains(trigger_area, mx, my)) {
         ui_context_menu_show(state, mx, my);
@@ -310,9 +284,8 @@ void ui_context_menu_handle_input(ui_context_menu_state_t *state,
 
 /* Toolbar */
 
-int ui_draw_toolbar(ui_rect_t r, ui_toolbar_button_t *buttons, int count,
-                    ui_toolbar_state_t *state, int16_t mx, int16_t my,
-                    bool clicked) {
+int ui_draw_toolbar(ui_rect_t r, ui_toolbar_button_t *buttons, int count, ui_toolbar_state_t *state,
+                    int16_t mx, int16_t my, bool clicked) {
     const ui_theme_t *theme = ui_theme_get();
     int i, bx, result;
 
@@ -326,14 +299,12 @@ int ui_draw_toolbar(ui_rect_t r, ui_toolbar_button_t *buttons, int count,
     bx = r.x + 2;
 
     for (i = 0; i < count; i++) {
-        ui_rect_t br = ui_rect((int16_t)bx,
-                               (int16_t)(r.y + 2),
-                               TOOLBAR_BTN_SIZE,
-                               TOOLBAR_BTN_SIZE);
+        ui_rect_t br = ui_rect((int16_t)bx, (int16_t)(r.y + 2), TOOLBAR_BTN_SIZE, TOOLBAR_BTN_SIZE);
         bool hover = ui_contains(br, mx, my) && buttons[i].enabled;
         bool pressed = buttons[i].toggle && buttons[i].pressed;
 
-        if (hover) state->hover_button = i;
+        if (hover)
+            state->hover_button = i;
 
         /* Button background */
         if (pressed || (hover && clicked)) {
@@ -344,18 +315,15 @@ int ui_draw_toolbar(ui_rect_t r, ui_toolbar_button_t *buttons, int count,
 
         /* Icon (sprite) or label fallback */
         if (buttons[i].icon_sprite >= 0) {
-            gfx2d_sprite_draw(buttons[i].icon_sprite,
-                              bx + 4, r.y + 6);
+            gfx2d_sprite_draw(buttons[i].icon_sprite, bx + 4, r.y + 6);
         } else if (buttons[i].label) {
             /* Abbreviated: first char centered */
             char c[2];
             c[0] = buttons[i].label[0];
             c[1] = '\0';
             gfx2d_text(bx + (TOOLBAR_BTN_SIZE - FONT_W) / 2,
-                       r.y + 2 + (TOOLBAR_BTN_SIZE - FONT_H) / 2,
-                       c,
-                       buttons[i].enabled ? theme->button_text
-                                          : theme->button_disabled_text,
+                       r.y + 2 + (TOOLBAR_BTN_SIZE - FONT_H) / 2, c,
+                       buttons[i].enabled ? theme->button_text : theme->button_disabled_text,
                        GFX2D_FONT_NORMAL);
         }
 
@@ -379,9 +347,8 @@ int ui_draw_toolbar(ui_rect_t r, ui_toolbar_button_t *buttons, int count,
     return result;
 }
 
-int ui_draw_toolbar_ex(ui_rect_t r, ui_toolbar_item_t *items, int count,
-                       ui_toolbar_state_t *state, int16_t mx, int16_t my,
-                       bool clicked) {
+int ui_draw_toolbar_ex(ui_rect_t r, ui_toolbar_item_t *items, int count, ui_toolbar_state_t *state,
+                       int16_t mx, int16_t my, bool clicked) {
     const ui_theme_t *theme = ui_theme_get();
     int i, bx, result;
 
@@ -395,56 +362,54 @@ int ui_draw_toolbar_ex(ui_rect_t r, ui_toolbar_item_t *items, int count,
 
     for (i = 0; i < count; i++) {
         switch (items[i].type) {
-        case UI_TOOLBAR_SEPARATOR:
-            gfx2d_vline(bx + 2, r.y + 3, (int)r.h - 6, theme->menu_separator);
-            bx += 8;
-            break;
+            case UI_TOOLBAR_SEPARATOR:
+                gfx2d_vline(bx + 2, r.y + 3, (int)r.h - 6, theme->menu_separator);
+                bx += 8;
+                break;
 
-        case UI_TOOLBAR_SPACER:
-            /* Spacer - skip remaining width evenly */
-            bx += 16;
-            break;
+            case UI_TOOLBAR_SPACER:
+                /* Spacer - skip remaining width evenly */
+                bx += 16;
+                break;
 
-        case UI_TOOLBAR_BUTTON: {
-            ui_toolbar_button_t *btn = &items[i].button;
-            ui_rect_t br = ui_rect((int16_t)bx,
-                                   (int16_t)(r.y + 2),
-                                   TOOLBAR_BTN_SIZE,
-                                   TOOLBAR_BTN_SIZE);
-            bool hover = ui_contains(br, mx, my) && btn->enabled;
-            bool pressed = btn->toggle && btn->pressed;
+            case UI_TOOLBAR_BUTTON: {
+                ui_toolbar_button_t *btn = &items[i].button;
+                ui_rect_t br =
+                    ui_rect((int16_t)bx, (int16_t)(r.y + 2), TOOLBAR_BTN_SIZE, TOOLBAR_BTN_SIZE);
+                bool hover = ui_contains(br, mx, my) && btn->enabled;
+                bool pressed = btn->toggle && btn->pressed;
 
-            if (hover) state->hover_button = i;
+                if (hover)
+                    state->hover_button = i;
 
-            if (pressed || (hover && clicked)) {
-                ui_draw_panel(br, theme->button_face, true, false);
-            } else if (hover) {
-                ui_draw_panel(br, theme->menu_hover, true, true);
+                if (pressed || (hover && clicked)) {
+                    ui_draw_panel(br, theme->button_face, true, false);
+                } else if (hover) {
+                    ui_draw_panel(br, theme->menu_hover, true, true);
+                }
+
+                if (btn->icon_sprite >= 0) {
+                    gfx2d_sprite_draw(btn->icon_sprite, bx + 4, r.y + 6);
+                } else if (btn->label) {
+                    char c[2];
+                    c[0] = btn->label[0];
+                    c[1] = '\0';
+                    gfx2d_text(bx + (TOOLBAR_BTN_SIZE - FONT_W) / 2,
+                               r.y + 2 + (TOOLBAR_BTN_SIZE - FONT_H) / 2, c,
+                               btn->enabled ? theme->button_text : theme->button_disabled_text,
+                               GFX2D_FONT_NORMAL);
+                }
+
+                if (clicked && hover) {
+                    if (btn->toggle)
+                        btn->pressed = !btn->pressed;
+                    result = btn->id;
+                    state->pressed_button = i;
+                }
+
+                bx += TOOLBAR_BTN_SIZE + 2;
+                break;
             }
-
-            if (btn->icon_sprite >= 0) {
-                gfx2d_sprite_draw(btn->icon_sprite, bx + 4, r.y + 6);
-            } else if (btn->label) {
-                char c[2];
-                c[0] = btn->label[0];
-                c[1] = '\0';
-                gfx2d_text(bx + (TOOLBAR_BTN_SIZE - FONT_W) / 2,
-                           r.y + 2 + (TOOLBAR_BTN_SIZE - FONT_H) / 2,
-                           c,
-                           btn->enabled ? theme->button_text
-                                        : theme->button_disabled_text,
-                           GFX2D_FONT_NORMAL);
-            }
-
-            if (clicked && hover) {
-                if (btn->toggle) btn->pressed = !btn->pressed;
-                result = btn->id;
-                state->pressed_button = i;
-            }
-
-            bx += TOOLBAR_BTN_SIZE + 2;
-            break;
-        }
         }
     }
 
@@ -453,8 +418,7 @@ int ui_draw_toolbar_ex(ui_rect_t r, ui_toolbar_item_t *items, int count,
 
 /* Status Bar */
 
-void ui_draw_statusbar(ui_rect_t r, ui_statusbar_section_t *sections,
-                       int count) {
+void ui_draw_statusbar(ui_rect_t r, ui_statusbar_section_t *sections, int count) {
     const ui_theme_t *theme = ui_theme_get();
     int i, sx;
     int flex_count = 0;
@@ -477,16 +441,16 @@ void ui_draw_statusbar(ui_rect_t r, ui_statusbar_section_t *sections,
     flex_w = 0;
     if (flex_count > 0) {
         flex_w = ((int)r.w - fixed_total - (count - 1) * 2) / flex_count;
-        if (flex_w < 20) flex_w = 20;
+        if (flex_w < 20)
+            flex_w = 20;
     }
 
     sx = r.x + 2;
 
     for (i = 0; i < count; i++) {
         int sec_w = (sections[i].width > 0) ? sections[i].width : flex_w;
-        ui_rect_t sr = ui_rect((int16_t)sx, (int16_t)(r.y + 2),
-                               (uint16_t)sec_w,
-                               (uint16_t)((int)r.h - 4));
+        ui_rect_t sr =
+            ui_rect((int16_t)sx, (int16_t)(r.y + 2), (uint16_t)sec_w, (uint16_t)((int)r.h - 4));
 
         /* Section divider */
         if (i > 0) {
@@ -495,8 +459,7 @@ void ui_draw_statusbar(ui_rect_t r, ui_statusbar_section_t *sections,
 
         /* Text */
         if (sections[i].text) {
-            ui_draw_label(sr, sections[i].text, theme->button_text,
-                          sections[i].align);
+            ui_draw_label(sr, sections[i].text, theme->button_text, sections[i].align);
         }
 
         sx += sec_w + 2;
@@ -509,15 +472,15 @@ void ui_draw_statusbar_simple(ui_rect_t r, const char *text) {
     gfx2d_hline(r.x, r.y, (int)r.w, theme->window_border);
 
     if (text) {
-        gfx2d_text(r.x + 4, r.y + ((int)r.h - FONT_H) / 2,
-                   text, theme->button_text, GFX2D_FONT_NORMAL);
+        gfx2d_text(r.x + 4, r.y + ((int)r.h - FONT_H) / 2, text, theme->button_text,
+                   GFX2D_FONT_NORMAL);
     }
 }
 
 /* Tooltip */
 
-void ui_tooltip_update(ui_tooltip_state_t *state, const char *text,
-                       int16_t mx, int16_t my, uint32_t tick) {
+void ui_tooltip_update(ui_tooltip_state_t *state, const char *text, int16_t mx, int16_t my,
+                       uint32_t tick) {
     if (text) {
         if (state->text != text) {
             state->text = text;
@@ -539,34 +502,35 @@ void ui_draw_tooltip(ui_tooltip_state_t *state) {
     const ui_theme_t *theme = ui_theme_get();
     int tw, th;
 
-    if (!state->visible || !state->text) return;
+    if (!state->visible || !state->text)
+        return;
 
     tw = (int)strlen(state->text) * FONT_W + TOOLTIP_PAD * 2;
     th = FONT_H + TOOLTIP_PAD * 2;
 
     /* Ensure on screen */
-    if (state->x + tw > 640) state->x = (int16_t)(640 - tw);
-    if (state->y + th > 480) state->y = (int16_t)(state->y - th - 20);
+    if (state->x + tw > 640)
+        state->x = (int16_t)(640 - tw);
+    if (state->y + th > 480)
+        state->y = (int16_t)(state->y - th - 20);
 
     /* Background + border */
     gfx2d_rect_fill(state->x, state->y, tw, th, theme->input_bg);
     gfx2d_rect(state->x, state->y, tw, th, theme->window_border);
 
     /* Text */
-    gfx2d_text(state->x + TOOLTIP_PAD, state->y + TOOLTIP_PAD,
-               state->text, theme->button_text, GFX2D_FONT_NORMAL);
+    gfx2d_text(state->x + TOOLTIP_PAD, state->y + TOOLTIP_PAD, state->text, theme->button_text,
+               GFX2D_FONT_NORMAL);
 }
 
 /* Keyboard Shortcuts */
 
-int ui_shortcuts_handle(ui_shortcut_t *shortcuts, int count,
-                        uint8_t scancode, bool ctrl, bool alt, bool shift) {
+int ui_shortcuts_handle(ui_shortcut_t *shortcuts, int count, uint8_t scancode, bool ctrl, bool alt,
+                        bool shift) {
     int i;
     for (i = 0; i < count; i++) {
-        if ((uint8_t)shortcuts[i].key_scancode == scancode &&
-            shortcuts[i].ctrl  == ctrl &&
-            shortcuts[i].alt   == alt &&
-            shortcuts[i].shift == shift) {
+        if ((uint8_t)shortcuts[i].key_scancode == scancode && shortcuts[i].ctrl == ctrl &&
+            shortcuts[i].alt == alt && shortcuts[i].shift == shift) {
             return shortcuts[i].menu_id;
         }
     }

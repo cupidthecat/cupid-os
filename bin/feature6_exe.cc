@@ -1,11 +1,11 @@
-//help: CupidC Feature 6 demo - #exe blocks
-//help: Usage: feature6_exe
-//help: Verifies #exe block support in JIT mode.
+// help: CupidC Feature 6 demo - #exe blocks
+// help: Usage: feature6_exe
+// help: Verifies #exe block support in JIT mode.
 
 I32 g_value;
 
 #exe {
-    g_value = 40 + 2;
+g_value = 40 + 2;
 }
 
 void main() {

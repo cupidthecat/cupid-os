@@ -84,6 +84,19 @@ When you type a command, the shell resolves it in this order:
    file.asm -> as
 >endtree
 
+>h2 Program Help
+>tree open Program Help
+help lists programs and their one-line descriptions. Use help name to read
+one program's full help text.
+
+Start a program's source with consecutive help comments:
+  // help: Describe the command here
+  // help: Usage: name [arguments]
+
+The first line supplies the summary. Both //help: and // help: are accepted,
+including tabs or spaces after //. The help block ends at the next other line.
+>endtree
+
 >h2 Built-Ins
 >tree open Built-Ins
 The commands[] table in kernel/lang/shell.cc defines these built-ins:

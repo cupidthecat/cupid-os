@@ -815,7 +815,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 112)
+        self.assertEqual(len(inputs), 113)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)
@@ -2725,7 +2725,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             expected = cupidc_toolchain_contracts.check_syscall_abi(root)
             before = (output / "manifest.json").read_bytes()
             publication = cupidc_toolchain_contracts.verify_publication(output)
-            self.assertEqual(publication["input_count"], 112)
+            self.assertEqual(publication["input_count"], 113)
             self.assertEqual(publication["bootstrap"]["source_inputs"]["count"], 114)
             completed = subprocess.CompletedProcess(
                 ["user-syscall-abi-contract.elf"], 0,

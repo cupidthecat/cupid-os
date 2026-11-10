@@ -32,6 +32,9 @@ Modified files (compile fixes under -nostdinc -ffreestanding):
   - Removing <stdbool.h> usage (handled by kernel/types.h via dglibc_compat.h)
   - Fixing va_list references
   - Patching boolean type conflicts
+  - Including `i_video.h` directly from `i_scale.h` for its `screen_mode_t`
+    declarations, so callers can sort their includes without hiding a dependency
+  - Including `doomtype.h` directly from `w_main.h` for its `boolean` return type
 
   Git commit messages record the per-file notes.
 

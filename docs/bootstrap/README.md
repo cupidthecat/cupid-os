@@ -55,6 +55,9 @@ complete OS can rebuild itself from inside the guest.
 
 ## Records
 
+- [Source formatting](CUPIDC-SOURCE-FORMATTING.md): the configured `.cc` style,
+  include dependencies, source-driven checks and remaining verification.
+
 - [External observer authority](PRIVATE-WIDE-EXTERNAL-OBSERVERS.md): distinct
   retained roots, exact selection, actual post-install rollback and original
   path-rebinding checks in the current private wide adapter.

@@ -4,16 +4,16 @@
  * Manages desktop icons: registration, drawing, hit-testing,
  * selection, drag & drop, persistence, and auto-discovery from
  * //icon: directives in CupidC source files.
-*/
+ */
 
 #include "gfx2d_icons.h"
 #include "app_launch.h"
 #include "gfx2d.h"
-#include "string.h"
 #include "memory.h"
 #include "process.h"
-#include "vfs.h"
 #include "serial.h"
+#include "string.h"
+#include "vfs.h"
 
 static gfx2d_icon_t icons[GFX2D_MAX_ICONS];
 static int icon_count = 0;
@@ -25,8 +25,7 @@ static uint32_t icon_generation = 1u;
 static const char *ICON_CONFIG_PATH = "/home/.desktop_icons.conf";
 static const int ICON_LEFT_MARGIN = 20;
 
-static const char *copy_icon_view(char *view, int capacity,
-                                  const char *value) {
+static const char *copy_icon_view(char *view, int capacity, const char *value) {
     int i = 0;
     if (!value)
         value = "";
@@ -66,9 +65,7 @@ static void gfx2d_icons_init_locked(void) {
 
 /* Icon Registration */
 
-static int gfx2d_icon_register_locked(const char *label,
-                                      const char *program_path,
-                                      int x, int y) {
+static int gfx2d_icon_register_locked(const char *label, const char *program_path, int x, int y) {
     if (icon_count >= GFX2D_MAX_ICONS) {
         serial_printf("[icons] Max icons reached (%d)\n", GFX2D_MAX_ICONS);
         return -1;
@@ -120,14 +117,15 @@ static int gfx2d_icon_register_locked(const char *label,
     ic->selected = 0;
     ic->enabled = 1;
 
-    serial_printf("[icons] Registered icon '%s' at (%d,%d) for %s\n",
-                  ic->label, ic->x, ic->y, ic->program_path);
+    serial_printf("[icons] Registered icon '%s' at (%d,%d) for %s\n", ic->label, ic->x, ic->y,
+                  ic->program_path);
 
     return icon_count++;
 }
 
 static void gfx2d_icon_set_desc_locked(int handle, const char *desc) {
-    if (handle < 0 || handle >= icon_count) return;
+    if (handle < 0 || handle >= icon_count)
+        return;
     int i = 0;
     while (desc[i] && i < GFX2D_ICON_DESC_MAX - 1) {
         icons[handle].description[i] = desc[i];
@@ -137,20 +135,20 @@ static void gfx2d_icon_set_desc_locked(int handle, const char *desc) {
 }
 
 static void gfx2d_icon_set_type_locked(int handle, int type) {
-    if (handle < 0 || handle >= icon_count) return;
+    if (handle < 0 || handle >= icon_count)
+        return;
     icons[handle].type = type;
 }
 
 static void gfx2d_icon_set_color_locked(int handle, uint32_t color) {
-    if (handle < 0 || handle >= icon_count) return;
+    if (handle < 0 || handle >= icon_count)
+        return;
     icons[handle].color = color;
 }
 
-static void gfx2d_icon_set_custom_drawer_locked(
-    int handle,
-    void (*drawer)(int, int)
-) {
-    if (handle < 0 || handle >= icon_count) return;
+static void gfx2d_icon_set_custom_drawer_locked(int handle, void (*drawer)(int, int)) {
+    if (handle < 0 || handle >= icon_count)
+        return;
     if (drawer) {
         icons[handle].custom_draw_owner = process_get_current_pid() + 1u;
         icons[handle].type = ICON_TYPE_CUSTOM;
@@ -162,7 +160,8 @@ static void gfx2d_icon_set_custom_drawer_locked(
 }
 
 static void gfx2d_icon_set_launch_locked(int handle, void (*launch_fn)(void)) {
-    if (handle < 0 || handle >= icon_count) return;
+    if (handle < 0 || handle >= icon_count)
+        return;
     if (launch_fn) {
         icons[handle].launch_owner = process_get_current_pid() + 1u;
         icons[handle].launch = launch_fn;
@@ -180,43 +179,50 @@ static int gfx2d_icon_invoke_launch_locked(int handle) {
 }
 
 static void gfx2d_icon_set_pos_locked(int handle, int x, int y) {
-    if (handle < 0 || handle >= icon_count) return;
+    if (handle < 0 || handle >= icon_count)
+        return;
     icons[handle].x = clamp_icon_x(x);
     icons[handle].y = y;
 }
 
 static void gfx2d_icon_snap_to_grid_locked(int handle) {
-    if (handle < 0 || handle >= icon_count) return;
+    if (handle < 0 || handle >= icon_count)
+        return;
     gfx2d_icon_t *ic = &icons[handle];
     int rel_x = ic->x - ICON_LEFT_MARGIN;
-    if (rel_x < 0) rel_x = 0;
-    ic->x = (rel_x / GFX2D_ICON_GRID_SIZE) * GFX2D_ICON_GRID_SIZE +
-            ICON_LEFT_MARGIN;
+    if (rel_x < 0)
+        rel_x = 0;
+    ic->x = (rel_x / GFX2D_ICON_GRID_SIZE) * GFX2D_ICON_GRID_SIZE + ICON_LEFT_MARGIN;
     ic->y = (ic->y / GFX2D_ICON_GRID_SIZE) * GFX2D_ICON_GRID_SIZE + 10;
 }
 
 static const char *gfx2d_icon_get_label_locked(int handle) {
-    if (handle < 0 || handle >= icon_count) return "";
+    if (handle < 0 || handle >= icon_count)
+        return "";
     return icons[handle].label;
 }
 
 static const char *gfx2d_icon_get_path_locked(int handle) {
-    if (handle < 0 || handle >= icon_count) return "";
+    if (handle < 0 || handle >= icon_count)
+        return "";
     return icons[handle].program_path;
 }
 
 static const char *gfx2d_icon_get_desc_locked(int handle) {
-    if (handle < 0 || handle >= icon_count) return "";
+    if (handle < 0 || handle >= icon_count)
+        return "";
     return icons[handle].description;
 }
 
 static int gfx2d_icon_get_x_locked(int handle) {
-    if (handle < 0 || handle >= icon_count) return 0;
+    if (handle < 0 || handle >= icon_count)
+        return 0;
     return icons[handle].x;
 }
 
 static int gfx2d_icon_get_y_locked(int handle) {
-    if (handle < 0 || handle >= icon_count) return 0;
+    if (handle < 0 || handle >= icon_count)
+        return 0;
     return icons[handle].y;
 }
 
@@ -242,7 +248,8 @@ static int gfx2d_icon_find_by_path_locked(const char *path) {
 }
 
 static void gfx2d_icon_unregister_locked(int handle) {
-    if (handle < 0 || handle >= icon_count) return;
+    if (handle < 0 || handle >= icon_count)
+        return;
     icons[handle].custom_draw = 0;
     icons[handle].custom_draw_owner = 0u;
     icons[handle].launch = 0;
@@ -281,8 +288,7 @@ static int gfx2d_icons_process_owns_callbacks_locked(uint32_t pid) {
         return 0;
     owner = pid + 1u;
     for (int i = 0; i < icon_count; i++) {
-        if (icons[i].custom_draw_owner == owner ||
-            icons[i].launch_owner == owner)
+        if (icons[i].custom_draw_owner == owner || icons[i].launch_owner == owner)
             return 1;
     }
     return 0;
@@ -296,11 +302,12 @@ static int gfx2d_icon_count_locked(void) {
 
 static int gfx2d_icon_at_pos_locked(int x, int y) {
     for (int i = 0; i < icon_count; i++) {
-        if (!icons[i].enabled) continue;
+        if (!icons[i].enabled)
+            continue;
         gfx2d_icon_t *ic = &icons[i];
         /* Hit area covers icon (32x32) + label area below (32x12) */
-        if (x >= ic->x && x < ic->x + GFX2D_ICON_SIZE &&
-            y >= ic->y && y < ic->y + GFX2D_ICON_SIZE + 14) {
+        if (x >= ic->x && x < ic->x + GFX2D_ICON_SIZE && y >= ic->y &&
+            y < ic->y + GFX2D_ICON_SIZE + 14) {
             return i;
         }
     }
@@ -429,12 +436,7 @@ void gfx2d_draw_icon_default(int x, int y, int type, uint32_t color) {
     }
 }
 
-static void gfx2d_icon_draw_named_locked(
-    const char *label,
-    int x,
-    int y,
-    uint32_t color
-) {
+static void gfx2d_icon_draw_named_locked(const char *label, int x, int y, uint32_t color) {
     if (!label)
         return;
     for (int i = 0; i < icon_count; i++) {
@@ -484,17 +486,16 @@ static void draw_single_icon(gfx2d_icon_t *icon) {
     }
 
     /* Label background (semi-transparent for readability) */
-    gfx2d_rect_fill_alpha(label_x - 2, y + GFX2D_ICON_SIZE + 1,
-                          label_w + 4, 10, 0x80000000);
+    gfx2d_rect_fill_alpha(label_x - 2, y + GFX2D_ICON_SIZE + 1, label_w + 4, 10, 0x80000000);
 
     /* Label text */
-    gfx2d_text(label_x, y + GFX2D_ICON_SIZE + 2, icon->label,
-               0xFFFFFF, 0);
+    gfx2d_text(label_x, y + GFX2D_ICON_SIZE + 2, icon->label, 0xFFFFFF, 0);
 }
 
 static void gfx2d_icons_draw_all_locked(void) {
     for (int i = 0; i < icon_count; i++) {
-        if (!icons[i].enabled) continue;
+        if (!icons[i].enabled)
+            continue;
         draw_single_icon(&icons[i]);
     }
 }
@@ -504,30 +505,40 @@ static void gfx2d_icons_draw_all_locked(void) {
 /* skip leading whitespace and optional quotes */
 static void parse_directive_value(const char *src, char *dst, int max) {
     /* Skip leading whitespace */
-    while (*src == ' ' || *src == '\t') src++;
+    while (*src == ' ' || *src == '\t')
+        src++;
     /* Skip optional opening quote */
     int in_quote = 0;
-    if (*src == '"') { src++; in_quote = 1; }
+    if (*src == '"') {
+        src++;
+        in_quote = 1;
+    }
 
     int i = 0;
     while (*src && i < max - 1) {
-        if (in_quote && *src == '"') break;
-        if (!in_quote && (*src == '\n' || *src == '\r')) break;
+        if (in_quote && *src == '"')
+            break;
+        if (!in_quote && (*src == '\n' || *src == '\r'))
+            break;
         dst[i++] = *src++;
     }
     /* Trim trailing whitespace */
-    while (i > 0 && (dst[i - 1] == ' ' || dst[i - 1] == '\t' ||
-                     dst[i - 1] == '\r' || dst[i - 1] == '\n'))
+    while (i > 0 &&
+           (dst[i - 1] == ' ' || dst[i - 1] == '\t' || dst[i - 1] == '\r' || dst[i - 1] == '\n'))
         i--;
     dst[i] = '\0';
 }
 
 /* parse integer from directive value */
 static int parse_directive_int(const char *src) {
-    while (*src == ' ' || *src == '\t') src++;
+    while (*src == ' ' || *src == '\t')
+        src++;
     int val = 0;
     int neg = 0;
-    if (*src == '-') { neg = 1; src++; }
+    if (*src == '-') {
+        neg = 1;
+        src++;
+    }
     while (*src >= '0' && *src <= '9') {
         val = val * 10 + (*src - '0');
         src++;
@@ -537,7 +548,8 @@ static int parse_directive_int(const char *src) {
 
 /* parse hex from directive value (0xRRGGBB) */
 static uint32_t parse_directive_hex(const char *src) {
-    while (*src == ' ' || *src == '\t') src++;
+    while (*src == ' ' || *src == '\t')
+        src++;
     if (*src == '0' && (*(src + 1) == 'x' || *(src + 1) == 'X'))
         src += 2;
 
@@ -572,7 +584,8 @@ static int parse_app_inline_fields(const char *src, icon_info_t *info) {
     const char *p = src;
     int found = 0;
 
-    while (*p == ' ' || *p == '\t') p++;
+    while (*p == ' ' || *p == '\t')
+        p++;
     if (*p == '\0' || *p == '\r' || *p == '\n')
         return 0;
 
@@ -581,29 +594,33 @@ static int parse_app_inline_fields(const char *src, icon_info_t *info) {
     }
 
     while (*p) {
-        while (*p == ' ' || *p == '\t' || *p == ';') p++;
+        while (*p == ' ' || *p == '\t' || *p == ';')
+            p++;
         if (*p == '\0' || *p == '\r' || *p == '\n')
             break;
 
         const char *kstart = p;
         int klen = 0;
-        while ((p[klen] >= 'a' && p[klen] <= 'z') ||
-               (p[klen] >= 'A' && p[klen] <= 'Z') ||
+        while ((p[klen] >= 'a' && p[klen] <= 'z') || (p[klen] >= 'A' && p[klen] <= 'Z') ||
                p[klen] == '_') {
             klen++;
         }
         if (klen <= 0) {
-            while (*p && *p != ';' && *p != '\n' && *p != '\r') p++;
+            while (*p && *p != ';' && *p != '\n' && *p != '\r')
+                p++;
             continue;
         }
         p += klen;
-        while (*p == ' ' || *p == '\t') p++;
+        while (*p == ' ' || *p == '\t')
+            p++;
         if (*p != '=') {
-            while (*p && *p != ';' && *p != '\n' && *p != '\r') p++;
+            while (*p && *p != ';' && *p != '\n' && *p != '\r')
+                p++;
             continue;
         }
         p++;
-        while (*p == ' ' || *p == '\t') p++;
+        while (*p == ' ' || *p == '\t')
+            p++;
 
         char val[96];
         int vi = 0;
@@ -612,10 +629,10 @@ static int parse_app_inline_fields(const char *src, icon_info_t *info) {
             while (*p && *p != '"' && vi < (int)sizeof(val) - 1) {
                 val[vi++] = *p++;
             }
-            if (*p == '"') p++;
+            if (*p == '"')
+                p++;
         } else {
-            while (*p && *p != ';' && *p != '\n' && *p != '\r' &&
-                   vi < (int)sizeof(val) - 1) {
+            while (*p && *p != ';' && *p != '\n' && *p != '\r' && vi < (int)sizeof(val) - 1) {
                 val[vi++] = *p++;
             }
             while (vi > 0 && (val[vi - 1] == ' ' || val[vi - 1] == '\t'))
@@ -650,8 +667,10 @@ static int parse_app_inline_fields(const char *src, icon_info_t *info) {
             found = 1;
         }
 
-        while (*p && *p != ';' && *p != '\n' && *p != '\r') p++;
-        if (*p == ';') p++;
+        while (*p && *p != ';' && *p != '\n' && *p != '\r')
+            p++;
+        if (*p == ';')
+            p++;
     }
 
     return found;
@@ -661,13 +680,14 @@ int gfx2d_icons_parse_directives(const char *path, icon_info_t *info) {
     /* Default values */
     strcpy(info->label, "Program");
     info->description[0] = '\0';
-    info->x = -1;  /* Auto-position */
+    info->x = -1; /* Auto-position */
     info->y = -1;
     info->type = ICON_TYPE_APP;
-    info->color = 0x0080FF;  /* Default blue */
+    info->color = 0x0080FF; /* Default blue */
 
     int fd = vfs_open(path, O_RDONLY);
-    if (fd < 0) return 0;
+    if (fd < 0)
+        return 0;
 
     char buf[512];
     int total_read = 0;
@@ -676,7 +696,8 @@ int gfx2d_icons_parse_directives(const char *path, icon_info_t *info) {
     /* Read up to 2KB to find directives (they should be at the top) */
     while (total_read < 2048) {
         int n = vfs_read(fd, buf, 511);
-        if (n <= 0) break;
+        if (n <= 0)
+            break;
         buf[n] = '\0';
         total_read += n;
 
@@ -685,25 +706,20 @@ int gfx2d_icons_parse_directives(const char *path, icon_info_t *info) {
         while (line && *line) {
             /* Find end of line */
             char *next = strchr(line, '\n');
-            if (next) *next = '\0';
+            if (next)
+                *next = '\0';
 
             /* Parse //icon: directives */
             if (strncmp(line, "//icon:", 7) == 0) {
                 found_icon = 1;
-                parse_directive_value(line + 7, info->label,
-                                     GFX2D_ICON_LABEL_MAX);
-            }
-            else if (strncmp(line, "//icon_desc:", 12) == 0) {
-                parse_directive_value(line + 12, info->description,
-                                     GFX2D_ICON_DESC_MAX);
-            }
-            else if (strncmp(line, "//icon_x:", 9) == 0) {
+                parse_directive_value(line + 7, info->label, GFX2D_ICON_LABEL_MAX);
+            } else if (strncmp(line, "//icon_desc:", 12) == 0) {
+                parse_directive_value(line + 12, info->description, GFX2D_ICON_DESC_MAX);
+            } else if (strncmp(line, "//icon_x:", 9) == 0) {
                 info->x = parse_directive_int(line + 9);
-            }
-            else if (strncmp(line, "//icon_y:", 9) == 0) {
+            } else if (strncmp(line, "//icon_y:", 9) == 0) {
                 info->y = parse_directive_int(line + 9);
-            }
-            else if (strncmp(line, "//icon_type:", 12) == 0) {
+            } else if (strncmp(line, "//icon_type:", 12) == 0) {
                 char type_str[32];
                 parse_directive_value(line + 12, type_str, 32);
                 if (strcmp(type_str, "folder") == 0)
@@ -714,29 +730,21 @@ int gfx2d_icons_parse_directives(const char *path, icon_info_t *info) {
                     info->type = ICON_TYPE_CUSTOM;
                 else
                     info->type = ICON_TYPE_APP;
-            }
-            else if (strncmp(line, "//icon_color:", 13) == 0) {
+            } else if (strncmp(line, "//icon_color:", 13) == 0) {
                 info->color = parse_directive_hex(line + 13);
-            }
-            else if (strncmp(line, "//app:", 6) == 0) {
+            } else if (strncmp(line, "//app:", 6) == 0) {
                 found_icon = 1;
                 if (!parse_app_inline_fields(line + 6, info)) {
-                    parse_directive_value(line + 6, info->label,
-                                         GFX2D_ICON_LABEL_MAX);
+                    parse_directive_value(line + 6, info->label, GFX2D_ICON_LABEL_MAX);
                 }
                 info->type = ICON_TYPE_APP;
-            }
-            else if (strncmp(line, "//app_desc:", 11) == 0) {
-                parse_directive_value(line + 11, info->description,
-                                     GFX2D_ICON_DESC_MAX);
-            }
-            else if (strncmp(line, "//app_x:", 8) == 0) {
+            } else if (strncmp(line, "//app_desc:", 11) == 0) {
+                parse_directive_value(line + 11, info->description, GFX2D_ICON_DESC_MAX);
+            } else if (strncmp(line, "//app_x:", 8) == 0) {
                 info->x = parse_directive_int(line + 8);
-            }
-            else if (strncmp(line, "//app_y:", 8) == 0) {
+            } else if (strncmp(line, "//app_y:", 8) == 0) {
                 info->y = parse_directive_int(line + 8);
-            }
-            else if (strncmp(line, "//app_icon:", 11) == 0) {
+            } else if (strncmp(line, "//app_icon:", 11) == 0) {
                 char type_str[32];
                 parse_directive_value(line + 11, type_str, 32);
                 if (strcmp(type_str, "folder") == 0)
@@ -745,22 +753,21 @@ int gfx2d_icons_parse_directives(const char *path, icon_info_t *info) {
                     info->type = ICON_TYPE_FILE;
                 else
                     info->type = ICON_TYPE_APP;
-            }
-            else if (strncmp(line, "//app_color:", 12) == 0) {
+            } else if (strncmp(line, "//app_color:", 12) == 0) {
                 info->color = parse_directive_hex(line + 12);
             }
 
             /* Stop scanning after first non-comment, non-blank line
              * once we've passed the header area*/
-            if (found_icon && line[0] != '/' && line[0] != ' ' &&
-                line[0] != '\t' && line[0] != '\n' &&
-                line[0] != '\r' && line[0] != '\0' &&
-                line[0] != '*') {
+            if (found_icon && line[0] != '/' && line[0] != ' ' && line[0] != '\t' &&
+                line[0] != '\n' && line[0] != '\r' && line[0] != '\0' && line[0] != '*') {
                 goto done;
             }
 
-            if (next) line = next + 1;
-            else break;
+            if (next)
+                line = next + 1;
+            else
+                break;
         }
 
         if (total_read >= 512 && !found_icon)
@@ -788,10 +795,9 @@ static void gfx2d_icons_scan_bin_locked(void) {
     while (vfs_readdir(fd, &ent) > 0) {
         /* Check for .cc extension */
         int len = (int)strlen(ent.name);
-        if (len < 4) continue;
-        if (ent.name[len - 3] != '.' ||
-            ent.name[len - 2] != 'c' ||
-            ent.name[len - 1] != 'c')
+        if (len < 4)
+            continue;
+        if (ent.name[len - 3] != '.' || ent.name[len - 2] != 'c' || ent.name[len - 1] != 'c')
             continue;
 
         /* Build full path with bounded copy - defends against any readdir
@@ -818,8 +824,7 @@ static void gfx2d_icons_scan_bin_locked(void) {
             if (app && gfx2d_icon_find_by_path(path) >= 0) {
                 continue;
             }
-            int handle = gfx2d_icon_register(info.label, path,
-                                             info.x, info.y);
+            int handle = gfx2d_icon_register(info.label, path, info.x, info.y);
             if (handle >= 0) {
                 if (app) {
                     gfx2d_icon_set_desc(handle, app->description);
@@ -837,8 +842,7 @@ static void gfx2d_icons_scan_bin_locked(void) {
 
     vfs_close(fd);
 
-    serial_printf("[icons] Scanned %d .cc files, registered %d icons\n",
-                  scanned, registered);
+    serial_printf("[icons] Scanned %d .cc files, registered %d icons\n", scanned, registered);
 
     /* Load saved positions (overrides defaults) */
     gfx2d_icons_load();
@@ -875,16 +879,27 @@ static void gfx2d_icons_save_locked(void) {
             int n = ic->x;
             int neg = 0;
             int ni = 0;
-            if (n < 0) { neg = 1; n = -n; }
-            if (n == 0) { num[ni++] = '0'; }
-            else {
+            if (n < 0) {
+                neg = 1;
+                n = -n;
+            }
+            if (n == 0) {
+                num[ni++] = '0';
+            } else {
                 char tmp[16];
                 int ti = 0;
-                while (n > 0) { tmp[ti++] = (char)('0' + n % 10); n /= 10; }
-                while (ti > 0) num[ni++] = tmp[--ti];
+                while (n > 0) {
+                    tmp[ti++] = (char)('0' + n % 10);
+                    n /= 10;
+                }
+                while (ti > 0)
+                    num[ni++] = tmp[--ti];
             }
-            if (neg) { line[pos++] = '-'; }
-            for (int k = 0; k < ni; k++) line[pos++] = num[k];
+            if (neg) {
+                line[pos++] = '-';
+            }
+            for (int k = 0; k < ni; k++)
+                line[pos++] = num[k];
         }
         line[pos++] = ',';
 
@@ -894,16 +909,27 @@ static void gfx2d_icons_save_locked(void) {
             int n = ic->y;
             int neg = 0;
             int ni = 0;
-            if (n < 0) { neg = 1; n = -n; }
-            if (n == 0) { num[ni++] = '0'; }
-            else {
+            if (n < 0) {
+                neg = 1;
+                n = -n;
+            }
+            if (n == 0) {
+                num[ni++] = '0';
+            } else {
                 char tmp[16];
                 int ti = 0;
-                while (n > 0) { tmp[ti++] = (char)('0' + n % 10); n /= 10; }
-                while (ti > 0) num[ni++] = tmp[--ti];
+                while (n > 0) {
+                    tmp[ti++] = (char)('0' + n % 10);
+                    n /= 10;
+                }
+                while (ti > 0)
+                    num[ni++] = tmp[--ti];
             }
-            if (neg) { line[pos++] = '-'; }
-            for (int k = 0; k < ni; k++) line[pos++] = num[k];
+            if (neg) {
+                line[pos++] = '-';
+            }
+            for (int k = 0; k < ni; k++)
+                line[pos++] = num[k];
         }
         line[pos++] = ',';
 
@@ -929,19 +955,24 @@ static void gfx2d_icons_load_locked(void) {
     char buf[1024];
     int n = vfs_read(fd, buf, 1023);
     vfs_close(fd);
-    if (n <= 0) return;
+    if (n <= 0)
+        return;
     buf[n] = '\0';
 
     /* Parse line by line: path,x,y,enabled */
     char *line = buf;
     while (line && *line) {
         char *next = strchr(line, '\n');
-        if (next) *next = '\0';
+        if (next)
+            *next = '\0';
 
         /* Skip comments and empty lines */
         if (line[0] == '#' || line[0] == '\0' || line[0] == '\r') {
-            if (next) { line = next + 1; continue; }
-            else break;
+            if (next) {
+                line = next + 1;
+                continue;
+            } else
+                break;
         }
 
         /* Parse: path,x,y,enabled */
@@ -953,30 +984,42 @@ static void gfx2d_icons_load_locked(void) {
         while (*line && *line != ',' && pi < GFX2D_ICON_PATH_MAX - 1)
             path[pi++] = *line++;
         path[pi] = '\0';
-        if (*line == ',') line++;
+        if (*line == ',')
+            line++;
 
         /* Extract x */
         int neg = 0;
-        if (*line == '-') { neg = 1; line++; }
+        if (*line == '-') {
+            neg = 1;
+            line++;
+        }
         while (*line >= '0' && *line <= '9') {
             x = x * 10 + (*line - '0');
             line++;
         }
-        if (neg) x = -x;
-        if (*line == ',') line++;
+        if (neg)
+            x = -x;
+        if (*line == ',')
+            line++;
 
         /* Extract y */
         neg = 0;
-        if (*line == '-') { neg = 1; line++; }
+        if (*line == '-') {
+            neg = 1;
+            line++;
+        }
         while (*line >= '0' && *line <= '9') {
             y = y * 10 + (*line - '0');
             line++;
         }
-        if (neg) y = -y;
-        if (*line == ',') line++;
+        if (neg)
+            y = -y;
+        if (*line == ',')
+            line++;
 
         /* Extract enabled */
-        if (*line == '0') enabled = 0;
+        if (*line == '0')
+            enabled = 0;
 
         /* Find existing icon by path and update position */
         int handle = gfx2d_icon_find_by_path(path);
@@ -984,12 +1027,13 @@ static void gfx2d_icons_load_locked(void) {
             icons[handle].x = clamp_icon_x(x);
             icons[handle].y = y;
             icons[handle].enabled = enabled;
-            serial_printf("[icons] Loaded position for %s: (%d,%d)\n",
-                          path, icons[handle].x, y);
+            serial_printf("[icons] Loaded position for %s: (%d,%d)\n", path, icons[handle].x, y);
         }
 
-        if (next) line = next + 1;
-        else break;
+        if (next)
+            line = next + 1;
+        else
+            break;
     }
 }
 
@@ -1000,8 +1044,7 @@ void gfx2d_icons_init(void) {
     gfx2d_shared_writer_end(writer_lease);
 }
 
-int gfx2d_icon_register(const char *label, const char *program_path,
-                        int x, int y) {
+int gfx2d_icon_register(const char *label, const char *program_path, int x, int y) {
     int writer_lease = gfx2d_shared_writer_begin();
     gfx2d_icons_touch_locked();
     int result = gfx2d_icon_register_locked(label, program_path, x, y);
@@ -1067,11 +1110,8 @@ void gfx2d_icon_snap_to_grid(int handle) {
 const char *gfx2d_icon_get_label(int handle) {
     int writer_lease = gfx2d_shared_writer_begin();
     uint32_t pid = icon_view_pid();
-    const char *result = copy_icon_view(
-        icon_label_views[pid],
-        GFX2D_ICON_LABEL_MAX,
-        gfx2d_icon_get_label_locked(handle)
-    );
+    const char *result = copy_icon_view(icon_label_views[pid], GFX2D_ICON_LABEL_MAX,
+                                        gfx2d_icon_get_label_locked(handle));
     gfx2d_shared_writer_end(writer_lease);
     return result;
 }
@@ -1079,11 +1119,8 @@ const char *gfx2d_icon_get_label(int handle) {
 const char *gfx2d_icon_get_path(int handle) {
     int writer_lease = gfx2d_shared_writer_begin();
     uint32_t pid = icon_view_pid();
-    const char *result = copy_icon_view(
-        icon_path_views[pid],
-        GFX2D_ICON_PATH_MAX,
-        gfx2d_icon_get_path_locked(handle)
-    );
+    const char *result = copy_icon_view(icon_path_views[pid], GFX2D_ICON_PATH_MAX,
+                                        gfx2d_icon_get_path_locked(handle));
     gfx2d_shared_writer_end(writer_lease);
     return result;
 }
@@ -1091,11 +1128,8 @@ const char *gfx2d_icon_get_path(int handle) {
 const char *gfx2d_icon_get_desc(int handle) {
     int writer_lease = gfx2d_shared_writer_begin();
     uint32_t pid = icon_view_pid();
-    const char *result = copy_icon_view(
-        icon_desc_views[pid],
-        GFX2D_ICON_DESC_MAX,
-        gfx2d_icon_get_desc_locked(handle)
-    );
+    const char *result = copy_icon_view(icon_desc_views[pid], GFX2D_ICON_DESC_MAX,
+                                        gfx2d_icon_get_desc_locked(handle));
     gfx2d_shared_writer_end(writer_lease);
     return result;
 }

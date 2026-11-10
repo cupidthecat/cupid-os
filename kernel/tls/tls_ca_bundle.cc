@@ -15,5 +15,5 @@
 
 /* Weak default: empty bundle. Linking `tls_ca_bundle_data.o` supplies
  * the tracked strong definitions. */
-__attribute__((weak)) const ca_root_t TLS_CA_BUNDLE[1] = { { 0, 0, 0 } };
-__attribute__((weak)) const uint32_t  TLS_CA_BUNDLE_COUNT = 0u;
+__attribute__((weak)) const ca_root_t TLS_CA_BUNDLE[1] = {{0, 0, 0}};
+__attribute__((weak)) const uint32_t TLS_CA_BUNDLE_COUNT = 0u;

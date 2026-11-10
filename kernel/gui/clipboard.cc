@@ -3,11 +3,11 @@
  *
  * System-wide clipboard singleton that persists across application
  * lifetime.  Shared between Notepad, Terminal, and future apps.
-*/
+ */
 
 #include "clipboard.h"
-#include "string.h"
 #include "serial.h"
+#include "string.h"
 
 static clipboard_t clipboard;
 
@@ -19,7 +19,8 @@ void clipboard_init(void) {
 }
 
 void clipboard_copy(const char *data, int length) {
-    if (!data || length <= 0) return;
+    if (!data || length <= 0)
+        return;
     if (length > CLIPBOARD_MAX_SIZE - 1) {
         length = CLIPBOARD_MAX_SIZE - 1;
     }
@@ -30,7 +31,8 @@ void clipboard_copy(const char *data, int length) {
 }
 
 const char *clipboard_get_data(void) {
-    if (!clipboard.has_data) return NULL;
+    if (!clipboard.has_data)
+        return NULL;
     return clipboard.data;
 }
 

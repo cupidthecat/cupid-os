@@ -10,16 +10,17 @@
  * - PIO mode sector read/write
  * - Error handling with timeout detection
  * - Integration with block device layer
-*/
+ */
 
 #include "ata.h"
-#include "ports.h"
-#include "kernel.h"
-#include "debug.h"
 #include "blockdev.h"
+#include "debug.h"
+#include "kernel.h"
+#include "ports.h"
 
 // Driver state
-static ata_drive_t drives[4];  // Primary master/slave, secondary master/slave (only primary implemented)
+static ata_drive_t
+    drives[4]; // Primary master/slave, secondary master/slave (only primary implemented)
 static uint8_t num_drives = 0;
 static block_device_t ata_block_devices[4];
 
@@ -28,7 +29,7 @@ static block_device_t ata_block_devices[4];
  *
  * ATA spec requires 400ns delay after drive selection.
  * Reading alternate status register 4 times provides this delay.
-*/
+ */
 static void ata_400ns_delay(void) {
     for (int i = 0; i < 4; i++) {
         inb(ATA_PRIMARY_ALT_STATUS);
@@ -41,7 +42,7 @@ static void ata_400ns_delay(void) {
  * Polls status register until BSY bit is clear or timeout occurs.
  *
  * @return 0 on success, -1 on timeout
-*/
+ */
 static int ata_wait_bsy(void) {
     uint32_t timeout = ATA_TIMEOUT;
     while (timeout--) {
@@ -50,7 +51,7 @@ static int ata_wait_bsy(void) {
             return 0;
         }
     }
-    return -1;  // Timeout
+    return -1; // Timeout
 }
 
 /**
@@ -59,7 +60,7 @@ static int ata_wait_bsy(void) {
  * Polls status register until DRQ bit is set or timeout/error occurs.
  *
  * @return 0 on success, -1 on timeout/error
-*/
+ */
 static int ata_wait_drq(void) {
     uint32_t timeout = ATA_TIMEOUT;
     while (timeout--) {
@@ -68,17 +69,17 @@ static int ata_wait_drq(void) {
             return 0;
         }
         if (status & ATA_SR_ERR) {
-            return -1;  // Error
+            return -1; // Error
         }
     }
-    return -1;  // Timeout
+    return -1; // Timeout
 }
 
 /**
  * ata_select_drive - Select master or slave drive
  *
  * @param is_slave: 0 for master, 1 for slave
-*/
+ */
 static void ata_select_drive(uint8_t is_slave) {
     uint8_t drive_select = is_slave ? ATA_DRIVE_SLAVE : ATA_DRIVE_MASTER;
     outb(ATA_PRIMARY_DRIVE_HEAD, drive_select);
@@ -93,8 +94,8 @@ static void ata_select_drive(uint8_t is_slave) {
  * @param is_slave: 0 for master, 1 for slave
  * @param drive: Pointer to drive structure to fill
  * @return 0 on success, -1 if drive doesn't exist
-*/
-static int ata_identify(uint8_t is_slave, ata_drive_t* drive) {
+ */
+static int ata_identify(uint8_t is_slave, ata_drive_t *drive) {
     ata_select_drive(is_slave);
 
     // Clear sector count and LBA registers
@@ -110,7 +111,7 @@ static int ata_identify(uint8_t is_slave, ata_drive_t* drive) {
     // Check if drive exists
     uint8_t status = inb(ATA_PRIMARY_STATUS);
     if (status == 0) {
-        return -1;  // No drive
+        return -1; // No drive
     }
 
     // Wait for BSY to clear
@@ -120,7 +121,7 @@ static int ata_identify(uint8_t is_slave, ata_drive_t* drive) {
 
     // Check for non-ATA devices (ATAPI will set LBA_MID or LBA_HI)
     if (inb(ATA_PRIMARY_LBA_MID) != 0 || inb(ATA_PRIMARY_LBA_HI) != 0) {
-        return -1;  // Not an ATA device
+        return -1; // Not an ATA device
     }
 
     // Wait for DRQ (data ready)
@@ -163,7 +164,7 @@ static int ata_identify(uint8_t is_slave, ata_drive_t* drive) {
  *
  * Probes primary master and slave drives, detects presence,
  * and reads drive information.
-*/
+ */
 void ata_init(void) {
     print("Initializing ATA driver...\n");
 
@@ -214,8 +215,8 @@ void ata_init(void) {
  * @param count: Number of sectors to read
  * @param buffer: Buffer to read data into
  * @return 0 on success, -1 on error
-*/
-int ata_read_sectors(uint8_t drive, uint32_t lba, uint8_t count, void* buffer) {
+ */
+int ata_read_sectors(uint8_t drive, uint32_t lba, uint8_t count, void *buffer) {
     if (drive >= 4 || !drives[drive].exists) {
         return -1;
     }
@@ -245,7 +246,7 @@ int ata_read_sectors(uint8_t drive, uint32_t lba, uint8_t count, void* buffer) {
     outb(ATA_PRIMARY_COMMAND, ATA_CMD_READ_SECTORS);
 
     // Read each sector
-    uint16_t* buf = (uint16_t*)buffer;
+    uint16_t *buf = (uint16_t *)buffer;
     for (int i = 0; i < count; i++) {
         // Wait for DRQ (data ready)
         if (ata_wait_drq() != 0) {
@@ -277,8 +278,8 @@ int ata_read_sectors(uint8_t drive, uint32_t lba, uint8_t count, void* buffer) {
  * @param count: Number of sectors to write
  * @param buffer: Buffer containing data to write
  * @return 0 on success, -1 on error
-*/
-int ata_write_sectors(uint8_t drive, uint32_t lba, uint8_t count, const void* buffer) {
+ */
+int ata_write_sectors(uint8_t drive, uint32_t lba, uint8_t count, const void *buffer) {
     if (drive >= 4 || !drives[drive].exists) {
         return -1;
     }
@@ -308,7 +309,7 @@ int ata_write_sectors(uint8_t drive, uint32_t lba, uint8_t count, const void* bu
     outb(ATA_PRIMARY_COMMAND, ATA_CMD_WRITE_SECTORS);
 
     // Write each sector
-    const uint16_t* buf = (const uint16_t*)buffer;
+    const uint16_t *buf = (const uint16_t *)buffer;
     for (int i = 0; i < count; i++) {
         // Wait for DRQ (ready to accept data)
         if (ata_wait_drq() != 0) {
@@ -352,8 +353,8 @@ int ata_write_sectors(uint8_t drive, uint32_t lba, uint8_t count, const void* bu
  *
  * @param drive: Drive number (0-3)
  * @return Pointer to drive structure, or NULL if invalid
-*/
-ata_drive_t* ata_get_drive(uint8_t drive) {
+ */
+ata_drive_t *ata_get_drive(uint8_t drive) {
     if (drive >= 4) {
         return NULL;
     }
@@ -371,8 +372,8 @@ ata_drive_t* ata_get_drive(uint8_t drive) {
  * @param count: Number of sectors to read
  * @param buffer: Buffer to read into
  * @return 0 on success, -1 on error
-*/
-static int ata_blkdev_read(void* driver_data, uint32_t lba, uint32_t count, void* buffer) {
+ */
+static int ata_blkdev_read(void *driver_data, uint32_t lba, uint32_t count, void *buffer) {
     uint8_t drive = (uint8_t)(uint32_t)driver_data;
     return ata_read_sectors(drive, lba, (uint8_t)count, buffer);
 }
@@ -385,8 +386,8 @@ static int ata_blkdev_read(void* driver_data, uint32_t lba, uint32_t count, void
  * @param count: Number of sectors to write
  * @param buffer: Buffer containing data to write
  * @return 0 on success, -1 on error
-*/
-static int ata_blkdev_write(void* driver_data, uint32_t lba, uint32_t count, const void* buffer) {
+ */
+static int ata_blkdev_write(void *driver_data, uint32_t lba, uint32_t count, const void *buffer) {
     uint8_t drive = (uint8_t)(uint32_t)driver_data;
     return ata_write_sectors(drive, lba, (uint8_t)count, buffer);
 }
@@ -396,14 +397,14 @@ static int ata_blkdev_write(void* driver_data, uint32_t lba, uint32_t count, con
  *
  * Registers each detected ATA drive as a block device so they can be
  * accessed through the generic block device interface.
-*/
+ */
 void ata_register_devices(void) {
     for (uint8_t i = 0; i < 4; i++) {
         if (drives[i].exists) {
             ata_block_devices[i].name = drives[i].model;
             ata_block_devices[i].sector_count = drives[i].sectors;
             ata_block_devices[i].sector_size = 512;
-            ata_block_devices[i].driver_data = (void*)(uint32_t)i;
+            ata_block_devices[i].driver_data = (void *)(uint32_t)i;
             ata_block_devices[i].read = ata_blkdev_read;
             ata_block_devices[i].write = ata_blkdev_write;
             blkdev_register(&ata_block_devices[i]);

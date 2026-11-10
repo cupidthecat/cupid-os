@@ -103,7 +103,7 @@ class UsbInterruptCancellationTests(unittest.TestCase):
             self.blockdev_header,
         )
         unregister = re.search(
-            r"int blkdev_unregister\(block_device_t\* dev\) \{"
+            r"int blkdev_unregister\(block_device_t\s*\*\s*dev\) \{"
             r".*?\n\}",
             self.blockdev,
             re.S,
@@ -126,7 +126,7 @@ class UsbInterruptCancellationTests(unittest.TestCase):
         )
 
         register = re.search(
-            r"int blkdev_register\(block_device_t\* dev\) \{"
+            r"int blkdev_register\(block_device_t\s*\*\s*dev\) \{"
             r".*?\n\}",
             self.blockdev,
             re.S,

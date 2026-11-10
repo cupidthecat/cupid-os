@@ -5,7 +5,7 @@
  * while persisting all contents into a single FAT16-hosted container file.
  * This keeps FAT16 as a compatibility/storage backend instead of exposing
  * its namespace limitations directly to the OS.
-*/
+ */
 
 #include "homefs.h"
 
@@ -13,18 +13,18 @@
 #include "fat16.h"
 #include "fat16_control.h"
 #include "memory.h"
+#include "serial.h"
 #include "string.h"
 #include "vfs.h"
-#include "serial.h"
 
-#define HOMEFS_MAGIC          0x31465348u /* "HFS1" */
-#define HOMEFS_VERSION        1u
+#define HOMEFS_MAGIC 0x31465348u /* "HFS1" */
+#define HOMEFS_VERSION 1u
 #define HOMEFS_CONTAINER_NAME "HOMEFS.SYS"
-#define HOMEFS_MAX_DEPTH      32u
+#define HOMEFS_MAX_DEPTH 32u
 
 typedef struct homefs_node {
-    char     name[VFS_MAX_NAME];
-    uint8_t  type;
+    char name[VFS_MAX_NAME];
+    uint8_t type;
     uint8_t *data;
     uint32_t size;
     uint32_t capacity;
@@ -38,16 +38,16 @@ typedef struct homefs_node {
 
 typedef struct {
     homefs_node_t *root;
-    bool           dirty;
-    bool           seed_mode;
-    uint32_t       batch_depth;
+    bool dirty;
+    bool seed_mode;
+    uint32_t batch_depth;
 } homefs_t;
 
 typedef struct {
-    homefs_t      *fs;
+    homefs_t *fs;
     homefs_node_t *node;
-    uint32_t       position;
-    uint32_t       flags;
+    uint32_t position;
+    uint32_t flags;
     homefs_node_t *readdir_cur;
 } homefs_handle_t;
 
@@ -66,29 +66,27 @@ typedef struct {
 
 typedef struct {
     homefs_node_t **nodes;
-    uint32_t        count;
-    uint32_t        capacity;
+    uint32_t count;
+    uint32_t capacity;
 } homefs_node_list_t;
 
 typedef struct {
     homefs_t *fs;
-    int       status;
+    int status;
 } homefs_import_ctx_t;
 
 typedef struct {
-    homefs_t      *fs;
+    homefs_t *fs;
     homefs_node_t *dir;
-    char           dir_name[VFS_MAX_NAME];
-    int            status;
+    char dir_name[VFS_MAX_NAME];
+    int status;
 } homefs_import_dir_ctx_t;
 
 static homefs_t *g_homefs = NULL;
 
 static void homefs_detach_node(homefs_node_t *node);
-static homefs_node_t *homefs_existing_parent(homefs_node_t *root,
-                                             const char *path,
-                                             const char **filename,
-                                             size_t *filename_length);
+static homefs_node_t *homefs_existing_parent(homefs_node_t *root, const char *path,
+                                             const char **filename, size_t *filename_length);
 
 static int homefs_reserved_component(const char *component, size_t length) {
     return (length == 1u && component[0] == '.') ||
@@ -97,23 +95,26 @@ static int homefs_reserved_component(const char *component, size_t length) {
 
 static int homefs_valid_name_bytes(const char *name, uint32_t length) {
     if (!name || length == 0u || length >= VFS_MAX_NAME ||
-        homefs_reserved_component(name, (size_t)length)) return 0;
+        homefs_reserved_component(name, (size_t)length))
+        return 0;
     for (uint32_t index = 0u; index < length; index++) {
-        if (name[index] == '\0' || name[index] == '/') return 0;
+        if (name[index] == '\0' || name[index] == '/')
+            return 0;
     }
     return 1;
 }
 
-static int homefs_checked_add_u32(uint32_t left, uint32_t right,
-                                  uint32_t *result) {
-    if (!result || right > 0xffffffffu - left) return 0;
+static int homefs_checked_add_u32(uint32_t left, uint32_t right, uint32_t *result) {
+    if (!result || right > 0xffffffffu - left)
+        return 0;
     *result = left + right;
     return 1;
 }
 
 static homefs_node_t *homefs_alloc_node(const char *name, uint8_t type) {
     homefs_node_t *n = kmalloc(sizeof(homefs_node_t));
-    if (!n) return NULL;
+    if (!n)
+        return NULL;
     memset(n, 0, sizeof(homefs_node_t));
 
     size_t i = 0;
@@ -142,8 +143,7 @@ static void homefs_free_node(homefs_node_t *node) {
     }
 }
 
-static homefs_node_t *homefs_find_child(homefs_node_t *dir,
-                                        const char *name, size_t len) {
+static homefs_node_t *homefs_find_child(homefs_node_t *dir, const char *name, size_t len) {
     homefs_node_t *child = dir->children;
     while (child) {
         size_t nlen = strlen(child->name);
@@ -156,25 +156,30 @@ static homefs_node_t *homefs_find_child(homefs_node_t *dir,
 }
 
 static homefs_node_t *homefs_lookup(homefs_node_t *dir, const char *path) {
-    if (!path || path[0] == '\0') return dir;
+    if (!path || path[0] == '\0')
+        return dir;
 
     homefs_node_t *cur = dir;
     const char *p = path;
 
     while (*p) {
-        while (*p == '/') p++;
-        if (*p == '\0') break;
+        while (*p == '/')
+            p++;
+        if (*p == '\0')
+            break;
 
         const char *end = p;
-        while (*end && *end != '/') end++;
+        while (*end && *end != '/')
+            end++;
         size_t len = (size_t)(end - p);
 
-        if (len == 0u || len >= VFS_MAX_NAME ||
-            homefs_reserved_component(p, len) ||
-            cur->type != VFS_TYPE_DIR) return NULL;
+        if (len == 0u || len >= VFS_MAX_NAME || homefs_reserved_component(p, len) ||
+            cur->type != VFS_TYPE_DIR)
+            return NULL;
 
         cur = homefs_find_child(cur, p, len);
-        if (!cur) return NULL;
+        if (!cur)
+            return NULL;
 
         p = end;
     }
@@ -182,34 +187,40 @@ static homefs_node_t *homefs_lookup(homefs_node_t *dir, const char *path) {
     return cur;
 }
 
-static homefs_node_t *homefs_mkdirs(homefs_node_t *root, const char *path,
-                                    const char **filename) {
+static homefs_node_t *homefs_mkdirs(homefs_node_t *root, const char *path, const char **filename) {
     homefs_node_t *cur = root;
     const char *p = path;
 
-    while (*p == '/') p++;
+    while (*p == '/')
+        p++;
 
     while (*p) {
         const char *end = p;
-        while (*end && *end != '/') end++;
+        while (*end && *end != '/')
+            end++;
 
         const char *after = end;
-        while (*after == '/') after++;
+        while (*after == '/')
+            after++;
 
         size_t len = (size_t)(end - p);
-        if (len == 0u || len >= VFS_MAX_NAME ||
-            homefs_reserved_component(p, len)) return NULL;
+        if (len == 0u || len >= VFS_MAX_NAME || homefs_reserved_component(p, len))
+            return NULL;
 
         if (*after == '\0') {
-            if (cur->depth >= HOMEFS_MAX_DEPTH) return NULL;
-            if (filename) *filename = p;
+            if (cur->depth >= HOMEFS_MAX_DEPTH)
+                return NULL;
+            if (filename)
+                *filename = p;
             return cur;
         }
 
-        if (cur->type != VFS_TYPE_DIR) return NULL;
+        if (cur->type != VFS_TYPE_DIR)
+            return NULL;
         homefs_node_t *child = homefs_find_child(cur, p, len);
         if (!child) {
-            if (cur->depth >= HOMEFS_MAX_DEPTH) return NULL;
+            if (cur->depth >= HOMEFS_MAX_DEPTH)
+                return NULL;
             char dirname[VFS_MAX_NAME];
             size_t i;
             for (i = 0; i < len && i < VFS_MAX_NAME - 1; i++) {
@@ -218,7 +229,8 @@ static homefs_node_t *homefs_mkdirs(homefs_node_t *root, const char *path,
             dirname[i] = '\0';
 
             child = homefs_alloc_node(dirname, VFS_TYPE_DIR);
-            if (!child) return NULL;
+            if (!child)
+                return NULL;
             child->parent = cur;
             child->depth = cur->depth + 1u;
             child->next = cur->children;
@@ -228,13 +240,16 @@ static homefs_node_t *homefs_mkdirs(homefs_node_t *root, const char *path,
         p = after;
     }
 
-    if (filename) *filename = "";
+    if (filename)
+        *filename = "";
     return cur;
 }
 
 static int homefs_node_ensure_capacity(homefs_node_t *node, uint32_t need) {
-    if (!node || node->type != VFS_TYPE_FILE) return VFS_EINVAL;
-    if (need <= node->capacity) return VFS_OK;
+    if (!node || node->type != VFS_TYPE_FILE)
+        return VFS_EINVAL;
+    if (need <= node->capacity)
+        return VFS_OK;
 
     uint32_t new_cap = node->capacity ? node->capacity : 256u;
     while (new_cap < need) {
@@ -246,7 +261,8 @@ static int homefs_node_ensure_capacity(homefs_node_t *node, uint32_t need) {
     }
 
     uint8_t *new_data = kmalloc(new_cap);
-    if (!new_data) return VFS_ENOSPC;
+    if (!new_data)
+        return VFS_ENOSPC;
 
     if (node->data && node->size > 0) {
         memcpy(new_data, node->data, node->size);
@@ -270,13 +286,16 @@ static void homefs_mark_dirty(homefs_t *fs) {
 }
 
 static int homefs_count_nodes(homefs_node_t *node, uint32_t *count) {
-    if (!count) return VFS_EINVAL;
+    if (!count)
+        return VFS_EINVAL;
     while (node) {
-        if (*count == 0xffffffffu) return VFS_ENOSPC;
+        if (*count == 0xffffffffu)
+            return VFS_ENOSPC;
         (*count)++;
         if (node->children) {
             int rc = homefs_count_nodes(node->children, count);
-            if (rc < 0) return rc;
+            if (rc < 0)
+                return rc;
         }
         node = node->next;
     }
@@ -291,7 +310,8 @@ static int homefs_collect_nodes(homefs_node_t *node, homefs_node_list_t *list) {
         list->nodes[list->count++] = node;
         if (node->children) {
             int rc = homefs_collect_nodes(node->children, list);
-            if (rc < 0) return rc;
+            if (rc < 0)
+                return rc;
         }
         node = node->next;
     }
@@ -307,9 +327,9 @@ static int homefs_index_of(homefs_node_list_t *list, homefs_node_t *node) {
     return -1;
 }
 
-static int homefs_serialize(homefs_t *fs, uint8_t **out_buf,
-                            uint32_t *out_size) {
-    if (!fs || !fs->root || !out_buf || !out_size) return VFS_EINVAL;
+static int homefs_serialize(homefs_t *fs, uint8_t **out_buf, uint32_t *out_size) {
+    if (!fs || !fs->root || !out_buf || !out_size)
+        return VFS_EINVAL;
 
     uint32_t node_count = 0u;
     int rc = homefs_count_nodes(fs->root, &node_count);
@@ -319,7 +339,8 @@ static int homefs_serialize(homefs_t *fs, uint8_t **out_buf,
     }
     uint32_t nodes_size = node_count * (uint32_t)sizeof(homefs_node_t *);
     homefs_node_t **nodes = kmalloc(nodes_size);
-    if (!nodes) return VFS_ENOSPC;
+    if (!nodes)
+        return VFS_ENOSPC;
 
     homefs_node_list_t list;
     list.nodes = nodes;
@@ -337,14 +358,11 @@ static int homefs_serialize(homefs_t *fs, uint8_t **out_buf,
         uint32_t name_length = (uint32_t)strlen(node->name);
         if ((node->type != VFS_TYPE_DIR && node->type != VFS_TYPE_FILE) ||
             name_length >= VFS_MAX_NAME ||
-            (node->parent &&
-             !homefs_valid_name_bytes(node->name, name_length)) ||
+            (node->parent && !homefs_valid_name_bytes(node->name, name_length)) ||
             (node->type == VFS_TYPE_FILE && node->size > 0u && !node->data) ||
-            !homefs_checked_add_u32(
-                total, (uint32_t)sizeof(homefs_disk_node_t), &total) ||
+            !homefs_checked_add_u32(total, (uint32_t)sizeof(homefs_disk_node_t), &total) ||
             !homefs_checked_add_u32(total, name_length, &total) ||
-            (node->type == VFS_TYPE_FILE &&
-             !homefs_checked_add_u32(total, node->size, &total))) {
+            (node->type == VFS_TYPE_FILE && !homefs_checked_add_u32(total, node->size, &total))) {
             kfree(nodes);
             return VFS_ENOSPC;
         }
@@ -394,7 +412,8 @@ static int homefs_serialize(homefs_t *fs, uint8_t **out_buf,
 }
 
 static void homefs_clear_fs(homefs_t *fs) {
-    if (!fs) return;
+    if (!fs)
+        return;
     if (fs->root) {
         homefs_free_node(fs->root);
         fs->root = NULL;
@@ -403,33 +422,30 @@ static void homefs_clear_fs(homefs_t *fs) {
 }
 
 static int homefs_deserialize(homefs_t *fs, const uint8_t *data, uint32_t size) {
-    if (!fs || !data || size < sizeof(homefs_disk_header_t)) return VFS_EINVAL;
+    if (!fs || !data || size < sizeof(homefs_disk_header_t))
+        return VFS_EINVAL;
 
     homefs_disk_header_t hdr;
     memcpy(&hdr, data, sizeof(hdr));
-    if (hdr.magic != HOMEFS_MAGIC || hdr.version != HOMEFS_VERSION ||
-        hdr.node_count == 0) {
+    if (hdr.magic != HOMEFS_MAGIC || hdr.version != HOMEFS_VERSION || hdr.node_count == 0) {
         return VFS_EIO;
     }
 
     uint32_t remaining = size - (uint32_t)sizeof(homefs_disk_header_t);
-    if (hdr.node_count >
-            remaining / (uint32_t)sizeof(homefs_disk_node_t) ||
-        hdr.node_count >
-            0xffffffffu / (uint32_t)sizeof(homefs_node_t *)) {
+    if (hdr.node_count > remaining / (uint32_t)sizeof(homefs_disk_node_t) ||
+        hdr.node_count > 0xffffffffu / (uint32_t)sizeof(homefs_node_t *)) {
         return VFS_EIO;
     }
-    uint32_t nodes_size =
-        hdr.node_count * (uint32_t)sizeof(homefs_node_t *);
+    uint32_t nodes_size = hdr.node_count * (uint32_t)sizeof(homefs_node_t *);
     homefs_node_t **nodes = kmalloc(nodes_size);
-    if (!nodes) return VFS_ENOSPC;
+    if (!nodes)
+        return VFS_ENOSPC;
     memset(nodes, 0, nodes_size);
 
     int failure = VFS_EIO;
     uint32_t pos = (uint32_t)sizeof(hdr);
     for (uint32_t i = 0; i < hdr.node_count; i++) {
-        if (pos > size ||
-            (uint32_t)sizeof(homefs_disk_node_t) > size - pos) {
+        if (pos > size || (uint32_t)sizeof(homefs_disk_node_t) > size - pos) {
             goto fail;
         }
 
@@ -437,8 +453,7 @@ static int homefs_deserialize(homefs_t *fs, const uint8_t *data, uint32_t size) 
         memcpy(&rec, data + pos, sizeof(rec));
         pos += (uint32_t)sizeof(rec);
 
-        if (pos > size || rec.name_len >= VFS_MAX_NAME ||
-            rec.name_len > size - pos) {
+        if (pos > size || rec.name_len >= VFS_MAX_NAME || rec.name_len > size - pos) {
             goto fail;
         }
 
@@ -489,8 +504,7 @@ static int homefs_deserialize(homefs_t *fs, const uint8_t *data, uint32_t size) 
             if (rec.parent_index >= i || !nodes[rec.parent_index] ||
                 nodes[rec.parent_index]->type != VFS_TYPE_DIR ||
                 nodes[rec.parent_index]->depth >= HOMEFS_MAX_DEPTH ||
-                homefs_find_child(nodes[rec.parent_index], name,
-                                  rec.name_len)) {
+                homefs_find_child(nodes[rec.parent_index], name, rec.name_len)) {
                 goto fail;
             }
             node->parent = nodes[rec.parent_index];
@@ -500,7 +514,8 @@ static int homefs_deserialize(homefs_t *fs, const uint8_t *data, uint32_t size) 
         }
     }
 
-    if (pos != size) goto fail;
+    if (pos != size)
+        goto fail;
 
     homefs_clear_fs(fs);
     fs->root = nodes[0];
@@ -525,9 +540,12 @@ fail:
 }
 
 static int homefs_flush(homefs_t *fs) {
-    if (!fs || !fs->root) return VFS_EINVAL;
-    if (fs->batch_depth > 0u) return VFS_OK;
-    if (!fs->dirty) return VFS_OK;
+    if (!fs || !fs->root)
+        return VFS_EINVAL;
+    if (fs->batch_depth > 0u)
+        return VFS_OK;
+    if (!fs->dirty)
+        return VFS_OK;
 
     /* Clear dirty BEFORE the write to break re-entrancy. fat16_write_file
      * calls blockcache_sync() internally, which calls homefs_sync(), which
@@ -553,19 +571,21 @@ static int homefs_flush(homefs_t *fs) {
         return VFS_EIO;
     }
 
-    serial_printf("[homefs] flushed %u bytes to %s\n", size,
-                  HOMEFS_CONTAINER_NAME);
+    serial_printf("[homefs] flushed %u bytes to %s\n", size, HOMEFS_CONTAINER_NAME);
     return VFS_OK;
 }
 
-static int homefs_read_fat_file(const char *path, uint8_t **out_data,
-                                uint32_t *out_size) {
+static int homefs_read_fat_file(const char *path, uint8_t **out_data, uint32_t *out_size) {
     fat16_file_t *file = NULL;
     int open_status = fat16_open_checked(path, &file);
-    if (open_status == FAT16_OPEN_NOT_FOUND) return VFS_ENOENT;
-    if (open_status == FAT16_OPEN_NO_HANDLES) return VFS_EMFILE;
-    if (open_status == FAT16_OPEN_INVALID) return VFS_EINVAL;
-    if (open_status != FAT16_OPEN_OK) return VFS_EIO;
+    if (open_status == FAT16_OPEN_NOT_FOUND)
+        return VFS_ENOENT;
+    if (open_status == FAT16_OPEN_NO_HANDLES)
+        return VFS_EMFILE;
+    if (open_status == FAT16_OPEN_INVALID)
+        return VFS_EINVAL;
+    if (open_status != FAT16_OPEN_OK)
+        return VFS_EIO;
 
     uint32_t size = file->file_size;
     uint8_t *buf = NULL;
@@ -590,28 +610,34 @@ static int homefs_read_fat_file(const char *path, uint8_t **out_data,
 }
 
 static int homefs_strieq(const char *a, const char *b) {
-    if (!a || !b) return 0;
+    if (!a || !b)
+        return 0;
     while (*a && *b) {
         char ca = *a;
         char cb = *b;
-        if (ca >= 'A' && ca <= 'Z') ca = (char)(ca - 'A' + 'a');
-        if (cb >= 'A' && cb <= 'Z') cb = (char)(cb - 'A' + 'a');
-        if (ca != cb) return 0;
+        if (ca >= 'A' && ca <= 'Z')
+            ca = (char)(ca - 'A' + 'a');
+        if (cb >= 'A' && cb <= 'Z')
+            cb = (char)(cb - 'A' + 'a');
+        if (ca != cb)
+            return 0;
         a++;
         b++;
     }
     return *a == '\0' && *b == '\0';
 }
 
-static int homefs_add_imported_file(homefs_node_t *parent, const char *name,
-                                    const uint8_t *data, uint32_t size) {
+static int homefs_add_imported_file(homefs_node_t *parent, const char *name, const uint8_t *data,
+                                    uint32_t size) {
     size_t nlen = strlen(name);
-    if (!homefs_valid_name_bytes(name, (uint32_t)nlen) ||
-        parent->depth >= HOMEFS_MAX_DEPTH) return VFS_EINVAL;
-    if (homefs_find_child(parent, name, nlen)) return VFS_EEXIST;
+    if (!homefs_valid_name_bytes(name, (uint32_t)nlen) || parent->depth >= HOMEFS_MAX_DEPTH)
+        return VFS_EINVAL;
+    if (homefs_find_child(parent, name, nlen))
+        return VFS_EEXIST;
 
     homefs_node_t *node = homefs_alloc_node(name, VFS_TYPE_FILE);
-    if (!node) return VFS_ENOSPC;
+    if (!node)
+        return VFS_ENOSPC;
 
     if (size > 0) {
         node->data = kmalloc(size);
@@ -631,12 +657,14 @@ static int homefs_add_imported_file(homefs_node_t *parent, const char *name,
     return VFS_OK;
 }
 
-static int homefs_import_subdir_entry(const char *name, uint32_t size,
-                                      uint8_t attr, void *ctx) {
+static int homefs_import_subdir_entry(const char *name, uint32_t size, uint8_t attr, void *ctx) {
     homefs_import_dir_ctx_t *ictx = (homefs_import_dir_ctx_t *)ctx;
-    if (!ictx || !name || name[0] == '\0') return 0;
-    if (ictx->status < 0) return 1;
-    if (attr & FAT_ATTR_DIRECTORY) return 0;
+    if (!ictx || !name || name[0] == '\0')
+        return 0;
+    if (ictx->status < 0)
+        return 1;
+    if (attr & FAT_ATTR_DIRECTORY)
+        return 0;
 
     char fat_path[2 * VFS_MAX_NAME];
     int p = 0;
@@ -660,7 +688,8 @@ static int homefs_import_subdir_entry(const char *name, uint32_t size,
     }
     (void)size;
     status = homefs_add_imported_file(ictx->dir, name, data, file_size);
-    if (data) kfree(data);
+    if (data)
+        kfree(data);
     if (status < 0) {
         ictx->status = status;
         return 1;
@@ -668,16 +697,19 @@ static int homefs_import_subdir_entry(const char *name, uint32_t size,
     return 0;
 }
 
-static int homefs_import_root_entry(const char *name, uint32_t size,
-                                    uint8_t attr, void *ctx) {
+static int homefs_import_root_entry(const char *name, uint32_t size, uint8_t attr, void *ctx) {
     homefs_import_ctx_t *ictx = (homefs_import_ctx_t *)ctx;
-    if (!ictx || !ictx->fs || !name || name[0] == '\0') return 0;
-    if (ictx->status < 0) return 1;
-    if (homefs_strieq(name, HOMEFS_CONTAINER_NAME)) return 0;
+    if (!ictx || !ictx->fs || !name || name[0] == '\0')
+        return 0;
+    if (ictx->status < 0)
+        return 1;
+    if (homefs_strieq(name, HOMEFS_CONTAINER_NAME))
+        return 0;
     /* /wads/ holds DOOM IWAD/PWAD files. They stay on FAT16 and are
      * read directly via /disk/wads/<file>. Importing them into the
      * homefs container would inflate HOMEFS.SYS by ~57 MB.*/
-    if (homefs_strieq(name, "WADS")) return 0;
+    if (homefs_strieq(name, "WADS"))
+        return 0;
 
     if (attr & FAT_ATTR_DIRECTORY) {
         homefs_node_t *dir = homefs_alloc_node(name, VFS_TYPE_DIR);
@@ -696,8 +728,7 @@ static int homefs_import_root_entry(const char *name, uint32_t size,
         dctx.dir = dir;
         dctx.status = VFS_OK;
         strncpy(dctx.dir_name, name, VFS_MAX_NAME - 1);
-        int enumerate_status = fat16_enumerate_subdir(
-            name, homefs_import_subdir_entry, &dctx);
+        int enumerate_status = fat16_enumerate_subdir(name, homefs_import_subdir_entry, &dctx);
         if (dctx.status < 0 || enumerate_status < 0) {
             ictx->status = dctx.status < 0 ? dctx.status : VFS_EIO;
             return 1;
@@ -714,9 +745,9 @@ static int homefs_import_root_entry(const char *name, uint32_t size,
             return 1;
         }
         (void)size;
-        status = homefs_add_imported_file(
-            ictx->fs->root, name, data, file_size);
-        if (data) kfree(data);
+        status = homefs_add_imported_file(ictx->fs->root, name, data, file_size);
+        if (data)
+            kfree(data);
         if (status < 0) {
             ictx->status = status;
             return 1;
@@ -730,18 +761,21 @@ static int homefs_import_from_fat(homefs_t *fs) {
     homefs_import_ctx_t ctx;
     ctx.fs = fs;
     ctx.status = VFS_OK;
-    int enumerate_status = fat16_enumerate_root(
-        homefs_import_root_entry, &ctx);
-    if (ctx.status < 0) return ctx.status;
-    if (enumerate_status < 0) return VFS_EIO;
+    int enumerate_status = fat16_enumerate_root(homefs_import_root_entry, &ctx);
+    if (ctx.status < 0)
+        return ctx.status;
+    if (enumerate_status < 0)
+        return VFS_EIO;
     homefs_mark_dirty(fs);
     return homefs_flush(fs);
 }
 
 static int homefs_mount(const char *source, void **fs_private) {
     (void)source;
-    if (!fs_private) return VFS_EINVAL;
-    if (g_homefs) return VFS_EBUSY;
+    if (!fs_private)
+        return VFS_EINVAL;
+    if (g_homefs)
+        return VFS_EBUSY;
     if (!fat16_is_initialized()) {
         if (fat16_init() != 0) {
             return VFS_EIO;
@@ -749,7 +783,8 @@ static int homefs_mount(const char *source, void **fs_private) {
     }
 
     homefs_t *fs = kmalloc(sizeof(homefs_t));
-    if (!fs) return VFS_ENOSPC;
+    if (!fs)
+        return VFS_ENOSPC;
     memset(fs, 0, sizeof(homefs_t));
 
     fs->root = homefs_alloc_node("", VFS_TYPE_DIR);
@@ -760,21 +795,19 @@ static int homefs_mount(const char *source, void **fs_private) {
 
     uint8_t *data = NULL;
     uint32_t size = 0;
-    int read_status = homefs_read_fat_file(
-        HOMEFS_CONTAINER_NAME, &data, &size);
+    int read_status = homefs_read_fat_file(HOMEFS_CONTAINER_NAME, &data, &size);
     if (read_status == VFS_OK) {
-        int load_status = (data && size > 0u)
-                              ? homefs_deserialize(fs, data, size)
-                              : VFS_EIO;
+        int load_status = (data && size > 0u) ? homefs_deserialize(fs, data, size) : VFS_EIO;
         if (load_status < 0) {
-            serial_printf("[homefs] refusing invalid container (%d)\n",
-                          load_status);
-            if (data) kfree(data);
+            serial_printf("[homefs] refusing invalid container (%d)\n", load_status);
+            if (data)
+                kfree(data);
             homefs_clear_fs(fs);
             kfree(fs);
             return load_status;
         }
-        if (data) kfree(data);
+        if (data)
+            kfree(data);
     } else if (read_status == VFS_ENOENT) {
         serial_printf("[homefs] no container found, importing FAT16 contents\n");
         int import_status = homefs_import_from_fat(fs);
@@ -803,31 +836,34 @@ static int homefs_mount(const char *source, void **fs_private) {
 
 static int homefs_unmount(void *fs_private) {
     homefs_t *fs = (homefs_t *)fs_private;
-    if (!fs) return VFS_OK;
-    if (fs->batch_depth > 0u) return VFS_EBUSY;
+    if (!fs)
+        return VFS_OK;
+    if (fs->batch_depth > 0u)
+        return VFS_EBUSY;
     int rc = homefs_flush(fs);
-    if (rc < 0) return rc;
+    if (rc < 0)
+        return rc;
     if (fat16_release_file_reservation(HOMEFS_CONTAINER_NAME) < 0)
         return VFS_EIO;
     homefs_clear_fs(fs);
-    if (g_homefs == fs) g_homefs = NULL;
+    if (g_homefs == fs)
+        g_homefs = NULL;
     kfree(fs);
     return VFS_OK;
 }
 
-static int homefs_open(void *fs_private, const char *path,
-                       uint32_t flags, void **file_handle) {
+static int homefs_open(void *fs_private, const char *path, uint32_t flags, void **file_handle) {
     homefs_t *fs = (homefs_t *)fs_private;
     homefs_node_t *node = homefs_lookup(fs->root, path);
     homefs_handle_t *h = kmalloc(sizeof(homefs_handle_t));
-    if (!h) return VFS_EIO;
+    if (!h)
+        return VFS_EIO;
     memset(h, 0, sizeof(homefs_handle_t));
 
     if (!node && (flags & O_CREAT)) {
         const char *fname = NULL;
         size_t name_length = 0u;
-        homefs_node_t *parent = homefs_existing_parent(
-            fs->root, path, &fname, &name_length);
+        homefs_node_t *parent = homefs_existing_parent(fs->root, path, &fname, &name_length);
         if (!parent || !fname || name_length == 0u) {
             kfree(h);
             return VFS_ENOENT;
@@ -889,8 +925,7 @@ static int homefs_close(void *file_handle) {
         if (h->node && h->node->open_count > 0u) {
             h->node->open_count--;
         }
-        if (h->fs && h->fs->dirty && !h->fs->seed_mode &&
-            h->fs->batch_depth == 0u) {
+        if (h->fs && h->fs->dirty && !h->fs->seed_mode && h->fs->batch_depth == 0u) {
             rc = homefs_flush(h->fs);
         }
         kfree(h);
@@ -900,9 +935,12 @@ static int homefs_close(void *file_handle) {
 
 static int homefs_read(void *file_handle, void *buffer, uint32_t count) {
     homefs_handle_t *h = (homefs_handle_t *)file_handle;
-    if (!h || !h->node) return VFS_EINVAL;
-    if (h->node->type == VFS_TYPE_DIR) return VFS_EISDIR;
-    if (h->position >= h->node->size) return 0;
+    if (!h || !h->node)
+        return VFS_EINVAL;
+    if (h->node->type == VFS_TYPE_DIR)
+        return VFS_EISDIR;
+    if (h->position >= h->node->size)
+        return 0;
 
     if (count > h->node->size - h->position) {
         count = h->node->size - h->position;
@@ -914,13 +952,17 @@ static int homefs_read(void *file_handle, void *buffer, uint32_t count) {
 
 static int homefs_write(void *file_handle, const void *buffer, uint32_t count) {
     homefs_handle_t *h = (homefs_handle_t *)file_handle;
-    if (!h || !h->node) return VFS_EINVAL;
-    if (h->node->type == VFS_TYPE_DIR) return VFS_EISDIR;
+    if (!h || !h->node)
+        return VFS_EINVAL;
+    if (h->node->type == VFS_TYPE_DIR)
+        return VFS_EISDIR;
 
-    if (count > 0xffffffffu - h->position) return VFS_ENOSPC;
+    if (count > 0xffffffffu - h->position)
+        return VFS_ENOSPC;
     uint32_t end = h->position + count;
     int rc = homefs_node_ensure_capacity(h->node, end);
-    if (rc < 0) return rc;
+    if (rc < 0)
+        return rc;
 
     memcpy(h->node->data + h->position, buffer, count);
     h->position = end;
@@ -933,18 +975,28 @@ static int homefs_write(void *file_handle, const void *buffer, uint32_t count) {
 
 static int homefs_seek(void *file_handle, int32_t offset, int whence) {
     homefs_handle_t *h = (homefs_handle_t *)file_handle;
-    if (!h || !h->node) return VFS_EINVAL;
+    if (!h || !h->node)
+        return VFS_EINVAL;
 
     int64_t base;
     switch (whence) {
-        case SEEK_SET: base = 0; break;
-        case SEEK_CUR: base = (int64_t)h->position; break;
-        case SEEK_END: base = (int64_t)h->node->size; break;
-        default: return VFS_EINVAL;
+        case SEEK_SET:
+            base = 0;
+            break;
+        case SEEK_CUR:
+            base = (int64_t)h->position;
+            break;
+        case SEEK_END:
+            base = (int64_t)h->node->size;
+            break;
+        default:
+            return VFS_EINVAL;
     }
     int64_t new_pos = base + (int64_t)offset;
-    if (new_pos < 0) new_pos = 0;
-    if (new_pos > 0x7fffffffll) return VFS_EINVAL;
+    if (new_pos < 0)
+        new_pos = 0;
+    if (new_pos > 0x7fffffffll)
+        return VFS_EINVAL;
     h->position = (uint32_t)new_pos;
     return (int)h->position;
 }
@@ -952,7 +1004,8 @@ static int homefs_seek(void *file_handle, int32_t offset, int whence) {
 static int homefs_stat(void *fs_private, const char *path, vfs_stat_t *st) {
     homefs_t *fs = (homefs_t *)fs_private;
     homefs_node_t *node = homefs_lookup(fs->root, path);
-    if (!node) return VFS_ENOENT;
+    if (!node)
+        return VFS_ENOENT;
     st->size = node->size;
     st->type = node->type;
     return VFS_OK;
@@ -960,9 +1013,12 @@ static int homefs_stat(void *fs_private, const char *path, vfs_stat_t *st) {
 
 static int homefs_readdir(void *file_handle, vfs_dirent_t *dirent) {
     homefs_handle_t *h = (homefs_handle_t *)file_handle;
-    if (!h || !h->node) return VFS_EINVAL;
-    if (h->node->type != VFS_TYPE_DIR) return VFS_ENOTDIR;
-    if (!h->readdir_cur) return 0;
+    if (!h || !h->node)
+        return VFS_EINVAL;
+    if (h->node->type != VFS_TYPE_DIR)
+        return VFS_ENOTDIR;
+    if (!h->readdir_cur)
+        return 0;
 
     homefs_node_t *child = h->readdir_cur;
     size_t i = 0;
@@ -980,13 +1036,14 @@ static int homefs_readdir(void *file_handle, vfs_dirent_t *dirent) {
 static int homefs_mkdir_op(void *fs_private, const char *path) {
     homefs_t *fs = (homefs_t *)fs_private;
     homefs_node_t *existing = homefs_lookup(fs->root, path);
-    if (existing) return VFS_EEXIST;
+    if (existing)
+        return VFS_EEXIST;
 
     const char *fname = NULL;
     size_t name_length = 0u;
-    homefs_node_t *parent = homefs_existing_parent(
-        fs->root, path, &fname, &name_length);
-    if (!parent || !fname || name_length == 0u) return VFS_ENOENT;
+    homefs_node_t *parent = homefs_existing_parent(fs->root, path, &fname, &name_length);
+    if (!parent || !fname || name_length == 0u)
+        return VFS_ENOENT;
 
     char name[VFS_MAX_NAME];
     size_t i = 0u;
@@ -997,7 +1054,8 @@ static int homefs_mkdir_op(void *fs_private, const char *path) {
     name[i] = '\0';
 
     homefs_node_t *node = homefs_alloc_node(name, VFS_TYPE_DIR);
-    if (!node) return VFS_ENOSPC;
+    if (!node)
+        return VFS_ENOSPC;
     node->parent = parent;
     node->depth = parent->depth + 1u;
     node->next = parent->children;
@@ -1015,13 +1073,16 @@ static int homefs_mkdir_op(void *fs_private, const char *path) {
 static int homefs_unlink_op(void *fs_private, const char *path) {
     homefs_t *fs = (homefs_t *)fs_private;
     homefs_node_t *node = homefs_lookup(fs->root, path);
-    if (!node) return VFS_ENOENT;
-    if (node == fs->root) return VFS_EINVAL;
-    if (node->type == VFS_TYPE_DIR && node->children) return VFS_EINVAL;
+    if (!node)
+        return VFS_ENOENT;
+    if (node == fs->root)
+        return VFS_EINVAL;
+    if (node->type == VFS_TYPE_DIR && node->children)
+        return VFS_EINVAL;
 
     homefs_node_t *parent = node->parent;
-    if (node->open_count > 0u ||
-        (parent && parent->open_count > 0u)) return VFS_EBUSY;
+    if (node->open_count > 0u || (parent && parent->open_count > 0u))
+        return VFS_EBUSY;
     homefs_detach_node(node);
     homefs_mark_dirty(fs);
     int rc = homefs_flush(fs);
@@ -1032,58 +1093,64 @@ static int homefs_unlink_op(void *fs_private, const char *path) {
         fs->dirty = true;
         return rc;
     }
-    if (node->data) kfree(node->data);
+    if (node->data)
+        kfree(node->data);
     kfree(node);
     return VFS_OK;
 }
 
 static void homefs_detach_node(homefs_node_t *node) {
     homefs_node_t *parent = node ? node->parent : NULL;
-    if (!parent) return;
+    if (!parent)
+        return;
     if (parent->children == node) {
         parent->children = node->next;
     } else {
         homefs_node_t *previous = parent->children;
-        while (previous && previous->next != node) previous = previous->next;
-        if (previous) previous->next = node->next;
+        while (previous && previous->next != node)
+            previous = previous->next;
+        if (previous)
+            previous->next = node->next;
     }
     node->parent = NULL;
     node->next = NULL;
 }
 
-static homefs_node_t *homefs_existing_parent(homefs_node_t *root,
-                                             const char *path,
-                                             const char **filename,
-                                             size_t *filename_length) {
+static homefs_node_t *homefs_existing_parent(homefs_node_t *root, const char *path,
+                                             const char **filename, size_t *filename_length) {
     homefs_node_t *current = root;
     const char *component = path;
-    while (*component == '/') component++;
+    while (*component == '/')
+        component++;
 
     while (*component) {
         const char *end = component;
-        while (*end && *end != '/') end++;
+        while (*end && *end != '/')
+            end++;
         const char *after = end;
-        while (*after == '/') after++;
+        while (*after == '/')
+            after++;
         size_t length = (size_t)(end - component);
-        if (length == 0u || length >= VFS_MAX_NAME ||
-            homefs_reserved_component(component, length)) return NULL;
+        if (length == 0u || length >= VFS_MAX_NAME || homefs_reserved_component(component, length))
+            return NULL;
         if (*after == '\0') {
-            if (*end == '/' || current->type != VFS_TYPE_DIR ||
-                current->depth >= HOMEFS_MAX_DEPTH) return NULL;
+            if (*end == '/' || current->type != VFS_TYPE_DIR || current->depth >= HOMEFS_MAX_DEPTH)
+                return NULL;
             *filename = component;
             *filename_length = length;
             return current;
         }
-        if (current->type != VFS_TYPE_DIR) return NULL;
+        if (current->type != VFS_TYPE_DIR)
+            return NULL;
         current = homefs_find_child(current, component, length);
-        if (!current || current->type != VFS_TYPE_DIR) return NULL;
+        if (!current || current->type != VFS_TYPE_DIR)
+            return NULL;
         component = after;
     }
     return NULL;
 }
 
-static int homefs_rename_op(void *fs_private, const char *old_path,
-                            const char *new_path) {
+static int homefs_rename_op(void *fs_private, const char *old_path, const char *new_path) {
     homefs_t *fs = (homefs_t *)fs_private;
     homefs_node_t *source = homefs_lookup(fs->root, old_path);
     homefs_node_t *destination = homefs_lookup(fs->root, new_path);
@@ -1093,18 +1160,21 @@ static int homefs_rename_op(void *fs_private, const char *old_path,
     char old_name[VFS_MAX_NAME];
     uint32_t old_depth;
 
-    if (!source) return VFS_ENOENT;
-    if (source == fs->root || source->type == VFS_TYPE_DIR) return VFS_EISDIR;
-    if (destination == source) return VFS_OK;
-    if (destination && destination->type == VFS_TYPE_DIR) return VFS_EISDIR;
+    if (!source)
+        return VFS_ENOENT;
+    if (source == fs->root || source->type == VFS_TYPE_DIR)
+        return VFS_EISDIR;
+    if (destination == source)
+        return VFS_OK;
+    if (destination && destination->type == VFS_TYPE_DIR)
+        return VFS_EISDIR;
 
-    homefs_node_t *new_parent = homefs_existing_parent(
-        fs->root, new_path, &filename, &name_length);
-    if (!new_parent || !filename || name_length == 0u) return VFS_ENOENT;
+    homefs_node_t *new_parent = homefs_existing_parent(fs->root, new_path, &filename, &name_length);
+    if (!new_parent || !filename || name_length == 0u)
+        return VFS_ENOENT;
     if ((source->parent && source->parent->open_count > 0u) ||
         (destination && (destination->open_count > 0u ||
-                         (destination->parent &&
-                          destination->parent->open_count > 0u)))) {
+                         (destination->parent && destination->parent->open_count > 0u)))) {
         return VFS_EBUSY;
     }
     for (size_t index = 0u; index < name_length; index++) {
@@ -1117,7 +1187,8 @@ static int homefs_rename_op(void *fs_private, const char *old_path,
     homefs_node_t *destination_parent = destination ? destination->parent : NULL;
     old_depth = source->depth;
     homefs_detach_node(source);
-    if (destination) homefs_detach_node(destination);
+    if (destination)
+        homefs_detach_node(destination);
     strcpy(source->name, new_name);
     source->parent = new_parent;
     source->depth = new_parent->depth + 1u;
@@ -1141,49 +1212,51 @@ static int homefs_rename_op(void *fs_private, const char *old_path,
         return rc;
     }
     if (destination) {
-        if (destination->data) kfree(destination->data);
+        if (destination->data)
+            kfree(destination->data);
         kfree(destination);
     }
     return VFS_OK;
 }
 
-static vfs_fs_ops_t homefs_ops = {
-    .name     = "homefs",
-    .mount    = homefs_mount,
-    .unmount  = homefs_unmount,
-    .open     = homefs_open,
-    .close    = homefs_close,
-    .read     = homefs_read,
-    .write    = homefs_write,
-    .seek     = homefs_seek,
-    .stat     = homefs_stat,
-    .readdir  = homefs_readdir,
-    .mkdir    = homefs_mkdir_op,
-    .unlink   = homefs_unlink_op,
-    .rename   = homefs_rename_op
-};
+static vfs_fs_ops_t homefs_ops = {.name = "homefs",
+                                  .mount = homefs_mount,
+                                  .unmount = homefs_unmount,
+                                  .open = homefs_open,
+                                  .close = homefs_close,
+                                  .read = homefs_read,
+                                  .write = homefs_write,
+                                  .seek = homefs_seek,
+                                  .stat = homefs_stat,
+                                  .readdir = homefs_readdir,
+                                  .mkdir = homefs_mkdir_op,
+                                  .unlink = homefs_unlink_op,
+                                  .rename = homefs_rename_op};
 
 vfs_fs_ops_t *homefs_get_ops(void) {
     return &homefs_ops;
 }
 
 int homefs_sync(void) {
-    if (!g_homefs) return VFS_OK;
+    if (!g_homefs)
+        return VFS_OK;
     return homefs_flush(g_homefs);
 }
 
 int homefs_batch_begin(void) {
-    if (!g_homefs) return VFS_ENOENT;
-    if (g_homefs->batch_depth == 0xffffffffu) return VFS_ENOSPC;
+    if (!g_homefs)
+        return VFS_ENOENT;
+    if (g_homefs->batch_depth == 0xffffffffu)
+        return VFS_ENOSPC;
     g_homefs->batch_depth++;
     return VFS_OK;
 }
 
 int homefs_batch_end(void) {
-    if (!g_homefs || g_homefs->batch_depth == 0u) return VFS_EINVAL;
+    if (!g_homefs || g_homefs->batch_depth == 0u)
+        return VFS_EINVAL;
     g_homefs->batch_depth--;
-    if (g_homefs->batch_depth == 0u && g_homefs->dirty &&
-        !g_homefs->seed_mode) {
+    if (g_homefs->batch_depth == 0u && g_homefs->dirty && !g_homefs->seed_mode) {
         return homefs_flush(g_homefs);
     }
     return VFS_OK;

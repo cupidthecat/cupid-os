@@ -9,24 +9,25 @@
  *   - A PT_LOAD program header for code and one for non-empty data
  *   - Code section loaded at CC_AOT_CODE_BASE (0x01100000)
  *   - Data section loaded at CC_AOT_DATA_BASE
-*/
+ */
 
 #include "cupidc.h"
 #include "exec.h"
-#include "vfs.h"
-#include "string.h"
 #include "kernel.h"
 #include "serial.h"
+#include "string.h"
+#include "vfs.h"
 
 /* Fixed CupidC AOT arena accepted by kernel/lang/exec.cc. */
-#define ELF_LOAD_ADDR    CC_AOT_CODE_BASE
-#define ELF_DATA_ADDR    CC_AOT_DATA_BASE
+#define ELF_LOAD_ADDR CC_AOT_CODE_BASE
+#define ELF_DATA_ADDR CC_AOT_DATA_BASE
 
 /* Page alignment */
-#define ELF_PAGE_ALIGN   0x1000u
+#define ELF_PAGE_ALIGN 0x1000u
 
 int cc_write_elf(cc_state_t *cc, const char *path) {
-    if (!path || cc->code_pos == 0) return -1;
+    if (!path || cc->code_pos == 0)
+        return -1;
 
     /*
      * Layout:
@@ -36,9 +37,9 @@ int cc_write_elf(cc_state_t *cc, const char *path) {
      *   After the final program header: padding to 0x80
      *   Offset 0x80: code section
      *   Offset 0x80 + code_size (aligned): data section
-*/
+     */
 
-    uint32_t code_offset = 0x80;           /* file offset of code */
+    uint32_t code_offset = 0x80; /* file offset of code */
     uint32_t code_size = cc->code_pos;
     uint32_t data_offset = code_offset + code_size;
     /* Align data offset to 4 bytes */
@@ -61,46 +62,45 @@ int cc_write_elf(cc_state_t *cc, const char *path) {
     ehdr.e_ident[1] = ELF_MAGIC_1;
     ehdr.e_ident[2] = ELF_MAGIC_2;
     ehdr.e_ident[3] = ELF_MAGIC_3;
-    ehdr.e_ident[4] = ELF_CLASS_32;      /* 32-bit */
-    ehdr.e_ident[5] = ELF_DATA_LSB;      /* little-endian */
-    ehdr.e_ident[6] = 1;                 /* EV_CURRENT */
-    ehdr.e_type      = ELF_TYPE_EXEC;
-    ehdr.e_machine   = ELF_MACHINE_386;
-    ehdr.e_version   = 1;
-    ehdr.e_entry     = entry_vaddr;
-    ehdr.e_phoff     = 52;               /* immediately after ehdr */
-    ehdr.e_ehsize    = 52;
+    ehdr.e_ident[4] = ELF_CLASS_32; /* 32-bit */
+    ehdr.e_ident[5] = ELF_DATA_LSB; /* little-endian */
+    ehdr.e_ident[6] = 1;            /* EV_CURRENT */
+    ehdr.e_type = ELF_TYPE_EXEC;
+    ehdr.e_machine = ELF_MACHINE_386;
+    ehdr.e_version = 1;
+    ehdr.e_entry = entry_vaddr;
+    ehdr.e_phoff = 52; /* immediately after ehdr */
+    ehdr.e_ehsize = 52;
     ehdr.e_phentsize = 32;
-    ehdr.e_phnum     = (data_size > 0) ? 2 : 1;
+    ehdr.e_phnum = (data_size > 0) ? 2 : 1;
 
     /* Build program headers */
     elf32_phdr_t phdr_code;
     memset(&phdr_code, 0, sizeof(phdr_code));
-    phdr_code.p_type   = ELF_PT_LOAD;
+    phdr_code.p_type = ELF_PT_LOAD;
     phdr_code.p_offset = code_offset;
-    phdr_code.p_vaddr  = code_vaddr;
-    phdr_code.p_paddr  = code_vaddr;
+    phdr_code.p_vaddr = code_vaddr;
+    phdr_code.p_paddr = code_vaddr;
     phdr_code.p_filesz = code_size;
-    phdr_code.p_memsz  = code_size;
-    phdr_code.p_flags  = 0x5;            /* PF_R | PF_X */
-    phdr_code.p_align  = 0x4;
+    phdr_code.p_memsz = code_size;
+    phdr_code.p_flags = 0x5; /* PF_R | PF_X */
+    phdr_code.p_align = 0x4;
 
     elf32_phdr_t phdr_data;
     memset(&phdr_data, 0, sizeof(phdr_data));
-    phdr_data.p_type   = ELF_PT_LOAD;
+    phdr_data.p_type = ELF_PT_LOAD;
     phdr_data.p_offset = data_offset;
-    phdr_data.p_vaddr  = data_vaddr;
-    phdr_data.p_paddr  = data_vaddr;
+    phdr_data.p_vaddr = data_vaddr;
+    phdr_data.p_paddr = data_vaddr;
     phdr_data.p_filesz = data_size;
-    phdr_data.p_memsz  = data_size;
-    phdr_data.p_flags  = 0x6;            /* PF_R | PF_W */
-    phdr_data.p_align  = 0x4;
+    phdr_data.p_memsz = data_size;
+    phdr_data.p_flags = 0x6; /* PF_R | PF_W */
+    phdr_data.p_align = 0x4;
 
     /* Write the file */
     int fd = vfs_open(path, O_WRONLY | O_CREAT | O_TRUNC);
     if (fd < 0) {
-        serial_printf("[cupidc] Cannot create output file: %s (err=%d)\n",
-                      path, fd);
+        serial_printf("[cupidc] Cannot create output file: %s (err=%d)\n", path, fd);
         return fd;
     }
 

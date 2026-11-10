@@ -3,17 +3,16 @@
  *
  * Provides bash-like arrays: arr=(one two three), ${arr[0]}, ${arr[@]}
  * and associative arrays: declare -A map; map[key]=value
-*/
+ */
 
 #include "cupidscript_arrays.h"
-#include "string.h"
 #include "memory.h"
 #include "serial.h"
+#include "string.h"
 
 /* Regular array operations */
 
-cs_array_t *cs_array_find(cs_array_t *arrays, int array_count,
-                           const char *name) {
+cs_array_t *cs_array_find(cs_array_t *arrays, int array_count, const char *name) {
     for (int i = 0; i < array_count; i++) {
         if (arrays[i].used && strcmp(arrays[i].name, name) == 0) {
             return &arrays[i];
@@ -22,9 +21,8 @@ cs_array_t *cs_array_find(cs_array_t *arrays, int array_count,
     return NULL;
 }
 
-void cs_array_create(cs_array_t *arrays, int *array_count,
-                     const char *name, const char values[][MAX_VAR_VALUE],
-                     int count) {
+void cs_array_create(cs_array_t *arrays, int *array_count, const char *name,
+                     const char values[][MAX_VAR_VALUE], int count) {
     /* Find existing or allocate new slot */
     cs_array_t *arr = cs_array_find(arrays, *array_count, name);
 
@@ -60,12 +58,14 @@ void cs_array_create(cs_array_t *arrays, int *array_count,
     KDEBUG("CupidScript: created array '%s' with %d elements", name, count);
 }
 
-void cs_array_set(cs_array_t *arrays, int array_count,
-                  const char *name, int index, const char *value) {
+void cs_array_set(cs_array_t *arrays, int array_count, const char *name, int index,
+                  const char *value) {
     cs_array_t *arr = cs_array_find(arrays, array_count, name);
-    if (!arr) return;
+    if (!arr)
+        return;
 
-    if (index < 0 || index >= MAX_ARRAY_SIZE) return;
+    if (index < 0 || index >= MAX_ARRAY_SIZE)
+        return;
 
     int i = 0;
     while (value[i] && i < MAX_VAR_VALUE - 1) {
@@ -80,25 +80,28 @@ void cs_array_set(cs_array_t *arrays, int array_count,
     }
 }
 
-const char *cs_array_get(cs_array_t *arrays, int array_count,
-                         const char *name, int index) {
+const char *cs_array_get(cs_array_t *arrays, int array_count, const char *name, int index) {
     cs_array_t *arr = cs_array_find(arrays, array_count, name);
-    if (!arr) return NULL;
-    if (index < 0 || index >= arr->length) return NULL;
+    if (!arr)
+        return NULL;
+    if (index < 0 || index >= arr->length)
+        return NULL;
     return arr->elements[index];
 }
 
 int cs_array_length(cs_array_t *arrays, int array_count, const char *name) {
     cs_array_t *arr = cs_array_find(arrays, array_count, name);
-    if (!arr) return 0;
+    if (!arr)
+        return 0;
     return arr->length;
 }
 
-void cs_array_append(cs_array_t *arrays, int array_count,
-                     const char *name, const char *value) {
+void cs_array_append(cs_array_t *arrays, int array_count, const char *name, const char *value) {
     cs_array_t *arr = cs_array_find(arrays, array_count, name);
-    if (!arr) return;
-    if (arr->length >= MAX_ARRAY_SIZE) return;
+    if (!arr)
+        return;
+    if (arr->length >= MAX_ARRAY_SIZE)
+        return;
 
     int i = 0;
     while (value[i] && i < MAX_VAR_VALUE - 1) {
@@ -111,8 +114,7 @@ void cs_array_append(cs_array_t *arrays, int array_count,
 
 /* Associative array operations */
 
-cs_assoc_array_t *cs_assoc_find(cs_assoc_array_t *assocs, int assoc_count,
-                                 const char *name) {
+cs_assoc_array_t *cs_assoc_find(cs_assoc_array_t *assocs, int assoc_count, const char *name) {
     for (int i = 0; i < assoc_count; i++) {
         if (assocs[i].used && strcmp(assocs[i].name, name) == 0) {
             return &assocs[i];
@@ -121,15 +123,14 @@ cs_assoc_array_t *cs_assoc_find(cs_assoc_array_t *assocs, int assoc_count,
     return NULL;
 }
 
-void cs_assoc_create(cs_assoc_array_t *assocs, int *assoc_count,
-                     const char *name) {
+void cs_assoc_create(cs_assoc_array_t *assocs, int *assoc_count, const char *name) {
     /* Check if already exists */
     cs_assoc_array_t *a = cs_assoc_find(assocs, *assoc_count, name);
-    if (a) return;  /* Already exists */
+    if (a)
+        return; /* Already exists */
 
     if (*assoc_count >= MAX_ASSOC_ARRAYS) {
-        KERROR("CupidScript: too many assoc arrays (max %d)",
-               MAX_ASSOC_ARRAYS);
+        KERROR("CupidScript: too many assoc arrays (max %d)", MAX_ASSOC_ARRAYS);
         return;
     }
 
@@ -153,10 +154,11 @@ void cs_assoc_create(cs_assoc_array_t *assocs, int *assoc_count,
     KDEBUG("CupidScript: created assoc array '%s'", name);
 }
 
-void cs_assoc_set(cs_assoc_array_t *assocs, int assoc_count,
-                  const char *name, const char *key, const char *value) {
+void cs_assoc_set(cs_assoc_array_t *assocs, int assoc_count, const char *name, const char *key,
+                  const char *value) {
     cs_assoc_array_t *a = cs_assoc_find(assocs, assoc_count, name);
-    if (!a) return;
+    if (!a)
+        return;
 
     /* Check if key already exists */
     for (int i = 0; i < MAX_ASSOC_SIZE; i++) {
@@ -198,10 +200,11 @@ void cs_assoc_set(cs_assoc_array_t *assocs, int assoc_count,
     KERROR("CupidScript: assoc array '%s' full", name);
 }
 
-const char *cs_assoc_get(cs_assoc_array_t *assocs, int assoc_count,
-                         const char *name, const char *key) {
+const char *cs_assoc_get(cs_assoc_array_t *assocs, int assoc_count, const char *name,
+                         const char *key) {
     cs_assoc_array_t *a = cs_assoc_find(assocs, assoc_count, name);
-    if (!a) return NULL;
+    if (!a)
+        return NULL;
 
     for (int i = 0; i < MAX_ASSOC_SIZE; i++) {
         if (a->entries[i].used && strcmp(a->entries[i].key, key) == 0) {
@@ -211,15 +214,15 @@ const char *cs_assoc_get(cs_assoc_array_t *assocs, int assoc_count,
     return NULL;
 }
 
-bool cs_assoc_has_key(cs_assoc_array_t *assocs, int assoc_count,
-                      const char *name, const char *key) {
+bool cs_assoc_has_key(cs_assoc_array_t *assocs, int assoc_count, const char *name,
+                      const char *key) {
     return cs_assoc_get(assocs, assoc_count, name, key) != NULL;
 }
 
-void cs_assoc_delete(cs_assoc_array_t *assocs, int assoc_count,
-                     const char *name, const char *key) {
+void cs_assoc_delete(cs_assoc_array_t *assocs, int assoc_count, const char *name, const char *key) {
     cs_assoc_array_t *a = cs_assoc_find(assocs, assoc_count, name);
-    if (!a) return;
+    if (!a)
+        return;
 
     for (int i = 0; i < MAX_ASSOC_SIZE; i++) {
         if (a->entries[i].used && strcmp(a->entries[i].key, key) == 0) {

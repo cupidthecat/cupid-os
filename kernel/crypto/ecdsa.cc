@@ -10,7 +10,7 @@
  *   6. Accept iff (x1 mod n) == r.
  *
  * All inputs are public, so this is variable-time.
-*/
+ */
 
 #include "ecdsa.h"
 #include "hmac.h"
@@ -19,15 +19,15 @@
 static int scalar_cmp(const p256_scalar_t a, const p256_scalar_t b) {
     int i;
     for (i = P256_LIMBS - 1; i >= 0; i--) {
-        if (a[i] > b[i]) return 1;
-        if (a[i] < b[i]) return -1;
+        if (a[i] > b[i])
+            return 1;
+        if (a[i] < b[i])
+            return -1;
     }
     return 0;
 }
 
-static uint32_t scalar_add_raw(p256_scalar_t r,
-                               const p256_scalar_t a,
-                               const p256_scalar_t b) {
+static uint32_t scalar_add_raw(p256_scalar_t r, const p256_scalar_t a, const p256_scalar_t b) {
     uint64_t carry = 0;
     uint32_t i;
     for (i = 0; i < P256_LIMBS; i++) {
@@ -38,9 +38,7 @@ static uint32_t scalar_add_raw(p256_scalar_t r,
     return (uint32_t)carry;
 }
 
-static uint32_t scalar_sub_raw(p256_scalar_t r,
-                               const p256_scalar_t a,
-                               const p256_scalar_t b) {
+static uint32_t scalar_sub_raw(p256_scalar_t r, const p256_scalar_t a, const p256_scalar_t b) {
     uint64_t borrow = 0;
     uint32_t i;
     for (i = 0; i < P256_LIMBS; i++) {
@@ -51,9 +49,7 @@ static uint32_t scalar_sub_raw(p256_scalar_t r,
     return (uint32_t)borrow;
 }
 
-static void scalar_add_mod_n(p256_scalar_t r,
-                             const p256_scalar_t a,
-                             const p256_scalar_t b) {
+static void scalar_add_mod_n(p256_scalar_t r, const p256_scalar_t a, const p256_scalar_t b) {
     p256_scalar_t t;
     uint32_t carry = scalar_add_raw(t, a, b);
     if (carry || scalar_cmp(t, P256_N) >= 0) {
@@ -68,10 +64,8 @@ static void bits2octets(const uint8_t *hash, uint32_t hash_len, uint8_t out[32])
     p256_scalar_to_be(out, e);
 }
 
-static void rfc6979_nonce(const uint8_t priv[32],
-                          const uint8_t *hash, uint32_t hash_len,
-                          uint32_t retry,
-                          uint8_t nonce[32]) {
+static void rfc6979_nonce(const uint8_t priv[32], const uint8_t *hash, uint32_t hash_len,
+                          uint32_t retry, uint8_t nonce[32]) {
     uint8_t bx[64];
     uint8_t v[32];
     uint8_t k[32];
@@ -89,26 +83,32 @@ static void rfc6979_nonce(const uint8_t priv[32],
     }
 
     off = 0;
-    memcpy(tmp + off, v, 32u); off += 32u;
+    memcpy(tmp + off, v, 32u);
+    off += 32u;
     tmp[off++] = 0x00u;
-    memcpy(tmp + off, bx, 64u); off += 64u;
+    memcpy(tmp + off, bx, 64u);
+    off += 64u;
     hmac_sha256(k, 32u, tmp, off, k);
     hmac_sha256(k, 32u, v, 32u, v);
 
     off = 0;
-    memcpy(tmp + off, v, 32u); off += 32u;
+    memcpy(tmp + off, v, 32u);
+    off += 32u;
     tmp[off++] = 0x01u;
-    memcpy(tmp + off, bx, 64u); off += 64u;
+    memcpy(tmp + off, bx, 64u);
+    off += 64u;
     hmac_sha256(k, 32u, tmp, off, k);
     hmac_sha256(k, 32u, v, 32u, v);
 
     for (;;) {
         hmac_sha256(k, 32u, v, 32u, v);
         memcpy(nonce, v, 32u);
-        if (retry == 0u) return;
+        if (retry == 0u)
+            return;
 
         off = 0;
-        memcpy(tmp + off, v, 32u); off += 32u;
+        memcpy(tmp + off, v, 32u);
+        off += 32u;
         tmp[off++] = 0x00u;
         while (retry > 0u && off + 4u <= sizeof(tmp)) {
             tmp[off++] = (uint8_t)((retry >> 24) & 0xFFu);
@@ -122,38 +122,41 @@ static void rfc6979_nonce(const uint8_t priv[32],
     }
 }
 
-static int load_scalar(p256_scalar_t out,
-                       const uint8_t *be, uint32_t len) {
+static int load_scalar(p256_scalar_t out, const uint8_t *be, uint32_t len) {
     uint8_t buf[32];
     uint32_t i;
     if (len > 32u) {
         /* Trim leading zero bytes if any. */
         uint32_t skip = len - 32u;
         for (i = 0; i < skip; i++) {
-            if (be[i] != 0u) return -1;
+            if (be[i] != 0u)
+                return -1;
         }
-        be  += skip;
-        len  = 32u;
+        be += skip;
+        len = 32u;
     }
-    for (i = 0; i < 32u; i++) buf[i] = 0u;
-    for (i = 0; i < len; i++) buf[32u - len + i] = be[i];
+    for (i = 0; i < 32u; i++)
+        buf[i] = 0u;
+    for (i = 0; i < len; i++)
+        buf[32u - len + i] = be[i];
     return p256_scalar_from_be(out, buf);
 }
 
-int ecdsa_p256_verify(const p256_aff_t *pubkey,
-                      const uint8_t *hash,    uint32_t hash_len,
-                      const uint8_t *r_be,    uint32_t r_len,
-                      const uint8_t *s_be,    uint32_t s_len) {
+int ecdsa_p256_verify(const p256_aff_t *pubkey, const uint8_t *hash, uint32_t hash_len,
+                      const uint8_t *r_be, uint32_t r_len, const uint8_t *s_be, uint32_t s_len) {
     p256_scalar_t r_scal, s_scal, e, w, u1, u2;
-    p256_jac_t   R;
-    p256_aff_t   R_aff;
-    p256_fe_t    r_modn;
-    uint8_t      x1_be[32];
+    p256_jac_t R;
+    p256_aff_t R_aff;
+    p256_fe_t r_modn;
+    uint8_t x1_be[32];
     p256_scalar_t x1_modn;
 
-    if (load_scalar(r_scal, r_be, r_len) != 0) return -1;
-    if (load_scalar(s_scal, s_be, s_len) != 0) return -1;
-    if (p256_scalar_iszero(r_scal) || p256_scalar_iszero(s_scal)) return -1;
+    if (load_scalar(r_scal, r_be, r_len) != 0)
+        return -1;
+    if (load_scalar(s_scal, s_be, s_len) != 0)
+        return -1;
+    if (p256_scalar_iszero(r_scal) || p256_scalar_iszero(s_scal))
+        return -1;
 
     /* e = hash interpreted mod n. */
     p256_scalar_mod_n_from_be(e, hash, hash_len);
@@ -161,12 +164,13 @@ int ecdsa_p256_verify(const p256_aff_t *pubkey,
     /* w = s^-1 mod n. */
     p256_scalar_inv(w, s_scal);
 
-    p256_scalar_mul(u1, e,      w);
+    p256_scalar_mul(u1, e, w);
     p256_scalar_mul(u2, r_scal, w);
 
     /* R = u1*G + u2*Q. */
     p256_double_scalar_mul(&R, u1, u2, pubkey);
-    if (p256_jac_is_infinity(&R)) return -1;
+    if (p256_jac_is_infinity(&R))
+        return -1;
 
     p256_jac_to_affine(&R_aff, &R);
     p256_fe_to_be(x1_be, R_aff.x);
@@ -177,18 +181,20 @@ int ecdsa_p256_verify(const p256_aff_t *pubkey,
     /* r_modn is just r as a field element (r < n already). */
     {
         uint32_t i;
-        for (i = 0; i < P256_LIMBS; i++) r_modn[i] = r_scal[i];
+        for (i = 0; i < P256_LIMBS; i++)
+            r_modn[i] = r_scal[i];
     }
     {
         uint32_t i, acc = 0u;
-        for (i = 0; i < P256_LIMBS; i++) acc |= (x1_modn[i] ^ r_modn[i]);
-        if (acc != 0u) return -1;
+        for (i = 0; i < P256_LIMBS; i++)
+            acc |= (x1_modn[i] ^ r_modn[i]);
+        if (acc != 0u)
+            return -1;
     }
     return 0;
 }
 
-int ecdsa_p256_sign(const uint8_t priv_be32[32],
-                    const uint8_t *hash, uint32_t hash_len,
+int ecdsa_p256_sign(const uint8_t priv_be32[32], const uint8_t *hash, uint32_t hash_len,
                     uint8_t r_be32[32], uint8_t s_be32[32]) {
     p256_scalar_t d, e, k, kinv, r, s, rd, sum;
     p256_jac_t R;
@@ -198,8 +204,10 @@ int ecdsa_p256_sign(const uint8_t priv_be32[32],
     uint8_t x_be[32];
     uint32_t retry;
 
-    if (p256_scalar_from_be(d, priv_be32) != 0) return -1;
-    if (p256_scalar_iszero(d)) return -1;
+    if (p256_scalar_from_be(d, priv_be32) != 0)
+        return -1;
+    if (p256_scalar_iszero(d))
+        return -1;
     p256_scalar_mod_n_from_be(e, hash, hash_len);
 
     p256_fe_copy(G.x, P256_GX);
@@ -212,17 +220,20 @@ int ecdsa_p256_sign(const uint8_t priv_be32[32],
             continue;
 
         p256_scalar_mul_point(&R, k, &G);
-        if (p256_jac_is_infinity(&R)) continue;
+        if (p256_jac_is_infinity(&R))
+            continue;
         p256_jac_to_affine(&R_aff, &R);
         p256_fe_to_be(x_be, R_aff.x);
         p256_scalar_mod_n_from_be(r, x_be, 32u);
-        if (p256_scalar_iszero(r)) continue;
+        if (p256_scalar_iszero(r))
+            continue;
 
         p256_scalar_mul(rd, r, d);
         scalar_add_mod_n(sum, e, rd);
         p256_scalar_inv(kinv, k);
         p256_scalar_mul(s, kinv, sum);
-        if (p256_scalar_iszero(s)) continue;
+        if (p256_scalar_iszero(s))
+            continue;
 
         p256_scalar_to_be(r_be32, r);
         p256_scalar_to_be(s_be32, s);

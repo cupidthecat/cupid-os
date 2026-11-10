@@ -6,25 +6,25 @@
  * CupidOS APIs.
  *
  * Compiled through the checked Doom compatibility CupidC profile.
-*/
+ */
 
 #include "dglibc.h"
-#include "memory.h"
-#include "string.h"
-#include "vfs.h"
-#include "vfs_helpers.h"
+#include "blockcache.h"
 #include "fat16.h"
 #include "fat16_control.h"
-#include "blockcache.h"
 #include "homefs.h"
+#include "memory.h"
 #include "serial.h"
+#include "string.h"
 #include "timer.h"
+#include "vfs.h"
+#include "vfs_helpers.h"
 
 /* Use GCC built-in va_list - stdarg.h not available under -nostdinc */
 typedef __builtin_va_list va_list;
 #define va_start(ap, last) __builtin_va_start(ap, last)
-#define va_arg(ap, type)   __builtin_va_arg(ap, type)
-#define va_end(ap)         __builtin_va_end(ap)
+#define va_arg(ap, type) __builtin_va_arg(ap, type)
+#define va_end(ap) __builtin_va_end(ap)
 
 /* Internal DG_FILE struct */
 
@@ -32,18 +32,18 @@ typedef __builtin_va_list va_list;
 
 struct DG_FILE {
     uint32_t magic;
-    int      fd;       /* vfs fd, or -1 for stdin/stdout/stderr */
-    int      is_eof;
-    int      is_err;
-    int32_t  pos;      /* tracked position for stdin/stdout/stderr */
+    int fd; /* vfs fd, or -1 for stdin/stdout/stderr */
+    int is_eof;
+    int is_err;
+    int32_t pos; /* tracked position for stdin/stdout/stderr */
 };
 
 /* Static sentinel file objects for stdin/stdout/stderr */
-static struct DG_FILE s_stdin_obj  = { DG_FILE_MAGIC, -1, 0, 0, 0 };
-static struct DG_FILE s_stdout_obj = { DG_FILE_MAGIC, -2, 0, 0, 0 };
-static struct DG_FILE s_stderr_obj = { DG_FILE_MAGIC, -3, 0, 0, 0 };
+static struct DG_FILE s_stdin_obj = {DG_FILE_MAGIC, -1, 0, 0, 0};
+static struct DG_FILE s_stdout_obj = {DG_FILE_MAGIC, -2, 0, 0, 0};
+static struct DG_FILE s_stderr_obj = {DG_FILE_MAGIC, -3, 0, 0, 0};
 
-DG_FILE *dg_stdin  = &s_stdin_obj;
+DG_FILE *dg_stdin = &s_stdin_obj;
 DG_FILE *dg_stdout = &s_stdout_obj;
 DG_FILE *dg_stderr = &s_stderr_obj;
 
@@ -65,7 +65,7 @@ enum {
 /* Exit envelope */
 
 static dg_jmp_buf s_exit_env;
-static int        s_exit_armed = 0;
+static int s_exit_armed = 0;
 
 void dg_arm_exit(dg_jmp_buf env) {
     int i;
@@ -82,38 +82,36 @@ void dg_disarm_exit(void) {
 /*setjmp / longjmp - x86-32, AT&T inline asm
  * Saves/restores: ebx esi edi ebp esp eip (6 dwords at indices 0-5)*/
 
-__asm__(
-    ".global dg_setjmp\n"
-    "dg_setjmp:\n"
-    "    movl  4(%esp), %eax\n"      /* eax = &env[0] */
-    "    movl  %ebx,  0(%eax)\n"
-    "    movl  %esi,  4(%eax)\n"
-    "    movl  %edi,  8(%eax)\n"
-    "    movl  %ebp, 12(%eax)\n"
-    "    leal  4(%esp), %ecx\n"
-    "    movl  %ecx, 16(%eax)\n"
-    "    movl  (%esp), %ecx\n"       /* ecx = return address */
-    "    movl  %ecx, 20(%eax)\n"
-    "    xorl  %eax, %eax\n"         /* return 0 */
-    "    ret\n"
+__asm__(".global dg_setjmp\n"
+        "dg_setjmp:\n"
+        "    movl  4(%esp), %eax\n" /* eax = &env[0] */
+        "    movl  %ebx,  0(%eax)\n"
+        "    movl  %esi,  4(%eax)\n"
+        "    movl  %edi,  8(%eax)\n"
+        "    movl  %ebp, 12(%eax)\n"
+        "    leal  4(%esp), %ecx\n"
+        "    movl  %ecx, 16(%eax)\n"
+        "    movl  (%esp), %ecx\n" /* ecx = return address */
+        "    movl  %ecx, 20(%eax)\n"
+        "    xorl  %eax, %eax\n" /* return 0 */
+        "    ret\n"
 
-    ".global dg_longjmp\n"
-    "dg_longjmp:\n"
-    "    movl  4(%esp), %eax\n"      /* eax = &env[0] */
-    "    movl  8(%esp), %ecx\n"      /* ecx = val */
-    "    testl %ecx, %ecx\n"
-    "    jnz   1f\n"
-    "    movl  $1, %ecx\n"           /* val=0 becomes 1 (POSIX) */
-    "1:\n"
-    "    movl  0(%eax), %ebx\n"
-    "    movl  4(%eax), %esi\n"
-    "    movl  8(%eax), %edi\n"
-    "    movl 12(%eax), %ebp\n"
-    "    movl 16(%eax), %esp\n"
-    "    movl 20(%eax), %edx\n"      /* saved eip */
-    "    movl  %ecx,  %eax\n"        /* return val in eax */
-    "    jmp  *%edx\n"
-);
+        ".global dg_longjmp\n"
+        "dg_longjmp:\n"
+        "    movl  4(%esp), %eax\n" /* eax = &env[0] */
+        "    movl  8(%esp), %ecx\n" /* ecx = val */
+        "    testl %ecx, %ecx\n"
+        "    jnz   1f\n"
+        "    movl  $1, %ecx\n" /* val=0 becomes 1 (POSIX) */
+        "1:\n"
+        "    movl  0(%eax), %ebx\n"
+        "    movl  4(%eax), %esi\n"
+        "    movl  8(%eax), %edi\n"
+        "    movl 12(%eax), %ebp\n"
+        "    movl 16(%eax), %esp\n"
+        "    movl 20(%eax), %edx\n" /* saved eip */
+        "    movl  %ecx,  %eax\n"   /* return val in eax */
+        "    jmp  *%edx\n");
 
 /* Heap */
 
@@ -125,17 +123,19 @@ __asm__(
  *
  * IMPORTANT: pointers passed to dg_free / dg_realloc must have
  * come from dg_malloc / dg_calloc / dg_strdup - not raw kmalloc.
-*/
+ */
 typedef struct {
     uint32_t size;
-    uint32_t magic;   /* DG_ALLOC_MAGIC - sanity check on free/realloc */
+    uint32_t magic; /* DG_ALLOC_MAGIC - sanity check on free/realloc */
 } dg_alloc_hdr_t;
 
 #define DG_ALLOC_MAGIC 0xDA110CADu
 
 void *dg_malloc(uint32_t n) {
     dg_alloc_hdr_t *h;
-    if (n == 0) { n = 1; }
+    if (n == 0) {
+        n = 1;
+    }
     if (n > 0xffffffffu - (uint32_t)sizeof(dg_alloc_hdr_t)) {
         dg_errno = DG_ENOMEM;
         return NULL;
@@ -158,7 +158,9 @@ void *dg_calloc(uint32_t n, uint32_t sz) {
         return NULL;
     }
     total = n * sz;
-    if (total == 0) { total = 1; }
+    if (total == 0) {
+        total = 1;
+    }
     p = dg_malloc(total);
     if (p) {
         memset(p, 0, (size_t)total);
@@ -170,8 +172,13 @@ void *dg_realloc(void *p, uint32_t newsz) {
     dg_alloc_hdr_t *h;
     void *newp;
     uint32_t oldsz, copy;
-    if (!p) { return dg_malloc(newsz); }
-    if (newsz == 0) { dg_free(p); return NULL; }
+    if (!p) {
+        return dg_malloc(newsz);
+    }
+    if (newsz == 0) {
+        dg_free(p);
+        return NULL;
+    }
     h = ((dg_alloc_hdr_t *)p) - 1;
     if (h->magic != DG_ALLOC_MAGIC) {
         serial_write_string("[dglibc] realloc rejected a foreign or damaged pointer\n");
@@ -180,7 +187,9 @@ void *dg_realloc(void *p, uint32_t newsz) {
     }
     oldsz = h->size;
     newp = dg_malloc(newsz);
-    if (!newp) { return NULL; }
+    if (!newp) {
+        return NULL;
+    }
     copy = (oldsz < newsz) ? oldsz : newsz;
     memcpy(newp, p, (size_t)copy);
     dg_free(p);
@@ -189,20 +198,24 @@ void *dg_realloc(void *p, uint32_t newsz) {
 
 void dg_free(void *p) {
     dg_alloc_hdr_t *h;
-    if (!p) { return; }
+    if (!p) {
+        return;
+    }
     h = ((dg_alloc_hdr_t *)p) - 1;
     if (h->magic != DG_ALLOC_MAGIC) {
         serial_write_string("[dglibc] free rejected a foreign or damaged pointer\n");
         return;
     }
-    h->magic = 0;   /* poison so double-free is caught */
+    h->magic = 0; /* poison so double-free is caught */
     kfree(h);
 }
 
 char *dg_strdup(const char *s) {
     char *d;
     size_t len;
-    if (!s) { return NULL; }
+    if (!s) {
+        return NULL;
+    }
     len = strlen(s);
     if (len == 0xffffffffu) {
         dg_errno = DG_ENOMEM;
@@ -218,8 +231,7 @@ char *dg_strdup(const char *s) {
 /* ctype */
 
 int dg_isspace(int c) {
-    return (c == ' ' || c == '\t' || c == '\n' ||
-            c == '\r' || c == '\f' || c == '\v');
+    return (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v');
 }
 
 int dg_isdigit(int c) {
@@ -235,12 +247,16 @@ int dg_isprint(int c) {
 }
 
 int dg_tolower(int c) {
-    if (c >= 'A' && c <= 'Z') { return c + 32; }
+    if (c >= 'A' && c <= 'Z') {
+        return c + 32;
+    }
     return c;
 }
 
 int dg_toupper(int c) {
-    if (c >= 'a' && c <= 'z') { return c - 32; }
+    if (c >= 'a' && c <= 'z') {
+        return c - 32;
+    }
     return c;
 }
 
@@ -250,7 +266,9 @@ int dg_strcasecmp(const char *a, const char *b) {
     while (*a && *b) {
         int ca = dg_tolower((unsigned char)*a);
         int cb = dg_tolower((unsigned char)*b);
-        if (ca != cb) { return ca - cb; }
+        if (ca != cb) {
+            return ca - cb;
+        }
         a++;
         b++;
     }
@@ -262,9 +280,13 @@ int dg_strncasecmp(const char *a, const char *b, uint32_t n) {
     for (i = 0; i < n && *a && *b; i++, a++, b++) {
         int ca = dg_tolower((unsigned char)*a);
         int cb = dg_tolower((unsigned char)*b);
-        if (ca != cb) { return ca - cb; }
+        if (ca != cb) {
+            return ca - cb;
+        }
     }
-    if (i == n) { return 0; }
+    if (i == n) {
+        return 0;
+    }
     return dg_tolower((unsigned char)*a) - dg_tolower((unsigned char)*b);
 }
 
@@ -272,7 +294,7 @@ int dg_strncasecmp(const char *a, const char *b, uint32_t n) {
 
 char *dg_getenv(const char *name) {
     (void)name;
-    return NULL;  /* No environment in kernel */
+    return NULL; /* No environment in kernel */
 }
 
 uint32_t dg_time(void *t) {
@@ -290,10 +312,13 @@ uint32_t dg_time(void *t) {
 static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
     uint32_t pos = 0;
 
-#define EMIT(ch) do { \
-    if (pos + 1 < cap) { out[pos] = (char)(ch); } \
-    pos++; \
-} while (0)
+#define EMIT(ch)                                                                                   \
+    do {                                                                                           \
+        if (pos + 1 < cap) {                                                                       \
+            out[pos] = (char)(ch);                                                                 \
+        }                                                                                          \
+        pos++;                                                                                     \
+    } while (0)
 
     while (*fmt) {
         char ch = *fmt++;
@@ -307,12 +332,18 @@ static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
         int left_align = 0;
         ch = *fmt;
         while (ch == '0' || ch == '-' || ch == ' ' || ch == '+') {
-            if (ch == '0') { zero_pad = 1; }
-            if (ch == '-') { left_align = 1; }
+            if (ch == '0') {
+                zero_pad = 1;
+            }
+            if (ch == '-') {
+                left_align = 1;
+            }
             fmt++;
             ch = *fmt;
         }
-        if (left_align) { zero_pad = 0; }
+        if (left_align) {
+            zero_pad = 0;
+        }
 
         /* Parse width */
         int width = 0;
@@ -333,8 +364,12 @@ static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
         }
 
         /* Parse length modifier (ignore) */
-        if (*fmt == 'l' || *fmt == 'h') { fmt++; }
-        if (*fmt == 'l' || *fmt == 'h') { fmt++; }
+        if (*fmt == 'l' || *fmt == 'h') {
+            fmt++;
+        }
+        if (*fmt == 'l' || *fmt == 'h') {
+            fmt++;
+        }
 
         char spec = *fmt++;
 
@@ -347,29 +382,51 @@ static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
             int c = va_arg(ap, int);
             /* Width padding */
             if (!left_align && width > 1) {
-                int p; for (p = 0; p < width - 1; p++) { EMIT(' '); }
+                int p;
+                for (p = 0; p < width - 1; p++) {
+                    EMIT(' ');
+                }
             }
             EMIT(c);
             if (left_align && width > 1) {
-                int p; for (p = 0; p < width - 1; p++) { EMIT(' '); }
+                int p;
+                for (p = 0; p < width - 1; p++) {
+                    EMIT(' ');
+                }
             }
             continue;
         }
 
         if (spec == 's') {
             const char *s = va_arg(ap, const char *);
-            if (!s) { s = "(null)"; }
+            if (!s) {
+                s = "(null)";
+            }
             int slen = 0;
             const char *sp = s;
-            while (*sp) { slen++; sp++; }
-            if (prec >= 0 && slen > prec) { slen = prec; }
+            while (*sp) {
+                slen++;
+                sp++;
+            }
+            if (prec >= 0 && slen > prec) {
+                slen = prec;
+            }
             int pad = (width > slen) ? (width - slen) : 0;
             if (!left_align) {
-                int p; for (p = 0; p < pad; p++) { EMIT(' '); }
+                int p;
+                for (p = 0; p < pad; p++) {
+                    EMIT(' ');
+                }
             }
-            int k; for (k = 0; k < slen; k++) { EMIT(s[k]); }
+            int k;
+            for (k = 0; k < slen; k++) {
+                EMIT(s[k]);
+            }
             if (left_align) {
-                int p; for (p = 0; p < pad; p++) { EMIT(' '); }
+                int p;
+                for (p = 0; p < pad; p++) {
+                    EMIT(' ');
+                }
             }
             continue;
         }
@@ -382,22 +439,32 @@ static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
             if (!left_align) {
                 int p;
                 char padding = zero_pad ? '0' : ' ';
-                for (p = 0; p < pad; p++) { EMIT(padding); }
+                for (p = 0; p < pad; p++) {
+                    EMIT(padding);
+                }
             }
-            { int k; for (k = 0; k < flen; k++) { EMIT(float_buf[k]); } }
+            {
+                int k;
+                for (k = 0; k < flen; k++) {
+                    EMIT(float_buf[k]);
+                }
+            }
             if (left_align) {
-                int p; for (p = 0; p < pad; p++) { EMIT(' '); }
+                int p;
+                for (p = 0; p < pad; p++) {
+                    EMIT(' ');
+                }
             }
             continue;
         }
 
         /* Integer specifiers */
-        if (spec == 'd' || spec == 'i' || spec == 'u' ||
-            spec == 'x' || spec == 'X' || spec == 'p') {
+        if (spec == 'd' || spec == 'i' || spec == 'u' || spec == 'x' || spec == 'X' ||
+            spec == 'p') {
 
             char buf[32];
-            int  blen = 0;
-            int  neg  = 0;
+            int blen = 0;
+            int neg = 0;
             uint32_t uval;
 
             if (spec == 'p') {
@@ -405,15 +472,18 @@ static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
                 spec = 'x';
             } else if (spec == 'd' || spec == 'i') {
                 int ival = va_arg(ap, int);
-                if (ival < 0) { neg = 1; uval = 0u - (uint32_t)ival; }
-                else          { uval = (uint32_t)ival; }
+                if (ival < 0) {
+                    neg = 1;
+                    uval = 0u - (uint32_t)ival;
+                } else {
+                    uval = (uint32_t)ival;
+                }
             } else {
                 uval = va_arg(ap, uint32_t);
             }
 
             if (spec == 'x' || spec == 'X') {
-                const char *hex = (spec == 'x') ? "0123456789abcdef"
-                                                 : "0123456789ABCDEF";
+                const char *hex = (spec == 'x') ? "0123456789abcdef" : "0123456789ABCDEF";
                 do {
                     buf[blen++] = hex[uval & 0xFu];
                     uval >>= 4;
@@ -428,8 +498,11 @@ static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
             /* Reverse digit string */
             int lo = 0, hi = blen - 1;
             while (lo < hi) {
-                char tmp = buf[lo]; buf[lo] = buf[hi]; buf[hi] = tmp;
-                lo++; hi--;
+                char tmp = buf[lo];
+                buf[lo] = buf[hi];
+                buf[hi] = tmp;
+                lo++;
+                hi--;
             }
 
             /* Precision for integers = minimum digit count, zero-padded
@@ -445,21 +518,44 @@ static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
 
             if (!left_align) {
                 if (zero_pad && prec < 0) {
-                    if (neg) { EMIT('-'); }
-                    int p; for (p = 0; p < pad; p++) { EMIT('0'); }
+                    if (neg) {
+                        EMIT('-');
+                    }
+                    int p;
+                    for (p = 0; p < pad; p++) {
+                        EMIT('0');
+                    }
                 } else {
-                    int p; for (p = 0; p < pad; p++) { EMIT(' '); }
-                    if (neg) { EMIT('-'); }
+                    int p;
+                    for (p = 0; p < pad; p++) {
+                        EMIT(' ');
+                    }
+                    if (neg) {
+                        EMIT('-');
+                    }
                 }
             } else {
-                if (neg) { EMIT('-'); }
+                if (neg) {
+                    EMIT('-');
+                }
             }
 
-            { int p; for (p = 0; p < prec_pad; p++) { EMIT('0'); } }
-            int k; for (k = 0; k < blen; k++) { EMIT(buf[k]); }
+            {
+                int p;
+                for (p = 0; p < prec_pad; p++) {
+                    EMIT('0');
+                }
+            }
+            int k;
+            for (k = 0; k < blen; k++) {
+                EMIT(buf[k]);
+            }
 
             if (left_align) {
-                int p; for (p = 0; p < pad; p++) { EMIT(' '); }
+                int p;
+                for (p = 0; p < pad; p++) {
+                    EMIT(' ');
+                }
             }
             continue;
         }
@@ -471,8 +567,11 @@ static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
 
     /* NUL-terminate */
     if (cap > 0) {
-        if (pos < cap) { out[pos] = '\0'; }
-        else           { out[cap - 1] = '\0'; }
+        if (pos < cap) {
+            out[pos] = '\0';
+        } else {
+            out[cap - 1] = '\0';
+        }
     }
 
     return (int)pos;
@@ -483,7 +582,9 @@ static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
 /* printf family */
 
 int dg_vsnprintf(char *s, uint32_t n, const char *fmt, void *va) {
-    if (!s || n == 0) { return 0; }
+    if (!s || n == 0) {
+        return 0;
+    }
     /* On x86-32 sysv ABI, va_list is char* - same size as void*. The
      * caller passes the va_list value directly via a void* parameter,
      * so cast it back rather than dereferencing.*/
@@ -530,7 +631,9 @@ int dg_fprintf(DG_FILE *f, const char *fmt, ...) {
 
     if (ret < 0 || (uint32_t)ret >= (uint32_t)sizeof(buf)) {
         dg_errno = DG_EIO;
-        if (f && f->magic == DG_FILE_MAGIC) { f->is_err = 1; }
+        if (f && f->magic == DG_FILE_MAGIC) {
+            f->is_err = 1;
+        }
         return -1;
     }
     if (dg_fwrite(buf, 1u, (uint32_t)ret, f) != (uint32_t)ret) {
@@ -544,7 +647,9 @@ int dg_vfprintf(DG_FILE *f, const char *fmt, void *va) {
     int ret = format_into(buf, (uint32_t)sizeof(buf), fmt, (va_list)va);
     if (ret < 0 || (uint32_t)ret >= (uint32_t)sizeof(buf)) {
         dg_errno = DG_EIO;
-        if (f && f->magic == DG_FILE_MAGIC) { f->is_err = 1; }
+        if (f && f->magic == DG_FILE_MAGIC) {
+            f->is_err = 1;
+        }
         return -1;
     }
     if (dg_fwrite(buf, 1u, (uint32_t)ret, f) != (uint32_t)ret) {
@@ -555,21 +660,28 @@ int dg_vfprintf(DG_FILE *f, const char *fmt, void *va) {
 
 /* stdio - file ops */
 
-static const char *dg_home_path(const char *name, char *buffer,
-                                uint32_t buffer_size) {
+static const char *dg_home_path(const char *name, char *buffer, uint32_t buffer_size) {
     const char *prefix = "/home/doom";
     uint32_t used = 0;
 
-    if (!buffer || buffer_size == 0u) { return NULL; }
+    if (!buffer || buffer_size == 0u) {
+        return NULL;
+    }
     while (*prefix) {
-        if (used + 1u >= buffer_size) { return NULL; }
+        if (used + 1u >= buffer_size) {
+            return NULL;
+        }
         buffer[used++] = *prefix++;
     }
     if (name && name[0]) {
-        if (used + 1u >= buffer_size) { return NULL; }
+        if (used + 1u >= buffer_size) {
+            return NULL;
+        }
         buffer[used++] = '/';
         while (*name) {
-            if (used + 1u >= buffer_size) { return NULL; }
+            if (used + 1u >= buffer_size) {
+                return NULL;
+            }
             buffer[used++] = *name++;
         }
     }
@@ -577,39 +689,39 @@ static const char *dg_home_path(const char *name, char *buffer,
     return buffer;
 }
 
-static const char *dg_resolve_path(const char *path, char *buffer,
-                                   uint32_t buffer_size) {
+static const char *dg_resolve_path(const char *path, char *buffer, uint32_t buffer_size) {
     const char *relative;
     const char *base;
     uint32_t len;
 
-    if (!path) { return NULL; }
-    if (path[0] == '/') { return path; }
+    if (!path) {
+        return NULL;
+    }
+    if (path[0] == '/') {
+        return path;
+    }
 
     relative = path;
     if (relative[0] == '.' && relative[1] == '/') {
         relative += 2;
     }
-    if (relative[0] == '\0' ||
-        (relative[0] == '.' && relative[1] == '\0')) {
+    if (relative[0] == '\0' || (relative[0] == '.' && relative[1] == '\0')) {
         return dg_home_path(NULL, buffer, buffer_size);
     }
-    if (strcmp(relative, ".savegame") == 0 ||
-        strcmp(relative, ".savegame/") == 0) {
+    if (strcmp(relative, ".savegame") == 0 || strcmp(relative, ".savegame/") == 0) {
         return dg_home_path(NULL, buffer, buffer_size);
     }
     if (strncmp(relative, ".savegame/", 10u) == 0) {
         base = relative + 10;
-        if (base[0] == '\0' || strcmp(base, ".") == 0 ||
-            strcmp(base, "..") == 0 || strchr(base, '/')) {
+        if (base[0] == '\0' || strcmp(base, ".") == 0 || strcmp(base, "..") == 0 ||
+            strchr(base, '/')) {
             return NULL;
         }
         return dg_home_path(base, buffer, buffer_size);
     }
 
     len = (uint32_t)strlen(relative);
-    if (!strchr(relative, '/') && len >= 4u &&
-        strcmp(relative + len - 4u, ".cfg") == 0) {
+    if (!strchr(relative, '/') && len >= 4u && strcmp(relative + len - 4u, ".cfg") == 0) {
         return dg_home_path(relative, buffer, buffer_size);
     }
     if (strcmp(relative, "temp.dsg") == 0) {
@@ -625,7 +737,9 @@ static int dg_mode_flags(const char *mode, uint32_t *flags_out) {
     int update = 0;
     int binary = 0;
 
-    if (!mode || !flags_out || mode[0] == '\0') { return 0; }
+    if (!mode || !flags_out || mode[0] == '\0') {
+        return 0;
+    }
     if (mode[0] == 'r') {
         flags = O_RDONLY;
     } else if (mode[0] == 'w') {
@@ -653,7 +767,9 @@ static int dg_mode_flags(const char *mode, uint32_t *flags_out) {
 }
 
 static int dg_posix_vfs_result(int status) {
-    if (status == VFS_OK) { return 0; }
+    if (status == VFS_OK) {
+        return 0;
+    }
     dg_errno = status < 0 ? -status : DG_EIO;
     return -1;
 }
@@ -696,11 +812,11 @@ DG_FILE *dg_fopen(const char *path, const char *mode) {
         return NULL;
     }
 
-    f->magic  = DG_FILE_MAGIC;
-    f->fd     = fd;
+    f->magic = DG_FILE_MAGIC;
+    f->fd = fd;
     f->is_eof = 0;
     f->is_err = 0;
-    f->pos    = 0;
+    f->pos = 0;
     return f;
 }
 
@@ -708,8 +824,7 @@ int remove(const char *path) {
     char fixed[128];
     vfs_stat_t st;
     int status;
-    const char *resolved = dg_resolve_path(
-        path, fixed, (uint32_t)sizeof(fixed));
+    const char *resolved = dg_resolve_path(path, fixed, (uint32_t)sizeof(fixed));
     if (!resolved) {
         dg_errno = DG_EINVAL;
         return -1;
@@ -726,10 +841,8 @@ int rename(const char *old_path, const char *new_path) {
     char new_fixed[128];
     vfs_stat_t st;
     int status;
-    const char *old_resolved = dg_resolve_path(
-        old_path, old_fixed, (uint32_t)sizeof(old_fixed));
-    const char *new_resolved = dg_resolve_path(
-        new_path, new_fixed, (uint32_t)sizeof(new_fixed));
+    const char *old_resolved = dg_resolve_path(old_path, old_fixed, (uint32_t)sizeof(old_fixed));
+    const char *new_resolved = dg_resolve_path(new_path, new_fixed, (uint32_t)sizeof(new_fixed));
     if (!old_resolved || !new_resolved) {
         dg_errno = DG_EINVAL;
         return -1;
@@ -748,8 +861,7 @@ int mkdir(const char *path, uint32_t mode) {
     char fixed[128];
     vfs_stat_t st;
     int status;
-    const char *resolved = dg_resolve_path(
-        path, fixed, (uint32_t)sizeof(fixed));
+    const char *resolved = dg_resolve_path(path, fixed, (uint32_t)sizeof(fixed));
     (void)mode;
     if (!resolved) {
         dg_errno = DG_EINVAL;
@@ -777,7 +889,9 @@ int dg_fclose(DG_FILE *f) {
         f->is_err = 0;
         return 0;
     }
-    if (f->fd >= 0) { status = vfs_close(f->fd); }
+    if (f->fd >= 0) {
+        status = vfs_close(f->fd);
+    }
     f->magic = 0;
     dg_free(f);
     return dg_posix_vfs_result(status);
@@ -790,7 +904,9 @@ uint32_t dg_fread(void *p, uint32_t sz, uint32_t n, DG_FILE *f) {
         dg_errno = DG_EBADF;
         return 0;
     }
-    if (sz == 0 || n == 0) { return 0; }
+    if (sz == 0 || n == 0) {
+        return 0;
+    }
     if (n > 0xffffffffu / sz) {
         dg_errno = DG_EINVAL;
         f->is_err = 1;
@@ -805,7 +921,8 @@ uint32_t dg_fread(void *p, uint32_t sz, uint32_t n, DG_FILE *f) {
     while (completed < total) {
         uint32_t request = total - completed;
         int got;
-        if (request > 0x7fffffffu) request = 0x7fffffffu;
+        if (request > 0x7fffffffu)
+            request = 0x7fffffffu;
         got = vfs_read(f->fd, (uint8_t *)p + completed, request);
         if (got < 0) {
             dg_errno = got == (-2147483647 - 1) ? DG_EIO : -got;
@@ -833,7 +950,9 @@ uint32_t dg_fwrite(const void *p, uint32_t sz, uint32_t n, DG_FILE *f) {
         dg_errno = DG_EBADF;
         return 0;
     }
-    if (sz == 0 || n == 0) { return 0; }
+    if (sz == 0 || n == 0) {
+        return 0;
+    }
     if (n > 0xffffffffu / sz) {
         dg_errno = DG_EINVAL;
         f->is_err = 1;
@@ -857,7 +976,8 @@ uint32_t dg_fwrite(const void *p, uint32_t sz, uint32_t n, DG_FILE *f) {
     while (completed < total) {
         uint32_t request = total - completed;
         int wrote;
-        if (request > 0x7fffffffu) request = 0x7fffffffu;
+        if (request > 0x7fffffffu)
+            request = 0x7fffffffu;
         wrote = vfs_write(f->fd, (const uint8_t *)p + completed, request);
         if (wrote < 0) {
             dg_errno = wrote == (-2147483647 - 1) ? DG_EIO : -wrote;
@@ -906,27 +1026,38 @@ int32_t dg_ftell(DG_FILE *f) {
 }
 
 int dg_feof(DG_FILE *f) {
-    if (!f) { return 1; }
+    if (!f) {
+        return 1;
+    }
     return f->is_eof;
 }
 
 void dg_clearerr(DG_FILE *f) {
-    if (!f) { return; }
+    if (!f) {
+        return;
+    }
     f->is_eof = 0;
     f->is_err = 0;
 }
 
 char *dg_fgets(char *s, int n, DG_FILE *f) {
     int i;
-    if (!s || n <= 0 || !f) { return NULL; }
+    if (!s || n <= 0 || !f) {
+        return NULL;
+    }
     for (i = 0; i < n - 1; i++) {
         int c = dg_fgetc(f);
         if (c < 0) {
-            if (i == 0) { return NULL; }
+            if (i == 0) {
+                return NULL;
+            }
             break;
         }
         s[i] = (char)c;
-        if (c == '\n') { i++; break; }
+        if (c == '\n') {
+            i++;
+            break;
+        }
     }
     s[i] = '\0';
     return s;
@@ -945,7 +1076,10 @@ int dg_fgetc(DG_FILE *f) {
         f->is_err = 1;
         return -1;
     }
-    if (got == 0) { f->is_eof = 1; return -1; }
+    if (got == 0) {
+        f->is_eof = 1;
+        return -1;
+    }
     return (int)c;
 }
 
@@ -977,16 +1111,22 @@ int dg_fputs(const char *s, DG_FILE *f) {
     uint32_t length;
     if (!s) {
         dg_errno = DG_EINVAL;
-        if (f && f->magic == DG_FILE_MAGIC) { f->is_err = 1; }
+        if (f && f->magic == DG_FILE_MAGIC) {
+            f->is_err = 1;
+        }
         return -1;
     }
     length = (uint32_t)strlen(s);
-    if (dg_fwrite(s, 1u, length, f) != length) { return -1; }
+    if (dg_fwrite(s, 1u, length, f) != length) {
+        return -1;
+    }
     return 0;
 }
 
 int dg_fflush(DG_FILE *f) {
-    if (!f) { return 0; }
+    if (!f) {
+        return 0;
+    }
     if (f->magic != DG_FILE_MAGIC) {
         dg_errno = DG_EBADF;
         return -1;
@@ -1038,19 +1178,23 @@ static void insertion_sort(char *base, uint32_t n, uint32_t sz,
                            int (*cmp)(const void *, const void *)) {
     uint32_t i, j;
     for (i = 1; i < n; i++) {
-        for (j = i; j > 0 &&
-             cmp(base + (j-1)*sz, base + j*sz) > 0; j--) {
-            swap_bytes(base + (j-1)*sz, base + j*sz, sz);
+        for (j = i; j > 0 && cmp(base + (j - 1) * sz, base + j * sz) > 0; j--) {
+            swap_bytes(base + (j - 1) * sz, base + j * sz, sz);
         }
     }
 }
 
-void dg_qsort(void *base, uint32_t n, uint32_t sz,
-              int (*cmp)(const void *, const void *)) {
-    struct { uint32_t lo; uint32_t hi; } stack[QS_STACK_DEPTH];
+void dg_qsort(void *base, uint32_t n, uint32_t sz, int (*cmp)(const void *, const void *)) {
+    struct {
+        uint32_t lo;
+        uint32_t hi;
+    } stack[QS_STACK_DEPTH];
+
     int top = 0;
 
-    if (!base || n < 2 || sz == 0 || !cmp) { return; }
+    if (!base || n < 2 || sz == 0 || !cmp) {
+        return;
+    }
 
     stack[top].lo = 0;
     stack[top].hi = n - 1;
@@ -1061,7 +1205,9 @@ void dg_qsort(void *base, uint32_t n, uint32_t sz,
         uint32_t lo = stack[top].lo;
         uint32_t hi = stack[top].hi;
 
-        if (hi <= lo) { continue; }
+        if (hi <= lo) {
+            continue;
+        }
         uint32_t len = hi - lo + 1;
 
         if (len <= QS_INSERTION_THRESHOLD) {
@@ -1071,12 +1217,18 @@ void dg_qsort(void *base, uint32_t n, uint32_t sz,
 
         /* Median-of-three pivot */
         uint32_t mid = lo + len / 2;
-        char *p_lo  = (char *)base + lo  * sz;
+        char *p_lo = (char *)base + lo * sz;
         char *p_mid = (char *)base + mid * sz;
-        char *p_hi  = (char *)base + hi  * sz;
-        if (cmp(p_lo, p_mid) > 0) { swap_bytes(p_lo, p_mid, sz); }
-        if (cmp(p_lo, p_hi)  > 0) { swap_bytes(p_lo, p_hi,  sz); }
-        if (cmp(p_mid, p_hi) > 0) { swap_bytes(p_mid, p_hi, sz); }
+        char *p_hi = (char *)base + hi * sz;
+        if (cmp(p_lo, p_mid) > 0) {
+            swap_bytes(p_lo, p_mid, sz);
+        }
+        if (cmp(p_lo, p_hi) > 0) {
+            swap_bytes(p_lo, p_hi, sz);
+        }
+        if (cmp(p_mid, p_hi) > 0) {
+            swap_bytes(p_mid, p_hi, sz);
+        }
         /* pivot is now at mid; move to hi-1 for partitioning */
         swap_bytes(p_mid, (char *)base + (hi - 1) * sz, sz);
         char *pivot = (char *)base + (hi - 1) * sz;
@@ -1085,9 +1237,13 @@ void dg_qsort(void *base, uint32_t n, uint32_t sz,
         uint32_t j = hi - 1;
 
         while (1) {
-            while (++i < hi && cmp((char *)base + i * sz, pivot) < 0) {}
-            while (j > lo && cmp((char *)base + --j * sz, pivot) > 0) {}
-            if (i >= j) { break; }
+            while (++i < hi && cmp((char *)base + i * sz, pivot) < 0) {
+            }
+            while (j > lo && cmp((char *)base + --j * sz, pivot) > 0) {
+            }
+            if (i >= j) {
+                break;
+            }
             swap_bytes((char *)base + i * sz, (char *)base + j * sz, sz);
         }
         /* Restore pivot */
@@ -1097,17 +1253,25 @@ void dg_qsort(void *base, uint32_t n, uint32_t sz,
         if (top + 2 < QS_STACK_DEPTH) {
             if (i - lo > hi - i) {
                 if (i > lo + 1) {
-                    stack[top].lo = lo; stack[top].hi = i - 1; top++;
+                    stack[top].lo = lo;
+                    stack[top].hi = i - 1;
+                    top++;
                 }
                 if (i + 1 < hi) {
-                    stack[top].lo = i + 1; stack[top].hi = hi; top++;
+                    stack[top].lo = i + 1;
+                    stack[top].hi = hi;
+                    top++;
                 }
             } else {
                 if (i + 1 < hi) {
-                    stack[top].lo = i + 1; stack[top].hi = hi; top++;
+                    stack[top].lo = i + 1;
+                    stack[top].hi = hi;
+                    top++;
                 }
                 if (i > lo + 1) {
-                    stack[top].lo = lo; stack[top].hi = i - 1; top++;
+                    stack[top].lo = lo;
+                    stack[top].hi = i - 1;
+                    top++;
                 }
             }
         }
@@ -1188,8 +1352,7 @@ static int dg_lifecycle_error_cycle(int base) {
 
 static int dglibc_expect_path(const char *input, const char *expected) {
     char buffer[128];
-    const char *resolved = dg_resolve_path(input, buffer,
-                                            (uint32_t)sizeof(buffer));
+    const char *resolved = dg_resolve_path(input, buffer, (uint32_t)sizeof(buffer));
     if (!resolved || strcmp(resolved, expected) != 0) {
         serial_write_string("[FAIL] dglibc resolved the wrong path for ");
         serial_write_string(input ? input : "(null)");
@@ -1203,14 +1366,15 @@ static int dglibc_test_body(void) {
     /* snprintf */
     {
         char b[64];
-        int n = dg_snprintf(b, sizeof(b), "hello %s %d %x %.2f",
-                            "world", 42, 0xCAFEu, 1.25);
+        int n = dg_snprintf(b, sizeof(b), "hello %s %d %x %.2f", "world", 42, 0xCAFEu, 1.25);
         (void)n;
         const char *expected = "hello world 42 cafe 1.25";
         const char *p = b;
         const char *q = expected;
         while (*q) {
-            if (*p++ != *q++) { break; }
+            if (*p++ != *q++) {
+                break;
+            }
         }
         if (*q != 0 || *p != 0) {
             serial_write_string("[FAIL] dglibc snprintf: ");
@@ -1228,17 +1392,22 @@ static int dglibc_test_body(void) {
     /* malloc/free */
     {
         void *p = dg_malloc(1024u);
-        if (!p) { serial_write_string("[FAIL] dg_malloc\n"); return 1; }
+        if (!p) {
+            serial_write_string("[FAIL] dg_malloc\n");
+            return 1;
+        }
         dg_free(p);
         p = dg_malloc(0xfffffff8u);
         if (p || dg_errno != DG_ENOMEM) {
-            if (p) dg_free(p);
+            if (p)
+                dg_free(p);
             serial_write_string("[FAIL] dg_malloc accepted header overflow\n");
             return 1;
         }
         p = dg_calloc(0x80000000u, 2u);
         if (p || dg_errno != DG_ENOMEM) {
-            if (p) dg_free(p);
+            if (p)
+                dg_free(p);
             serial_write_string("[FAIL] dg_calloc accepted product overflow\n");
             return 1;
         }
@@ -1249,7 +1418,9 @@ static int dglibc_test_body(void) {
     {
         dg_jmp_buf env;
         int rc = dg_setjmp(env);
-        if (rc == 0) { dg_longjmp(env, 7); }
+        if (rc == 0) {
+            dg_longjmp(env, 7);
+        }
         if (rc == 7) {
             dg_arm_exit(env);
             dg_exit(9);
@@ -1269,24 +1440,20 @@ static int dglibc_test_body(void) {
         const char *no_digits = "+";
 
         dg_errno = 0;
-        if (strtol("2147483647x", &end, 10) != 2147483647L ||
-            *end != 'x' ||
-            strtol("-2147483648", &end, 10) !=
-                (-2147483647L - 1L) || *end != '\0' ||
-            strtol("0x2a", &end, 0) != 42L || *end != '\0' ||
-            strtol(no_digits, &end, 10) != 0L || end != no_digits) {
+        if (strtol("2147483647x", &end, 10) != 2147483647L || *end != 'x' ||
+            strtol("-2147483648", &end, 10) != (-2147483647L - 1L) || *end != '\0' ||
+            strtol("0x2a", &end, 0) != 42L || *end != '\0' || strtol(no_digits, &end, 10) != 0L ||
+            end != no_digits) {
             serial_write_string("[FAIL] dglibc parsed a bounded integer incorrectly\n");
             return 1;
         }
         dg_errno = 0;
-        if (strtol("2147483648", &end, 10) != 2147483647L ||
-            dg_errno != 34 || *end != '\0') {
+        if (strtol("2147483648", &end, 10) != 2147483647L || dg_errno != 34 || *end != '\0') {
             serial_write_string("[FAIL] dglibc missed signed integer overflow\n");
             return 1;
         }
         dg_errno = 0;
-        if (strtoul("4294967296", &end, 10) != 0xffffffffu ||
-            dg_errno != 34 || *end != '\0' ||
+        if (strtoul("4294967296", &end, 10) != 0xffffffffu || dg_errno != 34 || *end != '\0' ||
             sscanf(" 0x2a", " 0x%x", &parsed) != 1 || parsed != 42 ||
             sscanf(" sign", " %d", &parsed) != 0) {
             serial_write_string("[FAIL] dglibc accepted an unsafe integer conversion\n");
@@ -1298,16 +1465,11 @@ static int dglibc_test_body(void) {
     /* Exit callbacks belong to one in-process Doom launch. */
     {
         dg_lifecycle_count = 0;
-        if (!dg_lifecycle_quit_cycle(100) ||
-            !dg_lifecycle_quit_cycle(200) ||
-            !dg_lifecycle_error_cycle(300) ||
-            !dg_lifecycle_error_cycle(400) ||
-            dg_lifecycle_count != 6 ||
-            dg_lifecycle_trace[0] != 102 ||
-            dg_lifecycle_trace[1] != 101 ||
-            dg_lifecycle_trace[2] != 202 ||
-            dg_lifecycle_trace[3] != 201 ||
-            dg_lifecycle_trace[4] != 303 ||
+        if (!dg_lifecycle_quit_cycle(100) || !dg_lifecycle_quit_cycle(200) ||
+            !dg_lifecycle_error_cycle(300) || !dg_lifecycle_error_cycle(400) ||
+            dg_lifecycle_count != 6 || dg_lifecycle_trace[0] != 102 ||
+            dg_lifecycle_trace[1] != 101 || dg_lifecycle_trace[2] != 202 ||
+            dg_lifecycle_trace[3] != 201 || dg_lifecycle_trace[4] != 303 ||
             dg_lifecycle_trace[5] != 403) {
             serial_write_string("[FAIL] dglibc reused Doom exit callbacks\n");
             return 1;
@@ -1325,60 +1487,54 @@ static int dglibc_test_body(void) {
         if (!dglibc_expect_path(".", "/home/doom") ||
             !dglibc_expect_path(".savegame", "/home/doom") ||
             !dglibc_expect_path("./.savegame", "/home/doom") ||
-            !dglibc_expect_path(".default.cfg",
-                                "/home/doom/.default.cfg") ||
-            !dglibc_expect_path(".doomgenericdoom.cfg",
-                                "/home/doom/.doomgenericdoom.cfg") ||
+            !dglibc_expect_path(".default.cfg", "/home/doom/.default.cfg") ||
+            !dglibc_expect_path(".doomgenericdoom.cfg", "/home/doom/.doomgenericdoom.cfg") ||
             !dglibc_expect_path("temp.dsg", "/home/doom/temp.dsg") ||
-            !dglibc_expect_path("./.savegame/temp.dsg",
-                                "/home/doom/temp.dsg") ||
-            !dglibc_expect_path("./.savegame/doomsav0.dsg",
-                                "/home/doom/doomsav0.dsg") ||
-            !dglibc_expect_path("/tmp/recovery.dsg",
-                                "/tmp/recovery.dsg")) {
+            !dglibc_expect_path("./.savegame/temp.dsg", "/home/doom/temp.dsg") ||
+            !dglibc_expect_path("./.savegame/doomsav0.dsg", "/home/doom/doomsav0.dsg") ||
+            !dglibc_expect_path("/tmp/recovery.dsg", "/tmp/recovery.dsg")) {
             return 1;
         }
-        if (dg_resolve_path("./.savegame/nested/file.dsg",
-                            path_buffer,
+        if (dg_resolve_path("./.savegame/nested/file.dsg", path_buffer,
                             (uint32_t)sizeof(path_buffer)) != NULL) {
             serial_write_string("[FAIL] dglibc accepted a nested save path\n");
             return 1;
         }
-        if (dg_resolve_path("./.savegame/../escape.dsg",
-                            path_buffer,
+        if (dg_resolve_path("./.savegame/../escape.dsg", path_buffer,
                             (uint32_t)sizeof(path_buffer)) != NULL) {
             serial_write_string("[FAIL] dglibc accepted save traversal\n");
             return 1;
         }
-        if (dg_resolve_path(".doomgenericdoom.cfg", short_buffer,
-                            (uint32_t)sizeof(short_buffer)) != NULL) {
+        if (dg_resolve_path(".doomgenericdoom.cfg", short_buffer, (uint32_t)sizeof(short_buffer)) !=
+            NULL) {
             serial_write_string("[FAIL] dglibc truncated a config path\n");
             return 1;
         }
         directory = dg_fopen("/home/doom", "rb");
         if (directory || dg_errno != DG_EISDIR) {
-            if (directory) { dg_fclose(directory); }
+            if (directory) {
+                dg_fclose(directory);
+            }
             serial_write_string("[FAIL] dglibc did not report a directory open\n");
             return 1;
         }
         missing = dg_fopen("/home/doom/dglibc-missing.cfg", "rb");
         if (missing || dg_errno != DG_ENOENT) {
-            if (missing) { dg_fclose(missing); }
+            if (missing) {
+                dg_fclose(missing);
+            }
             serial_write_string("[FAIL] dglibc did not report a missing file\n");
             return 1;
         }
-        if (dg_fopen("/home/doom/dglibc-invalid.cfg", "rx") != NULL ||
-            dg_errno != DG_EINVAL) {
+        if (dg_fopen("/home/doom/dglibc-invalid.cfg", "rx") != NULL || dg_errno != DG_EINVAL) {
             serial_write_string("[FAIL] dglibc accepted an invalid file mode\n");
             return 1;
         }
-        if (dg_fopen("../doomsav0.dsg", "wb") != NULL ||
-            dg_errno != DG_EINVAL) {
+        if (dg_fopen("../doomsav0.dsg", "wb") != NULL || dg_errno != DG_EINVAL) {
             serial_write_string("[FAIL] dglibc accepted an unrelated save path\n");
             return 1;
         }
-        if (!M_FileExists("/home/doom") ||
-            M_FileExists("/home/doom/dglibc-missing.cfg")) {
+        if (!M_FileExists("/home/doom") || M_FileExists("/home/doom/dglibc-missing.cfg")) {
             serial_write_string("[FAIL] dglibc errno did not cross Doom objects\n");
             return 1;
         }
@@ -1406,8 +1562,7 @@ static int dglibc_test_body(void) {
         vfs_unlink("/home/doom/.dglibc-test.cfg");
         if (!dg_mode_flags("rb+", &mode_flags) || mode_flags != O_RDWR ||
             !dg_mode_flags("r+b", &mode_flags) || mode_flags != O_RDWR ||
-            dg_mode_flags("r++", &mode_flags) ||
-            dg_mode_flags("rbb", &mode_flags)) {
+            dg_mode_flags("r++", &mode_flags) || dg_mode_flags("rbb", &mode_flags)) {
             serial_write_string("[FAIL] dglibc parsed file modes incorrectly\n");
             return 1;
         }
@@ -1429,28 +1584,24 @@ static int dglibc_test_body(void) {
             serial_write_string("[FAIL] dglibc accepted a HomeFS offset overflow\n");
             return 1;
         }
-        if (dg_fwrite(payload, 0xffffffffu, 2u, f) != 0u ||
-            dg_errno != DG_EINVAL || !f->is_err) {
+        if (dg_fwrite(payload, 0xffffffffu, 2u, f) != 0u || dg_errno != DG_EINVAL || !f->is_err) {
             dg_fclose(f);
             serial_write_string("[FAIL] dglibc accepted a write size overflow\n");
             return 1;
         }
         dg_clearerr(f);
-        for (oversized_index = 0u;
-             oversized_index + 1u < (uint32_t)sizeof(oversized);
+        for (oversized_index = 0u; oversized_index + 1u < (uint32_t)sizeof(oversized);
              oversized_index++) {
             oversized[oversized_index] = 'x';
         }
         oversized[sizeof(oversized) - 1u] = '\0';
-        if (dg_fprintf(f, "%s", oversized) != -1 ||
-            dg_errno != DG_EIO || !dg_ferror(f)) {
+        if (dg_fprintf(f, "%s", oversized) != -1 || dg_errno != DG_EIO || !dg_ferror(f)) {
             dg_fclose(f);
             serial_write_string("[FAIL] dglibc accepted oversized formatted output\n");
             return 1;
         }
         dg_clearerr(f);
-        if (dg_fputs("bridge=", f) != 0 ||
-            dg_fprintf(f, "%s\n", "ready") != 6 ||
+        if (dg_fputs("bridge=", f) != 0 || dg_fprintf(f, "%s\n", "ready") != 6 ||
             dg_fflush(f) != 0 || dg_ferror(f)) {
             dg_fclose(f);
             serial_write_string("[FAIL] dglibc could not write a relative config\n");
@@ -1470,21 +1621,20 @@ static int dglibc_test_body(void) {
             serial_write_string("[FAIL] dglibc wrote through a read-only stream\n");
             return 1;
         }
-        if (dg_fread(restored, 0xffffffffu, 2u, f) != 0u ||
-            dg_errno != DG_EINVAL || !f->is_err) {
+        if (dg_fread(restored, 0xffffffffu, 2u, f) != 0u || dg_errno != DG_EINVAL || !f->is_err) {
             dg_fclose(f);
             serial_write_string("[FAIL] dglibc accepted a read size overflow\n");
             return 1;
         }
         dg_clearerr(f);
-        if (dg_fread(restored, 0x80000000u, 1u, f) != 0u ||
-            !f->is_eof || f->is_err || dg_fseek(f, 0, SEEK_SET) != 0) {
+        if (dg_fread(restored, 0x80000000u, 1u, f) != 0u || !f->is_eof || f->is_err ||
+            dg_fseek(f, 0, SEEK_SET) != 0) {
             dg_fclose(f);
             serial_write_string("[FAIL] dglibc mishandled a short wide read\n");
             return 1;
         }
-        if (dg_fread(restored, 1u, 13u, f) != 13u ||
-            dg_fclose(f) != 0 || memcmp(restored, payload, 13u) != 0) {
+        if (dg_fread(restored, 1u, 13u, f) != 13u || dg_fclose(f) != 0 ||
+            memcmp(restored, payload, 13u) != 0) {
             serial_write_string("[FAIL] dglibc could not read a relative config\n");
             return 1;
         }
@@ -1494,15 +1644,14 @@ static int dglibc_test_body(void) {
             return 1;
         }
         f = dg_fopen(config, "ab+");
-        if (!f || dg_fseek(f, 0, SEEK_SET) != 0 ||
-            dg_fwrite("!", 1u, 1u, f) != 1u || dg_fclose(f) != 0) {
+        if (!f || dg_fseek(f, 0, SEEK_SET) != 0 || dg_fwrite("!", 1u, 1u, f) != 1u ||
+            dg_fclose(f) != 0) {
             serial_write_string("[FAIL] dglibc could not append after a seek\n");
             return 1;
         }
         f = dg_fopen(config, "rb");
-        if (!f || dg_fread(restored, 1u, 14u, f) != 14u ||
-            dg_fclose(f) != 0 || memcmp(restored, payload, 13u) != 0 ||
-            restored[13] != '!') {
+        if (!f || dg_fread(restored, 1u, 14u, f) != 14u || dg_fclose(f) != 0 ||
+            memcmp(restored, payload, 13u) != 0 || restored[13] != '!') {
             serial_write_string("[FAIL] dglibc append did not preserve the file tail\n");
             return 1;
         }
@@ -1521,8 +1670,7 @@ static int dglibc_test_body(void) {
         const char *payload = "Cupid Doom save bridge\n";
         const char *destination_dir = "/home/dglibc-test-destination-dir";
         const char *missing_parent = "/home/doom/dglibc-missing-parent";
-        const char *missing_destination =
-            "/home/doom/dglibc-missing-parent/save.dsg";
+        const char *missing_destination = "/home/doom/dglibc-missing-parent/save.dsg";
         char restored[32];
         DG_FILE *f;
         DG_FILE *open_target;
@@ -1537,14 +1685,11 @@ static int dglibc_test_body(void) {
         vfs_unlink(missing_parent);
         vfs_unlink(destination_dir);
 
-        if (mkdir("./.savegame/", 0755u) == 0 ||
-            dg_errno != DG_EEXIST) {
+        if (mkdir("./.savegame/", 0755u) == 0 || dg_errno != DG_EEXIST) {
             serial_write_string("[FAIL] dglibc save directory lost its existing state\n");
             return 1;
         }
-        if (mkdir(dir, 0755u) != 0 ||
-            vfs_stat(dir, &st) != VFS_OK ||
-            st.type != VFS_TYPE_DIR) {
+        if (mkdir(dir, 0755u) != 0 || vfs_stat(dir, &st) != VFS_OK || st.type != VFS_TYPE_DIR) {
             serial_write_string("[FAIL] dglibc could not create the Doom save directory\n");
             return 1;
         }
@@ -1552,8 +1697,7 @@ static int dglibc_test_body(void) {
             serial_write_string("[FAIL] dglibc mkdir hid an existing directory\n");
             return 1;
         }
-        if (remove(dir) != 0 ||
-            vfs_stat(dir, &st) != VFS_ENOENT) {
+        if (remove(dir) != 0 || vfs_stat(dir, &st) != VFS_ENOENT) {
             serial_write_string("[FAIL] dglibc did not remove the test directory\n");
             return 1;
         }
@@ -1563,8 +1707,7 @@ static int dglibc_test_body(void) {
         }
 
         f = dg_fopen(save, "wb");
-        if (!f || dg_fwrite("old\n", 1u, 4u, f) != 4u ||
-            dg_fclose(f) != 0) {
+        if (!f || dg_fwrite("old\n", 1u, 4u, f) != 4u || dg_fclose(f) != 0) {
             serial_write_string("[FAIL] dglibc could not seed the old save\n");
             return 1;
         }
@@ -1594,23 +1737,21 @@ static int dglibc_test_body(void) {
             return 1;
         }
         f = dg_fopen(save, "rb");
-        if (!f || dg_fread(restored, 1u, 23u, f) != 23u ||
-            dg_fclose(f) != 0 || memcmp(restored, payload, 23u) != 0) {
+        if (!f || dg_fread(restored, 1u, 23u, f) != 23u || dg_fclose(f) != 0 ||
+            memcmp(restored, payload, 23u) != 0) {
             serial_write_string("[FAIL] dglibc did not preserve the committed save\n");
             return 1;
         }
         open_target = dg_fopen(save, "rb");
         f = dg_fopen(temp, "wb");
-        if (!open_target || !f || dg_fwrite(payload, 1u, 23u, f) != 23u ||
-            dg_fclose(f) != 0 || rename(temp, save) == 0 ||
-            dg_errno != DG_EBUSY || dg_fclose(open_target) != 0 ||
+        if (!open_target || !f || dg_fwrite(payload, 1u, 23u, f) != 23u || dg_fclose(f) != 0 ||
+            rename(temp, save) == 0 || dg_errno != DG_EBUSY || dg_fclose(open_target) != 0 ||
             rename(temp, save) != 0) {
             serial_write_string("[FAIL] dglibc replaced an open HomeFS target\n");
             return 1;
         }
         directory_fd = vfs_open("/home/doom", O_RDONLY);
-        if (directory_fd < 0 || vfs_unlink("/home/doom/dglibc-test-save.dsg") !=
-                                  VFS_EBUSY ||
+        if (directory_fd < 0 || vfs_unlink("/home/doom/dglibc-test-save.dsg") != VFS_EBUSY ||
             vfs_close(directory_fd) != VFS_OK) {
             serial_write_string("[FAIL] dglibc invalidated a HomeFS iterator\n");
             return 1;
@@ -1623,19 +1764,15 @@ static int dglibc_test_body(void) {
             serial_write_string("[FAIL] dglibc did not preserve an aliased rename\n");
             return 1;
         }
-        if (vfs_rename("/home/doom/dglibc-test-save.dsg",
-                       missing_destination) != VFS_ENOENT ||
+        if (vfs_rename("/home/doom/dglibc-test-save.dsg", missing_destination) != VFS_ENOENT ||
             vfs_stat("/home/doom/dglibc-test-save.dsg", &st) != VFS_OK ||
             vfs_stat(missing_parent, &st) != VFS_ENOENT) {
             serial_write_string("[FAIL] dglibc HomeFS rename created a parent\n");
             return 1;
         }
-        if (mkdir(destination_dir, 0755u) != 0 ||
-            rename(save, destination_dir) == 0 ||
-            dg_errno != DG_EISDIR ||
-            vfs_stat("/home/doom/dglibc-test-save.dsg", &st) != VFS_OK ||
-            vfs_stat(destination_dir, &st) != VFS_OK ||
-            st.type != VFS_TYPE_DIR) {
+        if (mkdir(destination_dir, 0755u) != 0 || rename(save, destination_dir) == 0 ||
+            dg_errno != DG_EISDIR || vfs_stat("/home/doom/dglibc-test-save.dsg", &st) != VFS_OK ||
+            vfs_stat(destination_dir, &st) != VFS_OK || st.type != VFS_TYPE_DIR) {
             serial_write_string("[FAIL] dglibc rename damaged a directory boundary\n");
             return 1;
         }
@@ -1647,19 +1784,16 @@ static int dglibc_test_body(void) {
             serial_write_string("[FAIL] dglibc rename hid a missing source\n");
             return 1;
         }
-        if (rename("./.savegame/missing.dsg",
-                   "./.savegame/missing.dsg") == 0 ||
+        if (rename("./.savegame/missing.dsg", "./.savegame/missing.dsg") == 0 ||
             dg_errno != DG_ENOENT) {
             serial_write_string("[FAIL] dglibc renamed a missing path to itself\n");
             return 1;
         }
-        if (remove(save) != 0 || remove(save) == 0 ||
-            dg_errno != DG_ENOENT) {
+        if (remove(save) != 0 || remove(save) == 0 || dg_errno != DG_ENOENT) {
             serial_write_string("[FAIL] dglibc remove did not report the save state\n");
             return 1;
         }
-        if (dg_fopen("dglibc-relative.tmp", "wb") != NULL ||
-            dg_errno != DG_EINVAL) {
+        if (dg_fopen("dglibc-relative.tmp", "wb") != NULL || dg_errno != DG_EINVAL) {
             serial_write_string("[FAIL] dglibc accepted an unrelated relative path\n");
             return 1;
         }
@@ -1673,8 +1807,7 @@ static int dglibc_test_body(void) {
         const char *replacement = "/tmp/dglibc-rename-replacement";
         const char *cross_mount = "/home/doom/dglibc-cross-mount";
         const char *missing_parent = "/tmp/dglibc-rename-missing-parent";
-        const char *missing_destination =
-            "/tmp/dglibc-rename-missing-parent/file";
+        const char *missing_destination = "/tmp/dglibc-rename-missing-parent/file";
         char restored[4];
         int fd;
         int target_fd;
@@ -1688,49 +1821,39 @@ static int dglibc_test_body(void) {
         vfs_unlink(missing_destination);
         vfs_unlink(missing_parent);
         fd = vfs_open(source, O_WRONLY | O_CREAT | O_TRUNC);
-        if (fd < 0 || vfs_write(fd, "ram", 3u) != 3 ||
-            vfs_close(fd) != VFS_OK ||
-            vfs_rename(source, destination) != VFS_OK ||
-            vfs_stat(source, &st) != VFS_ENOENT ||
+        if (fd < 0 || vfs_write(fd, "ram", 3u) != 3 || vfs_close(fd) != VFS_OK ||
+            vfs_rename(source, destination) != VFS_OK || vfs_stat(source, &st) != VFS_ENOENT ||
             vfs_stat(destination, &st) != VFS_OK || st.size != 3u ||
-            vfs_rename(destination,
-                       "/tmp//dglibc-rename-destination") != VFS_OK ||
+            vfs_rename(destination, "/tmp//dglibc-rename-destination") != VFS_OK ||
             vfs_rename(destination, missing_destination) != VFS_ENOENT ||
-            vfs_stat(destination, &st) != VFS_OK ||
-            vfs_stat(missing_parent, &st) != VFS_ENOENT ||
+            vfs_stat(destination, &st) != VFS_OK || vfs_stat(missing_parent, &st) != VFS_ENOENT ||
             vfs_rename(destination, cross_mount) != VFS_EXDEV ||
-            vfs_stat(destination, &st) != VFS_OK ||
-            vfs_stat(cross_mount, &st) != VFS_ENOENT) {
+            vfs_stat(destination, &st) != VFS_OK || vfs_stat(cross_mount, &st) != VFS_ENOENT) {
             serial_write_string("[FAIL] dglibc crossed a VFS rename boundary\n");
             return 1;
         }
         fd = vfs_open(replacement, O_WRONLY | O_CREAT | O_TRUNC);
-        if (fd < 0 || vfs_write(fd, "new", 3u) != 3 ||
-            vfs_close(fd) != VFS_OK) {
+        if (fd < 0 || vfs_write(fd, "new", 3u) != 3 || vfs_close(fd) != VFS_OK) {
             serial_write_string("[FAIL] dglibc could not seed a replacement\n");
             return 1;
         }
         target_fd = vfs_open(destination, O_RDONLY);
-        if (target_fd < 0 ||
-            vfs_rename(replacement, destination) != VFS_EBUSY ||
-            vfs_stat(replacement, &st) != VFS_OK ||
-            vfs_stat(destination, &st) != VFS_OK ||
+        if (target_fd < 0 || vfs_rename(replacement, destination) != VFS_EBUSY ||
+            vfs_stat(replacement, &st) != VFS_OK || vfs_stat(destination, &st) != VFS_OK ||
             vfs_close(target_fd) != VFS_OK) {
             serial_write_string("[FAIL] dglibc replaced an open VFS target\n");
             return 1;
         }
         directory_fd = vfs_open("/tmp", O_RDONLY);
         if (directory_fd < 0 || vfs_unlink(destination) != VFS_EBUSY ||
-            vfs_stat(destination, &st) != VFS_OK ||
-            vfs_close(directory_fd) != VFS_OK ||
+            vfs_stat(destination, &st) != VFS_OK || vfs_close(directory_fd) != VFS_OK ||
             vfs_rename(replacement, destination) != VFS_OK) {
             serial_write_string("[FAIL] dglibc invalidated a VFS iterator\n");
             return 1;
         }
         fd = vfs_open(destination, O_RDONLY);
-        if (fd < 0 || vfs_read(fd, restored, 3u) != 3 ||
-            vfs_close(fd) != VFS_OK || memcmp(restored, "new", 3u) != 0 ||
-            vfs_unlink(destination) != VFS_OK) {
+        if (fd < 0 || vfs_read(fd, restored, 3u) != 3 || vfs_close(fd) != VFS_OK ||
+            memcmp(restored, "new", 3u) != 0 || vfs_unlink(destination) != VFS_OK) {
             serial_write_string("[FAIL] dglibc lost a native VFS rename\n");
             return 1;
         }
@@ -1747,11 +1870,9 @@ static int dglibc_test_body(void) {
 
         vfs_unlink(path);
         vfs_unlink(directory);
-        if (vfs_write_all(path, "copy", 4u) != 4 ||
-            vfs_mkdir(directory) != VFS_OK ||
+        if (vfs_write_all(path, "copy", 4u) != 4 || vfs_mkdir(directory) != VFS_OK ||
             vfs_copy_file(path, path) != VFS_EINVAL ||
-            vfs_copy_file("/tmp//dglibc-copy-self",
-                          "/tmp/dglibc-copy-self/") != VFS_EINVAL ||
+            vfs_copy_file("/tmp//dglibc-copy-self", "/tmp/dglibc-copy-self/") != VFS_EINVAL ||
             vfs_copy_file(directory, path) != VFS_EISDIR ||
             vfs_read_all(path, restored, sizeof(restored)) != 4 ||
             memcmp(restored, "copy", 4u) != 0) {
@@ -1759,16 +1880,14 @@ static int dglibc_test_body(void) {
             return 1;
         }
         reader = vfs_open(path, O_RDONLY);
-        alias = vfs_open("/tmp//dglibc-copy-self/",
-                         O_WRONLY | O_TRUNC);
-        if (reader < 0 || alias != VFS_EBUSY ||
-            vfs_close(reader) != VFS_OK ||
+        alias = vfs_open("/tmp//dglibc-copy-self/", O_WRONLY | O_TRUNC);
+        if (reader < 0 || alias != VFS_EBUSY || vfs_close(reader) != VFS_OK ||
             vfs_read_all(path, restored, sizeof(restored)) != 4 ||
-            memcmp(restored, "copy", 4u) != 0 ||
-            vfs_unlink(path) != VFS_OK ||
+            memcmp(restored, "copy", 4u) != 0 || vfs_unlink(path) != VFS_OK ||
             vfs_unlink(directory) != VFS_OK) {
             serial_write_string("[FAIL] dglibc damaged a VFS path alias\n");
-            if (alias >= 0) vfs_close(alias);
+            if (alias >= 0)
+                vfs_close(alias);
             return 1;
         }
         serial_write_string("[PASS] dglibc VFS copy boundaries\n");
@@ -1790,19 +1909,15 @@ static int dglibc_test_body(void) {
 
         vfs_unlink(path);
         fd = vfs_open(path, O_WRONLY | O_CREAT | O_TRUNC);
-        if (fd < 0 || vfs_seek(fd, 65535, SEEK_SET) != 65535 ||
-            vfs_write(fd, "Z", 1u) != 1 ||
-            vfs_write(fd, "X", 1u) != VFS_ENOSPC ||
-            vfs_seek(fd, 65537, SEEK_SET) != VFS_ENOSPC ||
-            vfs_close(fd) != VFS_OK ||
-            vfs_stat(path, &st) != VFS_OK || st.size != 65536u) {
+        if (fd < 0 || vfs_seek(fd, 65535, SEEK_SET) != 65535 || vfs_write(fd, "Z", 1u) != 1 ||
+            vfs_write(fd, "X", 1u) != VFS_ENOSPC || vfs_seek(fd, 65537, SEEK_SET) != VFS_ENOSPC ||
+            vfs_close(fd) != VFS_OK || vfs_stat(path, &st) != VFS_OK || st.size != 65536u) {
             serial_write_string("[FAIL] dglibc crossed the RamFS size boundary\n");
             return 1;
         }
         fd = vfs_open(path, O_RDONLY);
-        if (fd < 0 || vfs_seek(fd, 65535, SEEK_SET) != 65535 ||
-            vfs_read(fd, &last, 1u) != 1 || last != 'Z' ||
-            vfs_close(fd) != VFS_OK || vfs_unlink(path) != VFS_OK) {
+        if (fd < 0 || vfs_seek(fd, 65535, SEEK_SET) != 65535 || vfs_read(fd, &last, 1u) != 1 ||
+            last != 'Z' || vfs_close(fd) != VFS_OK || vfs_unlink(path) != VFS_OK) {
             serial_write_string("[FAIL] dglibc changed RamFS after a rejected write\n");
             return 1;
         }
@@ -1823,16 +1938,14 @@ static int dglibc_test_body(void) {
             serial_write_string("[FAIL] dglibc could not seed a FAT directory\n");
             return 1;
         }
-        if (vfs_write_all(child, "keep", 4u) != 4 ||
-            fat16_write_file("DGDIR", "bad", 3u) >= 0 ||
+        if (vfs_write_all(child, "keep", 4u) != 4 || fat16_write_file("DGDIR", "bad", 3u) >= 0 ||
             vfs_stat(directory, &st) != VFS_OK || st.type != VFS_TYPE_DIR) {
             serial_write_string("[FAIL] dglibc replaced a FAT directory\n");
             return 1;
         }
         fd = vfs_open(child, O_RDONLY);
-        if (fd < 0 || vfs_read(fd, restored, 4u) != 4 ||
-            vfs_close(fd) != VFS_OK || memcmp(restored, "keep", 4u) != 0 ||
-            vfs_unlink(child) != VFS_OK ||
+        if (fd < 0 || vfs_read(fd, restored, 4u) != 4 || vfs_close(fd) != VFS_OK ||
+            memcmp(restored, "keep", 4u) != 0 || vfs_unlink(child) != VFS_OK ||
             vfs_unlink(directory) != VFS_OK) {
             serial_write_string("[FAIL] dglibc damaged a FAT directory collision\n");
             return 1;
@@ -1858,9 +1971,8 @@ static int dglibc_test_body(void) {
             return 1;
         }
         file->position = 2u;
-        if (fat16_read(file, restored, 0xffffffffu) != 3 ||
-            memcmp(restored, "nge", 3u) != 0 || restored[3] != '?' ||
-            fat16_close(file) != 0 || vfs_unlink(path) != VFS_OK) {
+        if (fat16_read(file, restored, 0xffffffffu) != 3 || memcmp(restored, "nge", 3u) != 0 ||
+            restored[3] != '?' || fat16_close(file) != 0 || vfs_unlink(path) != VFS_OK) {
             serial_write_string("[FAIL] dglibc crossed a FAT read boundary\n");
             return 1;
         }
@@ -1883,20 +1995,22 @@ static int dglibc_test_body(void) {
         }
         while (acquired < 16) {
             fat16_file_t *handle = fat16_open("POOL.TXT");
-            if (!handle) break;
+            if (!handle)
+                break;
             handles[acquired++] = handle;
         }
         denied = vfs_open(path, O_WRONLY | O_CREAT);
         if (acquired == 0 || denied != VFS_EMFILE) {
-            if (denied >= 0) vfs_close(denied);
+            if (denied >= 0)
+                vfs_close(denied);
             okay = 0;
         }
         for (int i = 0; i < acquired; i++) {
-            if (fat16_close(handles[i]) != 0) okay = 0;
+            if (fat16_close(handles[i]) != 0)
+                okay = 0;
         }
         if (!okay || vfs_read_all(path, restored, sizeof(restored)) != 5 ||
-            memcmp(restored, "alive", 5u) != 0 ||
-            vfs_unlink(path) != VFS_OK) {
+            memcmp(restored, "alive", 5u) != 0 || vfs_unlink(path) != VFS_OK) {
             serial_write_string("[FAIL] dglibc truncated through FAT handle exhaustion\n");
             return 1;
         }
@@ -1918,17 +2032,12 @@ static int dglibc_test_body(void) {
         reader = vfs_open(path, O_RDONLY);
         writer = vfs_open(path, O_WRONLY | O_TRUNC);
         if (reader < 0 || writer < 0 || vfs_write(writer, "new", 3u) != 3 ||
-            vfs_close(writer) != VFS_EBUSY ||
-            vfs_unlink(path) != VFS_EBUSY ||
-            vfs_read(reader, restored, 3u) != 3 ||
-            memcmp(restored, "old", 3u) != 0 ||
-            vfs_close(reader) != VFS_OK ||
+            vfs_close(writer) != VFS_EBUSY || vfs_unlink(path) != VFS_EBUSY ||
+            vfs_read(reader, restored, 3u) != 3 || memcmp(restored, "old", 3u) != 0 ||
+            vfs_close(reader) != VFS_OK || vfs_read_all(path, restored, sizeof(restored)) != 3 ||
+            memcmp(restored, "old", 3u) != 0 || vfs_write_all(path, "new", 3u) != 3 ||
             vfs_read_all(path, restored, sizeof(restored)) != 3 ||
-            memcmp(restored, "old", 3u) != 0 ||
-            vfs_write_all(path, "new", 3u) != 3 ||
-            vfs_read_all(path, restored, sizeof(restored)) != 3 ||
-            memcmp(restored, "new", 3u) != 0 ||
-            vfs_unlink(path) != VFS_OK) {
+            memcmp(restored, "new", 3u) != 0 || vfs_unlink(path) != VFS_OK) {
             serial_write_string("[FAIL] dglibc replaced a live FAT entry\n");
             return 1;
         }
@@ -1944,30 +2053,28 @@ static int dglibc_test_body(void) {
 
         vfs_unlink(base);
         vfs_unlink(extended);
-        if (vfs_write_all(base, "base", 4u) != 4 ||
-            vfs_write_all(extended, "text", 4u) != 4) {
+        if (vfs_write_all(base, "base", 4u) != 4 || vfs_write_all(extended, "text", 4u) != 4) {
             serial_write_string("[FAIL] dglibc could not seed FAT path boundaries\n");
             return 1;
         }
-        fd = vfs_open("/disk/ABCDEFGHZZZZZZZZ.TXT",
-                      O_WRONLY | O_CREAT | O_TRUNC);
+        fd = vfs_open("/disk/ABCDEFGHZZZZZZZZ.TXT", O_WRONLY | O_CREAT | O_TRUNC);
         if (fd != VFS_EINVAL) {
-            if (fd >= 0) vfs_close(fd);
+            if (fd >= 0)
+                vfs_close(fd);
             serial_write_string("[FAIL] dglibc accepted a long FAT component\n");
             return 1;
         }
-        fd = vfs_open("/disk/ABCDEFGHZZZZ/TAIL.TXT",
-                      O_WRONLY | O_CREAT | O_TRUNC);
+        fd = vfs_open("/disk/ABCDEFGHZZZZ/TAIL.TXT", O_WRONLY | O_CREAT | O_TRUNC);
         if (fd != VFS_EINVAL) {
-            if (fd >= 0) vfs_close(fd);
+            if (fd >= 0)
+                vfs_close(fd);
             serial_write_string("[FAIL] dglibc accepted a deep FAT alias\n");
             return 1;
         }
         if (vfs_read_all(base, restored, sizeof(restored)) != 4 ||
             memcmp(restored, "base", 4u) != 0 ||
             vfs_read_all(extended, restored, sizeof(restored)) != 4 ||
-            memcmp(restored, "text", 4u) != 0 ||
-            vfs_unlink(base) != VFS_OK ||
+            memcmp(restored, "text", 4u) != 0 || vfs_unlink(base) != VFS_OK ||
             vfs_unlink(extended) != VFS_OK) {
             serial_write_string("[FAIL] dglibc aliased a rejected FAT path\n");
             return 1;
@@ -1979,19 +2086,17 @@ static int dglibc_test_body(void) {
     {
         const char *probe = "/home/dglibc-container-owner";
         char restored[5];
-        int alias = vfs_open("/disk/HOMEFS.SYS",
-                             O_WRONLY | O_TRUNC);
+        int alias = vfs_open("/disk/HOMEFS.SYS", O_WRONLY | O_TRUNC);
 
         vfs_unlink(probe);
-        if (alias != VFS_EBUSY ||
-            vfs_unlink("/disk/HOMEFS.SYS") != VFS_EBUSY ||
+        if (alias != VFS_EBUSY || vfs_unlink("/disk/HOMEFS.SYS") != VFS_EBUSY ||
             fat16_write_file("HOMEFS.SYS", "bad", 3u) != FAT16_BUSY ||
             vfs_write_all(probe, "safe", 4u) != 4 ||
             vfs_read_all(probe, restored, sizeof(restored)) != 4 ||
-            memcmp(restored, "safe", 4u) != 0 ||
-            vfs_unlink(probe) != VFS_OK ||
+            memcmp(restored, "safe", 4u) != 0 || vfs_unlink(probe) != VFS_OK ||
             vfs_mount(NULL, "/home-second", "homefs") != VFS_EBUSY) {
-            if (alias >= 0) vfs_close(alias);
+            if (alias >= 0)
+                vfs_close(alias);
             serial_write_string("[FAIL] dglibc crossed the HomeFS container boundary\n");
             return 1;
         }
@@ -2033,11 +2138,13 @@ static int dglibc_test_body(void) {
             } else {
                 length -= 3u;
                 path[length] = '\0';
-                if (status != VFS_ENOENT) okay = 0;
+                if (status != VFS_ENOENT)
+                    okay = 0;
             }
         }
         while (created > 0) {
-            if (vfs_unlink(path) != VFS_OK) okay = 0;
+            if (vfs_unlink(path) != VFS_OK)
+                okay = 0;
             length -= 3u;
             path[length] = '\0';
             created--;
@@ -2068,7 +2175,8 @@ int dglibc_test_main(void) {
 
     result = dglibc_test_body();
     publish_status = homefs_batch_end();
-    if (result != 0) return result;
+    if (result != 0)
+        return result;
     if (publish_status != VFS_OK) {
         serial_write_string("[FAIL] dglibc could not publish its HomeFS batch\n");
         return 1;

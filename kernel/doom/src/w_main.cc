@@ -16,10 +16,10 @@
 //     Common code to parse command line, identifying WAD files to load.
 //
 
-#include "doomfeatures.h"
-#include "d_iwad.h"
-#include "m_argv.h"
 #include "w_main.h"
+#include "d_iwad.h"
+#include "doomfeatures.h"
+#include "m_argv.h"
 #include "w_merge.h"
 #include "w_wad.h"
 #include "z_zone.h"
@@ -27,8 +27,7 @@
 // Parse the command line, merging WAD files that are sppecified.
 // Returns true if at least one file was added.
 
-boolean W_ParseCommandLine(void)
-{
+boolean W_ParseCommandLine(void) {
     boolean modifiedgame = false;
     int p;
 
@@ -47,10 +46,8 @@ boolean W_ParseCommandLine(void)
 
     p = M_CheckParmWithArgs("-merge", 1);
 
-    if (p > 0)
-    {
-        for (p = p + 1; p<myargc && myargv[p][0] != '-'; ++p)
-        {
+    if (p > 0) {
+        for (p = p + 1; p < myargc && myargv[p][0] != '-'; ++p) {
             char *filename;
 
             modifiedgame = true;
@@ -75,10 +72,8 @@ boolean W_ParseCommandLine(void)
 
     p = M_CheckParmWithArgs("-nwtmerge", 1);
 
-    if (p > 0)
-    {
-        for (p = p + 1; p<myargc && myargv[p][0] != '-'; ++p)
-        {
+    if (p > 0) {
+        for (p = p + 1; p < myargc && myargv[p][0] != '-'; ++p) {
             char *filename;
 
             modifiedgame = true;
@@ -89,7 +84,7 @@ boolean W_ParseCommandLine(void)
             W_NWTDashMerge(filename);
         }
     }
-    
+
     // Add flats
 
     //!
@@ -102,10 +97,8 @@ boolean W_ParseCommandLine(void)
 
     p = M_CheckParmWithArgs("-af", 1);
 
-    if (p > 0)
-    {
-        for (p = p + 1; p<myargc && myargv[p][0] != '-'; ++p)
-        {
+    if (p > 0) {
+        for (p = p + 1; p < myargc && myargv[p][0] != '-'; ++p) {
             char *filename;
 
             modifiedgame = true;
@@ -127,10 +120,8 @@ boolean W_ParseCommandLine(void)
 
     p = M_CheckParmWithArgs("-as", 1);
 
-    if (p > 0)
-    {
-        for (p = p + 1; p<myargc && myargv[p][0] != '-'; ++p)
-        {
+    if (p > 0) {
+        for (p = p + 1; p < myargc && myargv[p][0] != '-'; ++p) {
             char *filename;
 
             modifiedgame = true;
@@ -150,10 +141,8 @@ boolean W_ParseCommandLine(void)
 
     p = M_CheckParmWithArgs("-aa", 1);
 
-    if (p > 0)
-    {
-        for (p = p + 1; p<myargc && myargv[p][0] != '-'; ++p)
-        {
+    if (p > 0) {
+        for (p = p + 1; p < myargc && myargv[p][0] != '-'; ++p) {
             char *filename;
 
             modifiedgame = true;
@@ -174,25 +163,22 @@ boolean W_ParseCommandLine(void)
     // Load the specified PWAD files.
     //
 
-    p = M_CheckParmWithArgs ("-file", 1);
-    if (p)
-    {
-	// the parms after p are wadfile/lump names,
-	// until end of parms or another - preceded parm
-	modifiedgame = true;            // homebrew levels
-	while (++p != myargc && myargv[p][0] != '-')
-        {
+    p = M_CheckParmWithArgs("-file", 1);
+    if (p) {
+        // the parms after p are wadfile/lump names,
+        // until end of parms or another - preceded parm
+        modifiedgame = true; // homebrew levels
+        while (++p != myargc && myargv[p][0] != '-') {
             char *filename;
 
             filename = D_TryFindWADByName(myargv[p]);
 
             printf(" adding %s\n", filename);
-	    W_AddFile(filename);
+            W_AddFile(filename);
         }
     }
 
-//    W_PrintDirectory();
+    //    W_PrintDirectory();
 
     return modifiedgame;
 }
-

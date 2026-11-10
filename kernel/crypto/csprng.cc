@@ -9,18 +9,18 @@
  * Seeding pulls entropy from RDRAND when CPUID reports it (with a
  * sanity check to defend against emulators that hardwire it to a
  * constant), and falls back to RDTSC jitter otherwise.
-*/
+ */
 
 #include "csprng.h"
 #include "chacha20.h"
 #include "serial.h"
 
-static uint8_t  g_key[32];
-static uint8_t  g_nonce[12];
+static uint8_t g_key[32];
+static uint8_t g_nonce[12];
 static uint32_t g_bytes_emitted;
-static int      g_initialized;
+static int g_initialized;
 
-#define CSPRNG_RESEED_BYTES (1u << 20)   /* reseed every 1 MiB */
+#define CSPRNG_RESEED_BYTES (1u << 20) /* reseed every 1 MiB */
 
 /* low-level CPU helpers */
 
@@ -32,20 +32,18 @@ static uint64_t rdtsc64(void) {
 
 static int cpu_has_rdrand(void) {
     uint32_t eax = 1, ebx = 0, ecx = 0, edx = 0;
-    __asm__ __volatile__("cpuid"
-        : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
-        : "0"(eax));
-    (void)ebx; (void)edx;
+    __asm__ __volatile__("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "0"(eax));
+    (void)ebx;
+    (void)edx;
     return (ecx & (1u << 30)) ? 1 : 0;
 }
 
 static int rdrand32(uint32_t *out) {
     uint32_t v = 0;
-    uint8_t  ok = 0;
+    uint8_t ok = 0;
     int i;
     for (i = 0; i < 10; i++) {
-        __asm__ __volatile__("rdrand %0; setc %1"
-            : "=r"(v), "=qm"(ok));
+        __asm__ __volatile__("rdrand %0; setc %1" : "=r"(v), "=qm"(ok));
         if (ok) {
             *out = v;
             return 1;
@@ -56,8 +54,10 @@ static int rdrand32(uint32_t *out) {
 
 static int rdrand_sanity(void) {
     uint32_t a = 0, b = 0;
-    if (!rdrand32(&a)) return 0;
-    if (!rdrand32(&b)) return 0;
+    if (!rdrand32(&a))
+        return 0;
+    if (!rdrand32(&b))
+        return 0;
     return (a != b) ? 1 : 0;
 }
 
@@ -70,12 +70,12 @@ static int rdrand_sanity(void) {
  *      fresh key; the 64-byte output supplies our new key + nonce.
  * No SHA dependency - Phase 1 lives below the hash module.*/
 static void absorb(const uint8_t *entropy, uint32_t len) {
-    uint8_t  buf[64];
-    uint8_t  ks[64];
-    uint8_t  out[64];
-    uint8_t  newnonce[12];
+    uint8_t buf[64];
+    uint8_t ks[64];
+    uint8_t out[64];
+    uint8_t newnonce[12];
     uint64_t t;
-    int      i;
+    int i;
     uint32_t j;
 
     t = rdtsc64();
@@ -91,20 +91,24 @@ static void absorb(const uint8_t *entropy, uint32_t len) {
     }
 
     chacha20_block(g_key, 0u, g_nonce, ks);
-    for (i = 0; i < 64; i++) buf[i] = (uint8_t)(buf[i] ^ ks[i]);
+    for (i = 0; i < 64; i++)
+        buf[i] = (uint8_t)(buf[i] ^ ks[i]);
 
-    for (i = 0; i < 12; i++) newnonce[i] = buf[32 + i];
+    for (i = 0; i < 12; i++)
+        newnonce[i] = buf[32 + i];
     chacha20_block(buf, 1u, newnonce, out);
 
-    for (i = 0; i < 32; i++) g_key[i]   = out[i];
-    for (i = 0; i < 12; i++) g_nonce[i] = out[32 + i];
+    for (i = 0; i < 32; i++)
+        g_key[i] = out[i];
+    for (i = 0; i < 12; i++)
+        g_nonce[i] = out[32 + i];
 }
 
 /* seeding */
 
 static void seed_from_rdrand(void) {
-    uint8_t  buf[64];
-    int      i, j;
+    uint8_t buf[64];
+    int i, j;
     for (i = 0; i < 16; i++) {
         uint32_t v = 0;
         (void)rdrand32(&v);
@@ -116,15 +120,16 @@ static void seed_from_rdrand(void) {
 }
 
 static void seed_from_rdtsc_jitter(void) {
-    uint8_t buf[512];   /* 64 samples x 8 bytes */
-    int     i, j;
+    uint8_t buf[512]; /* 64 samples x 8 bytes */
+    int i, j;
     for (i = 0; i < 64; i++) {
         uint64_t t1 = rdtsc64();
         volatile int k;
-        for (k = 0; k < 100; k++) { /* burn cycles to amplify jitter */ }
+        for (k = 0; k < 100; k++) { /* burn cycles to amplify jitter */
+        }
         {
             uint64_t t2 = rdtsc64();
-            uint64_t v  = t1 ^ (t2 * 0x9E3779B97F4A7C15ull);
+            uint64_t v = t1 ^ (t2 * 0x9E3779B97F4A7C15ull);
             for (j = 0; j < 8; j++) {
                 buf[i * 8 + j] = (uint8_t)((v >> (8u * (unsigned)j)) & 0xFFu);
             }
@@ -146,10 +151,12 @@ static void reseed(void) {
 
 void csprng_init(void) {
     int i;
-    for (i = 0; i < 32; i++) g_key[i]   = 0;
-    for (i = 0; i < 12; i++) g_nonce[i] = 0;
+    for (i = 0; i < 32; i++)
+        g_key[i] = 0;
+    for (i = 0; i < 12; i++)
+        g_nonce[i] = 0;
     g_bytes_emitted = 0;
-    g_initialized   = 1;
+    g_initialized = 1;
 
     if (cpu_has_rdrand() && rdrand_sanity()) {
         seed_from_rdrand();
@@ -161,7 +168,8 @@ void csprng_init(void) {
 }
 
 void crypto_random_add_entropy(const uint8_t *buf, uint32_t len) {
-    if (!g_initialized) return;
+    if (!g_initialized)
+        return;
     absorb(buf, len);
 }
 
@@ -170,7 +178,8 @@ void crypto_random_bytes(uint8_t *buf, uint32_t len) {
 
     if (!g_initialized) {
         uint32_t i;
-        for (i = 0; i < len; i++) buf[i] = 0;
+        for (i = 0; i < len; i++)
+            buf[i] = 0;
         return;
     }
 
@@ -180,25 +189,29 @@ void crypto_random_bytes(uint8_t *buf, uint32_t len) {
 
     off = 0;
     while (off < len) {
-        uint8_t  block[64];
+        uint8_t block[64];
         uint32_t n;
         uint32_t i;
-        int      k;
+        int k;
 
         chacha20_block(g_key, 0u, g_nonce, block);
 
         /* Fast key erasure: top 32 bytes become next key. */
-        for (k = 0; k < 32; k++) g_key[k] = block[k];
+        for (k = 0; k < 32; k++)
+            g_key[k] = block[k];
 
         /* Increment nonce as a 96-bit little-endian counter. */
         for (k = 0; k < 12; k++) {
             g_nonce[k] = (uint8_t)(g_nonce[k] + 1u);
-            if (g_nonce[k] != 0) break;
+            if (g_nonce[k] != 0)
+                break;
         }
 
         n = len - off;
-        if (n > 32u) n = 32u;
-        for (i = 0; i < n; i++) buf[off + i] = block[32 + i];
+        if (n > 32u)
+            n = 32u;
+        for (i = 0; i < n; i++)
+            buf[off + i] = block[32 + i];
         off += n;
     }
 

@@ -3,7 +3,7 @@
  *
  * Implements calendar calculations and time/date string formatting
  * for the taskbar clock and interactive calendar popup.
-*/
+ */
 
 #include "calendar.h"
 #include "string.h"
@@ -13,32 +13,27 @@
  * inline in .rodata as one contiguous block, avoiding linker issues
  * where pointer targets in .rodata.str1.1 subsections get dropped.*/
 
-static const char month_abbr[][4] = {
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-};
+static const char month_abbr[][4] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
-static const char month_full[][10] = {
-    "January",  "February", "March",    "April",
-    "May",      "June",     "July",     "August",
-    "September","October",  "November", "December"
-};
+static const char month_full[][10] = {"January",   "February", "March",    "April",
+                                      "May",       "June",     "July",     "August",
+                                      "September", "October",  "November", "December"};
 
-static const char weekday_names[][10] = {
-    "Sunday",   "Monday",   "Tuesday",  "Wednesday",
-    "Thursday", "Friday",   "Saturday"
-};
+static const char weekday_names[][10] = {"Sunday",   "Monday", "Tuesday", "Wednesday",
+                                         "Thursday", "Friday", "Saturday"};
 
 /**
  * int_to_str - Convert a small unsigned integer to a string
  *
  * Does NOT zero-pad. Writes at most `maxlen` digits.
  * Returns the number of characters written.
-*/
+ */
 static int int_to_str(int val, char *buf, int maxlen) {
     char tmp[12];
     int len = 0;
-    if (val < 0) val = 0;
+    if (val < 0)
+        val = 0;
     if (val == 0) {
         tmp[len++] = '0';
     } else {
@@ -57,10 +52,12 @@ static int int_to_str(int val, char *buf, int maxlen) {
 
 /**
  * int_to_str_pad2 - Convert integer to zero-padded 2-digit string
-*/
+ */
 static int int_to_str_pad2(int val, char *buf) {
-    if (val < 0) val = 0;
-    if (val > 99) val = 99;
+    if (val < 0)
+        val = 0;
+    if (val > 99)
+        val = 99;
     buf[0] = (char)('0' + (val / 10));
     buf[1] = (char)('0' + (val % 10));
     return 2;
@@ -68,7 +65,7 @@ static int int_to_str_pad2(int val, char *buf) {
 
 /**
  * str_append - Append a string, return number of characters written
-*/
+ */
 static int str_append(char *buf, int pos, int bufsize, const char *src) {
     int i = 0;
     while (src[i] && pos + i < bufsize - 1) {
@@ -79,7 +76,10 @@ static int str_append(char *buf, int pos, int bufsize, const char *src) {
 }
 
 void format_time_12hr(const rtc_time_t *time, char *buf, int bufsize) {
-    if (bufsize < 10) { buf[0] = '\0'; return; }
+    if (bufsize < 10) {
+        buf[0] = '\0';
+        return;
+    }
 
     int hr = (int)time->hour;
     const char *ampm = "AM";
@@ -109,7 +109,10 @@ void format_time_12hr(const rtc_time_t *time, char *buf, int bufsize) {
 }
 
 void format_time_12hr_sec(const rtc_time_t *time, char *buf, int bufsize) {
-    if (bufsize < 14) { buf[0] = '\0'; return; }
+    if (bufsize < 14) {
+        buf[0] = '\0';
+        return;
+    }
 
     int hr = (int)time->hour;
     const char *ampm = "AM";
@@ -141,7 +144,10 @@ void format_time_12hr_sec(const rtc_time_t *time, char *buf, int bufsize) {
 }
 
 void format_date_short(const rtc_date_t *date, char *buf, int bufsize) {
-    if (bufsize < 8) { buf[0] = '\0'; return; }
+    if (bufsize < 8) {
+        buf[0] = '\0';
+        return;
+    }
 
     int pos = 0;
     const char *mon = get_month_abbr(date->month);
@@ -152,7 +158,10 @@ void format_date_short(const rtc_date_t *date, char *buf, int bufsize) {
 }
 
 void format_date_full(const rtc_date_t *date, char *buf, int bufsize) {
-    if (bufsize < 40) { buf[0] = '\0'; return; }
+    if (bufsize < 40) {
+        buf[0] = '\0';
+        return;
+    }
 
     int pos = 0;
     const char *wday = get_weekday_name(date->weekday);
@@ -173,31 +182,39 @@ void format_date_full(const rtc_date_t *date, char *buf, int bufsize) {
 }
 
 const char *get_month_abbr(uint8_t month) {
-    if (month < 1 || month > 12) return "???";
+    if (month < 1 || month > 12)
+        return "???";
     return month_abbr[month - 1];
 }
 
 const char *get_month_full(uint8_t month) {
-    if (month < 1 || month > 12) return "Unknown";
+    if (month < 1 || month > 12)
+        return "Unknown";
     return month_full[month - 1];
 }
 
 const char *get_weekday_name(uint8_t weekday) {
-    if (weekday > 6) return "Unknown";
+    if (weekday > 6)
+        return "Unknown";
     return weekday_names[weekday];
 }
 
 bool is_leap_year(int year) {
-    if (year % 400 == 0) return true;
-    if (year % 100 == 0) return false;
-    if (year % 4 == 0)   return true;
+    if (year % 400 == 0)
+        return true;
+    if (year % 100 == 0)
+        return false;
+    if (year % 4 == 0)
+        return true;
     return false;
 }
 
 int get_days_in_month(int month, int year) {
     static const int days[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-    if (month < 1 || month > 12) return 30;
-    if (month == 2 && is_leap_year(year)) return 29;
+    if (month < 1 || month > 12)
+        return 30;
+    if (month == 2 && is_leap_year(year))
+        return 29;
     return days[month - 1];
 }
 
@@ -217,7 +234,8 @@ int get_first_weekday(int month, int year) {
 
     /* Convert from Zeller result (0=Saturday) to 0=Sunday */
     int day = ((h + 6) % 7);
-    if (day < 0) day += 7;
+    if (day < 0)
+        day += 7;
     return day;
 }
 
@@ -239,15 +257,18 @@ void calendar_next_month(calendar_state_t *cal) {
 
 /**
  * calendar_build_note_path - Build "/notes/YYYY-MM-DD.txt" (ramfs temp)
-*/
-void calendar_build_note_path(int year, int month, int day,
-                              char *buf, int bufsize) {
-    if (bufsize < 24) { buf[0] = '\0'; return; }
+ */
+void calendar_build_note_path(int year, int month, int day, char *buf, int bufsize) {
+    if (bufsize < 24) {
+        buf[0] = '\0';
+        return;
+    }
 
     int pos = 0;
     /* "/notes/" */
     const char *prefix = "/notes/";
-    while (*prefix && pos < bufsize - 1) buf[pos++] = *prefix++;
+    while (*prefix && pos < bufsize - 1)
+        buf[pos++] = *prefix++;
 
     /* Year (4 digits) */
     buf[pos++] = (char)('0' + (year / 1000) % 10);
@@ -279,10 +300,12 @@ void calendar_build_note_path(int year, int month, int day,
  * FAT16 is root-directory-only so we use a flat naming scheme.
  * Names are lowercase to match what fat16_enumerate_root returns.
  * The full persistent VFS path is "/home/n_mmdd.txt".
-*/
-void calendar_build_persist_name(int month, int day,
-                                 char *buf, int bufsize) {
-    if (bufsize < 12) { buf[0] = '\0'; return; }
+ */
+void calendar_build_persist_name(int month, int day, char *buf, int bufsize) {
+    if (bufsize < 12) {
+        buf[0] = '\0';
+        return;
+    }
     int pos = 0;
     buf[pos++] = 'n';
     buf[pos++] = '_';
@@ -297,12 +320,9 @@ void calendar_build_persist_name(int month, int day,
     buf[pos] = '\0';
 }
 
-calendar_note_t *calendar_has_note(calendar_state_t *cal,
-                                   int year, int month, int day) {
+calendar_note_t *calendar_has_note(calendar_state_t *cal, int year, int month, int day) {
     for (int i = 0; i < CALENDAR_MAX_NOTES; i++) {
-        if (cal->notes[i].used &&
-            cal->notes[i].year == year &&
-            cal->notes[i].month == month &&
+        if (cal->notes[i].used && cal->notes[i].year == year && cal->notes[i].month == month &&
             cal->notes[i].day == day) {
             return &cal->notes[i];
         }
@@ -310,11 +330,11 @@ calendar_note_t *calendar_has_note(calendar_state_t *cal,
     return (calendar_note_t *)0;
 }
 
-calendar_note_t *calendar_create_note(calendar_state_t *cal,
-                                      int year, int month, int day) {
+calendar_note_t *calendar_create_note(calendar_state_t *cal, int year, int month, int day) {
     /* Already exists? */
     calendar_note_t *existing = calendar_has_note(cal, year, month, day);
-    if (existing) return existing;
+    if (existing)
+        return existing;
 
     /* Find a free slot */
     calendar_note_t *slot = (calendar_note_t *)0;
@@ -324,7 +344,8 @@ calendar_note_t *calendar_create_note(calendar_state_t *cal,
             break;
         }
     }
-    if (!slot) return (calendar_note_t *)0; /* Full */
+    if (!slot)
+        return (calendar_note_t *)0; /* Full */
 
     /* Build temp path in ramfs */
     char path[128];
@@ -335,21 +356,25 @@ calendar_note_t *calendar_create_note(calendar_state_t *cal,
 
     /* Create the temp file with an initial header line */
     int fd = vfs_open(path, O_WRONLY | O_CREAT);
-    if (fd < 0) return (calendar_note_t *)0;
+    if (fd < 0)
+        return (calendar_note_t *)0;
 
     /* Write a header */
     char header[64];
     int hpos = 0;
     const char *pfx = "Note for ";
-    while (*pfx) header[hpos++] = *pfx++;
+    while (*pfx)
+        header[hpos++] = *pfx++;
 
     /* Month name */
     const char *mname = get_month_full((uint8_t)month);
-    while (*mname) header[hpos++] = *mname++;
+    while (*mname)
+        header[hpos++] = *mname++;
     header[hpos++] = ' ';
 
     /* Day */
-    if (day >= 10) header[hpos++] = (char)('0' + (day / 10));
+    if (day >= 10)
+        header[hpos++] = (char)('0' + (day / 10));
     header[hpos++] = (char)('0' + (day % 10));
     header[hpos++] = ',';
     header[hpos++] = ' ';
@@ -366,28 +391,30 @@ calendar_note_t *calendar_create_note(calendar_state_t *cal,
     vfs_close(fd);
 
     /* Record in calendar state */
-    slot->year  = year;
+    slot->year = year;
     slot->month = month;
-    slot->day   = day;
-    slot->used  = true;
+    slot->day = day;
+    slot->used = true;
     slot->saved = false; /* Not yet persisted - no dot */
 
     /* Store ramfs temp path */
     int k = 0;
-    while (path[k] && k < 127) { slot->path[k] = path[k]; k++; }
+    while (path[k] && k < 127) {
+        slot->path[k] = path[k];
+        k++;
+    }
     slot->path[k] = '\0';
 
     /* Store FAT16 8.3 persistent name */
-    calendar_build_persist_name(month, day,
-                                slot->persist, (int)sizeof(slot->persist));
+    calendar_build_persist_name(month, day, slot->persist, (int)sizeof(slot->persist));
 
     return slot;
 }
 
-int calendar_delete_note(calendar_state_t *cal,
-                         int year, int month, int day) {
+int calendar_delete_note(calendar_state_t *cal, int year, int month, int day) {
     calendar_note_t *note = calendar_has_note(cal, year, month, day);
-    if (!note) return -1;
+    if (!note)
+        return -1;
 
     /* Delete from ramfs (temp) */
     vfs_unlink(note->path);
@@ -397,9 +424,11 @@ int calendar_delete_note(calendar_state_t *cal,
         char persist_path[128];
         int p = 0;
         const char *pfx = "/home/";
-        while (*pfx) persist_path[p++] = *pfx++;
+        while (*pfx)
+            persist_path[p++] = *pfx++;
         int k = 0;
-        while (note->persist[k] && p < 127) persist_path[p++] = note->persist[k++];
+        while (note->persist[k] && p < 127)
+            persist_path[p++] = note->persist[k++];
         persist_path[p] = '\0';
         vfs_unlink(persist_path);
     }
@@ -416,8 +445,7 @@ int calendar_delete_note(calendar_state_t *cal,
     return 0;
 }
 
-void calendar_mark_saved(calendar_state_t *cal,
-                         int year, int month, int day) {
+void calendar_mark_saved(calendar_state_t *cal, int year, int month, int day) {
     calendar_note_t *note = calendar_has_note(cal, year, month, day);
     if (note) {
         note->saved = true;
@@ -430,43 +458,47 @@ void calendar_mark_saved(calendar_state_t *cal,
  * Called when the calendar popup is opened to discover notes that
  * were previously saved to persistent FAT16 storage.
  * FAT16 readdir returns lowercase names.
-*/
+ */
 void calendar_scan_notes(calendar_state_t *cal) {
     int fd = vfs_open("/home", O_RDONLY);
-    if (fd < 0) return;
+    if (fd < 0)
+        return;
 
     vfs_dirent_t ent;
     while (vfs_readdir(fd, &ent) > 0) {
         /* Match pattern: n_mmdd.txt (lowercase from FAT16 readdir) */
-        if (ent.name[0] != 'n' || ent.name[1] != '_') continue;
-        if (ent.name[6] != '.' || ent.name[10] != '\0') continue;
+        if (ent.name[0] != 'n' || ent.name[1] != '_')
+            continue;
+        if (ent.name[6] != '.' || ent.name[10] != '\0')
+            continue;
         if (ent.name[7] != 't' || ent.name[8] != 'x' || ent.name[9] != 't')
             continue;
 
         /* Parse month and day */
         int m = (ent.name[2] - '0') * 10 + (ent.name[3] - '0');
         int d = (ent.name[4] - '0') * 10 + (ent.name[5] - '0');
-        if (m < 1 || m > 12 || d < 1 || d > 31) continue;
+        if (m < 1 || m > 12 || d < 1 || d > 31)
+            continue;
 
         /* Use the calendar's current view year for scanned notes */
         int y = cal->view_year;
 
         /* Already tracked? */
-        if (calendar_has_note(cal, y, m, d)) continue;
+        if (calendar_has_note(cal, y, m, d))
+            continue;
 
         /* Find a free slot and register it */
         for (int i = 0; i < CALENDAR_MAX_NOTES; i++) {
             if (!cal->notes[i].used) {
-                cal->notes[i].year  = y;
+                cal->notes[i].year = y;
                 cal->notes[i].month = m;
-                cal->notes[i].day   = d;
-                cal->notes[i].used  = true;
+                cal->notes[i].day = d;
+                cal->notes[i].used = true;
                 cal->notes[i].saved = true; /* Already on disk */
 
                 /* Build ramfs temp path */
-                calendar_build_note_path(y, m, d,
-                    cal->notes[i].path,
-                    (int)sizeof(cal->notes[i].path));
+                calendar_build_note_path(y, m, d, cal->notes[i].path,
+                                         (int)sizeof(cal->notes[i].path));
 
                 /* Copy the 8.3 name */
                 int k = 0;

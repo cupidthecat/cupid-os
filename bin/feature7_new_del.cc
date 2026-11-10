@@ -1,6 +1,6 @@
-//help: CupidC Feature 7 demo - new / del keywords
-//help: Usage: feature7_new_del
-//help: Verifies new T, new T[n], zero-init, and del pointer reset behavior.
+// help: CupidC Feature 7 demo - new / del keywords
+// help: Usage: feature7_new_del
+// help: Verifies new T, new T[n], zero-init, and del pointer reset behavior.
 
 class Pair {
     I32 a;
@@ -13,9 +13,11 @@ void main() {
 
     I32 ok = 1;
 
-    if (!p || !buf) ok = 0;
+    if (!p || !buf)
+        ok = 0;
 
-    if (p->a != 0 || p->b != 0) ok = 0;
+    if (p->a != 0 || p->b != 0)
+        ok = 0;
 
     p->a = 20;
     p->b = 22;
@@ -27,7 +29,8 @@ void main() {
     del p;
     del buf;
 
-    if (p != NULL || buf != NULL) ok = 0;
+    if (p != NULL || buf != NULL)
+        ok = 0;
 
     if (ok) {
         serial_printf("feature7_new_del: PASS\n");

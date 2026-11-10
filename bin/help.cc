@@ -1,8 +1,8 @@
-//help: List available commands or show help for a command
-//help: Usage: help [command]
-//help: With no arguments, lists all programs and their
-//help: one-line descriptions. With a command name, shows
-//help: the full help text for that command.
+// help: List available commands or show help for a command
+// help: Usage: help [command]
+// help: With no arguments, lists all programs and their
+// help: one-line descriptions. With a command name, shows
+// help: the full help text for that command.
 
 void strip_cc(char *name) {
     int len = strlen(name);
@@ -13,28 +13,46 @@ void strip_cc(char *name) {
     }
 }
 
-// Read //help: lines from a .cc file and print them.
-// If summary_only, print just the first line (no "//help: " prefix).
+// Find help metadata after // and optional horizontal whitespace.
+int help_line_text_start(char *buf, int n, int i) {
+    if (i + 2 > n || buf[i] != '/' || buf[i + 1] != '/')
+        return -1;
+    i = i + 2;
+    while (i < n && (buf[i] == ' ' || buf[i] == 9))
+        i = i + 1;
+    char *prefix = "help:";
+    int p = 0;
+    while (prefix[p]) {
+        if (i >= n || buf[i] != prefix[p])
+            return -1;
+        i = i + 1;
+        p = p + 1;
+    }
+    return i;
+}
+
+// Read help metadata from a .cc file and print it.
+// If summary_only, print just the first description without its marker.
 // Returns 1 if any help lines found, 0 otherwise.
 int show_help_lines(char *path, int summary_only) {
     int fd = vfs_open(path, 0);
-    if (fd < 0) return 0;
+    if (fd < 0)
+        return 0;
     char buf[4096];
     int n = vfs_read(fd, buf, 4095);
     vfs_close(fd);
-    if (n <= 0) return 0;
+    if (n <= 0)
+        return 0;
     buf[n] = 0;
 
     int found = 0;
     int i = 0;
     while (i < n) {
-        // Check if line starts with //help:
-        if (buf[i] == '/' && buf[i+1] == '/' && buf[i+2] == 'h'
-            && buf[i+3] == 'e' && buf[i+4] == 'l' && buf[i+5] == 'p'
-            && buf[i+6] == ':') {
-            int start = i + 7;
+        int start = help_line_text_start(buf, n, i);
+        if (start >= 0) {
             // Skip one space after colon
-            if (buf[start] == ' ') start = start + 1;
+            if (buf[start] == ' ')
+                start = start + 1;
             // Find end of line
             int end = start;
             while (end < n && buf[end] != 10 && buf[end] != 0) {
@@ -59,11 +77,13 @@ int show_help_lines(char *path, int summary_only) {
             found = 1;
         }
         // Skip to next line
-        while (i < n && buf[i] != 10 && buf[i] != 0) i = i + 1;
-        if (i < n) i = i + 1;
+        while (i < n && buf[i] != 10 && buf[i] != 0)
+            i = i + 1;
+        if (i < n)
+            i = i + 1;
         // Stop scanning after first non-help line if we already found some
         if (found) {
-            if (i < n && !(buf[i] == '/' && buf[i+1] == '/' && buf[i+2] == 'h')) {
+            if (i < n && help_line_text_start(buf, n, i) < 0) {
                 return found;
             }
         }
@@ -81,15 +101,26 @@ void show_cmd_help(char *cmd) {
     int pi = 0;
     char *pfx = "/bin/";
     int xi = 0;
-    while (pfx[xi]) { path[pi] = pfx[xi]; pi = pi + 1; xi = xi + 1; }
+    while (pfx[xi]) {
+        path[pi] = pfx[xi];
+        pi = pi + 1;
+        xi = xi + 1;
+    }
     int ci = 0;
-    while (cmd[ci]) { path[pi] = cmd[ci]; pi = pi + 1; ci = ci + 1; }
+    while (cmd[ci]) {
+        path[pi] = cmd[ci];
+        pi = pi + 1;
+        ci = ci + 1;
+    }
     // Add .cc if not already there
     int len = strlen(cmd);
-    if (len < 3 || cmd[len-3] != '.' || cmd[len-2] != 'c' || cmd[len-1] != 'c') {
-        path[pi] = '.'; pi = pi + 1;
-        path[pi] = 'c'; pi = pi + 1;
-        path[pi] = 'c'; pi = pi + 1;
+    if (len < 3 || cmd[len - 3] != '.' || cmd[len - 2] != 'c' || cmd[len - 1] != 'c') {
+        path[pi] = '.';
+        pi = pi + 1;
+        path[pi] = 'c';
+        pi = pi + 1;
+        path[pi] = 'c';
+        pi = pi + 1;
     }
     path[pi] = 0;
 
@@ -98,13 +129,24 @@ void show_cmd_help(char *cmd) {
         pi = 0;
         char *pfx2 = "/home/bin/";
         xi = 0;
-        while (pfx2[xi]) { path[pi] = pfx2[xi]; pi = pi + 1; xi = xi + 1; }
+        while (pfx2[xi]) {
+            path[pi] = pfx2[xi];
+            pi = pi + 1;
+            xi = xi + 1;
+        }
         ci = 0;
-        while (cmd[ci]) { path[pi] = cmd[ci]; pi = pi + 1; ci = ci + 1; }
-        if (len < 3 || cmd[len-3] != '.' || cmd[len-2] != 'c' || cmd[len-1] != 'c') {
-            path[pi] = '.'; pi = pi + 1;
-            path[pi] = 'c'; pi = pi + 1;
-            path[pi] = 'c'; pi = pi + 1;
+        while (cmd[ci]) {
+            path[pi] = cmd[ci];
+            pi = pi + 1;
+            ci = ci + 1;
+        }
+        if (len < 3 || cmd[len - 3] != '.' || cmd[len - 2] != 'c' || cmd[len - 1] != 'c') {
+            path[pi] = '.';
+            pi = pi + 1;
+            path[pi] = 'c';
+            pi = pi + 1;
+            path[pi] = 'c';
+            pi = pi + 1;
         }
         path[pi] = 0;
         if (!show_help_lines(path, 0)) {
@@ -117,25 +159,41 @@ void show_cmd_help(char *cmd) {
 
 void list_dir_programs(char *dir, char *label) {
     int fd = vfs_open(dir, 0);
-    if (fd < 0) return;
+    if (fd < 0)
+        return;
     // vfs_dirent_t: name[128], size(4 at 128), type(1 at 132). 136 with pad.
     char ent[136];
     int found = 0;
     while (vfs_readdir(fd, ent) > 0) {
         if (ent[132] == 0) {
-            if (!found) { println(label); found = 1; }
+            if (!found) {
+                println(label);
+                found = 1;
+            }
             char name[64];
             int i = 0;
-            while (ent[i] && i < 63) { name[i] = ent[i]; i = i + 1; }
+            while (ent[i] && i < 63) {
+                name[i] = ent[i];
+                i = i + 1;
+            }
             name[i] = 0;
             // Build full path for help lookup
             char fpath[128];
             int fp = 0;
             int di = 0;
-            while (dir[di]) { fpath[fp] = dir[di]; fp = fp + 1; di = di + 1; }
-            fpath[fp] = '/'; fp = fp + 1;
+            while (dir[di]) {
+                fpath[fp] = dir[di];
+                fp = fp + 1;
+                di = di + 1;
+            }
+            fpath[fp] = '/';
+            fp = fp + 1;
             int ni = 0;
-            while (name[ni]) { fpath[fp] = name[ni]; fp = fp + 1; ni = ni + 1; }
+            while (name[ni]) {
+                fpath[fp] = name[ni];
+                fp = fp + 1;
+                ni = ni + 1;
+            }
             fpath[fp] = 0;
 
             strip_cc(name);
@@ -144,7 +202,10 @@ void list_dir_programs(char *dir, char *label) {
 
             // Pad to 12 chars
             int nlen = strlen(name);
-            while (nlen < 12) { print(" "); nlen = nlen + 1; }
+            while (nlen < 12) {
+                print(" ");
+                nlen = nlen + 1;
+            }
             print("- ");
             if (!show_help_lines(fpath, 1)) {
                 print("(no description)");
@@ -156,7 +217,7 @@ void list_dir_programs(char *dir, char *label) {
 }
 
 void main() {
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
     if (strlen(args) > 0) {
         show_cmd_help(args);
         return;

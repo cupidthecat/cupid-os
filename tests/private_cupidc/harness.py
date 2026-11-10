@@ -43,12 +43,12 @@ def _native_binding_registration(names, address_base, function_name):
     for index, name in enumerate(names):
         pointer = "p_" + name
         declaration = re.search(
-            rf"(?m)^  (?P<result>[^\n;]+?)\s*\(\*{pointer}\)"
+            rf"(?m)^[ \t]*(?P<result>[^\n;]+?)\s*\(\*{pointer}\)"
             rf"\((?P<parameters>[^;]+?)\)\s*=\s*[^;]+;",
             source,
         )
         registration = re.search(
-            rf'(?m)^  BIND(?:_T|_FIXED)?\("{name}",\s*{pointer},[^;]+;',
+            rf'(?m)^[ \t]*BIND(?:_T|_FIXED)?\("{name}",\s*{pointer},[^;]+;',
             source,
         )
         if declaration is None or registration is None:

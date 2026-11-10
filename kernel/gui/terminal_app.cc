@@ -4,41 +4,40 @@
  * Provides a graphical terminal window that interfaces with
  * the existing shell.  The shell writes to a character buffer
  * and the terminal renders it inside a GUI window.
-*/
+ */
 
 #include "terminal_app.h"
-#include "gui.h"
-#include "graphics.h"
 #include "font_8x8.h"
+#include "graphics.h"
+#include "gui.h"
+#include "kernel.h"
+#include "keyboard.h"
+#include "process.h"
+#include "serial.h"
 #include "shell.h"
 #include "string.h"
-#include "process.h"
-#include "kernel.h"
 #include "terminal_ansi.h"
-#include "vga.h"
-#include "serial.h"
 #include "timer.h"
-#include "keyboard.h"
+#include "vga.h"
 
 #define TERM_WIN_W 560
 #define TERM_WIN_H 320
 /* Terminal runs shell commands and CupidC compilation inline in its process. */
 #define TERMINAL_STACK_SIZE (4u * 1024u * 1024u)
 
-#define CURSOR_BLINK_MS 500   /* Toggle cursor every 500 ms */
+#define CURSOR_BLINK_MS 500 /* Toggle cursor every 500 ms */
 
 /* Scancodes for zoom keys (US keyboard layout) */
-#define SC_KEY_EQUALS  0x0D   /* =/+ key */
-#define SC_KEY_MINUS   0x0C   /* -/_ key */
-#define SC_LCTRL       0x1D
+#define SC_KEY_EQUALS 0x0D /* =/+ key */
+#define SC_KEY_MINUS 0x0C  /* -/_ key */
+#define SC_LCTRL 0x1D
 
-static int terminal_wid = -1;  /* Window ID of the terminal */
-static int terminal_scroll_offset = 0;  /* Manual scroll offset (lines from bottom) */
-static bool cursor_visible = true;      /* Current blink state */
-static uint32_t last_blink_ms = 0;      /* Last time cursor toggled */
-static uint32_t terminal_pid = 0;       /* PID of the terminal process */
-static int terminal_font_scale = 1;     /* Font zoom: 1 = normal, 2 = 2x, 3 = 3x */
-
+static int terminal_wid = -1;          /* Window ID of the terminal */
+static int terminal_scroll_offset = 0; /* Manual scroll offset (lines from bottom) */
+static bool cursor_visible = true;     /* Current blink state */
+static uint32_t last_blink_ms = 0;     /* Last time cursor toggled */
+static uint32_t terminal_pid = 0;      /* PID of the terminal process */
+static int terminal_font_scale = 1;    /* Font zoom: 1 = normal, 2 = 2x, 3 = 3x */
 
 /* Terminal process entry point - runs as its own process */
 static void terminal_process_entry(void) {
@@ -67,7 +66,6 @@ static void terminal_process_entry(void) {
     /* Falls through to process_exit_trampoline */
 }
 
-
 static void terminal_on_close(window_t *win) {
     (void)win;
     uint32_t pid = terminal_pid;
@@ -78,10 +76,10 @@ static void terminal_on_close(window_t *win) {
     }
 }
 
-
 void terminal_launch(void) {
     /* Don't open a second terminal if one already exists */
-    if (terminal_wid >= 0 && gui_get_window(terminal_wid)) return;
+    if (terminal_wid >= 0 && gui_get_window(terminal_wid))
+        return;
 
     terminal_wid = gui_create_window(5, 10, TERM_WIN_W, TERM_WIN_H, "Terminal");
     if (terminal_wid < 0) {
@@ -99,11 +97,14 @@ void terminal_launch(void) {
     {
         uint16_t content_w = (uint16_t)(TERM_WIN_W - 4);
         int vis_cols = (int)content_w / (FONT_W * terminal_font_scale);
-        int vis_rows = (int)(TERM_WIN_H - TITLEBAR_H - WINDOW_CONTENT_BORDER) /
-                       (FONT_H * terminal_font_scale);
-        if (vis_cols > SHELL_COLS) vis_cols = SHELL_COLS;
-        if (vis_rows > SHELL_ROWS) vis_rows = SHELL_ROWS;
-        if (vis_rows < 1) vis_rows = 1;
+        int vis_rows =
+            (int)(TERM_WIN_H - TITLEBAR_H - WINDOW_CONTENT_BORDER) / (FONT_H * terminal_font_scale);
+        if (vis_cols > SHELL_COLS)
+            vis_cols = SHELL_COLS;
+        if (vis_rows > SHELL_ROWS)
+            vis_rows = SHELL_ROWS;
+        if (vis_rows < 1)
+            vis_rows = 1;
         shell_set_visible_cols(vis_cols);
         shell_set_visible_rows(vis_rows);
     }
@@ -113,8 +114,7 @@ void terminal_launch(void) {
     gui_set_focus(terminal_wid);
 
     /* Spawn the terminal as its own process */
-    terminal_pid = process_create(terminal_process_entry, "terminal",
-                                  TERMINAL_STACK_SIZE);
+    terminal_pid = process_create(terminal_process_entry, "terminal", TERMINAL_STACK_SIZE);
     if (terminal_pid == 0) {
         KWARN("terminal_launch: failed to create terminal process");
     }
@@ -136,23 +136,27 @@ void terminal_get_size(int *cols, int *rows) {
         int char_w = FONT_W * scale;
         int char_h = FONT_H * scale;
         uint16_t content_w = (uint16_t)(win->width - 4);
-        uint16_t content_h = (uint16_t)(win->height - TITLEBAR_H -
-                                        WINDOW_CONTENT_BORDER);
+        uint16_t content_h = (uint16_t)(win->height - TITLEBAR_H - WINDOW_CONTENT_BORDER);
 
         out_cols = (int)content_w / char_w;
         out_rows = (int)content_h / char_h;
-        if (out_cols > SHELL_COLS) out_cols = SHELL_COLS;
-        if (out_rows > SHELL_ROWS) out_rows = SHELL_ROWS;
-        if (out_cols < 1) out_cols = 1;
-        if (out_rows < 1) out_rows = 1;
+        if (out_cols > SHELL_COLS)
+            out_cols = SHELL_COLS;
+        if (out_rows > SHELL_ROWS)
+            out_rows = SHELL_ROWS;
+        if (out_cols < 1)
+            out_cols = 1;
+        if (out_rows < 1)
+            out_rows = 1;
         shell_set_visible_cols(out_cols);
         shell_set_visible_rows(out_rows);
     }
 
-    if (cols) *cols = out_cols;
-    if (rows) *rows = out_rows;
+    if (cols)
+        *cols = out_cols;
+    if (rows)
+        *rows = out_rows;
 }
-
 
 void terminal_redraw(window_t *win) {
     int16_t content_x = (int16_t)(win->x + 2);
@@ -163,8 +167,10 @@ void terminal_redraw(window_t *win) {
     /* Keep shell wrap width in sync with current terminal width */
     {
         int vis_cols = (int)content_w / (FONT_W * terminal_font_scale);
-        if (vis_cols > SHELL_COLS) vis_cols = SHELL_COLS;
-        if (vis_cols < 1) vis_cols = 1;
+        if (vis_cols > SHELL_COLS)
+            vis_cols = SHELL_COLS;
+        if (vis_cols < 1)
+            vis_cols = 1;
         shell_set_visible_cols(vis_cols);
     }
 
@@ -177,10 +183,13 @@ void terminal_redraw(window_t *win) {
 
     /* Calculate grid dimensions - only count rows that fit entirely */
     int chars_per_row = (int)content_w / char_w;
-    int visible_rows  = (int)content_h / char_h;
-    if (chars_per_row > SHELL_COLS) chars_per_row = SHELL_COLS;
-    if (visible_rows > SHELL_ROWS) visible_rows = SHELL_ROWS;
-    if (visible_rows < 1) visible_rows = 1;
+    int visible_rows = (int)content_h / char_h;
+    if (chars_per_row > SHELL_COLS)
+        chars_per_row = SHELL_COLS;
+    if (visible_rows > SHELL_ROWS)
+        visible_rows = SHELL_ROWS;
+    if (visible_rows < 1)
+        visible_rows = 1;
     shell_set_visible_rows(visible_rows);
 
     /* Get shell buffer */
@@ -200,17 +209,21 @@ void terminal_redraw(window_t *win) {
 
     /* Apply manual scroll offset (user scrolling with mouse wheel) */
     scroll_row -= terminal_scroll_offset;
-    if (scroll_row < 0) scroll_row = 0;
+    if (scroll_row < 0)
+        scroll_row = 0;
     /* Don't scroll past the cursor row */
-    if (!shell_get_terminal_alt_screen() && scroll_row > scy) scroll_row = scy;
+    if (!shell_get_terminal_alt_screen() && scroll_row > scy)
+        scroll_row = scy;
 
     /* Render characters - clip to content area */
     for (int row = 0; row < visible_rows; row++) {
         int src_row = row + scroll_row;
-        if (src_row >= SHELL_ROWS) break;
+        if (src_row >= SHELL_ROWS)
+            break;
         int16_t py = (int16_t)(content_y + row * char_h);
         /* Skip row if it would extend past content area */
-        if (py + char_h > content_y + (int16_t)content_h) break;
+        if (py + char_h > content_y + (int16_t)content_h)
+            break;
         for (int col = 0; col < chars_per_row; col++) {
             int idx = src_row * SHELL_COLS + col;
             char c = buf[idx];
@@ -227,8 +240,7 @@ void terminal_redraw(window_t *win) {
             if (colors[idx].bg != ANSI_COLOR_BLACK) {
                 int16_t px = (int16_t)(content_x + col * char_w);
                 uint32_t bg_pal = ansi_vga_to_palette(colors[idx].bg);
-                gfx_fill_rect(px, py, (uint16_t)char_w, (uint16_t)char_h,
-                              bg_pal);
+                gfx_fill_rect(px, py, (uint16_t)char_w, (uint16_t)char_h, bg_pal);
                 /* Redraw char on top of background if present */
                 if (c && c != ' ') {
                     uint32_t fg_pal = ansi_vga_to_palette(colors[idx].fg);
@@ -256,11 +268,12 @@ void terminal_redraw(window_t *win) {
     }
 }
 
-
 void terminal_handle_key(uint8_t scancode, char character) {
-    if (terminal_wid < 0) return;
+    if (terminal_wid < 0)
+        return;
     window_t *win = gui_get_window(terminal_wid);
-    if (!win) return;
+    if (!win)
+        return;
 
     /* Ctrl+Plus / Ctrl+Minus: zoom text */
     bool ctrl_held = keyboard_get_key_state(SC_LCTRL) || keyboard_get_ctrl();
@@ -269,13 +282,15 @@ void terminal_handle_key(uint8_t scancode, char character) {
             terminal_font_scale++;
             /* Update visible cols for the shell line-wrap */
             uint16_t content_w = (uint16_t)(win->width - 4);
-            uint16_t content_h = (uint16_t)(win->height - TITLEBAR_H -
-                                            WINDOW_CONTENT_BORDER);
+            uint16_t content_h = (uint16_t)(win->height - TITLEBAR_H - WINDOW_CONTENT_BORDER);
             int vis_cols = (int)content_w / (FONT_W * terminal_font_scale);
             int vis_rows = (int)content_h / (FONT_H * terminal_font_scale);
-            if (vis_cols > SHELL_COLS) vis_cols = SHELL_COLS;
-            if (vis_rows > SHELL_ROWS) vis_rows = SHELL_ROWS;
-            if (vis_rows < 1) vis_rows = 1;
+            if (vis_cols > SHELL_COLS)
+                vis_cols = SHELL_COLS;
+            if (vis_rows > SHELL_ROWS)
+                vis_rows = SHELL_ROWS;
+            if (vis_rows < 1)
+                vis_rows = 1;
             shell_set_visible_cols(vis_cols);
             shell_set_visible_rows(vis_rows);
             win->flags |= WINDOW_FLAG_DIRTY;
@@ -286,13 +301,15 @@ void terminal_handle_key(uint8_t scancode, char character) {
         if (terminal_font_scale > 1) {
             terminal_font_scale--;
             uint16_t content_w = (uint16_t)(win->width - 4);
-            uint16_t content_h = (uint16_t)(win->height - TITLEBAR_H -
-                                            WINDOW_CONTENT_BORDER);
+            uint16_t content_h = (uint16_t)(win->height - TITLEBAR_H - WINDOW_CONTENT_BORDER);
             int vis_cols = (int)content_w / (FONT_W * terminal_font_scale);
             int vis_rows = (int)content_h / (FONT_H * terminal_font_scale);
-            if (vis_cols > SHELL_COLS) vis_cols = SHELL_COLS;
-            if (vis_rows > SHELL_ROWS) vis_rows = SHELL_ROWS;
-            if (vis_rows < 1) vis_rows = 1;
+            if (vis_cols > SHELL_COLS)
+                vis_cols = SHELL_COLS;
+            if (vis_rows > SHELL_ROWS)
+                vis_rows = SHELL_ROWS;
+            if (vis_rows < 1)
+                vis_rows = 1;
             shell_set_visible_cols(vis_cols);
             shell_set_visible_rows(vis_rows);
             win->flags |= WINDOW_FLAG_DIRTY;
@@ -309,24 +326,24 @@ void terminal_handle_key(uint8_t scancode, char character) {
         return;
     }
 
-    /* Page Up/Down for scrolling */
-    #define SCANCODE_PAGE_UP   0x49
-    #define SCANCODE_PAGE_DOWN 0x51
+/* Page Up/Down for scrolling */
+#define SCANCODE_PAGE_UP 0x49
+#define SCANCODE_PAGE_DOWN 0x51
 
     if (character == 0 && scancode == SCANCODE_PAGE_UP) {
-        terminal_scroll_offset += 10;  /* Scroll up 10 lines per PgUp */
+        terminal_scroll_offset += 10; /* Scroll up 10 lines per PgUp */
         if (terminal_scroll_offset > SHELL_ROWS) {
             terminal_scroll_offset = SHELL_ROWS;
         }
         win->flags |= WINDOW_FLAG_DIRTY;
         return;
     }
-    if (character == 0 && scancode == 0x47) {       /* Home: scroll to top */
+    if (character == 0 && scancode == 0x47) { /* Home: scroll to top */
         terminal_scroll_offset = SHELL_ROWS;
         win->flags |= WINDOW_FLAG_DIRTY;
         return;
     }
-    if (character == 0 && scancode == 0x4F) {       /* End: scroll to bottom */
+    if (character == 0 && scancode == 0x4F) { /* End: scroll to bottom */
         terminal_scroll_offset = 0;
         win->flags |= WINDOW_FLAG_DIRTY;
         return;
@@ -356,9 +373,9 @@ void terminal_handle_key(uint8_t scancode, char character) {
     win->flags |= WINDOW_FLAG_DIRTY;
 }
 
-
 void terminal_mark_dirty(void) {
-    if (terminal_wid < 0) return;
+    if (terminal_wid < 0)
+        return;
     window_t *win = gui_get_window(terminal_wid);
     if (win) {
         win->flags |= WINDOW_FLAG_DIRTY;
@@ -366,10 +383,13 @@ void terminal_mark_dirty(void) {
 }
 
 void terminal_tick(void) {
-    if (terminal_wid < 0) return;
+    if (terminal_wid < 0)
+        return;
     window_t *win = gui_get_window(terminal_wid);
-    if (!win) return;
-    if (!(win->flags & WINDOW_FLAG_FOCUSED)) return;
+    if (!win)
+        return;
+    if (!(win->flags & WINDOW_FLAG_FOCUSED))
+        return;
 
     uint32_t now = timer_get_uptime_ms();
     if (now - last_blink_ms >= CURSOR_BLINK_MS) {
@@ -379,11 +399,12 @@ void terminal_tick(void) {
     }
 }
 
-
 void terminal_handle_scroll(int delta) {
-    if (terminal_wid < 0) return;
+    if (terminal_wid < 0)
+        return;
     window_t *win = gui_get_window(terminal_wid);
-    if (!win) return;
+    if (!win)
+        return;
     if (shell_get_terminal_alt_screen()) {
         terminal_scroll_offset = 0;
         win->flags |= WINDOW_FLAG_DIRTY;

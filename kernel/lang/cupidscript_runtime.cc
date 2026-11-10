@@ -2,13 +2,13 @@
  * cupidscript_runtime.cc - Runtime variable/function management for CupidScript
  *
  * Manages variable storage, function registry, and variable expansion.
-*/
+ */
 #include "cupidscript.h"
-#include "string.h"
-#include "memory.h"
 #include "kernel.h"
-#include "serial.h"
+#include "memory.h"
 #include "rtc.h"
+#include "serial.h"
+#include "string.h"
 
 /* Context initialization */
 void cupidscript_init_context(script_context_t *ctx) {
@@ -49,7 +49,8 @@ static void str_copy(char *dst, const char *src, int max) {
 
 /* integer to string */
 static void int_to_str(int val, char *buf, int bufsize) {
-    if (bufsize <= 0) return;
+    if (bufsize <= 0)
+        return;
     if (val < 0) {
         buf[0] = '-';
         int_to_str(-val, buf + 1, bufsize - 1);
@@ -121,8 +122,7 @@ const char *cupidscript_get_variable(script_context_t *ctx, const char *name) {
     return ""; /* undefined variables expand to empty (bash behavior) */
 }
 
-void cupidscript_set_variable(script_context_t *ctx, const char *name,
-                              const char *value) {
+void cupidscript_set_variable(script_context_t *ctx, const char *name, const char *value) {
     /* Check if variable already exists */
     for (int i = 0; i < ctx->var_count; i++) {
         if (strcmp(ctx->variables[i].name, name) == 0) {
@@ -146,19 +146,22 @@ void cupidscript_set_variable(script_context_t *ctx, const char *name,
 /* Variable expansion
  * Replaces $VAR patterns in a string with their values.
  * Returns a kmalloc'd string - caller must kfree().
-*/
+ */
 
 static int is_varname_char(char c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-           (c >= '0' && c <= '9') || c == '_';
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
 }
 
 /* Parse a string as an integer for arithmetic.  Returns 0 for empty or
  * non-numeric strings.*/
 static int parse_arith_int(const char *s) {
-    if (!s || !*s) return 0;
+    if (!s || !*s)
+        return 0;
     int neg = 0;
-    if (*s == '-') { neg = 1; s++; }
+    if (*s == '-') {
+        neg = 1;
+        s++;
+    }
     int v = 0;
     while (*s >= '0' && *s <= '9') {
         v = v * 10 + (*s - '0');
@@ -169,21 +172,23 @@ static int parse_arith_int(const char *s) {
 
 char *cupidscript_expand(const char *str, script_context_t *ctx) {
     char *result = kmalloc(MAX_EXPAND_LEN);
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     int out = 0;
     int i = 0;
     int len = 0;
-    while (str[len]) len++;
+    while (str[len])
+        len++;
 
     while (i < len && out < MAX_EXPAND_LEN - 1) {
         if (str[i] == '$') {
             i++;
-            if (i >= len) break;
+            if (i >= len)
+                break;
 
             /* Special: $? $# $0-$9 */
-            if (str[i] == '?' || str[i] == '#' ||
-                (str[i] >= '0' && str[i] <= '9')) {
+            if (str[i] == '?' || str[i] == '#' || (str[i] >= '0' && str[i] <= '9')) {
                 char special[2];
                 special[0] = str[i];
                 special[1] = '\0';
@@ -212,7 +217,8 @@ char *cupidscript_expand(const char *str, script_context_t *ctx) {
                         tmp2[ti++] = (char)('0' + (bg_pid % 10));
                         bg_pid /= 10;
                     }
-                    while (ti > 0) pid_str[pi++] = tmp2[--ti];
+                    while (ti > 0)
+                        pid_str[pi++] = tmp2[--ti];
                 }
                 pid_str[pi] = '\0';
                 int j = 0;
@@ -229,13 +235,17 @@ char *cupidscript_expand(const char *str, script_context_t *ctx) {
                 int expr_start = i;
                 int depth = 1;
                 while (i < len && depth > 0) {
-                    if (str[i] == '{') depth++;
-                    if (str[i] == '}') depth--;
-                    if (depth > 0) i++;
+                    if (str[i] == '{')
+                        depth++;
+                    if (str[i] == '}')
+                        depth--;
+                    if (depth > 0)
+                        i++;
                 }
                 /* Extract expression (without closing }) */
                 int expr_len = i - expr_start;
-                if (i < len) i++; /* skip } */
+                if (i < len)
+                    i++; /* skip } */
 
                 char expr[MAX_EXPAND_LEN];
                 int eidx = 0;
@@ -266,7 +276,10 @@ char *cupidscript_expand(const char *str, script_context_t *ctx) {
                 while (i < len && depth > 0) {
                     if (str[i] == ')' && i + 1 < len && str[i + 1] == ')') {
                         depth--;
-                        if (depth == 0) { i += 2; break; }
+                        if (depth == 0) {
+                            i += 2;
+                            break;
+                        }
                     }
                     if (eidx < MAX_TOKEN_LEN - 1) {
                         expr[eidx++] = str[i];
@@ -277,42 +290,46 @@ char *cupidscript_expand(const char *str, script_context_t *ctx) {
 
                 /* Expand variables within the expression first */
                 char *expanded_expr = cupidscript_expand(expr, ctx);
-                if (!expanded_expr) continue;
+                if (!expanded_expr)
+                    continue;
 
-                /* Simple arithmetic evaluator for expanded expression.
-                 * Supports: +, -, *, /, % with integer operands.
-                 * Operands can be numbers or bare variable names
-                 * (bash allows both $VAR and VAR inside $(())).*/
+/* Simple arithmetic evaluator for expanded expression.
+ * Supports: +, -, *, /, % with integer operands.
+ * Operands can be numbers or bare variable names
+ * (bash allows both $VAR and VAR inside $(())).*/
 
-                /* Helper: parse one operand (number or variable) */
-                #define ARITH_PARSE_OPERAND(ptr, result_var) do {      \
-                    while (*(ptr) == ' ') (ptr)++;                     \
-                    int _neg = 0;                                      \
-                    if (*(ptr) == '-') { _neg = 1; (ptr)++; }          \
-                    if (*(ptr) >= '0' && *(ptr) <= '9') {              \
-                        (result_var) = 0;                              \
-                        while (*(ptr) >= '0' && *(ptr) <= '9') {       \
-                            (result_var) = (result_var) * 10 +         \
-                                           (*(ptr) - '0');             \
-                            (ptr)++;                                   \
-                        }                                              \
-                    } else if (is_varname_char(*(ptr))) {              \
-                        char _vn[MAX_VAR_NAME];                        \
-                        int _vi = 0;                                   \
-                        while (is_varname_char(*(ptr)) &&              \
-                               _vi < MAX_VAR_NAME - 1) {              \
-                            _vn[_vi++] = *(ptr);                       \
-                            (ptr)++;                                   \
-                        }                                              \
-                        _vn[_vi] = '\0';                               \
-                        const char *_vv =                              \
-                            cupidscript_get_variable(ctx, _vn);        \
-                        (result_var) = parse_arith_int(_vv);           \
-                    } else {                                           \
-                        (result_var) = 0;                              \
-                    }                                                  \
-                    if (_neg) (result_var) = -(result_var);            \
-                } while (0)
+/* Helper: parse one operand (number or variable) */
+#define ARITH_PARSE_OPERAND(ptr, result_var)                                                       \
+    do {                                                                                           \
+        while (*(ptr) == ' ')                                                                      \
+            (ptr)++;                                                                               \
+        int _neg = 0;                                                                              \
+        if (*(ptr) == '-') {                                                                       \
+            _neg = 1;                                                                              \
+            (ptr)++;                                                                               \
+        }                                                                                          \
+        if (*(ptr) >= '0' && *(ptr) <= '9') {                                                      \
+            (result_var) = 0;                                                                      \
+            while (*(ptr) >= '0' && *(ptr) <= '9') {                                               \
+                (result_var) = (result_var) * 10 + (*(ptr) - '0');                                 \
+                (ptr)++;                                                                           \
+            }                                                                                      \
+        } else if (is_varname_char(*(ptr))) {                                                      \
+            char _vn[MAX_VAR_NAME];                                                                \
+            int _vi = 0;                                                                           \
+            while (is_varname_char(*(ptr)) && _vi < MAX_VAR_NAME - 1) {                            \
+                _vn[_vi++] = *(ptr);                                                               \
+                (ptr)++;                                                                           \
+            }                                                                                      \
+            _vn[_vi] = '\0';                                                                       \
+            const char *_vv = cupidscript_get_variable(ctx, _vn);                                  \
+            (result_var) = parse_arith_int(_vv);                                                   \
+        } else {                                                                                   \
+            (result_var) = 0;                                                                      \
+        }                                                                                          \
+        if (_neg)                                                                                  \
+            (result_var) = -(result_var);                                                          \
+    } while (0)
 
                 int val = 0;
                 const char *ep = expanded_expr;
@@ -320,7 +337,8 @@ char *cupidscript_expand(const char *str, script_context_t *ctx) {
                 ARITH_PARSE_OPERAND(ep, val);
 
                 /* Parse operator and second operand if present */
-                while (*ep == ' ') ep++;
+                while (*ep == ' ')
+                    ep++;
                 if (*ep) {
                     char op = *ep;
                     ep++;
@@ -329,16 +347,29 @@ char *cupidscript_expand(const char *str, script_context_t *ctx) {
                     ARITH_PARSE_OPERAND(ep, val2);
 
                     switch (op) {
-                    case '+': val = val + val2; break;
-                    case '-': val = val - val2; break;
-                    case '*': val = val * val2; break;
-                    case '/': if (val2 != 0) val = val / val2; break;
-                    case '%': if (val2 != 0) val = val % val2; break;
-                    default: break;
+                        case '+':
+                            val = val + val2;
+                            break;
+                        case '-':
+                            val = val - val2;
+                            break;
+                        case '*':
+                            val = val * val2;
+                            break;
+                        case '/':
+                            if (val2 != 0)
+                                val = val / val2;
+                            break;
+                        case '%':
+                            if (val2 != 0)
+                                val = val % val2;
+                            break;
+                        default:
+                            break;
                     }
                 }
 
-                #undef ARITH_PARSE_OPERAND
+#undef ARITH_PARSE_OPERAND
 
                 kfree(expanded_expr);
 
@@ -355,8 +386,7 @@ char *cupidscript_expand(const char *str, script_context_t *ctx) {
             /* Regular variable name */
             char varname[MAX_VAR_NAME];
             int vi = 0;
-            while (i < len && is_varname_char(str[i]) &&
-                   vi < MAX_VAR_NAME - 1) {
+            while (i < len && is_varname_char(str[i]) && vi < MAX_VAR_NAME - 1) {
                 varname[vi++] = str[i++];
             }
             varname[vi] = '\0';
@@ -372,12 +402,24 @@ char *cupidscript_expand(const char *str, script_context_t *ctx) {
             /* Escape sequences */
             i++;
             switch (str[i]) {
-            case 'n': result[out++] = '\n'; break;
-            case 't': result[out++] = '\t'; break;
-            case '\\': result[out++] = '\\'; break;
-            case '$': result[out++] = '$'; break;
-            case '"': result[out++] = '"'; break;
-            default: result[out++] = str[i]; break;
+                case 'n':
+                    result[out++] = '\n';
+                    break;
+                case 't':
+                    result[out++] = '\t';
+                    break;
+                case '\\':
+                    result[out++] = '\\';
+                    break;
+                case '$':
+                    result[out++] = '$';
+                    break;
+                case '"':
+                    result[out++] = '"';
+                    break;
+                default:
+                    result[out++] = str[i];
+                    break;
             }
             i++;
         } else {
@@ -391,8 +433,7 @@ char *cupidscript_expand(const char *str, script_context_t *ctx) {
 
 /* Function management */
 
-void cupidscript_register_function(script_context_t *ctx, const char *name,
-                                   ast_node_t *body) {
+void cupidscript_register_function(script_context_t *ctx, const char *name, ast_node_t *body) {
     /* Check if function already exists - update it */
     for (int i = 0; i < ctx->func_count; i++) {
         if (strcmp(ctx->functions[i].name, name) == 0) {
@@ -412,8 +453,7 @@ void cupidscript_register_function(script_context_t *ctx, const char *name,
     }
 }
 
-ast_node_t *cupidscript_lookup_function(script_context_t *ctx,
-                                        const char *name) {
+ast_node_t *cupidscript_lookup_function(script_context_t *ctx, const char *name) {
     for (int i = 0; i < ctx->func_count; i++) {
         if (strcmp(ctx->functions[i].name, name) == 0) {
             return ctx->functions[i].body;

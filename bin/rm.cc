@@ -1,7 +1,7 @@
-//help: Remove (delete) files
-//help: Usage: rm <file1> [file2] ...
-//help: Deletes one or more files from the filesystem.
-//help: Use with caution - deleted files cannot be recovered!
+// help: Remove (delete) files
+// help: Usage: rm <file1> [file2] ...
+// help: Deletes one or more files from the filesystem.
+// help: Use with caution - deleted files cannot be recovered!
 
 // Parse a single token from a string
 // Returns the length of the token (0 if no token found)
@@ -32,7 +32,7 @@ int parse_token(char *str, int start, char *out, int maxlen) {
 }
 
 void main() {
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
 
     // Check if arguments provided
     if (strlen(args) == 0) {
@@ -51,7 +51,8 @@ void main() {
     while (1) {
         // Parse next filename
         int len = parse_token(args, pos, filename, 256);
-        if (len == 0) break;  // No more tokens
+        if (len == 0)
+            break; // No more tokens
         pos = pos + len;
 
         // Resolve path

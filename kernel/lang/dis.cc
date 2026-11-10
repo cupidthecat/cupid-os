@@ -32,8 +32,7 @@ static ctool_status_t dis_sink_write(void *context, ctool_bytes_t text) {
     dis_sink_context_t *sink = (dis_sink_context_t *)context;
     ctool_u32 offset = 0u;
 
-    if (sink == (dis_sink_context_t *)0 ||
-        (text.data == (const ctool_u8 *)0 && text.size != 0u)) {
+    if (sink == (dis_sink_context_t *)0 || (text.data == (const ctool_u8 *)0 && text.size != 0u)) {
         return CTOOL_ERR_INVALID_ARGUMENT;
     }
     while (offset < text.size) {
@@ -72,22 +71,22 @@ static ctool_job_config_t dis_job_config(dis_sink_context_t *context) {
 
 static int dis_vfs_status(ctool_status_t status) {
     switch (status) {
-    case CTOOL_OK:
-        return VFS_OK;
-    case CTOOL_ERR_NOT_FOUND:
-        return VFS_ENOENT;
-    case CTOOL_ERR_IO:
-        return VFS_EIO;
-    case CTOOL_ERR_NO_MEMORY:
-    case CTOOL_ERR_LIMIT:
-        return VFS_ENOSPC;
-    default:
-        return VFS_EINVAL;
+        case CTOOL_OK:
+            return VFS_OK;
+        case CTOOL_ERR_NOT_FOUND:
+            return VFS_ENOENT;
+        case CTOOL_ERR_IO:
+            return VFS_EIO;
+        case CTOOL_ERR_NO_MEMORY:
+        case CTOOL_ERR_LIMIT:
+            return VFS_ENOSPC;
+        default:
+            return VFS_EINVAL;
     }
 }
 
-static void dis_report_failure(ctool_job_t *job, dis_output_fn output,
-                               ctool_status_t status, const char *fallback) {
+static void dis_report_failure(ctool_job_t *job, dis_output_fn output, ctool_status_t status,
+                               const char *fallback) {
     if (job != (ctool_job_t *)0 && ctool_job_diagnostic_count(job) != 0u) {
         (void)ctool_job_render_diagnostics(job);
         return;
@@ -103,10 +102,8 @@ static void dis_report_failure(ctool_job_t *job, dis_output_fn output,
     }
 }
 
-int dis_disassemble_raw(const uint8_t *buffer, uint32_t size,
-                        const dis_raw_request_t *raw_request,
-                        const dis_sym_t *symbols, int symbol_count,
-                        dis_output_fn output) {
+int dis_disassemble_raw(const uint8_t *buffer, uint32_t size, const dis_raw_request_t *raw_request,
+                        const dis_sym_t *symbols, int symbol_count, dis_output_fn output) {
     dis_sink_context_t sink_context;
     ctool_job_config_t config;
     ctool_job_t *job = (ctool_job_t *)0;
@@ -138,10 +135,9 @@ int dis_disassemble_raw(const uint8_t *buffer, uint32_t size,
     config = dis_job_config(&sink_context);
     status = ctool_job_open(&config, &job);
     if (status == CTOOL_OK && count != 0u) {
-        status = ctool_arena_alloc_zero(
-            ctool_job_arena(job), count,
-            (ctool_u32)sizeof(ctool_dis_label_t),
-            (ctool_u32)sizeof(ctool_u32), (void **)&labels);
+        status = ctool_arena_alloc_zero(ctool_job_arena(job), count,
+                                        (ctool_u32)sizeof(ctool_dis_label_t),
+                                        (ctool_u32)sizeof(ctool_u32), (void **)&labels);
     }
     if (status == CTOOL_OK) {
         for (index = 0u; index < count; index++) {
@@ -165,15 +161,13 @@ int dis_disassemble_raw(const uint8_t *buffer, uint32_t size,
         status = ctool_dis_inspect(job, &source, &request, &report);
     }
     if (status == CTOOL_OK && raw_request->require_known != CTOOL_FALSE &&
-        (report.decode_summary.unknown_count != 0u ||
-         report.decode_summary.invalid_count != 0u ||
+        (report.decode_summary.unknown_count != 0u || report.decode_summary.invalid_count != 0u ||
          report.decode_summary.truncated_count != 0u)) {
         status = CTOOL_ERR_INPUT;
         strict_failed = CTOOL_TRUE;
     }
     if (status == CTOOL_OK) {
-        status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
-                                  dis_text_sink(&sink_context));
+        status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID, dis_text_sink(&sink_context));
     }
     if (status != CTOOL_OK) {
         const char *fallback =
@@ -188,17 +182,15 @@ int dis_disassemble_raw(const uint8_t *buffer, uint32_t size,
     return dis_vfs_status(status);
 }
 
-void dis_disassemble(const uint8_t *buffer, uint32_t size,
-                     uint32_t base_address, const dis_sym_t *symbols,
-                     int symbol_count, dis_output_fn output) {
+void dis_disassemble(const uint8_t *buffer, uint32_t size, uint32_t base_address,
+                     const dis_sym_t *symbols, int symbol_count, dis_output_fn output) {
     dis_raw_request_t request;
     request.mode = CTOOL_X86_MODE_32;
     request.base_address = base_address;
     request.ranges = (const ctool_dis_raw_range_t *)0;
     request.range_count = 0u;
     request.require_known = CTOOL_FALSE;
-    (void)dis_disassemble_raw(buffer, size, &request, symbols, symbol_count,
-                              output);
+    (void)dis_disassemble_raw(buffer, size, &request, symbols, symbol_count, output);
 }
 
 int dis_elf(const char *path, dis_output_fn output) {
@@ -224,8 +216,7 @@ int dis_elf(const char *path, dis_output_fn output) {
         status = ctool_path_root(ctool_job_arena(job), &root);
     }
     if (status == CTOOL_OK) {
-        status = ctool_path_resolve(ctool_job_arena(job), &root,
-                                    ctool_string(path),
+        status = ctool_path_resolve(ctool_job_arena(job), &root, ctool_string(path),
                                     config.limits.path_bytes, &input_path);
     }
     if (status == CTOOL_OK) {
@@ -247,12 +238,10 @@ int dis_elf(const char *path, dis_output_fn output) {
         status = ctool_dis_inspect(job, &source, &request, &report);
     }
     if (status == CTOOL_OK) {
-        status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
-                                  dis_text_sink(&sink_context));
+        status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID, dis_text_sink(&sink_context));
     }
     if (status != CTOOL_OK) {
-        dis_report_failure(job, output, status,
-                           "dis: not a valid ELF32 i386 file\n");
+        dis_report_failure(job, output, status, "dis: not a valid ELF32 i386 file\n");
     }
     if (job != (ctool_job_t *)0) {
         ctool_job_close(job);
@@ -260,16 +249,13 @@ int dis_elf(const char *path, dis_output_fn output) {
     return dis_vfs_status(status);
 }
 
-static ctool_status_t dis_load_file(ctool_job_t *job, const char *path,
-                                    ctool_source_t *source) {
+static ctool_status_t dis_load_file(ctool_job_t *job, const char *path, ctool_source_t *source) {
     ctool_path_t root;
     ctool_path_t input_path;
     ctool_status_t status = ctool_path_root(ctool_job_arena(job), &root);
     if (status == CTOOL_OK) {
-        status = ctool_path_resolve(ctool_job_arena(job), &root,
-                                    ctool_string(path),
-                                    ctool_job_limits(job)->path_bytes,
-                                    &input_path);
+        status = ctool_path_resolve(ctool_job_arena(job), &root, ctool_string(path),
+                                    ctool_job_limits(job)->path_bytes, &input_path);
     }
     if (status == CTOOL_OK) {
         status = ctool_job_load_source(job, &input_path, source);
@@ -277,8 +263,7 @@ static ctool_status_t dis_load_file(ctool_job_t *job, const char *path,
     return status;
 }
 
-int dis_raw_file(const char *path,
-                 const dis_raw_file_request_t *file_request,
+int dis_raw_file(const char *path, const dis_raw_file_request_t *file_request,
                  dis_output_fn output) {
     dis_sink_context_t sink_context;
     ctool_job_config_t config;
@@ -300,14 +285,11 @@ int dis_raw_file(const char *path,
         dis_out(output, "dis: invalid raw file request\n");
         return VFS_EINVAL;
     }
-    mapped = file_request->range_map_path != (const char *)0
-                 ? CTOOL_TRUE : CTOOL_FALSE;
+    mapped = file_request->range_map_path != (const char *)0 ? CTOOL_TRUE : CTOOL_FALSE;
     if ((mapped != CTOOL_FALSE &&
          (file_request->range_map_path[0] == '\0' ||
-          file_request->mode != CTOOL_DIS_RAW_RANGE_MAP ||
-          file_request->base_address != 0u)) ||
-        (mapped == CTOOL_FALSE &&
-         file_request->mode != CTOOL_X86_MODE_16 &&
+          file_request->mode != CTOOL_DIS_RAW_RANGE_MAP || file_request->base_address != 0u)) ||
+        (mapped == CTOOL_FALSE && file_request->mode != CTOOL_X86_MODE_16 &&
          file_request->mode != CTOOL_X86_MODE_32)) {
         dis_out(output, "dis: invalid raw file request\n");
         return VFS_EINVAL;
@@ -331,12 +313,10 @@ int dis_raw_file(const char *path,
         status = ctool_job_open(&config, &map_job);
         failure_job = map_job;
         if (status == CTOOL_OK) {
-            status = dis_load_file(map_job, file_request->range_map_path,
-                                    &map_source);
+            status = dis_load_file(map_job, file_request->range_map_path, &map_source);
         }
         if (status == CTOOL_OK) {
-            status = ctool_dis_parse_raw_map(map_job, map_source.contents,
-                                              &map, &map_message);
+            status = ctool_dis_parse_raw_map(map_job, map_source.contents, &map, &map_message);
         }
         if (status == CTOOL_OK && map.image_size != source.contents.size) {
             status = CTOOL_ERR_INPUT;
@@ -356,15 +336,13 @@ int dis_raw_file(const char *path,
         status = ctool_dis_inspect(job, &source, &request, &report);
     }
     if (status == CTOOL_OK && file_request->require_known != CTOOL_FALSE &&
-        (report.decode_summary.unknown_count != 0u ||
-         report.decode_summary.invalid_count != 0u ||
+        (report.decode_summary.unknown_count != 0u || report.decode_summary.invalid_count != 0u ||
          report.decode_summary.truncated_count != 0u)) {
         status = CTOOL_ERR_INPUT;
         fallback = "dis: code check failed: unknown, invalid, or truncated instruction\n";
     }
     if (status == CTOOL_OK) {
-        status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
-                                  dis_text_sink(&sink_context));
+        status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID, dis_text_sink(&sink_context));
     }
     if (status != CTOOL_OK) {
         if (map_message != (const char *)0) {
@@ -375,8 +353,10 @@ int dis_raw_file(const char *path,
             dis_report_failure(failure_job, output, status, fallback);
         }
     }
-    if (map_job != (ctool_job_t *)0) ctool_job_close(map_job);
-    if (job != (ctool_job_t *)0) ctool_job_close(job);
+    if (map_job != (ctool_job_t *)0)
+        ctool_job_close(map_job);
+    if (job != (ctool_job_t *)0)
+        ctool_job_close(job);
     return dis_vfs_status(status);
 }
 
@@ -390,18 +370,17 @@ static ctool_bool dis_token_equal(ctool_string_t token, const char *text) {
     return text[token.size] == '\0' ? CTOOL_TRUE : CTOOL_FALSE;
 }
 
-static ctool_string_t dis_next_token(ctool_string_t arguments,
-                                      ctool_u32 *cursor) {
+static ctool_string_t dis_next_token(ctool_string_t arguments, ctool_u32 *cursor) {
     ctool_string_t token;
     ctool_u32 start;
     while (*cursor < arguments.size &&
-           (arguments.data[*cursor] == ' ' ||
-            arguments.data[*cursor] == '\t')) (*cursor)++;
+           (arguments.data[*cursor] == ' ' || arguments.data[*cursor] == '\t'))
+        (*cursor)++;
     start = *cursor;
     while (*cursor < arguments.size && arguments.data[*cursor] != ' ' &&
-           arguments.data[*cursor] != '\t') (*cursor)++;
-    token.data = arguments.data == (const char *)0
-                     ? (const char *)0 : arguments.data + start;
+           arguments.data[*cursor] != '\t')
+        (*cursor)++;
+    token.data = arguments.data == (const char *)0 ? (const char *)0 : arguments.data + start;
     token.size = *cursor - start;
     return token;
 }
@@ -415,14 +394,19 @@ static ctool_bool dis_token_u32(ctool_string_t token, ctool_u32 *value_out) {
         base = 16u;
         index = 2u;
     }
-    if (index == token.size) return CTOOL_FALSE;
+    if (index == token.size)
+        return CTOOL_FALSE;
     for (; index < token.size; index++) {
         ctool_u32 digit;
         char ch = token.data[index];
-        if (ch >= '0' && ch <= '9') digit = (ctool_u32)(ch - '0');
-        else if (ch >= 'a' && ch <= 'f') digit = (ctool_u32)(ch - 'a') + 10u;
-        else if (ch >= 'A' && ch <= 'F') digit = (ctool_u32)(ch - 'A') + 10u;
-        else return CTOOL_FALSE;
+        if (ch >= '0' && ch <= '9')
+            digit = (ctool_u32)(ch - '0');
+        else if (ch >= 'a' && ch <= 'f')
+            digit = (ctool_u32)(ch - 'a') + 10u;
+        else if (ch >= 'A' && ch <= 'F')
+            digit = (ctool_u32)(ch - 'A') + 10u;
+        else
+            return CTOOL_FALSE;
         if (digit >= base || value > (4294967295u - digit) / base) {
             return CTOOL_FALSE;
         }
@@ -432,68 +416,76 @@ static ctool_bool dis_token_u32(ctool_string_t token, ctool_u32 *value_out) {
     return CTOOL_TRUE;
 }
 
-ctool_status_t dis_command_parse(ctool_string_t arguments,
-                                 dis_command_t *command_out) {
+ctool_status_t dis_command_parse(ctool_string_t arguments, dis_command_t *command_out) {
     dis_command_t command = {0};
     ctool_u32 cursor = 0u;
     ctool_bool have_mode = CTOOL_FALSE;
     ctool_bool have_base = CTOOL_FALSE;
     ctool_bool options = CTOOL_TRUE;
-    if (command_out != (dis_command_t *)0) *command_out = command;
+    if (command_out != (dis_command_t *)0)
+        *command_out = command;
     if (command_out == (dis_command_t *)0 ||
         (arguments.data == (const char *)0 && arguments.size != 0u)) {
         return CTOOL_ERR_INVALID_ARGUMENT;
     }
     for (cursor = 0u; cursor < arguments.size; cursor++) {
-        if (arguments.data[cursor] == '\0') return CTOOL_ERR_INPUT;
+        if (arguments.data[cursor] == '\0')
+            return CTOOL_ERR_INPUT;
     }
     cursor = 0u;
     while (cursor < arguments.size) {
         ctool_string_t token = dis_next_token(arguments, &cursor);
-        if (token.size == 0u) break;
+        if (token.size == 0u)
+            break;
         if (options != CTOOL_FALSE && dis_token_equal(token, "--")) {
             options = CTOOL_FALSE;
-        } else if (options != CTOOL_FALSE &&
-                   dis_token_equal(token, "--raw")) {
-            if (command.raw != CTOOL_FALSE) return CTOOL_ERR_INPUT;
+        } else if (options != CTOOL_FALSE && dis_token_equal(token, "--raw")) {
+            if (command.raw != CTOOL_FALSE)
+                return CTOOL_ERR_INPUT;
             command.raw = CTOOL_TRUE;
-        } else if (options != CTOOL_FALSE &&
-                   dis_token_equal(token, "--require-known")) {
-            if (command.require_known != CTOOL_FALSE) return CTOOL_ERR_INPUT;
+        } else if (options != CTOOL_FALSE && dis_token_equal(token, "--require-known")) {
+            if (command.require_known != CTOOL_FALSE)
+                return CTOOL_ERR_INPUT;
             command.require_known = CTOOL_TRUE;
-        } else if (options != CTOOL_FALSE &&
-                   dis_token_equal(token, "--mode")) {
-            if (have_mode != CTOOL_FALSE) return CTOOL_ERR_INPUT;
+        } else if (options != CTOOL_FALSE && dis_token_equal(token, "--mode")) {
+            if (have_mode != CTOOL_FALSE)
+                return CTOOL_ERR_INPUT;
             token = dis_next_token(arguments, &cursor);
-            if (dis_token_equal(token, "16")) command.mode = CTOOL_X86_MODE_16;
-            else if (dis_token_equal(token, "32")) command.mode = CTOOL_X86_MODE_32;
-            else return CTOOL_ERR_INPUT;
+            if (dis_token_equal(token, "16"))
+                command.mode = CTOOL_X86_MODE_16;
+            else if (dis_token_equal(token, "32"))
+                command.mode = CTOOL_X86_MODE_32;
+            else
+                return CTOOL_ERR_INPUT;
             have_mode = CTOOL_TRUE;
-        } else if (options != CTOOL_FALSE &&
-                   dis_token_equal(token, "--base")) {
-            if (have_base != CTOOL_FALSE) return CTOOL_ERR_INPUT;
+        } else if (options != CTOOL_FALSE && dis_token_equal(token, "--base")) {
+            if (have_base != CTOOL_FALSE)
+                return CTOOL_ERR_INPUT;
             token = dis_next_token(arguments, &cursor);
-            if (!dis_token_u32(token, &command.base_address)) return CTOOL_ERR_INPUT;
+            if (!dis_token_u32(token, &command.base_address))
+                return CTOOL_ERR_INPUT;
             have_base = CTOOL_TRUE;
-        } else if (options != CTOOL_FALSE &&
-                   dis_token_equal(token, "--range-map")) {
-            if (command.range_map.size != 0u) return CTOOL_ERR_INPUT;
+        } else if (options != CTOOL_FALSE && dis_token_equal(token, "--range-map")) {
+            if (command.range_map.size != 0u)
+                return CTOOL_ERR_INPUT;
             token = dis_next_token(arguments, &cursor);
-            if (token.size == 0u || token.data[0] == '-') return CTOOL_ERR_INPUT;
+            if (token.size == 0u || token.data[0] == '-')
+                return CTOOL_ERR_INPUT;
             command.range_map = token;
-        } else if ((options != CTOOL_FALSE && token.data[0] == '-') ||
-                   command.input.size != 0u) {
+        } else if ((options != CTOOL_FALSE && token.data[0] == '-') || command.input.size != 0u) {
             return CTOOL_ERR_INPUT;
         } else {
             command.input = token;
         }
     }
-    if (command.input.size == 0u) return CTOOL_ERR_INPUT;
+    if (command.input.size == 0u)
+        return CTOOL_ERR_INPUT;
     if (command.raw == CTOOL_FALSE) {
-        if (have_mode || have_base || command.range_map.size != 0u ||
-            command.require_known) return CTOOL_ERR_INPUT;
+        if (have_mode || have_base || command.range_map.size != 0u || command.require_known)
+            return CTOOL_ERR_INPUT;
     } else if (command.range_map.size != 0u) {
-        if (have_mode || have_base) return CTOOL_ERR_INPUT;
+        if (have_mode || have_base)
+            return CTOOL_ERR_INPUT;
         command.mode = CTOOL_DIS_RAW_RANGE_MAP;
     } else if (!have_mode || !have_base) {
         return CTOOL_ERR_INPUT;

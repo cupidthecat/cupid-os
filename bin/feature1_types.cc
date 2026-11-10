@@ -1,6 +1,6 @@
-//help: CupidC Feature 1 demo - sized type keywords + legacy aliases
-//help: Usage: feature1_types
-//help: Verifies U0/U8/U16/U32/I8/I16/I32/Bool parse and run, while int/char/void remain valid.
+// help: CupidC Feature 1 demo - sized type keywords + legacy aliases
+// help: Usage: feature1_types
+// help: Verifies U0/U8/U16/U32/I8/I16/I32/Bool parse and run, while int/char/void remain valid.
 
 U0 PrintPair(U32 a, I32 b) {
     print("a=");
@@ -43,9 +43,27 @@ void main() {
     char old_char = 'Z';
 
     print("[feature1] sized types demo\n");
-    print("u8="); print_int(u8v); print(" u16="); print_int(u16v); print(" u32="); print_int(u32v); print("\n");
-    print("neg: i8="); PrintSigned(i8_neg); print(" i16="); PrintSigned(i16_neg); print(" i32="); PrintSigned(i32_neg); print("\n");
-    print("pos: i8="); PrintSigned(i8_pos); print(" i16="); PrintSigned(i16_pos); print(" i32="); PrintSigned(i32_pos); print("\n");
+    print("u8=");
+    print_int(u8v);
+    print(" u16=");
+    print_int(u16v);
+    print(" u32=");
+    print_int(u32v);
+    print("\n");
+    print("neg: i8=");
+    PrintSigned(i8_neg);
+    print(" i16=");
+    PrintSigned(i16_neg);
+    print(" i32=");
+    PrintSigned(i32_neg);
+    print("\n");
+    print("pos: i8=");
+    PrintSigned(i8_pos);
+    print(" i16=");
+    PrintSigned(i16_pos);
+    print(" i32=");
+    PrintSigned(i32_pos);
+    print("\n");
 
     PrintPair(u32v, i32_neg);
     PrintPair(u32v, i32_pos);

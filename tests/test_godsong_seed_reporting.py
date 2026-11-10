@@ -12,13 +12,13 @@ class GodsongSeedReportingTests(unittest.TestCase):
 
         self.assertIn("int gs_input_seed;", text)
         self.assertGreaterEqual(text.count("gs_input_seed = gs_seed;"), 2)
-        self.assertIn(
-            'print("godsong seed=");\n  print_int(gs_input_seed);',
+        self.assertRegex(
             text,
+            r'print\("godsong seed="\);\s+print_int\(gs_input_seed\);',
         )
-        self.assertNotIn(
-            'print("godsong seed=");\n  print_int(gs_seed);',
+        self.assertNotRegex(
             text,
+            r'print\("godsong seed="\);\s+print_int\(gs_seed\);',
         )
 
 

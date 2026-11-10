@@ -1,5 +1,27 @@
 # Bootstrapping log
 
+## 2026-11-09: Format Cupid C and repair source-dependent checks
+
+All 492 tracked `.cc` files pass the configured Clang style. The changes repair
+formatted help metadata, two explicit Doom header dependencies and source-driven
+verification fixtures. Private call/ABI and source checks pass 420 methods on
+each host. The 112 artifact-policy methods pass on both hosts, with four Windows
+platform skips. Checked-seed IR and object compilation and strict inspection pass
+under their original bounds.
+
+The normal compile/link/flatten pass reaches the old exact-size gate. After
+measuring the embedded-source growth and updating the shell help guide, a guarded
+manual relink and image publication pass all sixteen byte locks. The private
+four-CPU max/e1000 boot runs ls and help help, passes all 62 TLS checks and leaves
+the image unchanged. Its SHA-256 is
+`c4129c8777b8056d4b30a4e4ce5567112d5c7c1bc4b6a1efac29265fb5d00bbf`.
+
+The [formatting record](CUPIDC-SOURCE-FORMATTING.md) retains the scoped results,
+failed reuse attempt, optional syntax warnings and remaining acceptance. Both
+default SDK replays reject the pre-existing installed release-plan mismatch;
+complete repository replays and seed adoption remain open. Installed seed files
+and normal tool ownership are unchanged.
+
 ## 2026-11-09: Repair standalone observer verification from clean checkouts
 
 The checked Windows observer fixture now binds the current worker adapter and

@@ -11,7 +11,7 @@
  * - Uses standard PIT base frequency of 1.193182 MHz
  * - 16-bit counter per channel
  * - Interrupt generation on channel 0 (IRQ0)
-*/
+ */
 
 #include "pit.h"
 #include "ports.h"
@@ -26,7 +26,7 @@
  * at the requested frequency. Channel 0 is typically used as
  * the system timer, channel 1 is unused, and channel 2 can
  * control the PC speaker.
-*/
+ */
 void pit_init(uint32_t channel, uint32_t frequency) {
     pit_set_frequency(channel, frequency);
 }
@@ -45,16 +45,17 @@ void pit_init(uint32_t channel, uint32_t frequency) {
  * The actual frequency achieved may differ slightly from the
  * requested frequency due to integer division of the base
  * frequency.
-*/
+ */
 void pit_set_frequency(uint32_t channel, uint32_t frequency) {
-    if (channel > 2 || frequency == 0) return;  // Invalid channel or bad freq
-    
+    if (channel > 2 || frequency == 0)
+        return; // Invalid channel or bad freq
+
     // Calculate divisor from base PIT frequency
     uint32_t divisor = 1193182 / frequency;
-    
+
     // Set up command byte for square wave mode
     uint8_t command = 0;
-    switch(channel) {
+    switch (channel) {
         case 0:
             command = PIT_CHANNEL0_SELECT | PIT_LOBYTE_HIBYTE | PIT_SQUARE_WAVE;
             break;
@@ -65,11 +66,11 @@ void pit_set_frequency(uint32_t channel, uint32_t frequency) {
             command = PIT_CHANNEL2_SELECT | PIT_LOBYTE_HIBYTE | PIT_SQUARE_WAVE;
             break;
     }
-    
+
     // Program the PIT
     outb(PIT_COMMAND, command);
-    outb((uint16_t)(PIT_CHANNEL0 + channel), (uint8_t)(divisor & 0xFF));         // Low byte
-    outb((uint16_t)(PIT_CHANNEL0 + channel), (uint8_t)((divisor >> 8) & 0xFF));  // High byte
+    outb((uint16_t)(PIT_CHANNEL0 + channel), (uint8_t)(divisor & 0xFF));        // Low byte
+    outb((uint16_t)(PIT_CHANNEL0 + channel), (uint8_t)((divisor >> 8) & 0xFF)); // High byte
 }
 
 /**
@@ -77,7 +78,7 @@ void pit_set_frequency(uint32_t channel, uint32_t frequency) {
  *
  * Sets channel 0 to fire IRQ0 every 5ms for smoother desktop and
  * lower input latency (was 100Hz / 10ms).
-*/
+ */
 void pit_set_scheduler_mode(void) {
     pit_set_frequency(0, 200);
 }

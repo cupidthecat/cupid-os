@@ -758,7 +758,7 @@ OWNER_BOOTSTRAP_INPUTS = (*OWNER_HEADERS, *OWNER_SHARED_INPUTS,
     'toolchain/cupidbuild_disk_integer_tables.inc')
 
 
-def _owner_context_fixture(**profile):
+def _owner_context_fixture(*, source_spelling=False, **profile):
     manifest, observations, seed_bytes, seed_observations = _disk_context_fixture(**profile)
     inputs = manifest['bootstrap']['source_inputs']
     for path in OWNER_BOOTSTRAP_INPUTS:
@@ -767,6 +767,12 @@ def _owner_context_fixture(**profile):
         inputs['files'][path] = row
         if path in (*OWNER_HEADERS, *OWNER_SHARED_INPUTS):
             manifest['inputs'][path] = row.copy()
+    if source_spelling:
+        if not profile.get('release_inputs', True):
+            raise ValueError('the source-spelling fixture requires release inputs')
+        path = 'toolchain/tests/cupidc_source_spelling_fixture.h'
+        data = (REPO_ROOT / path).read_bytes()
+        manifest['inputs'][path] = {'size': len(data), 'sha256': _digest(data)}
     manifest['input_count'] = len(manifest['inputs'])
     inputs['count'] = len(inputs['files'])
     inputs['sha256'] = _digest(_json_bytes(inputs['files']))
@@ -775,9 +781,12 @@ def _owner_context_fixture(**profile):
     return manifest, observations, seed_bytes, seed_observations
 
 
-def _owner_context_request(mode, *, manifest=None, bootstrap_object_pairs=None, **profile):
+def _owner_context_request(mode, *, manifest=None, bootstrap_object_pairs=None,
+                           input_observations=None, **profile):
     fixture, observations, seed_bytes, seed_observations = _owner_context_fixture(**profile)
     kwargs = {}
+    if input_observations is not None:
+        kwargs['input_observations'] = input_observations
     if mode == 'author':
         kwargs['bootstrap_object_pairs'] = bootstrap_object_pairs if bootstrap_object_pairs is not None else (
             _matching_bootstrap_pairs((*BOOTSTRAP_OBJECT_NAMES, *COMPLETE_ISO_OBJECTS,
@@ -1080,6 +1089,64 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     self.assertEqual(json.loads(authored.stdout), manifest)
                     verified = self.run_request(_owner_context_request('check', **profile))
                     self.assertEqual(verified.returncode, 0, verified.stderr)
+
+    def test_owner_release_keeps_the_spelling_fixture_in_each_profile(self):
+        for long_paths, aliases in ((False, False), (True, False), (False, True), (True, True)):
+            profile = dict(source_spelling=True, long_paths=long_paths, user_link_aliases=aliases)
+            with self.subTest(**profile):
+                manifest, *_ = _owner_context_fixture(**profile)
+                self.assertEqual(manifest['input_count'], 113)
+                authored = self.run_author_request(_owner_context_request('author', **profile))
+                self.assertEqual(authored.returncode, 0, authored.stderr)
+                self.assertEqual(authored.stdout, json.dumps(manifest, indent=2, sort_keys=True) + '\n')
+                checked = self.run_request(_owner_context_request('check', **profile))
+                self.assertEqual(checked.returncode, 0, checked.stderr)
+
+    def test_owner_release_rejects_missing_replaced_or_crossed_spelling_inputs(self):
+        original, *_ = _owner_context_fixture(source_spelling=True)
+        path = 'toolchain/tests/cupidc_source_spelling_fixture.h'
+        mutations = []
+        changed = copy.deepcopy(original)
+        del changed['inputs'][path]
+        mutations.append((changed, ('check',)))
+        changed = copy.deepcopy(original)
+        changed['inputs']['toolchain/tests/unknown_spelling_fixture.h'] = changed['inputs'].pop(path)
+        mutations.append((changed, ('author', 'check')))
+        changed = copy.deepcopy(original)
+        changed['input_count'] = 112
+        mutations.append((changed, ('check',)))
+        for index, (changed, modes) in enumerate(mutations):
+            for mode in modes:
+                with self.subTest(index=index, mode=mode):
+                    run = self.run_author_request if mode == 'author' else self.run_request
+                    result = run(_owner_context_request(mode, manifest=changed, source_spelling=True))
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertEqual(result.stdout, '')
+
+        observations = [(name, 0 if name == path else 1,
+                         0 if name == path else row['size'],
+                         '0' * 64 if name == path else row['sha256'])
+                        for name, row in sorted(original['inputs'].items())]
+        for mode in ('author', 'check'):
+            with self.subTest(missing_observation=True, mode=mode):
+                run = self.run_author_request if mode == 'author' else self.run_request
+                result = run(_owner_context_request(mode, source_spelling=True,
+                             input_observations=observations))
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertEqual(result.stdout, '')
+
+    def test_historical_owner_rejects_a_spelling_header_in_place_of_an_old_member(self):
+        original, *_ = _owner_context_fixture()
+        path = 'toolchain/tests/cupidc_source_spelling_fixture.h'
+        data = (REPO_ROOT / path).read_bytes()
+        del original['inputs']['toolchain/cupidbuild_source_path.h']
+        original['inputs'][path] = {'size': len(data), 'sha256': _digest(data)}
+        for mode in ('author', 'check'):
+            with self.subTest(mode=mode):
+                run = self.run_author_request if mode == 'author' else self.run_request
+                result = run(_owner_context_request(mode, manifest=original))
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertEqual(result.stdout, '')
 
     def test_owner_producer_rejects_missing_or_replaced_new_inputs(self):
         original, _observations, _seed, _facts = _owner_context_fixture()
@@ -2390,9 +2457,10 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual({*INPUT_PATHS, *["toolchain/" + name + ".h" for name in COMPLETE_ISO_OBJECTS],
                           *["toolchain/" + name + ".h" for name in DISK_FOUNDATION_OBJECTS],
                           *OWNER_HEADERS, *OWNER_SHARED_INPUTS,
+                          "toolchain/tests/cupidc_source_spelling_fixture.h",
                           "tools/__init__.py", "tools/bootstrap_user_abi.py",
                           "tools/bootstrap_stage_release.py", "tools/seed_release_identity.py"}, actual)
-        self.assertEqual(len(actual), 112)
+        self.assertEqual(len(actual), 113)
 
     def _complete_release_inventory_fixture(self, **profile):
         manifest, observations, seed_bytes, seed_observations = _complete_context_fixture(**profile)

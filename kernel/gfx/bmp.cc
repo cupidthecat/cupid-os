@@ -3,45 +3,39 @@
  *
  * Supports 24-bit uncompressed BMP (BITMAPINFOHEADER) files.
  * Uses VFS for file I/O and outputs 32bpp XRGB pixel data.
-*/
+ */
 
 #include "bmp.h"
 #include "gfx2d.h"
 #include "memory.h"
+#include "serial.h"
 #include "string.h"
 #include "vfs.h"
-#include "serial.h"
 #include "vga.h"
 
 /* Little-endian helpers (x86 is LE-native, but be explicit) */
 
-static uint16_t read_le16(const uint8_t *p)
-{
+static uint16_t read_le16(const uint8_t *p) {
     return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
 }
 
-static uint32_t read_le32(const uint8_t *p)
-{
-    return (uint32_t)p[0]        | ((uint32_t)p[1] << 8) |
-           ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+static uint32_t read_le32(const uint8_t *p) {
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
 
-static void write_le16(uint8_t *p, uint16_t v)
-{
+static void write_le16(uint8_t *p, uint16_t v) {
     p[0] = (uint8_t)(v & 0xFF);
     p[1] = (uint8_t)((v >> 8) & 0xFF);
 }
 
-static void write_le32(uint8_t *p, uint32_t v)
-{
+static void write_le32(uint8_t *p, uint32_t v) {
     p[0] = (uint8_t)(v & 0xFF);
     p[1] = (uint8_t)((v >> 8) & 0xFF);
     p[2] = (uint8_t)((v >> 16) & 0xFF);
     p[3] = (uint8_t)((v >> 24) & 0xFF);
 }
 
-static int bmp_read_exact(int fd, void *buffer, uint32_t count)
-{
+static int bmp_read_exact(int fd, void *buffer, uint32_t count) {
     uint8_t *dst = (uint8_t *)buffer;
     uint32_t total = 0;
 
@@ -55,8 +49,7 @@ static int bmp_read_exact(int fd, void *buffer, uint32_t count)
     return BMP_OK;
 }
 
-static int bmp_write_exact(int fd, const void *buffer, uint32_t count)
-{
+static int bmp_write_exact(int fd, const void *buffer, uint32_t count) {
     const uint8_t *src = (const uint8_t *)buffer;
     uint32_t total = 0;
 
@@ -76,10 +69,8 @@ static int bmp_write_exact(int fd, const void *buffer, uint32_t count)
  * Read and validate BMP file header + DIB header.
  * On success, fills *info and leaves fd positioned at pixel data.
  * Returns BMP_OK or negative error.
-*/
-static int bmp_read_headers(int fd, bmp_info_t *info, uint32_t *data_offset,
-                            int *top_down)
-{
+ */
+static int bmp_read_headers(int fd, bmp_info_t *info, uint32_t *data_offset, int *top_down) {
     uint8_t hdr[BMP_HEADER_SIZE];
     int rc;
 
@@ -108,10 +99,10 @@ static int bmp_read_headers(int fd, bmp_info_t *info, uint32_t *data_offset,
         return BMP_EFORMAT;
     }
 
-    int32_t  w           = (int32_t)read_le32(hdr + 18);
-    int32_t  h           = (int32_t)read_le32(hdr + 22);
-    uint16_t planes      = read_le16(hdr + 26);
-    uint16_t bpp         = read_le16(hdr + 28);
+    int32_t w = (int32_t)read_le32(hdr + 18);
+    int32_t h = (int32_t)read_le32(hdr + 22);
+    uint16_t planes = read_le16(hdr + 26);
+    uint16_t bpp = read_le16(hdr + 28);
     uint32_t compression = read_le32(hdr + 30);
 
     /* Validate format constraints */
@@ -124,8 +115,7 @@ static int bmp_read_headers(int fd, bmp_info_t *info, uint32_t *data_offset,
         return BMP_EFORMAT;
     }
     if (compression != 0) {
-        KERROR("BMP: compression=%u (only uncompressed supported)\n",
-               compression);
+        KERROR("BMP: compression=%u (only uncompressed supported)\n", compression);
         return BMP_EFORMAT;
     }
     if (w <= 0 || h == 0) {
@@ -133,21 +123,20 @@ static int bmp_read_headers(int fd, bmp_info_t *info, uint32_t *data_offset,
         return BMP_EINVAL;
     }
     /* Treat negative height as top-down; take absolute value */
-    uint32_t width  = (uint32_t)w;
+    uint32_t width = (uint32_t)w;
     uint32_t height = (h > 0) ? (uint32_t)h : (uint32_t)(-h);
     if (top_down) {
         *top_down = (h < 0) ? 1 : 0;
     }
 
     if (width > BMP_MAX_DIM || height > BMP_MAX_DIM) {
-        KERROR("BMP: dimensions %ux%u exceed max %u\n",
-               width, height, (unsigned)BMP_MAX_DIM);
+        KERROR("BMP: dimensions %ux%u exceed max %u\n", width, height, (unsigned)BMP_MAX_DIM);
         return BMP_EINVAL;
     }
 
-    info->width     = width;
-    info->height    = height;
-    info->bpp       = bpp;
+    info->width = width;
+    info->height = height;
+    info->bpp = bpp;
     info->data_size = width * height * 4;
 
     return BMP_OK;
@@ -155,8 +144,7 @@ static int bmp_read_headers(int fd, bmp_info_t *info, uint32_t *data_offset,
 
 /* bmp_get_info - read BMP dimensions without loading pixel data */
 
-int bmp_get_info(const char *path, bmp_info_t *info)
-{
+int bmp_get_info(const char *path, bmp_info_t *info) {
     if (!path || !info)
         return BMP_EINVAL;
 
@@ -174,8 +162,7 @@ int bmp_get_info(const char *path, bmp_info_t *info)
 
 /* bmp_decode - decode BMP to 32bpp XRGB buffer */
 
-int bmp_decode(const char *path, uint32_t *buffer, uint32_t buffer_size)
-{
+int bmp_decode(const char *path, uint32_t *buffer, uint32_t buffer_size) {
     if (!path || !buffer)
         return BMP_EINVAL;
 
@@ -186,7 +173,7 @@ int bmp_decode(const char *path, uint32_t *buffer, uint32_t buffer_size)
     }
 
     bmp_info_t info;
-    uint32_t   data_offset = 0;
+    uint32_t data_offset = 0;
     int top_down = 0;
     int rc = bmp_read_headers(fd, &info, &data_offset, &top_down);
     if (rc != BMP_OK) {
@@ -194,7 +181,7 @@ int bmp_decode(const char *path, uint32_t *buffer, uint32_t buffer_size)
         return rc;
     }
 
-    uint32_t width  = info.width;
+    uint32_t width = info.width;
     uint32_t height = info.height;
 
     /* Validate caller's buffer is large enough */
@@ -222,11 +209,11 @@ int bmp_decode(const char *path, uint32_t *buffer, uint32_t buffer_size)
     /*
      * BMP stores scanlines bottom-to-top by default.
      * We decode so that buffer[0] = top-left pixel.
-*/
+     */
     uint32_t y;
     for (y = 0; y < height; y++) {
         /* BMP row index: bottom-up -> read row for (height - 1 - y) */
-        uint32_t dest_row = y;  /* top-down in output */
+        uint32_t dest_row = y; /* top-down in output */
 
         rc = bmp_read_exact(fd, row_buf, row_bytes);
         if (rc != BMP_OK) {
@@ -257,13 +244,10 @@ int bmp_decode(const char *path, uint32_t *buffer, uint32_t buffer_size)
 
 /* bmp_encode - encode 32bpp XRGB buffer as 24-bit BMP */
 
-int bmp_encode(const char *path, const uint32_t *buffer,
-               uint32_t width, uint32_t height)
-{
+int bmp_encode(const char *path, const uint32_t *buffer, uint32_t width, uint32_t height) {
     if (!path || !buffer)
         return BMP_EINVAL;
-    if (width == 0 || height == 0 || width > BMP_MAX_DIM ||
-        height > BMP_MAX_DIM)
+    if (width == 0 || height == 0 || width > BMP_MAX_DIM || height > BMP_MAX_DIM)
         return BMP_EINVAL;
 
     /* Row size in bytes, padded to 4-byte boundary */
@@ -298,13 +282,13 @@ int bmp_encode(const char *path, const uint32_t *buffer,
     uint8_t dib[BMP_DIB_HDR_SIZE];
     memset(dib, 0, BMP_DIB_HDR_SIZE);
 
-    write_le32(dib + 0,  BMP_DIB_HDR_SIZE);   /* header size: 40 */
-    write_le32(dib + 4,  width);               /* width */
-    write_le32(dib + 8,  height);              /* height (positive = bottom-up) */
-    write_le16(dib + 12, 1);                   /* planes */
-    write_le16(dib + 14, 24);                  /* bpp */
-    write_le32(dib + 16, 0);                   /* compression: BI_RGB */
-    write_le32(dib + 20, pixel_data_size);     /* image data size */
+    write_le32(dib + 0, BMP_DIB_HDR_SIZE); /* header size: 40 */
+    write_le32(dib + 4, width);            /* width */
+    write_le32(dib + 8, height);           /* height (positive = bottom-up) */
+    write_le16(dib + 12, 1);               /* planes */
+    write_le16(dib + 14, 24);              /* bpp */
+    write_le32(dib + 16, 0);               /* compression: BI_RGB */
+    write_le32(dib + 20, pixel_data_size); /* image data size */
     /* x/y pixels per meter, colors used/important: all 0 */
 
     rc = bmp_write_exact(fd, dib, BMP_DIB_HDR_SIZE);
@@ -332,9 +316,9 @@ int bmp_encode(const char *path, const uint32_t *buffer,
         uint32_t x;
         for (x = 0; x < width; x++) {
             uint32_t px = src[x];
-            row_buf[x * 3 + 0] = (uint8_t)(px & 0xFF);          /* B */
-            row_buf[x * 3 + 1] = (uint8_t)((px >> 8) & 0xFF);   /* G */
-            row_buf[x * 3 + 2] = (uint8_t)((px >> 16) & 0xFF);  /* R */
+            row_buf[x * 3 + 0] = (uint8_t)(px & 0xFF);         /* B */
+            row_buf[x * 3 + 1] = (uint8_t)((px >> 8) & 0xFF);  /* G */
+            row_buf[x * 3 + 2] = (uint8_t)((px >> 16) & 0xFF); /* R */
         }
 
         /* Zero-pad remainder of row */
@@ -355,15 +339,13 @@ int bmp_encode(const char *path, const uint32_t *buffer,
     kfree(row_buf);
     vfs_close(fd);
 
-    KDEBUG("BMP: encoded '%s' (%ux%u, %u bytes)\n",
-           path, width, height, file_size);
+    KDEBUG("BMP: encoded '%s' (%ux%u, %u bytes)\n", path, width, height, file_size);
     return BMP_OK;
 }
 
 /* bmp_decode_to_fb - decode BMP directly to VGA framebuffer */
 
-int bmp_decode_to_fb(const char *path, int dest_x, int dest_y)
-{
+int bmp_decode_to_fb(const char *path, int dest_x, int dest_y) {
     if (!path)
         return BMP_EINVAL;
 
@@ -374,7 +356,7 @@ int bmp_decode_to_fb(const char *path, int dest_x, int dest_y)
     }
 
     bmp_info_t info;
-    uint32_t   data_offset = 0;
+    uint32_t data_offset = 0;
     int top_down = 0;
     int rc = bmp_read_headers(fd, &info, &data_offset, &top_down);
     if (rc != BMP_OK) {
@@ -382,7 +364,7 @@ int bmp_decode_to_fb(const char *path, int dest_x, int dest_y)
         return rc;
     }
 
-    uint32_t width  = info.width;
+    uint32_t width = info.width;
     uint32_t height = info.height;
 
     /* Seek to pixel data */
@@ -408,8 +390,7 @@ int bmp_decode_to_fb(const char *path, int dest_x, int dest_y)
         }
 
         /* BMP bottom-up -> framebuffer row */
-        int fb_y = top_down ? (dest_y + (int)y)
-                            : (dest_y + (int)(height - 1 - y));
+        int fb_y = top_down ? (dest_y + (int)y) : (dest_y + (int)(height - 1 - y));
         if (fb_y < 0 || fb_y >= VGA_GFX_HEIGHT)
             continue;
 
@@ -422,9 +403,7 @@ int bmp_decode_to_fb(const char *path, int dest_x, int dest_y)
             uint8_t b = row_buf[x * 3 + 0];
             uint8_t g = row_buf[x * 3 + 1];
             uint8_t r = row_buf[x * 3 + 2];
-            uint32_t color = ((uint32_t)r << 16) |
-                             ((uint32_t)g << 8)  |
-                             (uint32_t)b;
+            uint32_t color = ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
 
             fb[fb_y * VGA_GFX_WIDTH + fb_x] = color;
         }
@@ -437,9 +416,7 @@ int bmp_decode_to_fb(const char *path, int dest_x, int dest_y)
     return BMP_OK;
 }
 
-int bmp_decode_to_surface_fit(const char *path, int surface_id,
-                              int dest_w, int dest_h)
-{
+int bmp_decode_to_surface_fit(const char *path, int surface_id, int dest_w, int dest_h) {
     if (!path || dest_w <= 0 || dest_h <= 0)
         return BMP_EINVAL;
 
@@ -576,17 +553,13 @@ int bmp_decode_to_surface_fit(const char *path, int surface_id,
                 uint8_t b = row_buf[off + 0u];
                 uint8_t g = row_buf[off + 1u];
                 uint8_t r = row_buf[off + 2u];
-                scaled_row[dx] = ((uint32_t)r << 16) |
-                                 ((uint32_t)g << 8) |
-                                 (uint32_t)b;
+                scaled_row[dx] = ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
             }
 
             cached_file_row = file_row;
         }
 
-        memcpy(surf + (uint32_t)dy * (uint32_t)surf_w,
-               scaled_row,
-               (uint32_t)draw_w * 4u);
+        memcpy(surf + (uint32_t)dy * (uint32_t)surf_w, scaled_row, (uint32_t)draw_w * 4u);
     }
 
     kfree(scaled_row);
@@ -594,7 +567,6 @@ int bmp_decode_to_surface_fit(const char *path, int surface_id,
     kfree(row_buf);
     vfs_close(fd);
 
-    KDEBUG("BMP: streamed '%s' to surface %d fit %dx%d\n",
-           path, surface_id, dest_w, dest_h);
+    KDEBUG("BMP: streamed '%s' to surface %d fit %dx%d\n", path, surface_id, dest_w, dest_h);
     return BMP_OK;
 }

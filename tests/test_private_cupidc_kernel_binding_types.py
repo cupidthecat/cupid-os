@@ -510,10 +510,9 @@ class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
         self.assertEqual(by_name["set_icon_drawer"]["macro"], "BIND_RETAINED")
         self.assertEqual(by_name["set_icon_drawer"]["parameter_count"], 2)
         self.assertEqual(by_name["set_icon_drawer"]["return_type"], "TYPE_VOID")
-        self.assertIn(
-            "cc_retain_kernel_binding_callback_signature(\n"
-            "            cc, &drawer_signature)",
+        self.assertRegex(
             source,
+            r"cc_retain_kernel_binding_callback_signature\(\s*cc,\s*&drawer_signature\)",
         )
         self.assertIn(
             "setter_signature.param_types[1] = TYPE_FUNC_PTR;",

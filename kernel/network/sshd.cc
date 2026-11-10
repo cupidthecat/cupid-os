@@ -6,59 +6,59 @@
  *   cipher:   chacha20-poly1305@openssh.com
  *   auth:     root/password
  *   channels: session shell and exec
-*/
+ */
 
 #include "sshd.h"
-#include "socket.h"
-#include "process.h"
-#include "memory.h"
-#include "string.h"
-#include "serial.h"
-#include "shell.h"
-#include "vfs.h"
-#include "timer.h"
-#include "csprng.h"
-#include "sha256.h"
-#include "hmac.h"
-#include "hkdf.h"
-#include "x25519.h"
 #include "chacha20.h"
-#include "poly1305.h"
-#include "p256.h"
+#include "csprng.h"
 #include "ecdsa.h"
+#include "hkdf.h"
+#include "hmac.h"
+#include "memory.h"
+#include "p256.h"
+#include "poly1305.h"
+#include "process.h"
+#include "serial.h"
+#include "sha256.h"
+#include "shell.h"
+#include "socket.h"
+#include "string.h"
+#include "timer.h"
+#include "vfs.h"
+#include "x25519.h"
 
 enum {
-    SSH_MSG_DISCONNECT                = 1,
-    SSH_MSG_IGNORE                    = 2,
-    SSH_MSG_UNIMPLEMENTED             = 3,
-    SSH_MSG_SERVICE_REQUEST           = 5,
-    SSH_MSG_SERVICE_ACCEPT            = 6,
-    SSH_MSG_KEXINIT                   = 20,
-    SSH_MSG_NEWKEYS                   = 21,
-    SSH_MSG_KEX_ECDH_INIT             = 30,
-    SSH_MSG_KEX_ECDH_REPLY            = 31,
-    SSH_MSG_USERAUTH_REQUEST          = 50,
-    SSH_MSG_USERAUTH_FAILURE          = 51,
-    SSH_MSG_USERAUTH_SUCCESS          = 52,
-    SSH_MSG_GLOBAL_REQUEST            = 80,
-    SSH_MSG_REQUEST_SUCCESS           = 81,
-    SSH_MSG_REQUEST_FAILURE           = 82,
-    SSH_MSG_CHANNEL_OPEN              = 90,
+    SSH_MSG_DISCONNECT = 1,
+    SSH_MSG_IGNORE = 2,
+    SSH_MSG_UNIMPLEMENTED = 3,
+    SSH_MSG_SERVICE_REQUEST = 5,
+    SSH_MSG_SERVICE_ACCEPT = 6,
+    SSH_MSG_KEXINIT = 20,
+    SSH_MSG_NEWKEYS = 21,
+    SSH_MSG_KEX_ECDH_INIT = 30,
+    SSH_MSG_KEX_ECDH_REPLY = 31,
+    SSH_MSG_USERAUTH_REQUEST = 50,
+    SSH_MSG_USERAUTH_FAILURE = 51,
+    SSH_MSG_USERAUTH_SUCCESS = 52,
+    SSH_MSG_GLOBAL_REQUEST = 80,
+    SSH_MSG_REQUEST_SUCCESS = 81,
+    SSH_MSG_REQUEST_FAILURE = 82,
+    SSH_MSG_CHANNEL_OPEN = 90,
     SSH_MSG_CHANNEL_OPEN_CONFIRMATION = 91,
-    SSH_MSG_CHANNEL_OPEN_FAILURE      = 92,
-    SSH_MSG_CHANNEL_WINDOW_ADJUST     = 93,
-    SSH_MSG_CHANNEL_DATA              = 94,
-    SSH_MSG_CHANNEL_EOF               = 96,
-    SSH_MSG_CHANNEL_CLOSE             = 97,
-    SSH_MSG_CHANNEL_REQUEST           = 98,
-    SSH_MSG_CHANNEL_SUCCESS           = 99,
-    SSH_MSG_CHANNEL_FAILURE           = 100,
+    SSH_MSG_CHANNEL_OPEN_FAILURE = 92,
+    SSH_MSG_CHANNEL_WINDOW_ADJUST = 93,
+    SSH_MSG_CHANNEL_DATA = 94,
+    SSH_MSG_CHANNEL_EOF = 96,
+    SSH_MSG_CHANNEL_CLOSE = 97,
+    SSH_MSG_CHANNEL_REQUEST = 98,
+    SSH_MSG_CHANNEL_SUCCESS = 99,
+    SSH_MSG_CHANNEL_FAILURE = 100,
 
-    SSH_BUF_CAP       = 65536,
-    SSH_PAYLOAD_MAX   = 32768,
-    SSH_WINDOW        = 1048576,
-    SSH_MAX_PACKET    = 32768,
-    SSH_LINE_MAX      = 512
+    SSH_BUF_CAP = 65536,
+    SSH_PAYLOAD_MAX = 32768,
+    SSH_WINDOW = 1048576,
+    SSH_MAX_PACKET = 32768,
+    SSH_LINE_MAX = 512
 };
 
 typedef struct ssh_session {
@@ -116,15 +116,15 @@ static void put_be32(uint8_t *p, uint32_t v) {
 }
 
 static uint32_t get_be32(const uint8_t *p) {
-    return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16)
-         | ((uint32_t)p[2] << 8) | (uint32_t)p[3];
+    return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | (uint32_t)p[3];
 }
 
 static void seq_inc(uint8_t seq[8]) {
     int i;
     for (i = 7; i >= 0; i--) {
         seq[i] = (uint8_t)(seq[i] + 1u);
-        if (seq[i] != 0u) return;
+        if (seq[i] != 0u)
+            return;
     }
 }
 
@@ -163,8 +163,10 @@ static int wb_cstr(uint8_t *out, int off, const char *s) {
 
 static int wb_mpint32(uint8_t *out, int off, const uint8_t be32[32]) {
     uint32_t start = 0;
-    while (start < 32u && be32[start] == 0u) start++;
-    if (start == 32u) return wb_be32(out, off, 0u);
+    while (start < 32u && be32[start] == 0u)
+        start++;
+    if (start == 32u)
+        return wb_be32(out, off, 0u);
     if (be32[start] & 0x80u) {
         off = wb_be32(out, off, 33u - start);
         out[off++] = 0u;
@@ -174,13 +176,15 @@ static int wb_mpint32(uint8_t *out, int off, const uint8_t be32[32]) {
     return wb_bytes(out, off, be32 + start, 32u - start);
 }
 
-static int read_string(const uint8_t *p, int len, int *off,
-                       const uint8_t **out, uint32_t *out_len) {
+static int read_string(const uint8_t *p, int len, int *off, const uint8_t **out,
+                       uint32_t *out_len) {
     uint32_t n;
-    if (*off + 4 > len) return -1;
+    if (*off + 4 > len)
+        return -1;
     n = get_be32(p + *off);
     *off += 4;
-    if (n > (uint32_t)(len - *off)) return -1;
+    if (n > (uint32_t)(len - *off))
+        return -1;
     *out = p + *off;
     *out_len = n;
     *off += (int)n;
@@ -191,9 +195,12 @@ static int tcp_send_all(int fd, const uint8_t *buf, uint32_t len) {
     uint32_t sent = 0;
     while (sent < len) {
         int r = socket_send(fd, buf + sent, len - sent);
-        if (r < 0) return -1;
-        if (r == 0) process_yield();
-        else sent += (uint32_t)r;
+        if (r < 0)
+            return -1;
+        if (r == 0)
+            process_yield();
+        else
+            sent += (uint32_t)r;
     }
     return 0;
 }
@@ -209,7 +216,8 @@ static int tcp_recv_exact(int fd, uint8_t *buf, uint32_t len) {
             continue;
         }
         r = socket_recv(fd, buf + got, len - got);
-        if (r <= 0) return -1;
+        if (r <= 0)
+            return -1;
         got += (uint32_t)r;
     }
     return 0;
@@ -232,10 +240,12 @@ static int bpp_send(ssh_session_t *s, const uint8_t *payload, uint32_t plen) {
         uint8_t tag[16];
 
         padlen = block - ((1u + plen) % block);
-        if (padlen < 4u) padlen += block;
+        if (padlen < 4u)
+            padlen += block;
         inner = 1u + plen + padlen;
         wire_len = 4u + inner + 16u;
-        if (wire_len > SSH_BUF_CAP) return -1;
+        if (wire_len > SSH_BUF_CAP)
+            return -1;
 
         put_be32(s->tx, inner);
         s->tx[4] = (uint8_t)padlen;
@@ -251,16 +261,19 @@ static int bpp_send(ssh_session_t *s, const uint8_t *payload, uint32_t plen) {
         memcpy(s->tx + 4u + inner, tag, 16u);
     } else {
         padlen = block - ((5u + plen) % block);
-        if (padlen < 4u) padlen += block;
+        if (padlen < 4u)
+            padlen += block;
         inner = 1u + plen + padlen;
         wire_len = 4u + inner;
-        if (wire_len > SSH_BUF_CAP) return -1;
+        if (wire_len > SSH_BUF_CAP)
+            return -1;
         put_be32(s->tx, inner);
         s->tx[4] = (uint8_t)padlen;
         memcpy(s->tx + 5, payload, plen);
         crypto_random_bytes(s->tx + 5 + plen, padlen);
     }
-    if (tcp_send_all(s->fd, s->tx, wire_len) != 0) return -1;
+    if (tcp_send_all(s->fd, s->tx, wire_len) != 0)
+        return -1;
     seq_inc(s->seq_out);
     return 0;
 }
@@ -278,32 +291,40 @@ static int bpp_recv(ssh_session_t *s, uint8_t **payload, int *plen) {
         uint8_t poly_key[64];
         uint8_t tag[16];
 
-        if (tcp_recv_exact(s->fd, len_enc, 4u) != 0) return -1;
+        if (tcp_recv_exact(s->fd, len_enc, 4u) != 0)
+            return -1;
         chacha20_xor(s->key_c2s_hdr, 0u, nonce, len_enc, len_clear, 4u);
         inner = get_be32(len_clear);
-        if (inner < 5u || inner > SSH_PAYLOAD_MAX) return -2;
-        if (tcp_recv_exact(s->fd, s->rx, inner + 16u) != 0) return -1;
+        if (inner < 5u || inner > SSH_PAYLOAD_MAX)
+            return -2;
+        if (tcp_recv_exact(s->fd, s->rx, inner + 16u) != 0)
+            return -1;
 
         memset(poly_key, 0, sizeof(poly_key));
         chacha20_xor(s->key_c2s_main, 0u, nonce, poly_key, poly_key, 64u);
         memcpy(s->mac, len_enc, 4u);
         memcpy(s->mac + 4, s->rx, inner);
         poly1305_auth(tag, s->mac, 4u + inner, poly_key);
-        if (!poly1305_verify(tag, s->rx + inner)) return -2;
+        if (!poly1305_verify(tag, s->rx + inner))
+            return -2;
 
         chacha20_xor(s->key_c2s_main, 1u, nonce, s->rx, s->rx, inner);
         padlen = s->rx[0];
-        if (padlen + 1u >= inner) return -2;
+        if (padlen + 1u >= inner)
+            return -2;
         out_len = inner - 1u - padlen;
         memcpy(s->pkt, s->rx + 1, out_len);
     } else {
         uint8_t hdr[5];
-        if (tcp_recv_exact(s->fd, hdr, 5u) != 0) return -1;
+        if (tcp_recv_exact(s->fd, hdr, 5u) != 0)
+            return -1;
         inner = get_be32(hdr);
         padlen = hdr[4];
-        if (inner < 1u + padlen + 1u || inner > SSH_PAYLOAD_MAX) return -2;
+        if (inner < 1u + padlen + 1u || inner > SSH_PAYLOAD_MAX)
+            return -2;
         out_len = inner - 1u - padlen;
-        if (tcp_recv_exact(s->fd, s->rx, inner - 1u) != 0) return -1;
+        if (tcp_recv_exact(s->fd, s->rx, inner - 1u) != 0)
+            return -1;
         memcpy(s->pkt, s->rx, out_len);
     }
     seq_inc(s->seq_in);
@@ -313,9 +334,12 @@ static int bpp_recv(ssh_session_t *s, uint8_t **payload, int *plen) {
 }
 
 static int hexval(char c) {
-    if (c >= '0' && c <= '9') return c - '0';
-    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
     return -1;
 }
 
@@ -334,7 +358,8 @@ static int hexdec(const char *in, uint8_t *out, uint32_t len) {
     for (i = 0; i < len; i++) {
         int a = hexval(in[i * 2u]);
         int b = hexval(in[i * 2u + 1u]);
-        if (a < 0 || b < 0) return -1;
+        if (a < 0 || b < 0)
+            return -1;
         out[i] = (uint8_t)((a << 4) | b);
     }
     return 0;
@@ -350,7 +375,8 @@ static int compute_host_pub(void) {
     p256_fe_copy(G.y, P256_GY);
     G.infinity = 0;
     p256_scalar_mul_point(&J, d, &G);
-    if (p256_jac_is_infinity(&J)) return -1;
+    if (p256_jac_is_infinity(&J))
+        return -1;
     p256_jac_to_affine(&P, &J);
     g_host_pub[0] = 0x04u;
     p256_fe_to_be(g_host_pub + 1, P.x);
@@ -365,7 +391,8 @@ static int save_host_key(void) {
     vfs_mkdir("/home/etc/ssh");
     hexenc(g_host_priv, 32u, hex);
     fd = vfs_open("/home/etc/ssh/ssh_host_ecdsa_key", O_WRONLY | O_CREAT | O_TRUNC);
-    if (fd < 0) return -1;
+    if (fd < 0)
+        return -1;
     vfs_write(fd, hex, 64u);
     vfs_write(fd, "\n", 1u);
     vfs_close(fd);
@@ -375,7 +402,8 @@ static int save_host_key(void) {
 static int load_or_create_host_key(void) {
     char buf[96];
     int fd;
-    if (g_host_ready) return 0;
+    if (g_host_ready)
+        return 0;
     fd = vfs_open("/home/etc/ssh/ssh_host_ecdsa_key", O_RDONLY);
     if (fd >= 0) {
         int n = vfs_read(fd, buf, sizeof(buf) - 1u);
@@ -410,7 +438,8 @@ static int hostkey_blob(uint8_t *out) {
 static int build_kexinit(uint8_t *out) {
     int off = 0;
     out[off++] = SSH_MSG_KEXINIT;
-    crypto_random_bytes(out + off, 16u); off += 16;
+    crypto_random_bytes(out + off, 16u);
+    off += 16;
     off = wb_cstr(out, off, "curve25519-sha256");
     off = wb_cstr(out, off, "ecdsa-sha2-nistp256");
     off = wb_cstr(out, off, "chacha20-poly1305@openssh.com");
@@ -451,7 +480,8 @@ static void derive_key(ssh_session_t *s, char letter, uint8_t *out, int out_len)
         off = wb_bytes(stage, off, out, (uint32_t)produced);
         sha256(stage, (uint32_t)off, block);
         take = out_len - produced;
-        if (take > 32) take = 32;
+        if (take > 32)
+            take = 32;
         memcpy(out + produced, block, (uint32_t)take);
         produced += take;
     }
@@ -481,14 +511,18 @@ static int read_client_banner(ssh_session_t *s) {
     int n = 0;
     while (n < (int)sizeof(s->V_C) - 1) {
         uint8_t c;
-        if (tcp_recv_exact(s->fd, &c, 1u) != 0) return -1;
-        if (c == '\n') break;
-        if (c != '\r') s->V_C[n++] = (char)c;
+        if (tcp_recv_exact(s->fd, &c, 1u) != 0)
+            return -1;
+        if (c == '\n')
+            break;
+        if (c != '\r')
+            s->V_C[n++] = (char)c;
     }
     s->V_C[n] = 0;
     s->V_C_len = n;
-    return (n >= 4 && s->V_C[0] == 'S' && s->V_C[1] == 'S' &&
-            s->V_C[2] == 'H' && s->V_C[3] == '-') ? 0 : -1;
+    return (n >= 4 && s->V_C[0] == 'S' && s->V_C[1] == 'S' && s->V_C[2] == 'H' && s->V_C[3] == '-')
+               ? 0
+               : -1;
 }
 
 static int do_kex(ssh_session_t *s) {
@@ -515,18 +549,22 @@ static int do_kex(ssh_session_t *s) {
     if (tcp_send_all(s->fd, (const uint8_t *)"SSH-2.0-CupidOS_ssh_0.1\r\n",
                      (uint32_t)strlen("SSH-2.0-CupidOS_ssh_0.1\r\n")) != 0)
         return -1;
-    if (read_client_banner(s) != 0) return -1;
+    if (read_client_banner(s) != 0)
+        return -1;
 
     s->I_S_len = build_kexinit(s->tx);
     s->I_S = kmalloc((uint32_t)s->I_S_len);
-    if (!s->I_S) return -1;
+    if (!s->I_S)
+        return -1;
     memcpy(s->I_S, s->tx, (uint32_t)s->I_S_len);
-    if (bpp_send(s, s->I_S, (uint32_t)s->I_S_len) != 0) return -1;
+    if (bpp_send(s, s->I_S, (uint32_t)s->I_S_len) != 0)
+        return -1;
 
     if (bpp_recv(s, &pl, &pllen) != 0 || pllen < 1 || pl[0] != SSH_MSG_KEXINIT)
         return -1;
     s->I_C = kmalloc((uint32_t)pllen);
-    if (!s->I_C) return -1;
+    if (!s->I_C)
+        return -1;
     s->I_C_len = pllen;
     memcpy(s->I_C, pl, (uint32_t)pllen);
 
@@ -546,11 +584,15 @@ static int do_kex(ssh_session_t *s) {
     x25519(s->shared_K, server_kex_priv, client_kex_pub);
 
     ks = kmalloc(256u);
-    if (!ks) return -1;
+    if (!ks)
+        return -1;
     ks_len = hostkey_blob(ks);
 
     Hin = kmalloc(8192u);
-    if (!Hin) { kfree(ks); return -1; }
+    if (!Hin) {
+        kfree(ks);
+        return -1;
+    }
     hoff = 0;
     hoff = wb_string(Hin, hoff, s->V_C, (uint32_t)s->V_C_len);
     hoff = wb_string(Hin, hoff, s->V_S, (uint32_t)s->V_S_len);
@@ -585,10 +627,12 @@ static int do_kex(ssh_session_t *s) {
     off = wb_string(msg, off, server_kex_pub, 32u);
     off = wb_string(msg, off, sig_blob, (uint32_t)sig_blob_len);
     kfree(ks);
-    if (bpp_send(s, msg, (uint32_t)off) != 0) return -1;
+    if (bpp_send(s, msg, (uint32_t)off) != 0)
+        return -1;
 
     msg[0] = SSH_MSG_NEWKEYS;
-    if (bpp_send(s, msg, 1u) != 0) return -1;
+    if (bpp_send(s, msg, 1u) != 0)
+        return -1;
     derive_keys(s);
     s->newkeys_out = 1;
 
@@ -611,7 +655,8 @@ int sshd_set_password(const char *password) {
     char salt_hex[33], digest_hex[65];
     char line[128];
     int fd;
-    if (!password || !password[0]) return -1;
+    if (!password || !password[0])
+        return -1;
     vfs_mkdir("/home/etc");
     vfs_mkdir("/home/etc/ssh");
     crypto_random_bytes(salt, 16u);
@@ -624,7 +669,8 @@ int sshd_set_password(const char *password) {
     strcat(line, digest_hex);
     strcat(line, "\n");
     fd = vfs_open("/home/etc/ssh/passwd", O_WRONLY | O_CREAT | O_TRUNC);
-    if (fd < 0) return -1;
+    if (fd < 0)
+        return -1;
     vfs_write(fd, line, (uint32_t)strlen(line));
     vfs_close(fd);
     return 0;
@@ -636,7 +682,8 @@ static int check_password(const char *user, const uint8_t *pass, uint32_t pass_l
     int fd, n;
     if (!cstreqn((const uint8_t *)user, (uint32_t)strlen(user), "root"))
         return 0;
-    if (pass_len >= sizeof(pass_buf)) return 0;
+    if (pass_len >= sizeof(pass_buf))
+        return 0;
     memcpy(pass_buf, pass, pass_len);
     pass_buf[pass_len] = 0;
 
@@ -646,13 +693,17 @@ static int check_password(const char *user, const uint8_t *pass, uint32_t pass_l
     }
     n = vfs_read(fd, file, sizeof(file) - 1u);
     vfs_close(fd);
-    if (n < 104) return 0;
+    if (n < 104)
+        return 0;
     file[n] = 0;
     if (strncmp(file, "root:", 5u) == 0) {
         uint8_t salt[16], expected[32], actual[32];
-        if (hexdec(file + 5, salt, 16u) != 0) return 0;
-        if (file[37] != ':') return 0;
-        if (hexdec(file + 38, expected, 32u) != 0) return 0;
+        if (hexdec(file + 5, salt, 16u) != 0)
+            return 0;
+        if (file[37] != ':')
+            return 0;
+        if (hexdec(file + 38, expected, 32u) != 0)
+            return 0;
         hash_password(salt, pass_buf, actual);
         return memcmp(expected, actual, 32u) == 0;
     }
@@ -665,19 +716,24 @@ static int do_auth(ssh_session_t *s) {
     int tries = 0;
 
     for (;;) {
-        if (bpp_recv(s, &pl, &pllen) != 0 || pllen < 1) return -1;
-        if (pl[0] == SSH_MSG_IGNORE) continue;
+        if (bpp_recv(s, &pl, &pllen) != 0 || pllen < 1)
+            return -1;
+        if (pl[0] == SSH_MSG_IGNORE)
+            continue;
         if (pl[0] == SSH_MSG_SERVICE_REQUEST) {
             int off = 1;
             const uint8_t *svc;
             uint32_t svc_len;
             uint8_t resp[64];
             int roff = 0;
-            if (read_string(pl, pllen, &off, &svc, &svc_len) != 0) return -1;
-            if (!cstreqn(svc, svc_len, "ssh-userauth")) return -1;
+            if (read_string(pl, pllen, &off, &svc, &svc_len) != 0)
+                return -1;
+            if (!cstreqn(svc, svc_len, "ssh-userauth"))
+                return -1;
             roff = wb_byte(resp, roff, SSH_MSG_SERVICE_ACCEPT);
             roff = wb_cstr(resp, roff, "ssh-userauth");
-            if (bpp_send(s, resp, (uint32_t)roff) != 0) return -1;
+            if (bpp_send(s, resp, (uint32_t)roff) != 0)
+                return -1;
             break;
         }
     }
@@ -688,18 +744,26 @@ static int do_auth(ssh_session_t *s) {
         uint32_t user_len, svc_len, method_len, pass_len;
         uint8_t resp[128];
         int roff;
-        if (bpp_recv(s, &pl, &pllen) != 0 || pllen < 1) return -1;
-        if (pl[0] != SSH_MSG_USERAUTH_REQUEST) continue;
+        if (bpp_recv(s, &pl, &pllen) != 0 || pllen < 1)
+            return -1;
+        if (pl[0] != SSH_MSG_USERAUTH_REQUEST)
+            continue;
         off = 1;
-        if (read_string(pl, pllen, &off, &user, &user_len) != 0) return -1;
-        if (read_string(pl, pllen, &off, &svc, &svc_len) != 0) return -1;
-        if (read_string(pl, pllen, &off, &method, &method_len) != 0) return -1;
-        if (!cstreqn(svc, svc_len, "ssh-connection")) return -1;
+        if (read_string(pl, pllen, &off, &user, &user_len) != 0)
+            return -1;
+        if (read_string(pl, pllen, &off, &svc, &svc_len) != 0)
+            return -1;
+        if (read_string(pl, pllen, &off, &method, &method_len) != 0)
+            return -1;
+        if (!cstreqn(svc, svc_len, "ssh-connection"))
+            return -1;
         if (cstreqn(method, method_len, "password")) {
             char user_buf[32];
-            if (off >= pllen) return -1;
+            if (off >= pllen)
+                return -1;
             off++; /* FALSE: password change request */
-            if (read_string(pl, pllen, &off, &pass, &pass_len) != 0) return -1;
+            if (read_string(pl, pllen, &off, &pass, &pass_len) != 0)
+                return -1;
             if (user_len < sizeof(user_buf)) {
                 memcpy(user_buf, user, user_len);
                 user_buf[user_len] = 0;
@@ -714,7 +778,8 @@ static int do_auth(ssh_session_t *s) {
         roff = wb_byte(resp, roff, SSH_MSG_USERAUTH_FAILURE);
         roff = wb_cstr(resp, roff, "password");
         roff = wb_bool(resp, roff, 0);
-        if (bpp_send(s, resp, (uint32_t)roff) != 0) return -1;
+        if (bpp_send(s, resp, (uint32_t)roff) != 0)
+            return -1;
     }
     return -1;
 }
@@ -725,13 +790,16 @@ static int send_channel_data(ssh_session_t *s, const uint8_t *buf, uint32_t len)
         uint32_t n = len - off;
         uint8_t frame[9 + 4096];
         uint32_t cap = s->client_max_packet ? s->client_max_packet : 1024u;
-        if (cap > 4096u) cap = 4096u;
-        if (n > cap) n = cap;
+        if (cap > 4096u)
+            cap = 4096u;
+        if (n > cap)
+            n = cap;
         frame[0] = SSH_MSG_CHANNEL_DATA;
         put_be32(frame + 1, s->client_chan);
         put_be32(frame + 5, n);
         memcpy(frame + 9, buf + off, n);
-        if (bpp_send(s, frame, n + 9u) != 0) return -1;
+        if (bpp_send(s, frame, n + 9u) != 0)
+            return -1;
         off += n;
     }
     return 0;
@@ -742,7 +810,8 @@ static void ssh_output_sink(const char *buf, uint32_t len, void *ctx) {
     uint32_t i;
     uint8_t out[1024];
     uint32_t out_len = 0;
-    if (!s || len == 0u) return;
+    if (!s || len == 0u)
+        return;
     for (i = 0; i < len; i++) {
         if (buf[i] == '\n') {
             if (out_len + 2u > sizeof(out)) {
@@ -812,7 +881,8 @@ static int send_exit_and_close(ssh_session_t *s, uint32_t status) {
 static int do_exec_request(ssh_session_t *s, const uint8_t *cmd, uint32_t cmd_len) {
     char line[SSH_LINE_MAX];
     uint32_t n = cmd_len;
-    if (n >= sizeof(line)) n = sizeof(line) - 1u;
+    if (n >= sizeof(line))
+        n = sizeof(line) - 1u;
     memcpy(line, cmd, n);
     line[n] = 0;
     exec_line_to_channel(s, line);
@@ -831,14 +901,19 @@ static int shell_loop(ssh_session_t *s) {
 
     while (s->channel_open) {
         int rc = bpp_recv(s, &pl, &pllen);
-        if (rc != 0 || pllen < 1) return -1;
+        if (rc != 0 || pllen < 1)
+            return -1;
         if (pl[0] == SSH_MSG_CHANNEL_DATA) {
             int off = 1;
             uint32_t recp, n, i;
-            if (off + 8 > pllen) return -1;
-            recp = get_be32(pl + off); off += 4;
-            n = get_be32(pl + off); off += 4;
-            if (recp != s->server_chan || n > (uint32_t)(pllen - off)) return -1;
+            if (off + 8 > pllen)
+                return -1;
+            recp = get_be32(pl + off);
+            off += 4;
+            n = get_be32(pl + off);
+            off += 4;
+            if (recp != s->server_chan || n > (uint32_t)(pllen - off))
+                return -1;
             for (i = 0; i < n; i++) {
                 char c = (char)pl[off + (int)i];
                 if (c == '\r' || c == '\n') {
@@ -849,8 +924,10 @@ static int shell_loop(ssh_session_t *s) {
                     skip_lf_after_cr = (c == '\r');
                     line[line_len] = 0;
                     send_channel_data(s, (const uint8_t *)"\r\n", 2u);
-                    if (strcmp(line, "exit") == 0) return send_exit_and_close(s, 0u);
-                    if (line_len > 0) exec_line_to_channel(s, line);
+                    if (strcmp(line, "exit") == 0)
+                        return send_exit_and_close(s, 0u);
+                    if (line_len > 0)
+                        exec_line_to_channel(s, line);
                     send_channel_data(s, (const uint8_t *)"\r\n", 2u);
                     send_prompt(s);
                     line_len = 0;
@@ -877,8 +954,7 @@ static int shell_loop(ssh_session_t *s) {
             int off = 1;
             const uint8_t *name;
             uint32_t name_len;
-            if (read_string(pl, pllen, &off, &name, &name_len) == 0 &&
-                off < pllen && pl[off]) {
+            if (read_string(pl, pllen, &off, &name, &name_len) == 0 && off < pllen && pl[off]) {
                 uint8_t r = SSH_MSG_REQUEST_FAILURE;
                 bpp_send(s, &r, 1u);
             }
@@ -893,19 +969,26 @@ static int do_connection(ssh_session_t *s) {
 
     while (1) {
         int rc = bpp_recv(s, &pl, &pllen);
-        if (rc != 0 || pllen < 1) return -1;
+        if (rc != 0 || pllen < 1)
+            return -1;
         if (pl[0] == SSH_MSG_CHANNEL_OPEN) {
             int off = 1;
             const uint8_t *typ;
             uint32_t typ_len;
             uint8_t resp[64];
             int roff = 0;
-            if (read_string(pl, pllen, &off, &typ, &typ_len) != 0) return -1;
-            if (!cstreqn(typ, typ_len, "session")) return -1;
-            if (off + 12 > pllen) return -1;
-            s->client_chan = get_be32(pl + off); off += 4;
-            s->client_window = get_be32(pl + off); off += 4;
-            s->client_max_packet = get_be32(pl + off); off += 4;
+            if (read_string(pl, pllen, &off, &typ, &typ_len) != 0)
+                return -1;
+            if (!cstreqn(typ, typ_len, "session"))
+                return -1;
+            if (off + 12 > pllen)
+                return -1;
+            s->client_chan = get_be32(pl + off);
+            off += 4;
+            s->client_window = get_be32(pl + off);
+            off += 4;
+            s->client_max_packet = get_be32(pl + off);
+            off += 4;
             s->server_chan = 0;
             s->channel_open = 1;
             roff = wb_byte(resp, roff, SSH_MSG_CHANNEL_OPEN_CONFIRMATION);
@@ -913,14 +996,14 @@ static int do_connection(ssh_session_t *s) {
             roff = wb_be32(resp, roff, s->server_chan);
             roff = wb_be32(resp, roff, SSH_WINDOW);
             roff = wb_be32(resp, roff, SSH_MAX_PACKET);
-            if (bpp_send(s, resp, (uint32_t)roff) != 0) return -1;
+            if (bpp_send(s, resp, (uint32_t)roff) != 0)
+                return -1;
             break;
         } else if (pl[0] == SSH_MSG_GLOBAL_REQUEST) {
             int off = 1;
             const uint8_t *name;
             uint32_t name_len;
-            if (read_string(pl, pllen, &off, &name, &name_len) == 0 &&
-                off < pllen && pl[off]) {
+            if (read_string(pl, pllen, &off, &name, &name_len) == 0 && off < pllen && pl[off]) {
                 uint8_t r = SSH_MSG_REQUEST_FAILURE;
                 bpp_send(s, &r, 1u);
             }
@@ -929,32 +1012,43 @@ static int do_connection(ssh_session_t *s) {
 
     while (s->channel_open) {
         int rc = bpp_recv(s, &pl, &pllen);
-        if (rc != 0 || pllen < 1) return -1;
+        if (rc != 0 || pllen < 1)
+            return -1;
         if (pl[0] == SSH_MSG_CHANNEL_REQUEST) {
             int off = 1;
             uint32_t recp;
             const uint8_t *req;
             uint32_t req_len;
             int want_reply;
-            if (off + 4 > pllen) return -1;
-            recp = get_be32(pl + off); off += 4;
-            if (recp != s->server_chan) return -1;
-            if (read_string(pl, pllen, &off, &req, &req_len) != 0) return -1;
-            if (off >= pllen) return -1;
+            if (off + 4 > pllen)
+                return -1;
+            recp = get_be32(pl + off);
+            off += 4;
+            if (recp != s->server_chan)
+                return -1;
+            if (read_string(pl, pllen, &off, &req, &req_len) != 0)
+                return -1;
+            if (off >= pllen)
+                return -1;
             want_reply = pl[off++];
             if (cstreqn(req, req_len, "pty-req")) {
-                if (want_reply) send_channel_success(s);
+                if (want_reply)
+                    send_channel_success(s);
             } else if (cstreqn(req, req_len, "shell")) {
-                if (want_reply) send_channel_success(s);
+                if (want_reply)
+                    send_channel_success(s);
                 return shell_loop(s);
             } else if (cstreqn(req, req_len, "exec")) {
                 const uint8_t *cmd;
                 uint32_t cmd_len;
-                if (read_string(pl, pllen, &off, &cmd, &cmd_len) != 0) return -1;
-                if (want_reply) send_channel_success(s);
+                if (read_string(pl, pllen, &off, &cmd, &cmd_len) != 0)
+                    return -1;
+                if (want_reply)
+                    send_channel_success(s);
                 return do_exec_request(s, cmd, cmd_len);
             } else {
-                if (want_reply) send_channel_failure(s);
+                if (want_reply)
+                    send_channel_failure(s);
             }
         } else if (pl[0] == SSH_MSG_CHANNEL_CLOSE || pl[0] == SSH_MSG_DISCONNECT) {
             return send_exit_and_close(s, 0u);
@@ -964,22 +1058,33 @@ static int do_connection(ssh_session_t *s) {
 }
 
 static void free_session(ssh_session_t *s) {
-    if (!s) return;
-    if (s->fd >= 0) socket_close(s->fd);
-    if (s->I_C) kfree(s->I_C);
-    if (s->I_S) kfree(s->I_S);
-    if (s->rx) kfree(s->rx);
-    if (s->tx) kfree(s->tx);
-    if (s->pkt) kfree(s->pkt);
-    if (s->mac) kfree(s->mac);
+    if (!s)
+        return;
+    if (s->fd >= 0)
+        socket_close(s->fd);
+    if (s->I_C)
+        kfree(s->I_C);
+    if (s->I_S)
+        kfree(s->I_S);
+    if (s->rx)
+        kfree(s->rx);
+    if (s->tx)
+        kfree(s->tx);
+    if (s->pkt)
+        kfree(s->pkt);
+    if (s->mac)
+        kfree(s->mac);
     kfree(s);
 }
 
 static void session_entry(uint32_t arg) {
     ssh_session_t *s = (ssh_session_t *)arg;
-    if (!s) process_exit();
-    if (do_kex(s) != 0) goto done;
-    if (do_auth(s) != 0) goto done;
+    if (!s)
+        process_exit();
+    if (do_kex(s) != 0)
+        goto done;
+    if (do_auth(s) != 0)
+        goto done;
     do_connection(s);
 done:
     if (s && s->fd >= 0) {
@@ -991,7 +1096,8 @@ done:
 
 static ssh_session_t *alloc_session(int fd, uint32_t ip, uint16_t port) {
     ssh_session_t *s = kmalloc(sizeof(*s));
-    if (!s) return NULL;
+    if (!s)
+        return NULL;
     memset(s, 0, sizeof(*s));
     s->fd = fd;
     s->peer_ip = ip;
@@ -1021,10 +1127,8 @@ static void listener_entry(void) {
             socket_close(cfd);
             continue;
         }
-        if (process_create_with_arg_ex((void (*)(void))session_entry,
-                                       "sshd-session", 1048576u,
-                                       (uint32_t)s,
-                                       PROCESS_DOMAIN_KERNEL) == 0) {
+        if (process_create_with_arg_ex((void (*)(void))session_entry, "sshd-session", 1048576u,
+                                       (uint32_t)s, PROCESS_DOMAIN_KERNEL) == 0) {
             free_session(s);
         }
     }
@@ -1038,10 +1142,13 @@ static void listener_entry(void) {
 
 int sshd_start(uint16_t port) {
     int fd;
-    if (g_sshd_running) return 0;
-    if (load_or_create_host_key() != 0) return -1;
+    if (g_sshd_running)
+        return 0;
+    if (load_or_create_host_key() != 0)
+        return -1;
     fd = socket_create(SOCK_TYPE_TCP);
-    if (fd < 0) return -1;
+    if (fd < 0)
+        return -1;
     if (socket_bind(fd, 0u, htons(port ? port : 22u)) != 0) {
         socket_close(fd);
         return -1;
@@ -1053,8 +1160,7 @@ int sshd_start(uint16_t port) {
     g_listen_fd = fd;
     g_port = port ? port : 22u;
     g_sshd_running = 1;
-    g_listener_pid = process_create_ex(listener_entry, "sshd", 65536u,
-                                       PROCESS_DOMAIN_KERNEL);
+    g_listener_pid = process_create_ex(listener_entry, "sshd", 65536u, PROCESS_DOMAIN_KERNEL);
     if (g_listener_pid == 0) {
         g_sshd_running = 0;
         socket_close(g_listen_fd);

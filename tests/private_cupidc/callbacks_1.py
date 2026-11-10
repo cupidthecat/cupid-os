@@ -62,7 +62,7 @@ class Callbacks1Cases:
             REPO_ROOT / "kernel" / "core" / "panic.h"
         ).read_text(encoding="utf-8")
         self.assertIn(
-            "static void (*panic_print)(const char*) = print;",
+            "static void (*panic_print)(const char *) = print;",
             panic_source,
         )
         self.assertIn(

@@ -6,14 +6,14 @@
 #define PAGE_RW 0x2
 #define PAGE_USER 0x4
 
-static uint32_t* page_directory = 0;
+static uint32_t *page_directory = 0;
 
-static uint32_t* get_page_table(uint32_t directory_index) {
+static uint32_t *get_page_table(uint32_t directory_index) {
     if (page_directory[directory_index] & PAGE_PRESENT) {
-        return (uint32_t*)(page_directory[directory_index] & 0xFFFFF000);
+        return (uint32_t *)(page_directory[directory_index] & 0xFFFFF000);
     }
 
-    uint32_t* table = (uint32_t*)pmm_alloc_page();
+    uint32_t *table = (uint32_t *)pmm_alloc_page();
     if (!table) {
         return 0;
     }
@@ -30,7 +30,7 @@ static void map_page_identity(uint32_t address) {
     uint32_t directory_index = address >> 22;
     uint32_t table_index = (address >> 12) & 0x3FF;
 
-    uint32_t* table = get_page_table(directory_index);
+    uint32_t *table = get_page_table(directory_index);
     if (!table) {
         return;
     }
@@ -44,19 +44,20 @@ static void map_page_identity(uint32_t address) {
  * can access BARs that live above IDENTITY_MAP_SIZE (e.g. EHCI at ~0xfeb...).*/
 void paging_map_mmio(uint32_t phys_addr, uint32_t size) {
     uint32_t addr = phys_addr & ~((uint32_t)PAGE_SIZE - 1u);
-    uint32_t end  = (phys_addr + size + (uint32_t)PAGE_SIZE - 1u) & ~((uint32_t)PAGE_SIZE - 1u);
+    uint32_t end = (phys_addr + size + (uint32_t)PAGE_SIZE - 1u) & ~((uint32_t)PAGE_SIZE - 1u);
     for (; addr < end; addr += PAGE_SIZE) {
         uint32_t directory_index = addr >> 22;
-        uint32_t table_index     = (addr >> 12) & 0x3FF;
+        uint32_t table_index = (addr >> 12) & 0x3FF;
         uint32_t *table = get_page_table(directory_index);
-        if (!table) return;
+        if (!table)
+            return;
         /* PWT | PCD (bits 3+4) disable caching - required for MMIO */
-        table[table_index] = (addr & 0xFFFFF000) | PAGE_PRESENT | PAGE_RW | (1u<<3) | (1u<<4);
+        table[table_index] = (addr & 0xFFFFF000) | PAGE_PRESENT | PAGE_RW | (1u << 3) | (1u << 4);
     }
 }
 
 void paging_init(void) {
-    page_directory = (uint32_t*)pmm_alloc_page();
+    page_directory = (uint32_t *)pmm_alloc_page();
     if (!page_directory) {
         return;
     }
@@ -82,10 +83,10 @@ void paging_init(void) {
     }
 
     uint32_t pd_phys = (uint32_t)page_directory;
-    __asm__ volatile("mov %0, %%cr3" :: "r"(pd_phys));
+    __asm__ volatile("mov %0, %%cr3" ::"r"(pd_phys));
 
     uint32_t cr0;
     __asm__ volatile("mov %%cr0, %0" : "=r"(cr0));
     cr0 |= 0x80000000;
-    __asm__ volatile("mov %0, %%cr0" :: "r"(cr0));
+    __asm__ volatile("mov %0, %%cr0" ::"r"(cr0));
 }

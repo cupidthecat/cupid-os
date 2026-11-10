@@ -6,37 +6,37 @@
  */
 
 #include "gfx2d_assets.h"
-#include "gfx2d.h"
 #include "bmp.h"
-#include "png.h"
-#include "jpeg.h"
 #include "font_8x8.h"
+#include "gfx2d.h"
+#include "jpeg.h"
 #include "memory.h"
+#include "png.h"
+#include "serial.h"
 #include "string.h"
 #include "vfs.h"
 #include "vfs_helpers.h"
-#include "serial.h"
 
 /* Image pool */
 
 static uint32_t *g2d_img_data[GFX2D_MAX_IMAGES];
-static int       g2d_img_w[GFX2D_MAX_IMAGES];
-static int       g2d_img_h[GFX2D_MAX_IMAGES];
-static int       g2d_img_used[GFX2D_MAX_IMAGES];
+static int g2d_img_w[GFX2D_MAX_IMAGES];
+static int g2d_img_h[GFX2D_MAX_IMAGES];
+static int g2d_img_used[GFX2D_MAX_IMAGES];
 
 /* Font pool */
 
 typedef struct {
-    uint8_t *glyph_data;      /* Raw 1-bpp glyph bitmaps (row-major, MSB left) */
-    int      char_width;
-    int      char_height;
-    int      first_char;
-    int      last_char;
-    int      used;
+    uint8_t *glyph_data; /* Raw 1-bpp glyph bitmaps (row-major, MSB left) */
+    int char_width;
+    int char_height;
+    int first_char;
+    int last_char;
+    int used;
 } g2d_font_t;
 
 static g2d_font_t g2d_fonts[GFX2D_MAX_FONTS];
-static int g2d_default_font = -1;  /* -1 = use built-in 8x8 */
+static int g2d_default_font = -1; /* -1 = use built-in 8x8 */
 static int g2d_assets_initialized = 0;
 
 /* Init */
@@ -73,14 +73,14 @@ static uint16_t g2d_read_le16(const uint8_t *p) {
 }
 
 static uint32_t g2d_read_le32(const uint8_t *p) {
-    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
-           ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
 
 static int g2d_alloc_slot(void) {
     int i;
     for (i = 0; i < GFX2D_MAX_IMAGES; i++) {
-        if (!g2d_img_used[i]) return i;
+        if (!g2d_img_used[i])
+            return i;
     }
     return -1;
 }
@@ -92,22 +92,24 @@ static int g2d_load_bmp_path(int slot, const char *path) {
         serial_printf("[gfx2d_assets] bmp info fail %s (%d)\n", path, rc);
         return -1;
     }
-    if (info.width == 0 || info.height == 0 ||
-        info.width > 8192 || info.height > 8192) {
-        serial_printf("[gfx2d_assets] bad bmp dims %ux%u\n",
-                      info.width, info.height);
+    if (info.width == 0 || info.height == 0 || info.width > 8192 || info.height > 8192) {
+        serial_printf("[gfx2d_assets] bad bmp dims %ux%u\n", info.width, info.height);
         return -1;
     }
     uint32_t *data = (uint32_t *)kmalloc(info.data_size);
-    if (!data) return -1;
+    if (!data)
+        return -1;
     rc = bmp_decode(path, data, info.data_size);
-    if (rc != BMP_OK) { kfree(data); return -1; }
+    if (rc != BMP_OK) {
+        kfree(data);
+        return -1;
+    }
     uint32_t count = info.width * info.height;
     for (uint32_t i = 0; i < count; i++)
         data[i] |= 0xFF000000u;
     g2d_img_data[slot] = data;
-    g2d_img_w[slot]    = (int)info.width;
-    g2d_img_h[slot]    = (int)info.height;
+    g2d_img_w[slot] = (int)info.width;
+    g2d_img_h[slot] = (int)info.height;
     __atomic_store_n(&g2d_img_used[slot], 1, __ATOMIC_RELEASE);
     return slot;
 }
@@ -125,20 +127,18 @@ static int g2d_load_bmp_mem(int slot, const uint8_t *buf, uint32_t len) {
     uint16_t planes = g2d_read_le16(buf + 26);
     uint16_t bpp = g2d_read_le16(buf + 28);
     uint32_t compression = g2d_read_le32(buf + 30);
-    if (dib_size < BMP_DIB_HDR_SIZE || planes != 1u ||
-        bpp != 24u || compression != 0u || w <= 0 || h == 0)
+    if (dib_size < BMP_DIB_HDR_SIZE || planes != 1u || bpp != 24u || compression != 0u || w <= 0 ||
+        h == 0)
         return -1;
 
     uint32_t width = (uint32_t)w;
     uint32_t height = (h > 0) ? (uint32_t)h : (uint32_t)(-h);
     int top_down = h < 0;
-    if (width == 0u || height == 0u ||
-        width > BMP_MAX_DIM || height > BMP_MAX_DIM)
+    if (width == 0u || height == 0u || width > BMP_MAX_DIM || height > BMP_MAX_DIM)
         return -1;
 
     uint32_t row_bytes = (width * 3u + 3u) & ~3u;
-    uint64_t pixel_end = (uint64_t)data_offset +
-                         (uint64_t)row_bytes * (uint64_t)height;
+    uint64_t pixel_end = (uint64_t)data_offset + (uint64_t)row_bytes * (uint64_t)height;
     if (data_offset >= len || pixel_end > (uint64_t)len)
         return -1;
 
@@ -154,8 +154,7 @@ static int g2d_load_bmp_mem(int slot, const uint8_t *buf, uint32_t len) {
             uint8_t g = row[x * 3u + 1u];
             uint8_t r = row[x * 3u + 2u];
             data[out_y * width + x] =
-                0xFF000000u | ((uint32_t)r << 16) |
-                ((uint32_t)g << 8) | (uint32_t)b;
+                0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
         }
     }
 
@@ -175,8 +174,8 @@ static int g2d_load_png_mem(int slot, const uint8_t *buf, uint32_t len) {
         return -1;
     }
     g2d_img_data[slot] = pix;
-    g2d_img_w[slot]    = w;
-    g2d_img_h[slot]    = h;
+    g2d_img_w[slot] = w;
+    g2d_img_h[slot] = h;
     __atomic_store_n(&g2d_img_used[slot], 1, __ATOMIC_RELEASE);
     return slot;
 }
@@ -190,8 +189,8 @@ static int g2d_load_jpeg_mem(int slot, const uint8_t *buf, uint32_t len) {
         return -1;
     }
     g2d_img_data[slot] = pix;
-    g2d_img_w[slot]    = w;
-    g2d_img_h[slot]    = h;
+    g2d_img_w[slot] = w;
+    g2d_img_h[slot] = h;
     __atomic_store_n(&g2d_img_used[slot], 1, __ATOMIC_RELEASE);
     return slot;
 }
@@ -212,7 +211,8 @@ static int gfx2d_image_load_locked(const char *path) {
     }
     int sn = vfs_read(fd, sig, 8);
     vfs_close(fd);
-    if (sn < 2) return -1;
+    if (sn < 2)
+        return -1;
 
     if (sig[0] == 0x42 && sig[1] == 0x4D) {
         /* "BM" - BMP, use existing path-based decoder */
@@ -221,13 +221,15 @@ static int gfx2d_image_load_locked(const char *path) {
 
     /* For PNG/JPEG load whole file into memory then dispatch */
     vfs_stat_t st;
-    if (vfs_stat(path, &st) < 0) return -1;
+    if (vfs_stat(path, &st) < 0)
+        return -1;
     if (st.size == 0 || st.size > 16u * 1024u * 1024u) {
         serial_printf("[gfx2d_assets] bad image size %u\n", st.size);
         return -1;
     }
     uint8_t *buf = (uint8_t *)kmalloc(st.size);
-    if (!buf) return -1;
+    if (!buf)
+        return -1;
     if ((uint32_t)vfs_read_all(path, buf, st.size) != st.size) {
         kfree(buf);
         return -1;
@@ -254,9 +256,11 @@ int gfx2d_image_load(const char *path) {
 }
 
 static int gfx2d_image_load_mem_locked(const uint8_t *buf, uint32_t len) {
-    if (!buf || len < 4) return -1;
+    if (!buf || len < 4)
+        return -1;
     int slot = g2d_alloc_slot();
-    if (slot < 0) return -1;
+    if (slot < 0)
+        return -1;
     if (buf[0] == 0x42 && buf[1] == 0x4D) {
         return g2d_load_bmp_mem(slot, buf, len);
     }
@@ -304,8 +308,7 @@ static void gfx2d_image_draw_locked(int handle, int x, int y) {
     uint32_t *data = g2d_img_data[handle];
     for (row = 0; row < h; row++)
         for (col = 0; col < w; col++)
-            gfx2d_pixel(x + col, y + row,
-                        data[(uint32_t)row * (uint32_t)w + (uint32_t)col]);
+            gfx2d_pixel(x + col, y + row, data[(uint32_t)row * (uint32_t)w + (uint32_t)col]);
 }
 
 void gfx2d_image_draw(int handle, int x, int y) {
@@ -314,8 +317,7 @@ void gfx2d_image_draw(int handle, int x, int y) {
     gfx2d_shared_writer_end(writer_lease);
 }
 
-static void gfx2d_image_draw_scaled_locked(int handle, int x, int y,
-                                           int dw, int dh) {
+static void gfx2d_image_draw_scaled_locked(int handle, int x, int y, int dw, int dh) {
     int row, col;
     if (handle < 0 || handle >= GFX2D_MAX_IMAGES)
         return;
@@ -334,8 +336,7 @@ static void gfx2d_image_draw_scaled_locked(int handle, int x, int y,
         int sy = (row * sh) / dh;
         for (col = 0; col < dw; col++) {
             int sx = (col * sw) / dw;
-            gfx2d_pixel_alpha(x + col, y + row,
-                              data[(uint32_t)sy * (uint32_t)sw + (uint32_t)sx]);
+            gfx2d_pixel_alpha(x + col, y + row, data[(uint32_t)sy * (uint32_t)sw + (uint32_t)sx]);
         }
     }
 }
@@ -346,8 +347,8 @@ void gfx2d_image_draw_scaled(int handle, int x, int y, int dw, int dh) {
     gfx2d_shared_writer_end(writer_lease);
 }
 
-static void gfx2d_image_draw_region_locked(int handle, int sx, int sy,
-                                           int sw, int sh, int dx, int dy) {
+static void gfx2d_image_draw_region_locked(int handle, int sx, int sy, int sw, int sh, int dx,
+                                           int dy) {
     int row, col;
     if (handle < 0 || handle >= GFX2D_MAX_IMAGES)
         return;
@@ -357,21 +358,30 @@ static void gfx2d_image_draw_region_locked(int handle, int sx, int sy,
     uint32_t *data = g2d_img_data[handle];
 
     /* Clamp source region to image bounds */
-    if (sx < 0) { dx -= sx; sw += sx; sx = 0; }
-    if (sy < 0) { dy -= sy; sh += sy; sy = 0; }
-    if (sx + sw > iw) sw = iw - sx;
-    if (sy + sh > ih) sh = ih - sy;
-    if (sw <= 0 || sh <= 0) return;
+    if (sx < 0) {
+        dx -= sx;
+        sw += sx;
+        sx = 0;
+    }
+    if (sy < 0) {
+        dy -= sy;
+        sh += sy;
+        sy = 0;
+    }
+    if (sx + sw > iw)
+        sw = iw - sx;
+    if (sy + sh > ih)
+        sh = ih - sy;
+    if (sw <= 0 || sh <= 0)
+        return;
 
     for (row = 0; row < sh; row++)
         for (col = 0; col < sw; col++)
             gfx2d_pixel(dx + col, dy + row,
-                        data[(uint32_t)(sy + row) * (uint32_t)iw +
-                             (uint32_t)(sx + col)]);
+                        data[(uint32_t)(sy + row) * (uint32_t)iw + (uint32_t)(sx + col)]);
 }
 
-void gfx2d_image_draw_region(int handle, int sx, int sy, int sw, int sh,
-                             int dx, int dy) {
+void gfx2d_image_draw_region(int handle, int sx, int sy, int sw, int sh, int dx, int dy) {
     int writer_lease = gfx2d_shared_writer_begin();
     gfx2d_image_draw_region_locked(handle, sx, sy, sw, sh, dx, dy);
     gfx2d_shared_writer_end(writer_lease);
@@ -482,11 +492,11 @@ static int gfx2d_font_load_locked(const char *path) {
         return -1;
     }
 
-    if (hdr.char_width == 0 || hdr.char_width > 32 ||
-        hdr.char_height == 0 || hdr.char_height > 32) {
+    if (hdr.char_width == 0 || hdr.char_width > 32 || hdr.char_height == 0 ||
+        hdr.char_height > 32) {
         vfs_close(fd);
-        serial_printf("[gfx2d_assets] font_load: bad glyph size %ux%u\n",
-                      hdr.char_width, hdr.char_height);
+        serial_printf("[gfx2d_assets] font_load: bad glyph size %ux%u\n", hdr.char_width,
+                      hdr.char_height);
         return -1;
     }
 
@@ -523,9 +533,9 @@ static int gfx2d_font_load_locked(const char *path) {
     g2d_fonts[i].last_char = (int)hdr.last_char;
     __atomic_store_n(&g2d_fonts[i].used, 1, __ATOMIC_RELEASE);
 
-    serial_printf("[gfx2d_assets] font %d loaded: %dx%d, chars %d-%d from %s\n",
-                  i, (int)hdr.char_width, (int)hdr.char_height,
-                  (int)hdr.first_char, (int)hdr.last_char, path);
+    serial_printf("[gfx2d_assets] font %d loaded: %dx%d, chars %d-%d from %s\n", i,
+                  (int)hdr.char_width, (int)hdr.char_height, (int)hdr.first_char,
+                  (int)hdr.last_char, path);
     return i;
 }
 
@@ -571,7 +581,8 @@ void gfx2d_font_set_default(int handle) {
 
 static int gfx2d_font_text_width_locked(int handle, const char *text) {
     int len;
-    if (!text) return 0;
+    if (!text)
+        return 0;
     len = (int)strlen(text);
     if (handle >= 0 && handle < GFX2D_MAX_FONTS && g2d_fonts[handle].used)
         return len * g2d_fonts[handle].char_width;
@@ -599,8 +610,7 @@ int gfx2d_font_text_height(int handle) {
     return result;
 }
 
-static void draw_custom_glyph(const g2d_font_t *fnt, int x, int y,
-                              char ch, uint32_t color) {
+static void draw_custom_glyph(const g2d_font_t *fnt, int x, int y, char ch, uint32_t color) {
     int code = (int)(unsigned char)ch;
     int row_bytes, row, col;
     const uint8_t *glyph;
@@ -609,8 +619,7 @@ static void draw_custom_glyph(const g2d_font_t *fnt, int x, int y,
         return;
 
     row_bytes = (fnt->char_width + 7) / 8;
-    glyph = fnt->glyph_data +
-            (code - fnt->first_char) * row_bytes * fnt->char_height;
+    glyph = fnt->glyph_data + (code - fnt->first_char) * row_bytes * fnt->char_height;
 
     for (row = 0; row < fnt->char_height; row++) {
         for (col = 0; col < fnt->char_width; col++) {
@@ -622,8 +631,7 @@ static void draw_custom_glyph(const g2d_font_t *fnt, int x, int y,
     }
 }
 
-static void gfx2d_text_ex_locked(int x, int y, const char *text,
-                                 uint32_t color, int font_handle,
+static void gfx2d_text_ex_locked(int x, int y, const char *text, uint32_t color, int font_handle,
                                  int effects) {
     int use_custom = 0;
     const g2d_font_t *fnt = NULL;
@@ -631,15 +639,15 @@ static void gfx2d_text_ex_locked(int x, int y, const char *text,
     int i, len;
     uint32_t shadow_color;
 
-    if (!text) return;
+    if (!text)
+        return;
     len = (int)strlen(text);
 
     /* Resolve font */
     if (font_handle == -1)
         font_handle = g2d_default_font;
 
-    if (font_handle >= 0 && font_handle < GFX2D_MAX_FONTS &&
-        g2d_fonts[font_handle].used) {
+    if (font_handle >= 0 && font_handle < GFX2D_MAX_FONTS && g2d_fonts[font_handle].used) {
         fnt = &g2d_fonts[font_handle];
         cw = fnt->char_width;
         ch = fnt->char_height;
@@ -654,8 +662,7 @@ static void gfx2d_text_ex_locked(int x, int y, const char *text,
         shadow_color = 0x00404040;
         if (use_custom) {
             for (i = 0; i < len; i++)
-                draw_custom_glyph(fnt, x + 1 + i * cw, y + 1,
-                                  text[i], shadow_color);
+                draw_custom_glyph(fnt, x + 1 + i * cw, y + 1, text[i], shadow_color);
         } else {
             gfx2d_text(x + 1, y + 1, text, shadow_color, GFX2D_FONT_NORMAL);
         }
@@ -667,14 +674,13 @@ static void gfx2d_text_ex_locked(int x, int y, const char *text,
         int dx, dy;
         for (dy = -1; dy <= 1; dy++) {
             for (dx = -1; dx <= 1; dx++) {
-                if (dx == 0 && dy == 0) continue;
+                if (dx == 0 && dy == 0)
+                    continue;
                 if (use_custom) {
                     for (i = 0; i < len; i++)
-                        draw_custom_glyph(fnt, x + dx + i * cw, y + dy,
-                                          text[i], outline_color);
+                        draw_custom_glyph(fnt, x + dx + i * cw, y + dy, text[i], outline_color);
                 } else {
-                    gfx2d_text(x + dx, y + dy, text, outline_color,
-                               GFX2D_FONT_NORMAL);
+                    gfx2d_text(x + dx, y + dy, text, outline_color, GFX2D_FONT_NORMAL);
                 }
             }
         }
@@ -703,8 +709,7 @@ static void gfx2d_text_ex_locked(int x, int y, const char *text,
     }
 }
 
-void gfx2d_text_ex(int x, int y, const char *text, uint32_t color,
-                   int font_handle, int effects) {
+void gfx2d_text_ex(int x, int y, const char *text, uint32_t color, int font_handle, int effects) {
     int writer_lease = gfx2d_shared_writer_begin();
     gfx2d_text_ex_locked(x, y, text, color, font_handle, effects);
     gfx2d_shared_writer_end(writer_lease);

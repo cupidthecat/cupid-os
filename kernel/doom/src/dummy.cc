@@ -3,8 +3,7 @@
  *
  *  Created on: 16.02.2015
  *      Author: Florian
-*/
-
+ */
 
 /**
  *  include files                                                      *
@@ -42,8 +41,7 @@ boolean drone = false;
 
 #ifndef FEATURE_SOUND
 
-void I_InitTimidityConfig(void)
-{
+void I_InitTimidityConfig(void) {
 }
 
 #endif

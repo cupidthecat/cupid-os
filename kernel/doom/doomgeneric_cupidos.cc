@@ -10,20 +10,20 @@
  *   doom_main     - entry with dg_setjmp envelope so dg_exit returns to shell
  *
  * Compiled through the checked Doom compatibility CupidC profile.
-*/
+ */
 
 #include "doomgeneric_cupidos.h"
+#include "bkl.h"
 #include "dglibc.h"
 #include "gfx2d.h"
-#include "vga.h"
+#include "i_system.h"
 #include "keyboard.h"
 #include "serial.h"
 #include "timer.h"
-#include "vfs.h"
 #include "types.h"
 #include "usb.h"
-#include "bkl.h"
-#include "i_system.h"
+#include "vfs.h"
+#include "vga.h"
 
 extern void process_yield(void);
 
@@ -32,44 +32,48 @@ extern void process_yield(void);
 extern uint32_t *DG_ScreenBuffer;
 extern void doomgeneric_Tick(void);
 
-#define DG_RESX      640
-#define DG_RESY      400
+#define DG_RESX 640
+#define DG_RESY 400
 #define DOOMGENERIC_RESX DG_RESX
 #define DOOMGENERIC_RESY DG_RESY
-#define INPUT_RING   256
+#define INPUT_RING 256
 
 /* Keyboard ring buffer */
 
-typedef struct { uint8_t scancode; uint8_t pressed; } kbd_evt_t;
+typedef struct {
+    uint8_t scancode;
+    uint8_t pressed;
+} kbd_evt_t;
+
 static kbd_evt_t s_kbd_ring[INPUT_RING];
 static volatile uint32_t s_kbd_head = 0;
 static volatile uint32_t s_kbd_tail = 0;
 
 /* DOOM key codes match chocolate-doom doomkeys.h */
-#define DOOM_KEY_RIGHTARROW  0xAE
-#define DOOM_KEY_LEFTARROW   0xAC
-#define DOOM_KEY_UPARROW     0xAD
-#define DOOM_KEY_DOWNARROW   0xAF
-#define DOOM_KEY_FIRE        0xA3   /* CTRL */
-#define DOOM_KEY_USE         0xA2   /* SPACE; typed text is handled by I_GetEvent */
-#define DOOM_KEY_RSHIFT      0xB6
-#define DOOM_KEY_RALT        0xB8
-#define DOOM_KEY_ESCAPE      27
-#define DOOM_KEY_ENTER       13
-#define DOOM_KEY_TAB         9
-#define DOOM_KEY_BACKSPACE   0x7F
-#define DOOM_KEY_F1          (0x80 + 0x3B)
-#define DOOM_KEY_F2          (0x80 + 0x3C)
-#define DOOM_KEY_F3          (0x80 + 0x3D)
-#define DOOM_KEY_F4          (0x80 + 0x3E)
-#define DOOM_KEY_F5          (0x80 + 0x3F)
-#define DOOM_KEY_F6          (0x80 + 0x40)
-#define DOOM_KEY_F7          (0x80 + 0x41)
-#define DOOM_KEY_F8          (0x80 + 0x42)
-#define DOOM_KEY_F9          (0x80 + 0x43)
-#define DOOM_KEY_F10         (0x80 + 0x44)
-#define DOOM_KEY_F11         (0x80 + 0x57)
-#define DOOM_KEY_F12         (0x80 + 0x58)
+#define DOOM_KEY_RIGHTARROW 0xAE
+#define DOOM_KEY_LEFTARROW 0xAC
+#define DOOM_KEY_UPARROW 0xAD
+#define DOOM_KEY_DOWNARROW 0xAF
+#define DOOM_KEY_FIRE 0xA3 /* CTRL */
+#define DOOM_KEY_USE 0xA2  /* SPACE; typed text is handled by I_GetEvent */
+#define DOOM_KEY_RSHIFT 0xB6
+#define DOOM_KEY_RALT 0xB8
+#define DOOM_KEY_ESCAPE 27
+#define DOOM_KEY_ENTER 13
+#define DOOM_KEY_TAB 9
+#define DOOM_KEY_BACKSPACE 0x7F
+#define DOOM_KEY_F1 (0x80 + 0x3B)
+#define DOOM_KEY_F2 (0x80 + 0x3C)
+#define DOOM_KEY_F3 (0x80 + 0x3D)
+#define DOOM_KEY_F4 (0x80 + 0x3E)
+#define DOOM_KEY_F5 (0x80 + 0x3F)
+#define DOOM_KEY_F6 (0x80 + 0x40)
+#define DOOM_KEY_F7 (0x80 + 0x41)
+#define DOOM_KEY_F8 (0x80 + 0x42)
+#define DOOM_KEY_F9 (0x80 + 0x43)
+#define DOOM_KEY_F10 (0x80 + 0x44)
+#define DOOM_KEY_F11 (0x80 + 0x57)
+#define DOOM_KEY_F12 (0x80 + 0x58)
 
 static unsigned char s_scan_to_doom[128] = {
     [0x4B] = DOOM_KEY_LEFTARROW,
@@ -83,38 +87,82 @@ static unsigned char s_scan_to_doom[128] = {
     [0x38] = DOOM_KEY_RALT,
     [0x33] = ',',
     [0x34] = '.',
-    [0x02] = '1', [0x03] = '2', [0x04] = '3', [0x05] = '4',
-    [0x06] = '5', [0x07] = '6', [0x08] = '7',
-    [0x09] = '8', [0x0A] = '9', [0x0B] = '0',
-    [0x0C] = '-', [0x0D] = '=', [0x0E] = DOOM_KEY_BACKSPACE,
-    [0x10] = 'q', [0x11] = 'w', [0x12] = 'e', [0x13] = 'r',
-    [0x14] = 't', [0x15] = 'y', [0x16] = 'u', [0x17] = 'i',
-    [0x18] = 'o', [0x19] = 'p', [0x1A] = '[', [0x1B] = ']',
-    [0x1E] = 'a', [0x1F] = 's', [0x20] = 'd', [0x21] = 'f',
-    [0x22] = 'g', [0x23] = 'h', [0x24] = 'j', [0x25] = 'k',
-    [0x26] = 'l', [0x27] = ';', [0x28] = '\'', [0x29] = '`',
-    [0x2B] = '\\', [0x2C] = 'z', [0x2D] = 'x', [0x2E] = 'c',
-    [0x2F] = 'v', [0x30] = 'b', [0x31] = 'n', [0x32] = 'm',
+    [0x02] = '1',
+    [0x03] = '2',
+    [0x04] = '3',
+    [0x05] = '4',
+    [0x06] = '5',
+    [0x07] = '6',
+    [0x08] = '7',
+    [0x09] = '8',
+    [0x0A] = '9',
+    [0x0B] = '0',
+    [0x0C] = '-',
+    [0x0D] = '=',
+    [0x0E] = DOOM_KEY_BACKSPACE,
+    [0x10] = 'q',
+    [0x11] = 'w',
+    [0x12] = 'e',
+    [0x13] = 'r',
+    [0x14] = 't',
+    [0x15] = 'y',
+    [0x16] = 'u',
+    [0x17] = 'i',
+    [0x18] = 'o',
+    [0x19] = 'p',
+    [0x1A] = '[',
+    [0x1B] = ']',
+    [0x1E] = 'a',
+    [0x1F] = 's',
+    [0x20] = 'd',
+    [0x21] = 'f',
+    [0x22] = 'g',
+    [0x23] = 'h',
+    [0x24] = 'j',
+    [0x25] = 'k',
+    [0x26] = 'l',
+    [0x27] = ';',
+    [0x28] = '\'',
+    [0x29] = '`',
+    [0x2B] = '\\',
+    [0x2C] = 'z',
+    [0x2D] = 'x',
+    [0x2E] = 'c',
+    [0x2F] = 'v',
+    [0x30] = 'b',
+    [0x31] = 'n',
+    [0x32] = 'm',
     [0x35] = '/',
     [0x01] = DOOM_KEY_ESCAPE,
     [0x1C] = DOOM_KEY_ENTER,
     [0x0F] = DOOM_KEY_TAB,
-    [0x3B] = DOOM_KEY_F1,  [0x3C] = DOOM_KEY_F2,  [0x3D] = DOOM_KEY_F3,
-    [0x3E] = DOOM_KEY_F4,  [0x3F] = DOOM_KEY_F5,  [0x40] = DOOM_KEY_F6,
-    [0x41] = DOOM_KEY_F7,  [0x42] = DOOM_KEY_F8,  [0x43] = DOOM_KEY_F9,
+    [0x3B] = DOOM_KEY_F1,
+    [0x3C] = DOOM_KEY_F2,
+    [0x3D] = DOOM_KEY_F3,
+    [0x3E] = DOOM_KEY_F4,
+    [0x3F] = DOOM_KEY_F5,
+    [0x40] = DOOM_KEY_F6,
+    [0x41] = DOOM_KEY_F7,
+    [0x42] = DOOM_KEY_F8,
+    [0x43] = DOOM_KEY_F9,
     [0x44] = DOOM_KEY_F10,
-    [0x57] = DOOM_KEY_F11, [0x58] = DOOM_KEY_F12,
+    [0x57] = DOOM_KEY_F11,
+    [0x58] = DOOM_KEY_F12,
 };
 
 /* Keyboard IRQ callback runs with IRQs disabled; push only, no process */
 static void on_kbd(uint8_t sc, bool pressed, void *ctx) {
     (void)ctx;
     /* Ignore scancodes we don't map */
-    if (sc >= 128u || s_scan_to_doom[sc] == 0) { return; }
+    if (sc >= 128u || s_scan_to_doom[sc] == 0) {
+        return;
+    }
     uint32_t next = (s_kbd_head + 1u) % INPUT_RING;
-    if (next == s_kbd_tail) { return; } /* drop on overflow */
+    if (next == s_kbd_tail) {
+        return;
+    } /* drop on overflow */
     s_kbd_ring[s_kbd_head].scancode = sc;
-    s_kbd_ring[s_kbd_head].pressed  = pressed ? 1u : 0u;
+    s_kbd_ring[s_kbd_head].pressed = pressed ? 1u : 0u;
     s_kbd_head = next;
 }
 
@@ -161,7 +209,9 @@ void DG_Init(void) {
  * stability win for music: less time in the main thread blocked on
  * memory bandwidth = more headroom for the AC97 IRQ + cup_music_pump).*/
 void DG_DrawFrame(void) {
-    if (!DG_ScreenBuffer) { return; }
+    if (!DG_ScreenBuffer) {
+        return;
+    }
     vga_mark_dirty_full();
     vga_flip();
 }
@@ -194,7 +244,8 @@ static inline uint64_t cup_rdtsc(void) {
 static uint32_t s_last_usb_pump_ms = 0u;
 
 static void cup_pump_usb_throttled(uint32_t now_ms) {
-    if (now_ms - s_last_usb_pump_ms < 1u) return;
+    if (now_ms - s_last_usb_pump_ms < 1u)
+        return;
     s_last_usb_pump_ms = now_ms;
     usb_poll();
 }
@@ -209,13 +260,15 @@ static void cup_pump_usb_throttled(uint32_t now_ms) {
  * processed until the timer steps to 20 ms and then DOOM thinks we're
  * still at game tic 0. RDTSC gives cycle-level precision so
  * DG_GetTicksMs increments smoothly per call.*/
-static uint64_t s_tsc_origin    = 0;
-static uint64_t s_tsc_per_ms    = 0;
+static uint64_t s_tsc_origin = 0;
+static uint64_t s_tsc_per_ms = 0;
 
 static void cup_clock_init(void) {
-    if (s_tsc_per_ms != 0) return;
+    if (s_tsc_per_ms != 0)
+        return;
     s_tsc_per_ms = get_cpu_freq() / 1000u;
-    if (s_tsc_per_ms == 0) s_tsc_per_ms = 1;
+    if (s_tsc_per_ms == 0)
+        s_tsc_per_ms = 1;
     s_tsc_origin = cup_rdtsc();
 }
 
@@ -266,38 +319,48 @@ int DG_GetKey(int *pressed, unsigned char *doomkey) {
     kbd_evt_t e;
     unsigned char dk;
 
-    if (s_kbd_tail == s_kbd_head) { return 0; }
+    if (s_kbd_tail == s_kbd_head) {
+        return 0;
+    }
     e = s_kbd_ring[s_kbd_tail];
     s_kbd_tail = (s_kbd_tail + 1u) % INPUT_RING;
 
-    if (e.scancode >= 128u) { return 0; }
+    if (e.scancode >= 128u) {
+        return 0;
+    }
     dk = s_scan_to_doom[e.scancode];
-    if (dk == 0) { return 0; }
+    if (dk == 0) {
+        return 0;
+    }
 
     *pressed = e.pressed ? 1 : 0;
-    *doomkey  = dk;
+    *doomkey = dk;
     return 1;
 }
 
 /* DG_SetWindowTitle */
 
-void DG_SetWindowTitle(const char *t) { (void)t; }
+void DG_SetWindowTitle(const char *t) {
+    (void)t;
+}
 
 /* doom_main entry: wraps D_DoomMain in a dg_setjmp envelope so
  * dg_exit / dg_abort can longjmp back to the shell cleanly.*/
 
-extern void  D_DoomMain(void);
-extern void  M_FindResponseFile(void);
-extern void  I_ResetExitState(void);
-extern void  I_Quit(void) __attribute__((noreturn));
-extern int   myargc;
+extern void D_DoomMain(void);
+extern void M_FindResponseFile(void);
+extern void I_ResetExitState(void);
+extern void I_Quit(void) __attribute__((noreturn));
+extern int myargc;
 extern char **myargv;
 
 extern int strcmp(const char *a, const char *b);
 
 static int file_exists(const char *path) {
     int fd = vfs_open(path, O_RDONLY);
-    if (fd < 0) { return 0; }
+    if (fd < 0) {
+        return 0;
+    }
     vfs_close(fd);
     return 1;
 }
@@ -307,8 +370,8 @@ static const char *find_default_iwad(void) {
      * friendly names (homefs preserves them) and the 8.3 short names
      * that the raw fat16 VFS at /disk exposes.*/
     static const char *candidates[] = {
-        "/disk/wads/freedoom1.wad",  /* long name (if LFN supported) */
-        "/disk/wads/freedo~1.wad",   /* 8.3 short name generated by mtools */
+        "/disk/wads/freedoom1.wad", /* long name (if LFN supported) */
+        "/disk/wads/freedo~1.wad",  /* 8.3 short name generated by mtools */
         "/disk/wads/freedoom2.wad",
         "/disk/wads/freedo~2.wad",
         "/disk/wads/doom.wad",
@@ -319,8 +382,7 @@ static const char *find_default_iwad(void) {
         "/home/doom/freedoom2.wad",
         "/home/doom/doom.wad",
         "/home/doom/doom2.wad",
-        0
-    };
+        0};
     int i;
     for (i = 0; candidates[i]; i++) {
         if (file_exists(candidates[i])) {
@@ -363,8 +425,10 @@ int doom_main(int argc, char **argv) {
             dg_printf("doom: too many args\n");
             return 1;
         }
-        for (i = 0; i < argc; i++) { new_argv[i] = argv[i]; }
-        new_argv[argc]     = (char *)"-iwad";
+        for (i = 0; i < argc; i++) {
+            new_argv[i] = argv[i];
+        }
+        new_argv[argc] = (char *)"-iwad";
         new_argv[argc + 1] = (char *)def;
         new_argc = argc + 2;
         myargv = new_argv;
@@ -420,7 +484,9 @@ int doom_main(int argc, char **argv) {
             return 1;
         }
         int y_off = (VGA_GFX_HEIGHT - DG_RESY) / 2;
-        if (y_off < 0) { y_off = 0; }
+        if (y_off < 0) {
+            y_off = 0;
+        }
         DG_ScreenBuffer = &fb[(uint32_t)y_off * (uint32_t)VGA_GFX_WIDTH];
     }
 

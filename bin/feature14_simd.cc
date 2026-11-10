@@ -1,6 +1,6 @@
-//help: Tests private CupidC packed arithmetic, arrays, fixed calls, callbacks, and SSE intrinsics.
-//help: Usage: feature14_simd
-//help: Prints focused PASS markers followed by the overall result.
+// help: Tests private CupidC packed arithmetic, arrays, fixed calls, callbacks, and SSE intrinsics.
+// help: Usage: feature14_simd
+// help: Prints focused PASS markers followed by the overall result.
 
 float4 feature14_global_floats[3];
 double2 feature14_global_doubles[2];
@@ -31,8 +31,7 @@ int feature14_raw_target(int value) {
 
 int (*feature14_raw_callback)(int) = feature14_raw_target;
 
-typedef float4 (*feature14_float_callback_t)(float4 left, int marker,
-                                             float4 right);
+typedef float4 (*feature14_float_callback_t)(float4 left, int marker, float4 right);
 feature14_float_callback_t feature14_global_callback = feature14_merge_float4;
 
 typedef struct {
@@ -45,8 +44,7 @@ typedef struct {
 } feature14_callback_controller_t;
 
 class Feature14CallbackInvoker {
-    float4 Invoke(feature14_float_callback_t callback, float4 left,
-                  int marker, float4 right) {
+    float4 Invoke(feature14_float_callback_t callback, float4 left, int marker, float4 right) {
         return callback(left, marker, right);
     }
 };
@@ -83,9 +81,7 @@ int feature14_test_updates() {
     float float_nan = *(float *)&float_nan_bits;
     float float_zero = 0.0f;
     float float_negative_zero = -float_zero;
-    float4 float_seed = {
-        float_nan, float_negative_zero, 6.0f, -2.0f
-    };
+    float4 float_seed = {float_nan, float_negative_zero, 6.0f, -2.0f};
     double double_nan;
     int *double_bits = (int *)&double_nan;
     double_bits[0] = (int)0x89abcdef;
@@ -111,30 +107,34 @@ int feature14_test_updates() {
     saved_double--;
 
     float old_float_lane = old_float.x;
-    if (*(int *)&old_float_lane != float_nan_bits) return 1;
+    if (*(int *)&old_float_lane != float_nan_bits)
+        return 1;
     old_float_lane = old_float.y;
-    if (*(int *)&old_float_lane != (int)0x80000000) return 2;
+    if (*(int *)&old_float_lane != (int)0x80000000)
+        return 2;
     old_float_lane = old_float.z;
-    if (*(int *)&old_float_lane != 0x40c00000) return 3;
+    if (*(int *)&old_float_lane != 0x40c00000)
+        return 3;
     old_float_lane = old_float.w;
-    if (*(int *)&old_float_lane != (int)0xc0000000) return 4;
+    if (*(int *)&old_float_lane != (int)0xc0000000)
+        return 4;
 
     double old_double_lane = old_double.x;
     double_bits = (int *)&old_double_lane;
-    if (double_bits[0] != (int)0x89abcdef ||
-        double_bits[1] != 0x7ff81234) return 5;
+    if (double_bits[0] != (int)0x89abcdef || double_bits[1] != 0x7ff81234)
+        return 5;
     old_double_lane = old_double.y;
     double_bits = (int *)&old_double_lane;
-    if (double_bits[0] != 0 ||
-        double_bits[1] != (int)0x80000000) return 6;
+    if (double_bits[0] != 0 || double_bits[1] != (int)0x80000000)
+        return 6;
 
-    if (feature14_update_float.z != 7.0f ||
-        feature14_update_float.w != -1.0f ||
-        feature14_update_double.y != -1.0) return 7;
-    if (local_float.z != 7.0f || local_float.w != -1.0f ||
-        local_double.y != -1.0) return 8;
-    if (saved_float.z != 7.0f || saved_float.w != -1.0f ||
-        saved_double.y != -1.0) return 9;
+    if (feature14_update_float.z != 7.0f || feature14_update_float.w != -1.0f ||
+        feature14_update_double.y != -1.0)
+        return 7;
+    if (local_float.z != 7.0f || local_float.w != -1.0f || local_double.y != -1.0)
+        return 8;
+    if (saved_float.z != 7.0f || saved_float.w != -1.0f || saved_double.y != -1.0)
+        return 9;
 
     float4 line_seed = {1.0f, 2.0f, 3.0f, 4.0f};
     double2 cube_seed = {1.5, 2.5};
@@ -153,32 +153,32 @@ int feature14_test_updates() {
     feature14_global_cube[1][0][1] = cube_seed;
     old_line = feature14_global_floats[line_index++]++;
     new_matrix = --feature14_global_matrix[matrix_outer++][matrix_inner++];
-    old_cube = feature14_global_cube[cube_outer++][cube_middle++]
-                                    [cube_inner++]--;
+    old_cube = feature14_global_cube[cube_outer++][cube_middle++][cube_inner++]--;
 
-    if (old_line.x != 1.0f || old_line.w != 4.0f ||
-        feature14_global_floats[1].x != 2.0f ||
-        feature14_global_floats[1].w != 5.0f) return 10;
-    if (new_matrix.x != 0.0f || new_matrix.w != 3.0f ||
-        feature14_global_matrix[1][0].x != 0.0f ||
-        feature14_global_matrix[1][0].w != 3.0f) return 11;
-    if (old_cube.x != 1.5 || old_cube.y != 2.5 ||
-        feature14_global_cube[1][0][1].x != 0.5 ||
-        feature14_global_cube[1][0][1].y != 1.5) return 12;
-    if (line_index != 2 || matrix_outer != 2 || matrix_inner != 1 ||
-        cube_outer != 2 || cube_middle != 1 || cube_inner != 2) return 13;
+    if (old_line.x != 1.0f || old_line.w != 4.0f || feature14_global_floats[1].x != 2.0f ||
+        feature14_global_floats[1].w != 5.0f)
+        return 10;
+    if (new_matrix.x != 0.0f || new_matrix.w != 3.0f || feature14_global_matrix[1][0].x != 0.0f ||
+        feature14_global_matrix[1][0].w != 3.0f)
+        return 11;
+    if (old_cube.x != 1.5 || old_cube.y != 2.5 || feature14_global_cube[1][0][1].x != 0.5 ||
+        feature14_global_cube[1][0][1].y != 1.5)
+        return 12;
+    if (line_index != 2 || matrix_outer != 2 || matrix_inner != 1 || cube_outer != 2 ||
+        cube_middle != 1 || cube_inner != 2)
+        return 13;
     return 0;
 }
 
 float4 feature14_merge_float4(float4 left, int marker, float4 right) {
     feature14_float_call_count += 1;
-    if (marker != 7 && marker != 11) return left;
+    if (marker != 7 && marker != 11)
+        return left;
     return left + right;
 }
 
-float4 feature14_invoke_float_callback(
-        feature14_float_callback_t callback, float4 left, int marker,
-        float4 right) {
+float4 feature14_invoke_float_callback(feature14_float_callback_t callback, float4 left, int marker,
+                                       float4 right) {
     return callback(left, marker, right);
 }
 
@@ -192,21 +192,19 @@ int feature14_invoke_raw_callback(int (*callback)(int), int value) {
 
 float4 feature14_nested_float4(float4 first, float4 second, float4 third) {
     feature14_float_call_count += 1;
-    return feature14_merge_float4(
-        feature14_merge_float4(first, 7, second), 11, third);
+    return feature14_merge_float4(feature14_merge_float4(first, 7, second), 11, third);
 }
 
 double2 feature14_merge_double2(double2 left, int marker, double2 right) {
     feature14_double_call_count += 1;
-    if (marker != 13 && marker != 17) return left;
+    if (marker != 13 && marker != 17)
+        return left;
     return left + right;
 }
 
-double2 feature14_nested_double2(double2 first, double2 second,
-                                 double2 third) {
+double2 feature14_nested_double2(double2 first, double2 second, double2 third) {
     feature14_double_call_count += 1;
-    return feature14_merge_double2(
-        feature14_merge_double2(first, 13, second), 17, third);
+    return feature14_merge_double2(feature14_merge_double2(first, 13, second), 17, third);
 }
 
 int feature14_test_calls() {
@@ -222,14 +220,14 @@ int feature14_test_calls() {
     feature14_float_call_count = 0;
     feature14_double_call_count = 0;
     floats = feature14_nested_float4(first, second, third);
-    doubles = feature14_nested_double2(
-        wide_first, wide_second, wide_third);
+    doubles = feature14_nested_double2(wide_first, wide_second, wide_third);
 
-    if (feature14_float_call_count != 3 ||
-        feature14_double_call_count != 3) return 1;
-    if (floats.x != 15.0f || floats.y != 18.0f ||
-        floats.z != 21.0f || floats.w != 24.0f) return 2;
-    if (doubles.x != 10.0 || doubles.y != 13.0) return 3;
+    if (feature14_float_call_count != 3 || feature14_double_call_count != 3)
+        return 1;
+    if (floats.x != 15.0f || floats.y != 18.0f || floats.z != 21.0f || floats.w != 24.0f)
+        return 2;
+    if (doubles.x != 10.0 || doubles.y != 13.0)
+        return 3;
     return 0;
 }
 
@@ -240,21 +238,20 @@ int feature14_test_callbacks() {
     double2 wide_second = {3.0, 4.0};
     float4 floats;
     double2 doubles;
-    float4 (*float_callback)(float4 left, int marker, float4 right) =
-        feature14_merge_float4;
-    double2 (*double_callback)(double2 left, int marker, double2 right) =
-        feature14_merge_double2;
+    float4 (*float_callback)(float4 left, int marker, float4 right) = feature14_merge_float4;
+    double2 (*double_callback)(double2 left, int marker, double2 right) = feature14_merge_double2;
 
     feature14_float_call_count = 0;
     feature14_double_call_count = 0;
     floats = float_callback(first, 7, second);
     doubles = double_callback(wide_first, 13, wide_second);
 
-    if (feature14_float_call_count != 1 ||
-        feature14_double_call_count != 1) return 1;
-    if (floats.x != 6.0f || floats.y != 8.0f ||
-        floats.z != 10.0f || floats.w != 12.0f) return 2;
-    if (doubles.x != 4.5 || doubles.y != 6.5) return 3;
+    if (feature14_float_call_count != 1 || feature14_double_call_count != 1)
+        return 1;
+    if (floats.x != 6.0f || floats.y != 8.0f || floats.z != 10.0f || floats.w != 12.0f)
+        return 2;
+    if (doubles.x != 4.5 || doubles.y != 6.5)
+        return 3;
     return 0;
 }
 
@@ -264,11 +261,11 @@ int feature14_test_callback_typedef_parameter() {
     float4 result;
 
     feature14_float_call_count = 0;
-    result = feature14_invoke_float_callback(
-        feature14_merge_float4, first, 7, second);
-    if (feature14_float_call_count != 1) return 1;
-    if (result.x != 6.0f || result.y != 8.0f ||
-        result.z != 10.0f || result.w != 12.0f) return 2;
+    result = feature14_invoke_float_callback(feature14_merge_float4, first, 7, second);
+    if (feature14_float_call_count != 1)
+        return 1;
+    if (result.x != 6.0f || result.y != 8.0f || result.z != 10.0f || result.w != 12.0f)
+        return 2;
     return 0;
 }
 
@@ -279,18 +276,21 @@ int feature14_test_callback_typedef_global() {
     float4 assigned_result;
 
     feature14_float_call_count = 0;
-    if (feature14_global_callback == 0) return 1;
+    if (feature14_global_callback == 0)
+        return 1;
     initialized_result = feature14_global_callback(first, 7, second);
     feature14_set_global_callback(feature14_merge_float4);
     assigned_result = feature14_global_callback(first, 7, second);
     feature14_set_global_callback(0);
-    if (feature14_global_callback != 0) return 2;
-    if (feature14_float_call_count != 2) return 3;
+    if (feature14_global_callback != 0)
+        return 2;
+    if (feature14_float_call_count != 2)
+        return 3;
     if (initialized_result.x != 6.0f || initialized_result.y != 8.0f ||
         initialized_result.z != 10.0f || initialized_result.w != 12.0f)
         return 4;
-    if (assigned_result.x != 6.0f || assigned_result.y != 8.0f ||
-        assigned_result.z != 10.0f || assigned_result.w != 12.0f)
+    if (assigned_result.x != 6.0f || assigned_result.y != 8.0f || assigned_result.z != 10.0f ||
+        assigned_result.w != 12.0f)
         return 5;
     return 0;
 }
@@ -301,18 +301,23 @@ int feature14_test_callback_raw() {
     int reassigned_result;
 
     feature14_raw_call_count = 0;
-    if (feature14_raw_callback == 0) return 1;
+    if (feature14_raw_callback == 0)
+        return 1;
     initialized_result = feature14_raw_callback(1);
-    parameter_result = feature14_invoke_raw_callback(
-        feature14_raw_target, 2);
+    parameter_result = feature14_invoke_raw_callback(feature14_raw_target, 2);
     feature14_raw_callback = 0;
-    if (feature14_raw_callback != 0) return 2;
+    if (feature14_raw_callback != 0)
+        return 2;
     feature14_raw_callback = feature14_raw_target;
     reassigned_result = feature14_raw_callback(3);
-    if (initialized_result != 8) return 3;
-    if (parameter_result != 9) return 4;
-    if (reassigned_result != 10) return 5;
-    if (feature14_raw_call_count != 3) return 6;
+    if (initialized_result != 8)
+        return 3;
+    if (parameter_result != 9)
+        return 4;
+    if (reassigned_result != 10)
+        return 5;
+    if (feature14_raw_call_count != 3)
+        return 6;
     return 0;
 }
 
@@ -326,13 +331,15 @@ int feature14_test_callback_automatic_and_method() {
 
     feature14_float_call_count = 0;
     local_result = callback(first, 7, second);
-    method_result = invoker.Invoke(
-        feature14_merge_float4, first, 11, second);
-    if (feature14_float_call_count != 2) return 1;
-    if (local_result.x != 6.0f || local_result.y != 8.0f ||
-        local_result.z != 10.0f || local_result.w != 12.0f) return 2;
-    if (method_result.x != 6.0f || method_result.y != 8.0f ||
-        method_result.z != 10.0f || method_result.w != 12.0f) return 3;
+    method_result = invoker.Invoke(feature14_merge_float4, first, 11, second);
+    if (feature14_float_call_count != 2)
+        return 1;
+    if (local_result.x != 6.0f || local_result.y != 8.0f || local_result.z != 10.0f ||
+        local_result.w != 12.0f)
+        return 2;
+    if (method_result.x != 6.0f || method_result.y != 8.0f || method_result.z != 10.0f ||
+        method_result.w != 12.0f)
+        return 3;
     return 0;
 }
 
@@ -347,11 +354,13 @@ int feature14_test_callback_field() {
     controller.slots[1].callback = feature14_merge_float4;
     callback = controller.slots[1].callback;
     controller.slots[1].callback = 0;
-    if (controller.slots[1].callback != 0) return 1;
+    if (controller.slots[1].callback != 0)
+        return 1;
     result = callback(first, 7, second);
-    if (feature14_float_call_count != 1) return 2;
-    if (result.x != 6.0f || result.y != 8.0f ||
-        result.z != 10.0f || result.w != 12.0f) return 3;
+    if (feature14_float_call_count != 1)
+        return 2;
+    if (result.x != 6.0f || result.y != 8.0f || result.z != 10.0f || result.w != 12.0f)
+        return 3;
     return 0;
 }
 
@@ -366,15 +375,18 @@ int feature14_test_callback_field_postfix() {
     feature14_callback_index_calls = 0;
     controller.slots[1].callback = feature14_merge_float4;
     controller.slots[0].raw_callback = feature14_merge_float4;
-    typed_result = controller.slots[feature14_next_callback_slot()].callback(
-        first, 7, second);
+    typed_result = controller.slots[feature14_next_callback_slot()].callback(first, 7, second);
     raw_result = controller.slots[0].raw_callback(first, 11, second);
-    if (feature14_callback_index_calls != 1) return 1;
-    if (feature14_float_call_count != 2) return 2;
-    if (typed_result.x != 6.0f || typed_result.y != 8.0f ||
-        typed_result.z != 10.0f || typed_result.w != 12.0f) return 3;
-    if (raw_result.x != 6.0f || raw_result.y != 8.0f ||
-        raw_result.z != 10.0f || raw_result.w != 12.0f) return 4;
+    if (feature14_callback_index_calls != 1)
+        return 1;
+    if (feature14_float_call_count != 2)
+        return 2;
+    if (typed_result.x != 6.0f || typed_result.y != 8.0f || typed_result.z != 10.0f ||
+        typed_result.w != 12.0f)
+        return 3;
+    if (raw_result.x != 6.0f || raw_result.y != 8.0f || raw_result.z != 10.0f ||
+        raw_result.w != 12.0f)
+        return 4;
     return 0;
 }
 
@@ -414,40 +426,39 @@ int feature14_wipe_replacement(int width, int height, int ticks) {
 }
 
 int feature14_dispatch_wipe(int wipeno, int replace) {
-    static int (*wipes[])(int, int, int) = {
-        feature14_wipe_zero_start,
-        feature14_wipe_zero_tick,
-        feature14_wipe_zero_end,
-        feature14_wipe_one_start,
-        feature14_wipe_one_tick,
-        feature14_wipe_one_end
-    };
+    static int (*wipes[])(int, int, int) = {feature14_wipe_zero_start, feature14_wipe_zero_tick,
+                                            feature14_wipe_zero_end,   feature14_wipe_one_start,
+                                            feature14_wipe_one_tick,   feature14_wipe_one_end};
     int result;
 
-    if (replace) wipes[wipeno*3+1] = feature14_wipe_replacement;
-    result = (*wipes[wipeno*3])(4, 2, 1);
-    result += (*wipes[wipeno*3+1])(4, 2, 1);
-    result += (*wipes[wipeno*3+2])(4, 2, 1);
+    if (replace)
+        wipes[wipeno * 3 + 1] = feature14_wipe_replacement;
+    result = (*wipes[wipeno * 3])(4, 2, 1);
+    result += (*wipes[wipeno * 3 + 1])(4, 2, 1);
+    result += (*wipes[wipeno * 3 + 2])(4, 2, 1);
     return result;
 }
 
 int feature14_test_callback_raw_array() {
     feature14_raw_array_call_count = 0;
-    if (feature14_dispatch_wipe(0, 0) != 621) return 1;
-    if (feature14_dispatch_wipe(1, 0) != 1521) return 2;
-    if (feature14_dispatch_wipe(1, 1) != 1921) return 3;
-    if (feature14_dispatch_wipe(1, 0) != 1921) return 4;
-    if (feature14_raw_array_call_count != 12) return 5;
+    if (feature14_dispatch_wipe(0, 0) != 621)
+        return 1;
+    if (feature14_dispatch_wipe(1, 0) != 1521)
+        return 2;
+    if (feature14_dispatch_wipe(1, 1) != 1921)
+        return 3;
+    if (feature14_dispatch_wipe(1, 0) != 1921)
+        return 4;
+    if (feature14_raw_array_call_count != 12)
+        return 5;
     return 0;
 }
 
 int feature14_wipe_later(int width, int height, int ticks);
 
 int feature14_test_callback_raw_automatic_array() {
-    int (*automatic_callbacks[4])(int, int, int) = {
-        feature14_wipe_zero_start,
-        feature14_wipe_later
-    };
+    int (*automatic_callbacks[4])(int, int, int) = {feature14_wipe_zero_start,
+                                                    feature14_wipe_later};
     int (*automatic_zeroed[2])(int, int, int);
     int (*automatic_copied)(int, int, int) = automatic_callbacks[0];
 
@@ -458,11 +469,16 @@ int feature14_test_callback_raw_automatic_array() {
         return 2;
     automatic_callbacks[2] = feature14_wipe_replacement;
     automatic_callbacks[3] = automatic_callbacks[0];
-    if (automatic_copied(4, 2, 1) != 107) return 3;
-    if (automatic_callbacks[1](4, 2, 1) != 707) return 4;
-    if (automatic_callbacks[2](4, 2, 1) != 907) return 5;
-    if (automatic_callbacks[3](4, 2, 1) != 107) return 6;
-    if (feature14_raw_array_call_count != 4) return 7;
+    if (automatic_copied(4, 2, 1) != 107)
+        return 3;
+    if (automatic_callbacks[1](4, 2, 1) != 707)
+        return 4;
+    if (automatic_callbacks[2](4, 2, 1) != 907)
+        return 5;
+    if (automatic_callbacks[3](4, 2, 1) != 107)
+        return 6;
+    if (feature14_raw_array_call_count != 4)
+        return 7;
     return 0;
 }
 
@@ -482,22 +498,25 @@ void feature14_nested_install(int handle, void (*drawer)(int, int)) {
 }
 
 int feature14_test_callback_nested() {
-    void (*set_drawer)(int, void (*)(int, int)) =
-        feature14_nested_install;
+    void (*set_drawer)(int, void (*)(int, int)) = feature14_nested_install;
     feature14_nested_outer_calls = 0;
     feature14_nested_inner_calls = 0;
     feature14_nested_value = 0;
     set_drawer(4, feature14_nested_draw);
-    if (feature14_nested_outer_calls != 1) return 1;
-    if (feature14_nested_inner_calls != 1) return 2;
-    if (feature14_nested_value != 43) return 3;
+    if (feature14_nested_outer_calls != 1)
+        return 1;
+    if (feature14_nested_inner_calls != 1)
+        return 2;
+    if (feature14_nested_value != 43)
+        return 3;
     return 0;
 }
 
 int feature14_test_callback_binding() {
     feature14_nested_inner_calls = 0;
     set_icon_drawer(-1, feature14_nested_draw);
-    if (feature14_nested_inner_calls != 0) return 1;
+    if (feature14_nested_inner_calls != 0)
+        return 1;
     return 0;
 }
 
@@ -515,24 +534,23 @@ int main() {
     float4 b = {5.0, 6.0, 7.0, 8.0};
     float4 s;
     s = _mm_add_ps(a, b);
-    float sx = s.x;  /* 6.0  -> 0x40C00000 */
-    float sy = s.y;  /* 8.0  -> 0x41000000 */
-    float sz = s.z;  /* 10.0 -> 0x41200000 */
-    float sw = s.w;  /* 12.0 -> 0x41400000 */
-    if (*(int*)&sx != 0x40C00000 || *(int*)&sy != 0x41000000 ||
-        *(int*)&sz != 0x41200000 || *(int*)&sw != 0x41400000) {
-        serial_printf("[feature14] FAIL _mm_add_ps: 0x%x 0x%x 0x%x 0x%x\n",
-                      *(int*)&sx, *(int*)&sy, *(int*)&sz, *(int*)&sw);
+    float sx = s.x; /* 6.0  -> 0x40C00000 */
+    float sy = s.y; /* 8.0  -> 0x41000000 */
+    float sz = s.z; /* 10.0 -> 0x41200000 */
+    float sw = s.w; /* 12.0 -> 0x41400000 */
+    if (*(int *)&sx != 0x40C00000 || *(int *)&sy != 0x41000000 || *(int *)&sz != 0x41200000 ||
+        *(int *)&sw != 0x41400000) {
+        serial_printf("[feature14] FAIL _mm_add_ps: 0x%x 0x%x 0x%x 0x%x\n", *(int *)&sx,
+                      *(int *)&sy, *(int *)&sz, *(int *)&sw);
         ok = 0;
     }
 
     /* _mm_sub_ps: non-commutative - verify a-b, not b-a. */
     float4 d;
     d = _mm_sub_ps(a, b);
-    float dx = d.x;  /* 1-5 = -4.0 -> 0xC0800000 */
-    if (*(int*)&dx != 0xC0800000) {
-        serial_printf("[feature14] FAIL _mm_sub_ps: bits 0x%x\n",
-                      *(int*)&dx);
+    float dx = d.x; /* 1-5 = -4.0 -> 0xC0800000 */
+    if (*(int *)&dx != 0xC0800000) {
+        serial_printf("[feature14] FAIL _mm_sub_ps: bits 0x%x\n", *(int *)&dx);
         ok = 0;
     }
 
@@ -540,8 +558,8 @@ int main() {
     float4 m;
     m = _mm_mul_ps(a, b);
     float my = m.y;
-    if (*(int*)&my != 0x41400000) {
-        serial_printf("[feature14] FAIL _mm_mul_ps: bits 0x%x\n", *(int*)&my);
+    if (*(int *)&my != 0x41400000) {
+        serial_printf("[feature14] FAIL _mm_mul_ps: bits 0x%x\n", *(int *)&my);
         ok = 0;
     }
 
@@ -549,9 +567,8 @@ int main() {
     float4 q;
     q = _mm_div_ps(a, b);
     float qw = q.w;
-    if (*(int*)&qw != 0x3F000000) {
-        serial_printf("[feature14] FAIL _mm_div_ps: bits 0x%x\n",
-                      *(int*)&qw);
+    if (*(int *)&qw != 0x3F000000) {
+        serial_printf("[feature14] FAIL _mm_div_ps: bits 0x%x\n", *(int *)&qw);
         ok = 0;
     }
 
@@ -561,9 +578,8 @@ int main() {
     r = _mm_sqrt_ps(squares);
     float rx = r.x;
     float rw = r.w;
-    if (*(int*)&rx != 0x3F800000 || *(int*)&rw != 0x40800000) {
-        serial_printf("[feature14] FAIL _mm_sqrt_ps: 0x%x .. 0x%x\n",
-                      *(int*)&rx, *(int*)&rw);
+    if (*(int *)&rx != 0x3F800000 || *(int *)&rw != 0x40800000) {
+        serial_printf("[feature14] FAIL _mm_sqrt_ps: 0x%x .. 0x%x\n", *(int *)&rx, *(int *)&rw);
         ok = 0;
     }
 
@@ -574,9 +590,9 @@ int main() {
     mx = _mm_max_ps(a, b);
     float mnx = mn.x;
     float mxw = mx.w;
-    if (*(int*)&mnx != 0x3F800000 || *(int*)&mxw != 0x41000000) {
-        serial_printf("[feature14] FAIL min/max: min.x=0x%x max.w=0x%x\n",
-                      *(int*)&mnx, *(int*)&mxw);
+    if (*(int *)&mnx != 0x3F800000 || *(int *)&mxw != 0x41000000) {
+        serial_printf("[feature14] FAIL min/max: min.x=0x%x max.w=0x%x\n", *(int *)&mnx,
+                      *(int *)&mxw);
         ok = 0;
     }
 
@@ -585,18 +601,17 @@ int main() {
     s1 = _mm_set1_ps(2.5);
     float s1x = s1.x;
     float s1z = s1.z;
-    if (*(int*)&s1x != 0x40200000 || *(int*)&s1z != 0x40200000) {
-        serial_printf("[feature14] FAIL _mm_set1_ps: 0x%x 0x%x\n",
-                      *(int*)&s1x, *(int*)&s1z);
+    if (*(int *)&s1x != 0x40200000 || *(int *)&s1z != 0x40200000) {
+        serial_printf("[feature14] FAIL _mm_set1_ps: 0x%x 0x%x\n", *(int *)&s1x, *(int *)&s1z);
         ok = 0;
     }
 
     /* _mm_cmpeq_ps: returns all-ones mask where equal, 0 where not. */
     float4 pv = {1.0, 2.0, 3.0, 4.0};
     float4 eq;
-    eq = _mm_cmpeq_ps(a, pv);  /* a == p elementwise -> all-ones */
+    eq = _mm_cmpeq_ps(a, pv); /* a == p elementwise -> all-ones */
     float eq_lane = eq.x;
-    int eqx = *(int*)&eq_lane;
+    int eqx = *(int *)&eq_lane;
     if (eqx != 0xFFFFFFFF) {
         serial_printf("[feature14] FAIL _mm_cmpeq_ps: got 0x%x\n", eqx);
         ok = 0;
@@ -607,7 +622,7 @@ int main() {
     float4 gt;
     gt = _mm_cmpgt_ps(b, a);
     float gt_lane = gt.x;
-    int gtx = *(int*)&gt_lane;
+    int gtx = *(int *)&gt_lane;
     if (gtx != 0xFFFFFFFF) {
         serial_printf("[feature14] FAIL _mm_cmpgt_ps: got 0x%x\n", gtx);
         ok = 0;
@@ -626,8 +641,8 @@ int main() {
     float4 z;
     z = _mm_xor_ps(a, a);
     float zx = z.x;
-    if (*(int*)&zx != 0) {
-        serial_printf("[feature14] FAIL _mm_xor_ps: 0x%x\n", *(int*)&zx);
+    if (*(int *)&zx != 0) {
+        serial_printf("[feature14] FAIL _mm_xor_ps: 0x%x\n", *(int *)&zx);
         ok = 0;
     }
 
@@ -656,8 +671,7 @@ int main() {
     int dsum_x_i = (int)dsum_x;
     int dsum_y_i = (int)dsum_y;
     if (dsum_x_i != 2 || dsum_y_i != 2) {
-        serial_printf("[feature14] FAIL _mm_add_pd: %d %d\n",
-                      dsum_x_i, dsum_y_i);
+        serial_printf("[feature14] FAIL _mm_add_pd: %d %d\n", dsum_x_i, dsum_y_i);
         ok = 0;
     }
 
@@ -669,8 +683,7 @@ int main() {
     int dsub_x_i = (int)dsub_x;
     int dsub_y_i = (int)dsub_y;
     if (dsub_x_i != 1 || dsub_y_i != 3) {
-        serial_printf("[feature14] FAIL _mm_sub_pd: %d %d\n",
-                      dsub_x_i, dsub_y_i);
+        serial_printf("[feature14] FAIL _mm_sub_pd: %d %d\n", dsub_x_i, dsub_y_i);
         ok = 0;
     }
 
@@ -683,8 +696,7 @@ int main() {
     int ddiv_x_i = (int)ddiv_x;
     int ddiv_y_i = (int)ddiv_y;
     if (ddiv_x_i != 3 || ddiv_y_i != 5) {
-        serial_printf("[feature14] FAIL _mm_div_pd: %d %d\n",
-                      ddiv_x_i, ddiv_y_i);
+        serial_printf("[feature14] FAIL _mm_div_pd: %d %d\n", ddiv_x_i, ddiv_y_i);
         ok = 0;
     }
 
@@ -697,8 +709,7 @@ int main() {
     int drt_x_i = (int)drt_x;
     int drt_y_i = (int)drt_y;
     if (drt_x_i != 2 || drt_y_i != 4) {
-        serial_printf("[feature14] FAIL _mm_sqrt_pd: %d %d\n",
-                      drt_x_i, drt_y_i);
+        serial_printf("[feature14] FAIL _mm_sqrt_pd: %d %d\n", drt_x_i, drt_y_i);
         ok = 0;
     }
 
@@ -718,10 +729,9 @@ int main() {
     int dmin_y_i = (int)(dmin_y * 2.0);
     int dmax_x_i = (int)(dmax_x * 2.0);
     int dmax_y_i = (int)(dmax_y * 2.0);
-    if (dmin_x_i != 1 || dmin_y_i != 4 ||
-        dmax_x_i != 3 || dmax_y_i != 5) {
-        serial_printf("[feature14] FAIL min/max_pd: min={%d,%d} max={%d,%d}\n",
-                      dmin_x_i, dmin_y_i, dmax_x_i, dmax_y_i);
+    if (dmin_x_i != 1 || dmin_y_i != 4 || dmax_x_i != 3 || dmax_y_i != 5) {
+        serial_printf("[feature14] FAIL min/max_pd: min={%d,%d} max={%d,%d}\n", dmin_x_i, dmin_y_i,
+                      dmax_x_i, dmax_y_i);
         ok = 0;
     }
 
@@ -733,8 +743,7 @@ int main() {
     int dzero_x_i = (int)dzero_x;
     int dzero_y_i = (int)dzero_y;
     if (dzero_x_i != 0 || dzero_y_i != 0) {
-        serial_printf("[feature14] FAIL _mm_xor_pd: %d %d\n",
-                      dzero_x_i, dzero_y_i);
+        serial_printf("[feature14] FAIL _mm_xor_pd: %d %d\n", dzero_x_i, dzero_y_i);
         ok = 0;
     }
 
@@ -746,8 +755,7 @@ int main() {
     int dbc_x_i = (int)(dbc_x * 4.0);
     int dbc_y_i = (int)(dbc_y * 4.0);
     if (dbc_x_i != 15 || dbc_y_i != 15) {
-        serial_printf("[feature14] FAIL _mm_set1_pd: %d %d\n",
-                      dbc_x_i, dbc_y_i);
+        serial_printf("[feature14] FAIL _mm_set1_pd: %d %d\n", dbc_x_i, dbc_y_i);
         ok = 0;
     }
 
@@ -788,8 +796,7 @@ int main() {
     direct_double = dv * dpos;
     double direct_double_fraction = direct_double.x;
     int *direct_double_bits = (int *)&direct_double_fraction;
-    if (direct_double_bits[0] != 0 ||
-        direct_double_bits[1] != 0x3fe80000) {
+    if (direct_double_bits[0] != 0 || direct_double_bits[1] != 0x3fe80000) {
         serial_printf("[feature14-operator] FAIL double multiply x\n");
         operator_ok = 0;
     }
@@ -841,8 +848,7 @@ int main() {
         array_ok = 0;
     if (feature14_global_floats[2].z != 0.0f)
         array_ok = 0;
-    if (sizeof(*feature14_global_floats) != 16 ||
-        sizeof(*local_doubles) != 16)
+    if (sizeof(*feature14_global_floats) != 16 || sizeof(*local_doubles) != 16)
         array_ok = 0;
     if (feature14_global_sentinel != 73)
         array_ok = 0;
@@ -883,31 +889,24 @@ int main() {
     saved_cube[1][1][0] *= local_step;
     saved_cube[1][1][0] /= local_step;
 
-    if (feature14_global_matrix[1][0].x != 1.0f ||
-        feature14_global_matrix[1][0].w != 4.0f)
+    if (feature14_global_matrix[1][0].x != 1.0f || feature14_global_matrix[1][0].w != 4.0f)
         matrix_ok = 0;
     if (feature14_global_cube[feature14_next_outer()][feature14_next_middle()]
-                             [feature14_next_inner()].x != 2.0)
+                             [feature14_next_inner()]
+                                 .x != 2.0)
         matrix_ok = 0;
-    if (feature14_global_cube[1][0][1].x != 2.0 ||
-        feature14_global_cube[1][0][1].y != 4.5)
+    if (feature14_global_cube[1][0][1].x != 2.0 || feature14_global_cube[1][0][1].y != 4.5)
         matrix_ok = 0;
-    if (local_matrix[1][0].x != 6.0f ||
-        local_matrix[1][0].w != 12.0f)
+    if (local_matrix[1][0].x != 6.0f || local_matrix[1][0].w != 12.0f)
         matrix_ok = 0;
-    if (local_cube[0][1][1].x != 2.0 ||
-        local_cube[0][1][1].y != 3.0)
+    if (local_cube[0][1][1].x != 2.0 || local_cube[0][1][1].y != 3.0)
         matrix_ok = 0;
-    if (saved_matrix[0][1].x != 5.0f ||
-        saved_matrix[0][1].w != 32.0f)
+    if (saved_matrix[0][1].x != 5.0f || saved_matrix[0][1].w != 32.0f)
         matrix_ok = 0;
-    if (saved_cube[1][1][0].x != 1.5 ||
-        saved_cube[1][1][0].y != 2.5)
+    if (saved_cube[1][1][0].x != 1.5 || saved_cube[1][1][0].y != 2.5)
         matrix_ok = 0;
-    if (sizeof(*feature14_global_matrix) != 32 ||
-        sizeof(**feature14_global_matrix) != 16 ||
-        sizeof(*feature14_global_cube) != 64 ||
-        sizeof(**feature14_global_cube) != 32 ||
+    if (sizeof(*feature14_global_matrix) != 32 || sizeof(**feature14_global_matrix) != 16 ||
+        sizeof(*feature14_global_cube) != 64 || sizeof(**feature14_global_cube) != 32 ||
         sizeof(***feature14_global_cube) != 16)
         matrix_ok = 0;
     if (sizeof(feature14_global_matrix[feature14_sizeof_index()]) != 32 ||
@@ -916,20 +915,18 @@ int main() {
         matrix_ok = 0;
     if (feature14_matrix_sizeof_calls != 0)
         matrix_ok = 0;
-    if (feature14_matrix_outer_calls != 2 ||
-        feature14_matrix_middle_calls != 2 ||
+    if (feature14_matrix_outer_calls != 2 || feature14_matrix_middle_calls != 2 ||
         feature14_matrix_inner_calls != 2)
         matrix_ok = 0;
-    if (feature14_matrix_leading_canary != 59 ||
-        feature14_matrix_trailing_canary != 61 ||
+    if (feature14_matrix_leading_canary != 59 || feature14_matrix_trailing_canary != 61 ||
         matrix_leading_canary != 67 || matrix_trailing_canary != 71)
         matrix_ok = 0;
-    if (feature14_global_matrix[0][1].z != 0.0f ||
-        saved_cube[0][0][0].y != 0.0)
+    if (feature14_global_matrix[0][1].z != 0.0f || saved_cube[0][0][0].y != 0.0)
         matrix_ok = 0;
 
     if (matrix_ok) {
-        serial_printf("[feature14-matrix] PASS global=2 local=2 static=2 sizes=8 index=6 unevaluated=2 canary=4\n");
+        serial_printf("[feature14-matrix] PASS global=2 local=2 static=2 sizes=8 index=6 "
+                      "unevaluated=2 canary=4\n");
     } else {
         serial_printf("[feature14-matrix] FAIL\n");
         ok = 0;
@@ -963,42 +960,41 @@ int main() {
     if (callback_typedef_result == 0) {
         serial_printf("[feature14-callback-typedef] PASS float4=4 calls=1\n");
     } else {
-        serial_printf("[feature14-callback-typedef] FAIL check=%d\n",
-                      callback_typedef_result);
+        serial_printf("[feature14-callback-typedef] FAIL check=%d\n", callback_typedef_result);
         ok = 0;
     }
 
     int callback_global_result = feature14_test_callback_typedef_global();
     if (callback_global_result == 0) {
-        serial_printf("[feature14-callback-global] PASS float4=4 initialized=1 assigned=1 cleared=1 calls=2\n");
+        serial_printf("[feature14-callback-global] PASS float4=4 initialized=1 assigned=1 "
+                      "cleared=1 calls=2\n");
     } else {
-        serial_printf("[feature14-callback-global] FAIL check=%d\n",
-                      callback_global_result);
+        serial_printf("[feature14-callback-global] FAIL check=%d\n", callback_global_result);
         ok = 0;
     }
 
     int callback_raw_result = feature14_test_callback_raw();
     if (callback_raw_result == 0) {
-        serial_printf("[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3\n");
+        serial_printf("[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 "
+                      "reassigned=1 calls=3\n");
     } else {
-        serial_printf("[feature14-callback-raw] FAIL check=%d\n",
-                      callback_raw_result);
+        serial_printf("[feature14-callback-raw] FAIL check=%d\n", callback_raw_result);
         ok = 0;
     }
 
     int callback_raw_array_result = feature14_test_callback_raw_array();
     if (callback_raw_array_result == 0) {
-        serial_printf("[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1\n");
+        serial_printf("[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 "
+                      "persistent=1\n");
     } else {
-        serial_printf("[feature14-callback-raw-array] FAIL check=%d\n",
-                      callback_raw_array_result);
+        serial_printf("[feature14-callback-raw-array] FAIL check=%d\n", callback_raw_array_result);
         ok = 0;
     }
 
-    int callback_raw_automatic_array_result =
-        feature14_test_callback_raw_automatic_array();
+    int callback_raw_automatic_array_result = feature14_test_callback_raw_automatic_array();
     if (callback_raw_automatic_array_result == 0) {
-        serial_printf("[feature14-callback-raw-automatic-array] PASS zeroed=4 initialized=2 assigned=1 copied=2 later=1 calls=4\n");
+        serial_printf("[feature14-callback-raw-automatic-array] PASS zeroed=4 initialized=2 "
+                      "assigned=1 copied=2 later=1 calls=4\n");
     } else {
         serial_printf("[feature14-callback-raw-automatic-array] FAIL check=%d\n",
                       callback_raw_automatic_array_result);
@@ -1009,8 +1005,7 @@ int main() {
     if (callback_nested_result == 0) {
         serial_printf("[feature14-callback-nested] PASS outer=1 inner=1 value=43\n");
     } else {
-        serial_printf("[feature14-callback-nested] FAIL check=%d\n",
-                      callback_nested_result);
+        serial_printf("[feature14-callback-nested] FAIL check=%d\n", callback_nested_result);
         ok = 0;
     }
 
@@ -1018,33 +1013,31 @@ int main() {
     if (callback_binding_result == 0) {
         serial_printf("[feature14-callback-binding] PASS call=1 ignored=1 callback=0\n");
     } else {
-        serial_printf("[feature14-callback-binding] FAIL check=%d\n",
-                      callback_binding_result);
+        serial_printf("[feature14-callback-binding] FAIL check=%d\n", callback_binding_result);
         ok = 0;
     }
 
-    int callback_automatic_result =
-        feature14_test_callback_automatic_and_method();
+    int callback_automatic_result = feature14_test_callback_automatic_and_method();
     if (callback_automatic_result == 0) {
         serial_printf("[feature14-callback-automatic] PASS local=4 method=4 calls=2\n");
     } else {
-        serial_printf("[feature14-callback-automatic] FAIL check=%d\n",
-                      callback_automatic_result);
+        serial_printf("[feature14-callback-automatic] FAIL check=%d\n", callback_automatic_result);
         ok = 0;
     }
 
     int callback_field_result = feature14_test_callback_field();
     if (callback_field_result == 0) {
-        serial_printf("[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1\n");
+        serial_printf(
+            "[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1\n");
     } else {
-        serial_printf("[feature14-callback-field] FAIL check=%d\n",
-                      callback_field_result);
+        serial_printf("[feature14-callback-field] FAIL check=%d\n", callback_field_result);
         ok = 0;
     }
 
     int callback_field_call_result = feature14_test_callback_field_postfix();
     if (callback_field_call_result == 0) {
-        serial_printf("[feature14-callback-field-call] PASS typedef=1 raw=1 float4=4 once=1 calls=2\n");
+        serial_printf(
+            "[feature14-callback-field-call] PASS typedef=1 raw=1 float4=4 once=1 calls=2\n");
     } else {
         serial_printf("[feature14-callback-field-call] FAIL check=%d\n",
                       callback_field_call_result);
@@ -1055,14 +1048,8 @@ int main() {
     float edge_float_nan = 0.0f / 0.0f;
     float edge_float_zero = 0.0f;
     float edge_float_negative_zero = -edge_float_zero;
-    float4 edge_float_first = {
-        edge_float_nan, edge_float_zero,
-        edge_float_nan, edge_float_zero
-    };
-    float4 edge_float_second = {
-        5.0f, edge_float_negative_zero,
-        -7.0f, edge_float_negative_zero
-    };
+    float4 edge_float_first = {edge_float_nan, edge_float_zero, edge_float_nan, edge_float_zero};
+    float4 edge_float_second = {5.0f, edge_float_negative_zero, -7.0f, edge_float_negative_zero};
     float4 edge_float_min;
     float4 edge_float_max;
     edge_float_min = _mm_min_ps(edge_float_first, edge_float_second);
@@ -1112,41 +1099,47 @@ int main() {
     int float_right_bits = 0x7fc00022;
     float float_left_nan = *(float *)&float_left_bits;
     float float_right_nan = *(float *)&float_right_bits;
-    float4 float_left = {
-        float_left_nan, float_left_nan,
-        float_left_nan, float_left_nan
-    };
-    float4 float_right = {
-        float_right_nan, float_right_nan,
-        float_right_nan, float_right_nan
-    };
+    float4 float_left = {float_left_nan, float_left_nan, float_left_nan, float_left_nan};
+    float4 float_right = {float_right_nan, float_right_nan, float_right_nan, float_right_nan};
     float4 float_result;
     float float_lane;
     int float_payload;
     float_result = float_left + float_right;
     float_lane = float_result.x;
     float_payload = *(int *)&float_lane;
-    if (float_payload == float_left_bits) float_left_count++;
-    else if (float_payload == float_right_bits) float_right_count++;
-    else nan_ok = 0;
+    if (float_payload == float_left_bits)
+        float_left_count++;
+    else if (float_payload == float_right_bits)
+        float_right_count++;
+    else
+        nan_ok = 0;
     float_result = float_left * float_right;
     float_lane = float_result.x;
     float_payload = *(int *)&float_lane;
-    if (float_payload == float_left_bits) float_left_count++;
-    else if (float_payload == float_right_bits) float_right_count++;
-    else nan_ok = 0;
+    if (float_payload == float_left_bits)
+        float_left_count++;
+    else if (float_payload == float_right_bits)
+        float_right_count++;
+    else
+        nan_ok = 0;
     float_result = _mm_add_ps(float_left, float_right);
     float_lane = float_result.x;
     float_payload = *(int *)&float_lane;
-    if (float_payload == float_left_bits) float_left_count++;
-    else if (float_payload == float_right_bits) float_right_count++;
-    else nan_ok = 0;
+    if (float_payload == float_left_bits)
+        float_left_count++;
+    else if (float_payload == float_right_bits)
+        float_right_count++;
+    else
+        nan_ok = 0;
     float_result = _mm_mul_ps(float_left, float_right);
     float_lane = float_result.x;
     float_payload = *(int *)&float_lane;
-    if (float_payload == float_left_bits) float_left_count++;
-    else if (float_payload == float_right_bits) float_right_count++;
-    else nan_ok = 0;
+    if (float_payload == float_left_bits)
+        float_left_count++;
+    else if (float_payload == float_right_bits)
+        float_right_count++;
+    else
+        nan_ok = 0;
 
     double double_left_nan;
     double double_right_nan;
@@ -1163,47 +1156,67 @@ int main() {
     double_result = double_left + double_right;
     double_lane = double_result.x;
     double_order_bits = (int *)&double_lane;
-    if (double_order_bits[1] != 0x7ff80000) nan_ok = 0;
-    else if (double_order_bits[0] == 0x11) double_left_count++;
-    else if (double_order_bits[0] == 0x22) double_right_count++;
-    else nan_ok = 0;
+    if (double_order_bits[1] != 0x7ff80000)
+        nan_ok = 0;
+    else if (double_order_bits[0] == 0x11)
+        double_left_count++;
+    else if (double_order_bits[0] == 0x22)
+        double_right_count++;
+    else
+        nan_ok = 0;
     double_result = double_left * double_right;
     double_lane = double_result.x;
     double_order_bits = (int *)&double_lane;
-    if (double_order_bits[1] != 0x7ff80000) nan_ok = 0;
-    else if (double_order_bits[0] == 0x11) double_left_count++;
-    else if (double_order_bits[0] == 0x22) double_right_count++;
-    else nan_ok = 0;
+    if (double_order_bits[1] != 0x7ff80000)
+        nan_ok = 0;
+    else if (double_order_bits[0] == 0x11)
+        double_left_count++;
+    else if (double_order_bits[0] == 0x22)
+        double_right_count++;
+    else
+        nan_ok = 0;
     double_result = _mm_add_pd(double_left, double_right);
     double_lane = double_result.x;
     double_order_bits = (int *)&double_lane;
-    if (double_order_bits[1] != 0x7ff80000) nan_ok = 0;
-    else if (double_order_bits[0] == 0x11) double_left_count++;
-    else if (double_order_bits[0] == 0x22) double_right_count++;
-    else nan_ok = 0;
+    if (double_order_bits[1] != 0x7ff80000)
+        nan_ok = 0;
+    else if (double_order_bits[0] == 0x11)
+        double_left_count++;
+    else if (double_order_bits[0] == 0x22)
+        double_right_count++;
+    else
+        nan_ok = 0;
     double_result = _mm_mul_pd(double_left, double_right);
     double_lane = double_result.x;
     double_order_bits = (int *)&double_lane;
-    if (double_order_bits[1] != 0x7ff80000) nan_ok = 0;
-    else if (double_order_bits[0] == 0x11) double_left_count++;
-    else if (double_order_bits[0] == 0x22) double_right_count++;
-    else nan_ok = 0;
-    if (float_left_count + float_right_count != 4 ||
-        double_left_count + double_right_count != 4) nan_ok = 0;
+    if (double_order_bits[1] != 0x7ff80000)
+        nan_ok = 0;
+    else if (double_order_bits[0] == 0x11)
+        double_left_count++;
+    else if (double_order_bits[0] == 0x22)
+        double_right_count++;
+    else
+        nan_ok = 0;
+    if (float_left_count + float_right_count != 4 || double_left_count + double_right_count != 4)
+        nan_ok = 0;
     if (nan_ok) {
         serial_printf(
             "[feature14-nan] PASS float_left=%d float_right=%d double_left=%d double_right=%d\n",
-            float_left_count, float_right_count,
-            double_left_count, double_right_count);
+            float_left_count, float_right_count, double_left_count, double_right_count);
     } else {
         serial_printf("[feature14-nan] FAIL\n");
         ok = 0;
     }
 
-    if (ok) serial_printf("PASS feature14_simd\n");
-    else    serial_printf("FAIL feature14_simd\n");
-    if (ok) println("PASS feature14_simd");
-    else    println("FAIL feature14_simd");
-    if (ok) return 0;
+    if (ok)
+        serial_printf("PASS feature14_simd\n");
+    else
+        serial_printf("FAIL feature14_simd\n");
+    if (ok)
+        println("PASS feature14_simd");
+    else
+        println("FAIL feature14_simd");
+    if (ok)
+        return 0;
     return 1;
 }

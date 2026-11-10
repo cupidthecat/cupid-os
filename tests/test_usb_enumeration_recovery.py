@@ -99,7 +99,7 @@ class UsbEnumerationRecoveryContractTests(unittest.TestCase):
         self.assertIn("dev->address = 0;", body)
         self.assertIn("dev->address = address;", body)
         self.assertIn("(uint16_t)(0x01 << 8)", body)
-        self.assertIn("descriptor,\n                8", body)
+        self.assertRegex(body, r"descriptor,\s+8")
 
     def test_configuration_failure_unwinds_before_retry(self):
         self.assertIn(
@@ -146,7 +146,7 @@ class UsbEnumerationRecoveryContractTests(unittest.TestCase):
         self.assertLess(reset, allocate)
 
     def test_stale_hub_work_is_rejected_by_generation(self):
-        self.assertIn("uint32_t      hub_generation;", self.source)
+        self.assertRegex(self.source, r"\buint32_t\s+hub_generation;")
         self.assertIn(
             "hub ? hub->generation : 0u",
             self.source,

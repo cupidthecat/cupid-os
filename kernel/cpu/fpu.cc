@@ -1,32 +1,30 @@
 #include "fpu.h"
+#include "libm.h"
 #include "panic.h"
 #include "process.h"
-#include "libm.h"
 #include "serial.h"
 
-__attribute__((target("general-regs-only")))
-void fpu_init_cpu(void) {
+__attribute__((target("general-regs-only"))) void fpu_init_cpu(void) {
     uint32_t cr0;
     uint32_t cr4;
     uint32_t mxcsr;
 
     __asm__ volatile("mov %%cr0, %0" : "=r"(cr0));
-    cr0 &= ~(1u << 2);   /* CR0.EM = 0 (hw x87) */
-    cr0 |=  (1u << 1);   /* CR0.MP = 1 */
-    cr0 |=  (1u << 5);   /* CR0.NE = 1 */
-    cr0 &= ~(1u << 3);   /* CR0.TS = 0 (eager switch) */
-    __asm__ volatile("mov %0, %%cr0" :: "r"(cr0));
+    cr0 &= ~(1u << 2); /* CR0.EM = 0 (hw x87) */
+    cr0 |= (1u << 1);  /* CR0.MP = 1 */
+    cr0 |= (1u << 5);  /* CR0.NE = 1 */
+    cr0 &= ~(1u << 3); /* CR0.TS = 0 (eager switch) */
+    __asm__ volatile("mov %0, %%cr0" ::"r"(cr0));
 
     __asm__ volatile("mov %%cr4, %0" : "=r"(cr4));
-    cr4 |= (1u << 9);    /* CR4.OSFXSR */
-    cr4 |= (1u << 10);   /* CR4.OSXMMEXCPT */
-    __asm__ volatile("mov %0, %%cr4" :: "r"(cr4));
+    cr4 |= (1u << 9);  /* CR4.OSFXSR */
+    cr4 |= (1u << 10); /* CR4.OSXMMEXCPT */
+    __asm__ volatile("mov %0, %%cr4" ::"r"(cr4));
 
     __asm__ volatile("fninit");
 
-    mxcsr = 0x1F80u;     /* all 6 SIMD FP exceptions masked */
-    __asm__ volatile("ldmxcsr %0" :: "m"(mxcsr));
-
+    mxcsr = 0x1F80u; /* all 6 SIMD FP exceptions masked */
+    __asm__ volatile("ldmxcsr %0" ::"m"(mxcsr));
 }
 
 void fpu_init(void) {
@@ -38,16 +36,17 @@ void fpu_init(void) {
     __asm__ volatile("mov %%cr0, %0" : "=r"(cr0));
     __asm__ volatile("mov %%cr4, %0" : "=r"(cr4));
     __asm__ volatile("stmxcsr %0" : "=m"(mxcsr));
-    serial_printf("[fpu] SSE2 enabled, CR0=%x CR4=%x MXCSR=%x\n",
-                  cr0, cr4, mxcsr);
+    serial_printf("[fpu] SSE2 enabled, CR0=%x CR4=%x MXCSR=%x\n", cr0, cr4, mxcsr);
 }
 
 void fpu_nm_handler(uint32_t eip) {
     panic_fpu("FPU #NM (unexpected with eager switch)", eip);
 }
+
 void fpu_mf_handler(uint32_t eip) {
     panic_fpu("x87 #MF", eip);
 }
+
 void fpu_xf_handler(uint32_t eip) {
     panic_fpu("SIMD #XF", eip);
 }
@@ -57,15 +56,14 @@ void fpu_boot_smoke(void) {
     {
         float probe = 1.5f;
         float readback = 0.0f;
-        __asm__ volatile(
-            "movss %1, %%xmm0\n\t"
-            "movss %%xmm0, %0\n\t"
-            : "=m"(readback)
-            : "m"(probe)
-            : "xmm0");
+        __asm__ volatile("movss %1, %%xmm0\n\t"
+                         "movss %%xmm0, %0\n\t"
+                         : "=m"(readback)
+                         : "m"(probe)
+                         : "xmm0");
         if (readback != probe) {
             serial_printf("[fpu] SANITY FAIL: probe bits=0x%x readback bits=0x%x\n",
-                          *(uint32_t*)&probe, *(uint32_t*)&readback);
+                          *(uint32_t *)&probe, *(uint32_t *)&readback);
             kernel_panic("FPU sanity check failed");
         }
     }
@@ -74,12 +72,12 @@ void fpu_boot_smoke(void) {
     {
         float marker = 3.14159f;
         float readback = 0.0f;
-        __asm__ volatile("movss %0, %%xmm0" :: "m"(marker) : "xmm0");
+        __asm__ volatile("movss %0, %%xmm0" ::"m"(marker) : "xmm0");
         process_yield();
-        __asm__ volatile("movss %%xmm0, %0" : "=m"(readback) :: "xmm0");
+        __asm__ volatile("movss %%xmm0, %0" : "=m"(readback)::"xmm0");
         if (readback != marker) {
             serial_printf("[fpu] XMM0 LOST across yield: expected=0x%x got=0x%x\n",
-                          *(uint32_t*)&marker, *(uint32_t*)&readback);
+                          *(uint32_t *)&marker, *(uint32_t *)&readback);
             kernel_panic("FXSAVE/FXRSTOR round-trip failed");
         }
     }
@@ -113,12 +111,13 @@ static inline double stress_sin(double x) {
     __asm__ volatile("fldl %1\n\t"
                      "fsin\n\t"
                      "fstpl %0\n\t"
-                     : "=m"(r) : "m"(x));
+                     : "=m"(r)
+                     : "m"(x));
     return r;
 }
 
 static volatile double stress_sum[8];
-static volatile int    stress_done[8];
+static volatile int stress_done[8];
 
 static void stress_worker_impl(uint32_t id) {
     double s = 0.0;
@@ -133,15 +132,25 @@ static void stress_worker_impl(uint32_t id) {
     }
 }
 
-#define STRESS_WORKER(N) \
-    static void stress_worker_##N(void) { stress_worker_impl(N); }
-STRESS_WORKER(0) STRESS_WORKER(1) STRESS_WORKER(2) STRESS_WORKER(3)
-STRESS_WORKER(4) STRESS_WORKER(5) STRESS_WORKER(6) STRESS_WORKER(7)
+#define STRESS_WORKER(N)                                                                           \
+    static void stress_worker_##N(void) {                                                          \
+        stress_worker_impl(N);                                                                     \
+    }
+// clang-format off
+STRESS_WORKER(0)
+STRESS_WORKER(1)
+STRESS_WORKER(2)
+STRESS_WORKER(3)
+STRESS_WORKER(4)
+STRESS_WORKER(5)
+STRESS_WORKER(6)
+STRESS_WORKER(7)
 
 static void (*const stress_workers[8])(void) = {
     stress_worker_0, stress_worker_1, stress_worker_2, stress_worker_3,
     stress_worker_4, stress_worker_5, stress_worker_6, stress_worker_7,
 };
+// clang-format on
 
 void fpu_context_stress(void) {
     double ref[8];
@@ -162,9 +171,7 @@ void fpu_context_stress(void) {
 
     /* Spawn 8 workers. MAX_PROCESSES=32, boot usage ~5, so 8 more fits. */
     for (int id = 0; id < 8; id++) {
-        uint32_t pid = process_create(stress_workers[id],
-                                      "fpu_stress",
-                                      DEFAULT_STACK_SIZE);
+        uint32_t pid = process_create(stress_workers[id], "fpu_stress", DEFAULT_STACK_SIZE);
         if (pid == 0) {
             kernel_panic("fpu_context_stress: process_create failed");
         }
@@ -174,20 +181,23 @@ void fpu_context_stress(void) {
     while (1) {
         int all_done = 1;
         for (int id = 0; id < 8; id++) {
-            if (!stress_done[id]) { all_done = 0; break; }
+            if (!stress_done[id]) {
+                all_done = 0;
+                break;
+            }
         }
-        if (all_done) break;
+        if (all_done)
+            break;
         process_yield();
     }
 
     /* Compare against reference. */
     for (int id = 0; id < 8; id++) {
         double got = stress_sum[id];
-        double r   = ref[id];
-        double d   = got > r ? got - r : r - got;
+        double r = ref[id];
+        double d = got > r ? got - r : r - got;
         if (d > 1e-6) {
-            serial_printf("[fpu_stress] CORRUPT id=%d ref=%f got=%f diff=%f\n",
-                          id, r, got, d);
+            serial_printf("[fpu_stress] CORRUPT id=%d ref=%f got=%f diff=%f\n", id, r, got, d);
             kernel_panic("FP context-switch corruption detected");
         }
     }

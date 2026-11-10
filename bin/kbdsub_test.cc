@@ -1,5 +1,5 @@
-//help: Task2 keyboard subscriber smoke - subscribe/unsubscribe + make/break
-//help: Usage: kbdsub_test
+// help: Task2 keyboard subscriber smoke - subscribe/unsubscribe + make/break
+// help: Usage: kbdsub_test
 
 void main() {
     I32 rc;
@@ -25,15 +25,12 @@ void main() {
 
     serial_write_string("[kbdsub] waiting for USB Shift make/break\n");
     started_ms = uptime_ms();
-    while (
-        keyboard_test_sub_calls() < 2
-        && uptime_ms() - started_ms < 5000
-    ) {
+    while (keyboard_test_sub_calls() < 2 && uptime_ms() - started_ms < 5000) {
         yield();
     }
 
-    calls        = keyboard_test_sub_calls();
-    last_sc      = keyboard_test_sub_last_sc();
+    calls = keyboard_test_sub_calls();
+    last_sc = keyboard_test_sub_last_sc();
     last_pressed = keyboard_test_sub_last_pressed();
 
     if (calls != 2) {

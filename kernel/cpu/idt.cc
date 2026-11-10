@@ -12,7 +12,7 @@
  * The IDT is a crucial part of the interrupt handling system,
  * allowing the kernel to properly handle CPU exceptions and
  * hardware interrupts in protected mode.
-*/
+ */
 
 #include "idt.h"
 #include "isr.h"
@@ -25,26 +25,24 @@ struct idt_entry idt[256];
 struct idt_ptr idtp;
 
 // Exception messages
-const char* exception_messages[] = {
-    "Division By Zero",
-    "Debug",
-    "Non Maskable Interrupt",
-    "Breakpoint",
-    "Overflow",
-    "Bound Range Exceeded",
-    "Invalid Opcode",
-    "Device Not Available",
-    "Double Fault",
-    "Coprocessor Segment Overrun",
-    "Bad TSS",
-    "Segment Not Present",
-    "Stack-Segment Fault",
-    "General Protection Fault",
-    "Page Fault"
-};
+const char *exception_messages[] = {"Division By Zero",
+                                    "Debug",
+                                    "Non Maskable Interrupt",
+                                    "Breakpoint",
+                                    "Overflow",
+                                    "Bound Range Exceeded",
+                                    "Invalid Opcode",
+                                    "Device Not Available",
+                                    "Double Fault",
+                                    "Coprocessor Segment Overrun",
+                                    "Bad TSS",
+                                    "Segment Not Present",
+                                    "Stack-Segment Fault",
+                                    "General Protection Fault",
+                                    "Page Fault"};
 
 // External assembly function
-extern void load_idt(struct idt_ptr* ptr);
+extern void load_idt(struct idt_ptr *ptr);
 
 // FPU exception stubs (defined in isr.asm)
 extern void isr_fpu_nm(void);
@@ -67,7 +65,7 @@ void idt_init(void) {
     idtp.base = (uint32_t)&idt;
 
     // Clear IDT
-    for(int i = 0; i < 256; i++) {
+    for (int i = 0; i < 256; i++) {
         idt_set_gate((uint8_t)i, 0, 0, 0);
     }
 
@@ -88,7 +86,7 @@ void idt_init(void) {
     // dedicated handlers for #MF (16) and #XF (19). These are wired
     // to panic_fpu via fpu_{nm,mf,xf}_handler; they should stay dormant
     // under eager context switch + masked MXCSR.
-    idt_set_gate(7,  (uint32_t)isr_fpu_nm, 0x08, IDT_INTERRUPT_GATE);
+    idt_set_gate(7, (uint32_t)isr_fpu_nm, 0x08, IDT_INTERRUPT_GATE);
     idt_set_gate(16, (uint32_t)isr_fpu_mf, 0x08, IDT_INTERRUPT_GATE);
     idt_set_gate(19, (uint32_t)isr_fpu_xf, 0x08, IDT_INTERRUPT_GATE);
 
@@ -122,7 +120,7 @@ void idt_load_ap(void) {
 }
 
 // Interrupt handler
-void isr_handler(struct registers* r) {
+void isr_handler(struct registers *r) {
     /* Page Fault (INT 14) - enhanced diagnostics */
     if (r->int_no == 14) {
         uint32_t cr2;
@@ -135,12 +133,12 @@ void isr_handler(struct registers* r) {
 
         /* Detect common patterns */
         if (cr2 < 0x1000) {
-            serial_printf("[PANIC] NULL pointer dereference: %s at 0x%x (%s, %s mode)\n",
-                          access, cr2, present, mode);
+            serial_printf("[PANIC] NULL pointer dereference: %s at 0x%x (%s, %s mode)\n", access,
+                          cr2, present, mode);
             print("\nNULL POINTER DEREFERENCE\n");
         } else {
-            serial_printf("[PANIC] Page fault: %s at 0x%x (%s, %s mode)\n",
-                          access, cr2, present, mode);
+            serial_printf("[PANIC] Page fault: %s at 0x%x (%s, %s mode)\n", access, cr2, present,
+                          mode);
             print("\nPAGE FAULT\n");
         }
 
@@ -163,8 +161,7 @@ void isr_handler(struct registers* r) {
         msg = exception_messages[r->int_no];
     }
 
-    serial_printf("[PANIC] CPU Exception %u: %s  err=0x%x\n",
-                  r->int_no, msg, r->err_code);
+    serial_printf("[PANIC] CPU Exception %u: %s  err=0x%x\n", r->int_no, msg, r->err_code);
 
     kernel_panic_regs(r, msg);
-} 
+}

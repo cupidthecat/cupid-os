@@ -11,40 +11,40 @@
  *   - Maximum ED_MAX_LINES lines, each up to ED_MAX_LINE_LEN characters
  *   - Reads from in-memory fs and FAT16 disk; writes to FAT16 disk
  *   - Regex limited to basic literal and ^ $ . * support
-*/
+ */
 
 #include "ed.h"
-#include "kernel.h"
-#include "string.h"
-#include "memory.h"
-#include "types.h"
-#include "math.h"
-#include "fs.h"
 #include "fat16.h"
+#include "fs.h"
+#include "kernel.h"
 #include "keyboard.h"
+#include "math.h"
+#include "memory.h"
+#include "string.h"
+#include "types.h"
 
 /* Constants */
-#define ED_MAX_LINES     1024
-#define ED_MAX_LINE_LEN  256
-#define ED_CMD_BUF_LEN   512
-#define ED_FILENAME_LEN  64
+#define ED_MAX_LINES 1024
+#define ED_MAX_LINE_LEN 256
+#define ED_CMD_BUF_LEN 512
+#define ED_FILENAME_LEN 64
 
 /* Editor state */
-static char *ed_lines[ED_MAX_LINES];     /* Array of line pointers */
-static int   ed_nlines;                  /* Total number of lines */
-static int   ed_cur;                     /* Current line (1-based, 0=no lines) */
-static int   ed_dirty;                   /* Buffer modified flag */
-static char  ed_filename[ED_FILENAME_LEN]; /* Current filename */
-static int   ed_quit;                    /* Set when we should exit */
-static int   ed_show_errors;             /* H toggle: verbose errors */
-static char  ed_last_error[128];         /* Last error message */
+static char *ed_lines[ED_MAX_LINES];      /* Array of line pointers */
+static int ed_nlines;                     /* Total number of lines */
+static int ed_cur;                        /* Current line (1-based, 0=no lines) */
+static int ed_dirty;                      /* Buffer modified flag */
+static char ed_filename[ED_FILENAME_LEN]; /* Current filename */
+static int ed_quit;                       /* Set when we should exit */
+static int ed_show_errors;                /* H toggle: verbose errors */
+static char ed_last_error[128];           /* Last error message */
 
 /* Undo state: single-level undo for the last change */
 #define ED_UNDO_MAX_LINES 1024
 static char *ed_undo_lines[ED_UNDO_MAX_LINES];
-static int   ed_undo_nlines;
-static int   ed_undo_cur;
-static int   ed_undo_valid;
+static int ed_undo_nlines;
+static int ed_undo_cur;
+static int ed_undo_valid;
 
 /* Marks: 'a through 'z */
 static int ed_marks[26];
@@ -54,14 +54,18 @@ static char ed_last_search[ED_CMD_BUF_LEN];
 static char ed_last_replace[ED_CMD_BUF_LEN];
 
 /* Output function pointers (can be overridden) */
-static void (*ed_print)(const char*) = print;
+static void (*ed_print)(const char *) = print;
 static void (*ed_putchar)(char) = putchar;
 static void (*ed_print_int_fn)(uint32_t) = print_int;
 
-void ed_set_output(void (*print_fn)(const char*), void (*putchar_fn)(char), void (*print_int_fn)(uint32_t)) {
-    if (print_fn) ed_print = print_fn;
-    if (putchar_fn) ed_putchar = putchar_fn;
-    if (print_int_fn) ed_print_int_fn = print_int_fn;
+void ed_set_output(void (*print_fn)(const char *), void (*putchar_fn)(char),
+                   void (*print_int_fn)(uint32_t)) {
+    if (print_fn)
+        ed_print = print_fn;
+    if (putchar_fn)
+        ed_putchar = putchar_fn;
+    if (print_int_fn)
+        ed_print_int_fn = print_int_fn;
 }
 
 /* Utility helpers */
@@ -69,13 +73,15 @@ void ed_set_output(void (*print_fn)(const char*), void (*putchar_fn)(char), void
 /* Our own strlen since the kernel one is available */
 static size_t ed_strlen(const char *s) {
     size_t n = 0;
-    while (s[n]) n++;
+    while (s[n])
+        n++;
     return n;
 }
 
 /* Our own strcpy */
 static void ed_strcpy(char *dst, const char *src) {
-    while ((*dst++ = *src++)) {}
+    while ((*dst++ = *src++)) {
+    }
 }
 
 /* Duplicate a string using kmalloc */
@@ -149,7 +155,8 @@ static int ed_parse_int(const char **pp) {
 static void ed_save_undo(void) {
     /* Free old undo state */
     for (int i = 0; i < ed_undo_nlines; i++) {
-        if (ed_undo_lines[i]) kfree(ed_undo_lines[i]);
+        if (ed_undo_lines[i])
+            kfree(ed_undo_lines[i]);
     }
     /* Copy current buffer */
     ed_undo_nlines = ed_nlines;
@@ -214,37 +221,44 @@ static int ed_insert_line(int after, const char *text) {
     ed_nlines++;
     /* Update marks */
     for (int m = 0; m < 26; m++) {
-        if (ed_marks[m] > after) ed_marks[m]++;
+        if (ed_marks[m] > after)
+            ed_marks[m]++;
     }
     return 1;
 }
 
 /* Delete line at position 'pos' (1-based). */
 static void ed_delete_line(int pos) {
-    if (pos < 1 || pos > ed_nlines) return;
+    if (pos < 1 || pos > ed_nlines)
+        return;
     int idx = pos - 1;
-    if (ed_lines[idx]) kfree(ed_lines[idx]);
+    if (ed_lines[idx])
+        kfree(ed_lines[idx]);
     for (int i = idx; i < ed_nlines - 1; i++) {
         ed_lines[i] = ed_lines[i + 1];
     }
     ed_nlines--;
     /* Update marks */
     for (int m = 0; m < 26; m++) {
-        if (ed_marks[m] == pos) ed_marks[m] = 0;
-        else if (ed_marks[m] > pos) ed_marks[m]--;
+        if (ed_marks[m] == pos)
+            ed_marks[m] = 0;
+        else if (ed_marks[m] > pos)
+            ed_marks[m]--;
     }
 }
 
 /* Replace line at position 'pos' (1-based) with new text */
 static int ed_replace_line(int pos, const char *text) {
-    if (pos < 1 || pos > ed_nlines) return 0;
+    if (pos < 1 || pos > ed_nlines)
+        return 0;
     int idx = pos - 1;
     char *dup = ed_strdup(text);
     if (!dup) {
         ed_error("out of memory");
         return 0;
     }
-    if (ed_lines[idx]) kfree(ed_lines[idx]);
+    if (ed_lines[idx])
+        kfree(ed_lines[idx]);
     ed_lines[idx] = dup;
     return 1;
 }
@@ -258,9 +272,12 @@ static int ed_regex_match_here(const char *pat, const char *text);
 static int ed_regex_match_star(char c, const char *pat, const char *text);
 
 static int ed_regex_match_here(const char *pat, const char *text) {
-    if (pat[0] == '\0') return 1;
-    if (pat[1] == '*') return ed_regex_match_star(pat[0], pat + 2, text);
-    if (pat[0] == '$' && pat[1] == '\0') return (*text == '\0') ? 1 : 0;
+    if (pat[0] == '\0')
+        return 1;
+    if (pat[1] == '*')
+        return ed_regex_match_star(pat[0], pat + 2, text);
+    if (pat[0] == '$' && pat[1] == '\0')
+        return (*text == '\0') ? 1 : 0;
     if (*text != '\0' && (pat[0] == '.' || pat[0] == *text))
         return ed_regex_match_here(pat + 1, text + 1);
     return 0;
@@ -269,7 +286,8 @@ static int ed_regex_match_here(const char *pat, const char *text) {
 static int ed_regex_match_star(char c, const char *pat, const char *text) {
     /* Try matching zero or more occurrences of c */
     do {
-        if (ed_regex_match_here(pat, text)) return 1;
+        if (ed_regex_match_here(pat, text))
+            return 1;
     } while (*text != '\0' && (*text++ == c || c == '.'));
     return 0;
 }
@@ -281,7 +299,8 @@ static const char *ed_regex_search(const char *pat, const char *text) {
     /* Try matching at every position */
     const char *p = text;
     do {
-        if (ed_regex_match_here(pat, p)) return p;
+        if (ed_regex_match_here(pat, p))
+            return p;
     } while (*p++ != '\0');
     return NULL;
 }
@@ -289,24 +308,30 @@ static const char *ed_regex_search(const char *pat, const char *text) {
 /* Find end of match starting at pos with pattern */
 static const char *ed_regex_match_end(const char *pat, const char *text) {
     /* After matching, find where the match ends */
-    if (pat[0] == '^') pat++;
+    if (pat[0] == '^')
+        pat++;
     const char *t = text;
     while (*pat) {
         if (pat[1] == '*') {
             char c = pat[0];
             /* Greedy: advance as far as possible */
             const char *start = t;
-            while (*t && (c == '.' || *t == c)) t++;
+            while (*t && (c == '.' || *t == c))
+                t++;
             /* Now try to match rest from rightmost */
             while (t >= start) {
-                if (ed_regex_match_here(pat + 2, t)) return t;
+                if (ed_regex_match_here(pat + 2, t))
+                    return t;
                 t--;
             }
             return NULL;
         }
-        if (pat[0] == '$' && pat[1] == '\0') return t;
-        if (*t == '\0') return NULL;
-        if (pat[0] != '.' && pat[0] != *t) return NULL;
+        if (pat[0] == '$' && pat[1] == '\0')
+            return t;
+        if (*t == '\0')
+            return NULL;
+        if (pat[0] != '.' && pat[0] != *t)
+            return NULL;
         pat++;
         t++;
     }
@@ -324,7 +349,8 @@ static int ed_parse_address(const char **pp, int *set) {
     int addr = -1;
     *set = 0;
 
-    while (*p == ' ') p++;
+    while (*p == ' ')
+        p++;
 
     if (ed_isdigit(*p)) {
         addr = ed_parse_int(&p);
@@ -361,7 +387,8 @@ static int ed_parse_address(const char **pp, int *set) {
             pattern[pi++] = *p++;
         }
         pattern[pi] = '\0';
-        if (*p == delim) p++;
+        if (*p == delim)
+            p++;
 
         /* Use last pattern if empty */
         if (pi == 0) {
@@ -390,7 +417,8 @@ static int ed_parse_address(const char **pp, int *set) {
             /* Backward search from cur-1, wrapping */
             for (int i = 0; i < ed_nlines; i++) {
                 int line = ed_cur - 1 - i;
-                while (line < 1) line += ed_nlines;
+                while (line < 1)
+                    line += ed_nlines;
                 if (ed_regex_search(pattern, ed_lines[line - 1])) {
                     addr = line;
                     found = 1;
@@ -418,8 +446,10 @@ static int ed_parse_address(const char **pp, int *set) {
         if (ed_isdigit(*p)) {
             offset = ed_parse_int(&p);
         }
-        if (op == '+') addr += offset;
-        else addr -= offset;
+        if (op == '+')
+            addr += offset;
+        else
+            addr -= offset;
     }
 
     *pp = p;
@@ -436,12 +466,15 @@ static int ed_input_mode(int after) {
     int count = 0;
     while (1) {
         ed_readline(buf, ED_MAX_LINE_LEN);
-        if (buf[0] == '.' && buf[1] == '\0') break;
-        if (!ed_insert_line(after + count, buf)) break;
+        if (buf[0] == '.' && buf[1] == '\0')
+            break;
+        if (!ed_insert_line(after + count, buf))
+            break;
         count++;
         ed_cur = after + count;
     }
-    if (count > 0) ed_dirty = 1;
+    if (count > 0)
+        ed_dirty = 1;
     return after + count;
 }
 
@@ -449,9 +482,8 @@ static int ed_input_mode(int after) {
 
 /* Perform s/pattern/replacement/flags on a single line.
  * Returns 1 if a substitution was made, 0 otherwise.*/
-static int ed_substitute_line(int linenum, const char *pattern,
-                              const char *replacement, int global_flag,
-                              int count_target) {
+static int ed_substitute_line(int linenum, const char *pattern, const char *replacement,
+                              int global_flag, int count_target) {
     char *line = ed_lines[linenum - 1];
     char result[ED_MAX_LINE_LEN];
     int rp = 0;
@@ -487,9 +519,11 @@ static int ed_substitute_line(int linenum, const char *pattern,
         if (global_flag) {
             do_replace = 1;
         } else if (count_target > 0) {
-            if (match_num == count_target) do_replace = 1;
+            if (match_num == count_target)
+                do_replace = 1;
         } else {
-            if (match_num == 1) do_replace = 1;
+            if (match_num == 1)
+                do_replace = 1;
         }
 
         if (do_replace) {
@@ -497,7 +531,8 @@ static int ed_substitute_line(int linenum, const char *pattern,
             const char *mend = ed_regex_match_end(pattern, p);
             if (!mend || mend == p) {
                 /* Zero-length match - copy one char and advance */
-                if (*p) result[rp++] = *p++;
+                if (*p)
+                    result[rp++] = *p++;
                 continue;
             }
 
@@ -512,9 +547,12 @@ static int ed_substitute_line(int linenum, const char *pattern,
                     }
                 } else if (*r == '\\' && r[1]) {
                     r++;
-                    if (*r == 'n') result[rp++] = '\n';
-                    else if (*r == 't') result[rp++] = '\t';
-                    else result[rp++] = *r;
+                    if (*r == 'n')
+                        result[rp++] = '\n';
+                    else if (*r == 't')
+                        result[rp++] = '\t';
+                    else
+                        result[rp++] = *r;
                 } else {
                     result[rp++] = *r;
                 }
@@ -534,7 +572,8 @@ static int ed_substitute_line(int linenum, const char *pattern,
             /* Don't replace this match, copy the matched text literally */
             const char *mend = ed_regex_match_end(pattern, p);
             if (!mend || mend == p) {
-                if (*p) result[rp++] = *p++;
+                if (*p)
+                    result[rp++] = *p++;
                 continue;
             }
             while (p < mend && rp < ED_MAX_LINE_LEN - 1) {
@@ -552,7 +591,8 @@ static int ed_substitute_line(int linenum, const char *pattern,
 
 /* Parse and execute s command: s/pat/repl/flags */
 static void ed_cmd_substitute(int addr1, int addr2, const char *cmd) {
-    if (*cmd != 's') return;
+    if (*cmd != 's')
+        return;
     cmd++;
 
     char delim = *cmd;
@@ -588,7 +628,8 @@ static void ed_cmd_substitute(int addr1, int addr2, const char *cmd) {
         }
     }
     pattern[pi] = '\0';
-    if (*cmd == delim) cmd++;
+    if (*cmd == delim)
+        cmd++;
 
     /* Parse replacement */
     char replacement[ED_CMD_BUF_LEN];
@@ -602,7 +643,8 @@ static void ed_cmd_substitute(int addr1, int addr2, const char *cmd) {
         }
     }
     replacement[ri] = '\0';
-    if (*cmd == delim) cmd++;
+    if (*cmd == delim)
+        cmd++;
 
     /* Parse flags */
     int global_flag = 0;
@@ -610,10 +652,14 @@ static void ed_cmd_substitute(int addr1, int addr2, const char *cmd) {
     int number_flag = 0;
     int count_target = 0;
     while (*cmd) {
-        if (*cmd == 'g') global_flag = 1;
-        else if (*cmd == 'p') print_flag = 1;
-        else if (*cmd == 'n') number_flag = 1;
-        else if (ed_isdigit(*cmd)) count_target = count_target * 10 + (*cmd - '0');
+        if (*cmd == 'g')
+            global_flag = 1;
+        else if (*cmd == 'p')
+            print_flag = 1;
+        else if (*cmd == 'n')
+            number_flag = 1;
+        else if (ed_isdigit(*cmd))
+            count_target = count_target * 10 + (*cmd - '0');
         cmd++;
     }
 
@@ -690,7 +736,8 @@ static int ed_load_text(const char *data, uint32_t size, int after) {
     for (uint32_t i = 0; i < size; i++) {
         if (data[i] == '\n' || data[i] == '\r') {
             line[lp] = '\0';
-            if (!ed_insert_line(after + count, line)) break;
+            if (!ed_insert_line(after + count, line))
+                break;
             count++;
             bytes += lp + 1;
             lp = 0;
@@ -725,7 +772,7 @@ static int ed_load_text(const char *data, uint32_t size, int after) {
  * @param from: First line to write (1-based)
  * @param to: Last line to write (1-based)
  * @return Bytes written on success, -1 on error
-*/
+ */
 static int ed_write_to_disk(const char *filename, int from, int to) {
     /* Calculate total size needed */
     int total = 0;
@@ -774,7 +821,8 @@ static void ed_exec_command(const char *cmdline) {
     int addr1, addr2;
     int has_range = 0;
 
-    while (*p == ' ') p++;
+    while (*p == ' ')
+        p++;
 
     /* Empty line */
     if (*p == '\0') {
@@ -803,14 +851,16 @@ static void ed_exec_command(const char *cmdline) {
     /* Try to skip past any address specification to find the command */
     dummy_addr = ed_parse_address(&peek, &dummy_set);
     (void)dummy_addr;
-    while (*peek == ' ') peek++;
+    while (*peek == ' ')
+        peek++;
     if (*peek == ',' || *peek == ';') {
         peek++;
         int dummy_set2 = 0;
         ed_parse_address(&peek, &dummy_set2);
         (void)dummy_set2;
     }
-    while (*peek == ' ') peek++;
+    while (*peek == ' ')
+        peek++;
     char upcoming_cmd = *peek;
 
     /* Reset p */
@@ -823,13 +873,15 @@ static void ed_exec_command(const char *cmdline) {
     switch (upcoming_cmd) {
         case 'w':
         case 'W':
-            def1 = 1; def2 = ed_nlines;
+            def1 = 1;
+            def2 = ed_nlines;
             break;
         case 'g':
         case 'G':
         case 'v':
         case 'V':
-            def1 = 1; def2 = ed_nlines;
+            def1 = 1;
+            def2 = ed_nlines;
             break;
         default:
             break;
@@ -853,13 +905,15 @@ static void ed_exec_command(const char *cmdline) {
         int set1 = 0;
         int a1 = ed_parse_address(&p, &set1);
         if (set1) {
-            if (a1 == -1) return; /* error already reported */
+            if (a1 == -1)
+                return; /* error already reported */
             addr1 = a1;
             addr2 = a1;
             has_range = 1;
         }
 
-        while (*p == ' ') p++;
+        while (*p == ' ')
+            p++;
 
         if (*p == ',' || *p == ';') {
             char sep = *p;
@@ -870,7 +924,8 @@ static void ed_exec_command(const char *cmdline) {
             int set2 = 0;
             int a2 = ed_parse_address(&p, &set2);
             if (set2) {
-                if (a2 == -1) return;
+                if (a2 == -1)
+                    return;
                 addr2 = a2;
             } else {
                 addr2 = ed_nlines;
@@ -878,7 +933,8 @@ static void ed_exec_command(const char *cmdline) {
         }
     }
 
-    while (*p == ' ') p++;
+    while (*p == ' ')
+        p++;
 
     /* Validate addresses for commands that need lines */
     char cmd = *p;
@@ -886,754 +942,786 @@ static void ed_exec_command(const char *cmdline) {
     /* Handle the command */
     switch (cmd) {
 
-    /* (a)ppend */
-    case 'a': {
-        if (!has_range) addr1 = ed_cur;
-        if (ed_nlines == 0) addr1 = 0;
-        else if (addr1 < 0 || addr1 > ed_nlines) {
-            ed_error("invalid address");
-            return;
-        }
-        p++;
-        ed_save_undo();
-        ed_input_mode(addr1);
-        break;
-    }
-
-    /* (i)nsert */
-    case 'i': {
-        if (!has_range) addr1 = ed_cur;
-        if (ed_nlines == 0) addr1 = 0;
-        else if (addr1 < 1) {
-            addr1 = 1;
-        }
-        if (addr1 > ed_nlines && ed_nlines > 0) {
-            ed_error("invalid address");
-            return;
-        }
-        p++;
-        ed_save_undo();
-        ed_input_mode(addr1 > 0 ? addr1 - 1 : 0);
-        break;
-    }
-
-    /* (c)hange */
-    case 'c': {
-        if (ed_nlines == 0) {
-            /* Change on empty buffer = insert */
+        /* (a)ppend */
+        case 'a': {
+            if (!has_range)
+                addr1 = ed_cur;
+            if (ed_nlines == 0)
+                addr1 = 0;
+            else if (addr1 < 0 || addr1 > ed_nlines) {
+                ed_error("invalid address");
+                return;
+            }
             p++;
             ed_save_undo();
-            ed_input_mode(0);
+            ed_input_mode(addr1);
             break;
         }
-        if (addr1 < 1 || addr2 > ed_nlines) {
-            ed_error("invalid address");
-            return;
-        }
-        p++;
-        ed_save_undo();
-        int insert_at = addr1 - 1;
-        for (int i = addr2; i >= addr1; i--) {
-            ed_delete_line(i);
-        }
-        ed_input_mode(insert_at);
-        break;
-    }
 
-    /* (d)elete */
-    case 'd': {
-        if (ed_nlines == 0 || addr1 < 1 || addr2 > ed_nlines) {
-            ed_error("invalid address");
-            return;
-        }
-        p++;
-        ed_save_undo();
-        for (int i = addr2; i >= addr1; i--) {
-            ed_delete_line(i);
-        }
-        if (ed_nlines == 0) ed_cur = 0;
-        else if (addr1 <= ed_nlines) ed_cur = addr1;
-        else ed_cur = ed_nlines;
-        ed_dirty = 1;
-        break;
-    }
-
-    /* (p)rint */
-    case 'p': {
-        if (ed_nlines == 0) {
-            ed_error("invalid address");
-            return;
-        }
-        if (addr1 < 1 || addr2 > ed_nlines) {
-            ed_error("invalid address");
-            return;
-        }
-        p++;
-        for (int i = addr1; i <= addr2; i++) {
-            ed_print(ed_lines[i - 1]);
-            ed_print("\n");
-        }
-        ed_cur = addr2;
-        break;
-    }
-
-    /* (n)umber */
-    case 'n': {
-        if (ed_nlines == 0) {
-            ed_error("invalid address");
-            return;
-        }
-        if (addr1 < 1 || addr2 > ed_nlines) {
-            ed_error("invalid address");
-            return;
-        }
-        p++;
-        for (int i = addr1; i <= addr2; i++) {
-            ed_print_int(i);
-            ed_putchar('\t');
-            ed_print(ed_lines[i - 1]);
-            ed_print("\n");
-        }
-        ed_cur = addr2;
-        break;
-    }
-
-    /* (l)ist */
-    case 'l': {
-        if (ed_nlines == 0) {
-            ed_error("invalid address");
-            return;
-        }
-        if (addr1 < 1 || addr2 > ed_nlines) {
-            ed_error("invalid address");
-            return;
-        }
-        p++;
-        for (int i = addr1; i <= addr2; i++) {
-            ed_print_escaped(ed_lines[i - 1]);
-        }
-        ed_cur = addr2;
-        break;
-    }
-
-    /* (=) print line number */
-    case '=': {
-        if (!has_range) addr2 = ed_nlines;
-        ed_print_int(addr2);
-        ed_print("\n");
-        break;
-    }
-
-    /* (q)uit / (Q)uit */
-    case 'q': {
-        p++;
-        if (ed_dirty) {
-            ed_error("warning: buffer modified");
-            ed_dirty = 0; /* Allow second q to quit */
-            return;
-        }
-        ed_quit = 1;
-        break;
-    }
-    case 'Q': {
-        ed_quit = 1;
-        break;
-    }
-
-    /* (w)rite */
-    case 'w': {
-        p++;
-        int do_quit = 0;
-        if (*p == 'q') {
-            /* wq: write and quit */
-            do_quit = 1;
-            p++;
-        }
-        while (*p == ' ') p++;
-
-        /* Filename */
-        if (*p) {
-            int fi = 0;
-            char fname[ED_FILENAME_LEN];
-            while (*p && *p != ' ' && fi < ED_FILENAME_LEN - 1) {
-                fname[fi++] = *p++;
+        /* (i)nsert */
+        case 'i': {
+            if (!has_range)
+                addr1 = ed_cur;
+            if (ed_nlines == 0)
+                addr1 = 0;
+            else if (addr1 < 1) {
+                addr1 = 1;
             }
-            fname[fi] = '\0';
-            ed_strcpy(ed_filename, fname);
-        } else if (ed_filename[0] == '\0') {
-            ed_error("no filename");
-            return;
-        }
-
-        /* Write to disk */
-        int bytes = ed_write_to_disk(ed_filename, addr1, addr2);
-        if (bytes < 0) return;
-
-        ed_print_int(bytes);
-        ed_print("\n");
-        ed_dirty = 0;
-
-        if (do_quit) ed_quit = 1;
-        break;
-    }
-
-    /* (r)ead */
-    case 'r': {
-        p++;
-        while (*p == ' ') p++;
-        if (!*p && ed_filename[0] == '\0') {
-            ed_error("no filename");
-            return;
-        }
-        const char *rfile = *p ? p : ed_filename;
-
-        /* Try in-memory filesystem */
-        const fs_file_t *f = fs_find(rfile);
-        if (!f) {
-            ed_error("cannot open file");
-            return;
-        }
-        if (!has_range) addr1 = ed_nlines;
-        ed_save_undo();
-        int bytes = ed_load_text(f->data, f->size, addr1);
-        ed_print_int(bytes);
-        ed_print("\n");
-        ed_dirty = 1;
-        break;
-    }
-
-    /* (e)dit */
-    case 'e': {
-        p++;
-        if (*p == '!') {
-            ed_error("shell escape not supported");
-            return;
-        }
-        while (*p == ' ') p++;
-        if (ed_dirty) {
-            ed_error("warning: buffer modified");
-            ed_dirty = 0;
-            return;
-        }
-        /* Clear buffer */
-        for (int i = 0; i < ed_nlines; i++) {
-            if (ed_lines[i]) kfree(ed_lines[i]);
-        }
-        ed_nlines = 0;
-        ed_cur = 0;
-
-        if (*p) {
-            int fi = 0;
-            char fname[ED_FILENAME_LEN];
-            while (*p && *p != ' ' && fi < ED_FILENAME_LEN - 1) {
-                fname[fi++] = *p++;
-            }
-            fname[fi] = '\0';
-            ed_strcpy(ed_filename, fname);
-        }
-
-        if (ed_filename[0]) {
-            const fs_file_t *f = fs_find(ed_filename);
-            if (f) {
-                int bytes = ed_load_text(f->data, f->size, 0);
-                ed_print_int(bytes);
-                ed_print("\n");
-            } else {
-                ed_error("cannot open file");
-            }
-        }
-        ed_dirty = 0;
-        break;
-    }
-
-    /* (E)dit unconditional */
-    case 'E': {
-        p++;
-        while (*p == ' ') p++;
-        /* Clear buffer */
-        for (int i = 0; i < ed_nlines; i++) {
-            if (ed_lines[i]) kfree(ed_lines[i]);
-        }
-        ed_nlines = 0;
-        ed_cur = 0;
-
-        if (*p) {
-            int fi = 0;
-            char fname[ED_FILENAME_LEN];
-            while (*p && *p != ' ' && fi < ED_FILENAME_LEN - 1) {
-                fname[fi++] = *p++;
-            }
-            fname[fi] = '\0';
-            ed_strcpy(ed_filename, fname);
-        }
-
-        if (ed_filename[0]) {
-            const fs_file_t *f = fs_find(ed_filename);
-            if (f) {
-                int bytes = ed_load_text(f->data, f->size, 0);
-                ed_print_int(bytes);
-                ed_print("\n");
-            } else {
-                ed_error("cannot open file");
-            }
-        }
-        ed_dirty = 0;
-        break;
-    }
-
-    /* (f)ilename */
-    case 'f': {
-        p++;
-        while (*p == ' ') p++;
-        if (*p) {
-            int fi = 0;
-            while (*p && *p != ' ' && fi < ED_FILENAME_LEN - 1) {
-                ed_filename[fi++] = *p++;
-            }
-            ed_filename[fi] = '\0';
-        }
-        if (ed_filename[0]) {
-            ed_print(ed_filename);
-            ed_print("\n");
-        } else {
-            ed_error("no filename");
-        }
-        break;
-    }
-
-    /* (s)ubstitute */
-    case 's': {
-        if (ed_nlines == 0) {
-            ed_error("invalid address");
-            return;
-        }
-        if (addr1 < 1 || addr2 > ed_nlines) {
-            ed_error("invalid address");
-            return;
-        }
-        ed_cmd_substitute(addr1, addr2, p);
-        break;
-    }
-
-    /* (m)ove */
-    case 'm': {
-        if (ed_nlines == 0 || addr1 < 1 || addr2 > ed_nlines) {
-            ed_error("invalid address");
-            return;
-        }
-        p++;
-        int dest_set = 0;
-        int dest = ed_parse_address(&p, &dest_set);
-        if (!dest_set) {
-            ed_error("invalid destination");
-            return;
-        }
-        if (dest >= addr1 && dest <= addr2) {
-            ed_error("invalid destination");
-            return;
-        }
-        ed_save_undo();
-
-        /* Collect lines to move */
-        int count = addr2 - addr1 + 1;
-        char *moved[ED_MAX_LINES];
-        for (int i = 0; i < count; i++) {
-            moved[i] = ed_lines[addr1 - 1 + i];
-        }
-
-        /* Remove from old position */
-        for (int i = addr1 - 1; i < ed_nlines - count; i++) {
-            ed_lines[i] = ed_lines[i + count];
-        }
-        ed_nlines -= count;
-
-        /* Adjust destination if it was after the removed range */
-        if (dest > addr2) dest -= count;
-
-        /* Insert at destination */
-        for (int i = ed_nlines; i > dest; i--) {
-            ed_lines[i + count - 1] = ed_lines[i - 1];
-        }
-        for (int i = 0; i < count; i++) {
-            ed_lines[dest + i] = moved[i];
-        }
-        ed_nlines += count;
-        ed_cur = dest + count;
-        ed_dirty = 1;
-        break;
-    }
-
-    /* (t)ransfer (copy) */
-    case 't': {
-        if (ed_nlines == 0 || addr1 < 1 || addr2 > ed_nlines) {
-            ed_error("invalid address");
-            return;
-        }
-        p++;
-        int dest_set = 0;
-        int dest = ed_parse_address(&p, &dest_set);
-        if (!dest_set) {
-            ed_error("invalid destination");
-            return;
-        }
-        if (dest < 0 || dest > ed_nlines) {
-            ed_error("invalid destination");
-            return;
-        }
-        ed_save_undo();
-
-        int count = addr2 - addr1 + 1;
-        for (int i = 0; i < count; i++) {
-            if (!ed_insert_line(dest + i, ed_lines[addr1 - 1 + i])) return;
-        }
-        ed_cur = dest + count;
-        ed_dirty = 1;
-        break;
-    }
-
-    /* (j)oin */
-    case 'j': {
-        if (ed_nlines == 0) {
-            ed_error("invalid address");
-            return;
-        }
-        if (!has_range) {
-            addr1 = ed_cur;
-            addr2 = ed_cur + 1;
-        }
-        if (addr1 < 1 || addr2 > ed_nlines || addr1 >= addr2) {
-            ed_error("invalid address");
-            return;
-        }
-        p++;
-        ed_save_undo();
-
-        /* Build joined line */
-        char joined[ED_MAX_LINE_LEN];
-        int jp = 0;
-        for (int i = addr1; i <= addr2 && jp < ED_MAX_LINE_LEN - 1; i++) {
-            const char *s = ed_lines[i - 1];
-            while (*s && jp < ED_MAX_LINE_LEN - 1) {
-                joined[jp++] = *s++;
-            }
-        }
-        joined[jp] = '\0';
-
-        /* Replace first line and delete the rest */
-        ed_replace_line(addr1, joined);
-        for (int i = addr2; i > addr1; i--) {
-            ed_delete_line(i);
-        }
-        ed_cur = addr1;
-        ed_dirty = 1;
-        break;
-    }
-
-    /* (k)mark */
-    case 'k': {
-        p++;
-        if (*p < 'a' || *p > 'z') {
-            ed_error("invalid mark");
-            return;
-        }
-        if (ed_nlines == 0 || addr1 < 1 || addr1 > ed_nlines) {
-            ed_error("invalid address");
-            return;
-        }
-        ed_marks[*p - 'a'] = addr1;
-        break;
-    }
-
-    /* (u)ndo */
-    case 'u': {
-        ed_do_undo();
-        break;
-    }
-
-    /* (g)lobal */
-    case 'g': {
-        if (ed_nlines == 0) {
-            ed_error("invalid address");
-            return;
-        }
-        p++;
-        if (!*p) {
-            ed_error("invalid command suffix");
-            return;
-        }
-        char gdelim = *p;
-        p++;
-        char gpattern[ED_CMD_BUF_LEN];
-        int gpi = 0;
-        while (*p && *p != gdelim && gpi < ED_CMD_BUF_LEN - 1) {
-            gpattern[gpi++] = *p++;
-        }
-        gpattern[gpi] = '\0';
-        if (*p == gdelim) p++;
-
-        if (gpi == 0) {
-            if (ed_last_search[0] == '\0') {
-                ed_error("no previous pattern");
-                return;
-            }
-            ed_strcpy(gpattern, ed_last_search);
-        } else {
-            ed_strcpy(ed_last_search, gpattern);
-        }
-
-        /* Get the command to execute */
-        const char *gcmd = p;
-        if (!*gcmd) gcmd = "p";
-
-        /* Mark matching lines */
-        uint8_t marked[ED_MAX_LINES];
-        memset(marked, 0, (size_t)ed_nlines);
-        for (int i = addr1; i <= addr2; i++) {
-            if (ed_regex_search(gpattern, ed_lines[i - 1])) {
-                marked[i - 1] = 1;
-            }
-        }
-
-        /* Execute command on marked lines */
-        for (int i = 0; i < ed_nlines; i++) {
-            if (marked[i]) {
-                ed_cur = i + 1;
-                /* Build a command line with current address */
-                char gcmd_buf[ED_CMD_BUF_LEN];
-                /* For simple commands like p, d, s/... */
-                int gi = 0;
-                /* Write current line number */
-                char numstr[12];
-                itoa(ed_cur, numstr);
-                const char *ns = numstr;
-                while (*ns && gi < ED_CMD_BUF_LEN - 1) gcmd_buf[gi++] = *ns++;
-                const char *gc = gcmd;
-                while (*gc && gi < ED_CMD_BUF_LEN - 1) gcmd_buf[gi++] = *gc++;
-                gcmd_buf[gi] = '\0';
-                ed_exec_command(gcmd_buf);
-
-                /* Lines may have been deleted - adjust */
-                if (ed_nlines < (int)(sizeof(marked))) {
-                    /* If lines were deleted, we can't reliably continue */
-                }
-            }
-        }
-        break;
-    }
-
-    /* (v) inverse global */
-    case 'v': {
-        if (ed_nlines == 0) {
-            ed_error("invalid address");
-            return;
-        }
-        p++;
-        if (!*p) {
-            ed_error("invalid command suffix");
-            return;
-        }
-        char vdelim = *p;
-        p++;
-        char vpattern[ED_CMD_BUF_LEN];
-        int vpi = 0;
-        while (*p && *p != vdelim && vpi < ED_CMD_BUF_LEN - 1) {
-            vpattern[vpi++] = *p++;
-        }
-        vpattern[vpi] = '\0';
-        if (*p == vdelim) p++;
-
-        if (vpi == 0) {
-            if (ed_last_search[0] == '\0') {
-                ed_error("no previous pattern");
-                return;
-            }
-            ed_strcpy(vpattern, ed_last_search);
-        } else {
-            ed_strcpy(ed_last_search, vpattern);
-        }
-
-        const char *vcmd = p;
-        if (!*vcmd) vcmd = "p";
-
-        /* Mark NON-matching lines */
-        uint8_t vmarked[ED_MAX_LINES];
-        memset(vmarked, 0, (size_t)ed_nlines);
-        for (int i = addr1; i <= addr2; i++) {
-            if (!ed_regex_search(vpattern, ed_lines[i - 1])) {
-                vmarked[i - 1] = 1;
-            }
-        }
-
-        for (int i = 0; i < ed_nlines; i++) {
-            if (vmarked[i]) {
-                ed_cur = i + 1;
-                char vcmd_buf[ED_CMD_BUF_LEN];
-                int vi = 0;
-                char numstr[12];
-                itoa(ed_cur, numstr);
-                const char *ns = numstr;
-                while (*ns && vi < ED_CMD_BUF_LEN - 1) vcmd_buf[vi++] = *ns++;
-                const char *vc = vcmd;
-                while (*vc && vi < ED_CMD_BUF_LEN - 1) vcmd_buf[vi++] = *vc++;
-                vcmd_buf[vi] = '\0';
-                ed_exec_command(vcmd_buf);
-            }
-        }
-        break;
-    }
-
-    /* (H)elp toggle / (h)elp */
-    case 'H': {
-        ed_show_errors = !ed_show_errors;
-        if (ed_show_errors && ed_last_error[0]) {
-            ed_print(ed_last_error);
-            ed_print("\n");
-        }
-        break;
-    }
-    case 'h': {
-        if (ed_last_error[0]) {
-            ed_print(ed_last_error);
-            ed_print("\n");
-        }
-        break;
-    }
-
-    /* (P)rompt toggle - we just accept it */
-    case 'P': {
-        /* In our implementation, prompt is always shown */
-        break;
-    }
-
-    /* Address-only (go to line) */
-    case '\0': {
-        /* Already handled at top */
-        break;
-    }
-
-    /* Newline / +/- */
-    case '+': {
-        p++;
-        int offset = 1;
-        if (ed_isdigit(*p)) offset = ed_parse_int(&p);
-        int target = ed_cur + offset;
-        if (target < 1 || target > ed_nlines) {
-            ed_error("invalid address");
-            return;
-        }
-        ed_cur = target;
-        ed_print(ed_lines[ed_cur - 1]);
-        ed_print("\n");
-        break;
-    }
-    case '-': {
-        p++;
-        int offset = 1;
-        if (ed_isdigit(*p)) offset = ed_parse_int(&p);
-        int target = ed_cur - offset;
-        if (target < 1 || target > ed_nlines) {
-            ed_error("invalid address");
-            return;
-        }
-        ed_cur = target;
-        ed_print(ed_lines[ed_cur - 1]);
-        ed_print("\n");
-        break;
-    }
-
-    /* (W)rite append */
-    case 'W': {
-        p++;
-        while (*p == ' ') p++;
-        if (*p) {
-            int fi = 0;
-            while (*p && *p != ' ' && fi < ED_FILENAME_LEN - 1) {
-                ed_filename[fi++] = *p++;
-            }
-            ed_filename[fi] = '\0';
-        }
-        if (ed_filename[0] == '\0') {
-            ed_error("no filename");
-            return;
-        }
-
-        /* For W (append), read existing file, concatenate, and rewrite.
-         * True append isn't possible on FAT16 without more complexity,
-         * so we read-modify-write.*/
-        int existing_size = 0;
-        char *existing_data = NULL;
-
-        /* Try reading existing file from disk */
-        fat16_file_t *ef = fat16_open(ed_filename);
-        if (ef) {
-            existing_size = (int)ef->file_size;
-            if (existing_size > 0) {
-                existing_data = kmalloc((size_t)existing_size);
-                if (existing_data) {
-                    fat16_read(ef, existing_data, (uint32_t)existing_size);
-                }
-            }
-            fat16_close(ef);
-        }
-
-        /* Calculate new data size */
-        int new_bytes = 0;
-        for (int i = addr1; i <= addr2; i++) {
-            new_bytes += (int)ed_strlen(ed_lines[i - 1]) + 1;
-        }
-
-        int total = existing_size + new_bytes;
-        char *combined = kmalloc((size_t)total);
-        if (!combined) {
-            if (existing_data) kfree(existing_data);
-            ed_error("out of memory");
-            return;
-        }
-
-        /* Copy existing data */
-        if (existing_data && existing_size > 0) {
-            memcpy(combined, existing_data, (size_t)existing_size);
-            kfree(existing_data);
-        }
-
-        /* Append new lines */
-        int pos = existing_size;
-        for (int i = addr1; i <= addr2; i++) {
-            const char *line = ed_lines[i - 1];
-            size_t len = ed_strlen(line);
-            memcpy(combined + pos, line, len);
-            pos += (int)len;
-            combined[pos++] = '\n';
-        }
-
-        int ret = fat16_write_file(ed_filename, combined, (uint32_t)total);
-        kfree(combined);
-
-        if (ret < 0) {
-            ed_error("write failed");
-            return;
-        }
-
-        ed_print_int(new_bytes);
-        ed_print("\n");
-        ed_dirty = 0;
-        break;
-    }
-
-    default:
-        /* If we have a range and no command, go to that line */
-        if (has_range && cmd == '\0') {
-            if (addr2 >= 1 && addr2 <= ed_nlines) {
-                ed_cur = addr2;
-                ed_print(ed_lines[ed_cur - 1]);
-                ed_print("\n");
-            } else if (ed_nlines == 0) {
+            if (addr1 > ed_nlines && ed_nlines > 0) {
                 ed_error("invalid address");
+                return;
             }
-        } else {
-            ed_error("unknown command");
+            p++;
+            ed_save_undo();
+            ed_input_mode(addr1 > 0 ? addr1 - 1 : 0);
+            break;
         }
-        break;
+
+        /* (c)hange */
+        case 'c': {
+            if (ed_nlines == 0) {
+                /* Change on empty buffer = insert */
+                p++;
+                ed_save_undo();
+                ed_input_mode(0);
+                break;
+            }
+            if (addr1 < 1 || addr2 > ed_nlines) {
+                ed_error("invalid address");
+                return;
+            }
+            p++;
+            ed_save_undo();
+            int insert_at = addr1 - 1;
+            for (int i = addr2; i >= addr1; i--) {
+                ed_delete_line(i);
+            }
+            ed_input_mode(insert_at);
+            break;
+        }
+
+        /* (d)elete */
+        case 'd': {
+            if (ed_nlines == 0 || addr1 < 1 || addr2 > ed_nlines) {
+                ed_error("invalid address");
+                return;
+            }
+            p++;
+            ed_save_undo();
+            for (int i = addr2; i >= addr1; i--) {
+                ed_delete_line(i);
+            }
+            if (ed_nlines == 0)
+                ed_cur = 0;
+            else if (addr1 <= ed_nlines)
+                ed_cur = addr1;
+            else
+                ed_cur = ed_nlines;
+            ed_dirty = 1;
+            break;
+        }
+
+        /* (p)rint */
+        case 'p': {
+            if (ed_nlines == 0) {
+                ed_error("invalid address");
+                return;
+            }
+            if (addr1 < 1 || addr2 > ed_nlines) {
+                ed_error("invalid address");
+                return;
+            }
+            p++;
+            for (int i = addr1; i <= addr2; i++) {
+                ed_print(ed_lines[i - 1]);
+                ed_print("\n");
+            }
+            ed_cur = addr2;
+            break;
+        }
+
+        /* (n)umber */
+        case 'n': {
+            if (ed_nlines == 0) {
+                ed_error("invalid address");
+                return;
+            }
+            if (addr1 < 1 || addr2 > ed_nlines) {
+                ed_error("invalid address");
+                return;
+            }
+            p++;
+            for (int i = addr1; i <= addr2; i++) {
+                ed_print_int(i);
+                ed_putchar('\t');
+                ed_print(ed_lines[i - 1]);
+                ed_print("\n");
+            }
+            ed_cur = addr2;
+            break;
+        }
+
+        /* (l)ist */
+        case 'l': {
+            if (ed_nlines == 0) {
+                ed_error("invalid address");
+                return;
+            }
+            if (addr1 < 1 || addr2 > ed_nlines) {
+                ed_error("invalid address");
+                return;
+            }
+            p++;
+            for (int i = addr1; i <= addr2; i++) {
+                ed_print_escaped(ed_lines[i - 1]);
+            }
+            ed_cur = addr2;
+            break;
+        }
+
+        /* (=) print line number */
+        case '=': {
+            if (!has_range)
+                addr2 = ed_nlines;
+            ed_print_int(addr2);
+            ed_print("\n");
+            break;
+        }
+
+        /* (q)uit / (Q)uit */
+        case 'q': {
+            p++;
+            if (ed_dirty) {
+                ed_error("warning: buffer modified");
+                ed_dirty = 0; /* Allow second q to quit */
+                return;
+            }
+            ed_quit = 1;
+            break;
+        }
+        case 'Q': {
+            ed_quit = 1;
+            break;
+        }
+
+        /* (w)rite */
+        case 'w': {
+            p++;
+            int do_quit = 0;
+            if (*p == 'q') {
+                /* wq: write and quit */
+                do_quit = 1;
+                p++;
+            }
+            while (*p == ' ')
+                p++;
+
+            /* Filename */
+            if (*p) {
+                int fi = 0;
+                char fname[ED_FILENAME_LEN];
+                while (*p && *p != ' ' && fi < ED_FILENAME_LEN - 1) {
+                    fname[fi++] = *p++;
+                }
+                fname[fi] = '\0';
+                ed_strcpy(ed_filename, fname);
+            } else if (ed_filename[0] == '\0') {
+                ed_error("no filename");
+                return;
+            }
+
+            /* Write to disk */
+            int bytes = ed_write_to_disk(ed_filename, addr1, addr2);
+            if (bytes < 0)
+                return;
+
+            ed_print_int(bytes);
+            ed_print("\n");
+            ed_dirty = 0;
+
+            if (do_quit)
+                ed_quit = 1;
+            break;
+        }
+
+        /* (r)ead */
+        case 'r': {
+            p++;
+            while (*p == ' ')
+                p++;
+            if (!*p && ed_filename[0] == '\0') {
+                ed_error("no filename");
+                return;
+            }
+            const char *rfile = *p ? p : ed_filename;
+
+            /* Try in-memory filesystem */
+            const fs_file_t *f = fs_find(rfile);
+            if (!f) {
+                ed_error("cannot open file");
+                return;
+            }
+            if (!has_range)
+                addr1 = ed_nlines;
+            ed_save_undo();
+            int bytes = ed_load_text(f->data, f->size, addr1);
+            ed_print_int(bytes);
+            ed_print("\n");
+            ed_dirty = 1;
+            break;
+        }
+
+        /* (e)dit */
+        case 'e': {
+            p++;
+            if (*p == '!') {
+                ed_error("shell escape not supported");
+                return;
+            }
+            while (*p == ' ')
+                p++;
+            if (ed_dirty) {
+                ed_error("warning: buffer modified");
+                ed_dirty = 0;
+                return;
+            }
+            /* Clear buffer */
+            for (int i = 0; i < ed_nlines; i++) {
+                if (ed_lines[i])
+                    kfree(ed_lines[i]);
+            }
+            ed_nlines = 0;
+            ed_cur = 0;
+
+            if (*p) {
+                int fi = 0;
+                char fname[ED_FILENAME_LEN];
+                while (*p && *p != ' ' && fi < ED_FILENAME_LEN - 1) {
+                    fname[fi++] = *p++;
+                }
+                fname[fi] = '\0';
+                ed_strcpy(ed_filename, fname);
+            }
+
+            if (ed_filename[0]) {
+                const fs_file_t *f = fs_find(ed_filename);
+                if (f) {
+                    int bytes = ed_load_text(f->data, f->size, 0);
+                    ed_print_int(bytes);
+                    ed_print("\n");
+                } else {
+                    ed_error("cannot open file");
+                }
+            }
+            ed_dirty = 0;
+            break;
+        }
+
+        /* (E)dit unconditional */
+        case 'E': {
+            p++;
+            while (*p == ' ')
+                p++;
+            /* Clear buffer */
+            for (int i = 0; i < ed_nlines; i++) {
+                if (ed_lines[i])
+                    kfree(ed_lines[i]);
+            }
+            ed_nlines = 0;
+            ed_cur = 0;
+
+            if (*p) {
+                int fi = 0;
+                char fname[ED_FILENAME_LEN];
+                while (*p && *p != ' ' && fi < ED_FILENAME_LEN - 1) {
+                    fname[fi++] = *p++;
+                }
+                fname[fi] = '\0';
+                ed_strcpy(ed_filename, fname);
+            }
+
+            if (ed_filename[0]) {
+                const fs_file_t *f = fs_find(ed_filename);
+                if (f) {
+                    int bytes = ed_load_text(f->data, f->size, 0);
+                    ed_print_int(bytes);
+                    ed_print("\n");
+                } else {
+                    ed_error("cannot open file");
+                }
+            }
+            ed_dirty = 0;
+            break;
+        }
+
+        /* (f)ilename */
+        case 'f': {
+            p++;
+            while (*p == ' ')
+                p++;
+            if (*p) {
+                int fi = 0;
+                while (*p && *p != ' ' && fi < ED_FILENAME_LEN - 1) {
+                    ed_filename[fi++] = *p++;
+                }
+                ed_filename[fi] = '\0';
+            }
+            if (ed_filename[0]) {
+                ed_print(ed_filename);
+                ed_print("\n");
+            } else {
+                ed_error("no filename");
+            }
+            break;
+        }
+
+        /* (s)ubstitute */
+        case 's': {
+            if (ed_nlines == 0) {
+                ed_error("invalid address");
+                return;
+            }
+            if (addr1 < 1 || addr2 > ed_nlines) {
+                ed_error("invalid address");
+                return;
+            }
+            ed_cmd_substitute(addr1, addr2, p);
+            break;
+        }
+
+        /* (m)ove */
+        case 'm': {
+            if (ed_nlines == 0 || addr1 < 1 || addr2 > ed_nlines) {
+                ed_error("invalid address");
+                return;
+            }
+            p++;
+            int dest_set = 0;
+            int dest = ed_parse_address(&p, &dest_set);
+            if (!dest_set) {
+                ed_error("invalid destination");
+                return;
+            }
+            if (dest >= addr1 && dest <= addr2) {
+                ed_error("invalid destination");
+                return;
+            }
+            ed_save_undo();
+
+            /* Collect lines to move */
+            int count = addr2 - addr1 + 1;
+            char *moved[ED_MAX_LINES];
+            for (int i = 0; i < count; i++) {
+                moved[i] = ed_lines[addr1 - 1 + i];
+            }
+
+            /* Remove from old position */
+            for (int i = addr1 - 1; i < ed_nlines - count; i++) {
+                ed_lines[i] = ed_lines[i + count];
+            }
+            ed_nlines -= count;
+
+            /* Adjust destination if it was after the removed range */
+            if (dest > addr2)
+                dest -= count;
+
+            /* Insert at destination */
+            for (int i = ed_nlines; i > dest; i--) {
+                ed_lines[i + count - 1] = ed_lines[i - 1];
+            }
+            for (int i = 0; i < count; i++) {
+                ed_lines[dest + i] = moved[i];
+            }
+            ed_nlines += count;
+            ed_cur = dest + count;
+            ed_dirty = 1;
+            break;
+        }
+
+        /* (t)ransfer (copy) */
+        case 't': {
+            if (ed_nlines == 0 || addr1 < 1 || addr2 > ed_nlines) {
+                ed_error("invalid address");
+                return;
+            }
+            p++;
+            int dest_set = 0;
+            int dest = ed_parse_address(&p, &dest_set);
+            if (!dest_set) {
+                ed_error("invalid destination");
+                return;
+            }
+            if (dest < 0 || dest > ed_nlines) {
+                ed_error("invalid destination");
+                return;
+            }
+            ed_save_undo();
+
+            int count = addr2 - addr1 + 1;
+            for (int i = 0; i < count; i++) {
+                if (!ed_insert_line(dest + i, ed_lines[addr1 - 1 + i]))
+                    return;
+            }
+            ed_cur = dest + count;
+            ed_dirty = 1;
+            break;
+        }
+
+        /* (j)oin */
+        case 'j': {
+            if (ed_nlines == 0) {
+                ed_error("invalid address");
+                return;
+            }
+            if (!has_range) {
+                addr1 = ed_cur;
+                addr2 = ed_cur + 1;
+            }
+            if (addr1 < 1 || addr2 > ed_nlines || addr1 >= addr2) {
+                ed_error("invalid address");
+                return;
+            }
+            p++;
+            ed_save_undo();
+
+            /* Build joined line */
+            char joined[ED_MAX_LINE_LEN];
+            int jp = 0;
+            for (int i = addr1; i <= addr2 && jp < ED_MAX_LINE_LEN - 1; i++) {
+                const char *s = ed_lines[i - 1];
+                while (*s && jp < ED_MAX_LINE_LEN - 1) {
+                    joined[jp++] = *s++;
+                }
+            }
+            joined[jp] = '\0';
+
+            /* Replace first line and delete the rest */
+            ed_replace_line(addr1, joined);
+            for (int i = addr2; i > addr1; i--) {
+                ed_delete_line(i);
+            }
+            ed_cur = addr1;
+            ed_dirty = 1;
+            break;
+        }
+
+        /* (k)mark */
+        case 'k': {
+            p++;
+            if (*p < 'a' || *p > 'z') {
+                ed_error("invalid mark");
+                return;
+            }
+            if (ed_nlines == 0 || addr1 < 1 || addr1 > ed_nlines) {
+                ed_error("invalid address");
+                return;
+            }
+            ed_marks[*p - 'a'] = addr1;
+            break;
+        }
+
+        /* (u)ndo */
+        case 'u': {
+            ed_do_undo();
+            break;
+        }
+
+        /* (g)lobal */
+        case 'g': {
+            if (ed_nlines == 0) {
+                ed_error("invalid address");
+                return;
+            }
+            p++;
+            if (!*p) {
+                ed_error("invalid command suffix");
+                return;
+            }
+            char gdelim = *p;
+            p++;
+            char gpattern[ED_CMD_BUF_LEN];
+            int gpi = 0;
+            while (*p && *p != gdelim && gpi < ED_CMD_BUF_LEN - 1) {
+                gpattern[gpi++] = *p++;
+            }
+            gpattern[gpi] = '\0';
+            if (*p == gdelim)
+                p++;
+
+            if (gpi == 0) {
+                if (ed_last_search[0] == '\0') {
+                    ed_error("no previous pattern");
+                    return;
+                }
+                ed_strcpy(gpattern, ed_last_search);
+            } else {
+                ed_strcpy(ed_last_search, gpattern);
+            }
+
+            /* Get the command to execute */
+            const char *gcmd = p;
+            if (!*gcmd)
+                gcmd = "p";
+
+            /* Mark matching lines */
+            uint8_t marked[ED_MAX_LINES];
+            memset(marked, 0, (size_t)ed_nlines);
+            for (int i = addr1; i <= addr2; i++) {
+                if (ed_regex_search(gpattern, ed_lines[i - 1])) {
+                    marked[i - 1] = 1;
+                }
+            }
+
+            /* Execute command on marked lines */
+            for (int i = 0; i < ed_nlines; i++) {
+                if (marked[i]) {
+                    ed_cur = i + 1;
+                    /* Build a command line with current address */
+                    char gcmd_buf[ED_CMD_BUF_LEN];
+                    /* For simple commands like p, d, s/... */
+                    int gi = 0;
+                    /* Write current line number */
+                    char numstr[12];
+                    itoa(ed_cur, numstr);
+                    const char *ns = numstr;
+                    while (*ns && gi < ED_CMD_BUF_LEN - 1)
+                        gcmd_buf[gi++] = *ns++;
+                    const char *gc = gcmd;
+                    while (*gc && gi < ED_CMD_BUF_LEN - 1)
+                        gcmd_buf[gi++] = *gc++;
+                    gcmd_buf[gi] = '\0';
+                    ed_exec_command(gcmd_buf);
+
+                    /* Lines may have been deleted - adjust */
+                    if (ed_nlines < (int)(sizeof(marked))) {
+                        /* If lines were deleted, we can't reliably continue */
+                    }
+                }
+            }
+            break;
+        }
+
+        /* (v) inverse global */
+        case 'v': {
+            if (ed_nlines == 0) {
+                ed_error("invalid address");
+                return;
+            }
+            p++;
+            if (!*p) {
+                ed_error("invalid command suffix");
+                return;
+            }
+            char vdelim = *p;
+            p++;
+            char vpattern[ED_CMD_BUF_LEN];
+            int vpi = 0;
+            while (*p && *p != vdelim && vpi < ED_CMD_BUF_LEN - 1) {
+                vpattern[vpi++] = *p++;
+            }
+            vpattern[vpi] = '\0';
+            if (*p == vdelim)
+                p++;
+
+            if (vpi == 0) {
+                if (ed_last_search[0] == '\0') {
+                    ed_error("no previous pattern");
+                    return;
+                }
+                ed_strcpy(vpattern, ed_last_search);
+            } else {
+                ed_strcpy(ed_last_search, vpattern);
+            }
+
+            const char *vcmd = p;
+            if (!*vcmd)
+                vcmd = "p";
+
+            /* Mark NON-matching lines */
+            uint8_t vmarked[ED_MAX_LINES];
+            memset(vmarked, 0, (size_t)ed_nlines);
+            for (int i = addr1; i <= addr2; i++) {
+                if (!ed_regex_search(vpattern, ed_lines[i - 1])) {
+                    vmarked[i - 1] = 1;
+                }
+            }
+
+            for (int i = 0; i < ed_nlines; i++) {
+                if (vmarked[i]) {
+                    ed_cur = i + 1;
+                    char vcmd_buf[ED_CMD_BUF_LEN];
+                    int vi = 0;
+                    char numstr[12];
+                    itoa(ed_cur, numstr);
+                    const char *ns = numstr;
+                    while (*ns && vi < ED_CMD_BUF_LEN - 1)
+                        vcmd_buf[vi++] = *ns++;
+                    const char *vc = vcmd;
+                    while (*vc && vi < ED_CMD_BUF_LEN - 1)
+                        vcmd_buf[vi++] = *vc++;
+                    vcmd_buf[vi] = '\0';
+                    ed_exec_command(vcmd_buf);
+                }
+            }
+            break;
+        }
+
+        /* (H)elp toggle / (h)elp */
+        case 'H': {
+            ed_show_errors = !ed_show_errors;
+            if (ed_show_errors && ed_last_error[0]) {
+                ed_print(ed_last_error);
+                ed_print("\n");
+            }
+            break;
+        }
+        case 'h': {
+            if (ed_last_error[0]) {
+                ed_print(ed_last_error);
+                ed_print("\n");
+            }
+            break;
+        }
+
+        /* (P)rompt toggle - we just accept it */
+        case 'P': {
+            /* In our implementation, prompt is always shown */
+            break;
+        }
+
+        /* Address-only (go to line) */
+        case '\0': {
+            /* Already handled at top */
+            break;
+        }
+
+        /* Newline / +/- */
+        case '+': {
+            p++;
+            int offset = 1;
+            if (ed_isdigit(*p))
+                offset = ed_parse_int(&p);
+            int target = ed_cur + offset;
+            if (target < 1 || target > ed_nlines) {
+                ed_error("invalid address");
+                return;
+            }
+            ed_cur = target;
+            ed_print(ed_lines[ed_cur - 1]);
+            ed_print("\n");
+            break;
+        }
+        case '-': {
+            p++;
+            int offset = 1;
+            if (ed_isdigit(*p))
+                offset = ed_parse_int(&p);
+            int target = ed_cur - offset;
+            if (target < 1 || target > ed_nlines) {
+                ed_error("invalid address");
+                return;
+            }
+            ed_cur = target;
+            ed_print(ed_lines[ed_cur - 1]);
+            ed_print("\n");
+            break;
+        }
+
+        /* (W)rite append */
+        case 'W': {
+            p++;
+            while (*p == ' ')
+                p++;
+            if (*p) {
+                int fi = 0;
+                while (*p && *p != ' ' && fi < ED_FILENAME_LEN - 1) {
+                    ed_filename[fi++] = *p++;
+                }
+                ed_filename[fi] = '\0';
+            }
+            if (ed_filename[0] == '\0') {
+                ed_error("no filename");
+                return;
+            }
+
+            /* For W (append), read existing file, concatenate, and rewrite.
+             * True append isn't possible on FAT16 without more complexity,
+             * so we read-modify-write.*/
+            int existing_size = 0;
+            char *existing_data = NULL;
+
+            /* Try reading existing file from disk */
+            fat16_file_t *ef = fat16_open(ed_filename);
+            if (ef) {
+                existing_size = (int)ef->file_size;
+                if (existing_size > 0) {
+                    existing_data = kmalloc((size_t)existing_size);
+                    if (existing_data) {
+                        fat16_read(ef, existing_data, (uint32_t)existing_size);
+                    }
+                }
+                fat16_close(ef);
+            }
+
+            /* Calculate new data size */
+            int new_bytes = 0;
+            for (int i = addr1; i <= addr2; i++) {
+                new_bytes += (int)ed_strlen(ed_lines[i - 1]) + 1;
+            }
+
+            int total = existing_size + new_bytes;
+            char *combined = kmalloc((size_t)total);
+            if (!combined) {
+                if (existing_data)
+                    kfree(existing_data);
+                ed_error("out of memory");
+                return;
+            }
+
+            /* Copy existing data */
+            if (existing_data && existing_size > 0) {
+                memcpy(combined, existing_data, (size_t)existing_size);
+                kfree(existing_data);
+            }
+
+            /* Append new lines */
+            int pos = existing_size;
+            for (int i = addr1; i <= addr2; i++) {
+                const char *line = ed_lines[i - 1];
+                size_t len = ed_strlen(line);
+                memcpy(combined + pos, line, len);
+                pos += (int)len;
+                combined[pos++] = '\n';
+            }
+
+            int ret = fat16_write_file(ed_filename, combined, (uint32_t)total);
+            kfree(combined);
+
+            if (ret < 0) {
+                ed_error("write failed");
+                return;
+            }
+
+            ed_print_int(new_bytes);
+            ed_print("\n");
+            ed_dirty = 0;
+            break;
+        }
+
+        default:
+            /* If we have a range and no command, go to that line */
+            if (has_range && cmd == '\0') {
+                if (addr2 >= 1 && addr2 <= ed_nlines) {
+                    ed_cur = addr2;
+                    ed_print(ed_lines[ed_cur - 1]);
+                    ed_print("\n");
+                } else if (ed_nlines == 0) {
+                    ed_error("invalid address");
+                }
+            } else {
+                ed_error("unknown command");
+            }
+            break;
     }
 }
 
@@ -1707,9 +1795,11 @@ void ed_run(const char *filename) {
 
     /* Clean up */
     for (int i = 0; i < ed_nlines; i++) {
-        if (ed_lines[i]) kfree(ed_lines[i]);
+        if (ed_lines[i])
+            kfree(ed_lines[i]);
     }
     for (int i = 0; i < ed_undo_nlines; i++) {
-        if (ed_undo_lines[i]) kfree(ed_undo_lines[i]);
+        if (ed_undo_lines[i])
+            kfree(ed_undo_lines[i]);
     }
 }

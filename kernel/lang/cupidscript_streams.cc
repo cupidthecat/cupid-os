@@ -1,16 +1,16 @@
 #include "cupidscript_streams.h"
 #include "cupidscript.h"
+#include "keyboard.h"
 #include "memory.h"
 #include "string.h"
 #include "vfs.h"
-#include "keyboard.h"
 
 void fd_table_init(fd_table_t *table, script_context_t *ctx) {
     // Clear all fds
     for (int i = 0; i < MAX_FDS; i++) {
         table->fds[i].type = FD_CLOSED;
     }
-    table->next_fd = 3;  // 0, 1, 2 are reserved
+    table->next_fd = 3; // 0, 1, 2 are reserved
 
     // Setup stdin (terminal input)
     table->fds[CS_STDIN].type = FD_TERMINAL;
@@ -45,10 +45,12 @@ int fd_read(fd_table_t *table, int fd, char *buf, size_t len) {
         case FD_FILE:
             return vfs_read(fdesc->file.vfs_fd, buf, len);
         case FD_TERMINAL:
-            if (!buf || len == 0) return 0;
+            if (!buf || len == 0)
+                return 0;
             {
                 char c = getchar();
-                if (c == '\r') c = '\n';
+                if (c == '\r')
+                    c = '\n';
                 buf[0] = c;
             }
             return 1;
@@ -71,9 +73,11 @@ int fd_write(fd_table_t *table, int fd, const char *buf, size_t len) {
             // Expand buffer if necessary
             if (needed > fdesc->buffer.capacity) {
                 size_t new_capacity = fdesc->buffer.capacity * 2;
-                if (new_capacity < needed) new_capacity = needed;
+                if (new_capacity < needed)
+                    new_capacity = needed;
                 char *new_data = kmalloc(new_capacity);
-                if (!new_data) return -1;
+                if (!new_data)
+                    return -1;
                 if (fdesc->buffer.data) {
                     memcpy(new_data, fdesc->buffer.data, fdesc->buffer.size);
                     if (fdesc->buffer.owner) {
@@ -86,9 +90,9 @@ int fd_write(fd_table_t *table, int fd, const char *buf, size_t len) {
 
                 /* If buffer moved, repoint peer FDs sharing the same pipe. */
                 for (int i = 0; i < MAX_FDS; i++) {
-                    if (i == fd) continue;
-                    if (table->fds[i].type == FD_BUFFER &&
-                        table->fds[i].buffer.data == old_data) {
+                    if (i == fd)
+                        continue;
+                    if (table->fds[i].type == FD_BUFFER && table->fds[i].buffer.data == old_data) {
                         table->fds[i].buffer.data = new_data;
                         table->fds[i].buffer.capacity = new_capacity;
                     }
@@ -100,7 +104,8 @@ int fd_write(fd_table_t *table, int fd, const char *buf, size_t len) {
 
             /* Keep shared-pipe size in sync for all FDs using same buffer. */
             for (int i = 0; i < MAX_FDS; i++) {
-                if (i == fd) continue;
+                if (i == fd)
+                    continue;
                 if (table->fds[i].type == FD_BUFFER &&
                     table->fds[i].buffer.data == fdesc->buffer.data) {
                     table->fds[i].buffer.size = fdesc->buffer.size;
@@ -128,7 +133,8 @@ int fd_write(fd_table_t *table, int fd, const char *buf, size_t len) {
 }
 
 void fd_close(fd_table_t *table, int fd) {
-    if (fd < 0 || fd >= MAX_FDS) return;
+    if (fd < 0 || fd >= MAX_FDS)
+        return;
 
     file_descriptor_t *fdesc = &table->fds[fd];
 
@@ -187,12 +193,13 @@ int fd_create_pipe(fd_table_t *table, int *read_fd, int *write_fd) {
     }
 
     if (rfd == -1 || wfd == -1) {
-        return -1;  // No free fds
+        return -1; // No free fds
     }
 
     // Create shared buffer (4KB default)
     char *pipe_data = kmalloc(4096);
-    if (!pipe_data) return -1;
+    if (!pipe_data)
+        return -1;
 
     // Setup read end
     table->fds[rfd].type = FD_BUFFER;
@@ -226,11 +233,13 @@ int fd_create_buffer(fd_table_t *table, size_t capacity) {
         }
     }
 
-    if (fd == -1) return -1;
+    if (fd == -1)
+        return -1;
 
     // Create buffer
     char *data = kmalloc(capacity);
-    if (!data) return -1;
+    if (!data)
+        return -1;
 
     table->fds[fd].type = FD_BUFFER;
     table->fds[fd].buffer.data = data;
@@ -252,7 +261,8 @@ char *fd_get_buffer_contents(fd_table_t *table, int fd) {
     if (fdesc->type == FD_BUFFER) {
         /* Allocate new string with null terminator */
         char *result = kmalloc(fdesc->buffer.size + 1);
-        if (!result) return NULL;
+        if (!result)
+            return NULL;
 
         memcpy(result, fdesc->buffer.data, fdesc->buffer.size);
         result[fdesc->buffer.size] = '\0';
@@ -262,12 +272,14 @@ char *fd_get_buffer_contents(fd_table_t *table, int fd) {
     if (fdesc->type == FD_FILE) {
         /* Read file contents from current offset into a bounded buffer. */
         char *result = kmalloc(1025);
-        if (!result) return NULL;
+        if (!result)
+            return NULL;
 
         int total = 0;
         while (total < 1024) {
             int r = fd_read(table, fd, result + total, (size_t)(1024 - total));
-            if (r <= 0) break;
+            if (r <= 0)
+                break;
             total += r;
         }
         result[total] = '\0';
@@ -287,11 +299,13 @@ int fd_open_file(fd_table_t *table, const char *filename, int flags) {
         }
     }
 
-    if (fd == -1) return -1;
+    if (fd == -1)
+        return -1;
 
     // Open VFS file
     int vfs_fd = vfs_open(filename, (uint32_t)flags);
-    if (vfs_fd < 0) return -1;
+    if (vfs_fd < 0)
+        return -1;
 
     table->fds[fd].type = FD_FILE;
     table->fds[fd].file.vfs_fd = vfs_fd;

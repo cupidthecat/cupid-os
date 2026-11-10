@@ -4,24 +4,18 @@
  * Provides a generic abstraction for block-based storage devices.
  * Allows different device drivers (ATA, floppy, etc.) to register
  * themselves and be accessed through a uniform interface.
-*/
+ */
 
 #include "blockdev.h"
 #include "kernel.h"
 
-static block_device_t* devices[MAX_BLOCK_DEVICES];
+static block_device_t *devices[MAX_BLOCK_DEVICES];
 static int registered_device_count = 0;
 static int device_index_limit = 0;
 static volatile uint32_t device_registry_lock = 0;
 
 static void registry_lock(void) {
-    while (
-        __atomic_exchange_n(
-            &device_registry_lock,
-            1u,
-            __ATOMIC_ACQUIRE
-        ) != 0u
-    ) {
+    while (__atomic_exchange_n(&device_registry_lock, 1u, __ATOMIC_ACQUIRE) != 0u) {
     }
 }
 
@@ -31,7 +25,7 @@ static void registry_unlock(void) {
 
 /**
  * blkdev_init - Initialize block device layer
-*/
+ */
 void blkdev_init(void) {
     device_registry_lock = 0;
     registered_device_count = 0;
@@ -47,8 +41,8 @@ void blkdev_init(void) {
  *
  * @param dev: Pointer to block device structure
  * @return 0 on success, -1 on invalid, duplicate, or full registration
-*/
-int blkdev_register(block_device_t* dev) {
+ */
+int blkdev_register(block_device_t *dev) {
     if (!dev) {
         return -1;
     }
@@ -109,7 +103,7 @@ int blkdev_register(block_device_t* dev) {
  * object. A later registration may reuse the vacant index. The owning driver
  * remains responsible for any pointers cached before this call.
  */
-int blkdev_unregister(block_device_t* dev) {
+int blkdev_unregister(block_device_t *dev) {
     if (!dev) {
         return -1;
     }
@@ -130,19 +124,17 @@ int blkdev_unregister(block_device_t* dev) {
 
     devices[index] = NULL;
     registered_device_count--;
-    while (
-        device_index_limit > 0
-        && devices[device_index_limit - 1] == NULL
-    ) {
+    while (device_index_limit > 0 && devices[device_index_limit - 1] == NULL) {
         device_index_limit--;
     }
     dev->registry_registered = false;
     dev->registry_ref_count--;
     bool release = dev->registry_ref_count == 0u;
-    void (*release_callback)(void*) = dev->release;
+    void (*release_callback)(void *) = dev->release;
     void *driver_data = dev->driver_data;
     registry_unlock();
-    if (release && release_callback) release_callback(driver_data);
+    if (release && release_callback)
+        release_callback(driver_data);
     return 0;
 }
 
@@ -151,14 +143,14 @@ int blkdev_unregister(block_device_t* dev) {
  *
  * @param index: Device index (0-based)
  * @return Pointer to block device, or NULL if invalid or references saturated
-*/
-block_device_t* blkdev_get(int index) {
+ */
+block_device_t *blkdev_get(int index) {
     if (index < 0) {
         return NULL;
     }
 
     registry_lock();
-    block_device_t* dev = NULL;
+    block_device_t *dev = NULL;
     if (index < device_index_limit) {
         dev = devices[index];
         if (dev) {
@@ -176,27 +168,24 @@ block_device_t* blkdev_get(int index) {
 /**
  * Release a reference acquired by blkdev_get.
  */
-int blkdev_put(block_device_t* dev) {
-    if (!dev) return -1;
+int blkdev_put(block_device_t *dev) {
+    if (!dev)
+        return -1;
 
     registry_lock();
-    if (
-        dev->registry_ref_count == 0u
-        || (
-            dev->registry_registered
-            && dev->registry_ref_count == 1u
-        )
-    ) {
+    if (dev->registry_ref_count == 0u ||
+        (dev->registry_registered && dev->registry_ref_count == 1u)) {
         registry_unlock();
         return -1;
     }
 
     dev->registry_ref_count--;
     bool release = dev->registry_ref_count == 0u;
-    void (*release_callback)(void*) = dev->release;
+    void (*release_callback)(void *) = dev->release;
     void *driver_data = dev->driver_data;
     registry_unlock();
-    if (release && release_callback) release_callback(driver_data);
+    if (release && release_callback)
+        release_callback(driver_data);
     return 0;
 }
 
@@ -230,8 +219,8 @@ int blkdev_index_limit(void) {
  * @param count: Number of sectors to read
  * @param buffer: Buffer to read into
  * @return 0 on success, -1 on error
-*/
-int blkdev_read(block_device_t* dev, uint32_t lba, uint32_t count, void* buffer) {
+ */
+int blkdev_read(block_device_t *dev, uint32_t lba, uint32_t count, void *buffer) {
     if (!dev || !dev->read) {
         return -1;
     }
@@ -246,8 +235,8 @@ int blkdev_read(block_device_t* dev, uint32_t lba, uint32_t count, void* buffer)
  * @param count: Number of sectors to write
  * @param buffer: Buffer containing data to write
  * @return 0 on success, -1 on error
-*/
-int blkdev_write(block_device_t* dev, uint32_t lba, uint32_t count, const void* buffer) {
+ */
+int blkdev_write(block_device_t *dev, uint32_t lba, uint32_t count, const void *buffer) {
     if (!dev || !dev->write) {
         return -1;
     }

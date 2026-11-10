@@ -5,18 +5,18 @@
  *  - PS/2 auxiliary device initialization
  *  - IRQ12 handler for 3-byte mouse packets
  *  - Cursor rendering on the VGA back buffer
-*/
+ */
 
 #include "mouse.h"
-#include "ports.h"
+#include "graphics.h"
 #include "isr.h"
 #include "pic.h"
-#include "vga.h"
-#include "graphics.h"
+#include "ports.h"
 #include "serial.h"
 #include "string.h"
+#include "vga.h"
 
-mouse_state_t mouse = { 320, 240, 0, 0, 0, false };
+mouse_state_t mouse = {320, 240, 0, 0, 0, false};
 static bool has_scroll_wheel = false;
 
 #define CURSOR_W 8
@@ -56,24 +56,26 @@ static int16_t saved_x = -1, saved_y = -1;
 static void mouse_wait_write(void) {
     int timeout = 100000;
     while (timeout-- > 0) {
-        if (!(inb(0x64) & 0x02)) return;
+        if (!(inb(0x64) & 0x02))
+            return;
     }
 }
 
 static void mouse_wait_read(void) {
     int timeout = 100000;
     while (timeout-- > 0) {
-        if (inb(0x64) & 0x01) return;
+        if (inb(0x64) & 0x01)
+            return;
     }
 }
 
 static void mouse_cmd(uint8_t cmd) {
     mouse_wait_write();
-    outb(0x64, 0xD4);       /* Tell controller: next byte goes to mouse */
+    outb(0x64, 0xD4); /* Tell controller: next byte goes to mouse */
     mouse_wait_write();
     outb(0x60, cmd);
     mouse_wait_read();
-    (void)inb(0x60);        /* Read ACK (0xFA) */
+    (void)inb(0x60); /* Read ACK (0xFA) */
 }
 
 void mouse_irq_handler(struct registers *r) {
@@ -83,12 +85,14 @@ void mouse_irq_handler(struct registers *r) {
     int pkt_size = has_scroll_wheel ? 4 : 3;
 
     uint8_t status = inb(0x64);
-    if (!(status & 0x20)) return; /* Not from aux device */
+    if (!(status & 0x20))
+        return; /* Not from aux device */
 
     uint8_t data = inb(0x60);
 
     /* Byte 0 must have bit 3 set (always-1 bit in PS/2 protocol) */
-    if (pkt_idx == 0 && !(data & 0x08)) return;
+    if (pkt_idx == 0 && !(data & 0x08))
+        return;
 
     packet[pkt_idx++] = data;
 
@@ -96,7 +100,8 @@ void mouse_irq_handler(struct registers *r) {
         pkt_idx = 0;
 
         /* Discard packets with overflow bits */
-        if (packet[0] & 0xC0) return;
+        if (packet[0] & 0xC0)
+            return;
 
         mouse.prev_buttons = mouse.buttons;
         mouse.buttons = packet[0] & 0x07;
@@ -105,8 +110,10 @@ void mouse_irq_handler(struct registers *r) {
         int16_t dy = (int16_t)packet[2];
 
         /* Sign-extend using bits 4 and 5 of byte 0 */
-        if (packet[0] & 0x10) dx = (int16_t)(dx | (int16_t)0xFF00);
-        if (packet[0] & 0x20) dy = (int16_t)(dy | (int16_t)0xFF00);
+        if (packet[0] & 0x10)
+            dx = (int16_t)(dx | (int16_t)0xFF00);
+        if (packet[0] & 0x20)
+            dy = (int16_t)(dy | (int16_t)0xFF00);
 
         mouse.x = (int16_t)CLAMP(mouse.x + dx, 0, VGA_GFX_WIDTH - 1);
         mouse.y = (int16_t)CLAMP(mouse.y - dy, 0, VGA_GFX_HEIGHT - 1);
@@ -123,8 +130,8 @@ void mouse_irq_handler(struct registers *r) {
 }
 
 static void mouse_set_sample_rate(uint8_t rate) {
-    mouse_cmd(0xF3);           /* Set sample rate command */
-    mouse_cmd(rate);           /* Desired rate */
+    mouse_cmd(0xF3); /* Set sample rate command */
+    mouse_cmd(rate); /* Desired rate */
 }
 
 static void mouse_enable_scroll_wheel(void) {
@@ -137,9 +144,9 @@ static void mouse_enable_scroll_wheel(void) {
     mouse_wait_write();
     outb(0x64, 0xD4);
     mouse_wait_write();
-    outb(0x60, 0xF2);          /* Get device ID */
+    outb(0x60, 0xF2); /* Get device ID */
     mouse_wait_read();
-    (void)inb(0x60);           /* ACK */
+    (void)inb(0x60); /* ACK */
     mouse_wait_read();
     uint8_t id = inb(0x60);
 
@@ -162,29 +169,29 @@ void mouse_init(void) {
 
     /* 2. Enable IRQ12 in the controller configuration byte */
     mouse_wait_write();
-    outb(0x64, 0x20);         /* Read controller config */
+    outb(0x64, 0x20); /* Read controller config */
     mouse_wait_read();
     status_byte = inb(0x60);
-    status_byte |= 0x02;      /* Set bit 1 (aux interrupt enable) */
+    status_byte |= 0x02;           /* Set bit 1 (aux interrupt enable) */
     status_byte &= (uint8_t)~0x20; /* Clear bit 5 (disable aux clock = 0) */
     mouse_wait_write();
-    outb(0x64, 0x60);         /* Write controller config */
+    outb(0x64, 0x60); /* Write controller config */
     mouse_wait_write();
     outb(0x60, status_byte);
 
     /* 3. Reset and configure mouse */
-    mouse_cmd(0xFF);           /* Reset */
+    mouse_cmd(0xFF); /* Reset */
     mouse_wait_read();
-    (void)inb(0x60);           /* Read extra bytes from reset */
+    (void)inb(0x60); /* Read extra bytes from reset */
     mouse_wait_read();
     (void)inb(0x60);
 
-    mouse_cmd(0xF6);           /* Set defaults */
+    mouse_cmd(0xF6); /* Set defaults */
 
     /* Try to enable Intellimouse scroll wheel (4-byte packets) */
     mouse_enable_scroll_wheel();
 
-    mouse_cmd(0xF4);           /* Enable data reporting */
+    mouse_cmd(0xF4); /* Enable data reporting */
 
     /* 4. Install IRQ12 handler; irq_install_handler unmasks the IOAPIC GSI.
      * DO NOT unmask 8259 - P5 disables the 8259 fully; if re-enabled it
@@ -205,11 +212,18 @@ void mouse_mark_cursor_dirty(void) {
     int x1 = (int)mouse.x;
     int y1 = (int)mouse.y;
     /* Union */
-    if (x1 < x0) { int t = x0; x0 = x1; x1 = t; }
-    if (y1 < y0) { int t = y0; y0 = y1; y1 = t; }
+    if (x1 < x0) {
+        int t = x0;
+        x0 = x1;
+        x1 = t;
+    }
+    if (y1 < y0) {
+        int t = y0;
+        y0 = y1;
+        y1 = t;
+    }
     /* Add cursor dimensions and 1-pixel margin */
-    vga_mark_dirty(x0 - 1, y0 - 1, (x1 - x0) + CURSOR_W + 2,
-                   (y1 - y0) + CURSOR_H + 2);
+    vga_mark_dirty(x0 - 1, y0 - 1, (x1 - x0) + CURSOR_W + 2, (y1 - y0) + CURSOR_H + 2);
 }
 
 void mouse_save_under_cursor(void) {
@@ -218,8 +232,8 @@ void mouse_save_under_cursor(void) {
     saved_y = mouse.y;
 
     /* Fast path: cursor fully within screen bounds - no per-pixel check */
-    if (saved_x >= 0 && (int)saved_x + CURSOR_W <= VGA_GFX_WIDTH &&
-        saved_y >= 0 && (int)saved_y + CURSOR_H <= VGA_GFX_HEIGHT) {
+    if (saved_x >= 0 && (int)saved_x + CURSOR_W <= VGA_GFX_WIDTH && saved_y >= 0 &&
+        (int)saved_y + CURSOR_H <= VGA_GFX_HEIGHT) {
         uint32_t *src = framebuf + (int32_t)saved_y * VGA_GFX_WIDTH + (int32_t)saved_x;
         for (int row = 0; row < CURSOR_H; row++) {
             memcpy(&under_cursor[row * CURSOR_W], src + row * VGA_GFX_WIDTH,
@@ -242,12 +256,13 @@ void mouse_save_under_cursor(void) {
 }
 
 void mouse_restore_under_cursor(void) {
-    if (saved_x < 0) return;
+    if (saved_x < 0)
+        return;
     uint32_t *framebuf = vga_get_framebuffer();
 
     /* Fast path: cursor fully within screen bounds - no per-pixel check */
-    if (saved_x >= 0 && (int)saved_x + CURSOR_W <= VGA_GFX_WIDTH &&
-        saved_y >= 0 && (int)saved_y + CURSOR_H <= VGA_GFX_HEIGHT) {
+    if (saved_x >= 0 && (int)saved_x + CURSOR_W <= VGA_GFX_WIDTH && saved_y >= 0 &&
+        (int)saved_y + CURSOR_H <= VGA_GFX_HEIGHT) {
         uint32_t *dst = framebuf + (int32_t)saved_y * VGA_GFX_WIDTH + (int32_t)saved_x;
         for (int row = 0; row < CURSOR_H; row++) {
             memcpy(dst + row * VGA_GFX_WIDTH, &under_cursor[row * CURSOR_W],
@@ -273,12 +288,12 @@ void mouse_draw_cursor(void) {
     uint32_t *framebuf = vga_get_framebuffer();
 
     /* Fast path: cursor fully within screen bounds - skip per-pixel bounds check */
-    if (mouse.x >= 0 && (int)mouse.x + CURSOR_W <= VGA_GFX_WIDTH &&
-        mouse.y >= 0 && (int)mouse.y + CURSOR_H <= VGA_GFX_HEIGHT) {
+    if (mouse.x >= 0 && (int)mouse.x + CURSOR_W <= VGA_GFX_WIDTH && mouse.y >= 0 &&
+        (int)mouse.y + CURSOR_H <= VGA_GFX_HEIGHT) {
         uint32_t *row_ptr = framebuf + (int32_t)mouse.y * VGA_GFX_WIDTH + (int32_t)mouse.x;
         for (int row = 0; row < CURSOR_H; row++) {
             uint8_t outline = cursor_outline[row];
-            uint8_t fill    = cursor_bitmap[row];
+            uint8_t fill = cursor_bitmap[row];
             for (int col = 0; col < CURSOR_W; col++) {
                 uint8_t mask = (uint8_t)(0x80U >> (unsigned)col);
                 if (fill & mask) {
@@ -295,18 +310,16 @@ void mouse_draw_cursor(void) {
     /* Slow path: cursor near screen edge */
     for (int row = 0; row < CURSOR_H; row++) {
         uint8_t outline = cursor_outline[row];
-        uint8_t fill    = cursor_bitmap[row];
+        uint8_t fill = cursor_bitmap[row];
         for (int col = 0; col < CURSOR_W; col++) {
             int16_t px = (int16_t)(mouse.x + (int16_t)col);
             int16_t py = (int16_t)(mouse.y + (int16_t)row);
             if (px >= 0 && px < VGA_GFX_WIDTH && py >= 0 && py < VGA_GFX_HEIGHT) {
                 uint8_t mask = (uint8_t)(0x80U >> (unsigned)col);
                 if (fill & mask) {
-                    framebuf[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] =
-                        COLOR_CURSOR;
+                    framebuf[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] = COLOR_CURSOR;
                 } else if (outline & mask) {
-                    framebuf[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] =
-                        COLOR_CURSOR_OUTLINE;
+                    framebuf[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] = COLOR_CURSOR_OUTLINE;
                 }
             }
         }
@@ -324,7 +337,8 @@ void mouse_inject_event(uint8_t buttons, int8_t dx, int8_t dy) {
 }
 
 void mouse_inject_wheel(int8_t dz) {
-    if (dz == 0) return;
+    if (dz == 0)
+        return;
     /* USB HID Intellimouse: positive Z = scroll DOWN, negative = UP.
      * Our scroll convention (matches PS/2 Intellimouse): positive = UP.
      * So invert sign on the way in.*/
@@ -334,10 +348,12 @@ void mouse_inject_wheel(int8_t dz) {
 
 void mouse_update_cursor_direct(void) {
     /* Skip if no cursor was ever saved (before first full render) */
-    if (saved_x < 0) return;
+    if (saved_x < 0)
+        return;
 
     uint32_t *disp = vga_get_display_buffer();
-    if (!disp) return;
+    if (!disp)
+        return;
 
     /* Erase old cursor by restoring saved pixels onto the display buffer */
     {
@@ -361,7 +377,7 @@ void mouse_update_cursor_direct(void) {
         int row, col;
         for (row = 0; row < CURSOR_H; row++) {
             uint8_t outline = cursor_outline[row];
-            uint8_t fill    = cursor_bitmap[row];
+            uint8_t fill = cursor_bitmap[row];
             for (col = 0; col < CURSOR_W; col++) {
                 int16_t px = (int16_t)(saved_x + (int16_t)col);
                 int16_t py = (int16_t)(saved_y + (int16_t)row);
@@ -372,8 +388,7 @@ void mouse_update_cursor_direct(void) {
                     if (fill & mask) {
                         disp[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] = COLOR_CURSOR;
                     } else if (outline & mask) {
-                        disp[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] =
-                            COLOR_CURSOR_OUTLINE;
+                        disp[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] = COLOR_CURSOR_OUTLINE;
                     }
                 }
             }

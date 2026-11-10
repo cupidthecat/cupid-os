@@ -1,23 +1,23 @@
 #include "serial.h"
-#include "ports.h"
-#include "kernel.h"
-#include "string.h"
 #include "bkl.h"
+#include "kernel.h"
+#include "ports.h"
+#include "string.h"
 #include "timer.h"
 
-#define SERIAL_DATA(base)        (base)
-#define SERIAL_INT_EN(base)      ((uint16_t)(base + 1))
-#define SERIAL_FIFO_CTRL(base)   ((uint16_t)(base + 2))
-#define SERIAL_LINE_CTRL(base)   ((uint16_t)(base + 3))
-#define SERIAL_MODEM_CTRL(base)  ((uint16_t)(base + 4))
+#define SERIAL_DATA(base) (base)
+#define SERIAL_INT_EN(base) ((uint16_t)(base + 1))
+#define SERIAL_FIFO_CTRL(base) ((uint16_t)(base + 2))
+#define SERIAL_LINE_CTRL(base) ((uint16_t)(base + 3))
+#define SERIAL_MODEM_CTRL(base) ((uint16_t)(base + 4))
 #define SERIAL_LINE_STATUS(base) ((uint16_t)(base + 5))
 
 static log_level_t current_log_level = LOG_INFO;
 
 /* In-memory circular log buffer */
-static char   log_buffer[LOG_BUFFER_LINES][LOG_LINE_MAX];
-static uint32_t log_write_idx  = 0;   /* next slot to write */
-static uint32_t log_stored     = 0;   /* how many lines stored (≤ MAX) */
+static char log_buffer[LOG_BUFFER_LINES][LOG_LINE_MAX];
+static uint32_t log_write_idx = 0; /* next slot to write */
+static uint32_t log_stored = 0;    /* how many lines stored (≤ MAX) */
 
 void serial_init(void) {
     /* Disable interrupts */
@@ -25,8 +25,8 @@ void serial_init(void) {
 
     /* Enable DLAB - set baud rate divisor */
     outb(SERIAL_LINE_CTRL(SERIAL_COM1), 0x80);
-    outb(SERIAL_DATA(SERIAL_COM1),      0x01);     /* divisor low  = 1 (115200) */
-    outb(SERIAL_INT_EN(SERIAL_COM1),    0x00);     /* divisor high = 0 */
+    outb(SERIAL_DATA(SERIAL_COM1), 0x01);   /* divisor low  = 1 (115200) */
+    outb(SERIAL_INT_EN(SERIAL_COM1), 0x00); /* divisor high = 0 */
 
     /* 8N1, DLAB off */
     outb(SERIAL_LINE_CTRL(SERIAL_COM1), 0x03);
@@ -47,34 +47,41 @@ int serial_has_rx(void) {
 }
 
 int serial_read_char(void) {
-    if (!serial_has_rx()) return -1;
+    if (!serial_has_rx())
+        return -1;
     return (int)inb(SERIAL_DATA(SERIAL_COM1));
 }
 
 static void serial_write_char_unlocked(char c) {
-    while (!serial_transmit_ready()) { /* spin */ }
+    while (!serial_transmit_ready()) { /* spin */
+    }
     if (c == '\n') {
         outb(SERIAL_DATA(SERIAL_COM1), '\r');
-        while (!serial_transmit_ready()) { /* spin */ }
+        while (!serial_transmit_ready()) { /* spin */
+        }
     }
     outb(SERIAL_DATA(SERIAL_COM1), (uint8_t)c);
 }
 
 void serial_write_char(char c) {
     bool take = bkl_is_initialized();
-    if (take) bkl_lock();
+    if (take)
+        bkl_lock();
     serial_write_char_unlocked(c);
-    if (take) bkl_unlock();
+    if (take)
+        bkl_unlock();
 }
 
 void serial_write_string(const char *str) {
     bool take = bkl_is_initialized();
-    if (take) bkl_lock();
+    if (take)
+        bkl_lock();
     while (*str) {
         serial_write_char_unlocked(*str);
         str++;
     }
-    if (take) bkl_unlock();
+    if (take)
+        bkl_unlock();
 }
 
 /* Fatal diagnostics retain their original lock-independent UART path. */
@@ -92,7 +99,8 @@ void serial_write_string_emergency(const char *str) {
 static void serial_print_hex(uint32_t num) {
     const char hex[] = "0123456789abcdef";
     char buf[11];
-    buf[0] = '0'; buf[1] = 'x';
+    buf[0] = '0';
+    buf[1] = 'x';
     for (int i = 9; i >= 2; i--) {
         buf[i] = hex[num & 0xF];
         num >>= 4;
@@ -103,7 +111,11 @@ static void serial_print_hex(uint32_t num) {
 
 static void vserial_printf(const char *fmt, __builtin_va_list ap) {
     while (*fmt) {
-        if (*fmt != '%') { serial_write_char_unlocked(*fmt); fmt++; continue; }
+        if (*fmt != '%') {
+            serial_write_char_unlocked(*fmt);
+            fmt++;
+            continue;
+        }
         fmt++;
 
         /* Optional '0' pad flag + decimal width; width applies to d/u/x.
@@ -111,8 +123,11 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
          * NO "0x" prefix (e.g. %04x of 0x13 -> "0013"); bare %x keeps
          * legacy "0x" + 8-digit format.*/
         char pad_ch = ' ';
-        int  width  = 0;
-        if (*fmt == '0') { pad_ch = '0'; fmt++; }
+        int width = 0;
+        if (*fmt == '0') {
+            pad_ch = '0';
+            fmt++;
+        }
         while (*fmt >= '0' && *fmt <= '9') {
             width = width * 10 + (*fmt - '0');
             fmt++;
@@ -131,114 +146,169 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
         }
 
         switch (*fmt) {
-        case 's': {
-            const char *s = __builtin_va_arg(ap, const char *);
-            serial_write_string(s ? s : "(null)");
-            break;
-        }
-        case 'd': {
-            int v = __builtin_va_arg(ap, int);
-            int neg = (v < 0);
-            uint32_t uv = neg ? (uint32_t)(-v) : (uint32_t)v;
-            char tmp[12]; int t = 0;
-            if (uv == 0) tmp[t++] = '0';
-            else while (uv > 0) { tmp[t++] = (char)('0' + (uv % 10)); uv /= 10; }
-            int total = t + (neg ? 1 : 0);
-            if (pad_ch == '0' && neg) {
-                serial_write_char_unlocked('-');
-                while (total < width) { serial_write_char_unlocked('0'); total++; }
-            } else {
-                while (total < width) { serial_write_char_unlocked(pad_ch); total++; }
-                if (neg) serial_write_char_unlocked('-');
+            case 's': {
+                const char *s = __builtin_va_arg(ap, const char *);
+                serial_write_string(s ? s : "(null)");
+                break;
             }
-            while (t > 0) serial_write_char_unlocked(tmp[--t]);
-            break;
-        }
-        case 'u': {
-            uint32_t uv = __builtin_va_arg(ap, uint32_t);
-            char tmp[12]; int t = 0;
-            if (uv == 0) tmp[t++] = '0';
-            else while (uv > 0) { tmp[t++] = (char)('0' + (uv % 10)); uv /= 10; }
-            int total = t;
-            while (total < width) { serial_write_char_unlocked(pad_ch); total++; }
-            while (t > 0) serial_write_char_unlocked(tmp[--t]);
-            break;
-        }
-        case 'x': {
-            uint32_t xv = __builtin_va_arg(ap, uint32_t);
-            if (width > 0) {
-                const char hex[] = "0123456789abcdef";
-                char tmp[16]; int t = 0;
-                if (xv == 0) tmp[t++] = '0';
-                else while (xv > 0) { tmp[t++] = hex[xv & 0xF]; xv >>= 4; }
-                int total = t;
-                while (total < width) { serial_write_char_unlocked(pad_ch); total++; }
-                while (t > 0) serial_write_char_unlocked(tmp[--t]);
-            } else {
-                serial_print_hex(xv);
-            }
-            break;
-        }
-        case 'p': serial_print_hex((uint32_t)__builtin_va_arg(ap, void *)); break;
-        case 'c': serial_write_char_unlocked((char)__builtin_va_arg(ap, int));       break;
-        case 'f': {
-            /* Phase D: %f and %.Nf via shared fmt_f in kernel/core/string.cc.
-             * Max len ≈ 1 sign + 20 int digits + '.' + 17 frac digits = 39.*/
-            double v = __builtin_va_arg(ap, double);
-            char buf[48];
-            int w = fmt_f(buf, (int)sizeof(buf), v, prec);
-            for (int i = 0; i < w; i++) {
-                serial_write_char_unlocked(buf[i]);
-            }
-            break;
-        }
-        case 'e': {
-            /* Phase D: %e / %.Ne via shared fmt_e in kernel/core/string.cc.
-             * Mantissa in [1,10) + 'e' + sign + 2 digits = small fixed tail.*/
-            double v = __builtin_va_arg(ap, double);
-            char buf[48];
-            int w = fmt_e(buf, (int)sizeof(buf), v, prec);
-            for (int i = 0; i < w; i++) {
-                serial_write_char_unlocked(buf[i]);
-            }
-            break;
-        }
-        case 'g': {
-            /* Phase D: %g / %.Ng via shared fmt_g in kernel/core/string.cc.
-             * Picks the shorter of %f and %e for this value.*/
-            double v = __builtin_va_arg(ap, double);
-            char buf[48];
-            int w = fmt_g(buf, (int)sizeof(buf), v, prec >= 0 ? prec : 6);
-            for (int i = 0; i < w; i++) {
-                serial_write_char_unlocked(buf[i]);
-            }
-            break;
-        }
-        case '%': serial_write_char_unlocked('%'); break;
-        default:
-            serial_write_char_unlocked('%');
-            if (pad_ch == '0') serial_write_char_unlocked('0');
-            if (width > 0) {
-                char tmp[12]; int tl = 0;
-                int ww = width;
-                while (ww > 0) { tmp[tl++] = (char)('0' + (ww % 10)); ww /= 10; }
-                while (tl > 0) { serial_write_char_unlocked(tmp[--tl]); }
-            }
-            if (prec >= 0) {
-                /* Replay "." and digits we consumed so the output isn't lossy. */
-                serial_write_char_unlocked('.');
-                char tmp[12]; int tl = 0;
-                int pp = prec;
-                if (pp == 0) tmp[tl++] = '0';
-                else {
-                    while (pp > 0) { tmp[tl++] = (char)('0' + (pp % 10)); pp /= 10; }
+            case 'd': {
+                int v = __builtin_va_arg(ap, int);
+                int neg = (v < 0);
+                uint32_t uv = neg ? (uint32_t)(-v) : (uint32_t)v;
+                char tmp[12];
+                int t = 0;
+                if (uv == 0)
+                    tmp[t++] = '0';
+                else
+                    while (uv > 0) {
+                        tmp[t++] = (char)('0' + (uv % 10));
+                        uv /= 10;
+                    }
+                int total = t + (neg ? 1 : 0);
+                if (pad_ch == '0' && neg) {
+                    serial_write_char_unlocked('-');
+                    while (total < width) {
+                        serial_write_char_unlocked('0');
+                        total++;
+                    }
+                } else {
+                    while (total < width) {
+                        serial_write_char_unlocked(pad_ch);
+                        total++;
+                    }
+                    if (neg)
+                        serial_write_char_unlocked('-');
                 }
-                while (tl > 0) { serial_write_char_unlocked(tmp[--tl]); }
+                while (t > 0)
+                    serial_write_char_unlocked(tmp[--t]);
+                break;
             }
-            serial_write_char_unlocked(*fmt);
-            break;
+            case 'u': {
+                uint32_t uv = __builtin_va_arg(ap, uint32_t);
+                char tmp[12];
+                int t = 0;
+                if (uv == 0)
+                    tmp[t++] = '0';
+                else
+                    while (uv > 0) {
+                        tmp[t++] = (char)('0' + (uv % 10));
+                        uv /= 10;
+                    }
+                int total = t;
+                while (total < width) {
+                    serial_write_char_unlocked(pad_ch);
+                    total++;
+                }
+                while (t > 0)
+                    serial_write_char_unlocked(tmp[--t]);
+                break;
+            }
+            case 'x': {
+                uint32_t xv = __builtin_va_arg(ap, uint32_t);
+                if (width > 0) {
+                    const char hex[] = "0123456789abcdef";
+                    char tmp[16];
+                    int t = 0;
+                    if (xv == 0)
+                        tmp[t++] = '0';
+                    else
+                        while (xv > 0) {
+                            tmp[t++] = hex[xv & 0xF];
+                            xv >>= 4;
+                        }
+                    int total = t;
+                    while (total < width) {
+                        serial_write_char_unlocked(pad_ch);
+                        total++;
+                    }
+                    while (t > 0)
+                        serial_write_char_unlocked(tmp[--t]);
+                } else {
+                    serial_print_hex(xv);
+                }
+                break;
+            }
+            case 'p':
+                serial_print_hex((uint32_t)__builtin_va_arg(ap, void *));
+                break;
+            case 'c':
+                serial_write_char_unlocked((char)__builtin_va_arg(ap, int));
+                break;
+            case 'f': {
+                /* Phase D: %f and %.Nf via shared fmt_f in kernel/core/string.cc.
+                 * Max len ≈ 1 sign + 20 int digits + '.' + 17 frac digits = 39.*/
+                double v = __builtin_va_arg(ap, double);
+                char buf[48];
+                int w = fmt_f(buf, (int)sizeof(buf), v, prec);
+                for (int i = 0; i < w; i++) {
+                    serial_write_char_unlocked(buf[i]);
+                }
+                break;
+            }
+            case 'e': {
+                /* Phase D: %e / %.Ne via shared fmt_e in kernel/core/string.cc.
+                 * Mantissa in [1,10) + 'e' + sign + 2 digits = small fixed tail.*/
+                double v = __builtin_va_arg(ap, double);
+                char buf[48];
+                int w = fmt_e(buf, (int)sizeof(buf), v, prec);
+                for (int i = 0; i < w; i++) {
+                    serial_write_char_unlocked(buf[i]);
+                }
+                break;
+            }
+            case 'g': {
+                /* Phase D: %g / %.Ng via shared fmt_g in kernel/core/string.cc.
+                 * Picks the shorter of %f and %e for this value.*/
+                double v = __builtin_va_arg(ap, double);
+                char buf[48];
+                int w = fmt_g(buf, (int)sizeof(buf), v, prec >= 0 ? prec : 6);
+                for (int i = 0; i < w; i++) {
+                    serial_write_char_unlocked(buf[i]);
+                }
+                break;
+            }
+            case '%':
+                serial_write_char_unlocked('%');
+                break;
+            default:
+                serial_write_char_unlocked('%');
+                if (pad_ch == '0')
+                    serial_write_char_unlocked('0');
+                if (width > 0) {
+                    char tmp[12];
+                    int tl = 0;
+                    int ww = width;
+                    while (ww > 0) {
+                        tmp[tl++] = (char)('0' + (ww % 10));
+                        ww /= 10;
+                    }
+                    while (tl > 0) {
+                        serial_write_char_unlocked(tmp[--tl]);
+                    }
+                }
+                if (prec >= 0) {
+                    /* Replay "." and digits we consumed so the output isn't lossy. */
+                    serial_write_char_unlocked('.');
+                    char tmp[12];
+                    int tl = 0;
+                    int pp = prec;
+                    if (pp == 0)
+                        tmp[tl++] = '0';
+                    else {
+                        while (pp > 0) {
+                            tmp[tl++] = (char)('0' + (pp % 10));
+                            pp /= 10;
+                        }
+                    }
+                    while (tl > 0) {
+                        serial_write_char_unlocked(tmp[--tl]);
+                    }
+                }
+                serial_write_char_unlocked(*fmt);
+                break;
         }
-        if (*fmt) fmt++;
+        if (*fmt)
+            fmt++;
     }
 }
 
@@ -246,7 +316,8 @@ static int esp_misalign_reported = 0;
 
 void serial_printf(const char *fmt, ...) {
     bool take = bkl_is_initialized();
-    if (take) bkl_lock();
+    if (take)
+        bkl_lock();
     if (!esp_misalign_reported) {
         uint32_t esp_val;
         __asm__ volatile("mov %%esp, %0" : "=r"(esp_val));
@@ -290,18 +361,21 @@ void serial_printf(const char *fmt, ...) {
     __builtin_va_start(ap, fmt);
     vserial_printf(fmt, ap);
     __builtin_va_end(ap);
-    if (take) bkl_unlock();
+    if (take)
+        bkl_unlock();
 }
 
 /* Append a line to the circular log buffer.  line should NOT contain '\n'. */
 static void log_buffer_append(const char *line) {
     size_t len = strlen(line);
-    if (len >= LOG_LINE_MAX) len = LOG_LINE_MAX - 1;
+    if (len >= LOG_LINE_MAX)
+        len = LOG_LINE_MAX - 1;
     memcpy(log_buffer[log_write_idx], line, len);
     log_buffer[log_write_idx][len] = '\0';
 
     log_write_idx = (log_write_idx + 1) % LOG_BUFFER_LINES;
-    if (log_stored < LOG_BUFFER_LINES) log_stored++;
+    if (log_stored < LOG_BUFFER_LINES)
+        log_stored++;
 }
 
 void print_log_buffer(void) {
@@ -314,7 +388,7 @@ void print_log_buffer(void) {
     if (log_stored < LOG_BUFFER_LINES) {
         start = 0;
     } else {
-        start = log_write_idx;          /* oldest was overwritten here */
+        start = log_write_idx; /* oldest was overwritten here */
     }
     for (uint32_t i = 0; i < log_stored; i++) {
         uint32_t idx = (start + i) % LOG_BUFFER_LINES;
@@ -323,16 +397,24 @@ void print_log_buffer(void) {
     }
 }
 
-void set_log_level(log_level_t level) { current_log_level = level; }
+void set_log_level(log_level_t level) {
+    current_log_level = level;
+}
 
 const char *get_log_level_name(void) {
     switch (current_log_level) {
-    case LOG_DEBUG: return "DEBUG";
-    case LOG_INFO:  return "INFO";
-    case LOG_WARN:  return "WARN";
-    case LOG_ERROR: return "ERROR";
-    case LOG_PANIC: return "PANIC";
-    default:        return "UNKNOWN";
+        case LOG_DEBUG:
+            return "DEBUG";
+        case LOG_INFO:
+            return "INFO";
+        case LOG_WARN:
+            return "WARN";
+        case LOG_ERROR:
+            return "ERROR";
+        case LOG_PANIC:
+            return "PANIC";
+        default:
+            return "UNKNOWN";
     }
 }
 
@@ -345,19 +427,21 @@ static void klog_emit_char(char *line, int *pos, char ch) {
 }
 
 void klog(log_level_t level, const char *fmt, ...) {
-    if (level < current_log_level) return;
+    if (level < current_log_level)
+        return;
 
     bool take = bkl_is_initialized();
-    if (take) bkl_lock();
+    if (take)
+        bkl_lock();
 
     /* Build line into a local buffer for the in-memory log */
     char line[LOG_LINE_MAX];
-    int  pos = 0;
+    int pos = 0;
 
     /* timestamp */
-    uint32_t ms      = timer_get_uptime_ms();
+    uint32_t ms = timer_get_uptime_ms();
     uint32_t seconds = ms / 1000;
-    uint32_t millis  = ms % 1000;
+    uint32_t millis = ms % 1000;
 
     /* Write timestamp to serial and to line buffer */
     serial_write_char('[');
@@ -365,31 +449,48 @@ void klog(log_level_t level, const char *fmt, ...) {
 
     /* seconds */
     {
-        char tmp[12]; int t = 0;
+        char tmp[12];
+        int t = 0;
         uint32_t s = seconds;
-        if (s == 0) { tmp[t++] = '0'; }
-        else { while (s > 0) { tmp[t++] = (char)('0' + (s % 10)); s /= 10; } }
+        if (s == 0) {
+            tmp[t++] = '0';
+        } else {
+            while (s > 0) {
+                tmp[t++] = (char)('0' + (s % 10));
+                s /= 10;
+            }
+        }
         while (t > 0) {
             char ch = tmp[--t];
             serial_write_char(ch);
-            if (pos < LOG_LINE_MAX - 1) line[pos++] = ch;
+            if (pos < LOG_LINE_MAX - 1)
+                line[pos++] = ch;
         }
     }
     serial_write_char('.');
-    if (pos < LOG_LINE_MAX - 1) line[pos++] = '.';
+    if (pos < LOG_LINE_MAX - 1)
+        line[pos++] = '.';
 
     /* zero-padded millis */
     {
         char d0 = (char)('0' + (millis / 100));
         char d1 = (char)('0' + ((millis / 10) % 10));
         char d2 = (char)('0' + (millis % 10));
-        serial_write_char(d0); if (pos < LOG_LINE_MAX-1) line[pos++] = d0;
-        serial_write_char(d1); if (pos < LOG_LINE_MAX-1) line[pos++] = d1;
-        serial_write_char(d2); if (pos < LOG_LINE_MAX-1) line[pos++] = d2;
+        serial_write_char(d0);
+        if (pos < LOG_LINE_MAX - 1)
+            line[pos++] = d0;
+        serial_write_char(d1);
+        if (pos < LOG_LINE_MAX - 1)
+            line[pos++] = d1;
+        serial_write_char(d2);
+        if (pos < LOG_LINE_MAX - 1)
+            line[pos++] = d2;
     }
     serial_write_string("] ");
-    if (pos < LOG_LINE_MAX-1) line[pos++] = ']';
-    if (pos < LOG_LINE_MAX-1) line[pos++] = ' ';
+    if (pos < LOG_LINE_MAX - 1)
+        line[pos++] = ']';
+    if (pos < LOG_LINE_MAX - 1)
+        line[pos++] = ' ';
 
     /* user message */
     __builtin_va_list ap;
@@ -398,7 +499,8 @@ void klog(log_level_t level, const char *fmt, ...) {
     while (*fmt) {
         if (*fmt != '%') {
             serial_write_char(*fmt);
-            if (pos < LOG_LINE_MAX - 1) line[pos++] = *fmt;
+            if (pos < LOG_LINE_MAX - 1)
+                line[pos++] = *fmt;
             fmt++;
             continue;
         }
@@ -416,68 +518,62 @@ void klog(log_level_t level, const char *fmt, ...) {
         }
 
         switch (*fmt) {
-        case 's': {
-            const char *s = __builtin_va_arg(ap, const char *);
-            if (!s) s = "(null)";
-            serial_write_string(s);
-            while (*s && pos < LOG_LINE_MAX - 1) { line[pos++] = *s; s++; }
-            break;
-        }
-        case 'd': {
-            int v = __builtin_va_arg(ap, int);
-            bool negative = v < 0;
-            uint32_t uv = negative
-                ? 0u - (uint32_t)v
-                : (uint32_t)v;
-            char tmp[12]; int t = 0;
-            if (uv == 0) { tmp[t++] = '0'; }
-            else { while (uv > 0) { tmp[t++] = (char)('0' + (uv % 10)); uv /= 10; } }
-            int total = t + (negative ? 1 : 0);
-            if (pad_ch == '0' && negative) {
-                klog_emit_char(line, &pos, '-');
-                while (total < width) {
-                    klog_emit_char(line, &pos, '0');
-                    total++;
+            case 's': {
+                const char *s = __builtin_va_arg(ap, const char *);
+                if (!s)
+                    s = "(null)";
+                serial_write_string(s);
+                while (*s && pos < LOG_LINE_MAX - 1) {
+                    line[pos++] = *s;
+                    s++;
                 }
-            } else {
-                while (total < width) {
-                    klog_emit_char(line, &pos, pad_ch);
-                    total++;
+                break;
+            }
+            case 'd': {
+                int v = __builtin_va_arg(ap, int);
+                bool negative = v < 0;
+                uint32_t uv = negative ? 0u - (uint32_t)v : (uint32_t)v;
+                char tmp[12];
+                int t = 0;
+                if (uv == 0) {
+                    tmp[t++] = '0';
+                } else {
+                    while (uv > 0) {
+                        tmp[t++] = (char)('0' + (uv % 10));
+                        uv /= 10;
+                    }
                 }
-                if (negative) klog_emit_char(line, &pos, '-');
+                int total = t + (negative ? 1 : 0);
+                if (pad_ch == '0' && negative) {
+                    klog_emit_char(line, &pos, '-');
+                    while (total < width) {
+                        klog_emit_char(line, &pos, '0');
+                        total++;
+                    }
+                } else {
+                    while (total < width) {
+                        klog_emit_char(line, &pos, pad_ch);
+                        total++;
+                    }
+                    if (negative)
+                        klog_emit_char(line, &pos, '-');
+                }
+                while (t > 0) {
+                    char ch = tmp[--t];
+                    klog_emit_char(line, &pos, ch);
+                }
+                break;
             }
-            while (t > 0) {
-                char ch = tmp[--t];
-                klog_emit_char(line, &pos, ch);
-            }
-            break;
-        }
-        case 'u': {
-            uint32_t uv = __builtin_va_arg(ap, uint32_t);
-            char tmp[12]; int t = 0;
-            if (uv == 0) { tmp[t++] = '0'; }
-            else { while (uv > 0) { tmp[t++] = (char)('0' + (uv % 10)); uv /= 10; } }
-            int total = t;
-            while (total < width) {
-                klog_emit_char(line, &pos, pad_ch);
-                total++;
-            }
-            while (t > 0) {
-                char ch = tmp[--t];
-                klog_emit_char(line, &pos, ch);
-            }
-            break;
-        }
-        case 'x': {
-            uint32_t xv = __builtin_va_arg(ap, uint32_t);
-            const char hex[] = "0123456789abcdef";
-            if (width > 0) {
-                char tmp[16]; int t = 0;
-                if (xv == 0) tmp[t++] = '0';
-                else {
-                    while (xv > 0) {
-                        tmp[t++] = hex[xv & 0xFu];
-                        xv >>= 4;
+            case 'u': {
+                uint32_t uv = __builtin_va_arg(ap, uint32_t);
+                char tmp[12];
+                int t = 0;
+                if (uv == 0) {
+                    tmp[t++] = '0';
+                } else {
+                    while (uv > 0) {
+                        tmp[t++] = (char)('0' + (uv % 10));
+                        uv /= 10;
                     }
                 }
                 int total = t;
@@ -486,60 +582,103 @@ void klog(log_level_t level, const char *fmt, ...) {
                     total++;
                 }
                 while (t > 0) {
-                    klog_emit_char(line, &pos, tmp[--t]);
+                    char ch = tmp[--t];
+                    klog_emit_char(line, &pos, ch);
                 }
-            } else {
-                char buf2[11]; buf2[0]='0'; buf2[1]='x';
-                for (int i2 = 9; i2 >= 2; i2--) { buf2[i2] = hex[xv & 0xF]; xv >>= 4; }
+                break;
+            }
+            case 'x': {
+                uint32_t xv = __builtin_va_arg(ap, uint32_t);
+                const char hex[] = "0123456789abcdef";
+                if (width > 0) {
+                    char tmp[16];
+                    int t = 0;
+                    if (xv == 0)
+                        tmp[t++] = '0';
+                    else {
+                        while (xv > 0) {
+                            tmp[t++] = hex[xv & 0xFu];
+                            xv >>= 4;
+                        }
+                    }
+                    int total = t;
+                    while (total < width) {
+                        klog_emit_char(line, &pos, pad_ch);
+                        total++;
+                    }
+                    while (t > 0) {
+                        klog_emit_char(line, &pos, tmp[--t]);
+                    }
+                } else {
+                    char buf2[11];
+                    buf2[0] = '0';
+                    buf2[1] = 'x';
+                    for (int i2 = 9; i2 >= 2; i2--) {
+                        buf2[i2] = hex[xv & 0xF];
+                        xv >>= 4;
+                    }
+                    buf2[10] = '\0';
+                    serial_write_string(buf2);
+                    for (int i2 = 0; buf2[i2] && pos < LOG_LINE_MAX - 1; i2++)
+                        line[pos++] = buf2[i2];
+                }
+                break;
+            }
+            case 'p': {
+                uint32_t pv = (uint32_t)__builtin_va_arg(ap, void *);
+                const char hex[] = "0123456789abcdef";
+                char buf2[11];
+                buf2[0] = '0';
+                buf2[1] = 'x';
+                for (int i2 = 9; i2 >= 2; i2--) {
+                    buf2[i2] = hex[pv & 0xF];
+                    pv >>= 4;
+                }
                 buf2[10] = '\0';
                 serial_write_string(buf2);
-                for (int i2 = 0; buf2[i2] && pos < LOG_LINE_MAX-1; i2++) line[pos++] = buf2[i2];
+                for (int i2 = 0; buf2[i2] && pos < LOG_LINE_MAX - 1; i2++)
+                    line[pos++] = buf2[i2];
+                break;
             }
-            break;
-        }
-        case 'p': {
-            uint32_t pv = (uint32_t)__builtin_va_arg(ap, void *);
-            const char hex[] = "0123456789abcdef";
-            char buf2[11]; buf2[0]='0'; buf2[1]='x';
-            for (int i2 = 9; i2 >= 2; i2--) { buf2[i2] = hex[pv & 0xF]; pv >>= 4; }
-            buf2[10] = '\0';
-            serial_write_string(buf2);
-            for (int i2 = 0; buf2[i2] && pos < LOG_LINE_MAX-1; i2++) line[pos++] = buf2[i2];
-            break;
-        }
-        case 'c': {
-            char cv = (char)__builtin_va_arg(ap, int);
-            serial_write_char(cv);
-            if (pos < LOG_LINE_MAX-1) line[pos++] = cv;
-            break;
-        }
-        case '%':
-            serial_write_char('%');
-            if (pos < LOG_LINE_MAX-1) line[pos++] = '%';
-            break;
-        default:
-            klog_emit_char(line, &pos, '%');
-            if (pad_ch == '0') klog_emit_char(line, &pos, '0');
-            if (width > 0) {
-                char tmp[12]; int t = 0;
-                int remaining = width;
-                while (remaining > 0) {
-                    tmp[t++] = (char)('0' + (remaining % 10));
-                    remaining /= 10;
-                }
-                while (t > 0) {
-                    klog_emit_char(line, &pos, tmp[--t]);
-                }
+            case 'c': {
+                char cv = (char)__builtin_va_arg(ap, int);
+                serial_write_char(cv);
+                if (pos < LOG_LINE_MAX - 1)
+                    line[pos++] = cv;
+                break;
             }
-            klog_emit_char(line, &pos, *fmt);
-            break;
+            case '%':
+                serial_write_char('%');
+                if (pos < LOG_LINE_MAX - 1)
+                    line[pos++] = '%';
+                break;
+            default:
+                klog_emit_char(line, &pos, '%');
+                if (pad_ch == '0')
+                    klog_emit_char(line, &pos, '0');
+                if (width > 0) {
+                    char tmp[12];
+                    int t = 0;
+                    int remaining = width;
+                    while (remaining > 0) {
+                        tmp[t++] = (char)('0' + (remaining % 10));
+                        remaining /= 10;
+                    }
+                    while (t > 0) {
+                        klog_emit_char(line, &pos, tmp[--t]);
+                    }
+                }
+                klog_emit_char(line, &pos, *fmt);
+                break;
         }
-        if (*fmt) fmt++;
+        if (*fmt)
+            fmt++;
     }
     __builtin_va_end(ap);
 
     serial_write_char('\n');
     line[pos] = '\0';
     log_buffer_append(line);
-    if (take) bkl_unlock();
+    if (take)
+        bkl_unlock();
 }

@@ -3,58 +3,63 @@
  *
  * Compiled through the checked Doom source-tree CupidC profile. Kernel
  * symbols are included explicitly.
-*/
+ */
 
-#include "types.h"
-#include "string.h"
 #include "memory.h"
-#include "serial.h"
 #include "mixer.h"
+#include "serial.h"
 #include "src/i_sound.h"
 #include "src/w_wad.h"
+#include "string.h"
+#include "types.h"
 
 /* Per-lump cache: u8/11025Hz mono -> s16/22050Hz mono, allocated lazily.
  * Indexed by WAD lump number.  WADs rarely exceed 4096 lumps so 4096
  * slots keeps memory use reasonable (4096 * 12 bytes = 48 KB for the
  * table itself; PCM buffers are heap-allocated on demand).
-*/
+ */
 #define MAX_CACHED_SFX 4096
 
 typedef struct {
-    int16_t  *pcm;
-    uint32_t  frames;
-    uint8_t   cached;
+    int16_t *pcm;
+    uint32_t frames;
+    uint8_t cached;
 } sfx_cache_entry_t;
 
 static sfx_cache_entry_t s_cache[MAX_CACHED_SFX];
 
 /* Resample a DOOM SFX lump into the cache */
 
-static int cache_sfx(sfxinfo_t *sfx)
-{
+static int cache_sfx(sfxinfo_t *sfx) {
     int lumpnum = sfx->lumpnum;
-    if (lumpnum < 0 || lumpnum >= MAX_CACHED_SFX) { return -1; }
+    if (lumpnum < 0 || lumpnum >= MAX_CACHED_SFX) {
+        return -1;
+    }
 
     sfx_cache_entry_t *e = &s_cache[lumpnum];
-    if (e->cached) { return 0; }
+    if (e->cached) {
+        return 0;
+    }
 
     int len = W_LumpLength((unsigned int)lumpnum);
     uint8_t *raw = (uint8_t *)W_CacheLumpNum(lumpnum, 1); /* PU_STATIC = 1 */
-    if (!raw || len < 8) { return -1; }
+    if (!raw || len < 8) {
+        return -1;
+    }
 
     /* DOOM DMX SFX header layout:
      *   bytes 0-1: format word (should be 3)
      *   bytes 2-3: sample rate (little-endian u16)
      *   bytes 4-7: sample count (little-endian u32)
      *   bytes 8..: raw u8 PCM samples (0=min, 255=max, 128=silence)
-*/
+     */
     uint32_t rate = (uint32_t)raw[2] | ((uint32_t)raw[3] << 8);
-    if (rate == 0) { rate = 11025u; }
+    if (rate == 0) {
+        rate = 11025u;
+    }
 
-    uint32_t samples = (uint32_t)raw[4]
-                     | ((uint32_t)raw[5] << 8)
-                     | ((uint32_t)raw[6] << 16)
-                     | ((uint32_t)raw[7] << 24);
+    uint32_t samples = (uint32_t)raw[4] | ((uint32_t)raw[5] << 8) | ((uint32_t)raw[6] << 16) |
+                       ((uint32_t)raw[7] << 24);
 
     /* DMX SFX lumps include 16 bytes of padding both before and after
      * the audible samples (typically replicating the first / last
@@ -66,17 +71,23 @@ static int cache_sfx(sfxinfo_t *sfx)
         samples = (uint32_t)len - 8u;
     }
     if (samples >= 32u) {
-        pcm_off  = 8u + 16u;       /* skip leading pad */
-        samples -= 32u;            /* drop both pads from the sample count */
+        pcm_off = 8u + 16u; /* skip leading pad */
+        samples -= 32u;     /* drop both pads from the sample count */
     }
-    if (samples == 0) { return -1; }
+    if (samples == 0) {
+        return -1;
+    }
 
     /* Linear resample to mixer rate (22050 Hz) */
     uint32_t out_frames = (uint32_t)(((uint64_t)samples * 22050u) / rate);
-    if (out_frames == 0) { out_frames = 1; }
+    if (out_frames == 0) {
+        out_frames = 1;
+    }
 
     int16_t *out = (int16_t *)kmalloc(out_frames * sizeof(int16_t));
-    if (!out) { return -1; }
+    if (!out) {
+        return -1;
+    }
 
     for (uint32_t i = 0; i < out_frames; i++) {
         /* Fixed-point source index (16.16) */
@@ -90,17 +101,21 @@ static int cache_sfx(sfxinfo_t *sfx)
         }
 
         /* u8 -> s16: centre at 128, scale to s16 range */
-        int32_t s0 = ((int32_t)raw[pcm_off + si]      - 128) * 256;
+        int32_t s0 = ((int32_t)raw[pcm_off + si] - 128) * 256;
         int32_t s1 = ((int32_t)raw[pcm_off + si + 1u] - 128) * 256;
-        int32_t v  = s0 + (((s1 - s0) * (int32_t)fr) >> 16);
+        int32_t v = s0 + (((s1 - s0) * (int32_t)fr) >> 16);
 
         /* Clamp to s16 */
-        if (v >  32767) { v =  32767; }
-        if (v < -32768) { v = -32768; }
+        if (v > 32767) {
+            v = 32767;
+        }
+        if (v < -32768) {
+            v = -32768;
+        }
         out[i] = (int16_t)v;
     }
 
-    e->pcm    = out;
+    e->pcm = out;
     e->frames = out_frames;
     e->cached = 1;
     return 0;
@@ -108,12 +123,11 @@ static int cache_sfx(sfxinfo_t *sfx)
 
 /* sound_module_t implementations */
 
-static boolean cup_init(boolean use_sfx_prefix)
-{
+static boolean cup_init(boolean use_sfx_prefix) {
     (void)use_sfx_prefix;
     uint32_t i;
     for (i = 0; i < MAX_CACHED_SFX; i++) {
-        s_cache[i].pcm    = (int16_t *)0;
+        s_cache[i].pcm = (int16_t *)0;
         s_cache[i].frames = 0;
         s_cache[i].cached = 0;
     }
@@ -121,13 +135,11 @@ static boolean cup_init(boolean use_sfx_prefix)
     return true;
 }
 
-static void cup_shutdown(void)
-{
+static void cup_shutdown(void) {
     /* Leave cache in place; memory released at process end. */
 }
 
-static int cup_get_sfx_lumpnum(sfxinfo_t *sfx)
-{
+static int cup_get_sfx_lumpnum(sfxinfo_t *sfx) {
     /* DOOM convention: prefix "DS" + uppercase sfx name */
     char n[16];
     int i;
@@ -135,62 +147,77 @@ static int cup_get_sfx_lumpnum(sfxinfo_t *sfx)
     n[1] = 'S';
     for (i = 0; i < 13 && sfx->name[i] != '\0'; i++) {
         char c = sfx->name[i];
-        if (c >= 'a' && c <= 'z') { c = (char)(c - ('a' - 'A')); }
+        if (c >= 'a' && c <= 'z') {
+            c = (char)(c - ('a' - 'A'));
+        }
         n[i + 2] = c;
     }
     n[i + 2] = '\0';
     return W_GetNumForName(n);
 }
 
-static void cup_update(void) {}
+static void cup_update(void) {
+}
 
-static void cup_update_sound_params(int channel, int vol, int sep)
-{
+static void cup_update_sound_params(int channel, int vol, int sep) {
     int slot = channel & 7;
     /* sep: 1..254 (127 = centre); left weight ∝ (254 - sep) */
-    if (sep < 1)   { sep = 1; }
-    if (sep > 254) { sep = 254; }
+    if (sep < 1) {
+        sep = 1;
+    }
+    if (sep > 254) {
+        sep = 254;
+    }
     uint32_t l = ((uint32_t)vol * (uint32_t)(254 - sep)) / 254u;
-    uint32_t r = ((uint32_t)vol * (uint32_t)sep)         / 254u;
+    uint32_t r = ((uint32_t)vol * (uint32_t)sep) / 254u;
     /* Clamp to 0-255 */
-    if (l > 255u) { l = 255u; }
-    if (r > 255u) { r = 255u; }
+    if (l > 255u) {
+        l = 255u;
+    }
+    if (r > 255u) {
+        r = 255u;
+    }
     mixer_set_volume(slot, (uint8_t)l, (uint8_t)r);
 }
 
 /* StartSound: 4 parameters per the actual i_sound.h (no pitch arg) */
-static int cup_start_sound(sfxinfo_t *sfx, int channel, int vol, int sep)
-{
-    if (cache_sfx(sfx) != 0) { return -1; }
+static int cup_start_sound(sfxinfo_t *sfx, int channel, int vol, int sep) {
+    if (cache_sfx(sfx) != 0) {
+        return -1;
+    }
 
     sfx_cache_entry_t *e = &s_cache[sfx->lumpnum];
     int slot = channel & 7;
 
-    if (sep < 1)   { sep = 1; }
-    if (sep > 254) { sep = 254; }
+    if (sep < 1) {
+        sep = 1;
+    }
+    if (sep > 254) {
+        sep = 254;
+    }
     uint32_t l = ((uint32_t)vol * (uint32_t)(254 - sep)) / 254u;
-    uint32_t r = ((uint32_t)vol * (uint32_t)sep)         / 254u;
-    if (l > 255u) { l = 255u; }
-    if (r > 255u) { r = 255u; }
+    uint32_t r = ((uint32_t)vol * (uint32_t)sep) / 254u;
+    if (l > 255u) {
+        l = 255u;
+    }
+    if (r > 255u) {
+        r = 255u;
+    }
 
     mixer_play(slot, e->pcm, e->frames,
-               /* channels= */1, /* loop= */0,
-               (uint8_t)l, (uint8_t)r);
+               /* channels= */ 1, /* loop= */ 0, (uint8_t)l, (uint8_t)r);
     return slot;
 }
 
-static void cup_stop_sound(int channel)
-{
+static void cup_stop_sound(int channel) {
     mixer_stop(channel & 7);
 }
 
-static boolean cup_sound_is_playing(int channel)
-{
+static boolean cup_sound_is_playing(int channel) {
     return mixer_active(channel & 7) ? true : false;
 }
 
-static void cup_precache_sounds(sfxinfo_t *sounds, int num_sounds)
-{
+static void cup_precache_sounds(sfxinfo_t *sounds, int num_sounds) {
     int i;
     for (i = 0; i < num_sounds; i++) {
         cache_sfx(&sounds[i]);
@@ -200,67 +227,58 @@ static void cup_precache_sounds(sfxinfo_t *sounds, int num_sounds)
 /* Module descriptor */
 
 /* sound_devices must be non-const snddevice_t* per the struct def */
-static snddevice_t cup_devices[] = { SNDDEVICE_SB };
+static snddevice_t cup_devices[] = {SNDDEVICE_SB};
 
 sound_module_t cupidos_sound_module = {
-    .sound_devices      = cup_devices,
-    .num_sound_devices  = 1,
-    .Init               = cup_init,
-    .Shutdown           = cup_shutdown,
-    .GetSfxLumpNum      = cup_get_sfx_lumpnum,
-    .Update             = cup_update,
-    .UpdateSoundParams  = cup_update_sound_params,
-    .StartSound         = cup_start_sound,
-    .StopSound          = cup_stop_sound,
-    .SoundIsPlaying     = cup_sound_is_playing,
-    .CacheSounds        = cup_precache_sounds,
+    .sound_devices = cup_devices,
+    .num_sound_devices = 1,
+    .Init = cup_init,
+    .Shutdown = cup_shutdown,
+    .GetSfxLumpNum = cup_get_sfx_lumpnum,
+    .Update = cup_update,
+    .UpdateSoundParams = cup_update_sound_params,
+    .StartSound = cup_start_sound,
+    .StopSound = cup_stop_sound,
+    .SoundIsPlaying = cup_sound_is_playing,
+    .CacheSounds = cup_precache_sounds,
 };
 
 /* Top-level I_ wrappers: these are what the DOOM source calls */
 
-void I_InitSound(boolean use_sfx_prefix)
-{
+void I_InitSound(boolean use_sfx_prefix) {
     cup_init(use_sfx_prefix);
 }
 
-void I_ShutdownSound(void)
-{
+void I_ShutdownSound(void) {
     cup_shutdown();
 }
 
-int I_GetSfxLumpNum(sfxinfo_t *sfxinfo)
-{
+int I_GetSfxLumpNum(sfxinfo_t *sfxinfo) {
     return cup_get_sfx_lumpnum(sfxinfo);
 }
 
-void I_UpdateSound(void)
-{
+void I_UpdateSound(void) {
     cup_update();
 }
 
-void I_UpdateSoundParams(int channel, int vol, int sep)
-{
+void I_UpdateSoundParams(int channel, int vol, int sep) {
     cup_update_sound_params(channel, vol, sep);
 }
 
 /* Match the 4-parameter signature in i_sound.h */
-int I_StartSound(sfxinfo_t *sfxinfo, int channel, int vol, int sep)
-{
+int I_StartSound(sfxinfo_t *sfxinfo, int channel, int vol, int sep) {
     return cup_start_sound(sfxinfo, channel, vol, sep);
 }
 
-void I_StopSound(int channel)
-{
+void I_StopSound(int channel) {
     cup_stop_sound(channel);
 }
 
-boolean I_SoundIsPlaying(int channel)
-{
+boolean I_SoundIsPlaying(int channel) {
     return cup_sound_is_playing(channel);
 }
 
-void I_PrecacheSounds(sfxinfo_t *sounds, int num_sounds)
-{
+void I_PrecacheSounds(sfxinfo_t *sounds, int num_sounds) {
     cup_precache_sounds(sounds, num_sounds);
 }
 
@@ -287,17 +305,16 @@ void I_PrecacheSounds(sfxinfo_t *sounds, int num_sounds)
  * TODO: full port of chocolate-doom's i_oplmusic.c (~1900 lines) to
  * close these. Until then DOOM music will play but won't sound like
  * the original. SFX is unaffected: that path is 100% of vanilla.
-*/
+ */
 #include "midiopl.h"
 /* Forward-declare mus2midi_convert directly to avoid the boolean typedef
  * conflict between mus2midi.h (boolean=int) and doomtype.h (boolean=uint).*/
-int mus2midi_convert(const uint8_t *mus, uint32_t mus_len,
-                     uint8_t **out_midi, uint32_t *out_len);
+int mus2midi_convert(const uint8_t *mus, uint32_t mus_len, uint8_t **out_midi, uint32_t *out_len);
 
-static int      s_music_inited = 0;
-static uint8_t *s_midi_buf     = 0;
-static uint32_t s_midi_len     = 0;
-static int      s_music_loop   = 0;
+static int s_music_inited = 0;
+static uint8_t *s_midi_buf = 0;
+static uint32_t s_midi_len = 0;
+static int s_music_loop = 0;
 
 /* Standard MIDI File (SMF) player
  *
@@ -323,32 +340,31 @@ static int      s_music_loop   = 0;
 #define SMF_MAX_TRACKS 32
 
 typedef struct {
-    uint32_t pos;           /* offset into s_midi_buf of next byte */
-    uint32_t end;           /* exclusive end of this MTrk */
-    uint32_t wait_us;       /* us remaining until this track's next event */
-    uint8_t  running_status;
-    uint8_t  ended;
+    uint32_t pos;     /* offset into s_midi_buf of next byte */
+    uint32_t end;     /* exclusive end of this MTrk */
+    uint32_t wait_us; /* us remaining until this track's next event */
+    uint8_t running_status;
+    uint8_t ended;
 } smf_track_t;
 
 typedef struct {
     smf_track_t tracks[SMF_MAX_TRACKS];
-    uint16_t    n_tracks;
-    uint16_t    division;   /* ticks per quarter note */
-    uint32_t    us_per_tick;
-    uint8_t     all_ended;
+    uint16_t n_tracks;
+    uint16_t division; /* ticks per quarter note */
+    uint32_t us_per_tick;
+    uint8_t all_ended;
 } smf_player_t;
 
 static smf_player_t s_smf;
 
 /* Read a 32-bit big-endian value at off, return it; advance off by 4. */
 static uint32_t smf_be32(const uint8_t *buf, uint32_t off) {
-    return ((uint32_t)buf[off]   << 24)
-         | ((uint32_t)buf[off+1] << 16)
-         | ((uint32_t)buf[off+2] <<  8)
-         |  (uint32_t)buf[off+3];
+    return ((uint32_t)buf[off] << 24) | ((uint32_t)buf[off + 1] << 16) |
+           ((uint32_t)buf[off + 2] << 8) | (uint32_t)buf[off + 3];
 }
+
 static uint16_t smf_be16(const uint8_t *buf, uint32_t off) {
-    return (uint16_t)(((uint16_t)buf[off] << 8) | buf[off+1]);
+    return (uint16_t)(((uint16_t)buf[off] << 8) | buf[off + 1]);
 }
 
 /* Decode a SMF variable-length quantity. Returns the value; *off is
@@ -357,10 +373,12 @@ static uint32_t smf_vlq(const uint8_t *buf, uint32_t *off, uint32_t end) {
     uint32_t v = 0;
     int i;
     for (i = 0; i < 4; i++) {
-        if (*off >= end) return v;
+        if (*off >= end)
+            return v;
         uint8_t b = buf[(*off)++];
         v = (v << 7) | (uint32_t)(b & 0x7Fu);
-        if ((b & 0x80u) == 0) break;
+        if ((b & 0x80u) == 0)
+            break;
     }
     return v;
 }
@@ -369,33 +387,37 @@ static uint32_t smf_vlq(const uint8_t *buf, uint32_t *off, uint32_t end) {
  * fills s_smf with division + per-track cursors.*/
 static int smf_init(void) {
     s_smf.all_ended = 1;
-    s_smf.n_tracks  = 0;
-    if (s_midi_len < 14) return -1;
-    if (s_midi_buf[0] != 'M' || s_midi_buf[1] != 'T'
-     || s_midi_buf[2] != 'h' || s_midi_buf[3] != 'd') return -1;
+    s_smf.n_tracks = 0;
+    if (s_midi_len < 14)
+        return -1;
+    if (s_midi_buf[0] != 'M' || s_midi_buf[1] != 'T' || s_midi_buf[2] != 'h' ||
+        s_midi_buf[3] != 'd')
+        return -1;
 
     uint32_t mthd_len = smf_be32(s_midi_buf, 4);
-    if (mthd_len < 6 || 8 + mthd_len > s_midi_len) return -1;
+    if (mthd_len < 6 || 8 + mthd_len > s_midi_len)
+        return -1;
     s_smf.division = smf_be16(s_midi_buf, 12);
     if (s_smf.division == 0 || (s_smf.division & 0x8000u)) {
         /* SMPTE divisions: not used by DOOM music; fall back to 96. */
         s_smf.division = 96;
     }
-    s_smf.us_per_tick = 500000u / s_smf.division;  /* default 120 BPM */
+    s_smf.us_per_tick = 500000u / s_smf.division; /* default 120 BPM */
 
     /* Walk every MTrk chunk, install a cursor per track. */
     uint32_t off = 8 + mthd_len;
     while (off + 8 <= s_midi_len && s_smf.n_tracks < SMF_MAX_TRACKS) {
         uint32_t chunk_len = smf_be32(s_midi_buf, off + 4);
         uint32_t after = off + 8 + chunk_len;
-        if (after > s_midi_len) break;
-        if (s_midi_buf[off] == 'M' && s_midi_buf[off+1] == 'T'
-         && s_midi_buf[off+2] == 'r' && s_midi_buf[off+3] == 'k') {
+        if (after > s_midi_len)
+            break;
+        if (s_midi_buf[off] == 'M' && s_midi_buf[off + 1] == 'T' && s_midi_buf[off + 2] == 'r' &&
+            s_midi_buf[off + 3] == 'k') {
             smf_track_t *t = &s_smf.tracks[s_smf.n_tracks++];
-            t->pos            = off + 8;
-            t->end            = after;
+            t->pos = off + 8;
+            t->end = after;
             t->running_status = 0;
-            t->ended          = 0;
+            t->ended = 0;
             uint32_t delta = smf_vlq(s_midi_buf, &t->pos, t->end);
             t->wait_us = delta * s_smf.us_per_tick;
         }
@@ -413,24 +435,36 @@ static void smf_reset(void) {
 /* Fire one event from the given track. Returns 0 on success, 1 on
  * end-of-track. Does not read the next delta-time (caller handles it).*/
 static int smf_track_fire(smf_track_t *t) {
-    if (t->pos >= t->end) { t->ended = 1; return 1; }
+    if (t->pos >= t->end) {
+        t->ended = 1;
+        return 1;
+    }
     uint8_t b = s_midi_buf[t->pos];
 
     /* Meta event: 0xFF NN LL data... */
     if (b == 0xFFu) {
-        if (t->pos + 2 > t->end) { t->ended = 1; return 1; }
+        if (t->pos + 2 > t->end) {
+            t->ended = 1;
+            return 1;
+        }
         uint8_t meta_type = s_midi_buf[t->pos + 1];
         uint32_t p = t->pos + 2;
         uint32_t mlen = smf_vlq(s_midi_buf, &p, t->end);
-        if (p + mlen > t->end) { t->ended = 1; return 1; }
-        if (meta_type == 0x2Fu) { t->ended = 1; return 1; }
+        if (p + mlen > t->end) {
+            t->ended = 1;
+            return 1;
+        }
+        if (meta_type == 0x2Fu) {
+            t->ended = 1;
+            return 1;
+        }
         if (meta_type == 0x51u && mlen == 3) {
-            uint32_t tempo = ((uint32_t)s_midi_buf[p]   << 16)
-                           | ((uint32_t)s_midi_buf[p+1] <<  8)
-                           |  (uint32_t)s_midi_buf[p+2];
+            uint32_t tempo = ((uint32_t)s_midi_buf[p] << 16) | ((uint32_t)s_midi_buf[p + 1] << 8) |
+                             (uint32_t)s_midi_buf[p + 2];
             if (tempo > 0) {
                 s_smf.us_per_tick = tempo / s_smf.division;
-                if (s_smf.us_per_tick == 0) s_smf.us_per_tick = 1;
+                if (s_smf.us_per_tick == 0)
+                    s_smf.us_per_tick = 1;
             }
         }
         t->pos = p + mlen;
@@ -441,7 +475,10 @@ static int smf_track_fire(smf_track_t *t) {
     if (b == 0xF0u || b == 0xF7u) {
         uint32_t p = t->pos + 1;
         uint32_t slen = smf_vlq(s_midi_buf, &p, t->end);
-        if (p + slen > t->end) { t->ended = 1; return 1; }
+        if (p + slen > t->end) {
+            t->ended = 1;
+            return 1;
+        }
         t->pos = p + slen;
         return 0;
     }
@@ -449,20 +486,33 @@ static int smf_track_fire(smf_track_t *t) {
     /* Channel voice / mode message; running status applies. */
     uint8_t status;
     uint32_t p;
-    if (b & 0x80u) { status = b; p = t->pos + 1; t->running_status = status; }
-    else           { status = t->running_status; p = t->pos; }
+    if (b & 0x80u) {
+        status = b;
+        p = t->pos + 1;
+        t->running_status = status;
+    } else {
+        status = t->running_status;
+        p = t->pos;
+    }
 
-    if (status == 0) { t->pos = p + 1; return 0; }
+    if (status == 0) {
+        t->pos = p + 1;
+        return 0;
+    }
 
     uint8_t kind = (uint8_t)(status & 0xF0u);
     uint8_t needs_two = (kind != 0xC0u && kind != 0xD0u);
     uint32_t need = needs_two ? 2 : 1;
-    if (p + need > t->end) { t->ended = 1; return 1; }
+    if (p + need > t->end) {
+        t->ended = 1;
+        return 1;
+    }
 
     uint8_t msg[3];
     msg[0] = status;
     msg[1] = s_midi_buf[p];
-    if (needs_two) msg[2] = s_midi_buf[p + 1];
+    if (needs_two)
+        msg[2] = s_midi_buf[p + 1];
     midiopl_feed(msg, 1u + need);
     (void)kind;
     t->pos = p + need;
@@ -472,29 +522,38 @@ static int smf_track_fire(smf_track_t *t) {
 /* Advance the SMF clock by `pull_us` microseconds, firing every event
  * whose delta has elapsed. Returns with all live tracks' wait_us
  * decremented by exactly `pull_us` (or zero if the song ended).*/
-static void smf_advance(uint32_t pull_us)
-{
+static void smf_advance(uint32_t pull_us) {
     while (pull_us > 0u) {
         uint32_t min_wait = 0xFFFFFFFFu;
         int min_idx = -1;
         for (int i = 0; i < s_smf.n_tracks; i++) {
             smf_track_t *t = &s_smf.tracks[i];
-            if (t->ended) continue;
-            if (t->wait_us < min_wait) { min_wait = t->wait_us; min_idx = i; }
+            if (t->ended)
+                continue;
+            if (t->wait_us < min_wait) {
+                min_wait = t->wait_us;
+                min_idx = i;
+            }
         }
-        if (min_idx < 0) { s_smf.all_ended = 1; return; }
+        if (min_idx < 0) {
+            s_smf.all_ended = 1;
+            return;
+        }
         if (min_wait > pull_us) {
             for (int i = 0; i < s_smf.n_tracks; i++) {
-                if (!s_smf.tracks[i].ended) s_smf.tracks[i].wait_us -= pull_us;
+                if (!s_smf.tracks[i].ended)
+                    s_smf.tracks[i].wait_us -= pull_us;
             }
             return;
         }
         for (int i = 0; i < s_smf.n_tracks; i++) {
-            if (!s_smf.tracks[i].ended) s_smf.tracks[i].wait_us -= min_wait;
+            if (!s_smf.tracks[i].ended)
+                s_smf.tracks[i].wait_us -= min_wait;
         }
         pull_us -= min_wait;
         smf_track_t *t = &s_smf.tracks[min_idx];
-        if (smf_track_fire(t) != 0) continue;
+        if (smf_track_fire(t) != 0)
+            continue;
         if (!t->ended) {
             uint32_t delta = smf_vlq(s_midi_buf, &t->pos, t->end);
             t->wait_us = delta * s_smf.us_per_tick;
@@ -531,35 +590,36 @@ static void smf_advance(uint32_t pull_us)
  * MIDI events fire at the right sample position instead of all
  * collapsing to t=0 of a 23 ms buffer; that's what makes short notes
  * (drum hits, hi-hat, staccato) crisp.*/
-#define MUS_BUF_FRAMES   512u
-#define MUS_RING_BUFS    8u
-#define MUS_RING_FRAMES  (MUS_RING_BUFS * MUS_BUF_FRAMES)
-#define MUSIC_SUBCHUNK   64u
+#define MUS_BUF_FRAMES 512u
+#define MUS_RING_BUFS 8u
+#define MUS_RING_FRAMES (MUS_RING_BUFS * MUS_BUF_FRAMES)
+#define MUSIC_SUBCHUNK 64u
 
-static int16_t           s_mus_ring[MUS_RING_FRAMES * 2u];
-static volatile uint32_t s_mus_w;   /* monotonic frame write counter */
-static volatile uint32_t s_mus_r;   /* monotonic frame read  counter */
+static int16_t s_mus_ring[MUS_RING_FRAMES * 2u];
+static volatile uint32_t s_mus_w; /* monotonic frame write counter */
+static volatile uint32_t s_mus_r; /* monotonic frame read  counter */
 
 /* Render one MUS_BUF_FRAMES chunk through the SMF -> OPL pipeline,
  * sub-chunked so event timing is precise. Writes to `dst` (interleaved
  * stereo s16, MUS_BUF_FRAMES frames).*/
-static void render_one_buffer(int16_t *dst)
-{
+static void render_one_buffer(int16_t *dst) {
     if (s_midi_buf && !s_smf.all_ended) {
         uint32_t pos = 0u;
         while (pos < MUS_BUF_FRAMES) {
-            uint32_t chunk = (MUS_BUF_FRAMES - pos < MUSIC_SUBCHUNK)
-                           ? (MUS_BUF_FRAMES - pos) : MUSIC_SUBCHUNK;
+            uint32_t chunk =
+                (MUS_BUF_FRAMES - pos < MUSIC_SUBCHUNK) ? (MUS_BUF_FRAMES - pos) : MUSIC_SUBCHUNK;
             uint32_t pull_us = (chunk * 1000000u) / 22050u;
             smf_advance(pull_us);
             midiopl_render(&dst[pos * 2u], chunk);
             pos += chunk;
-            if (s_smf.all_ended) break;
+            if (s_smf.all_ended)
+                break;
         }
         if (pos < MUS_BUF_FRAMES) {
             midiopl_render(&dst[pos * 2u], MUS_BUF_FRAMES - pos);
         }
-        if (s_smf.all_ended && s_music_loop) smf_reset();
+        if (s_smf.all_ended && s_music_loop)
+            smf_reset();
     } else {
         midiopl_render(dst, MUS_BUF_FRAMES);
     }
@@ -569,13 +629,14 @@ static void render_one_buffer(int16_t *dst)
  * entry. The IRQ consumer can drain audio while synthesis runs; counting
  * that new space would let this call hold the game loop indefinitely.
  * A stopped consumer still gets one complete prefill, then no more work.*/
-void cup_music_pump(void)
-{
-    if (!s_music_inited) return;
+void cup_music_pump(void) {
+    if (!s_music_inited)
+        return;
     uint32_t r = s_mus_r;
     uint32_t w = s_mus_w;
     uint32_t used = w - r;
-    if (used >= MUS_RING_FRAMES) return;
+    if (used >= MUS_RING_FRAMES)
+        return;
     uint32_t buffers = (MUS_RING_FRAMES - used) / MUS_BUF_FRAMES;
     while (buffers != 0u) {
         uint32_t base = (w % MUS_RING_FRAMES) * 2u;
@@ -593,21 +654,22 @@ void cup_music_pump(void)
  * synthesis, no allocation, bounded fast path. If the producer fell
  * behind, output silence for this chunk; the consumer never blocks
  * the DMA engine waiting for samples.*/
-static void music_pull(int16_t *out, uint32_t frames, void *ctx)
-{
+static void music_pull(int16_t *out, uint32_t frames, void *ctx) {
     (void)ctx;
     uint32_t r = s_mus_r;
     uint32_t w = s_mus_w;
     uint32_t avail = w - r;
     if (avail < frames) {
         /* Underrun: emit silence and wait for producer to catch up. */
-        for (uint32_t i = 0; i < frames * 2u; i++) out[i] = 0;
+        for (uint32_t i = 0; i < frames * 2u; i++)
+            out[i] = 0;
         return;
     }
     /* Two-segment copy in case the read window straddles ring wrap. */
-    uint32_t r_idx  = r % MUS_RING_FRAMES;
-    uint32_t first  = MUS_RING_FRAMES - r_idx;
-    if (first > frames) first = frames;
+    uint32_t r_idx = r % MUS_RING_FRAMES;
+    uint32_t first = MUS_RING_FRAMES - r_idx;
+    if (first > frames)
+        first = frames;
     for (uint32_t f = 0; f < first; f++) {
         out[f * 2u + 0u] = s_mus_ring[(r_idx + f) * 2u + 0u];
         out[f * 2u + 1u] = s_mus_ring[(r_idx + f) * 2u + 1u];
@@ -620,16 +682,15 @@ static void music_pull(int16_t *out, uint32_t frames, void *ctx)
     s_mus_r = r + frames;
 }
 
-static void mus_ring_reset(void)
-{
+static void mus_ring_reset(void) {
     s_mus_w = 0u;
     s_mus_r = 0u;
-    for (uint32_t i = 0; i < MUS_RING_FRAMES * 2u; i++) s_mus_ring[i] = 0;
+    for (uint32_t i = 0; i < MUS_RING_FRAMES * 2u; i++)
+        s_mus_ring[i] = 0;
 }
 
 /* Lazy GENMIDI loader: called on first I_InitMusic */
-static int load_genmidi_from_wad(void)
-{
+static int load_genmidi_from_wad(void) {
     int gn = W_GetNumForName("GENMIDI");
     if (gn < 0) {
         serial_write_string("[i_sound] no GENMIDI in WAD\n");
@@ -637,14 +698,15 @@ static int load_genmidi_from_wad(void)
     }
     int len = W_LumpLength((unsigned int)gn);
     uint8_t *gm = (uint8_t *)W_CacheLumpNum(gn, 1); /* PU_STATIC = 1 */
-    if (!gm || len <= 0) { return -1; }
+    if (!gm || len <= 0) {
+        return -1;
+    }
     midiopl_init(gm, (uint32_t)len);
     return 0;
 }
 
 /* music_module_t implementations */
-static boolean cup_music_init(void)
-{
+static boolean cup_music_init(void) {
     if (load_genmidi_from_wad() == 0) {
         s_music_inited = 1;
         serial_write_string("[i_music] init: GENMIDI loaded\n");
@@ -654,27 +716,34 @@ static boolean cup_music_init(void)
     return false;
 }
 
-static void cup_music_shutdown(void) { mixer_stop(8); }
+static void cup_music_shutdown(void) {
+    mixer_stop(8);
+}
 
-static void cup_music_set_volume(int volume)
-{
+static void cup_music_set_volume(int volume) {
     /* DOOM passes 0..127 per music_module_t comment; clamp defensively */
-    if (volume < 0)   { volume = 0; }
-    if (volume > 127) { volume = 127; }
+    if (volume < 0) {
+        volume = 0;
+    }
+    if (volume > 127) {
+        volume = 127;
+    }
     midiopl_set_volume((uint8_t)volume);
 }
 
-static void cup_music_pause(void)   { mixer_stop(8); }
+static void cup_music_pause(void) {
+    mixer_stop(8);
+}
 
-static void cup_music_resume(void)
-{
+static void cup_music_resume(void) {
     mixer_play_stream(8, music_pull, 0, 100, 100);
 }
 
-static void *cup_music_register(void *data, int len)
-{
+static void *cup_music_register(void *data, int len) {
     if (!s_music_inited) {
-        if (load_genmidi_from_wad() != 0) { return 0; }
+        if (load_genmidi_from_wad() != 0) {
+            return 0;
+        }
         s_music_inited = 1;
     }
     if (s_midi_buf) {
@@ -688,16 +757,16 @@ static void *cup_music_register(void *data, int len)
          * MUS lumps (MUS\x1A...). Detect format by magic and only run
          * mus2midi on real MUS data; for MIDI, pass the lump straight
          * through to the OPL synth.*/
-        int is_mus  = (len >= 4
-                       && bytes[0] == 'M' && bytes[1] == 'U'
-                       && bytes[2] == 'S' && bytes[3] == 0x1A);
-        int is_midi = (len >= 4
-                       && bytes[0] == 'M' && bytes[1] == 'T'
-                       && bytes[2] == 'h' && bytes[3] == 'd');
+        int is_mus =
+            (len >= 4 && bytes[0] == 'M' && bytes[1] == 'U' && bytes[2] == 'S' && bytes[3] == 0x1A);
+        int is_midi =
+            (len >= 4 && bytes[0] == 'M' && bytes[1] == 'T' && bytes[2] == 'h' && bytes[3] == 'd');
 
         if (is_midi) {
             s_midi_buf = (uint8_t *)kmalloc((uint32_t)len);
-            if (!s_midi_buf) { return 0; }
+            if (!s_midi_buf) {
+                return 0;
+            }
             memcpy(s_midi_buf, bytes, (size_t)len);
             s_midi_len = (uint32_t)len;
             (void)smf_init();
@@ -708,8 +777,7 @@ static void *cup_music_register(void *data, int len)
             return 0;
         }
     }
-    int rc = mus2midi_convert((const uint8_t *)data, (uint32_t)len,
-                              &s_midi_buf, &s_midi_len);
+    int rc = mus2midi_convert((const uint8_t *)data, (uint32_t)len, &s_midi_buf, &s_midi_len);
     if (rc != 0) {
         serial_write_string("[i_music] mus2midi failed\n");
         return 0;
@@ -718,8 +786,7 @@ static void *cup_music_register(void *data, int len)
     return s_midi_buf;
 }
 
-static void cup_music_unregister(void *handle)
-{
+static void cup_music_unregister(void *handle) {
     (void)handle;
     if (s_midi_buf) {
         kfree(s_midi_buf);
@@ -729,8 +796,7 @@ static void cup_music_unregister(void *handle)
     mixer_stop(8);
 }
 
-static void cup_music_play(void *handle, boolean looping)
-{
+static void cup_music_play(void *handle, boolean looping) {
     (void)handle;
     s_music_loop = looping ? 1 : 0;
     smf_reset();
@@ -744,55 +810,74 @@ static void cup_music_play(void *handle, boolean looping)
     mixer_play_stream(8, music_pull, 0, 100, 100);
 }
 
-static void cup_music_stop(void) { mixer_stop(8); }
+static void cup_music_stop(void) {
+    mixer_stop(8);
+}
 
-static boolean cup_music_is_playing(void)
-{
+static boolean cup_music_is_playing(void) {
     return mixer_active(8) ? true : false;
 }
 
-static void cup_music_poll(void) {}
+static void cup_music_poll(void) {
+}
 
 music_module_t cupidos_music_module = {
-    .sound_devices    = cup_devices,
+    .sound_devices = cup_devices,
     .num_sound_devices = 1,
-    .Init             = cup_music_init,
-    .Shutdown         = cup_music_shutdown,
-    .SetMusicVolume   = cup_music_set_volume,
-    .PauseMusic       = cup_music_pause,
-    .ResumeMusic      = cup_music_resume,
-    .RegisterSong     = cup_music_register,
-    .UnRegisterSong   = cup_music_unregister,
-    .PlaySong         = cup_music_play,
-    .StopSong         = cup_music_stop,
-    .MusicIsPlaying   = cup_music_is_playing,
-    .Poll             = cup_music_poll,
+    .Init = cup_music_init,
+    .Shutdown = cup_music_shutdown,
+    .SetMusicVolume = cup_music_set_volume,
+    .PauseMusic = cup_music_pause,
+    .ResumeMusic = cup_music_resume,
+    .RegisterSong = cup_music_register,
+    .UnRegisterSong = cup_music_unregister,
+    .PlaySong = cup_music_play,
+    .StopSong = cup_music_stop,
+    .MusicIsPlaying = cup_music_is_playing,
+    .Poll = cup_music_poll,
 };
 
 /* Top-level I_*Music: DOOM calls these directly. */
-void I_InitMusic(void)    { cupidos_music_module.Init(); }
-void I_ShutdownMusic(void) { cupidos_music_module.Shutdown(); }
+void I_InitMusic(void) {
+    cupidos_music_module.Init();
+}
 
-void I_SetMusicVolume(int volume)
-{
+void I_ShutdownMusic(void) {
+    cupidos_music_module.Shutdown();
+}
+
+void I_SetMusicVolume(int volume) {
     cup_music_set_volume(volume);
 }
 
-void I_PauseSong(void)    { cup_music_pause(); }
-void I_ResumeSong(void)   { cup_music_resume(); }
+void I_PauseSong(void) {
+    cup_music_pause();
+}
 
-void *I_RegisterSong(void *data, int len)
-{
+void I_ResumeSong(void) {
+    cup_music_resume();
+}
+
+void *I_RegisterSong(void *data, int len) {
     return cup_music_register(data, len);
 }
 
-void I_UnRegisterSong(void *handle) { cup_music_unregister(handle); }
+void I_UnRegisterSong(void *handle) {
+    cup_music_unregister(handle);
+}
 
-void I_PlaySong(void *handle, boolean looping)
-{
+void I_PlaySong(void *handle, boolean looping) {
     cup_music_play(handle, looping);
 }
 
-void I_StopSong(void)             { cup_music_stop(); }
-boolean I_MusicIsPlaying(void)    { return cup_music_is_playing(); }
-void I_UpdateMusic(void)          { cup_music_poll(); }
+void I_StopSong(void) {
+    cup_music_stop();
+}
+
+boolean I_MusicIsPlaying(void) {
+    return cup_music_is_playing();
+}
+
+void I_UpdateMusic(void) {
+    cup_music_poll();
+}

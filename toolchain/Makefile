@@ -673,6 +673,7 @@ $(BUILD_DIR)/cupidc_frontend_contract.o: \
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidc_ir_contract.o: tests/cupidc_ir_contract.cc \
+    tests/cupidc_source_spelling_fixture.h \
     tests/cupidc_static_long_double_arithmetic_fixture.h \
     tests/cupidc_static_long_double_control_fixture.h \
     tests/cupidc_static_long_double_integer_fixture.h \
@@ -681,6 +682,7 @@ $(BUILD_DIR)/cupidc_ir_contract.o: tests/cupidc_ir_contract.cc \
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.cc \
+    tests/cupidc_source_spelling_fixture.h \
     cupidbuild.cc cupidbuild.h cupidbuild_host.cc cupidbuild_host.h \
     cupidbuild_main.cc seed_manifest.cc seed_manifest.h seed_release.cc seed_release.h \
     contract_parse_internal.cc contract_parse_internal.h \

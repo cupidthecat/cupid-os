@@ -12,14 +12,14 @@
  * the runtime/streaming pieces stripped out.*/
 
 #include "fontsys.h"
-#include "ttf.h"
-#include "glyph_raster.h"
-#include "gfx2d.h"
-#include "../mm/memory.h"
-#include "string.h"
 #include "../drivers/serial.h"
 #include "../fs/vfs.h"
 #include "../fs/vfs_helpers.h"
+#include "../mm/memory.h"
+#include "gfx2d.h"
+#include "glyph_raster.h"
+#include "string.h"
+#include "ttf.h"
 
 /* Cap absorbs @font-face fonts downloaded per-site. Modern Google Fonts
  * stylesheets declare 12+ unicode-subsetted faces per family; the browser
@@ -27,55 +27,55 @@
  * those plus the 3 bundled Liberation faces with margin. ~250 B per slot
  * of parallel-array metadata = ~40 KiB. fontsys_unregister now frees
  * slots on per-page navigation, so this cap is rarely a wall.*/
-#define FONTSYS_MAX_FACES   160
-#define FONTSYS_GCACHE_CAP  2048
+#define FONTSYS_MAX_FACES 160
+#define FONTSYS_GCACHE_CAP 2048
 
-#define FAMILY_NAME_CAP     48
-#define FACE_PATH_CAP       64
+#define FAMILY_NAME_CAP 48
+#define FACE_PATH_CAP 64
 
 /* Face registry. */
 
 static const uint8_t *face_blob[FONTSYS_MAX_FACES];
-static int       face_blob_len[FONTSYS_MAX_FACES];
-static int       face_owns_blob[FONTSYS_MAX_FACES];
-static char      face_family[FONTSYS_MAX_FACES][FAMILY_NAME_CAP];
-static char      face_family_lower[FONTSYS_MAX_FACES][FAMILY_NAME_CAP];
-static char      face_path[FONTSYS_MAX_FACES][FACE_PATH_CAP];
-static int       face_weight[FONTSYS_MAX_FACES];
-static int       face_italic[FONTSYS_MAX_FACES];
-static int       face_units_per_em[FONTSYS_MAX_FACES];
-static int       face_ascent_fu[FONTSYS_MAX_FACES];
-static int       face_descent_fu[FONTSYS_MAX_FACES];      /* signed: usually negative */
-static int       face_line_gap_fu[FONTSYS_MAX_FACES];
-static int       face_num_glyphs[FONTSYS_MAX_FACES];
-static int       face_idx_to_loc_fmt[FONTSYS_MAX_FACES];
-static int       face_off_cmap[FONTSYS_MAX_FACES];
-static int       face_off_glyf[FONTSYS_MAX_FACES];
-static int       face_off_loca[FONTSYS_MAX_FACES];
-static int       face_off_hmtx[FONTSYS_MAX_FACES];
-static int       face_num_h_metrics[FONTSYS_MAX_FACES];
-static int       face_used[FONTSYS_MAX_FACES];
-static int       face_count;
+static int face_blob_len[FONTSYS_MAX_FACES];
+static int face_owns_blob[FONTSYS_MAX_FACES];
+static char face_family[FONTSYS_MAX_FACES][FAMILY_NAME_CAP];
+static char face_family_lower[FONTSYS_MAX_FACES][FAMILY_NAME_CAP];
+static char face_path[FONTSYS_MAX_FACES][FACE_PATH_CAP];
+static int face_weight[FONTSYS_MAX_FACES];
+static int face_italic[FONTSYS_MAX_FACES];
+static int face_units_per_em[FONTSYS_MAX_FACES];
+static int face_ascent_fu[FONTSYS_MAX_FACES];
+static int face_descent_fu[FONTSYS_MAX_FACES]; /* signed: usually negative */
+static int face_line_gap_fu[FONTSYS_MAX_FACES];
+static int face_num_glyphs[FONTSYS_MAX_FACES];
+static int face_idx_to_loc_fmt[FONTSYS_MAX_FACES];
+static int face_off_cmap[FONTSYS_MAX_FACES];
+static int face_off_glyf[FONTSYS_MAX_FACES];
+static int face_off_loca[FONTSYS_MAX_FACES];
+static int face_off_hmtx[FONTSYS_MAX_FACES];
+static int face_num_h_metrics[FONTSYS_MAX_FACES];
+static int face_used[FONTSYS_MAX_FACES];
+static int face_count;
 
-static int generic_face[8];   /* index by FONTSYS_FAMILY_*; 0 reserved for default */
+static int generic_face[8]; /* index by FONTSYS_FAMILY_*; 0 reserved for default */
 
 /* Glyph cache. */
 
-static int      gc_face_id    [FONTSYS_GCACHE_CAP];
-static int      gc_codepoint  [FONTSYS_GCACHE_CAP];
-static int      gc_size_px    [FONTSYS_GCACHE_CAP];
-static int      gc_w          [FONTSYS_GCACHE_CAP];
-static int      gc_h          [FONTSYS_GCACHE_CAP];
-static int      gc_bx         [FONTSYS_GCACHE_CAP];
-static int      gc_by         [FONTSYS_GCACHE_CAP];
-static int      gc_advance    [FONTSYS_GCACHE_CAP];
-static uint8_t *gc_alpha      [FONTSYS_GCACHE_CAP];
-static uint32_t gc_lru_seq    [FONTSYS_GCACHE_CAP];
-static int      gc_used       [FONTSYS_GCACHE_CAP];
-static int      gc_n_used;
+static int gc_face_id[FONTSYS_GCACHE_CAP];
+static int gc_codepoint[FONTSYS_GCACHE_CAP];
+static int gc_size_px[FONTSYS_GCACHE_CAP];
+static int gc_w[FONTSYS_GCACHE_CAP];
+static int gc_h[FONTSYS_GCACHE_CAP];
+static int gc_bx[FONTSYS_GCACHE_CAP];
+static int gc_by[FONTSYS_GCACHE_CAP];
+static int gc_advance[FONTSYS_GCACHE_CAP];
+static uint8_t *gc_alpha[FONTSYS_GCACHE_CAP];
+static uint32_t gc_lru_seq[FONTSYS_GCACHE_CAP];
+static int gc_used[FONTSYS_GCACHE_CAP];
+static int gc_n_used;
 static uint32_t gc_seq_next;
-static size_t   gc_bytes_total;
-static size_t   gc_bytes_cap = 4u * 1024u * 1024u;   /* 4 MB */
+static size_t gc_bytes_total;
+static size_t gc_bytes_cap = 4u * 1024u * 1024u; /* 4 MB */
 
 static int g_init_done;
 
@@ -87,7 +87,8 @@ static int g_os_size = 14;
 /* Helpers. */
 
 static char to_lower(char c) {
-    if (c >= 'A' && c <= 'Z') return (char)(c - 'A' + 'a');
+    if (c >= 'A' && c <= 'Z')
+        return (char)(c - 'A' + 'a');
     return c;
 }
 
@@ -102,17 +103,17 @@ static void str_copy_lower(char *dst, const char *src, int cap) {
 
 static int str_eq_ci(const char *a, const char *b) {
     while (*a && *b) {
-        if (to_lower(*a) != to_lower(*b)) return 0;
-        a++; b++;
+        if (to_lower(*a) != to_lower(*b))
+            return 0;
+        a++;
+        b++;
     }
     return *a == *b;
 }
 
 static uint32_t pack_tag(char a, char b, char c, char d) {
-    return ((uint32_t)(uint8_t)a << 24)
-         | ((uint32_t)(uint8_t)b << 16)
-         | ((uint32_t)(uint8_t)c <<  8)
-         |  (uint32_t)(uint8_t)d;
+    return ((uint32_t)(uint8_t)a << 24) | ((uint32_t)(uint8_t)b << 16) |
+           ((uint32_t)(uint8_t)c << 8) | (uint32_t)(uint8_t)d;
 }
 
 /* Public init. */
@@ -134,8 +135,7 @@ extern const char _binary_system_fonts_LiberationMono_Regular_ttf_end[];
 extern const char _binary_system_fonts_NotoSansSymbols_Regular_ttf_start[];
 extern const char _binary_system_fonts_NotoSansSymbols_Regular_ttf_end[];
 
-static int register_embedded(const char *start, const char *end,
-                             const char *label) {
+static int register_embedded(const char *start, const char *end, const char *label) {
     int len = (int)(end - start);
     int id = fontsys_register_blob(start, len, 0);
     if (id < 0) {
@@ -145,22 +145,25 @@ static int register_embedded(const char *start, const char *end,
     /* Stash a friendly path label - useful in diagnostics. */
     int o = 0;
     while (label[o] && o < FACE_PATH_CAP - 1) {
-        face_path[id][o] = label[o]; o++;
+        face_path[id][o] = label[o];
+        o++;
     }
     face_path[id][o] = 0;
-    serial_printf("[fontsys] registered %s as face %d (\"%s\" w=%d i=%d)\n",
-                  label, id, face_family[id],
-                  face_weight[id], face_italic[id]);
+    serial_printf("[fontsys] registered %s as face %d (\"%s\" w=%d i=%d)\n", label, id,
+                  face_family[id], face_weight[id], face_italic[id]);
     return id;
 }
 
 static void fontsys_init_locked(void) {
-    if (g_init_done) return;
+    if (g_init_done)
+        return;
     g_init_done = 1;
 
     face_count = 0;
-    for (int i = 0; i < FONTSYS_MAX_FACES; i++) face_used[i] = 0;
-    for (int i = 0; i < 8; i++) generic_face[i] = -1;
+    for (int i = 0; i < FONTSYS_MAX_FACES; i++)
+        face_used[i] = 0;
+    for (int i = 0; i < 8; i++)
+        generic_face[i] = -1;
 
     gc_n_used = 0;
     gc_seq_next = 0;
@@ -185,21 +188,21 @@ static void fontsys_init_locked(void) {
 
     /* Set generic fallbacks. fontsys_match by name is preferred; these
      * kick in only when the CSS family list yields no concrete match.*/
-    int sans_id = fontsys_match("Liberation Sans",  FONTSYS_FAMILY_SANS_SERIF, 400, 0);
-    int serif_id = fontsys_match("Liberation Serif", FONTSYS_FAMILY_SERIF,     400, 0);
-    int mono_id  = fontsys_match("Liberation Mono",  FONTSYS_FAMILY_MONOSPACE, 400, 0);
+    int sans_id = fontsys_match("Liberation Sans", FONTSYS_FAMILY_SANS_SERIF, 400, 0);
+    int serif_id = fontsys_match("Liberation Serif", FONTSYS_FAMILY_SERIF, 400, 0);
+    int mono_id = fontsys_match("Liberation Mono", FONTSYS_FAMILY_MONOSPACE, 400, 0);
 
     fontsys_set_generic(FONTSYS_FAMILY_SANS_SERIF, sans_id);
-    fontsys_set_generic(FONTSYS_FAMILY_SERIF,      serif_id);
-    fontsys_set_generic(FONTSYS_FAMILY_MONOSPACE,  mono_id);
-    fontsys_set_generic(FONTSYS_FAMILY_CURSIVE,    serif_id);
-    fontsys_set_generic(FONTSYS_FAMILY_FANTASY,    sans_id);
-    fontsys_set_generic(FONTSYS_FAMILY_SYSTEM_UI,  sans_id);
+    fontsys_set_generic(FONTSYS_FAMILY_SERIF, serif_id);
+    fontsys_set_generic(FONTSYS_FAMILY_MONOSPACE, mono_id);
+    fontsys_set_generic(FONTSYS_FAMILY_CURSIVE, serif_id);
+    fontsys_set_generic(FONTSYS_FAMILY_FANTASY, sans_id);
+    fontsys_set_generic(FONTSYS_FAMILY_SYSTEM_UI, sans_id);
     /* Chrome's UA stylesheet uses Times-style serif for unstyled
      * body text; matching that here so pages without an explicit
      * font-family read the same as Chrome. UI surfaces (terminal,
      * toolbars, inputs) override to sans via SYSTEM_UI.*/
-    fontsys_set_generic(FONTSYS_FAMILY_DEFAULT,    serif_id);
+    fontsys_set_generic(FONTSYS_FAMILY_DEFAULT, serif_id);
 
     serial_printf("[fontsys] init done, %d faces\n", face_count);
 }
@@ -212,28 +215,29 @@ void fontsys_init(void) {
 
 /* Face registration. */
 
-static int fontsys_register_blob_locked(const char *blob, int blob_len,
-                                        int take_ownership) {
-    if (!blob || blob_len < 64) return -1;
-    if (face_count >= FONTSYS_MAX_FACES) return -1;
+static int fontsys_register_blob_locked(const char *blob, int blob_len, int take_ownership) {
+    if (!blob || blob_len < 64)
+        return -1;
+    if (face_count >= FONTSYS_MAX_FACES)
+        return -1;
 
     const uint8_t *b = (const uint8_t *)blob;
     int slot = face_count;
 
     int off, len;
-    if (ttf_find_table(b, blob_len, pack_tag('h','e','a','d'), &off, &len) < 0) {
+    if (ttf_find_table(b, blob_len, pack_tag('h', 'e', 'a', 'd'), &off, &len) < 0) {
         return -1;
     }
     int upem, idx_to_loc;
     ttf_parse_head(b, off, &upem, &idx_to_loc);
 
-    if (ttf_find_table(b, blob_len, pack_tag('h','h','e','a'), &off, &len) < 0) {
+    if (ttf_find_table(b, blob_len, pack_tag('h', 'h', 'e', 'a'), &off, &len) < 0) {
         return -1;
     }
     int asc, dsc, lg, n_h;
     ttf_parse_hhea(b, off, &asc, &dsc, &lg, &n_h);
 
-    if (ttf_find_table(b, blob_len, pack_tag('m','a','x','p'), &off, &len) < 0) {
+    if (ttf_find_table(b, blob_len, pack_tag('m', 'a', 'x', 'p'), &off, &len) < 0) {
         return -1;
     }
     int n_glyphs;
@@ -241,24 +245,32 @@ static int fontsys_register_blob_locked(const char *blob, int blob_len,
 
     int weight = 400;
     int italic = 0;
-    if (ttf_find_table(b, blob_len, pack_tag('O','S','/','2'), &off, &len) == 0) {
+    if (ttf_find_table(b, blob_len, pack_tag('O', 'S', '/', '2'), &off, &len) == 0) {
         ttf_parse_os2(b, off, &weight, &italic);
     }
 
     int cmap_off, glyf_off, loca_off, hmtx_off;
-    if (ttf_find_table(b, blob_len, pack_tag('c','m','a','p'), &cmap_off, &len) < 0) return -1;
-    if (ttf_find_table(b, blob_len, pack_tag('g','l','y','f'), &glyf_off, &len) < 0) return -1;
-    if (ttf_find_table(b, blob_len, pack_tag('l','o','c','a'), &loca_off, &len) < 0) return -1;
-    if (ttf_find_table(b, blob_len, pack_tag('h','m','t','x'), &hmtx_off, &len) < 0) return -1;
+    if (ttf_find_table(b, blob_len, pack_tag('c', 'm', 'a', 'p'), &cmap_off, &len) < 0)
+        return -1;
+    if (ttf_find_table(b, blob_len, pack_tag('g', 'l', 'y', 'f'), &glyf_off, &len) < 0)
+        return -1;
+    if (ttf_find_table(b, blob_len, pack_tag('l', 'o', 'c', 'a'), &loca_off, &len) < 0)
+        return -1;
+    if (ttf_find_table(b, blob_len, pack_tag('h', 'm', 't', 'x'), &hmtx_off, &len) < 0)
+        return -1;
 
     char fam[FAMILY_NAME_CAP];
     fam[0] = 0;
-    if (ttf_find_table(b, blob_len, pack_tag('n','a','m','e'), &off, &len) == 0) {
+    if (ttf_find_table(b, blob_len, pack_tag('n', 'a', 'm', 'e'), &off, &len) == 0) {
         ttf_parse_name(b, off, 1 /* family */, fam, FAMILY_NAME_CAP);
     }
     if (fam[0] == 0) {
         /* Fallback synthetic name. */
-        fam[0] = 'F'; fam[1] = 'a'; fam[2] = 'c'; fam[3] = 'e'; fam[4] = 0;
+        fam[0] = 'F';
+        fam[1] = 'a';
+        fam[2] = 'c';
+        fam[3] = 'e';
+        fam[4] = 0;
     }
 
     face_blob[slot] = b;
@@ -281,7 +293,8 @@ static int fontsys_register_blob_locked(const char *blob, int blob_len,
 
     int o = 0;
     while (fam[o] && o < FAMILY_NAME_CAP - 1) {
-        face_family[slot][o] = fam[o]; o++;
+        face_family[slot][o] = fam[o];
+        o++;
     }
     face_family[slot][o] = 0;
     str_copy_lower(face_family_lower[slot], fam, FAMILY_NAME_CAP);
@@ -299,7 +312,8 @@ int fontsys_register_blob(const char *blob, int blob_len, int take_ownership) {
 }
 
 static int fontsys_register_file_locked(const char *path) {
-    if (!path || !path[0]) return -1;
+    if (!path || !path[0])
+        return -1;
 
     vfs_stat_t st;
     if (vfs_stat(path, &st) < 0) {
@@ -307,27 +321,25 @@ static int fontsys_register_file_locked(const char *path) {
         return -1;
     }
     if (st.size < 64u || st.size > (8u * 1024u * 1024u)) {
-        serial_printf("[fontsys] register_file: bad size %u for %s\n",
-                      (unsigned)st.size, path);
+        serial_printf("[fontsys] register_file: bad size %u for %s\n", (unsigned)st.size, path);
         return -1;
     }
 
     char *buf = (char *)kmalloc(st.size);
     if (!buf) {
-        serial_printf("[fontsys] register_file: OOM for %s (%u bytes)\n",
-                      path, (unsigned)st.size);
+        serial_printf("[fontsys] register_file: OOM for %s (%u bytes)\n", path, (unsigned)st.size);
         return -1;
     }
 
     int got = vfs_read_all(path, buf, st.size);
     if (got != (int)st.size) {
-        serial_printf("[fontsys] register_file: read short %d/%u for %s\n",
-                      got, (unsigned)st.size, path);
+        serial_printf("[fontsys] register_file: read short %d/%u for %s\n", got, (unsigned)st.size,
+                      path);
         kfree(buf);
         return -1;
     }
 
-    int id = fontsys_register_blob(buf, (int)st.size, /* take_ownership= */1);
+    int id = fontsys_register_blob(buf, (int)st.size, /* take_ownership= */ 1);
     if (id < 0) {
         kfree(buf);
         serial_printf("[fontsys] register_file: parse rejected %s\n", path);
@@ -336,12 +348,12 @@ static int fontsys_register_file_locked(const char *path) {
     /* Stash path label. */
     int o = 0;
     while (path[o] && o < FACE_PATH_CAP - 1) {
-        face_path[id][o] = path[o]; o++;
+        face_path[id][o] = path[o];
+        o++;
     }
     face_path[id][o] = 0;
-    serial_printf("[fontsys] registered %s as face %d (\"%s\" w=%d i=%d)\n",
-                  path, id, face_family[id],
-                  face_weight[id], face_italic[id]);
+    serial_printf("[fontsys] registered %s as face %d (\"%s\" w=%d i=%d)\n", path, id,
+                  face_family[id], face_weight[id], face_italic[id]);
     return id;
 }
 
@@ -353,9 +365,12 @@ int fontsys_register_file(const char *path) {
 }
 
 static int fontsys_set_generic_locked(int family_kw, int face_id) {
-    if (family_kw < 0 || family_kw >= 8) return -1;
-    if (face_id < -1 || face_id >= face_count) return -1;
-    if (face_id >= 0 && !face_used[face_id]) return -1;
+    if (family_kw < 0 || family_kw >= 8)
+        return -1;
+    if (face_id < -1 || face_id >= face_count)
+        return -1;
+    if (face_id >= 0 && !face_used[face_id])
+        return -1;
     generic_face[family_kw] = face_id;
     return 0;
 }
@@ -373,23 +388,29 @@ int fontsys_set_generic(int family_kw, int face_id) {
 static int score_face(int face_id, int want_weight, int want_italic) {
     int score = 100;
     int dw = face_weight[face_id] - want_weight;
-    if (dw < 0) dw = -dw;
+    if (dw < 0)
+        dw = -dw;
     score -= dw / 50;
-    if ((face_italic[face_id] != 0) != (want_italic != 0)) score -= 30;
+    if ((face_italic[face_id] != 0) != (want_italic != 0))
+        score -= 30;
     return score;
 }
 
 /* Among faces sharing the canonical family name, pick the best on
  * (weight, italic). Returns -1 if no face matches the name.*/
-static int best_in_family(const char *family_lower,
-                          int want_weight, int want_italic) {
+static int best_in_family(const char *family_lower, int want_weight, int want_italic) {
     int best = -1;
     int best_score = -1;
     for (int i = 0; i < face_count; i++) {
-        if (!face_used[i]) continue;
-        if (!str_eq_ci(face_family_lower[i], family_lower)) continue;
+        if (!face_used[i])
+            continue;
+        if (!str_eq_ci(face_family_lower[i], family_lower))
+            continue;
         int s = score_face(i, want_weight, want_italic);
-        if (s > best_score) { best = i; best_score = s; }
+        if (s > best_score) {
+            best = i;
+            best_score = s;
+        }
     }
     return best;
 }
@@ -400,25 +421,25 @@ static int best_in_family(const char *family_lower,
  * New" land on the metric-compatible Liberation faces.*/
 static int match_family_token(const char *tok, int want_weight, int want_italic) {
     int id = best_in_family(tok, want_weight, want_italic);
-    if (id >= 0) return id;
-    if (str_eq_ci(tok, "arial") || str_eq_ci(tok, "helvetica")
-        || str_eq_ci(tok, "verdana") || str_eq_ci(tok, "tahoma")) {
+    if (id >= 0)
+        return id;
+    if (str_eq_ci(tok, "arial") || str_eq_ci(tok, "helvetica") || str_eq_ci(tok, "verdana") ||
+        str_eq_ci(tok, "tahoma")) {
         return best_in_family("liberation sans", want_weight, want_italic);
     }
-    if (str_eq_ci(tok, "times") || str_eq_ci(tok, "times new roman")
-        || str_eq_ci(tok, "georgia")) {
+    if (str_eq_ci(tok, "times") || str_eq_ci(tok, "times new roman") || str_eq_ci(tok, "georgia")) {
         return best_in_family("liberation serif", want_weight, want_italic);
     }
-    if (str_eq_ci(tok, "courier") || str_eq_ci(tok, "courier new")
-        || str_eq_ci(tok, "consolas") || str_eq_ci(tok, "monaco")) {
+    if (str_eq_ci(tok, "courier") || str_eq_ci(tok, "courier new") || str_eq_ci(tok, "consolas") ||
+        str_eq_ci(tok, "monaco")) {
         return best_in_family("liberation mono", want_weight, want_italic);
     }
     return -1;
 }
 
-static int fontsys_match_locked(const char *family_name, int generic_kw,
-                                int weight, int italic) {
-    if (face_count == 0) return -1;
+static int fontsys_match_locked(const char *family_name, int generic_kw, int weight, int italic) {
+    if (face_count == 0)
+        return -1;
 
     if (family_name && family_name[0]) {
         char tok[FAMILY_NAME_CAP];
@@ -426,21 +447,25 @@ static int fontsys_match_locked(const char *family_name, int generic_kw,
         int n = 0;
         while (family_name[p]) {
             /* Skip spaces, quotes. */
-            while (family_name[p] == ' ' || family_name[p] == '\t'
-                   || family_name[p] == '"' || family_name[p] == '\'') p++;
+            while (family_name[p] == ' ' || family_name[p] == '\t' || family_name[p] == '"' ||
+                   family_name[p] == '\'')
+                p++;
             n = 0;
             while (family_name[p] && family_name[p] != ',' && n < FAMILY_NAME_CAP - 1) {
                 tok[n++] = to_lower(family_name[p++]);
             }
             /* Trim trailing space/quote. */
-            while (n > 0 && (tok[n-1] == ' ' || tok[n-1] == '\t'
-                          || tok[n-1] == '"' || tok[n-1] == '\'')) n--;
+            while (n > 0 && (tok[n - 1] == ' ' || tok[n - 1] == '\t' || tok[n - 1] == '"' ||
+                             tok[n - 1] == '\''))
+                n--;
             tok[n] = 0;
             if (n > 0) {
                 int id = match_family_token(tok, weight, italic);
-                if (id >= 0) return id;
+                if (id >= 0)
+                    return id;
             }
-            if (family_name[p] == ',') p++;
+            if (family_name[p] == ',')
+                p++;
         }
     }
 
@@ -455,25 +480,27 @@ static int fontsys_match_locked(const char *family_name, int generic_kw,
             return default_id;
     }
     for (int i = 0; i < face_count; i++) {
-        if (face_used[i]) return i;
+        if (face_used[i])
+            return i;
     }
     return -1;
 }
 
-int fontsys_match(const char *family_name, int generic_kw,
-                  int weight, int italic) {
+int fontsys_match(const char *family_name, int generic_kw, int weight, int italic) {
     int writer_lease = gfx2d_shared_writer_begin();
     int result = fontsys_match_locked(family_name, generic_kw, weight, italic);
     gfx2d_shared_writer_end(writer_lease);
     return result;
 }
 
-static int fontsys_synth_flags_locked(int face_id, int want_weight,
-                                      int want_italic) {
-    if (face_id < 0 || face_id >= face_count || !face_used[face_id]) return -1;
+static int fontsys_synth_flags_locked(int face_id, int want_weight, int want_italic) {
+    if (face_id < 0 || face_id >= face_count || !face_used[face_id])
+        return -1;
     int flags = 0;
-    if (want_weight >= 600 && face_weight[face_id] < 600) flags |= 1;
-    if (want_italic && !face_italic[face_id]) flags |= 2;
+    if (want_weight >= 600 && face_weight[face_id] < 600)
+        flags |= 1;
+    if (want_italic && !face_italic[face_id])
+        flags |= 2;
     return flags;
 }
 
@@ -488,15 +515,18 @@ int fontsys_synth_flags(int face_id, int want_weight, int want_italic) {
 
 static int scale_to_px(int v_fu, int face_id, int size_px) {
     int upem = face_units_per_em[face_id];
-    if (upem <= 0) return 0;
+    if (upem <= 0)
+        return 0;
     /* Round-half-away-from-zero. */
     long n = (long)v_fu * (long)size_px;
-    if (n >= 0) return (int)((n + upem / 2) / upem);
+    if (n >= 0)
+        return (int)((n + upem / 2) / upem);
     return -(int)(((-n) + upem / 2) / upem);
 }
 
 static int fontsys_ascent_locked(int face_id, int size_px) {
-    if (face_id < 0 || face_id >= face_count || !face_used[face_id]) return 0;
+    if (face_id < 0 || face_id >= face_count || !face_used[face_id])
+        return 0;
     return scale_to_px(face_ascent_fu[face_id], face_id, size_px);
 }
 
@@ -508,9 +538,11 @@ int fontsys_ascent(int face_id, int size_px) {
 }
 
 static int fontsys_descent_locked(int face_id, int size_px) {
-    if (face_id < 0 || face_id >= face_count || !face_used[face_id]) return 0;
+    if (face_id < 0 || face_id >= face_count || !face_used[face_id])
+        return 0;
     int d = scale_to_px(face_descent_fu[face_id], face_id, size_px);
-    if (d < 0) d = -d;
+    if (d < 0)
+        d = -d;
     return d;
 }
 
@@ -528,7 +560,8 @@ static int fontsys_line_height_locked(int face_id, int size_px) {
     int d = scale_to_px(face_descent_fu[face_id], face_id, size_px);
     int g = scale_to_px(face_line_gap_fu[face_id], face_id, size_px);
     int total = a + (-d) + g;
-    if (total < size_px) total = size_px;
+    if (total < size_px)
+        total = size_px;
     return total;
 }
 
@@ -543,9 +576,9 @@ int fontsys_line_height(int face_id, int size_px) {
 
 static int gc_find(int face_id, int cp, int size_px) {
     for (int i = 0; i < gc_n_used; i++) {
-        if (!gc_used[i]) continue;
-        if (gc_face_id[i] == face_id && gc_codepoint[i] == cp
-            && gc_size_px[i] == size_px) {
+        if (!gc_used[i])
+            continue;
+        if (gc_face_id[i] == face_id && gc_codepoint[i] == cp && gc_size_px[i] == size_px) {
             gc_lru_seq[i] = ++gc_seq_next;
             return i;
         }
@@ -557,13 +590,15 @@ static int gc_evict_one(void) {
     int oldest = -1;
     uint32_t oldest_seq = 0xFFFFFFFFu;
     for (int i = 0; i < gc_n_used; i++) {
-        if (!gc_used[i]) continue;
+        if (!gc_used[i])
+            continue;
         if (gc_lru_seq[i] < oldest_seq) {
             oldest_seq = gc_lru_seq[i];
             oldest = i;
         }
     }
-    if (oldest < 0) return -1;
+    if (oldest < 0)
+        return -1;
     uint8_t *old_alpha = gc_alpha[oldest];
     __atomic_store_n(&gc_used[oldest], 0, __ATOMIC_SEQ_CST);
     gc_alpha[oldest] = NULL;
@@ -578,66 +613,60 @@ static int gc_evict_one(void) {
 static int gc_alloc_slot(void) {
     for (int i = 0; i < FONTSYS_GCACHE_CAP; i++) {
         if (!gc_used[i]) {
-            if (i >= gc_n_used) gc_n_used = i + 1;
+            if (i >= gc_n_used)
+                gc_n_used = i + 1;
             return i;
         }
     }
     /* Cache full - evict and retry. */
-    if (gc_evict_one() == 0) return gc_alloc_slot();
+    if (gc_evict_one() == 0)
+        return gc_alloc_slot();
     return -1;
 }
 
 /* Scratch buffers for outline decode - one set, serial use. */
-#define OUTLINE_PT_CAP   2048
-#define OUTLINE_CTR_CAP   128
-static int   outline_xs[OUTLINE_PT_CAP];
-static int   outline_ys[OUTLINE_PT_CAP];
-static int   outline_oc[OUTLINE_PT_CAP];
-static int   outline_ce[OUTLINE_CTR_CAP];
+#define OUTLINE_PT_CAP 2048
+#define OUTLINE_CTR_CAP 128
+static int outline_xs[OUTLINE_PT_CAP];
+static int outline_ys[OUTLINE_PT_CAP];
+static int outline_oc[OUTLINE_PT_CAP];
+static int outline_ce[OUTLINE_CTR_CAP];
 
-static int rasterize_into_cache(int face_id, int cp, int size_px,
-                                int *out_slot) {
+static int rasterize_into_cache(int face_id, int cp, int size_px, int *out_slot) {
     int gid = ttf_cmap_glyph(face_blob[face_id], face_off_cmap[face_id], cp);
     int n_pts = 0, n_ctr = 0;
     int xmin, ymin, xmax, ymax;
-    int rc = ttf_glyph_outline(face_blob[face_id],
-                               face_off_glyf[face_id],
-                               face_off_loca[face_id],
-                               face_idx_to_loc_fmt[face_id],
-                               gid,
-                               outline_xs, outline_ys, outline_oc,
-                               OUTLINE_PT_CAP, &n_pts,
-                               outline_ce, OUTLINE_CTR_CAP, &n_ctr,
-                               &xmin, &ymin, &xmax, &ymax);
-    if (rc != 0) return -1;
+    int rc = ttf_glyph_outline(face_blob[face_id], face_off_glyf[face_id], face_off_loca[face_id],
+                               face_idx_to_loc_fmt[face_id], gid, outline_xs, outline_ys,
+                               outline_oc, OUTLINE_PT_CAP, &n_pts, outline_ce, OUTLINE_CTR_CAP,
+                               &n_ctr, &xmin, &ymin, &xmax, &ymax);
+    if (rc != 0)
+        return -1;
 
-    int adv_fu = ttf_glyph_advance(face_blob[face_id],
-                                   face_off_hmtx[face_id],
-                                   face_num_h_metrics[face_id],
-                                   face_num_glyphs[face_id],
-                                   gid);
+    int adv_fu = ttf_glyph_advance(face_blob[face_id], face_off_hmtx[face_id],
+                                   face_num_h_metrics[face_id], face_num_glyphs[face_id], gid);
     int adv_px = scale_to_px(adv_fu, face_id, size_px);
 
     uint8_t *alpha = NULL;
     int w = 0, h = 0, bx = 0, by = 0;
     if (n_pts > 0 && n_ctr > 0) {
-        if (glyph_rasterize(outline_xs, outline_ys, outline_oc, n_pts,
-                            outline_ce, n_ctr,
-                            xmin, ymin, xmax, ymax,
-                            face_units_per_em[face_id], size_px,
-                            &alpha, &w, &h, &bx, &by) != 0) {
+        if (glyph_rasterize(outline_xs, outline_ys, outline_oc, n_pts, outline_ce, n_ctr, xmin,
+                            ymin, xmax, ymax, face_units_per_em[face_id], size_px, &alpha, &w, &h,
+                            &bx, &by) != 0) {
             return -1;
         }
     }
 
     /* Make room. */
     while (alpha != NULL && (gc_bytes_total + (size_t)w * (size_t)h) > gc_bytes_cap) {
-        if (gc_evict_one() != 0) break;
+        if (gc_evict_one() != 0)
+            break;
     }
 
     int slot = gc_alloc_slot();
     if (slot < 0) {
-        if (alpha) kfree(alpha);
+        if (alpha)
+            kfree(alpha);
         return -1;
     }
 
@@ -651,22 +680,27 @@ static int rasterize_into_cache(int face_id, int cp, int size_px,
     gc_advance[slot] = adv_px;
     gc_alpha[slot] = alpha;
     gc_lru_seq[slot] = ++gc_seq_next;
-    if (alpha) gc_bytes_total += (size_t)w * (size_t)h;
+    if (alpha)
+        gc_bytes_total += (size_t)w * (size_t)h;
     __atomic_store_n(&gc_used[slot], 1, __ATOMIC_RELEASE);
 
     *out_slot = slot;
     return 0;
 }
 
-static int fontsys_glyph_locked(int face_id, int codepoint, int size_px,
-                                const uint8_t **out_alpha,
-                                int *out_w, int *out_h,
-                                int *out_bx, int *out_by,
+static int fontsys_glyph_locked(int face_id, int codepoint, int size_px, const uint8_t **out_alpha,
+                                int *out_w, int *out_h, int *out_bx, int *out_by,
                                 int *out_advance) {
     *out_alpha = NULL;
-    *out_w = 0; *out_h = 0; *out_bx = 0; *out_by = 0; *out_advance = 0;
-    if (face_id < 0 || face_id >= face_count || !face_used[face_id]) return -1;
-    if (size_px <= 0) return -1;
+    *out_w = 0;
+    *out_h = 0;
+    *out_bx = 0;
+    *out_by = 0;
+    *out_advance = 0;
+    if (face_id < 0 || face_id >= face_count || !face_used[face_id])
+        return -1;
+    if (size_px <= 0)
+        return -1;
 
     int slot = gc_find(face_id, codepoint, size_px);
     if (slot < 0) {
@@ -674,23 +708,20 @@ static int fontsys_glyph_locked(int face_id, int codepoint, int size_px,
             return -1;
         }
     }
-    *out_alpha   = gc_alpha[slot];
-    *out_w       = gc_w[slot];
-    *out_h       = gc_h[slot];
-    *out_bx      = gc_bx[slot];
-    *out_by      = gc_by[slot];
+    *out_alpha = gc_alpha[slot];
+    *out_w = gc_w[slot];
+    *out_h = gc_h[slot];
+    *out_bx = gc_bx[slot];
+    *out_by = gc_by[slot];
     *out_advance = gc_advance[slot];
     return 0;
 }
 
-int fontsys_glyph(int face_id, int codepoint, int size_px,
-                  const uint8_t **out_alpha,
-                  int *out_w, int *out_h,
-                  int *out_bx, int *out_by, int *out_advance) {
+int fontsys_glyph(int face_id, int codepoint, int size_px, const uint8_t **out_alpha, int *out_w,
+                  int *out_h, int *out_bx, int *out_by, int *out_advance) {
     int writer_lease = gfx2d_shared_writer_begin();
-    int result = fontsys_glyph_locked(face_id, codepoint, size_px,
-                                      out_alpha, out_w, out_h,
-                                      out_bx, out_by, out_advance);
+    int result = fontsys_glyph_locked(face_id, codepoint, size_px, out_alpha, out_w, out_h, out_bx,
+                                      out_by, out_advance);
     gfx2d_shared_writer_end(writer_lease);
     return result;
 }
@@ -704,44 +735,42 @@ int fontsys_glyph(int face_id, int codepoint, int size_px,
  * filtered the input).*/
 static int fontsys_utf8_decode(const char *bytes, int i, int len, int *cp_out) {
     int b0 = (int)(uint8_t)bytes[i];
-    if (b0 < 0x80) { *cp_out = b0; return 1; }
-    if ((b0 & 0xE0) == 0xC0 && i + 1 < len &&
-        ((uint8_t)bytes[i+1] & 0xC0) == 0x80) {
-        *cp_out = ((b0 & 0x1F) << 6) | ((uint8_t)bytes[i+1] & 0x3F);
+    if (b0 < 0x80) {
+        *cp_out = b0;
+        return 1;
+    }
+    if ((b0 & 0xE0) == 0xC0 && i + 1 < len && ((uint8_t)bytes[i + 1] & 0xC0) == 0x80) {
+        *cp_out = ((b0 & 0x1F) << 6) | ((uint8_t)bytes[i + 1] & 0x3F);
         return 2;
     }
-    if ((b0 & 0xF0) == 0xE0 && i + 2 < len &&
-        ((uint8_t)bytes[i+1] & 0xC0) == 0x80 &&
-        ((uint8_t)bytes[i+2] & 0xC0) == 0x80) {
-        *cp_out = ((b0 & 0x0F) << 12) |
-                  (((uint8_t)bytes[i+1] & 0x3F) << 6) |
-                  ((uint8_t)bytes[i+2] & 0x3F);
+    if ((b0 & 0xF0) == 0xE0 && i + 2 < len && ((uint8_t)bytes[i + 1] & 0xC0) == 0x80 &&
+        ((uint8_t)bytes[i + 2] & 0xC0) == 0x80) {
+        *cp_out = ((b0 & 0x0F) << 12) | (((uint8_t)bytes[i + 1] & 0x3F) << 6) |
+                  ((uint8_t)bytes[i + 2] & 0x3F);
         return 3;
     }
-    if ((b0 & 0xF8) == 0xF0 && i + 3 < len &&
-        ((uint8_t)bytes[i+1] & 0xC0) == 0x80 &&
-        ((uint8_t)bytes[i+2] & 0xC0) == 0x80 &&
-        ((uint8_t)bytes[i+3] & 0xC0) == 0x80) {
-        *cp_out = ((b0 & 0x07) << 18) |
-                  (((uint8_t)bytes[i+1] & 0x3F) << 12) |
-                  (((uint8_t)bytes[i+2] & 0x3F) << 6) |
-                  ((uint8_t)bytes[i+3] & 0x3F);
+    if ((b0 & 0xF8) == 0xF0 && i + 3 < len && ((uint8_t)bytes[i + 1] & 0xC0) == 0x80 &&
+        ((uint8_t)bytes[i + 2] & 0xC0) == 0x80 && ((uint8_t)bytes[i + 3] & 0xC0) == 0x80) {
+        *cp_out = ((b0 & 0x07) << 18) | (((uint8_t)bytes[i + 1] & 0x3F) << 12) |
+                  (((uint8_t)bytes[i + 2] & 0x3F) << 6) | ((uint8_t)bytes[i + 3] & 0x3F);
         return 4;
     }
     *cp_out = b0;
     return 1;
 }
 
-static int fontsys_run_width_locked(int face_id, int size_px,
-                                    const char *bytes, int len) {
-    if (!bytes || len <= 0) return 0;
-    if (face_id < 0 || face_id >= face_count) return 0;
+static int fontsys_run_width_locked(int face_id, int size_px, const char *bytes, int len) {
+    if (!bytes || len <= 0)
+        return 0;
+    if (face_id < 0 || face_id >= face_count)
+        return 0;
     int x = 0;
     int i = 0;
     while (i < len && bytes[i]) {
         int cp;
         int step = fontsys_utf8_decode(bytes, i, len, &cp);
-        const uint8_t *a; int w, h, bx, by, adv;
+        const uint8_t *a;
+        int w, h, bx, by, adv;
         if (fontsys_glyph(face_id, cp, size_px, &a, &w, &h, &bx, &by, &adv) == 0) {
             x += adv;
         }
@@ -750,8 +779,7 @@ static int fontsys_run_width_locked(int face_id, int size_px,
     return x;
 }
 
-int fontsys_run_width(int face_id, int size_px,
-                      const char *bytes, int len) {
+int fontsys_run_width(int face_id, int size_px, const char *bytes, int len) {
     int writer_lease = gfx2d_shared_writer_begin();
     int result = fontsys_run_width_locked(face_id, size_px, bytes, len);
     gfx2d_shared_writer_end(writer_lease);
@@ -764,14 +792,15 @@ int fontsys_run_width(int face_id, int size_px,
  * width measurement and pen advance keep word width correct.*/
 int fontsys_italic_extra(int size_px) {
     int v = (size_px * 17) / 100;
-    if (v < 1) v = 1;
+    if (v < 1)
+        v = 1;
     return v;
 }
 
-static void blit_glyph(const uint8_t *alpha, int w, int h,
-                       int dst_x, int dst_y, uint32_t color,
+static void blit_glyph(const uint8_t *alpha, int w, int h, int dst_x, int dst_y, uint32_t color,
                        int italic_shear) {
-    if (!alpha || w <= 0 || h <= 0) return;
+    if (!alpha || w <= 0 || h <= 0)
+        return;
     uint32_t rgb = color & 0x00FFFFFFu;
     for (int yy = 0; yy < h; yy++) {
         int row_shift = 0;
@@ -785,29 +814,26 @@ static void blit_glyph(const uint8_t *alpha, int w, int h,
         }
         for (int xx = 0; xx < w; xx++) {
             uint8_t a = alpha[yy * w + xx];
-            if (a == 0) continue;
+            if (a == 0)
+                continue;
             uint32_t argb = ((uint32_t)a << 24) | rgb;
             gfx2d_pixel_alpha(dst_x + xx + row_shift, dst_y + yy, argb);
         }
     }
 }
 
-void fontsys_draw_run(int face_id, int size_px,
-                      int x, int baseline_y,
-                      const char *bytes, int len,
+void fontsys_draw_run(int face_id, int size_px, int x, int baseline_y, const char *bytes, int len,
                       uint32_t color) {
-    fontsys_draw_run_styled(face_id, size_px, x, baseline_y,
-                            bytes, len, color, 0, 0);
+    fontsys_draw_run_styled(face_id, size_px, x, baseline_y, bytes, len, color, 0, 0);
 }
 
-static void fontsys_draw_run_styled_locked(int face_id, int size_px,
-                                           int x, int baseline_y,
-                                           const char *bytes, int len,
-                                           uint32_t color,
-                                           int want_bold,
-                                           int want_italic) {
-    if (!bytes || len <= 0) return;
-    if (face_id < 0 || face_id >= face_count) return;
+static void fontsys_draw_run_styled_locked(int face_id, int size_px, int x, int baseline_y,
+                                           const char *bytes, int len, uint32_t color,
+                                           int want_bold, int want_italic) {
+    if (!bytes || len <= 0)
+        return;
+    if (face_id < 0 || face_id >= face_count)
+        return;
 
     int pen_x = x;
     int i = 0;
@@ -815,7 +841,8 @@ static void fontsys_draw_run_styled_locked(int face_id, int size_px,
         int cp;
         int step = fontsys_utf8_decode(bytes, i, len, &cp);
         i += step;
-        const uint8_t *a; int w, h, bx, by, adv;
+        const uint8_t *a;
+        int w, h, bx, by, adv;
         if (fontsys_glyph(face_id, cp, size_px, &a, &w, &h, &bx, &by, &adv) != 0) {
             continue;
         }
@@ -828,27 +855,23 @@ static void fontsys_draw_run_styled_locked(int face_id, int size_px,
          * value; italic glyphs naturally bleed slightly into the next
          * cell at the top, just like real italic faces.*/
         if (want_italic) {
-            gx -= ((h - 1) * 17) / 200;       /* half of the 17% shear */
+            gx -= ((h - 1) * 17) / 200; /* half of the 17% shear */
         }
         blit_glyph(a, w, h, gx, gy, color, want_italic);
         if (want_bold) {
             blit_glyph(a, w, h, gx + 1, gy, color, want_italic);
         }
         pen_x += adv;
-        if (want_bold) pen_x += 1;
+        if (want_bold)
+            pen_x += 1;
     }
 }
 
-void fontsys_draw_run_styled(int face_id, int size_px,
-                             int x, int baseline_y,
-                             const char *bytes, int len,
-                             uint32_t color,
-                             int want_bold,
-                             int want_italic) {
+void fontsys_draw_run_styled(int face_id, int size_px, int x, int baseline_y, const char *bytes,
+                             int len, uint32_t color, int want_bold, int want_italic) {
     int writer_lease = gfx2d_shared_writer_begin();
-    fontsys_draw_run_styled_locked(face_id, size_px, x, baseline_y,
-                                   bytes, len, color,
-                                   want_bold, want_italic);
+    fontsys_draw_run_styled_locked(face_id, size_px, x, baseline_y, bytes, len, color, want_bold,
+                                   want_italic);
     gfx2d_shared_writer_end(writer_lease);
 }
 
@@ -860,12 +883,14 @@ void fontsys_draw_run_styled(int face_id, int size_px,
 static int fontsys_unregister_locked(int face_id) {
     void *old_blob;
     int old_blob_owned;
-    if (face_id < 0 || face_id >= face_count) return -1;
-    if (!face_used[face_id]) return 0;
+    if (face_id < 0 || face_id >= face_count)
+        return -1;
+    if (!face_used[face_id])
+        return 0;
     old_blob = (void *)(size_t)face_blob[face_id];
     old_blob_owned = face_owns_blob[face_id];
     __atomic_store_n(&face_used[face_id], 0, __ATOMIC_SEQ_CST);
-    face_blob[face_id] = (const uint8_t*)0;
+    face_blob[face_id] = (const uint8_t *)0;
     face_blob_len[face_id] = 0;
     face_owns_blob[face_id] = 0;
     face_family[face_id][0] = 0;
@@ -876,17 +901,21 @@ static int fontsys_unregister_locked(int face_id) {
     /* If this face was wired in as a generic-family fallback, clear it
      * so future lookups don't dereference a freed slot.*/
     for (int g = 0; g < 8; g++) {
-        if (generic_face[g] == face_id) generic_face[g] = -1;
+        if (generic_face[g] == face_id)
+            generic_face[g] = -1;
     }
-    if (g_os_face == face_id) g_os_face = -1;
+    if (g_os_face == face_id)
+        g_os_face = -1;
     /* Evict matching glyph-cache entries. */
     for (int i = 0; i < FONTSYS_GCACHE_CAP; i++) {
         uint8_t *old_alpha;
-        if (!gc_used[i]) continue;
-        if (gc_face_id[i] != face_id) continue;
+        if (!gc_used[i])
+            continue;
+        if (gc_face_id[i] != face_id)
+            continue;
         old_alpha = gc_alpha[i];
         __atomic_store_n(&gc_used[i], 0, __ATOMIC_SEQ_CST);
-        gc_alpha[i] = (uint8_t*)0;
+        gc_alpha[i] = (uint8_t *)0;
         if (old_alpha) {
             if (gc_bytes_total >= (size_t)(gc_w[i] * gc_h[i])) {
                 gc_bytes_total -= (size_t)(gc_w[i] * gc_h[i]);
@@ -919,8 +948,10 @@ int fontsys_unregister(int face_id) {
  * matching Blink's last-resort glyph-fallback in
  * blink/Source/platform/fonts/FontFallbackList::fontDataForCharacter.*/
 static int fontsys_face_has_cp_locked(int face_id, int codepoint) {
-    if (face_id < 0 || face_id >= face_count) return 0;
-    if (!face_used[face_id]) return 0;
+    if (face_id < 0 || face_id >= face_count)
+        return 0;
+    if (!face_used[face_id])
+        return 0;
     int gid = ttf_cmap_glyph(face_blob[face_id], face_off_cmap[face_id], codepoint);
     return (gid > 0) ? 1 : 0;
 }
@@ -938,9 +969,11 @@ int fontsys_face_has_cp(int face_id, int codepoint) {
  * is better than no glyph).*/
 static int fontsys_find_face_with_cp_locked(int codepoint) {
     for (int i = 0; i < face_count; i++) {
-        if (!face_used[i]) continue;
+        if (!face_used[i])
+            continue;
         int gid = ttf_cmap_glyph(face_blob[i], face_off_cmap[i], codepoint);
-        if (gid > 0) return i;
+        if (gid > 0)
+            return i;
     }
     return -1;
 }
@@ -969,6 +1002,7 @@ const char *fontsys_face_family(int face_id) {
     gfx2d_shared_writer_end(writer_lease);
     return result;
 }
+
 int fontsys_face_weight(int face_id) {
     int result = 0;
     int writer_lease = gfx2d_shared_writer_begin();
@@ -977,6 +1011,7 @@ int fontsys_face_weight(int face_id) {
     gfx2d_shared_writer_end(writer_lease);
     return result;
 }
+
 int fontsys_face_italic(int face_id) {
     int result = 0;
     int writer_lease = gfx2d_shared_writer_begin();
@@ -998,8 +1033,10 @@ void fontsys_set_os_default(int face_id, int size_px) {
         gfx2d_shared_writer_end(writer_lease);
         return;
     }
-    if (size_px < 6) size_px = 6;
-    if (size_px > 96) size_px = 96;
+    if (size_px < 6)
+        size_px = 6;
+    if (size_px > 96)
+        size_px = 96;
     g_os_face = face_id;
     g_os_size = size_px;
     /* Intentionally silent: hot path (preview-flip every frame). Callers
@@ -1015,6 +1052,7 @@ int fontsys_get_os_default_face(void) {
     gfx2d_shared_writer_end(writer_lease);
     return result;
 }
+
 int fontsys_get_os_default_size(void) {
     int writer_lease = gfx2d_shared_writer_begin();
     int result = g_os_size;
@@ -1025,20 +1063,20 @@ int fontsys_get_os_default_size(void) {
 /* Fast advance (no rasterize). */
 
 static int fontsys_advance_locked(int face_id, int codepoint, int size_px) {
-    if (face_id < 0 || face_id >= face_count || !face_used[face_id]) return 0;
-    if (size_px <= 0) return 0;
+    if (face_id < 0 || face_id >= face_count || !face_used[face_id])
+        return 0;
+    if (size_px <= 0)
+        return 0;
 
     /* Cache hit? Reuse the rasterized advance. */
     int slot = gc_find(face_id, codepoint, size_px);
-    if (slot >= 0) return gc_advance[slot];
+    if (slot >= 0)
+        return gc_advance[slot];
 
     /* No raster: compute straight from hmtx. */
     int gid = ttf_cmap_glyph(face_blob[face_id], face_off_cmap[face_id], codepoint);
-    int adv_fu = ttf_glyph_advance(face_blob[face_id],
-                                   face_off_hmtx[face_id],
-                                   face_num_h_metrics[face_id],
-                                   face_num_glyphs[face_id],
-                                   gid);
+    int adv_fu = ttf_glyph_advance(face_blob[face_id], face_off_hmtx[face_id],
+                                   face_num_h_metrics[face_id], face_num_glyphs[face_id], gid);
     return scale_to_px(adv_fu, face_id, size_px);
 }
 
@@ -1052,11 +1090,12 @@ int fontsys_advance(int face_id, int codepoint, int size_px) {
 /* /etc/font.conf. */
 
 #define FONT_CONF_PATH "/etc/font.conf"
-#define FONT_CONF_BUF  256
+#define FONT_CONF_BUF 256
 
 static int parse_int(const char *s) {
     int v = 0;
-    while (*s == ' ' || *s == '\t') s++;
+    while (*s == ' ' || *s == '\t')
+        s++;
     while (*s >= '0' && *s <= '9') {
         v = v * 10 + (*s - '0');
         s++;
@@ -1067,7 +1106,8 @@ static int parse_int(const char *s) {
 int fontsys_load_os_default_from_conf(void) {
     char buf[FONT_CONF_BUF];
     int n = vfs_read_text(FONT_CONF_PATH, buf, FONT_CONF_BUF);
-    if (n <= 0) return -1;
+    if (n <= 0)
+        return -1;
 
     char family[FAMILY_NAME_CAP];
     family[0] = 0;
@@ -1076,40 +1116,54 @@ int fontsys_load_os_default_from_conf(void) {
     int i = 0;
     while (i < n) {
         /* skip leading ws */
-        while (i < n && (buf[i] == ' ' || buf[i] == '\t')) i++;
+        while (i < n && (buf[i] == ' ' || buf[i] == '\t'))
+            i++;
         /* find line end */
         int line_start = i;
-        while (i < n && buf[i] != '\n' && buf[i] != '\r') i++;
+        while (i < n && buf[i] != '\n' && buf[i] != '\r')
+            i++;
         int line_end = i;
-        while (i < n && (buf[i] == '\n' || buf[i] == '\r')) i++;
+        while (i < n && (buf[i] == '\n' || buf[i] == '\r'))
+            i++;
 
         /* split on '=' */
         int eq = line_start;
-        while (eq < line_end && buf[eq] != '=') eq++;
-        if (eq >= line_end) continue;
+        while (eq < line_end && buf[eq] != '=')
+            eq++;
+        if (eq >= line_end)
+            continue;
 
         int klen = eq - line_start;
         const char *val = &buf[eq + 1];
         int vlen = line_end - (eq + 1);
-        while (vlen > 0 && (val[0] == ' ' || val[0] == '\t')) { val++; vlen--; }
-        while (vlen > 0 && (val[vlen-1] == ' ' || val[vlen-1] == '\t')) vlen--;
+        while (vlen > 0 && (val[0] == ' ' || val[0] == '\t')) {
+            val++;
+            vlen--;
+        }
+        while (vlen > 0 && (val[vlen - 1] == ' ' || val[vlen - 1] == '\t'))
+            vlen--;
 
         if (klen == 6 && strncmp(&buf[line_start], "family", 6) == 0) {
             int o = 0;
             while (o < vlen && o < FAMILY_NAME_CAP - 1) {
-                family[o] = val[o]; o++;
+                family[o] = val[o];
+                o++;
             }
             family[o] = 0;
         } else if (klen == 4 && strncmp(&buf[line_start], "size", 4) == 0) {
             char tmp[16];
             int o = 0;
-            while (o < vlen && o < 15) { tmp[o] = val[o]; o++; }
+            while (o < vlen && o < 15) {
+                tmp[o] = val[o];
+                o++;
+            }
             tmp[o] = 0;
             size_px = parse_int(tmp);
         }
     }
 
-    if (size_px < 6 || size_px > 96) size_px = 14;
+    if (size_px < 6 || size_px > 96)
+        size_px = 14;
 
     /* Sentinel "__bitmap__" → revert to bitmap path. */
     if (family[0] == 0 || str_eq_ci(family, "__bitmap__")) {
@@ -1124,7 +1178,6 @@ int fontsys_load_os_default_from_conf(void) {
         return -1;
     }
     fontsys_set_os_default(face, size_px);
-    serial_printf("[fontsys] conf: face=%d (%s) size=%d\n",
-                  face, family, size_px);
+    serial_printf("[fontsys] conf: face=%d (%s) size=%d\n", face, family, size_px);
     return 0;
 }
