@@ -24,7 +24,8 @@ A freestanding compiler engine also rebuilds all nine of its own objects and
 relinks to the same complete image in a Linux harness. It fits the reserved
 guest compiler arena. This establishes host execution of the loaded engine;
 guest loading, process cleanup and self-recompilation inside Cupid OS remain
-unfinished. The
+unfinished. The guarded host run faults on the guest's default 32-KiB stack
+size; a separately allocated two-MiB stack passes all nine core sources. The
 [engine experiment](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md)
 retains the sources, binaries and negative controls.
 

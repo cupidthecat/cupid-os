@@ -1,5 +1,20 @@
 # Bootstrapping log
 
+## 2026-11-10: Measure the full compiler's worker-stack requirement
+
+The unchanged loaded compiler faults while compiling its full frontend on a
+guarded 32-KiB host stack, matching the guest's current default allocation size.
+A two-MiB stack with inaccessible end pages passes all nine core files and
+54 request controls. Every object and the complete relinked module match the
+first generation; tracked allocations return to zero. The largest painted
+write span is 48,028 bytes, which describes this workload rather than every
+valid compiler input.
+
+The [engine record](FREESTANDING-COMPILER-ENGINE.md) retains both failing small
+stacks, the passing run and a verified archive. Its stack trampoline is a
+Linux-only experiment. Guest integration still needs a scheduler-owned stack,
+compiler-region ownership and cleanup after exit or kill.
+
 ## 2026-11-10: Repair the remaining user-profile and producer-snapshot fixtures
 
 The user compiler fixture now reads balanced C blocks instead of a closing-brace

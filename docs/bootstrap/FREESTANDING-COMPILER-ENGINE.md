@@ -45,6 +45,19 @@ command and original harness remain in the evidence.
 
 ## Guest integration still needed
 
+The kernel's default process stack is 32 KiB. A second Linux harness calls the
+unchanged engine on a separately mapped stack with inaccessible pages at both
+ends. Compiling the full frontend faults on both four-KiB and 32-KiB stacks,
+without publishing output. With two MiB, every one of the nine sources compiles
+successfully. All objects and the complete relinked engine remain byte-identical,
+all 54 request controls pass and tracked allocations return to zero.
+
+The largest painted-stack write span is 48,028 bytes, during frontend compilation.
+That measurement covers this workload's written bytes; it does not bound all
+valid compiler inputs. The guarded run takes 536.090 seconds. Its stack-switch
+trampoline belongs only to the Linux experiment. Guest integration must allocate
+an actual process stack through the scheduler.
+
 The Linux harness does not establish the kernel's memory, stack or process
 lifetime behavior. The guest loader must validate the module before copying,
 honor the shell's compiler-region ownership, provide a sufficient worker stack
@@ -68,3 +81,10 @@ The [archive](evidence/freestanding-engine-proof-20261110.json.gz) contains
 153 file records and 143 payloads, including the experimental API, harness,
 controllers, failures, sources and built products. It has 2,470,024 bytes and
 SHA-256 `64f59ff10000ea54c4202af9384795597a6fbb816fc74d81df275ae04f9ab34b`.
+
+The [guarded-stack archive](evidence/freestanding-engine-stack-proof-20261110.json.gz)
+adds 133 file records, nine payloads and 124 verified references to the first
+archive. It retains the two rejected stack sizes, complete nine-source run,
+harness, trampoline and independent object/module comparisons. Its 59,167 bytes
+have SHA-256
+`e81891394f0882aef3d28b34d9df10c9ce3909e9d5a395b64d01a7e5bee6b93a`.
