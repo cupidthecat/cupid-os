@@ -1,4 +1,5 @@
 import os
+import json
 from pathlib import Path
 import subprocess
 import tempfile
@@ -42,7 +43,8 @@ class WikiSyncTests(unittest.TestCase):
         (self.source / "Home.md").write_text("new")
         (self.destination / "Home.md").write_text("old")
         for invalid in ("../outside", "/absolute", ".git/config", "folder/.GIT/x",
-                        "folder\\page", "a//b", "./Home.md", "C:/outside", ""):
+                        "folder\\page", "a//b", "./Home.md", "C:/outside", "", "line\nbreak",
+                        sync_wiki.STATE_FILE):
             with self.subTest(path=invalid), self.assertRaises(ValueError):
                 sync_wiki.sync(self.source, self.destination, ["Home.md"], [invalid])
             self.assertEqual((self.destination / "Home.md").read_text(), "old")
@@ -99,12 +101,94 @@ class WikiSyncTests(unittest.TestCase):
 
     def test_invalid_revision_and_unavailable_parent_fail_closed(self):
         with mock.patch.object(sync_wiki, "_git", return_value=b""):
-            with self.assertRaises(ValueError):
-                sync_wiki.tracked_changes(self.root, "--bad-revision")
+            for value in ('--bad-revision', '0', '0000'):
+                with self.subTest(revision=value), self.assertRaises(ValueError):
+                    sync_wiki.tracked_changes(self.root, value)
         with mock.patch.object(sync_wiki, "_git", side_effect=[
                 b"", subprocess.CalledProcessError(1, "git")]):
             with self.assertRaises(subprocess.CalledProcessError):
                 sync_wiki.tracked_changes(self.root, "b" * 40)
+
+    def pages(self, home):
+        for name in sync_wiki.REQUIRED_PAGES:
+            (self.source / name).write_text(home if name == 'Home.md' else '# Page\n',
+                                            encoding='utf-8')
+        return sorted(sync_wiki.REQUIRED_PAGES)
+
+    def test_validates_pages_assets_references_and_preserved_remote_pages(self):
+        current = self.pages('[Guide](Getting-Started#build) ![Image](images/a.png)\n'
+                             '[Website page][web]\n[web]: Web-only\n[[Home|Home]]\n')
+        (self.source / 'images').mkdir()
+        (self.source / 'images/a.png').write_bytes(b'\x00image')
+        (self.destination / 'Web-only.md').write_text('# Website page')
+        sync_wiki.validate(self.source, self.destination, current + ['images/a.png'], [])
+        with self.assertRaisesRegex(ValueError, 'missing wiki link target'):
+            sync_wiki.validate(self.source, self.destination, current + ['images/a.png'],
+                               ['Web-only.md'])
+
+    def test_rejects_missing_required_pages_bad_links_and_unsafe_schemes(self):
+        current = self.pages('# Home\n')
+        with self.assertRaisesRegex(ValueError, 'required wiki pages missing'):
+            sync_wiki.validate(self.source, self.destination, ['Home.md'], [])
+        for target in ('Missing', '../docs/file.md', '%2e%2e/escape', 'javascript:bad'):
+            with self.subTest(target=target):
+                (self.source / 'Home.md').write_text(f'[Bad]({target})', encoding='utf-8')
+                with self.assertRaises(ValueError):
+                    sync_wiki.validate(self.source, self.destination, current, [])
+        (self.source / 'Home.md').write_text('[Broken][undefined]', encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'undefined wiki link reference'):
+            sync_wiki.validate(self.source, self.destination, current, [])
+
+    def test_validation_ignores_code_examples_and_accepts_external_links(self):
+        current = self.pages('```md\n[example](Missing)\n```\n'
+                             '~~~\n[example](Missing)\n~~~\n'
+                             '    [example](Missing)\n`[example](Missing)`\n'
+                             '[GitHub](https://github.com/cupidthecat/cupid-os)\n')
+        sync_wiki.validate(self.source, self.destination, current, [])
+
+    def test_failed_validation_keeps_the_published_wiki_unchanged(self):
+        current = self.pages('[Broken](Missing)')
+        repository = self.root / 'repo'
+        repository.mkdir()
+        pages = repository / 'wiki'
+        pages.mkdir()
+        for path in self.source.iterdir():
+            (pages / path.name).write_bytes(path.read_bytes())
+        (self.destination / 'Home.md').write_text('keep')
+        with mock.patch.object(sync_wiki, 'tracked_changes', return_value=(current, [])):
+            with self.assertRaises(SystemExit) as error:
+                sync_wiki.main(['--source', str(repository), '--destination', str(self.destination)])
+        self.assertEqual(error.exception.code, 1)
+        self.assertEqual((self.destination / 'Home.md').read_text(), 'keep')
+
+    def test_previous_publication_carries_deletions_across_failed_or_skipped_pushes(self):
+        state = {'schema': 1, 'source_revision': 'a' * 40,
+                 'files': ['Home.md', 'Old-name.md']}
+        (self.destination / sync_wiki.STATE_FILE).write_text(json.dumps(state))
+        self.assertEqual(sync_wiki.pending_deletions(self.destination,
+                         ['Home.md', 'New-name.md'], []), ['Old-name.md'])
+        self.assertEqual(sync_wiki.pending_deletions(self.destination,
+                         ['Home.md', 'Old-name.md'], ['Other.md']), ['Other.md'])
+        state['files'] = ['../outside']
+        (self.destination / sync_wiki.STATE_FILE).write_text(json.dumps(state))
+        with self.assertRaises(ValueError):
+            sync_wiki.pending_deletions(self.destination, ['Home.md'], [])
+
+    def test_check_mode_is_read_only_and_success_records_managed_files(self):
+        current = self.pages('# Home\n')
+        repository = self.root / 'repo'
+        wiki = repository / 'wiki'
+        wiki.mkdir(parents=True)
+        for path in self.source.iterdir():
+            (wiki / path.name).write_bytes(path.read_bytes())
+        args = ['--source', str(repository), '--destination', str(self.destination)]
+        with mock.patch.object(sync_wiki, 'tracked_changes', return_value=(current, [])), \
+                mock.patch.object(sync_wiki, '_git', return_value=('b' * 40).encode()):
+            self.assertEqual(sync_wiki.main(args + ['--check']), 0)
+            self.assertEqual(list(self.destination.iterdir()), [])
+            self.assertEqual(sync_wiki.main(args), 0)
+        state = json.loads((self.destination / sync_wiki.STATE_FILE).read_text())
+        self.assertEqual(state, {'schema': 1, 'source_revision': 'b' * 40, 'files': current})
 
 
 if __name__ == "__main__":

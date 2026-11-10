@@ -80,7 +80,7 @@ elements through direct or pointer access. Indexed reads and assignments can
 continue to an element member from either a named record or a record-array
 element. Unsized and multidimensional aliases, pointers to array aliases, a
 second array declarator, array returns, array casts, and `new` with an array
-alias report a focused error. [ADR 0220](../docs/adr/0220-support-private-fixed-array-typedefs.md)
+alias report a focused error. [ADR 0220](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0220-support-private-fixed-array-typedefs.md)
 records this array boundary.
 
 A direct file-scope function-pointer typedef also retains its result, fixed
@@ -107,13 +107,13 @@ this metadata. Direct structure and array
 callback results are rejected; record-pointer results retain their record
 identity. A rejected source or REPL unit restores the typedef table with the
 prior symbols, patches, control state, code, and data.
-[ADR 0303](../docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
+[ADR 0303](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
 records the free-function parameter boundary.
-[ADR 0306](../docs/adr/0306-retain-global-typedef-callback-signatures-in-private-cupidc.md)
+[ADR 0306](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0306-retain-global-typedef-callback-signatures-in-private-cupidc.md)
 records global callback storage and checked assignment.
-[ADR 0310](../docs/adr/0310-retain-automatic-callback-typedef-signatures-in-private-cupidc.md)
+[ADR 0310](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0310-retain-automatic-callback-typedef-signatures-in-private-cupidc.md)
 records automatic objects and Cupid class method parameters.
-[ADR 0313](../docs/adr/0313-initialize-private-cupidc-global-callbacks-from-functions.md)
+[ADR 0313](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0313-initialize-private-cupidc-global-callbacks-from-functions.md)
 records static initialization from a compatible defined or later-defined
 function. The private JIT and fixed-address AOT writers place that address in
 the global data slot before execution. A direct `&function` address uses the
@@ -125,10 +125,10 @@ signature without requiring a typedef. The file object uses the existing
 initialized-data, assignment, call, and null rules. The parameter uses the
 existing cdecl conversion and arity checks. The private pool accepts 32
 distinct raw parameter signatures and recovers after rejecting the next one.
-[ADR 0315](../docs/adr/0315-retain-raw-callback-signatures-in-private-cupidc.md)
-records the raw boundary. [ADR 0319](../docs/adr/0319-retain-explicit-function-addresses-in-private-callbacks.md)
+[ADR 0315](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0315-retain-raw-callback-signatures-in-private-cupidc.md)
+records the raw boundary. [ADR 0319](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0319-retain-explicit-function-addresses-in-private-callbacks.md)
 records direct explicit function addresses.
-[ADR 0321](../docs/adr/0321-retain-typedef-callback-signatures-on-private-record-fields.md)
+[ADR 0321](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0321-retain-typedef-callback-signatures-on-private-record-fields.md)
 records typedef-backed record and class fields. Runtime initialization and
 assignment accept `&(function)` and nested grouping; ADR 0324 records that
 boundary. Raw callback field declarators retain the parsed signature. A direct
@@ -193,7 +193,7 @@ initialization, indexed stores, copies, and calls. Unsized automatic arrays,
 raw callback array parameters, raw callback arrays in structures or classes,
 and multidimensional raw callback arrays remain unsupported. A failed initializer
 restores its data, patches, signature entries, and symbols with the rest of the
-source or REPL transaction. [ADR 0330](../docs/adr/0330-support-data-backed-raw-callback-arrays.md)
+source or REPL transaction. [ADR 0330](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0330-support-data-backed-raw-callback-arrays.md)
 records this boundary. Conditional field values, alias chains, aggregate
 results, and raw method parameters remain open.
 
@@ -281,7 +281,7 @@ Field arrays require a positive count and a checked count-by-stride product.
 Each padding step, field addition, and final record alignment must fit the
 signed parser range. Persistent REPL rollback restores complete structure
 records as well as the table count, so a failed definition cannot fill an
-older forward tag. [ADR 0219](../docs/adr/0219-support-private-tagged-struct-typedefs.md)
+older forward tag. [ADR 0219](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0219-support-private-tagged-struct-typedefs.md)
 records the typedef, layout, and rollback rules.
 
 The private compiler also supports direct member addresses. In
@@ -336,8 +336,8 @@ lane; narrower unsigned results keep integer promotion. Scalar `float` and
 through casts, initialization, plain assignment, fixed arguments, and
 returns. The implementation splits at 2^31 so the upper half does not enter a
 signed truncation outside its range.
-[ADR 0221](../docs/adr/0221-preserve-private-unsigned-int-semantics.md)
-records the original runtime rules. [ADR 0249](../docs/adr/0249-complete-private-unsigned-word-conversions-and-remainder-assignment.md)
+[ADR 0221](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0221-preserve-private-unsigned-int-semantics.md)
+records the original runtime rules. [ADR 0249](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0249-complete-private-unsigned-word-conversions-and-remainder-assignment.md)
 records `%=` and floating input.
 
 ## In-kernel floating rules
@@ -597,9 +597,9 @@ increment and decrement. Atomic floating compound assignment, atomic floating
 updates, `long double` increment and decrement, decimal long-double
 subnormals, long-double decimals beyond
 the bounded ratio parser, and SIMD remain unsupported.
-[ADR 0349](../docs/adr/0349-parse-exact-hexadecimal-floating-constants.md)
+[ADR 0349](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0349-parse-exact-hexadecimal-floating-constants.md)
 records exact source-head hexadecimal conversion.
-[ADR 0229](../docs/adr/0229-emit-exact-decimal-long-double-literals.md)
+[ADR 0229](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0229-emit-exact-decimal-long-double-literals.md)
 records the literal representation. ADR 0250 records runtime unsigned
 four-byte conversion, ADR 0251 records static long-double data, and ADR 0253
 records runtime conversion between `long double` and every signed or
@@ -608,9 +608,9 @@ ADR 0255 records static controls and finite width conversion, and ADR 0256
 records canonical x87 payloads and special-value conversion.
 ADR 0288 records runtime integer and long-double usual conversions. ADR 0289
 records wide integer conversion and usual arithmetic with `float` and
-`double`. [ADR 0293](../docs/adr/0293-round-hosted-decimal-literals-exactly.md)
+`double`. [ADR 0293](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0293-round-hosted-decimal-literals-exactly.md)
 records exact decimal `float` and `double` literals.
-[ADR 0296](../docs/adr/0296-support-mixed-floating-compound-assignments.md)
+[ADR 0296](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0296-support-mixed-floating-compound-assignments.md)
 records mixed arithmetic compound assignment. ADR 0312 first carried both
 capabilities. The preceding linked-image cohort carried them under ADR 0318,
 while ADR 0353 records the paired v2 contract. The active cohort retains them

@@ -1,5 +1,28 @@
 # Bootstrapping log
 
+## 2026-11-09: Validate wiki publication and retain deletion history
+
+The first pushed Actions run succeeds with the built-in workflow token.
+Independent Git-blob comparison verifies all 29 tracked wiki files and all
+eight preserved website-only pages. The wiki commit uses the configured
+human identity. No extra credential is installed.
+
+Review against issue #40 finds 65 repository-relative documentation links
+that break in the separate wiki repository. Their targets now use full
+repository URLs. Publication validates required pages, filenames, local
+Markdown targets and reference definitions before copying. A read-only local
+check uses the same validator. The published file list carries intentional
+deletions across a failed run or a cancelled pending run.
+
+The initial state-history tests catch a missing JSON import before push.
+All thirteen corrected synchronization methods pass on Windows and Linux;
+the actual 29-file wiki tree also passes local validation. Actionlint accepts
+the unchanged workflow. The
+[first publication run](https://github.com/cupidthecat/cupid-os/actions/runs/42757035594)
+retains the successful token, checkout, copy and push steps.
+Remote validation of this follow-up remains pending until its workflow runs.
+The toolchain qualifications continue in their unchanged producer checkouts.
+
 ## 2026-11-09: Repair formatted runtime-source fixtures
 
 The shared Python source reader now serves the audit and runtime checks.

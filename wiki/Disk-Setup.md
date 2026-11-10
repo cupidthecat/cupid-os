@@ -38,7 +38,7 @@ For a fresh, invalid, or force-formatted image, Python extends the complete
 template to the requested disk size. When it reuses a valid image, it replaces
 only the bytes before the FAT partition, so existing FAT files survive. Python
 then stages frozen inputs, checks for live input or output changes, and
-publishes the finished image with an atomic replacement. [ADR 0238](../docs/adr/0238-publish-normal-disk-images-from-cupidobj-templates.md)
+publishes the finished image with an atomic replacement. [ADR 0238](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0238-publish-normal-disk-images-from-cupidobj-templates.md)
 records this split between template authorship and persistent disk handling.
 The guarded recipe built a fresh 209,715,200-byte image with SHA-256
 `8ad90a91103bf48d1e8d1e20b1b3dee48122ed1e4059b3f94cce7d750c262f16`.

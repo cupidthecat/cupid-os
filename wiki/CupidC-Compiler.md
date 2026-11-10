@@ -41,9 +41,9 @@ elements remain zero, and block-static array data initializes once. Excess
 elements, nonconstant calls and division by zero receive errors. A failed
 REPL declaration restores earlier data and names and permits reuse of its name.
 
-[The private qualification record](../docs/bootstrap/PRIVATE-INTEGER-ARRAY-QUALIFICATION.md)
+[The private qualification record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PRIVATE-INTEGER-ARRAY-QUALIFICATION.md)
 records the measured candidate and completed working-tree adoption, with bounded final
-engineering acceptance in the [final five-test proof](../docs/bootstrap/evidence/verification-final-root-combined-five-test-acceptance-20261013.json.gz). General scalar
+engineering acceptance in the [final five-test proof](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/evidence/verification-final-root-combined-five-test-acceptance-20261013.json.gz). General scalar
 and aggregate initialization, nested lists, inferred bounds, pointer difference
 and indirect integer updates require their separate qualification.
 
@@ -54,12 +54,12 @@ engineering working tree, and both installed root verifiers pass. Its actual
 Make, public-method, normal/guest and four SDK consumer records remain separate
 from final acceptance of the engineering checkout. Each SDK profile retains
 104 source inputs, 77 complete stage pairs and 22 published ELF programs.
-[The seed record](../docs/bootstrap/QUALIFIED-CURRENT-POLICY-SEEDS.md) and
-[protected baseline record](../docs/bootstrap/PROTECTED-BASELINE-SEED-TRANSITION.md)
+[The seed record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/QUALIFIED-CURRENT-POLICY-SEEDS.md) and
+[protected baseline record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/PROTECTED-BASELINE-SEED-TRANSITION.md)
 retain the consumer evidence and failed baseline.
 
 The private halfword and array candidate passes paired ordinary/runtime checks
-and both complete original frontier modules. The 32-member module archive and exact source/lock working-tree guards pass. Bounded final engineering acceptance passes in the [final five-test proof](../docs/bootstrap/evidence/verification-final-root-combined-five-test-acceptance-20261013.json.gz).
+and both complete original frontier modules. The 32-member module archive and exact source/lock working-tree guards pass. Bounded final engineering acceptance passes in the [final five-test proof](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/evidence/verification-final-root-combined-five-test-acceptance-20261013.json.gz).
 Windows combines eight retained build/guest commands with one fresh
 complete suite; Linux freshly rebuilds normal products and checks guest
 runtime, without a complete Linux suite. Full self-hosting and
@@ -3000,47 +3000,47 @@ The parser (`cupidc_parse.cc`) is recursive descent and writes x86 machine-code 
   token or a joined value that exhausts the data section fails without
   publishing a truncated string.
 
-[ADR 0189](../docs/adr/0189-preserve-floating-values-in-private-cupidc-unary-signs.md)
+[ADR 0189](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0189-preserve-floating-values-in-private-cupidc-unary-signs.md)
 records the unary-sign decision, signed-zero evidence, useful type failure,
 and same-REPL recovery.
 
-[ADR 0198](../docs/adr/0198-layout-private-cupidc-mixed-width-calls.md)
+[ADR 0198](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0198-layout-private-cupidc-mixed-width-calls.md)
 records the private scalar cdecl slot widths, shared call layout, parameter
 offsets, cleanup, and guest evidence.
 
-[ADR 0210](../docs/adr/0210-use-native-binary64-browser-numbers.md)
+[ADR 0210](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0210-use-native-binary64-browser-numbers.md)
 records typed private floating arrays and the Browser binary64 path that
 requires them.
 
-[ADR 0215](../docs/adr/0215-type-private-floating-lvalues.md) records typed
+[ADR 0215](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0215-type-private-floating-lvalues.md) records typed
 floating pointers, multidimensional arrays, record fields, array-parameter
 decay, and unevaluated row sizes in the private compiler.
 
-[ADR 0273](../docs/adr/0273-update-private-derived-floating-lvalues.md)
+[ADR 0273](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0273-update-private-derived-floating-lvalues.md)
 records one-time destination evaluation and exact postfix results for pointer,
 index, and member floating updates in the private compiler.
 
-[ADR 0216](../docs/adr/0216-private-simd-arrays-and-operators.md) records
+[ADR 0216](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0216-private-simd-arrays-and-operators.md) records
 matching packed arithmetic, one-dimensional fixed SIMD arrays, observable
 operand order, and the remaining private compiler boundary.
 
-[ADR 0257](../docs/adr/0257-descend-private-multidimensional-simd-arrays.md)
+[ADR 0257](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0257-descend-private-multidimensional-simd-arrays.md)
 records two-dimensional and three-dimensional SIMD storage, checked row
 descent, unevaluated row sizes, and complete-subscript assignment.
 
-[ADR 0299](../docs/adr/0299-pass-private-simd-values-through-cdecl.md) records
+[ADR 0299](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0299-pass-private-simd-values-through-cdecl.md) records
 the fixed-prototype 16-byte stack slots, XMM0 returns, and the unsupported
 metadata-free call boundaries.
 
-[ADR 0217](../docs/adr/0217-round-private-decimal-literals-exactly.md) records
+[ADR 0217](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0217-round-private-decimal-literals-exactly.md) records
 the integer decimal converter, target-width rounding, token boundary, and
 diagnostic recovery.
 
-[ADR 0218](../docs/adr/0218-extend-browser-numbers-and-private-strings.md)
+[ADR 0218](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0218-extend-browser-numbers-and-private-strings.md)
 records the Browser primitive-number lane and the adjacent private C strings
 needed by its active self-test.
 
-[ADR 0219](../docs/adr/0219-support-private-tagged-struct-typedefs.md) records
+[ADR 0219](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0219-support-private-tagged-struct-typedefs.md) records
 tagged structure typedefs, checked private allocation arithmetic, integer
 constant rules, member addresses, and persistent REPL record rollback.
 

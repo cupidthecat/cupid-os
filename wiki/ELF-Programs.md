@@ -147,20 +147,20 @@ and Linux parent manifest
 `b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`.
 ADR 0336 records that v1 pair.
 See [ADR
-0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
+0247](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
 [ADR
-0248](../docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md).
+0248](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md).
 ADR 0258 records checked-seed carriage. The preliminary Linux behavior
 reconstruction also found that `cupiddis_main.cc` lacked `_WIN32=1`; the corrected Windows
 profile, parity test, and audit guard now cover all six tool mains. ADR 0268 records the shared runtime,
 ADR 0269 records CupidLD publication, ADR 0272 records Windows execution seed
 carriage and production selection, ADR 0278 records the native driver, and
-[ADR 0279](../docs/adr/0279-prove-post-change-fixed-points-through-convergence.md)
-records the convergence rule. [ADR 0280](../docs/adr/0280-promote-the-clean-stage-four-linux-seed.md)
-records the Linux promotion. [ADR 0281](../docs/adr/0281-promote-the-clean-stage-four-windows-seed.md)
-records the preceding Windows promotion. [ADR 0292](../docs/adr/0292-promote-strict-relocation-production-seeds.md)
+[ADR 0279](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0279-prove-post-change-fixed-points-through-convergence.md)
+records the convergence rule. [ADR 0280](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0280-promote-the-clean-stage-four-linux-seed.md)
+records the Linux promotion. [ADR 0281](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0281-promote-the-clean-stage-four-windows-seed.md)
+records the preceding Windows promotion. [ADR 0292](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0292-promote-strict-relocation-production-seeds.md)
 records the preceding strict-relocation promotion. [ADR
-0323](../docs/adr/0323-promote-and-adopt-static-elf-code-anchor-checks.md)
+0323](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0323-promote-and-adopt-static-elf-code-anchor-checks.md)
 records the preceding code-anchor promotion and production adoption. ADR 0336
 records the parent v1 pair. ADR 0353 records the paired v2 contract, ADR 0367
 records the preceding pair, and ADR 0370 records the active pair.
@@ -212,7 +212,7 @@ Each checked link stays private until CupidDis accepts it with
 `--require-known`, `--require-local-targets`, and
 `--require-code-anchors`. CupidLD and CupidDis share one frozen seed capture.
 A failed inspection or unexpected output preserves the earlier executable.
-[ADR 0326](../docs/adr/0326-inspect-user-elfs-before-publication.md) records the
+[ADR 0326](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0326-inspect-user-elfs-before-publication.md) records the
 publication gate.
 
 ### 4. Run in Cupid OS
@@ -845,7 +845,7 @@ stores, copies, and calls. Unsized automatic arrays, raw callback array
 parameters, raw callback arrays in records or classes, multidimensional raw
 callback arrays, raw method parameters, and aggregate callback contexts remain
 unsupported. ADR 0315 records the raw scalar and parameter source rule.
-[ADR 0330](../docs/adr/0330-support-data-backed-raw-callback-arrays.md)
+[ADR 0330](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0330-support-data-backed-raw-callback-arrays.md)
 records data-backed raw callback arrays and block-static scalar callbacks.
 
 The source-current private callback ABI module passes all 318 tests in 60.519
@@ -862,20 +862,20 @@ The standalone CupidC seeds do not contain this private parser. The production
 Doom cohort, including `f_wipe.cc`, remains built by checked-seed hosted
 CupidC. This private AOT capability does not transfer that cohort to in-OS
 CupidC, promote a seed, or remove a remaining bootstrap dependency.
-[ADR 0303](../docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
+[ADR 0303](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
 records the callback and one-header AOT boundaries.
-[ADR 0306](../docs/adr/0306-retain-global-typedef-callback-signatures-in-private-cupidc.md)
+[ADR 0306](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0306-retain-global-typedef-callback-signatures-in-private-cupidc.md)
 records the global storage and assignment boundary.
-[ADR 0310](../docs/adr/0310-retain-automatic-callback-typedef-signatures-in-private-cupidc.md)
+[ADR 0310](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0310-retain-automatic-callback-typedef-signatures-in-private-cupidc.md)
 records automatic objects and Cupid class method parameters.
-[ADR 0313](../docs/adr/0313-initialize-private-cupidc-global-callbacks-from-functions.md)
+[ADR 0313](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0313-initialize-private-cupidc-global-callbacks-from-functions.md)
 records static callback initialization for private JIT and fixed-address AOT
 data.
-[ADR 0319](../docs/adr/0319-retain-explicit-function-addresses-in-private-callbacks.md)
+[ADR 0319](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0319-retain-explicit-function-addresses-in-private-callbacks.md)
 records direct explicit function addresses. Runtime initialization and
 assignment accept `&(function)` and nested grouping; ADR 0324 records that
 runtime boundary.
-[ADR 0321](../docs/adr/0321-retain-typedef-callback-signatures-on-private-record-fields.md)
+[ADR 0321](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0321-retain-typedef-callback-signatures-on-private-record-fields.md)
 records typedef-backed record and class fields.
 
 The preceding poisoned-host build checkpoint passed in 684.260 seconds with

@@ -2843,7 +2843,7 @@ manifest reader. The accepted conditional-assembly seeds are restored. The
 reader now recognizes their exact parent tuple; mixed revisions or manifests
 still fail. Both staged proofs and paired production acceptance cover this
 correction. Seed promotion remains separate.
-See [ADR 0407](../docs/adr/0407-bind-the-conditional-assembly-seed-parent.md).
+See [ADR 0407](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0407-bind-the-conditional-assembly-seed-parent.md).
 
 ## Windows UTF-8 candidate
 
@@ -2869,7 +2869,7 @@ verifier pass. Paired OS/runtime acceptance also passes: images and user
 programs match across hosts, and private four-CPU disassembly/shell smokes
 preserve their source images.
 The installed release below is unchanged. See
-[ADR 0406](../docs/adr/0406-use-utf8-at-windows-tool-boundaries.md).
+[ADR 0406](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0406-use-utf8-at-windows-tool-boundaries.md).
 
 ## Current seed release
 
@@ -3793,11 +3793,11 @@ marker, empty stderr, exit 37, and a ten-second timeout. The report retains the
 observed result and hashes for both object and image pairs. The checked-seed
 matrix is 5/18/16. The promoted Linux seed carries imports, but Windows still
 needs WSL to execute its static i386 Linux producers. [ADR
-0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md)
+0247](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md)
 records the format boundary. [ADR
-0248](../docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md)
+0248](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md)
 records imports and direct loader execution. [ADR
-0258](../docs/adr/0258-promote-pe-and-x87-toolchain-seed.md) records seed
+0258](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0258-promote-pe-and-x87-toolchain-seed.md) records seed
 carriage.
 
 Source head extends that PE path to complete native CupidASM, CupidC,
@@ -3878,18 +3878,18 @@ assembly objects, and five tools with every initial seed comparison true, then
 passed the 5/8/9 behavior matrix. ADR 0336 records this
 promotion and reproof.
 [ADR
-0268](../docs/adr/0268-run-cupid-built-cupiddis-on-windows.md) records the
+0268](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0268-run-cupid-built-cupiddis-on-windows.md) records the
 shared runtime, and [ADR
-0269](../docs/adr/0269-run-cupid-built-cupidld-on-windows.md) records the
+0269](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0269-run-cupid-built-cupidld-on-windows.md) records the
 publication boundary. [ADR
-0272](../docs/adr/0272-adopt-a-checked-native-windows-execution-seed.md)
+0272](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0272-adopt-a-checked-native-windows-execution-seed.md)
 records checked carriage and production selection. [ADR
-0274](../docs/adr/0274-commit-the-native-windows-tool-stack.md) records the
+0274](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0274-commit-the-native-windows-tool-stack.md) records the
 stack policy, and [ADR
-0278](../docs/adr/0278-add-a-native-windows-fixed-point-driver.md) records the
-native driver. [ADR 0292](../docs/adr/0292-promote-strict-relocation-production-seeds.md)
+0278](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0278-add-a-native-windows-fixed-point-driver.md) records the
+native driver. [ADR 0292](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0292-promote-strict-relocation-production-seeds.md)
 records the preceding strict-relocation promotion. [ADR
-0323](../docs/adr/0323-promote-and-adopt-static-elf-code-anchor-checks.md)
+0323](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0323-promote-and-adopt-static-elf-code-anchor-checks.md)
 records the preceding code-anchor promotion and production adoption. ADR 0336
 records the parent v1 pair. ADR 0353 records the paired v2 contract, ADR 0367
 records the preceding pair, and ADR 0370 records the preceding pair; ADR 0393 records the active pair.
@@ -5369,7 +5369,7 @@ partition. Python also stages frozen files, checks the seed and live paths for
 changes, and publishes the complete candidate atomically. CupidObj's 192
 normal transforms include `disk-template`, `iso-fixture`, and the guarded Doom
 profile manifest. ADR 0236 records the
-command, ADR 0237 records seed carriage, and [ADR 0238](../docs/adr/0238-publish-normal-disk-images-from-cupidobj-templates.md)
+command, ADR 0237 records seed carriage, and [ADR 0238](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0238-publish-normal-disk-images-from-cupidobj-templates.md)
 records production ownership.
 
 The guarded normal recipe built a fresh 209,715,200-byte image with SHA-256
@@ -5426,7 +5426,7 @@ SHA-256
 `0aed6bf022bdb3b9a5c689b64473e2e6da7dfddfd4e7bec9956c03a7189da596`.
 This boot checks the existing ELF path; it does not execute a PE image.
 
-The earlier [ADR 0235](../docs/adr/0235-transfer-jpeg-acceptance-to-cupidobj.md)
+The earlier [ADR 0235](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0235-transfer-jpeg-acceptance-to-cupidobj.md)
 checkpoint used a 209,715,200-byte image with SHA-256
 `c71fd7f5a03a4e55f4de45e6b93d4284375fb5600f4df3cda62b7f4043c33b33`.
 Its private four-vCPU runs covered the complete frontier with both supported

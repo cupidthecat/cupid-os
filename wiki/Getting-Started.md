@@ -273,6 +273,25 @@ workflow removes paths deleted by the push and publishes the current files.
 It leaves other wiki pages alone. Check the workflow run after pushing; a failed
 run can be rerun from the repository's Actions page.
 
+Publication checks required pages, filenames and local Markdown link targets
+before committing. Use full GitHub repository URLs for files outside the wiki.
+The workflow uses `GITHUB_TOKEN` with `contents: write`; it needs no extra secret.
+It records the published file list so a later run also removes pages left by
+a failed or skipped push. A validation or push failure leaves the published
+wiki at its preceding commit.
+
+For local validation, clone the published wiki beside the source repository,
+stage your wiki edits, then run:
+
+```sh
+python3 tools/sync_wiki.py --source . --destination ../cupid-os.wiki --check
+```
+
+The check reads the destination without changing it. To check removals before
+the first publication, add `--before` with the full commit hash from before
+those edits. After a failure, fix the reported files and push again, or rerun
+the failed Actions job once its cause is resolved.
+
 ## Next Steps
 
 - **[Shell Commands](Shell-Commands)** - Full command reference
