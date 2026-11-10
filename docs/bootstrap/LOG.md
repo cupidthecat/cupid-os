@@ -1,5 +1,28 @@
 # Bootstrapping log
 
+## 2026-11-10: Pass the complete SDK matrix and paired cold builds
+
+Ordinary and long-path SDK publications pass on both hosts. All 22 executable
+files match across all four runs; each profile's complete manifest matches
+between hosts. Long-path mode adds only its Windows UTF-8 startup input to the
+producer snapshot. All original workers, deadlines and 84 stage comparisons
+remain checked.
+
+Both empty-output normal image and user builds pass with the private qualified
+projection. Independent readback covers all 432 objects and all 440 products,
+which match between hosts. Four strict private boots pass `ls` and the ISO
+fixture with 62 TLS successes each. Whole source images stay unchanged.
+
+The first cold observers used an obsolete user arena and bootloader offset;
+the corrected verifier reads the current arena and five-sector layout. The
+matrix observer also corrected its expected success sentence. These were
+readback failures, with no build or guest rerun or production change.
+
+The [SDK record](FORMATTED-SDK-CONSUMERS.md) and
+[cold-build record](FORMATTED-COLD-CONSUMERS.md) retain the measured scope and
+verified archive. Complete repository replays, installed seed adoption and
+in-guest self-hosting remain open.
+
 ## 2026-11-10: Repair kernel source locks without changing emitted code
 
 Nine original compiler and checked-seed methods now bind the formatted source

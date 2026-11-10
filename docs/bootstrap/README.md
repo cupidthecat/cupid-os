@@ -58,6 +58,9 @@ complete OS can rebuild itself from inside the guest.
 - [Source formatting](CUPIDC-SOURCE-FORMATTING.md): the configured `.cc` style,
   include dependencies, source-driven checks and remaining verification.
 
+- [Cold qualified-tool builds](FORMATTED-COLD-CONSUMERS.md): matching Linux and
+  Windows objects and images, user builds and four strict private boots.
+
 - [External observer authority](PRIVATE-WIDE-EXTERNAL-OBSERVERS.md): distinct
   retained roots, exact selection, actual post-install rollback and original
   path-rebinding checks in the current private wide adapter.

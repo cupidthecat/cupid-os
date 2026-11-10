@@ -127,7 +127,12 @@ Fresh [formatted-producer qualifications](FORMATTED-PRODUCER-QUALIFICATION.md)
 now pass on Windows and Linux against the separately reviewed current cohort.
 Independent checks cover all 333 staged artifacts, 111 complete fixed-point
 pairs and 114 Git source inputs. Private replacement seeds verify on each
-host; their SDK and normal-build acceptance still precede installation.
+host. SDK and normal-build acceptance are recorded below.
+
+All four [SDK publication profiles](FORMATTED-SDK-CONSUMERS.md) and paired
+[cold OS/user builds](FORMATTED-COLD-CONSUMERS.md) now pass with that private
+projection. Four strict private boots also pass. Installed seed adoption and
+complete repository acceptance remain open.
 
 The formatted installed-seed image also passes the complete
 [31-command guest frontier](FORMATTED-OS-RUNTIME-FRONTIER.md), including

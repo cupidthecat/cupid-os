@@ -268,6 +268,12 @@ sweep keeps its own include profile and checks conflicting definitions.
 When changing formatting, compare the source and emitted objects before
 updating their byte locks.
 
+The current qualified tools pass ordinary and long-path SDK publication and
+cold OS/user builds on Linux and Windows. Both hosts produce identical objects
+and disk images, and private `ls` and ISO boots pass. This validation uses a
+private seed projection; complete repository acceptance and installed seed
+adoption remain open.
+
 Use the repository's `.clang-format` for Cupid C source:
 
 ```sh
