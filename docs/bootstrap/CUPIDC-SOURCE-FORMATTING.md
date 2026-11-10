@@ -120,6 +120,11 @@ Independent checks cover all 333 staged artifacts, 111 complete fixed-point
 pairs and 114 Git source inputs. Private replacement seeds verify on each
 host; their SDK and normal-build acceptance still precede installation.
 
+The formatted installed-seed image also passes the complete
+[31-command guest frontier](FORMATTED-OS-RUNTIME-FRONTIER.md), including
+graphics, USB replug and captured nonzero AC97/PC speaker audio. The source
+images remain unchanged. Doom gameplay and music remain separate acceptance.
+
 ## Compile-policy table readbacks
 
 The continuing replay found two more source readers that expected initializer

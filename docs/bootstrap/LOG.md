@@ -1,5 +1,27 @@
 # Bootstrapping log
 
+## 2026-11-10: Pass the formatted OS guest frontier
+
+The unchanged guest runner passes all 31 frontier commands in 892.128 seconds
+against private copies of the formatted OS image and USB fixture. Four QEMU
+CPUs, `max`, e1000, SMP, RDRAND, the desktop and all 62 TLS checks pass.
+Independent readback checks 97,552 changed pixels and nonzero stereo 16-bit
+44,100 Hz audio from both AC97 and the PC speaker. The source images keep
+their hashes. This is the installed-seed image; replacement OS builds and
+Doom gameplay/music acceptance remain open.
+
+The runner's existing private-image cleanup remains intact. Observation
+retains framebuffers and audio before cleanup, without changing the command
+sequence or its bounds. The raw QEMU captures retain canonical zero length
+fields; direct `wave.open` rejects them. The existing validator and independent
+RIFF/PCM reader check their complete closed-file data.
+
+[The guest record](FORMATTED-OS-RUNTIME-FRONTIER.md) links all fourteen archived
+payloads. A further byte-exact check permits retirement of the raw audio and
+USB fixture copies, freeing 179,582,264 bytes. Screenshots and logs remain.
+Both private ordinary SDK builds and a separate current-cohort Windows
+`make -j2 test` are running; the earlier frozen replay remains separate.
+
 ## 2026-11-10: Qualify the formatted producer cohort
 
 Fresh preparations and complete reviewed-release qualifications pass on native
