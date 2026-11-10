@@ -1,5 +1,24 @@
 # Bootstrapping log
 
+## 2026-11-10: Pass both complete kernel fingerprint rechecks
+
+The original 156-source kernel method passes on Windows and native Linux in
+2,019.699 and 2,042.319 seconds under its unchanged 2,340-second bound. Each
+compiles twice and compares 4,253,532 object bytes per pass. All 60 pinned rows
+and their sizes remain checked. Thirty-six hashes change after formatting;
+24 whole objects stay identical. ELF comparison accounts for the remaining
+function changes through relocations and 65 allocator source-line arguments.
+
+The 487-input snapshot adds only the shared spelling header to the preceding
+486-input union. The test requires that path and exact measured digest. Full
+module AST readback confirms no existing assertion, source cohort, byte count
+or timeout is removed. The earlier partial calibration failures remain in the
+evidence. Production C, installed seeds and compiler bytes remain unchanged.
+
+[The fingerprint record](FORMATTED-KERNEL-FINGERPRINTS.md) includes all pinned
+before/after objects, current inputs and independently verified archive. Full
+current suites and replacement SDK/OS/user and guest acceptance remain open.
+
 ## 2026-11-10: Retain the full-audio Freedoom diagnostic and synthesis comparison
 
 The private formatted-image guest renders a level, accepts game input and
