@@ -1,5 +1,21 @@
 # Bootstrapping log
 
+## 2026-11-10: Shorten the wiki landing page and explain CupidBuild
+
+The wiki home page now leads with setup, programming guides and system
+navigation. Its preceding content remains in a clearly labelled bootstrap
+history page, so older revisions and measurements no longer read as current
+status on the landing page. Home shrinks from 288 to 47 lines.
+
+A separate CupidBuild guide explains normal Make entry points, host-specific
+checked commands, the six-image manifest/release cohort, publication failures
+and the remaining Python coordination. Command groups follow the installed
+tool's actual help output. The sidebar and bootstrap guide link both pages.
+Routing compiler help through `run` rejects the checked-request shape; the
+guide uses CupidBuild's own help and records the operation-specific constraint.
+These changes affect wiki content only; the guest manual and OS image stay
+unchanged.
+
 ## 2026-11-10: Pass the formatted OS guest frontier
 
 The unchanged guest runner passes all 31 frontier commands in 892.128 seconds

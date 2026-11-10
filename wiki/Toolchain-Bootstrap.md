@@ -1,5 +1,8 @@
 # Toolchain bootstrap
 
+See [CupidBuild](CupidBuild) for normal build commands, seed selection and
+publication errors. [Getting Started](Getting-Started) covers host setup.
+
 ## Source-owner integration, 2026-11-08
 
 Current producer plans include the path, file, stage, integer, option and

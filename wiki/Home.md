@@ -1,288 +1,47 @@
-# cupid-os Wiki
+# Cupid OS wiki
 
-## Complete input owner capacity follow-up, 2026-10-11
+Cupid OS is a 32-bit x86 operating system with a desktop, shell and live
+Cupid C and Cupid ASM development. Programs share the kernel address space
+and run in ring 0.
 
-Fresh Windows flat calls pass for native and Cupid-built callers on drive and
-UNC paths. Both distinct-parent drive calls pass; both distinct-parent UNC
-calls reach the original sixty-second deadline. The complete owner remains
-outside accepted native image discovery and publication.
+## Start here
 
-Native diagnosis attributes all 39,243 measured metadata queries in a
-512-parent caller. Whole-observer revalidation contributes 20,748 queries.
-`FileStatInformation` rejects UNC queries. `FileAllInformation` returns the
-tested fields but takes longer. Source, custody checks and capacity bounds
-retain their contracts. Normal ownership remains 449 CupidBuild actions and
-three Python coordinators.
+- [Getting Started](Getting-Started): dependencies, building and running in QEMU.
+- [Real Hardware](Real-Hardware): BIOS/CSM boot and installation on physical disks.
+- [Architecture](Architecture): boot sequence, memory, processes and the toolchain.
 
-[The follow-up record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-OWNER-CAPACITY-FOLLOWUP.md) preserves the complete measurement scope.
+On Ubuntu or Debian:
 
-## Windows full-path storage manual acceptance, 2026-10-11
-
-The OS manual records the Windows full-path output allocation and its bounded
-conversion, errors and cleanup. Dirty-storage tests and the allocation's source
-acceptance retain their measured scope. Complete native input ownership and
-publication remain open.
-
-Both complete host builds and normal-root verification pass. All 429 objects,
-four linked products, six user products and every byte of the 209,715,200-byte
-image agree. All six strict four-CPU boots, sixteen exact artifact gates per
-build and seventeen root artifact-policy methods pass.
-
-The manual grows by 1,168 bytes to 84,889 bytes. The
-raw kernel grows by 1,168 bytes to 9,314,136 bytes.
-Raw-kernel and manual growth agree exactly. The raw-kernel and pass-one ELF exact policy rows change.
-Only the embedded manual object changes; the other 428 objects retain their preceding bytes. Normal ownership remains 449 CupidBuild actions and three
-Python coordinators. The 99 producer inputs and installed seeds retain their
-allocation acceptance bytes.
-
-[The manual record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FULLPATH-STORAGE-MANUAL.md) contains the complete measured acceptance.
-
-## Windows full-path output storage, 2026-10-11
-
-The Windows UTF-8 adapter built by CupidC allocates its full-path output
-without an initial 65,536-byte clear. The API fills the same bounded buffer
-before conversion. Length checks, errors, cleanup and source custody keep
-their contracts. Dirty-storage and failure tests pass on both hosts.
-
-Normal-root verification passes all sixteen artifact gates and both strict
-four-CPU boots. All 429 objects, four linked products, six user products and
-the complete 209,715,200-byte image match the preceding acceptance.
-Installed execution seeds are unchanged. Normal ownership remains at
-449 CupidBuild actions and three Python coordinators. Complete native input ownership and publication remain open.
-
-[The acceptance record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-FULLPATH-STORAGE.md) contains the measured scope.
-
-**cupid-os** is a 32-bit operating system written in C and x86 assembly. Its ring-0 execution model and desktop draw on TempleOS and OsakaOS. The system does not isolate programs from the kernel.
-
----
-
-## Pages
-
-| Page | Description |
-|------|-------------|
-| [Getting Started](Getting-Started) | Build requirements, compiling, booting in QEMU |
-| [Real Hardware](Real-Hardware) | Flashing to USB/disk, BIOS/CSM setup, booting on physical PCs |
-| [Architecture](Architecture) | System overview, memory layout, boot sequence, component diagram |
-| [Shell Commands](Shell-Commands) | Full reference for built-ins and auto-discovered `/bin` / `/home/bin` commands |
-| [CupidScript](CupidScript) | Scripting language guide - variables, loops, functions, examples |
-| [CupidC Compiler](CupidC-Compiler) | HolyC-inspired C compiler - JIT/AOT, inline assembly, kernel bindings |
-| [Toolchain Bootstrap](Toolchain-Bootstrap) | Checked Cupid tools, staged rebuild, provenance, and fixed-point verification |
-| [CupidDoc CTXT](CupidDoc-CTXT) | TempleOS-inspired executable `.ctxt` documents in Notepad, including clickable code, links, trees, and sprite widgets |
-| [CupidASM Assembler](CupidASM-Assembler) | x86-32 assembler - Intel syntax, JIT/AOT, include files, kernel bindings |
-| [CupidC 2D Graphics Library](CupidC-2D-Graphics-Library) | API reference for the software-rendered 2D graphics library |
-| [User Programs](User-Programs) | Writing and deploying CupidC programs in /bin/ and /home/bin/ |
-| [Ed Editor](Ed-Editor) | How to use the built-in ed(1) line editor |
-| [Desktop Environment](Desktop-Environment) | VBE 640x480 32bpp graphics, window manager, mouse, terminal app |
-| [Process Management](Process-Management) | Scheduler, context switching, process API |
-| [Filesystem](Filesystem) | VFS, RamFS, DevFS, FAT16, disk I/O, program loader |
-| [Disk Setup](Disk-Setup) | Creating and formatting FAT16 disk images for QEMU |
-| [ELF Programs](ELF-Programs) | Compiling, loading, and running ELF32 executables, syscall table API |
-| [Debugging](Debugging) | Serial console, memory safety, crash testing, assertions |
-| [USB](USB) | UHCI + EHCI host controllers, HID keyboard/mouse, hub class, mass storage (BBB + SCSI) |
-| [SMP](SMP) | SMP Tier 2: ACPI/MP discovery, per-CPU LAPIC timer, big kernel lock, IPI reschedule and cross-CPU call |
-| [Networking](Networking) | RTL8139 + E1000 drivers, TCP/UDP/ICMP/ARP/DHCP/DNS, BSD sockets, HTTP/HTTPS, SSH/Telnet |
-
----
-
-## Toolchain bootstrap
-
-Initial source leaf capture reuses kind and metadata from the same opened
-handle while preserving later validation and payload custody. Both repository
-replays pass 3,630 existing outcomes, 99 strict checks, 23 whole object pairs
-and 152 altered-evidence controls. Complete native input ownership and
-publication remain open.
-
-[The component record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-KIND-METADATA.md)
-contains the complete receipts and preserved failures.
-
-Temporary source selection groups capture path kinds while retaining the
-optional selection profile and permanent publication-borrowing rejection.
-Both repository replays pass 192 new cases and all 3,438 preceding outcomes,
-with 99 strict checks, 23 whole object pairs and 152 rejection controls.
-Complete input-owner and publication qualification remain open.
-
-[The component record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-SOURCE-SELECTION-GROUP.md)
-carries the held patch, portable receipts and preserved failures.
-
-Retained original file-request binding groups share parent resolution while
-keeping fresh file metadata checks and complete caller root and payload custody.
-Both repository replays pass 210 new cases and all 3,228 preceding outcomes,
-with 95 strict checks, 22 whole object pairs and one hundred rejection controls.
-Complete input ownership remains unqualified on the Cupid-built UNC caller.
-
-[The component record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-FILE-REQUEST-GROUP.md)
-carries the held patch, portable receipts and preserved failures.
-
-The held path observation group captures ordinary file, directory and first-absence
-observations with complete validation before and after the group. Both complete repository
-replays pass 168 new cases and all 3,060 preceding outcomes, with 91 strict
-checks and 21 whole object pairs. All sixty altered-evidence controls reject. Complete
-native input ownership remains unqualified on Windows UNC paths; normal image
-publication still uses Python.
-
-[The component record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/NATIVE-PATH-OBSERVATION-GROUP.md)
-contains the held patch, complete receipts and constructor query diagnosis.
-
-The held retained-file group API passes both complete repository replays,
-3,060 API outcomes and 87 strict checks. Group capture preserves per-file
-parent, metadata and payload checks, with complete observer validation at both
-boundaries. Callback bytes remain provisional until success. The fresh complete
-input owner still exceeds sixty seconds on both Windows UNC callers and remains
-outside acceptance. [The group record](https://github.com/cupidthecat/cupid-os/blob/c2eabb95a088f938a66ec779fc4e94b1ce04844d/docs/bootstrap/NATIVE-RETAINED-STREAM-GROUP.md) includes complete evidence and
-replay instructions at `c2eabb95`.
-
-Cupid OS builds its active source with checked Cupid tools. The normal graph
-contains 449 CupidBuild actions and three Python coordinators across 452
-transforms. The installed `1d852023` seed pair carries the shared hosted heap
-after paired cold builds, complete product comparisons and strict boots.
-Normal-root build, seed-reader/release-operation and strict boot checks also
-pass. The held optional source-file owner passes both complete repository
-replays, preserving 382 new contracts and that packet's 1,742 API outcomes.
-The held shared-selection packet passes both complete repository replays,
-preserving all 2,916 current API outcomes and 83 strict checks. Temporary
-selectors reject publication borrowing; complete retained observers own
-custody. Full input-owner acceptance remains open after the final Windows
-UNC phase timeouts.
-The current 84,889-byte manual covers held input custody, source selection,
-initial leaf metadata reuse and Windows full-path output storage after paired
-and normal-root verification. All 429 object pairs and every image byte agree.
-Six strict four-CPU boots, sixteen exact artifact gates per build and seventeen
-root policy methods pass. The raw kernel has 9,314,136 bytes.
-The raw-kernel and pass-one ELF exact policy rows change. Complete native input ownership and publication remain open.
-[The bootstrap record](Toolchain-Bootstrap) contains the receipts and remaining
-work. TempleOS remains read-only and excluded from progress counts.
-
-## System at a Glance
-
-```
-┌─────────────────────────────────────────────────────┐
-│                   cupid-os                          │
-├──────────┬──────────┬───────────┬───────────────────┤
-│  Desktop │ Terminal │  Notepad  │   User Scripts    │
-│  (GUI)   │  (Shell) │  (Editor) │   (.cup files)    │
-├──────────┴──────────┴───────────┴───────────────────┤
-│        Shell + Terminal + CupidScript + Tools       │
-│ 100+ cmds │ pipes │ redirects │ jobs │ SSH/Telnet    │
-│  completion │ ANSI/xterm │ browser │ source cmds     │
-├─────────────────────────────────────────────────────┤
-│              CupidC + CupidASM                      │
-│  C-like JIT/AOT │ x86 asm JIT/AOT │ kernel binds     │
-├─────────────────────────────────────────────────────┤
-│       Virtual File System (VFS)                     │
-│ RamFS (/) │ DevFS (/dev) │ FAT16 (/disk) │ homefs    │
-├─────────────────────────────────────────────────────┤
-│       Networking + TLS                              │
-│ RTL8139/E1000 │ TCP/UDP/DNS │ HTTPS │ sshd │ browser │
-├─────────────────────────────────────────────────────┤
-│              Process Scheduler                      │
-│   Round-robin │ 5ms ticks │ 32 kernel threads       │
-├─────────────────────────────────────────────────────┤
-│              Window Manager (GUI)                   │
-│   16 windows │ z-order │ drag │ focus │ taskbar     │
-├──────────┬──────────┬───────────┬───────────────────┤
-│ Keyboard │  Mouse   │   VBE     │    Serial         │
-│  (IRQ1)  │ (IRQ12)  │640x480    │   (COM1)          │
-├──────────┴──────────┴───────────┴───────────────────┤
-│       Storage + Media                               │
-│ FAT16 │ ISO9660 │ block cache │ USB MSC │ ATA PIO    │
-├─────────────────────────────────────────────────────┤
-│              Memory Management                      │
-│   PMM bitmap │ Paging │ Heap + canaries │ Tracking  │
-├─────────────────────────────────────────────────────┤
-│              IDT / IRQ / PIC / PIT                  │
-│   Interrupts │ Exceptions │ Timer (200Hz)           │
-├─────────────────────────────────────────────────────┤
-│              Bootloader (boot.asm)                  │
-│   Real mode -> Protected mode │ GDT │ Load kernel   │
-└─────────────────────────────────────────────────────┘
-```
-
----
-
-## Philosophy
-
-cupid-os deliberately exposes the machine to programs:
-
-- All code runs in ring 0 without a security boundary between applications and the kernel.
-- Programs can access hardware directly.
-- Programs share the flat address space and can inspect kernel memory.
-- The source includes the operating system, desktop, languages, and build tools.
-
-This model is useful for operating-system experiments and low-level study, but it is not safe for untrusted code.
-
----
-
-## Quick Start
-
-The repository includes a checked static i386 Linux seed and a checked native
-PE32 Windows execution seed. Linux runs the static seed directly. Native
-Windows builds run output-bearing CupidC, CupidASM, CupidObj, CupidLD, and
-CupidDis recipes from the PE32 seed. WSL still runs the Linux seed for
-fixed-point reconstruction and the complete published Toolchain contract
-cohort. The user ABI, artifact-size, and Toolchain manifest contracts run as
-checked native PE files. The last two still inspect Linux publication
-provenance.
-
-```bash
-# Install dependencies (Ubuntu/Debian)
+```sh
 sudo apt-get install python3 make qemu-system-x86
-
-# Build
 make
-
-# Run (with serial output)
 make run
 ```
 
-On Windows, install GNU Make, Python 3, WSL with a Linux distribution, and
-QEMU. GCC, Clang, binutils, and NASM are needed only for explicit native
-development builds and comparison oracles.
+Windows uses checked native Cupid tools with GNU Make and Python. WSL runs
+the Linux Toolchain contract cohort. See Getting Started for the complete
+Windows setup and optional comparison tools.
 
----
+## Develop programs
 
-## Project Structure
+| Guide | Use it for |
+| --- | --- |
+| [CupidC Compiler](CupidC-Compiler) | JIT/AOT commands and kernel bindings |
+| [Cupid C language reference](CupidC-Language-Reference) | Language features and examples |
+| [CupidASM Assembler](CupidASM-Assembler) | Assembly, includes and runtime demos |
+| [CupidBuild](CupidBuild) | Checked build commands and publication |
+| [Toolchain Bootstrap](Toolchain-Bootstrap) | Seeds, staged rebuilds and verification |
+| [User Programs](User-Programs) | Source programs and deployment |
+| [ELF Programs](ELF-Programs) | External executables and the syscall ABI |
 
-```
-cupid-os/
-├── boot/
-│   └── boot.asm              # Bootloader (real -> protected mode)
-├── kernel/
-│   ├── core/                  # kmain, panic, process, scheduler, syscall
-│   ├── cpu/                   # IDT/IRQ/PIC, FPU/SSE, libm, ksyms
-│   ├── fs/                    # VFS, FAT16, ISO9660, ramfs, devfs, homefs
-│   ├── gfx/                   # gfx2d, BMP/PNG/JPEG, fontsys, TTF
-│   ├── gui/                   # window manager, desktop, terminal, ANSI
-│   ├── lang/                  # shell, CupidC, CupidASM, CupidScript, ssh_io
-│   ├── network/               # ARP/IP/ICMP/UDP/TCP/DHCP/DNS/sockets/sshd
-│   ├── tls/                   # TLS records, handshake, CA bundle
-│   ├── crypto/                # AES/ChaCha/RSA/P-256/X25519/X.509 helpers
-│   ├── audio/                 # AC97, mixer, OPL3, MIDI/MUS
-│   ├── doom/                  # doomgeneric port and platform shim
-│   ├── mm/                    # heap, paging, swap
-│   ├── smp/                   # AP bringup, LAPIC/IOAPIC, BKL
-│   └── usb/                   # UHCI/EHCI, HID, hubs, mass storage
-├── drivers/
-│   ├── keyboard.cc/h           # PS/2 keyboard (IRQ1)
-│   ├── mouse.cc/h              # PS/2 mouse (IRQ12)
-│   ├── vga.cc/h                # VBE 640x480 32bpp
-│   ├── ata.cc/h                # ATA/IDE disk
-│   ├── serial.cc/h            # COM1 serial port
-│   ├── timer.cc/h + pit.cc/h   # PIT timer
-│   ├── rtl8139.cc/h            # Realtek NIC
-│   ├── e1000.cc/h              # Intel NIC
-│   └── speaker.cc/h            # PC speaker
-├── bin/
-│   ├── browser.cc + browser/  # render-pipeline browser
-│   ├── ssh.cc, telnet.cc      # remote terminal clients
-│   └── *.cc                   # source-backed shell commands
-├── docs/plans/                # Design documents
-├── link.ld                    # Linker script
-├── Makefile                   # Build system
-└── LICENSE                    # GPLv3
-```
+## Use the system
 
----
+- [Shell Commands](Shell-Commands), [CupidScript](CupidScript) and [Ed](Ed-Editor).
+- [Desktop Environment](Desktop-Environment) and [CupidDoc CTXT](CupidDoc-CTXT).
+- [2D graphics](CupidC-2D-Graphics-Library) and [floating point](Floating-Point).
+- [Filesystems](Filesystem), [disk setup](Disk-Setup), [ISO9660](ISO9660) and [USB](USB).
+- [Networking](Networking), [SMP](SMP), [processes](Process-Management) and [debugging](Debugging).
 
-## License
-
-cupid-os is released under the **GNU General Public License v3**.
+[Earlier bootstrap notes](Bootstrap-history) retain the preceding measurements
+and verification history. Cupid OS is released under GPLv3. TempleOS is
+reference material and is excluded from Cupid OS builds.
