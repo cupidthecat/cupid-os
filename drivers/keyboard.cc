@@ -443,9 +443,9 @@ bool keyboard_get_key_state(uint8_t scancode) {
 // Retrieve a raw scancode from the keyboard buffer
 char keyboard_get_scancode(void) {
     if (keyboard_state.buffer.count > 0) {
-        key_event_t event = keyboard_state.buffer.events[keyboard_state.buffer.head];
-        keyboard_state.buffer.head =
-            (uint8_t)((keyboard_state.buffer.head + 1U) % KEYBOARD_BUFFER_SIZE);
+        key_event_t event = keyboard_state.buffer.events[keyboard_state.buffer.tail];
+        keyboard_state.buffer.tail =
+            (uint8_t)((keyboard_state.buffer.tail + 1U) % KEYBOARD_BUFFER_SIZE);
         keyboard_state.buffer.count--;
         return (char)event.scancode;
     }

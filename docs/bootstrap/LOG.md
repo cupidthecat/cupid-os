@@ -1,5 +1,25 @@
 # Bootstrapping log
 
+## 2026-11-10: Repair the raw scancode FIFO reader
+
+The raw scancode reader now consumes `tail`, preserving the writer's `head`.
+All 21 focused checks pass on both hosts, including execution of fixtures built
+with checked Cupid tools. The original driver fails six native/checked cases
+per host. The API has no active callers, so this is separate from the unresolved
+Doom exit diagnostic.
+
+Both complete 156-source kernel methods pass under the original deadline.
+Only one source digest and its object lock change; the object size, all other
+locks and the 487-input set stay fixed. The updated USB manual adds 256 raw
+kernel bytes. The guarded incremental image build and full private 31-command
+graphics/USB/audio frontier pass. Independent replay checks every text relocation
+and all 429 production objects; 427 objects remain byte-identical.
+
+The [FIFO record](KEYBOARD-FIFO-REPAIR.md) retains the negative controls, complete
+kernel checks, observer corrections, current image and raw runtime evidence in
+a verified archive. Installed seeds remain unchanged. Complete repository
+acceptance and in-guest self-hosting remain open.
+
 ## 2026-11-10: Recheck Doom fingerprints and retain an uninterrupted exit
 
 The original 80-source Doom tree and three-source compatibility methods pass

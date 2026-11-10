@@ -358,6 +358,11 @@ Keyboard processing:
   Backspace, Enter, Escape, Tab, Delete, Insert, Home, End, PgUp/Dn).
   Inject via keyboard_inject_scancode().
 
+The kernel's scancode and event readers consume the same FIFO. It holds
+255 pending events and drops the oldest on overflow. Empty scancode reads
+return zero; only event reads fall back to COM1. Reading an event preserves
+physical key and modifier state.
+
 Mouse report format (3 bytes per interrupt poll):
   Byte 0: Button bitmap (bit0=left, bit1=right, bit2=middle)
   Byte 1: X displacement (signed, relative)

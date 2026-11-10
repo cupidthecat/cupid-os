@@ -525,6 +525,11 @@ The driver diffs each new report against the previous to detect key-down and key
 Each new keycode is translated through a ~100-entry HID-usage -> PS/2-scancode table and
 injected via `keyboard_inject_scancode()`.
 
+The kernel's scancode and event readers consume the same FIFO, preserving the
+writer cursor. It holds 255 pending events and drops the oldest on overflow.
+An empty scancode read returns zero; only the event reader falls back to COM1.
+Reading an event leaves physical key and modifier state unchanged.
+
 **Covered keycodes:** printable ASCII, modifier keys (Shift/Ctrl/Alt), F1-F10, cursor arrows,
 Backspace, Enter, Escape, Tab, Delete, Insert, Home, End, Page Up/Down.
 

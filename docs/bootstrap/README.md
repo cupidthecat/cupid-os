@@ -55,6 +55,9 @@ complete OS can rebuild itself from inside the guest.
 
 ## Records
 
+- [Keyboard FIFO repair](KEYBOARD-FIFO-REPAIR.md): shared reader cursor, checked
+  tool fixtures, complete kernel rechecks and the 31-command guest frontier.
+
 - [Source formatting](CUPIDC-SOURCE-FORMATTING.md): the configured `.cc` style,
   include dependencies, source-driven checks and remaining verification.
 

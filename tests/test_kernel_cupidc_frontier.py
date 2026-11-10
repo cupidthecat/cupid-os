@@ -2066,7 +2066,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                                   ),
                 "drivers/keyboard.cc": (
                     11652,
-                    'af548a2cc8f6901e3aeaed39ffb68cf85f3d107a8155cd006bd93b5169f87973',
+                    '989c3222fb9ca74b4fe70ad6bf2a7768eaf8210ad2e42a3bf974028cdb551008',
                 ),
                 "drivers/mouse.cc": (
                                         12580,
@@ -2307,7 +2307,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             )
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                '9c154131801414956302df6e8b0e330e2a3116b97f9c5ebbd261403f8b58fd8a',
+                'dc0ba442fc5b6c246801af33ff50e267a739908b2d682ecbd3655f946707244f',
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],
