@@ -3,7 +3,8 @@
 int build_request(char *buf, char *method, char *p, char *h) {
     int q = 0;
     q = b_append(buf, q, method);
-    buf[q] = ' '; q = q + 1;
+    buf[q] = ' ';
+    q = q + 1;
     q = b_append(buf, q, p);
     /* HTTP/1.1 + explicit Connection: close so we get a clean
      * close-on-eof body without chunked transfer-encoding (which our
@@ -23,26 +24,28 @@ int parse_ipv4_dotted(char *h, U32 *ip_out) {
     int i = 0;
     int parts[4];
     for (int p = 0; p < 4; p = p + 1) {
-        if (h[i] < '0' || h[i] > '9') return 0;
+        if (h[i] < '0' || h[i] > '9')
+            return 0;
         int v = 0;
         int digits = 0;
         while (h[i] >= '0' && h[i] <= '9') {
             v = v * 10 + (h[i] - '0');
             digits = digits + 1;
-            if (digits > 3 || v > 255) return 0;
+            if (digits > 3 || v > 255)
+                return 0;
             i = i + 1;
         }
         parts[p] = v;
         if (p < 3) {
-            if (h[i] != '.') return 0;
+            if (h[i] != '.')
+                return 0;
             i = i + 1;
         }
     }
-    if (h[i] != 0) return 0;
-    *ip_out = (U32)(parts[0]) |
-             ((U32)(parts[1]) << 8) |
-             ((U32)(parts[2]) << 16) |
-             ((U32)(parts[3]) << 24);
+    if (h[i] != 0)
+        return 0;
+    *ip_out = (U32)(parts[0]) | ((U32)(parts[1]) << 8) | ((U32)(parts[2]) << 16) |
+              ((U32)(parts[3]) << 24);
     return 1;
 }
 
@@ -83,7 +86,8 @@ int fetch_url(char *url, char *content_type_out) {
         }
         if (cur_is_https) {
             int hl = 0;
-            while (cur_host[hl]) hl = hl + 1;
+            while (cur_host[hl])
+                hl = hl + 1;
             if (setsockopt(fd, SOL_TLS, TLS_ENABLE, cur_host, hl + 1) != 0) {
                 b_strcpy_n(status_msg, "TLS handshake failed", 256);
                 close(fd);
@@ -105,9 +109,11 @@ int fetch_url(char *url, char *content_type_out) {
         int status = 0;
         int sl_state = 0;
         int sl_digits = 0;
-        char location[1024]; location[0] = 0;
+        char location[1024];
+        location[0] = 0;
         int loc_len = 0;
-        char line[1024]; int line_len = 0;
+        char line[1024];
+        int line_len = 0;
         int chunked = 0;
         /* Chunked decoder state. Each chunk: hex-size CRLF data CRLF.
          *   ch_state 0 = reading hex size
@@ -121,14 +127,16 @@ int fetch_url(char *url, char *content_type_out) {
 
         while (1) {
             int n = recv(fd, buf, RECV_BUF_SIZE);
-            if (n <= 0) break;
+            if (n <= 0)
+                break;
             int j = 0;
             if (!in_body) {
                 while (j < n) {
                     char b = buf[j];
 
                     if (sl_state == 0) {
-                        if (b == ' ') sl_state = 1;
+                        if (b == ' ')
+                            sl_state = 1;
                     } else if (sl_state == 1) {
                         if (b >= '0' && b <= '9') {
                             sl_digits = sl_digits * 10 + (b - '0');
@@ -141,57 +149,62 @@ int fetch_url(char *url, char *content_type_out) {
                     if (b == '\n') {
                         if (line_len > 9 && b_strieq_n(line, "location:", 9)) {
                             int li = 9;
-                            while (li < line_len &&
-                                   (line[li] == ' ' || line[li] == '\t')) li = li + 1;
+                            while (li < line_len && (line[li] == ' ' || line[li] == '\t'))
+                                li = li + 1;
                             int lo = 0;
-                            while (li < line_len && line[li] != '\r' &&
-                                   lo < URL_MAX - 1) {
+                            while (li < line_len && line[li] != '\r' && lo < URL_MAX - 1) {
                                 location[lo] = line[li];
-                                lo = lo + 1; li = li + 1;
+                                lo = lo + 1;
+                                li = li + 1;
                             }
                             location[lo] = 0;
                             loc_len = lo;
-                        } else if (line_len > 13 &&
-                                   b_strieq_n(line, "content-type:", 13)) {
+                        } else if (line_len > 13 && b_strieq_n(line, "content-type:", 13)) {
                             int li = 13;
-                            while (li < line_len &&
-                                   (line[li] == ' ' || line[li] == '\t')) li = li + 1;
+                            while (li < line_len && (line[li] == ' ' || line[li] == '\t'))
+                                li = li + 1;
                             int lo = 0;
-                            while (li < line_len && line[li] != '\r' &&
-                                   line[li] != ';' && lo < 127) {
+                            while (li < line_len && line[li] != '\r' && line[li] != ';' &&
+                                   lo < 127) {
                                 content_type_out[lo] = line[li];
-                                lo = lo + 1; li = li + 1;
+                                lo = lo + 1;
+                                li = li + 1;
                             }
                             content_type_out[lo] = 0;
-                        } else if (line_len > 18 &&
-                                   b_strieq_n(line, "transfer-encoding:", 18)) {
+                        } else if (line_len > 18 && b_strieq_n(line, "transfer-encoding:", 18)) {
                             int li = 18;
-                            while (li < line_len &&
-                                   (line[li] == ' ' || line[li] == '\t')) li = li + 1;
-                            if (line_len - li >= 7 &&
-                                b_strieq_n(line + li, "chunked", 7)) {
+                            while (li < line_len && (line[li] == ' ' || line[li] == '\t'))
+                                li = li + 1;
+                            if (line_len - li >= 7 && b_strieq_n(line + li, "chunked", 7)) {
                                 chunked = 1;
                             }
                         }
                         line_len = 0;
                     } else if (b != '\r' && line_len < HEADER_LINE_MAX - 1) {
-                        line[line_len] = b; line_len = line_len + 1;
+                        line[line_len] = b;
+                        line_len = line_len + 1;
                     }
 
-                    if (b == '\r' && (hdr_state == 0 || hdr_state == 2)) hdr_state = hdr_state + 1;
-                    else if (b == '\n' && (hdr_state == 1 || hdr_state == 3)) hdr_state = hdr_state + 1;
-                    else hdr_state = 0;
+                    if (b == '\r' && (hdr_state == 0 || hdr_state == 2))
+                        hdr_state = hdr_state + 1;
+                    else if (b == '\n' && (hdr_state == 1 || hdr_state == 3))
+                        hdr_state = hdr_state + 1;
+                    else
+                        hdr_state = 0;
                     j = j + 1;
-                    if (hdr_state == 4) { in_body = 1; break; }
+                    if (hdr_state == 4) {
+                        in_body = 1;
+                        break;
+                    }
                 }
             }
-            int skip_body = (status >= 300 && status < 400 &&
-                             loc_len > 0 && redirects < 5);
+            int skip_body = (status >= 300 && status < 400 && loc_len > 0 && redirects < 5);
             if (in_body && j < n && !skip_body) {
                 if (!chunked) {
                     int blen = n - j;
                     int can = PAGE_BUF_SIZE - 1 - page_len;
-                    if (blen > can) blen = can;
+                    if (blen > can)
+                        blen = can;
                     if (blen > 0) {
                         int k = 0;
                         while (k < blen) {
@@ -208,15 +221,19 @@ int fetch_url(char *url, char *content_type_out) {
                         char b = buf[j];
                         if (ch_state == 0) {
                             int dig = -1;
-                            if (b >= '0' && b <= '9') dig = b - '0';
-                            else if (b >= 'a' && b <= 'f') dig = 10 + (b - 'a');
-                            else if (b >= 'A' && b <= 'F') dig = 10 + (b - 'A');
+                            if (b >= '0' && b <= '9')
+                                dig = b - '0';
+                            else if (b >= 'a' && b <= 'f')
+                                dig = 10 + (b - 'a');
+                            else if (b >= 'A' && b <= 'F')
+                                dig = 10 + (b - 'A');
                             if (dig >= 0) {
                                 ch_left = ch_left * 16 + dig;
                                 j = j + 1;
                             } else if (b == ';') {
                                 /* Skip chunk extensions until CR. */
-                                while (j < n && buf[j] != '\r') j = j + 1;
+                                while (j < n && buf[j] != '\r')
+                                    j = j + 1;
                             } else if (b == '\r') {
                                 ch_state = 1;
                                 j = j + 1;
@@ -225,15 +242,19 @@ int fetch_url(char *url, char *content_type_out) {
                             }
                         } else if (ch_state == 1) {
                             if (b == '\n') {
-                                if (ch_left == 0) ch_state = 4;
-                                else ch_state = 2;
+                                if (ch_left == 0)
+                                    ch_state = 4;
+                                else
+                                    ch_state = 2;
                             }
                             j = j + 1;
                         } else if (ch_state == 2) {
                             int blen = n - j;
-                            if (blen > ch_left) blen = ch_left;
+                            if (blen > ch_left)
+                                blen = ch_left;
                             int can = PAGE_BUF_SIZE - 1 - page_len;
-                            if (blen > can) blen = can;
+                            if (blen > can)
+                                blen = can;
                             if (blen > 0) {
                                 int k = 0;
                                 while (k < blen) {
@@ -244,7 +265,8 @@ int fetch_url(char *url, char *content_type_out) {
                                 ch_left = ch_left - blen;
                                 j = j + blen;
                             }
-                            if (ch_left == 0) ch_state = 3;
+                            if (ch_left == 0)
+                                ch_state = 3;
                         } else if (ch_state == 3) {
                             if (b == '\n') {
                                 ch_state = 0;
@@ -261,8 +283,8 @@ int fetch_url(char *url, char *content_type_out) {
 
         if (status >= 300 && status < 400 && loc_len > 0 && redirects < 5) {
             char new_url[1024];
-            if (resolve_redirect(location, cur_host, cur_port, cur_is_https,
-                                 new_url, URL_MAX) != 0) {
+            if (resolve_redirect(location, cur_host, cur_port, cur_is_https, new_url, URL_MAX) !=
+                0) {
                 b_strcpy_n(status_msg, "bad Location header", 256);
                 return -1;
             }
@@ -272,16 +294,16 @@ int fetch_url(char *url, char *content_type_out) {
         }
 
         if (status < 200 || status >= 300) {
-            serial_printf("[net] fetch_url: %s -> HTTP %d (page_len=%d, chunked=%d)\n",
-                          work_url, status, page_len, chunked);
+            serial_printf("[net] fetch_url: %s -> HTTP %d (page_len=%d, chunked=%d)\n", work_url,
+                          status, page_len, chunked);
             b_strcpy_n(status_msg, "HTTP error: ", 256);
             int sl = b_strlen(status_msg);
             int el = b_append_int(status_msg, sl, status);
             status_msg[el] = 0;
             return -1;
         }
-        serial_printf("[net] fetch_url: %s -> HTTP %d (page_len=%d, chunked=%d, ct=%s)\n",
-                      work_url, status, page_len, chunked, content_type_out);
+        serial_printf("[net] fetch_url: %s -> HTTP %d (page_len=%d, chunked=%d, ct=%s)\n", work_url,
+                      status, page_len, chunked, content_type_out);
         b_strcpy_n(cur_url, work_url, URL_MAX);
         return 0;
     }

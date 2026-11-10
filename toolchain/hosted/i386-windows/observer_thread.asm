@@ -1,0 +1,74 @@
+[BITS 32]
+
+extern __imp_CreateThread
+
+global cupid_windows_observer_thread_open:function
+global cupid_windows_observer_thread_entry:function
+global cupid_windows_observer_thread_finish:function
+global cupid_windows_observer_thread_finished:function
+
+section .text
+
+; Descriptor: cdecl function, argument, completion flag pointer. Caller owns
+; it until completion is acquired. Only the Windows entry uses callee cleanup.
+cupid_windows_observer_thread_open:
+ push ebp
+ mov ebp, esp
+ mov eax, [ebp + 8]
+ test eax, eax
+ jz .invalid
+ cmp dword [eax], 0
+ je .invalid
+ cmp dword [eax + 8], 0
+ je .invalid
+ push dword 0
+ push dword 0
+ push eax
+ push dword cupid_windows_observer_thread_entry
+ push dword 131072
+ push dword 0
+ call dword [__imp_CreateThread]
+ mov esp, ebp
+ pop ebp
+ ret
+.invalid:
+ xor eax, eax
+ mov esp, ebp
+ pop ebp
+ ret
+
+cupid_windows_observer_thread_entry:
+ push ebp
+ mov ebp, esp
+ mov eax, [ebp + 8]
+ push dword [eax + 4]
+ call dword [eax]
+ add esp, 4
+ ; Callback has returned. Read the final descriptor field before release;
+ ; no descriptor or callback context is accessed after the XCHG.
+ mov edx, [ebp + 8]
+ mov edx, [edx + 8]
+ mov ecx, 1
+ xchg dword [edx], ecx
+ mov esp, ebp
+ pop ebp
+ ret 4
+
+; XCHG with memory supplies a release fence. The getter's ordinary x86 load
+; is an acquire operation across the external cdecl call boundary.
+cupid_windows_observer_thread_finish:
+ mov ecx, [esp + 4]
+ test ecx, ecx
+ jz .done
+ mov eax, 1
+ xchg dword [ecx], eax
+.done:
+ ret
+
+cupid_windows_observer_thread_finished:
+ mov eax, [esp + 4]
+ test eax, eax
+ jz .done
+ mov eax, [eax]
+.done:
+ ret

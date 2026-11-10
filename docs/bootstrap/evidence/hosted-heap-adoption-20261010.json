@@ -1,0 +1,748 @@
+{
+  "independent_recording_seconds": 3.333210499957204,
+  "installed_root_seed_files_unchanged": 15,
+  "normal_source_inputs_unchanged": 99,
+  "original_receipts_archive": {
+    "sha256": "30f491c582caefdf81f5a5888d54459fee4b47e2d88e7365902d95a377ca985a",
+    "size": 803940
+  },
+  "original_receipts_uncompressed": {
+    "sha256": "e5d0a5c05dd578fb1b4a176494fa3ede7035893c8b87978510621567114565fe",
+    "size": 4137044
+  },
+  "paired_os_review": {
+    "baseline_image": {
+      "sha256": "a2d9c3a5f55bd5d7fc089bb476e13fa16fb74b5bb386f42b1cfa741577b865b1",
+      "size": 209715200
+    },
+    "boot_bytes_compared": 2560,
+    "boot_timeout_seconds": 150,
+    "candidate_seed_files_equal": 15,
+    "changed_objects_since_intermediate_manual": [
+      "cupidos-txt/12HOLYC-CUPIDC.o"
+    ],
+    "complete_image_pair_equal": true,
+    "complete_linked_pairs": 4,
+    "complete_object_pairs": 429,
+    "complete_source_control_maps_equal": true,
+    "complete_user_product_pairs": 6,
+    "cpu": "max",
+    "exact_artifact_gates_per_host": 16,
+    "fat_suffix_bytes_compared_to_baseline": 199229440,
+    "hosts": {
+      "linux": {
+        "cold_independent": {
+          "sha256": "13cfbdbdbf9001556b9b26d919b02bbbf0ecb73b4cd49bcb9a856f9d54791437",
+          "size": 747277
+        },
+        "independent_review": {
+          "sha256": "2b873bc829a2e242c502364750f0426f27359ddaf9e8fc55e4b2bc1c90d95249",
+          "size": 740203
+        },
+        "original_closed": {
+          "sha256": "4a015c23a7d9db65e8cf3574323a6f050c32b799f8531e8942c342b390683826",
+          "size": 69821
+        },
+        "seconds": 2504.4332425979997
+      },
+      "windows": {
+        "cold_independent": {
+          "sha256": "0a84d74878eddea03e6cf40c090fd0c09baf9c964078c3a96128a3b883379bbc",
+          "size": 788322
+        },
+        "independent_review": {
+          "sha256": "e3f9c54228b29fe8d4ff4ce267d7213f74c87c90186cc07b12f7205b9551f409",
+          "size": 784006
+        },
+        "original_closed": {
+          "sha256": "a48e50a5c9ea4759231e0fa231fea3e51e76799a0e6ad69c53c235ecb38a3c6d",
+          "size": 70364
+        },
+        "seconds": 3135.3845163000515
+      }
+    },
+    "image": {
+      "sha256": "3c87d0605e094aa6cfd745f1c8d5f135e7f9aee2bf05023bd318ef9fc198cb82",
+      "size": 209715200
+    },
+    "image_boot_region": {
+      "sha256": "14d3ddab37bb0e1a578cd9a6387fa0f9c207dd0e5f042c63411fbbf641817ec6",
+      "size": 2560
+    },
+    "image_boot_region_equals_baseline": true,
+    "image_bytes_compared": 209715200,
+    "independent_review_seconds": 9.843655599979684,
+    "installed_root_seed_files_unchanged": 15,
+    "kernel_matches_image_at_lba": 5,
+    "manual": {
+      "sha256": "50269a6f6840cb7b55493699e9028c0b52fb77a1dc9637c1f92e0cf67582bdd2",
+      "size": 72415
+    },
+    "manual_occurrences_per_kernel": 1,
+    "mbr_partition_geometry": {
+      "fat_start_lba": 20480,
+      "partition_sectors": 389120
+    },
+    "nic": "e1000",
+    "normal_source_inputs_unchanged": 99,
+    "raw_kernel_measured_bytes": 9301660,
+    "runner": {
+      "sha256": "6980818a572fd429e7be5e033d1e979caa29e7f30a47606b3fa1faa3bad44559",
+      "size": 7047
+    },
+    "schema": "cupid.hosted-heap-adoption-final-paired-review.v1",
+    "smp": 4,
+    "source_controls_per_host": 1764,
+    "source_revision": "1d852023df98c03481c4b3979dccb398288b7115",
+    "source_snapshot_sha256": "4ae98403b0896b24e50b81b11b213b8117207421b9152e95d0500e00e612d07e",
+    "status": "pass",
+    "strict_boots": 4,
+    "unchanged_objects_since_intermediate_manual": 428
+  },
+  "promotion_input_review": {
+    "changed_policy_rows": [
+      "bootstrap/seeds/i386-linux/cupidasm.elf",
+      "bootstrap/seeds/i386-linux/cupidbuild.elf",
+      "bootstrap/seeds/i386-linux/cupidc.elf",
+      "bootstrap/seeds/i386-linux/cupiddis.elf",
+      "bootstrap/seeds/i386-linux/cupidld.elf",
+      "bootstrap/seeds/i386-linux/cupidobj.elf",
+      "bootstrap/seeds/i386-windows/cupidasm.exe",
+      "bootstrap/seeds/i386-windows/cupidbuild.exe",
+      "bootstrap/seeds/i386-windows/cupidc.exe",
+      "bootstrap/seeds/i386-windows/cupiddis.exe",
+      "bootstrap/seeds/i386-windows/cupidld.exe",
+      "bootstrap/seeds/i386-windows/cupidobj.exe",
+      "kernel/kernel.bin"
+    ],
+    "existing_test_sources_unchanged": 2,
+    "historical_fixtures": {
+      "tests/fixtures/seed-manifest-historical-20261009-linux.json": {
+        "sha256": "1f7847a6bf7479caa5b34ac99fb05969025c017f0c8dc42b3b98d6f3d50021e2",
+        "size": 9123
+      },
+      "tests/fixtures/seed-manifest-historical-20261009-windows.json": {
+        "sha256": "e496a0fb2e36e74bc04a4ef3e1923c25a805fb1342035c32eb1c4eba20ba5bcf",
+        "size": 2853
+      }
+    },
+    "independent_review_seconds": 4.003318699891679,
+    "installed_root_seed_files_unchanged": 15,
+    "normal_source_inputs_unchanged": 99,
+    "paired_os_review": {
+      "sha256": "3e0668efe787390e9c474b80c1876c90844499971ef5e1a22a85328135d21a11",
+      "size": 2924
+    },
+    "policy_before": {
+      "sha256": "f4e009722cc4f9c7d74906506a3470c4712ef3a0c4d32235c014c1eca0da1aac",
+      "size": 3384
+    },
+    "projected_files": {
+      "bootstrap/artifact-size-policy.json": {
+        "sha256": "fba0292697778f4d60f25f49fc7a69d604eefc9d6617191d1c2dfab405addf2e",
+        "size": 3384
+      },
+      "bootstrap/seeds/i386-linux/cupidasm.elf": {
+        "sha256": "d72c63e51fe687ea25e80087fd2574108bdfd93419b183cac396c9ce1b225b0f",
+        "size": 485192
+      },
+      "bootstrap/seeds/i386-linux/cupidbuild.elf": {
+        "sha256": "deba903351b1c8edb5fe713f20c32d46721f56ce878cbcf15470bdd0bbe196ac",
+        "size": 1129544
+      },
+      "bootstrap/seeds/i386-linux/cupidc.elf": {
+        "sha256": "584948f9e23af0446c899fdcf41199e1200fb1ada9b6f0c5b3bc8b0ccaa2cb26",
+        "size": 2549392
+      },
+      "bootstrap/seeds/i386-linux/cupiddis.elf": {
+        "sha256": "81788f23045380a428c2180ac0cbec341600c149e9c1aa9f9bfb93d462921cbc",
+        "size": 510320
+      },
+      "bootstrap/seeds/i386-linux/cupidld.elf": {
+        "sha256": "8fa010b4034f14423b78e25af4bf1dbcc09e3a5cac7896cb4a39ec1226bdd18a",
+        "size": 297032
+      },
+      "bootstrap/seeds/i386-linux/cupidobj.elf": {
+        "sha256": "e7ead217e1018f7b628ba9f2e0eb8b886baa1ea23939f71f7f336498bec6b4cc",
+        "size": 389516
+      },
+      "bootstrap/seeds/i386-linux/manifest.json": {
+        "sha256": "9cae50a046fb1cb22b9dba6276201ec683070be192b2376e3fa0ff555734bab8",
+        "size": 9123
+      },
+      "bootstrap/seeds/i386-windows/cupidasm.exe": {
+        "sha256": "3dfccccade28843fa2f9ae77a837b62eadfd54a04eef67277df93ad468176b9a",
+        "size": 483328
+      },
+      "bootstrap/seeds/i386-windows/cupidbuild.exe": {
+        "sha256": "b15393062c0f9fc0c789cf09c2d41d96ba705edbdf83bfd5f3b0c233225f5777",
+        "size": 1115648
+      },
+      "bootstrap/seeds/i386-windows/cupidc.exe": {
+        "sha256": "13e49ec4e0bdd8e28ee84bdee43f5d5b7fb620e0d4cf675e30ccc7a4234dd1cc",
+        "size": 2493952
+      },
+      "bootstrap/seeds/i386-windows/cupiddis.exe": {
+        "sha256": "a81185a1f3c7f06b0dc806979767ffd66b9200d5dc62c2008a364450451d3342",
+        "size": 507904
+      },
+      "bootstrap/seeds/i386-windows/cupidld.exe": {
+        "sha256": "95909c4e1d64cea3f2d9543e0d0558b20f08e853698b6221e6556d3168411806",
+        "size": 300032
+      },
+      "bootstrap/seeds/i386-windows/cupidobj.exe": {
+        "sha256": "0c272f79dbc23c33e3b2d4e308a0a3522eba602791212f444738801ad2800e31",
+        "size": 385536
+      },
+      "bootstrap/seeds/i386-windows/manifest.json": {
+        "sha256": "e1eabbcfd8c1b53c5976ed98d3116804532d5e761c41f0d00d998d499489e471",
+        "size": 2853
+      },
+      "bootstrap/seeds/release.json": {
+        "sha256": "0f15cad8b34957f2c009c63c2e1b4ecff7032e0c1c8cf9425e1d3b5c019cb2a2",
+        "size": 2736
+      },
+      "cupidos-txt/12HOLYC-CUPIDC.CTXT": {
+        "sha256": "50269a6f6840cb7b55493699e9028c0b52fb77a1dc9637c1f92e0cf67582bdd2",
+        "size": 72415
+      },
+      "tests/fixtures/seed-manifest-historical-20261009-linux.json": {
+        "sha256": "1f7847a6bf7479caa5b34ac99fb05969025c017f0c8dc42b3b98d6f3d50021e2",
+        "size": 9123
+      },
+      "tests/fixtures/seed-manifest-historical-20261009-windows.json": {
+        "sha256": "e496a0fb2e36e74bc04a4ef3e1923c25a805fb1342035c32eb1c4eba20ba5bcf",
+        "size": 2853
+      },
+      "tools/bootstrap_toolchain.py": {
+        "sha256": "4584a7e121d988d9e782ae6d2155a196848480456a7208a494703fbbeb42403a",
+        "size": 361865
+      }
+    },
+    "qualification": {
+      "sha256": "510f6eb159635753e7f54922f49e09b226c08a2e122318501619cf9da3ef55af",
+      "size": 23844
+    },
+    "qualified_release": {
+      "sha256": "0f15cad8b34957f2c009c63c2e1b4ecff7032e0c1c8cf9425e1d3b5c019cb2a2",
+      "size": 2736
+    },
+    "reader_before": {
+      "sha256": "3e296ee302e859494ec224da8c8741498f3f0de748b307e2d1e7c192d81ccfc3",
+      "size": 361919
+    },
+    "reader_identity_pins": {
+      "PROMOTED_LINUX_ARTIFACT_IDENTITIES": {
+        "cupidasm": [
+          485192,
+          "d72c63e51fe687ea25e80087fd2574108bdfd93419b183cac396c9ce1b225b0f"
+        ],
+        "cupidbuild": [
+          1129544,
+          "deba903351b1c8edb5fe713f20c32d46721f56ce878cbcf15470bdd0bbe196ac"
+        ],
+        "cupidc": [
+          2549392,
+          "584948f9e23af0446c899fdcf41199e1200fb1ada9b6f0c5b3bc8b0ccaa2cb26"
+        ],
+        "cupiddis": [
+          510320,
+          "81788f23045380a428c2180ac0cbec341600c149e9c1aa9f9bfb93d462921cbc"
+        ],
+        "cupidld": [
+          297032,
+          "8fa010b4034f14423b78e25af4bf1dbcc09e3a5cac7896cb4a39ec1226bdd18a"
+        ],
+        "cupidobj": [
+          389516,
+          "e7ead217e1018f7b628ba9f2e0eb8b886baa1ea23939f71f7f336498bec6b4cc"
+        ]
+      },
+      "PROMOTED_LINUX_MANIFEST_SHA256": "9cae50a046fb1cb22b9dba6276201ec683070be192b2376e3fa0ff555734bab8",
+      "PROMOTED_LINUX_PLAN_SHA256": "808d9a566c3dd200252cb6ca974dfa19992a923867dc60f500797efd5169c73e",
+      "PROMOTED_SOURCE_INPUT_COUNT": 99,
+      "PROMOTED_SOURCE_REVISION": "1d852023df98c03481c4b3979dccb398288b7115",
+      "PROMOTED_SOURCE_SNAPSHOT_SHA256": "4ae98403b0896b24e50b81b11b213b8117207421b9152e95d0500e00e612d07e",
+      "PROMOTED_WINDOWS_ARTIFACT_IDENTITIES": {
+        "cupidasm": [
+          483328,
+          "3dfccccade28843fa2f9ae77a837b62eadfd54a04eef67277df93ad468176b9a"
+        ],
+        "cupidbuild": [
+          1115648,
+          "b15393062c0f9fc0c789cf09c2d41d96ba705edbdf83bfd5f3b0c233225f5777"
+        ],
+        "cupidc": [
+          2493952,
+          "13e49ec4e0bdd8e28ee84bdee43f5d5b7fb620e0d4cf675e30ccc7a4234dd1cc"
+        ],
+        "cupiddis": [
+          507904,
+          "a81185a1f3c7f06b0dc806979767ffd66b9200d5dc62c2008a364450451d3342"
+        ],
+        "cupidld": [
+          300032,
+          "95909c4e1d64cea3f2d9543e0d0558b20f08e853698b6221e6556d3168411806"
+        ],
+        "cupidobj": [
+          385536,
+          "0c272f79dbc23c33e3b2d4e308a0a3522eba602791212f444738801ad2800e31"
+        ]
+      },
+      "PROMOTED_WINDOWS_MANIFEST_SHA256": "e1eabbcfd8c1b53c5976ed98d3116804532d5e761c41f0d00d998d499489e471",
+      "PROMOTED_WINDOWS_PLAN_SHA256": "754895566b00e6e53b045a1414e7b734872f04d4f0c84d62e3dfcf8dd9bc57ab",
+      "PROMOTION_PARENT_LINUX_MANIFEST_SHA256": "1f7847a6bf7479caa5b34ac99fb05969025c017f0c8dc42b3b98d6f3d50021e2",
+      "PROMOTION_PARENT_SOURCE_REVISION": "acbbd8342d8901169c5484742b168277ce9bbdd1",
+      "PROMOTION_PARENT_WINDOWS_MANIFEST_SHA256": "e496a0fb2e36e74bc04a4ef3e1923c25a805fb1342035c32eb1c4eba20ba5bcf"
+    },
+    "runner": {
+      "sha256": "38a95fa18db94dfd82b24fa79073e720ff52fd31777bc8efe0a463b844340fb3",
+      "size": 8330
+    },
+    "schema": "cupid.hosted-heap-promotion-input-review.v1",
+    "source_revision": "1d852023df98c03481c4b3979dccb398288b7115",
+    "source_snapshot_sha256": "4ae98403b0896b24e50b81b11b213b8117207421b9152e95d0500e00e612d07e",
+    "status": "pass"
+  },
+  "root_adoption": {
+    "adopted_root_files": 20,
+    "application": {
+      "sha256": "c2fa091deee919d29a7fd6869d8b73c024625884175529840a56ec2ebe368cf8",
+      "size": 7147
+    },
+    "complete_seed_test_union": {
+      "complete_count": 170,
+      "complete_passed_methods": [
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_all_typed_commands_reject_duplicate_empty_and_missing_release_options",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_assemble_bootloader_release_preserves_raw_image",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_assemble_iso_release_preserves_raw_image",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_assemble_object_release_preserves_checked_elf_bytes",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_assemble_smp_release_preserves_raw_image",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_compile_doom_release_preserves_active_vendor_object",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_compile_kernel_release_preserves_active_source_object",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_compile_production_release_preserves_generated_install_object",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_compile_user_release_preserves_active_user_object",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_embed_jpeg_release_preserves_original_image_identity",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_flatten_kernel_release_preserves_checked_raw_bytes",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_generate_ksyms_release_preserves_valid_symbol_blob",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_generate_profile_release_preserves_complete_source_inventory",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_link_user_release_preserves_loader_approved_executable",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_physical_link_api_release_and_null_context_keep_original_contract",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_release_drift_after_assembly_launch_preserves_previous_object",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_artifact_report_identity_checks_bytes_size_and_exact_fields",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_behavior_seed_can_bind_one_fixed_point_stage",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_build_plan_digest_rejects_unlisted_plan_data",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_behavior_certifies_each_compared_tool_image",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_behavior_checks_run_cupidbuild_on_both_targets",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_entry_corruption_requires_two_file_backed_pe_bytes",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_fixed_point_rejects_a_cupidbuild_image_mismatch",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_plan_accepts_an_exact_six_tool_plan",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_plan_adds_cupidbuild_without_changing_the_v1_plan",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_plan_rejects_a_reserved_cupidbuild_source",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_stages_link_all_six_tools",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_windows_fixed_point_requires_all_six_tools",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_changed_exact_provenance_is_rejected",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_changed_fixed_point_command_is_rejected",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_changed_producer_lineage_is_rejected",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_changed_seed_byte_is_rejected_before_execution",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_changed_source_is_rejected_by_the_snapshot_guard",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_linux_seed_carries_code_anchor_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_linux_seed_carries_linked_local_target_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_linux_seed_carries_local_relative_target_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_linux_seed_carries_relocatable_local_target_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_linux_seed_snapshot_matches_its_named_commit",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_linux_seed_verifies",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_cupidc_compiles_large_frame_source",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_binds_execution_provenance",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_carries_code_anchor_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_carries_linked_local_target_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_carries_local_relative_target_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_carries_relocatable_local_target_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_rejects_unlisted_executable",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_runs_all_tool_boundaries",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_runs_without_wsl",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_snapshot_matches_its_named_commit",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_verifies",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_builds_a_complete_toolchain_fixed_point",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_builds_and_runs_imported_pe32",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_builds_and_runs_native_windows_tool_boundary",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_builds_disk_template_and_preserves_failed_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_builds_iso_fixture_and_preserves_failed_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_builds_profile_manifest_and_preserves_failed_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_carries_forward_x87_stack_subtraction",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_carries_parity_predicates_and_strict_decode_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_carries_shrd_with_address_overrides",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_carries_x87_integer_and_long_double_frontier",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_compiles_links_and_runs_floating_truth",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_compiles_the_public_cupidbuild_size_api",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_disassembles_typed_raw_ranges_and_legacy_modes",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_emits_complete_active_libm_object",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_emits_complete_unchanged_kernel_entry_object",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_emits_complete_unchanged_simd_object",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_emits_exact_doom_compatibility_objects_twice",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_emits_page_aligned_kernel_stack_top",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_enforces_install_request_bounds_order_and_symbols",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_generates_canonical_install_sources",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_generates_kernel_symbol_source_transactionally",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_preserves_returns_twice_call_operands",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_forwards_cupidasm_help",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_forwards_exact_tool_streams_and_status",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_maps_timeout_and_invalid_requests",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_rechecks_unselected_seed_tools",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_rejects_a_changed_tool_before_execution",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_rejects_live_manifest_byte_drift",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_rejects_live_tool_drift_after_execution",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_uses_an_injected_runner_and_rechecks_the_seed",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_uses_the_supplied_frozen_capture",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_wraps_jpeg_and_preserves_failed_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_windows_seed_prepares_the_long_alias_source_head",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_code_anchor_diagnostic_uses_native_path_for_pe_tools",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_complete_iso_promoted_profiles_bind_each_plan_count_and_import_set",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_complete_iso_promoted_profiles_reject_crossed_counts_and_unknown_members",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_complete_publication_replaces_an_empty_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_cupidbuild_source_locks_the_paired_import_profiles",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_failed_directory_replacement_restores_an_empty_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_failed_fourth_stage_keeps_both_completed_stages_private",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_failed_second_stage_keeps_completed_first_stage_private",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_code_anchor_fixture_is_a_sectioned_i386_exec",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_cupidbuild_checks_cupidc_runner_behavior",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_cupidbuild_checks_every_guarded_assembly_operation",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_cupidbuild_checks_typed_jpeg_transaction",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_cupidbuild_checks_typed_kernel_flatten_transaction",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_cupidbuild_checks_typed_kernel_symbol_transaction",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_cupidbuild_checks_typed_profile_transaction",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_linked_local_target_fixture_is_a_static_i386_exec",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_matrices_call_code_anchor_behavior_once",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_matrix_checks_executable_relocation_ownership",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_matrix_keeps_strict_cupiddis_checks",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_relocation_fixture_is_a_valid_i386_object",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_stage_rejects_a_cupidc_object_before_linking",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_stage_stops_before_link_on_anchor_failure",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_stages_certify_every_cupidc_object_before_linking",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_stages_certify_startups_before_linking",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_frozen_compiler_root_survives_a_live_change_and_restore",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_frozen_seed_is_independent_of_later_input_changes",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_incomplete_publication_never_exposes_a_partial_stage",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_legacy_windows_seed_accepts_native_producer_provenance",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_linux_behavior_windows_cupidasm_uses_publication_closure",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_linux_fixed_point_rebuilds_windows_cupiddis_main",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_linux_fixed_point_rejects_a_stage_four_object_mismatch",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_linux_fixed_point_rejects_live_seed_drift_before_next_stage",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_linux_named_revision_inventory_rejects_invalid_worktree_translation",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_linux_named_revision_inventory_translates_windows_worktree_link",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_long_behavior_seed_preserves_exact_reviewed_lineage",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_manifest_author_uses_the_six_tool_candidate_plan",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_manifest_reader_rejects_json_string_escapes",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_manifest_schema_rejects_unknown_duplicate_or_wrong_types",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_missing_native_git_falls_back_to_wsl_for_named_revision_inventory",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_behavior_seed_tracks_the_executed_plan",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_bootstrap_freezes_both_verified_seed_roles",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_bootstrap_preserves_an_occupied_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_bootstrap_rejects_a_linux_execution_seed",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_bootstrap_rejects_an_execution_manifest_as_plan",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_candidate_plan_has_exact_cupidbuild_profile",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_cupidbuild_enforces_paired_import_profiles",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_plan_is_derived_from_the_linux_plan",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_plan_rejects_an_unplanned_link_object",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_relink_uses_the_planned_cupidasm_imports",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_stage_four_failure_stays_private",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_pe32_fixed_point_validator_rejects_false_layouts",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_pe32_import_validator_rejects_corrupt_tables",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_private_source_mutation_is_rejected",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_private_tool_cleanup_preserves_native_tool_failures",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_private_tool_cleanup_retries_only_windows_sharing_violations",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_complete_disk_plan_retains_the_closed_source_and_link_contract",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_linux_report_compares_all_six_seed_tools",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_linux_seed_verifies_all_six_artifacts",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_profile_selection_preserves_same_count_distinct_members",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_profile_selection_rejects_unmatched_plan_count_pairs",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_seed_rejects_provenance_and_artifact_drift",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_windows_images_reject_legacy_import_profiles",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_windows_report_compares_all_six_seed_tools",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_windows_seed_selects_publication_profiles",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_public_bootstrap_cannot_skip_the_fixed_point",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_publication_preserves_an_occupied_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_recomputed_digest_cannot_change_the_source_plan",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_seed_validation_binds_one_manifest_capture",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_seed_with_a_wrong_elf_entry_is_rejected",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_seed_with_an_unmapped_elf_entry_is_rejected",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_stage_pair_mismatch_reports_each_observed_result",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_symlinked_source_input_is_rejected_before_freeze",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_tool_runner_reads_only_the_executable_format_signature",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_bootstrap_requires_one_seed_identity",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_cupidbuild_handle_list_has_an_i386_hosted_abi",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_cupidbuild_import_profiles_are_exact_pairs",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_execution_seed_cannot_drive_the_fixed_point",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_fixed_point_rejects_a_stage_four_tool_mismatch",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_fixed_point_rejects_both_live_seed_roles",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_report_compares_stage_two_with_retained_seed_bytes",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_seed_freeze_validates_the_captured_pe_bytes",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_tool_import_profiles_lock_the_runtime_transition",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_wsl_path_preserves_utf8_with_a_non_utf8_host_default",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_wsl_path_rejects_translation_failure_and_empty_success",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_wsl_runner_rejects_a_missing_system_copy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_wsl_runner_uses_a_private_temporary_directory",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_wsl_runner_uses_the_system_copy_with_a_poisoned_path"
+      ],
+      "first_log": {
+        "sha256": "f9ad4cbd64d79a7ec57e3f1f07380aed68ded5ff7ae20dfab42d4d29ea17cec9",
+        "size": 33317
+      },
+      "retained_count": 153,
+      "retained_passed_methods": [
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_artifact_report_identity_checks_bytes_size_and_exact_fields",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_behavior_seed_can_bind_one_fixed_point_stage",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_build_plan_digest_rejects_unlisted_plan_data",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_behavior_certifies_each_compared_tool_image",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_behavior_checks_run_cupidbuild_on_both_targets",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_entry_corruption_requires_two_file_backed_pe_bytes",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_fixed_point_rejects_a_cupidbuild_image_mismatch",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_plan_accepts_an_exact_six_tool_plan",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_plan_adds_cupidbuild_without_changing_the_v1_plan",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_plan_rejects_a_reserved_cupidbuild_source",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_stages_link_all_six_tools",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_candidate_windows_fixed_point_requires_all_six_tools",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_changed_exact_provenance_is_rejected",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_changed_fixed_point_command_is_rejected",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_changed_producer_lineage_is_rejected",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_changed_seed_byte_is_rejected_before_execution",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_changed_source_is_rejected_by_the_snapshot_guard",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_linux_seed_carries_code_anchor_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_linux_seed_carries_linked_local_target_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_linux_seed_carries_local_relative_target_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_linux_seed_carries_relocatable_local_target_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_linux_seed_snapshot_matches_its_named_commit",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_linux_seed_verifies",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_cupidc_compiles_large_frame_source",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_binds_execution_provenance",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_carries_code_anchor_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_carries_linked_local_target_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_carries_local_relative_target_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_carries_relocatable_local_target_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_rejects_unlisted_executable",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_runs_all_tool_boundaries",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_runs_without_wsl",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_snapshot_matches_its_named_commit",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_i386_windows_seed_verifies",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_builds_a_complete_toolchain_fixed_point",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_builds_and_runs_imported_pe32",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_builds_and_runs_native_windows_tool_boundary",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_builds_disk_template_and_preserves_failed_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_builds_iso_fixture_and_preserves_failed_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_builds_profile_manifest_and_preserves_failed_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_carries_forward_x87_stack_subtraction",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_carries_parity_predicates_and_strict_decode_policy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_carries_shrd_with_address_overrides",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_carries_x87_integer_and_long_double_frontier",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_compiles_links_and_runs_floating_truth",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_compiles_the_public_cupidbuild_size_api",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_disassembles_typed_raw_ranges_and_legacy_modes",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_emits_complete_active_libm_object",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_emits_complete_unchanged_kernel_entry_object",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_emits_complete_unchanged_simd_object",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_emits_exact_doom_compatibility_objects_twice",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_emits_page_aligned_kernel_stack_top",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_enforces_install_request_bounds_order_and_symbols",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_generates_canonical_install_sources",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_generates_kernel_symbol_source_transactionally",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_preserves_returns_twice_call_operands",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_forwards_cupidasm_help",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_forwards_exact_tool_streams_and_status",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_maps_timeout_and_invalid_requests",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_rechecks_unselected_seed_tools",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_rejects_a_changed_tool_before_execution",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_rejects_live_manifest_byte_drift",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_rejects_live_tool_drift_after_execution",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_uses_an_injected_runner_and_rechecks_the_seed",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_run_uses_the_supplied_frozen_capture",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_seed_wraps_jpeg_and_preserves_failed_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_checked_windows_seed_prepares_the_long_alias_source_head",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_code_anchor_diagnostic_uses_native_path_for_pe_tools",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_complete_iso_promoted_profiles_bind_each_plan_count_and_import_set",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_complete_iso_promoted_profiles_reject_crossed_counts_and_unknown_members",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_complete_publication_replaces_an_empty_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_cupidbuild_source_locks_the_paired_import_profiles",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_failed_directory_replacement_restores_an_empty_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_failed_fourth_stage_keeps_both_completed_stages_private",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_failed_second_stage_keeps_completed_first_stage_private",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_code_anchor_fixture_is_a_sectioned_i386_exec",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_cupidbuild_checks_cupidc_runner_behavior",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_cupidbuild_checks_every_guarded_assembly_operation",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_cupidbuild_checks_typed_jpeg_transaction",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_cupidbuild_checks_typed_kernel_flatten_transaction",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_cupidbuild_checks_typed_kernel_symbol_transaction",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_cupidbuild_checks_typed_profile_transaction",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_linked_local_target_fixture_is_a_static_i386_exec",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_matrices_call_code_anchor_behavior_once",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_matrix_checks_executable_relocation_ownership",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_matrix_keeps_strict_cupiddis_checks",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_relocation_fixture_is_a_valid_i386_object",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_stage_rejects_a_cupidc_object_before_linking",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_stage_stops_before_link_on_anchor_failure",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_stages_certify_every_cupidc_object_before_linking",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_fixed_point_stages_certify_startups_before_linking",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_frozen_compiler_root_survives_a_live_change_and_restore",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_frozen_seed_is_independent_of_later_input_changes",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_incomplete_publication_never_exposes_a_partial_stage",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_legacy_windows_seed_accepts_native_producer_provenance",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_linux_behavior_windows_cupidasm_uses_publication_closure",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_linux_fixed_point_rebuilds_windows_cupiddis_main",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_linux_fixed_point_rejects_a_stage_four_object_mismatch",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_linux_fixed_point_rejects_live_seed_drift_before_next_stage",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_linux_named_revision_inventory_rejects_invalid_worktree_translation",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_linux_named_revision_inventory_translates_windows_worktree_link",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_long_behavior_seed_preserves_exact_reviewed_lineage",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_manifest_author_uses_the_six_tool_candidate_plan",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_manifest_reader_rejects_json_string_escapes",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_manifest_schema_rejects_unknown_duplicate_or_wrong_types",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_missing_native_git_falls_back_to_wsl_for_named_revision_inventory",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_behavior_seed_tracks_the_executed_plan",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_bootstrap_freezes_both_verified_seed_roles",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_bootstrap_preserves_an_occupied_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_bootstrap_rejects_a_linux_execution_seed",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_bootstrap_rejects_an_execution_manifest_as_plan",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_candidate_plan_has_exact_cupidbuild_profile",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_plan_is_derived_from_the_linux_plan",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_plan_rejects_an_unplanned_link_object",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_relink_uses_the_planned_cupidasm_imports",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_stage_four_failure_stays_private",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_pe32_fixed_point_validator_rejects_false_layouts",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_pe32_import_validator_rejects_corrupt_tables",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_private_source_mutation_is_rejected",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_private_tool_cleanup_preserves_native_tool_failures",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_private_tool_cleanup_retries_only_windows_sharing_violations",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_complete_disk_plan_retains_the_closed_source_and_link_contract",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_linux_report_compares_all_six_seed_tools",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_linux_seed_verifies_all_six_artifacts",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_profile_selection_preserves_same_count_distinct_members",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_profile_selection_rejects_unmatched_plan_count_pairs",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_seed_rejects_provenance_and_artifact_drift",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_windows_images_reject_legacy_import_profiles",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_windows_report_compares_all_six_seed_tools",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_promoted_windows_seed_selects_publication_profiles",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_public_bootstrap_cannot_skip_the_fixed_point",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_publication_preserves_an_occupied_output",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_recomputed_digest_cannot_change_the_source_plan",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_seed_validation_binds_one_manifest_capture",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_seed_with_a_wrong_elf_entry_is_rejected",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_seed_with_an_unmapped_elf_entry_is_rejected",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_stage_pair_mismatch_reports_each_observed_result",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_symlinked_source_input_is_rejected_before_freeze",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_tool_runner_reads_only_the_executable_format_signature",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_bootstrap_requires_one_seed_identity",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_cupidbuild_handle_list_has_an_i386_hosted_abi",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_cupidbuild_import_profiles_are_exact_pairs",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_execution_seed_cannot_drive_the_fixed_point",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_fixed_point_rejects_a_stage_four_tool_mismatch",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_fixed_point_rejects_both_live_seed_roles",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_report_compares_stage_two_with_retained_seed_bytes",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_seed_freeze_validates_the_captured_pe_bytes",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_windows_tool_import_profiles_lock_the_runtime_transition",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_wsl_path_preserves_utf8_with_a_non_utf8_host_default",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_wsl_path_rejects_translation_failure_and_empty_success",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_wsl_runner_rejects_a_missing_system_copy",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_wsl_runner_uses_a_private_temporary_directory",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_wsl_runner_uses_the_system_copy_with_a_poisoned_path"
+      ],
+      "retried_passed_methods": [
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_all_typed_commands_reject_duplicate_empty_and_missing_release_options",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_assemble_bootloader_release_preserves_raw_image",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_assemble_iso_release_preserves_raw_image",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_assemble_object_release_preserves_checked_elf_bytes",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_assemble_smp_release_preserves_raw_image",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_compile_doom_release_preserves_active_vendor_object",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_compile_kernel_release_preserves_active_source_object",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_compile_production_release_preserves_generated_install_object",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_compile_user_release_preserves_active_user_object",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_embed_jpeg_release_preserves_original_image_identity",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_flatten_kernel_release_preserves_checked_raw_bytes",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_generate_ksyms_release_preserves_valid_symbol_blob",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_generate_profile_release_preserves_complete_source_inventory",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_link_user_release_preserves_loader_approved_executable",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_physical_link_api_release_and_null_context_keep_original_contract",
+        "tests.test_cupidbuild_seed_release_operations.CupidBuildSeedReleaseOperationsTests.test_release_drift_after_assembly_launch_preserves_previous_object",
+        "tests.test_toolchain_bootstrap_seed.ToolchainBootstrapSeedCliTests.test_native_windows_cupidbuild_enforces_paired_import_profiles"
+      ],
+      "retry_count": 17,
+      "retry_log": {
+        "sha256": "305277b0252b3fc0d19199d9618123ac8bbf31de6733e3e1a22b710ede8032a6",
+        "size": 3695
+      },
+      "schema": "cupid.heap-adoption-seed-test-union.v1",
+      "selection": [
+        "tests.test_toolchain_bootstrap_seed",
+        "tests.test_cupidbuild_seed_release_operations"
+      ],
+      "skipped_count": 0,
+      "status": "pass",
+      "unchanged_test_sources": {
+        "tests/test_cupidbuild_seed_release.py": {
+          "sha256": "fd69bf8f130179a3e9806f8faf557c472fc6be5059ebd50fc75e3efb2736dbda",
+          "size": 11484
+        },
+        "tests/test_cupidbuild_seed_release_operations.py": {
+          "sha256": "b99c6bf67672e4a85805b564b31605ca309e0ac25d3b6d0d13abcba8b74e080c",
+          "size": 19629
+        },
+        "tests/test_toolchain_bootstrap_seed.py": {
+          "sha256": "db1fa3f30f9482403ec9148ca189edd8fd93d271b06796bef4d41a03dc1f74bc",
+          "size": 477212
+        }
+      },
+      "verifier": {
+        "sha256": "f70264f8573484c098134c98078afc20a61a8ef5a90859355765af8b83e86983",
+        "size": 3719
+      }
+    },
+    "declared_reader_and_release_operation_skips": 0,
+    "exact_artifact_gates": 16,
+    "first_failed_verification": {
+      "sha256": "1cf4ffc03faaad4c737b4e83a74a852e01199cdda1de052a5474d942c11a7a02",
+      "size": 3733
+    },
+    "image": {
+      "sha256": "3c87d0605e094aa6cfd745f1c8d5f135e7f9aee2bf05023bd318ef9fc198cb82",
+      "size": 209715200
+    },
+    "image_bytes_compared": 209715200,
+    "independent_review_seconds": 5.618745299987495,
+    "manual": {
+      "sha256": "50269a6f6840cb7b55493699e9028c0b52fb77a1dc9637c1f92e0cf67582bdd2",
+      "size": 72415
+    },
+    "native_fixture_retry_methods": 17,
+    "normal_root_seconds": 6065.048794099945,
+    "normal_root_verification": {
+      "sha256": "d1b8b0e06386c69194cd887afaf30d6fd3794d935be91b398fce47d08fa21ecb",
+      "size": 59258
+    },
+    "normal_source_inputs_unchanged": 99,
+    "retained_seed_reader_methods": 153,
+    "root_receipts_archive": {
+      "sha256": "d2bfb3c118ac5917262338e3cad0aa9bc66ae251b81cfbc3bc281f1e355ba6b2",
+      "size": 111672
+    },
+    "root_receipts_uncompressed": {
+      "sha256": "a13129b8dd27461073fb71770092cd1fb9ff1f8e7675d0fb834ce7893651d914",
+      "size": 644810
+    },
+    "schema": "cupid.hosted-heap-adoption-root-review.v1",
+    "status": "pass",
+    "strict_boots": 2,
+    "unchanged_reader_and_release_operation_methods": 170,
+    "user_abi_fields": 103,
+    "user_abi_providers": 101,
+    "whole_image_equal_paired_consumers": true,
+    "whole_linked_outputs_equal_paired_consumers": 4,
+    "whole_objects_equal_paired_consumers": 429,
+    "whole_user_outputs_equal_paired_consumers": 6
+  },
+  "runner": {
+    "sha256": "9b2f53c130a6ad9d679d49220cbea86a8c81b99a9b5fc723b4d6de24bd5208da",
+    "size": 4920
+  },
+  "schema": "cupid.hosted-heap-adoption.v1",
+  "source_revision": "1d852023df98c03481c4b3979dccb398288b7115",
+  "source_snapshot_sha256": "4ae98403b0896b24e50b81b11b213b8117207421b9152e95d0500e00e612d07e",
+  "status": "pass"
+}

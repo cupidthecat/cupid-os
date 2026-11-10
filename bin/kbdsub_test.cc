@@ -1,11 +1,12 @@
-//help: Task2 keyboard subscriber smoke - subscribe/unsubscribe + make/break
-//help: Usage: kbdsub_test
+// help: Task2 keyboard subscriber smoke - subscribe/unsubscribe + make/break
+// help: Usage: kbdsub_test
 
 void main() {
     I32 rc;
     I32 calls;
     I32 last_sc;
     I32 last_pressed;
+    I32 started_ms;
 
     /* First subscribe should succeed (returns 0). */
     rc = keyboard_test_sub_start();
@@ -22,12 +23,14 @@ void main() {
         return;
     }
 
-    /* Inject press 'A' (0x1E make) then release (0x9E break). */
-    keyboard_inject_scancode(0x1E);
-    keyboard_inject_scancode(0x9E);
+    serial_write_string("[kbdsub] waiting for USB Shift make/break\n");
+    started_ms = uptime_ms();
+    while (keyboard_test_sub_calls() < 2 && uptime_ms() - started_ms < 5000) {
+        yield();
+    }
 
-    calls        = keyboard_test_sub_calls();
-    last_sc      = keyboard_test_sub_last_sc();
+    calls = keyboard_test_sub_calls();
+    last_sc = keyboard_test_sub_last_sc();
     last_pressed = keyboard_test_sub_last_pressed();
 
     if (calls != 2) {
@@ -35,7 +38,7 @@ void main() {
         keyboard_test_sub_stop();
         return;
     }
-    if (last_sc != 0x1E || last_pressed != 0) {
+    if (last_sc != 0x2A || last_pressed != 0) {
         serial_write_string("[FAIL] kbdsub: last event mismatch\n");
         keyboard_test_sub_stop();
         return;

@@ -1,6 +1,6 @@
-//help: CupidC Feature 8 demo - reg / noreg storage hints
-//help: Usage: feature8_reg_noreg
-//help: Verifies reg/noreg are recognized and compile as storage hints.
+// help: CupidC Feature 8 demo - reg / noreg storage hints
+// help: Usage: feature8_reg_noreg
+// help: Verifies reg/noreg are recognized and compile as storage hints.
 
 void main() {
     reg I32 i;

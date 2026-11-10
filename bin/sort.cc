@@ -1,11 +1,15 @@
-//help: Sort lines of a file
-//help: Usage: sort [-r] <file>
-//help: Reads up to 64KB. Up to 4096 lines. -r reverses sort order.
+// help: Sort lines of a file
+// help: Usage: sort [-r] <file>
+// help: Reads up to 64KB. Up to 4096 lines. -r reverses sort order.
 
 int parse_token(char *str, int start, char *out, int maxlen) {
     int i = start;
-    while (str[i] == ' ' || str[i] == '\t') i = i + 1;
-    if (str[i] == 0) { out[0] = 0; return 0; }
+    while (str[i] == ' ' || str[i] == '\t')
+        i = i + 1;
+    if (str[i] == 0) {
+        out[0] = 0;
+        return 0;
+    }
 
     int j = 0;
     while (str[i] != 0 && str[i] != ' ' && str[i] != '\t' && j < maxlen - 1) {
@@ -23,16 +27,20 @@ int line_cmp(char *blob, int a, int b) {
     while (1) {
         char ca = blob[a + i];
         char cb = blob[b + i];
-        if (ca == 0 && cb == 0) return 0;
-        if (ca == 0) return -1;
-        if (cb == 0) return 1;
-        if (ca != cb) return (int)ca - (int)cb;
+        if (ca == 0 && cb == 0)
+            return 0;
+        if (ca == 0)
+            return -1;
+        if (cb == 0)
+            return 1;
+        if (ca != cb)
+            return (int)ca - (int)cb;
         i = i + 1;
     }
 }
 
 void main() {
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
     char tok[256];
     int pos = 0;
 
@@ -50,10 +58,16 @@ void main() {
     if (tok[0] == '-' && tok[1] == 'r' && tok[2] == 0) {
         reverse = 1;
         l = parse_token(args, pos, path_arg, 256);
-        if (l == 0) { println("sort: missing file"); return; }
+        if (l == 0) {
+            println("sort: missing file");
+            return;
+        }
     } else {
         int i = 0;
-        while (tok[i]) { path_arg[i] = tok[i]; i = i + 1; }
+        while (tok[i]) {
+            path_arg[i] = tok[i];
+            i = i + 1;
+        }
         path_arg[i] = 0;
     }
 
@@ -67,8 +81,12 @@ void main() {
         return;
     }
 
-    char *blob = (char*)kmalloc(65537);
-    if (!blob) { println("sort: oom"); vfs_close(fd); return; }
+    char *blob = (char *)kmalloc(65537);
+    if (!blob) {
+        println("sort: oom");
+        vfs_close(fd);
+        return;
+    }
 
     int total = 0;
     char buf[256];
@@ -86,8 +104,12 @@ void main() {
 
     /* In-place: replace each '\n' with NUL, build offsets[]. */
     int max_lines = 4096;
-    int *offs = (int*)kmalloc(max_lines * 4);
-    if (!offs) { println("sort: oom"); kfree(blob); return; }
+    int *offs = (int *)kmalloc(max_lines * 4);
+    if (!offs) {
+        println("sort: oom");
+        kfree(blob);
+        return;
+    }
 
     int nlines = 0;
     int start = 0;
@@ -114,8 +136,10 @@ void main() {
         int b = a - 1;
         while (b >= 0) {
             int c = line_cmp(blob, offs[b], key);
-            if (reverse) c = -c;
-            if (c <= 0) break;
+            if (reverse)
+                c = -c;
+            if (c <= 0)
+                break;
             offs[b + 1] = offs[b];
             b = b - 1;
         }

@@ -63,7 +63,7 @@ void gfx2d_image_draw_transformed(int handle, int x, int y);
 /* * Draw sprite (from gfx2d) with current transform applied. */
 void gfx2d_sprite_draw_transformed(int handle, int x, int y);
 
-/* * Draw text with current transform applied. */
+/* * Draw text at the transformed origin. Glyphs remain axis-aligned. */
 void gfx2d_text_transformed(int x, int y, const char *str,
                             uint32_t color, int font);
 

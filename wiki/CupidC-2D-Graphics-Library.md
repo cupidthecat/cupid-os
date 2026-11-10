@@ -1,12 +1,34 @@
 # CupidC 2D Graphics Library (gfx2d)
 
-A software-rendered 2D graphics library for cupid-os, exposed as CupidC kernel bindings. Enables desktop development, app development, and retro-aesthetic visual effects.
+`gfx2d` is a software-rendered 2D graphics library exposed through CupidC kernel bindings. It supports desktop applications and retro-style visual effects.
 
 ---
 
 ## Overview
 
-The `gfx2d` library lives in `kernel/gfx/gfx2d.c` and is registered as CupidC bindings in `cupidc.c`. CupidC programs call `gfx2d_*` functions directly - no imports needed.
+The library lives in `kernel/gfx/gfx2d.cc`, and `kernel/lang/cupidc.cc` registers its bindings. CupidC programs call `gfx2d_*` functions directly without imports.
+
+The private compiler exposes the 46 bindings that were missing for
+`gfxgui_test.cc`. They cover effects, bitmap-font assets, affine transforms,
+GUI module initialization, theme persistence, and three built-in theme
+accessors. The accessors return pointers to the existing constant theme
+objects. The other 43 bindings call their linked kernel implementations
+directly. All 107 runnable top-level programs pass private AOT compilation.
+The fixed guest frontier runs the graphics test through AOT and JIT, checks
+voluntary-exit recovery from nested fullscreen ownership, then reuses that PID
+for a second nested owner. The old generation's delayed request must skip it;
+a new foreign helper kills it, and a third AOT graphics run reuses the PID and
+renders. It requires an exact custom-font pixel, an isolated
+blurred-surface pixel with unchanged screen state, and center and off-center
+transformed-image pixels. An off-origin point checks a 90-degree rotation and
+nonuniform scale, and popping the transform must restore identity. The later
+GodSong command waits for its settings line and a popup marker printed after
+the popup owns the shared writer and raw keyboard queue. It does not rely on a
+timed delay or an earlier graphics diagnostic. The affine inverse retains
+the full 32.32 determinant and inverse translation arithmetic in checked
+64-bit form. This keeps the identity matrix and representable sub-word
+determinants invertible, accepts large determinants when their inverse words
+fit, and rejects unrepresentable coefficients or translations.
 
 **Target display:** 640x480, 32-bit XRGB/ARGB framebuffer (VBE/Bochs)
 
@@ -16,7 +38,7 @@ The `gfx2d` library lives in `kernel/gfx/gfx2d.c` and is registered as CupidC bi
 
 ## Compiler Improvements (Required)
 
-These additions to the CupidC compiler enable cleaner graphics app code:
+Graphics programs rely on the following CupidC features:
 
 ### `unsigned` types
 ```c
@@ -167,6 +189,92 @@ void gfx2d_invert(int x, int y, int w, int h);
 void gfx2d_tint(int x, int y, int w, int h, unsigned int color, int alpha);
 ```
 
+### Extended Filters
+
+These functions modify the selected screen or surface region in place.
+Convolution kernels contain 9 or 25 signed integer weights.
+
+```c
+void gfx2d_effects_init();
+void gfx2d_blur_box(int x, int y, int w, int h, int radius);
+void gfx2d_blur_box_surface(int surface, int radius);
+void gfx2d_blur_gaussian(int x, int y, int w, int h, int radius);
+void gfx2d_blur_motion(int x, int y, int w, int h, int angle, int distance);
+void gfx2d_brightness(int x, int y, int w, int h, int amount);
+void gfx2d_contrast(int x, int y, int w, int h, int amount);
+void gfx2d_saturation(int x, int y, int w, int h, int amount);
+void gfx2d_hue_shift(int x, int y, int w, int h, int degrees);
+void gfx2d_tint_ex(int x, int y, int w, int h,
+                   unsigned int color, int alpha, int mode);
+void gfx2d_edges(int x, int y, int w, int h, unsigned int color);
+void gfx2d_emboss(int x, int y, int w, int h, int angle);
+void gfx2d_posterize(int x, int y, int w, int h, int levels);
+void gfx2d_convolve_3x3(int x, int y, int w, int h,
+                        int kernel[9], int divisor);
+void gfx2d_convolve_5x5(int x, int y, int w, int h,
+                        int kernel[25], int divisor);
+void gfx2d_chromatic_aberration(int x, int y, int w, int h, int offset);
+void gfx2d_scanlines_ex(int x, int y, int w, int h, int alpha, int pattern);
+void gfx2d_noise(int x, int y, int w, int h,
+                 int intensity, unsigned int seed);
+```
+
+### Bitmap Font Assets
+
+```c
+void gfx2d_assets_init();
+int  gfx2d_font_load(char *path);
+void gfx2d_font_set_default(int handle);
+void gfx2d_text_ex(int x, int y, char *text, unsigned int color,
+                   int font_handle, int effects);
+void gfx2d_font_free(int handle);
+```
+
+### Affine Transform Stack
+
+The six matrix words store `a`, `b`, `c`, `d`, `tx`, and `ty` in Cupid's
+fixed-point format.
+
+```c
+void gfx2d_transform_init();
+void gfx2d_push_transform();
+void gfx2d_pop_transform();
+void gfx2d_reset_transform();
+void gfx2d_translate(int dx, int dy);
+void gfx2d_rotate(int angle);
+void gfx2d_scale(int sx, int sy);
+void gfx2d_set_matrix(int matrix[6]);
+void gfx2d_get_matrix(int matrix[6]);
+void gfx2d_transform_point(int x, int y, int *out_x, int *out_y);
+void gfx2d_image_draw_transformed(int handle, int x, int y);
+void gfx2d_sprite_draw_transformed(int handle, int x, int y);
+void gfx2d_text_transformed(int x, int y, char *text,
+                            unsigned int color, int font);
+```
+
+Image and sprite drawing resample through the inverse affine matrix. Text
+transforms its origin only; its glyphs remain axis-aligned.
+
+### GUI Modules and Themes
+
+The theme accessors return stable pointers to the kernel's constant theme
+objects. Pass one of those pointers to `ui_theme_set`.
+
+```c
+void gui_widgets_init();
+void gui_containers_init();
+void gui_menus_init();
+void gui_events_init();
+void gui_themes_init();
+void ui_theme_set(void *theme);
+void ui_theme_reset_default();
+int  ui_theme_load(char *path);
+int  ui_theme_save(char *path);
+void *ui_theme_windows95();
+void *ui_theme_dark_mode();
+void *ui_theme_pastel_dream();
+```
+
 ### Win95-Style UI Helpers
 
 ```c
@@ -234,7 +342,7 @@ int x = gfx2d_tween_bounce(tick % 120, 50, 400, 120);
 
 ### Particle System
 
-Lightweight particle effects with gravity and alpha fadeout.
+Particle effects support gravity and alpha fadeout.
 
 ```c
 int  gfx2d_particles_create();    // allocates system, returns handle
@@ -275,13 +383,28 @@ void gfx2d_flood_fill(int x, int y, unsigned int color);
 
 ### Fullscreen Mode
 
-Taking over the screen disables the desktop compositor/WM, giving you raw access.
+Fullscreen mode waits for any in-flight desktop or retained-window writer,
+then gives the calling process exclusive access to the shared framebuffer and
+gfx2d state. Entry and exit are owner-tagged and may be nested by the same
+process. JIT return, process exit, and remote kill release abandoned
+ownership before the PID can be reused.
 
 ```c
 void gfx2d_fullscreen_enter();
 void gfx2d_fullscreen_exit();
 int  gfx2d_fullscreen_active();  // returns 1 if active
 ```
+
+Direct drawing, clip, blend, transform, sprite, surface, particle, image, and
+font calls share process-wide state. Keep them inside a fullscreen scope or a
+retained window paint scope. A pointer returned by `gfx2d_surface_data`,
+`gfx2d_image_data`, `fontsys_glyph`, or `fontsys_face_family` remains owned by
+its registry and is valid only while that outer scope is held.
+
+Windowed programs should pair `gui_win_begin_paint` with
+`gui_win_end_paint`, then call `gui_win_present`. The compatibility
+`gui_win_draw_frame` path must be paired with `gui_win_flip`; it holds the
+same writer ownership for the complete pair.
 
 ### Mouse Cursor
 
@@ -324,8 +447,8 @@ int gfx2d_file_dialog_save(char *start_path, char *default_name,
 **Example:**
 ```c
 void main() {
-    gfx2d_init();
     gfx2d_fullscreen_enter();
+    gfx2d_init();
 
     char path[128];
 
@@ -379,9 +502,11 @@ baseline JPEGs (SOF0/SOF1, 1- or 3-component, 4:4:4 / 4:2:2 / 4:2:0).
 uint8_t *bytes; int n = vfs_read_all("/img.png", &bytes);
 uint32_t *px; int w, h;
 if (png_decode_mem(bytes, n, &px, &w, &h) == 0) {
+    gfx2d_fullscreen_enter();
     for (int y = 0; y < h; y++)
         for (int x = 0; x < w; x++) gfx2d_pixel(x, y, px[y*w + x]);
     gfx2d_flip();
+    gfx2d_fullscreen_exit();
     kfree(px);
 }
 kfree(bytes);
@@ -390,9 +515,9 @@ kfree(bytes);
 ### CupidASM parity note
 
 Every `gfx2d_*` and image-codec function listed above is also bound from
-CupidASM (see `wiki/CupidASM-Assembler.md`), with the same names and
-calling convention. This includes the previously CupidC-only image
-slot (`gfx2d_image_load` / `_load_mem` / `_draw` / `_draw_scaled` /
+CupidASM (see `wiki/CupidASM-Assembler.md`) under the same names and calling
+convention. The bindings include the image slot (`gfx2d_image_load` /
+`_load_mem` / `_draw` / `_draw_scaled` /
 `_draw_transformed` / `_get_pixel` / `_width` / `_height` / `_free`),
 the thick-stroke shapes (`gfx2d_circle_thick`, `gfx2d_line_thick`,
 `gfx2d_tri`, `gfx2d_tri_fill_gradient`), the rounded / radial gradients,
@@ -421,22 +546,26 @@ the glyph helpers (`gfx2d_char` / `_char_scaled` / `_text_n` /
 
 **Supported format:** BITMAPINFOHEADER (Windows 3.x+), 24-bit uncompressed only. Max dimension: 8192x8192.
 
-**Example - Screenshot:**
+Screenshot example:
 ```c
 void main() {
+    gfx2d_fullscreen_enter();
     // Capture the framebuffer as a BMP
     int *fb = 0;  // use gfx2d framebuffer
     // ... draw something first ...
     bmp_encode("/home/screen.bmp", fb, 640, 480);
+    gfx2d_fullscreen_exit();
     println("Screenshot saved!");
 }
 ```
 
-**Example - Load and display:**
+Load and display example:
 ```c
 void main() {
+    gfx2d_fullscreen_enter();
     // Decode directly to screen
     int ret = bmp_decode_to_fb("/home/logo.bmp", 100, 100);
+    gfx2d_fullscreen_exit();
     if (ret < 0) {
         println("Failed to load BMP");
     }
@@ -446,6 +575,8 @@ void main() {
 ---
 
 ## Example: Retro Window
+
+Call this helper from an active fullscreen or retained-window paint scope.
 
 ```c
 // Draw a Win95-style window with gradient title bar
@@ -474,28 +605,31 @@ void draw_window(int x, int y, int w, int h, char *title) {
 | File | Purpose |
 |------|---------|
 | `kernel/gfx/gfx2d.h` | Public API header (including file dialogs) |
-| `kernel/gfx/gfx2d.c` | Library implementation (including file dialog UI + event loop) |
+| `kernel/gfx/gfx2d.cc` | Library implementation (including file dialog UI + event loop) |
 | `kernel/gfx/bmp.h` | BMP encoding/decoding API header |
-| `kernel/gfx/bmp.c` | BMP format implementation |
+| `kernel/gfx/bmp.cc` | BMP format implementation |
 | `kernel/fs/vfs_helpers.h` | High-level VFS convenience functions |
-| `kernel/fs/vfs_helpers.c` | VFS helpers implementation |
-| `cupidc.c` | Binding registration (~100 entries) |
-| `cupidc_lex.c` | `unsigned`, `typedef`, `const` keywords |
-| `cupidc_parse.c` | Type parsing for new keywords |
+| `kernel/fs/vfs_helpers.cc` | VFS helpers implementation |
+| `kernel/lang/cupidc.cc` | Binding registration (~100 entries) |
+| `cupidc_lex.cc` | `unsigned`, `typedef`, `const` keywords |
+| `cupidc_parse.cc` | Type parsing for new keywords |
 
 ---
 
 ## Internal Design Notes
 
-- **Alpha blend formula:** `out = (src * a + dst * (255 - a)) / 255` per channel, integer only
-- **Gradient interpolation:** linear lerp per scanline, integer step
-- **Shadow:** 1-4 pass box blur of a solid rect at offset
-- **Plasma:** precomputed 256-entry sine LUT, two-frequency interference pattern
-- **Sprite pool:** max 32 handles, stored in kernel heap
-- **Surface pool:** max 8 handles, each consumes w*h*4 bytes heap
-- **Particle systems:** max 4 systems x 64 particles each, 8.8 fixed-point positions
-- **Clipping:** global clip rect checked in every pixel-write path
-- **Font LARGE:** same 8x8 glyphs as FONT_NORMAL, scaled 2x at draw time
-- **Blend modes:** applied in g2d_put() helper for all drawing operations
-- **Tweening:** pure integer math, no floating point
+- Alpha blending uses `out = (src * a + dst * (255 - a)) / 255` for each channel with integer arithmetic.
+- Gradient interpolation uses a linear interpolation step for each scanline.
+- Shadows apply one to four box-blur passes to an offset solid rectangle.
+- Plasma uses a precomputed 256-entry sine lookup table with a two-frequency interference pattern.
+- The sprite pool stores at most 32 handles in the kernel heap.
+- The surface pool stores at most eight handles. Each surface consumes `w*h*4` bytes of heap memory.
+- At most four particle systems may be active, with 64 particles per system and 8.8 fixed-point positions.
+- Resource slots are invalidated before their storage is freed. The pools do
+  not yet record the creating PID, so a process killed after allocation can
+  orphan a handle and eventually exhaust a finite pool.
+- Every pixel-writing path checks the global clipping rectangle.
+- `FONT_LARGE` scales the same 8x8 glyphs as `FONT_NORMAL` by two at draw time.
+- The `g2d_put()` helper applies blend modes to drawing operations.
+- Tweening uses integer arithmetic without floating point.
 

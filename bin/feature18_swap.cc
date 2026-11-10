@@ -1,23 +1,51 @@
-//help: P3 opt-in swap smoke: per-class round-trip, disk cap, nested pin, bad-handle
-//help: Usage: swapinit && feature18_swap
+// help: P3 opt-in swap smoke: per-class round-trip, disk cap, nested pin, bad-handle
+// help: Usage: swapinit && feature18_swap
 
-/* CupidC doesn't have memset/memcmp; inline trivial helpers.
- * CupidC also doesn't natively recognize uint32_t - use int (32-bit) for
- * swap handles. The BIND entries in kernel/cupidc.c bind swap_kmalloc to
- * return a 32-bit handle in EAX, which lands in an int just fine.*/
+/* Keep the per-class fill and byte checks local. Native swap bindings use
+ * unsigned four-byte handles; the class tests below retain their original
+ * integer storage and the conversion probe uses U32 explicitly. */
 
 void fill_byte(char *p, int n, char v) {
     int i = 0;
-    while (i < n) { p[i] = v; i = i + 1; }
+    while (i < n) {
+        p[i] = v;
+        i = i + 1;
+    }
 }
 
 int verify_byte(char *p, int n, char v) {
     int i = 0;
     while (i < n) {
-        if (p[i] != v) return 0;
+        if (p[i] != v)
+            return 0;
         i = i + 1;
     }
     return 1;
+}
+
+int check_swap_binding_conversions() {
+    double size = 500.0;
+    U32 handle = swap_kmalloc(size);
+    if (handle == 0)
+        return 0;
+    double argument = (double)handle;
+    char *bytes = (char *)swap_pin(argument);
+    if (bytes == 0) {
+        swap_free(argument);
+        return 0;
+    }
+    fill_byte(bytes, 8, 53);
+    swap_unpin(argument);
+    bytes = (char *)swap_pin(argument);
+    int ok = bytes != 0;
+    if (ok && !verify_byte(bytes, 8, 53))
+        ok = 0;
+    if (bytes != 0)
+        swap_unpin(argument);
+    swap_free(argument);
+    if (ok)
+        serial_printf("PASS feature18_binding sizes=1 handles=5 bytes=8\n");
+    return ok;
 }
 
 void main() {
@@ -26,17 +54,21 @@ void main() {
     /* Keep the smoke test self-contained. If swap is already initialized,
      * swap_init rejects the duplicate setup and the existing pool remains
      * usable; if not, this creates the default 4 MB resident pool.*/
-    swap_init("/disk/swap.bin", 4194304);
+    double default_pool = 4194304.0;
+    swap_init("/disk/swap.bin", default_pool);
+    if (!check_swap_binding_conversions()) {
+        serial_printf("[feature18] FAIL native binding conversion\n");
+        ok = 0;
+    }
 
     /* 1. Per-class round trip: one handle per class, unique byte pattern.
      *    Classes are 1K / 4K / 16K / 64K; pick a size that lands in each.*/
-    int h1 = swap_kmalloc(500);    /* class 0: 1K */
-    int h2 = swap_kmalloc(3000);   /* class 1: 4K */
-    int h3 = swap_kmalloc(9000);   /* class 2: 16K */
-    int h4 = swap_kmalloc(40000);  /* class 3: 64K */
+    int h1 = swap_kmalloc(500);   /* class 0: 1K */
+    int h2 = swap_kmalloc(3000);  /* class 1: 4K */
+    int h3 = swap_kmalloc(9000);  /* class 2: 16K */
+    int h4 = swap_kmalloc(40000); /* class 3: 64K */
     if (h1 == 0 || h2 == 0 || h3 == 0 || h4 == 0) {
-        serial_printf("[feature18] FAIL kmalloc per-class: %d %d %d %d\n",
-                      h1, h2, h3, h4);
+        serial_printf("[feature18] FAIL kmalloc per-class: %d %d %d %d\n", h1, h2, h3, h4);
         ok = 0;
     } else {
         char *p1 = (char *)swap_pin(h1);
@@ -53,10 +85,14 @@ void main() {
             fill_byte(p3, 16384, 0x33);
             fill_byte(p4, 65536, 0x44);
         }
-        if (p1 != 0) swap_unpin(h1);
-        if (p2 != 0) swap_unpin(h2);
-        if (p3 != 0) swap_unpin(h3);
-        if (p4 != 0) swap_unpin(h4);
+        if (p1 != 0)
+            swap_unpin(h1);
+        if (p2 != 0)
+            swap_unpin(h2);
+        if (p3 != 0)
+            swap_unpin(h3);
+        if (p4 != 0)
+            swap_unpin(h4);
 
         if (p1 != 0 && p4 != 0) {
             /* Re-pin and verify patterns survived the unpin (disk or RAM doesn't
@@ -67,17 +103,22 @@ void main() {
                 serial_printf("[feature18] FAIL h1 pattern after repin\n");
                 ok = 0;
             }
-            if (p1 != 0) swap_unpin(h1);
+            if (p1 != 0)
+                swap_unpin(h1);
 
             p4 = (char *)swap_pin(h4);
             if (p4 == 0 || !verify_byte(p4, 65536, 0x44)) {
                 serial_printf("[feature18] FAIL h4 pattern after repin\n");
                 ok = 0;
             }
-            if (p4 != 0) swap_unpin(h4);
+            if (p4 != 0)
+                swap_unpin(h4);
         }
 
-        swap_free(h1); swap_free(h2); swap_free(h3); swap_free(h4);
+        swap_free(h1);
+        swap_free(h2);
+        swap_free(h3);
+        swap_free(h4);
     }
 
     /* 2. Class 3 (64K) disk cap - allocate until full.
@@ -93,12 +134,12 @@ void main() {
     int good = 0;
     int j = 0;
     while (j < 65) {
-        if (hs3[j] != 0) good = good + 1;
+        if (hs3[j] != 0)
+            good = good + 1;
         j = j + 1;
     }
     if (good < 64) {
-        serial_printf("[feature18] FAIL class-3 disk cap: got %d/65 (want 64)\n",
-                      good);
+        serial_printf("[feature18] FAIL class-3 disk cap: got %d/65 (want 64)\n", good);
         ok = 0;
     }
     if (hs3[64] != 0) {
@@ -108,7 +149,8 @@ void main() {
     /* Clean up. */
     j = 0;
     while (j < 64) {
-        if (hs3[j] != 0) swap_free(hs3[j]);
+        if (hs3[j] != 0)
+            swap_free(hs3[j]);
         j = j + 1;
     }
 
@@ -125,8 +167,8 @@ void main() {
         ok = 0;
     }
     if (hn != 0) {
-        swap_unpin(hn);  /* refcount -> 1, still pinned */
-        swap_unpin(hn);  /* refcount -> 0, now evictable */
+        swap_unpin(hn); /* refcount -> 1, still pinned */
+        swap_unpin(hn); /* refcount -> 0, now evictable */
         swap_free(hn);
     }
 
@@ -139,9 +181,9 @@ void main() {
         serial_printf("[feature18] FAIL pin(99999) returned non-NULL\n");
         ok = 0;
     }
-    swap_unpin(0);       /* must not panic */
-    swap_free(0);        /* must not panic */
-    swap_free(99999);    /* must not panic */
+    swap_unpin(0);    /* must not panic */
+    swap_free(0);     /* must not panic */
+    swap_free(99999); /* must not panic */
 
     if (ok) {
         serial_printf("PASS feature18_swap\n");

@@ -1,19 +1,18 @@
 # Networking Tier 4
 
-CupidOS P6 Networking Tier 4 adds a full TCP/IP stack to the kernel. The
-current branch layers TLS, HTTP/HTTPS tools, a browser, SSH/Telnet clients,
-and an SSH server on top of that stack. The implementation includes two NIC
-drivers (RTL8139 and Intel E1000), ARP, IPv4, ICMP, UDP, TCP, DHCP with static
-fallback, DNS A-record resolution, and a BSD-style socket API exposed to shell
-commands, CupidC, CupidASM, and user C programs.
+CupidOS includes an in-kernel TCP/IP stack with TLS, HTTP and HTTPS tools, a
+browser, SSH and Telnet clients, and an SSH server. Two NIC drivers, RTL8139
+and Intel E1000, share ARP, IPv4, ICMP, UDP, TCP, DHCP with static fallback,
+DNS A-record resolution, and a BSD-style socket API. Shell commands and
+programs written in CupidC, CupidASM, or C can use that API.
 
 Related pages: [USB](USB), [SMP](SMP)
 
-**Bindings exposed to scripts:**
+Language binding references:
 
 - CupidC: see [CupidC-Language-Reference § Networking](CupidC-Language-Reference#networking---nic-info)
 - CupidASM: see [CupidASM-Assembler § Networking](CupidASM-Assembler#networking---bsd-sockets)
-- Quick-start examples: [CUPIDOS.txt](../CUPIDOS.txt)
+- Quick-start examples: [Getting started](Getting-Started)
 
 ---
 
@@ -33,22 +32,22 @@ Related pages: [USB](USB), [SMP](SMP)
 | ARP cache TTL | 5 min per entry (`arp_tick()` from `net_process_pending`) |
 | IP fragmentation | Send-side splitter + 4-slot reassembly table, 64KB / 30s timeout |
 | Listen-queue GC | 30 s timeout on half-open SYN-RCVD slots |
-| Test harness | `make test-net` - pexpect + scapy, both NICs, `tests/*.pcap` capture |
+| Test harness | `make test-net` - standard-library serial driver and PCAP parser, both NICs |
 
-New kernel files:
+Kernel files:
 
 ```
-kernel/network/net_if.h / net_if.c     NIC vtable, RX ring, registration, net_init
-kernel/network/arp.h    / arp.c        16-entry LRU ARP cache, blocking resolve
-kernel/network/ip.h     / ip.c         IPv4 parse, route, send, protocol dispatch
-kernel/network/icmp.h   / icmp.c       ICMP echo reply
-kernel/network/udp.h    / udp.c        UDP send/recv, pseudo-header checksum
-kernel/network/tcp.h    / tcp.c        RFC 793 subset state machine (~1200 LOC)
-kernel/network/socket.h / socket.c     32-slot BSD socket table + API
-kernel/network/dhcp.h   / dhcp.c       DHCP four-way handshake + static fallback
-kernel/network/dns.h    / dns.c        UDP/53 A-record resolver + 16-entry cache
-drivers/rtl8139.h / rtl8139.c   Realtek 8139 PCI NIC driver (~300 LOC)
-drivers/e1000.h   / e1000.c     Intel 82540EM PCI NIC driver (~500 LOC)
+kernel/network/net_if.h / net_if.cc     NIC vtable, RX ring, registration, net_init
+kernel/network/arp.h    / arp.cc        16-entry LRU ARP cache, blocking resolve
+kernel/network/ip.h     / ip.cc         IPv4 parse, route, send, protocol dispatch
+kernel/network/icmp.h   / icmp.cc       ICMP echo reply
+kernel/network/udp.h    / udp.cc       UDP send/recv, pseudo-header checksum
+kernel/network/tcp.h    / tcp.cc        RFC 793 subset state machine (~1200 LOC)
+kernel/network/socket.h / socket.cc     32-slot BSD socket table + API
+kernel/network/dhcp.h   / dhcp.cc       DHCP four-way handshake + static fallback
+kernel/network/dns.h    / dns.cc        UDP/53 A-record resolver + 16-entry cache
+drivers/rtl8139.h / rtl8139.cc   Realtek 8139 PCI NIC driver (~300 LOC)
+drivers/e1000.h   / e1000.cc     Intel 82540EM PCI NIC driver (~500 LOC)
 bin/feature21_net.cc           TCP client smoke test (DNS + connect + HTTP GET)
 bin/feature22_net_server.cc    TCP server smoke test (listen/accept/echo)
 ```
@@ -65,24 +64,24 @@ bin/feature22_net_server.cc    TCP server smoke test (listen/accept/echo)
 │  connect() send()  recv()    close()                          │
 │  dns_resolve(name) -> ipv4                                    │
 └──────────┬────────────────────────────────────────────────────┘
-┌──────────▼── kernel/network/socket.c - 32-slot table ─────────────────┐
+┌──────────▼── kernel/network/socket.cc - 32-slot table ─────────────────┐
 │  socket_t { type, state, tx_buf/rx_buf, TCP state machine }   │
 └──────────┬────────────────────────────────────────────────────┘
-┌──────────▼── kernel/{tcp,udp,icmp}.c ─────────────────────────┐
+┌──────▼── kernel/network/tcp.cc, udp.cc, and icmp.cc ───────────┐
 │  TCP state machine      UDP datagram       ICMP echo reply    │
 └──────────┬────────────────────────────────────────────────────┘
-┌──────────▼── kernel/network/ip.c - IPv4 send + dispatch ──────────────┐
+┌──────────▼── kernel/network/ip.cc - IPv4 send + dispatch ──────────────┐
 │  ipv4_send(dst, proto, buf, len) -> arp resolve -> NIC send   │
 │  ipv4_input(frame) -> proto dispatch (ICMP/UDP/TCP)           │
 └──────────┬────────────────────────────────────────────────────┘
-┌──────────▼── kernel/network/arp.c - 16-entry LRU cache ───────────────┐
+┌──────────▼── kernel/network/arp.cc - 16-entry LRU cache ───────────────┐
 │  who-has / is-at    blocking resolve on cache miss (500 ms)   │
 └──────────┬────────────────────────────────────────────────────┘
-┌──────────▼── kernel/network/net_if.c - unified NIC interface ─────────┐
+┌──────────▼── kernel/network/net_if.cc - unified NIC interface ─────────┐
 │  net_if_t vtable    lockless SPSC RX ring (64 slots)          │
 └──────────┬────────────────────────────────────────────────────┘
            ▼
-┌── drivers/rtl8139.c ──────── drivers/e1000.c ───────────────────┐
+┌── drivers/rtl8139.cc ──────── drivers/e1000.cc ───────────────────┐
 │  PCI probe + init + register      IRQ top-half (enqueue frame)│
 └───────────────────────────────────────────────────────────────┘
 ```
@@ -106,8 +105,7 @@ bin/feature22_net_server.cc    TCP server smoke test (listen/accept/echo)
 
 ## Boot Flow
 
-`net_init()` is called from `kmain` after `sti` and PCI enumeration, in the
-same place USB was initialised in P4.
+`kmain` calls `net_init()` after `sti` and PCI enumeration.
 
 ```c
 void net_init(void) {
@@ -197,7 +195,7 @@ the idle/reschedule path.
 
 ---
 
-## RTL8139 Driver (drivers/rtl8139.c)
+## RTL8139 Driver (drivers/rtl8139.cc)
 
 ### PCI identification
 
@@ -240,8 +238,8 @@ the idle/reschedule path.
 12. Install IRQ handler via `irq_install_handler(irq_line, rtl8139_irq)`
 13. Call `net_if_register(&nif)`
 
-> **Note** - The common IRQ dispatcher in CupidOS calls `lapic_eoi()` after
-> every handler returns. The RTL8139 IRQ handler must NOT call it directly;
+> The common IRQ dispatcher calls `lapic_eoi()` after
+> every handler returns. The RTL8139 IRQ handler must not call it directly;
 > only the NIC-side ISR (W1C) needs clearing inside the handler.
 
 ### RX drain loop
@@ -282,7 +280,7 @@ static int rtl8139_send(net_if_t *nif, const uint8_t *frame, uint32_t len) {
 
 ---
 
-## E1000 Driver (drivers/e1000.c)
+## E1000 Driver (drivers/e1000.cc)
 
 ### PCI identification
 
@@ -293,7 +291,7 @@ static int rtl8139_send(net_if_t *nif, const uint8_t *frame, uint32_t len) {
 | Class code | 0x020000 (Ethernet) |
 | BAR | BAR0 - 32-bit MMIO, 128 KB |
 
-> **MMIO mapping required** - BAR0 is above the kernel's identity-mapped
+> BAR0 is above the kernel's identity-mapped
 > region. Call `paging_map_mmio(bar0_phys, 128 * 1024)` before accessing any
 > register. Without this mapping, the first register read page-faults.
 
@@ -351,7 +349,7 @@ IFCS=1 insert FCS / CRC).
 
 ---
 
-## ARP (kernel/network/arp.c)
+## ARP (kernel/network/arp.cc)
 
 ### Cache structure
 
@@ -391,7 +389,7 @@ On receiving an ARP frame (`arp_input`):
 
 ---
 
-## IPv4 (kernel/network/ip.c)
+## IPv4 (kernel/network/ip.cc)
 
 ### Header structure
 
@@ -437,11 +435,11 @@ void ipv4_input(const uint8_t *frame, uint32_t len);
 
 ---
 
-## ICMP (kernel/network/icmp.c)
+## ICMP (kernel/network/icmp.cc)
 
-Only echo request -> echo reply is implemented.
+The kernel implements ICMP echo requests and replies.
 
-**Input (`icmp_input`):**
+`icmp_input` performs these steps:
 
 1. Verify type=8 (echo request), code=0
 2. Recompute checksum to verify
@@ -455,7 +453,7 @@ round-trip-time display; RTT measurement is approximate.
 
 ---
 
-## UDP (kernel/network/udp.c)
+## UDP (kernel/network/udp.cc)
 
 ### Header
 
@@ -486,7 +484,7 @@ udp_length), then calls `ipv4_send`.
 
 ---
 
-## TCP (kernel/network/tcp.c)
+## TCP (kernel/network/tcp.cc)
 
 ### Header
 
@@ -587,11 +585,9 @@ struct {
 ```
 
 `tcp_accept` scans the table and dequeues any slot with `in_use == 1` and
-`completed == 1`. Earlier builds enforced strict-FIFO dequeue from a
-single `lq_tail`, but a slow client at the head would stall every
-completed connection behind it. The any-slot policy lets accept return
-whichever handshake finishes first. A duplicate SYN from a peer already
-in the table is ignored so half-open entries can't be doubled up.
+`completed == 1`. It can return whichever handshake finishes first, so a slow
+client cannot stall completed connections behind it. A duplicate SYN from a
+peer already in the table is ignored so half-open entries cannot be duplicated.
 
 ### `tcp_tick` (called from `net_process_pending`)
 
@@ -617,7 +613,7 @@ void tcp_tick(void) {
 
 ---
 
-## DHCP (kernel/network/dhcp.c)
+## DHCP (kernel/network/dhcp.cc)
 
 ### Overview
 
@@ -652,7 +648,7 @@ Lease renewal is not implemented. The hobby OS reboots before leases expire.
 
 ---
 
-## DNS (kernel/network/dns.c)
+## DNS (kernel/network/dns.cc)
 
 ### API
 
@@ -799,10 +795,10 @@ The opaque TLS context attached to the socket is freed automatically by
 ### Blocking model
 
 `socket_accept`, `socket_connect`, `socket_recv`, and `socket_recvfrom` block
-by spinning: every 1000 `pause` iterations they call `schedule()` to yield,
-matching the BKL-yield design from P5. Timeout = 30 seconds -> `ETIMEDOUT_SOCK`.
+by spinning. Every 1000 `pause` iterations they call `schedule()` to yield.
+After 30 seconds, the operation returns `ETIMEDOUT_SOCK`.
 
-`socket_send` and `socket_sendto` do not block - they return the bytes written
+`socket_send` and `socket_sendto` do not block. They return the bytes written
 (which may be less than `len` if the TX buffer is full).
 
 ### Ephemeral port allocation
@@ -815,14 +811,14 @@ checked against the in-use port set before assignment.
 All `socket_t` mutations and all calls into `tcp_*` / `udp_*` are made under
 the big kernel lock (`bkl_lock` / `bkl_unlock`). `net_process_pending`
 (bottom-half) also runs under BKL via the `kernel_check_reschedule` path. This
-serialises TCP state machine transitions with RX-driven state changes. No
-fine-grained per-socket locks at Tier 4.
+serialises TCP state machine transitions with RX-driven state changes. The
+implementation does not use fine-grained per-socket locks.
 
 ---
 
 ## Shell Commands
 
-New commands added to `kernel/lang/shell.c`:
+Networking commands in `kernel/lang/shell.cc`:
 
 ### `ifconfig`
 
@@ -872,9 +868,9 @@ $ resolve example.com
 
 ## CupidC Bindings
 
-All networking functions are registered in `kernel/lang/cupidc.c` so they can be
-called from CupidC programs and scripts with no additional setup. The same
-list is mirrored into CupidASM (`kernel/lang/as.c`) and the ELF syscall table
+All networking functions are registered in `kernel/lang/cupidc.cc` so they can
+be called from CupidC programs and scripts with no additional setup. The same
+list is mirrored into CupidASM (`kernel/lang/as.cc`) and the ELF syscall table
 (`kernel/core/syscall.h`, version 3) so any of the three runtimes can use them.
 
 ### BSD socket API
@@ -983,10 +979,9 @@ Host-side test: `curl http://localhost:8080/` (with `-hostfwd=tcp::8080-:80`).
 
 ### `curl` and `wget` (in-OS)
 
-`/bin/curl.cc` and `/bin/wget.cc` are real HTTP/1.0 clients written
-entirely in CupidC against the bindings above. No new kernel hooks
-are involved - they exercise the public socket / VFS surface and
-prove it's complete enough for everyday networking work.
+`/bin/curl.cc` and `/bin/wget.cc` are HTTP/1.0 clients written in CupidC. They
+use the public socket and VFS bindings rather than application-specific kernel
+hooks.
 
 ```
 /> /bin/curl.cc http://example.com/
@@ -1046,7 +1041,21 @@ as `curl`/`wget`, then use terminal or render-pipeline helpers on top:
 | `ssh` | SSH-2 client with Curve25519, ChaCha20-Poly1305, Ed25519/RSA-SHA2/ECDSA-P256 host-key verification, password/keyboard-interactive auth, PTY shell, remote exec |
 | `telnet` | IAC/WILL/WONT/DO/DONT/SB/SE negotiation, TTYPE=`CUPIDOS`, NAWS resize updates, Ctrl-] local prompt |
 | `sshd` | In-kernel SSH server on port 22; `make run-ssh` forwards host 2222 to guest 22 |
-| `browser` | HTTP/HTTPS fetch, HTML5 tree build, CSS cascade/layout/paint, external stylesheets, `@font-face`, forms |
+| `browser` | HTTP/HTTPS fetch, HTML5 tree build, CSS cascade/layout/paint, external stylesheets, `@font-face`, forms, and an asset-free `--selftest` |
+
+`browser --selftest` runs the JavaScript lexer and binary64 interpreter without
+opening a window or making a network request. Its 26 result fields cover
+decimal and radix literals, numeric separators, primitive string-to-number
+conversion with ECMAScript whitespace, equality, UTF-16 string relations,
+negative zero, NaN and infinity, division, IEEE remainder, `%=` and string
+`+=`. Its string result also covers 600-byte concatenations and pool
+exhaustion. The compound checks save member and index references before their
+right sides replace a receiver or advance a key. A 1,100-write loop also checks
+that assignments do not consume the value stack. Other checks cover atomic
+string-pool failure in lexer, DOM, global setup, and runtime paths; native
+function identity through a user call; array length growth and index limits;
+and range-safe output for 4,294,967,295, `1e20`, and `1e-7`. The command
+requires ten specific malformed-input diagnostics and same-run recovery.
 
 Host test for the server:
 
@@ -1126,8 +1135,10 @@ sudo tcpdump -i tap0 -n -vv
 
 ### Automated integration test (`make test-net`)
 
-Headless QEMU, scripted shell, host curl, scapy wire-format check -
-all in one command. ~30 s for both NICs.
+The target runs headless QEMU, drives the shell through a local TCP serial
+channel, opens the forwarded server port with a host socket, and checks the
+wire format with the repository's standard-library PCAP parser. QEMU receives
+512 MiB, matching the memory range Cupid OS manages.
 
 ```bash
 make test-net          # rtl8139 + e1000
@@ -1142,19 +1153,29 @@ What it verifies, per NIC:
 | `ping_gw` | `ping 10.0.2.2 2` returns `recv=2` |
 | `arp` | After ping, gateway entry is in the cache |
 | `tcp_client` | `/bin/feature21_net.cc` prints `[feature21] PASS` |
-| `tcp_server` | `/bin/feature22_net_server.cc` accepts a `127.0.0.1:18080` curl from the host and returns `Hello CupidOS` |
+| `tcp_server` | `/bin/feature22_net_server.cc` accepts a host socket at `127.0.0.1:18080` and returns `Hello CupidOS` |
 
 After the live tests, `tools/net_pcap.py` re-validates the captured
-frames at the wire level: ARP req/reply pairing, full DHCP 4-message
-exchange, ICMP echo-request -> echo-reply, TCP `SYN` / `SYN-ACK` /
-`FIN`, at least one SYN to a public (non-RFC1918) destination, and
-recomputes every IP header checksum.
+frames at the wire level. It requires reversed ARP addresses, one ordered
+DHCP transaction with matching transaction ID and client address, matching
+ICMP identifiers and sequences, one guest-client handshake to a globally
+routable destination, one inbound guest-server handshake, and valid IPv4
+header checksums. Each TCP direction needs its own bidirectional teardown
+with coherent sequence and acknowledgment state. The causal sequence graph
+accepts overlapping retransmission, simultaneous close, and crossed or
+reordered data. Late data and impossible acknowledgments cannot backfill a
+close. Multicast and guest self-connections do not satisfy the direction
+checks, and a sequence-valid reset or invalid SYN/FIN combination cannot
+stand in for handshake or close traffic.
 
-Dependencies (host-side, `pip install --user`):
-
-- `pexpect` - drives the QEMU serial REPL
-- `scapy` - pcap parser; if missing, the wire-level step is skipped
-  but the live test still runs
+The harness has no third-party Python dependency. It fails immediately on a
+kernel panic, CPU exception, or heap-corruption marker during any guest wait.
+The server test must return to a live shell after its PASS marker. The
+harness retains a bounded tail of QEMU stderr for startup failures, and
+`--boot-only` stops after the headless shell prompt when a shorter boot check
+is enough without reserving the forwarded server port. The host HTTP read has
+a 20-second overall deadline and a 64 KiB response limit. `--keep` leaves a
+failed live guest running for inspection.
 
 Pcap files persist between runs so you can open them in Wireshark for
 manual inspection if anything looks odd.
@@ -1185,27 +1206,27 @@ manual inspection if anything looks odd.
 | File | Purpose |
 |---|---|
 | `kernel/network/net_if.h` | `net_if_t` struct, RX ring constants, API declarations |
-| `kernel/network/net_if.c` | NIC registration, RX ring, `net_init`, `net_process_pending` |
+| `kernel/network/net_if.cc` | NIC registration, RX ring, `net_init`, `net_process_pending` |
 | `kernel/network/arp.h` | ARP cache struct, `arp_resolve` / `arp_input` declarations |
-| `kernel/network/arp.c` | 16-entry LRU cache, ARP request/reply handler, blocking resolve |
+| `kernel/network/arp.cc` | 16-entry LRU cache, ARP request/reply handler, blocking resolve |
 | `kernel/network/ip.h` | `ipv4_hdr_t`, protocol constants, API |
-| `kernel/network/ip.c` | IPv4 send + receive + checksum + routing |
+| `kernel/network/ip.cc` | IPv4 send + receive + checksum + routing |
 | `kernel/network/icmp.h` | ICMP header struct, `icmp_input` declaration |
-| `kernel/network/icmp.c` | Echo request -> echo reply |
+| `kernel/network/icmp.cc` | Echo request -> echo reply |
 | `kernel/network/udp.h` | UDP header struct, `udp_send_raw`, `udp_input` |
-| `kernel/network/udp.c` | UDP send + receive + pseudo-header checksum |
+| `kernel/network/udp.cc` | UDP send + receive + pseudo-header checksum |
 | `kernel/network/tcp.h` | `tcp_hdr_t`, flag macros, `TCP_MSS`, `TCP_RTO_MS`, API |
-| `kernel/network/tcp.c` | RFC 793 state machine, `tcp_tick`, ~1200 LOC |
+| `kernel/network/tcp.cc` | RFC 793 state machine, `tcp_tick`, ~1200 LOC |
 | `kernel/network/socket.h` | `socket_t`, error codes, `tcp_state_t`, BSD API declarations |
-| `kernel/network/socket.c` | 32-slot table, `socket_create`/`bind`/`listen`/`accept`/... |
+| `kernel/network/socket.cc` | 32-slot table, `socket_create`/`bind`/`listen`/`accept`/... |
 | `kernel/network/dhcp.h` | `dhcp_start` declaration |
-| `kernel/network/dhcp.c` | DISCOVER/OFFER/REQUEST/ACK, static fallback |
+| `kernel/network/dhcp.cc` | DISCOVER/OFFER/REQUEST/ACK, static fallback |
 | `kernel/network/dns.h` | `dns_resolve` declaration, cache constants |
-| `kernel/network/dns.c` | UDP/53 query, response parse, compression pointer, 16-entry cache |
+| `kernel/network/dns.cc` | UDP/53 query, response parse, compression pointer, 16-entry cache |
 | `drivers/rtl8139.h` | RTL8139 register offsets, `rtl8139_probe` declaration |
-| `drivers/rtl8139.c` | PCI probe, init, RX drain, send, IRQ handler, ~300 LOC |
+| `drivers/rtl8139.cc` | PCI probe, init, RX drain, send, IRQ handler, ~300 LOC |
 | `drivers/e1000.h` | E1000 register offsets, `e1000_probe` declaration |
-| `drivers/e1000.c` | PCI probe, MMIO map, RX/TX ring init, IRQ handler, ~500 LOC |
+| `drivers/e1000.cc` | PCI probe, MMIO map, RX/TX ring init, IRQ handler, ~500 LOC |
 | `bin/feature21_net.cc` | TCP client smoke test: DNS + connect + HTTP GET |
 | `bin/feature22_net_server.cc` | TCP server smoke test: listen + accept + echo |
 | `bin/feature23_full_access.cc` | Phase 5 binding sanity (net info, ARP/ICMP/UDP, PCI, blkdev, BKL) |
@@ -1214,5 +1235,5 @@ manual inspection if anything looks odd.
 | `bin/browser.cc`, `bin/browser/*.cc` | Graphical HTTP/HTTPS browser stack |
 | `bin/ssh.cc` | SSH-2 client |
 | `bin/telnet.cc` | Telnet client |
-| `kernel/network/sshd.c` | SSH server |
-| `kernel/lang/ssh_io.c` | GUI terminal byte I/O, hidden input, VT/xterm key translation |
+| `kernel/network/sshd.cc` | SSH server |
+| `kernel/lang/ssh_io.cc` | GUI terminal byte I/O, hidden input, VT/xterm key translation |

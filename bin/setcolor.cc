@@ -1,13 +1,13 @@
-//help: Set terminal color
-//help: Usage: setcolor <fg 0-15> [bg 0-7]
-//help: Sets the terminal foreground and optionally background
-//help: color using ANSI escape codes.
-//help: Colors: 0=black 1=red 2=green 3=yellow
-//help:   4=blue 5=magenta 6=cyan 7=white
-//help:   8-15=bright variants
+// help: Set terminal color
+// help: Usage: setcolor <fg 0-15> [bg 0-7]
+// help: Sets the terminal foreground and optionally background
+// help: color using ANSI escape codes.
+// help: Colors: 0=black 1=red 2=green 3=yellow
+// help:   4=blue 5=magenta 6=cyan 7=white
+// help:   8-15=bright variants
 
 void main() {
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
     if (strlen(args) == 0) {
         println("Usage: setcolor <fg 0-15> [bg 0-7]");
         return;
@@ -15,7 +15,8 @@ void main() {
 
     // Parse foreground color
     int i = 0;
-    while (args[i] == ' ') i = i + 1;
+    while (args[i] == ' ')
+        i = i + 1;
     int fg = 0;
     while (args[i] >= '0' && args[i] <= '9') {
         fg = fg * 10 + (args[i] - 48);
@@ -23,7 +24,8 @@ void main() {
     }
 
     // Skip spaces
-    while (args[i] == ' ') i = i + 1;
+    while (args[i] == ' ')
+        i = i + 1;
 
     // Parse optional background color
     int bg = -1;

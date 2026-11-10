@@ -1,0 +1,110 @@
+{
+  "all_99_raw_committed_inputs_equal": true,
+  "hosts": {
+    "linux": {
+      "behavior": {
+        "failure_cases": 66,
+        "help_cases": 7,
+        "success_cases": 73
+      },
+      "command": {
+        "sha256": "c735ac3fc6925ef34c59490b7707b4c27e83f5edcb6b6323655b8d094df7b9ce",
+        "size": 814945
+      },
+      "command_seconds": 1867.46550185,
+      "complete_behavior_pairs": 1823,
+      "complete_fixed_point_pairs": 44,
+      "independent_audit": {
+        "sha256": "96ae7ee41fd747760a3f4fa42b141d5d6a78e1776c581e72c97b6d1f7232af12",
+        "size": 1129261
+      },
+      "independent_check_seconds": 24.74716509100017,
+      "published_files": 4338,
+      "report": {
+        "sha256": "18e22d2a320517957aa1314e0a9879fea24be328d7e36007e83f077e91a55359",
+        "size": 65362
+      },
+      "report_schema": "cupid.bootstrap-report.v1",
+      "staged_files": 132
+    },
+    "windows": {
+      "behavior": {
+        "failure_cases": 54,
+        "help_cases": 7,
+        "success_cases": 60
+      },
+      "command": {
+        "sha256": "6d3c34ce177f31d9dbf95aa121ed3ecfd904baf841d2dc6874a71a8a25545b7a",
+        "size": 636003
+      },
+      "command_seconds": 2121.596574999974,
+      "complete_behavior_pairs": 1366,
+      "complete_fixed_point_pairs": 53,
+      "independent_audit": {
+        "sha256": "c6daa0f4f836e3613e612f705c475ee612fd0a15e653d04490628b612cda4557",
+        "size": 880565
+      },
+      "independent_check_seconds": 10.754831600002944,
+      "published_files": 3423,
+      "report": {
+        "sha256": "45dbdb0162b35c595728c6a1dee1533db8f635405a37b04af1902c2f56bdbe1f",
+        "size": 96710
+      },
+      "report_schema": "cupid.windows-bootstrap-report.v1",
+      "staged_files": 159
+    }
+  },
+  "independent_review_seconds": 30.091264700051397,
+  "installed_root_seed_files_unchanged": 15,
+  "missing_private_seed_executable_cause": "not established; unchanged complete diagnostic replay passes",
+  "original_audits_unchanged": 5,
+  "original_queue": {
+    "sha256": "1af4f0398af0bce58428fbb5a9e0c83a244a23df7cc37d7d1cb0c1f517182034",
+    "size": 7378
+  },
+  "original_receipts_archive": {
+    "sha256": "d2e55796a705342720a4af40e280129375aa830a77663061f2c962e3359490f0",
+    "size": 1457189
+  },
+  "original_receipts_uncompressed": {
+    "sha256": "8c764af4aa48e5f0a6372022a546cf284c220bd45dbd67b3beb8ff4c48b1e546",
+    "size": 8550091
+  },
+  "original_tool_deadlines_and_commands_preserved": true,
+  "original_windows_failure": {
+    "argv": [
+      "C:\\Python314\\python.exe",
+      "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\heap-acceptance\\run-consumer-command.py",
+      "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\heap-consumers\\tests-windows",
+      "make-bootstrap",
+      "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\heap-consumers\\tests-windows/build/heap-make-bootstrap-windows"
+    ],
+    "exit_code": 1,
+    "finished_utc": "2026-10-10T14:45:59.288147+00:00",
+    "host": "windows",
+    "kind": "original-make-command",
+    "log": {
+      "sha256": "4eca0e595d005f813cc79deda95b0fae853bcf231059c59a4be14f7062026bee",
+      "size": 1509
+    },
+    "name": "heap-make-bootstrap-windows",
+    "pid": 224,
+    "producer_sentinels": {
+      "AR": "forbidden-host-AR",
+      "AS": "forbidden-host-AS",
+      "CC": "forbidden-host-CC",
+      "CPP": "forbidden-host-CPP",
+      "CXX": "forbidden-host-CXX",
+      "LD": "forbidden-host-LD",
+      "NASM": "forbidden-host-NASM",
+      "NM": "forbidden-host-NM",
+      "OBJCOPY": "forbidden-host-OBJCOPY"
+    },
+    "seconds": 310.96672449994367,
+    "started_utc": "2026-10-10T14:40:48.321402+00:00",
+    "status": "fail"
+  },
+  "schema": "cupid.hosted-heap-make-progress.v1",
+  "source_revision": "1d852023df98c03481c4b3979dccb398288b7115",
+  "status": "all-consumers-pass-root-adoption-pending"
+}

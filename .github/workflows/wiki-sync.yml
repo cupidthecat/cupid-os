@@ -1,0 +1,63 @@
+name: Publish wiki
+
+on:
+  push:
+    branches: [bootstrap/cupid-self-hosting]
+    paths:
+      - 'wiki/**'
+      - 'tools/sync_wiki.py'
+      - '.github/workflows/wiki-sync.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-wiki
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Read current documentation
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: bootstrap/cupid-self-hosting
+          path: source
+          sparse-checkout: |
+            wiki
+            tools/sync_wiki.py
+          sparse-checkout-cone-mode: false
+
+      - name: Read published wiki
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ github.repository }}.wiki
+          ref: master
+          path: published-wiki
+
+      - name: Copy pages and tracked deletions
+        env:
+          WIKI_BEFORE: ${{ github.event.before }}
+        run: |
+          if [[ "$WIKI_BEFORE" =~ ^[0-9a-f]{40}$ && "$WIKI_BEFORE" != 0000000000000000000000000000000000000000 ]]; then
+            git -C source fetch --no-tags --filter=blob:none --depth=1 origin "$WIKI_BEFORE"
+          fi
+          python3 source/tools/sync_wiki.py --source source --destination published-wiki --before "$WIKI_BEFORE"
+
+      - name: Publish changes
+        working-directory: published-wiki
+        env:
+          WIKI_AUTHOR_NAME: ${{ vars.WIKI_AUTHOR_NAME || 'Frank' }}
+          WIKI_AUTHOR_EMAIL: ${{ vars.WIKI_AUTHOR_EMAIL || '101807917+frankischilling@users.noreply.github.com' }}
+        run: |
+          git add --all
+          if git diff --cached --quiet; then
+            echo 'Wiki is up to date.'
+            exit 0
+          fi
+          git config user.name "$WIKI_AUTHOR_NAME"
+          git config user.email "$WIKI_AUTHOR_EMAIL"
+          git commit -m 'Update wiki documentation'
+          git push origin HEAD:master

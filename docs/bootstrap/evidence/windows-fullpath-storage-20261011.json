@@ -1,0 +1,3342 @@
+{
+  "archives": {
+    "fullpath-output-storage-candidate": {
+      "archive": {
+        "sha256": "fd485fbda4cfc956e3c79dff02a4e5e755130d985555dc52823e002fdeaf9479",
+        "size": 7788900
+      },
+      "path": "docs/bootstrap/evidence/fullpath-storage-fullpath-output-storage-candidate-20261011.json.gz",
+      "report": {
+        "allocation_changes": 1,
+        "capacity_calls": 4,
+        "checked_adapter_matrices": {
+          "linux": {
+            "errors": [],
+            "failures": [],
+            "host": "linux",
+            "preparation": {
+              "sha256": "72afcefb9e4fcf8294f40a12c7a0732d4061dfda5cd32484a67ffa6010c0bde6",
+              "size": 7313
+            },
+            "qualification": false,
+            "runner": {
+              "sha256": "17b9c020dea6daed9435e551c7d28d653f6b247c74078f01020ac8087cb10256",
+              "size": 2115
+            },
+            "seconds": 25.41262380599983,
+            "skipped": [
+              [
+                "test_publication_and_build_startups_match_exact_profiles (private_checked_utf8.CheckedWindowsUtf8Tests.test_publication_and_build_startups_match_exact_profiles)",
+                "links PE32 wide-API profiles"
+              ],
+              [
+                "test_wide_startup_arguments_and_file_io (private_checked_utf8.CheckedWindowsUtf8Tests.test_wide_startup_arguments_and_file_io)",
+                "executes the Windows wide API startup"
+              ]
+            ],
+            "status": "pass",
+            "stderr": {
+              "sha256": "ad43c5121ae5f519e1299e70c7a5748d25459c0ebe230712757afbf28176a238",
+              "size": 1222
+            },
+            "tests_run": 7
+          },
+          "windows": {
+            "errors": [],
+            "failures": [],
+            "host": "windows",
+            "preparation": {
+              "sha256": "72afcefb9e4fcf8294f40a12c7a0732d4061dfda5cd32484a67ffa6010c0bde6",
+              "size": 7313
+            },
+            "qualification": false,
+            "runner": {
+              "sha256": "398a126f20b8f9076ce6a90a13d8401bcad8256111d9210bbc56c07b461d2b20",
+              "size": 2069
+            },
+            "seconds": 48.18999530002475,
+            "skipped": [],
+            "status": "pass",
+            "stderr": {
+              "sha256": "72bc0b8f011a4080d0ef220a218ba217ca51c0e1fa16b0a60b768652c9dcee01",
+              "size": 1129
+            },
+            "tests_run": 7
+          }
+        },
+        "focused_contracts": {
+          "i386-linux": {
+            "child": {
+              "exit_code": 0,
+              "seconds": 0.024826235001455643,
+              "stderr": {
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "size": 0
+              },
+              "stdout": {
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "size": 0
+              }
+            },
+            "coverage": [
+              "Poisoned malloc storage is overwritten only within the API length and emitted output.",
+              "Allocation failures retain empty output, null part, no API call, correct error and no leak.",
+              "API failure, over-capacity return, malformed UTF-16 and small output retain their errors and cleanup.",
+              "Successful output preserves bytes after its terminator and the file-part offset."
+            ],
+            "host": "i386-linux",
+            "image": {
+              "sha256": "dc1a507688e283c550219975d7e159e39abb767ac3e08a92dcb794a9c032550e",
+              "size": 73352
+            },
+            "objects": {
+              "codec": {
+                "sha256": "34ab4aeaa38aed335ac99ac3a3deccfa27e9c6ac70de3dfb8f898ec34cf03192",
+                "size": 10000
+              },
+              "contract": {
+                "sha256": "9fd6a67b14fb036365c22fe6b83039c8edf475b761dafb2ae8e027b8d9f2bf74",
+                "size": 25204
+              },
+              "runtime": {
+                "sha256": "0802de25898bf9ac2f33c001035279416dbdc2c2cdcc03923ab2cce69d67ee18",
+                "size": 32680
+              },
+              "start": {
+                "sha256": "cd3c6ff524666cd666976df08717ef8c576de982312a008b04bc2bc345af3b9c",
+                "size": 788
+              }
+            },
+            "preparation": {
+              "sha256": "c8ef3752505eab243a037d44eee5137c0b4a9d990bfcc8584dba3f2bce8214e2",
+              "size": 3872
+            },
+            "qualification": false,
+            "runner": {
+              "sha256": "6fc22dc9c85b2cc659b73b594e3776d14fda735dd996f14e94163051e6fc7081",
+              "size": 4453
+            },
+            "seconds": 17.25359964800009,
+            "status": "pass",
+            "strict_checks": 5
+          },
+          "i386-windows": {
+            "child": {
+              "exit_code": 0,
+              "seconds": 0.1808667000150308,
+              "stderr": {
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "size": 0
+              },
+              "stdout": {
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "size": 0
+              }
+            },
+            "coverage": [
+              "Poisoned malloc storage is overwritten only within the API length and emitted output.",
+              "Allocation failures retain empty output, null part, no API call, correct error and no leak.",
+              "API failure, over-capacity return, malformed UTF-16 and small output retain their errors and cleanup.",
+              "Successful output preserves bytes after its terminator and the file-part offset."
+            ],
+            "host": "i386-windows",
+            "image": {
+              "sha256": "6b2db277576d4088eb8bfaf9d163eb2207383964da7c92bd64b76222bebfb7ef",
+              "size": 64512
+            },
+            "objects": {
+              "codec": {
+                "sha256": "34ab4aeaa38aed335ac99ac3a3deccfa27e9c6ac70de3dfb8f898ec34cf03192",
+                "size": 10000
+              },
+              "contract": {
+                "sha256": "9fd6a67b14fb036365c22fe6b83039c8edf475b761dafb2ae8e027b8d9f2bf74",
+                "size": 25204
+              },
+              "runtime": {
+                "sha256": "c3f1608a13508990a69b81e2743ea380a53de09ff3b9dacf8809f9853dce5fe9",
+                "size": 37528
+              },
+              "start": {
+                "sha256": "3d607279fce7ae95e14506eb3ab85696ca9a43be17ff037f2cc86423bf94bdef",
+                "size": 1780
+              }
+            },
+            "preparation": {
+              "sha256": "c8ef3752505eab243a037d44eee5137c0b4a9d990bfcc8584dba3f2bce8214e2",
+              "size": 3872
+            },
+            "qualification": false,
+            "runner": {
+              "sha256": "f1deca62957d98158580e5754154dd5a6ffd122c8f03b0983ab04710510b96d8",
+              "size": 4480
+            },
+            "seconds": 14.062171600060537,
+            "status": "pass",
+            "strict_checks": 5
+          }
+        },
+        "normal_root_source_changes": false,
+        "originals": {
+          "sha256": "fd485fbda4cfc956e3c79dff02a4e5e755130d985555dc52823e002fdeaf9479",
+          "size": 7788900
+        },
+        "outcomes": {
+          "after-drive": {
+            "exit_code": 0,
+            "final_cpu_io": {
+              "creation_filetime": 134362251616945061,
+              "io": {
+                "OtherOperationCount": 550207,
+                "OtherTransferCount": 46913360,
+                "ReadOperationCount": 16384,
+                "ReadTransferCount": 196608,
+                "WriteOperationCount": 8,
+                "WriteTransferCount": 27
+              },
+              "kernel_seconds": 4.59375,
+              "user_seconds": 2.53125
+            },
+            "initial_cpu_io": {
+              "creation_filetime": 134362251616945061,
+              "io": {
+                "OtherOperationCount": 1,
+                "OtherTransferCount": 0,
+                "ReadOperationCount": 0,
+                "ReadTransferCount": 0,
+                "WriteOperationCount": 0,
+                "WriteTransferCount": 0
+              },
+              "kernel_seconds": 0.0,
+              "user_seconds": 0.0
+            },
+            "kernel_cpu_delta_seconds": 4.59375,
+            "markers": [
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362251616945061,
+                  "io": {
+                    "OtherOperationCount": 225972,
+                    "OtherTransferCount": 20611976,
+                    "ReadOperationCount": 0,
+                    "ReadTransferCount": 0,
+                    "WriteOperationCount": 2,
+                    "WriteTransferCount": 7
+                  },
+                  "kernel_seconds": 2.25,
+                  "user_seconds": 1.1875
+                },
+                "phase": "opened",
+                "seconds": 3.4697954999282956
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362251616945061,
+                  "io": {
+                    "OtherOperationCount": 299931,
+                    "OtherTransferCount": 27117204,
+                    "ReadOperationCount": 0,
+                    "ReadTransferCount": 0,
+                    "WriteOperationCount": 4,
+                    "WriteTransferCount": 14
+                  },
+                  "kernel_seconds": 2.796875,
+                  "user_seconds": 1.765625
+                },
+                "phase": "viewed",
+                "seconds": 4.587331100017764
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362251616945061,
+                  "io": {
+                    "OtherOperationCount": 439366,
+                    "OtherTransferCount": 38343748,
+                    "ReadOperationCount": 8192,
+                    "ReadTransferCount": 98304,
+                    "WriteOperationCount": 6,
+                    "WriteTransferCount": 20
+                  },
+                  "kernel_seconds": 3.796875,
+                  "user_seconds": 1.953125
+                },
+                "phase": "ready",
+                "seconds": 5.7771497999783605
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362251616945061,
+                  "io": {
+                    "OtherOperationCount": 550202,
+                    "OtherTransferCount": 46913360,
+                    "ReadOperationCount": 16384,
+                    "ReadTransferCount": 196608,
+                    "WriteOperationCount": 8,
+                    "WriteTransferCount": 27
+                  },
+                  "kernel_seconds": 4.59375,
+                  "user_seconds": 2.53125
+                },
+                "phase": "accept",
+                "seconds": 7.14412720000837
+              }
+            ],
+            "seconds": 7.1460475999629125,
+            "timed_out": false,
+            "user_cpu_delta_seconds": 2.53125
+          },
+          "after-unc": {
+            "exit_code": 0,
+            "final_cpu_io": {
+              "creation_filetime": 134362251689528962,
+              "io": {
+                "OtherOperationCount": 550006,
+                "OtherTransferCount": 49317282,
+                "ReadOperationCount": 16384,
+                "ReadTransferCount": 196608,
+                "WriteOperationCount": 8,
+                "WriteTransferCount": 27
+              },
+              "kernel_seconds": 18.34375,
+              "user_seconds": 2.78125
+            },
+            "initial_cpu_io": {
+              "creation_filetime": 134362251689528962,
+              "io": {
+                "OtherOperationCount": 0,
+                "OtherTransferCount": 0,
+                "ReadOperationCount": 0,
+                "ReadTransferCount": 0,
+                "WriteOperationCount": 0,
+                "WriteTransferCount": 0
+              },
+              "kernel_seconds": 0.0,
+              "user_seconds": 0.0
+            },
+            "kernel_cpu_delta_seconds": 18.34375,
+            "markers": [
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362251689528962,
+                  "io": {
+                    "OtherOperationCount": 225841,
+                    "OtherTransferCount": 21948646,
+                    "ReadOperationCount": 0,
+                    "ReadTransferCount": 0,
+                    "WriteOperationCount": 2,
+                    "WriteTransferCount": 7
+                  },
+                  "kernel_seconds": 7.6875,
+                  "user_seconds": 1.015625
+                },
+                "phase": "opened",
+                "seconds": 16.80801290005911
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362251689528962,
+                  "io": {
+                    "OtherOperationCount": 299770,
+                    "OtherTransferCount": 28774176,
+                    "ReadOperationCount": 0,
+                    "ReadTransferCount": 0,
+                    "WriteOperationCount": 4,
+                    "WriteTransferCount": 14
+                  },
+                  "kernel_seconds": 10.09375,
+                  "user_seconds": 1.578125
+                },
+                "phase": "viewed",
+                "seconds": 22.107129200012423
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362251689528962,
+                  "io": {
+                    "OtherOperationCount": 439195,
+                    "OtherTransferCount": 40427368,
+                    "ReadOperationCount": 8192,
+                    "ReadTransferCount": 98304,
+                    "WriteOperationCount": 6,
+                    "WriteTransferCount": 20
+                  },
+                  "kernel_seconds": 15.3125,
+                  "user_seconds": 2.0
+                },
+                "phase": "ready",
+                "seconds": 48.26944069995079
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362251689528962,
+                  "io": {
+                    "OtherOperationCount": 550001,
+                    "OtherTransferCount": 49317282,
+                    "ReadOperationCount": 16384,
+                    "ReadTransferCount": 196608,
+                    "WriteOperationCount": 8,
+                    "WriteTransferCount": 27
+                  },
+                  "kernel_seconds": 18.34375,
+                  "user_seconds": 2.78125
+                },
+                "phase": "accept",
+                "seconds": 56.1272856000578
+              }
+            ],
+            "seconds": 56.12964940001257,
+            "timed_out": false,
+            "user_cpu_delta_seconds": 2.78125
+          },
+          "before-drive": {
+            "exit_code": 0,
+            "final_cpu_io": {
+              "creation_filetime": 134362250727918313,
+              "io": {
+                "OtherOperationCount": 550173,
+                "OtherTransferCount": 46912352,
+                "ReadOperationCount": 16385,
+                "ReadTransferCount": 198323,
+                "WriteOperationCount": 8,
+                "WriteTransferCount": 27
+              },
+              "kernel_seconds": 5.5,
+              "user_seconds": 7.828125
+            },
+            "initial_cpu_io": {
+              "creation_filetime": 134362250727918313,
+              "io": {
+                "OtherOperationCount": 1,
+                "OtherTransferCount": 0,
+                "ReadOperationCount": 0,
+                "ReadTransferCount": 0,
+                "WriteOperationCount": 0,
+                "WriteTransferCount": 0
+              },
+              "kernel_seconds": 0.0,
+              "user_seconds": 0.0
+            },
+            "kernel_cpu_delta_seconds": 5.5,
+            "markers": [
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362250727918313,
+                  "io": {
+                    "OtherOperationCount": 225938,
+                    "OtherTransferCount": 20610968,
+                    "ReadOperationCount": 1,
+                    "ReadTransferCount": 1715,
+                    "WriteOperationCount": 2,
+                    "WriteTransferCount": 7
+                  },
+                  "kernel_seconds": 2.28125,
+                  "user_seconds": 3.015625
+                },
+                "phase": "opened",
+                "seconds": 5.325266700005159
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362250727918313,
+                  "io": {
+                    "OtherOperationCount": 299897,
+                    "OtherTransferCount": 27116196,
+                    "ReadOperationCount": 1,
+                    "ReadTransferCount": 1715,
+                    "WriteOperationCount": 4,
+                    "WriteTransferCount": 14
+                  },
+                  "kernel_seconds": 3.03125,
+                  "user_seconds": 5.234375
+                },
+                "phase": "viewed",
+                "seconds": 8.312711099977605
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362250727918313,
+                  "io": {
+                    "OtherOperationCount": 439332,
+                    "OtherTransferCount": 38342740,
+                    "ReadOperationCount": 8193,
+                    "ReadTransferCount": 100019,
+                    "WriteOperationCount": 6,
+                    "WriteTransferCount": 20
+                  },
+                  "kernel_seconds": 4.6875,
+                  "user_seconds": 5.46875
+                },
+                "phase": "ready",
+                "seconds": 25.624410700052977
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362250727918313,
+                  "io": {
+                    "OtherOperationCount": 550168,
+                    "OtherTransferCount": 46912352,
+                    "ReadOperationCount": 16385,
+                    "ReadTransferCount": 198323,
+                    "WriteOperationCount": 8,
+                    "WriteTransferCount": 27
+                  },
+                  "kernel_seconds": 5.5,
+                  "user_seconds": 7.828125
+                },
+                "phase": "accept",
+                "seconds": 28.802441700012423
+              }
+            ],
+            "seconds": 28.804127200040966,
+            "timed_out": false,
+            "user_cpu_delta_seconds": 7.828125
+          },
+          "before-unc": {
+            "exit_code": 0,
+            "final_cpu_io": {
+              "creation_filetime": 134362251017138838,
+              "io": {
+                "OtherOperationCount": 550010,
+                "OtherTransferCount": 49317282,
+                "ReadOperationCount": 16385,
+                "ReadTransferCount": 198345,
+                "WriteOperationCount": 8,
+                "WriteTransferCount": 27
+              },
+              "kernel_seconds": 17.9375,
+              "user_seconds": 7.90625
+            },
+            "initial_cpu_io": {
+              "creation_filetime": 134362251017138838,
+              "io": {
+                "OtherOperationCount": 1,
+                "OtherTransferCount": 0,
+                "ReadOperationCount": 0,
+                "ReadTransferCount": 0,
+                "WriteOperationCount": 0,
+                "WriteTransferCount": 0
+              },
+              "kernel_seconds": 0.0,
+              "user_seconds": 0.0
+            },
+            "kernel_cpu_delta_seconds": 17.9375,
+            "markers": [
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362251017138838,
+                  "io": {
+                    "OtherOperationCount": 225845,
+                    "OtherTransferCount": 21948646,
+                    "ReadOperationCount": 1,
+                    "ReadTransferCount": 1737,
+                    "WriteOperationCount": 2,
+                    "WriteTransferCount": 7
+                  },
+                  "kernel_seconds": 7.359375,
+                  "user_seconds": 2.953125
+                },
+                "phase": "opened",
+                "seconds": 18.558261599973775
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362251017138838,
+                  "io": {
+                    "OtherOperationCount": 299774,
+                    "OtherTransferCount": 28774176,
+                    "ReadOperationCount": 1,
+                    "ReadTransferCount": 1737,
+                    "WriteOperationCount": 4,
+                    "WriteTransferCount": 14
+                  },
+                  "kernel_seconds": 9.5,
+                  "user_seconds": 5.109375
+                },
+                "phase": "viewed",
+                "seconds": 25.188757900032215
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362251017138838,
+                  "io": {
+                    "OtherOperationCount": 439199,
+                    "OtherTransferCount": 40427368,
+                    "ReadOperationCount": 8193,
+                    "ReadTransferCount": 100041,
+                    "WriteOperationCount": 6,
+                    "WriteTransferCount": 20
+                  },
+                  "kernel_seconds": 14.78125,
+                  "user_seconds": 5.515625
+                },
+                "phase": "ready",
+                "seconds": 50.33078880002722
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362251017138838,
+                  "io": {
+                    "OtherOperationCount": 550005,
+                    "OtherTransferCount": 49317282,
+                    "ReadOperationCount": 16385,
+                    "ReadTransferCount": 198345,
+                    "WriteOperationCount": 8,
+                    "WriteTransferCount": 27
+                  },
+                  "kernel_seconds": 17.9375,
+                  "user_seconds": 7.90625
+                },
+                "phase": "accept",
+                "seconds": 59.82486539997626
+              }
+            ],
+            "seconds": 59.82902289996855,
+            "timed_out": false,
+            "user_cpu_delta_seconds": 7.90625
+          }
+        },
+        "preserved_files": 4271,
+        "qualification": false,
+        "recipe": {
+          "sha256": "cdba13df5f053ad0564b7ba81fd1d28433a01f1d6a69f742ade7e702ff961f47",
+          "size": 8798
+        },
+        "references": [
+          "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfullpathnamew"
+        ],
+        "scope": "Four serialized checked calls, retaining original 4096-stage inputs and 60-second bounds. One output-buffer allocation changes. Per-phase child CPU and I/O are diagnostics; complete-owner and speed qualification remain open.",
+        "stage_count": 4096,
+        "status": "preserved-private-fullpath-output-storage-candidate",
+        "timed_out_calls": 0,
+        "timeout_seconds": 60,
+        "unchanged_link_objects": 15,
+        "uncompressed": {
+          "sha256": "f2f0f48b65e870b3366cd0e535b059dd4b4ecff4f852e578925bee10c1a33caf",
+          "size": 46833999
+        },
+        "windows_focused_reconstruction_matches_all_preceding_objects_and_image": true
+      },
+      "report_identity": {
+        "sha256": "9172ad49dccbf7e4c576d6bd0d7e4c7c17d78cd0c623df0b79c22600a8db1272",
+        "size": 19527
+      },
+      "uncompressed": {
+        "sha256": "f2f0f48b65e870b3366cd0e535b059dd4b4ecff4f852e578925bee10c1a33caf",
+        "size": 46833999
+      }
+    },
+    "normal-root-acceptance": {
+      "archive": {
+        "sha256": "03992fb5840b62fdb0dab9c1486109c26cdf356c11618d42977c2fdefcb0ec58",
+        "size": 89694
+      },
+      "path": "docs/bootstrap/evidence/fullpath-storage-root-originals-20261011.json.gz",
+      "report": {
+        "canonical_linux_receipt": {
+          "sha256": "9886fb02b5fc3d65a5cb2e61249c961fbfa28ad4371b7eeb20bad2a349749619",
+          "size": 592
+        },
+        "complete_owner_qualified": false,
+        "exact_artifact_gates": 16,
+        "image": {
+          "sha256": "48b3bb46b884a5cfa39b8003d21ad53c1e8115d7b79f909ba8aea314ea8680d2",
+          "size": 209715200
+        },
+        "normal_source_inputs_changed": [
+          "toolchain/hosted/i386-windows/windows_utf8.cc"
+        ],
+        "normal_source_inputs_unchanged": 98,
+        "originals": {
+          "sha256": "03992fb5840b62fdb0dab9c1486109c26cdf356c11618d42977c2fdefcb0ec58",
+          "size": 89694
+        },
+        "preserved_files": 38,
+        "projected_controls_unchanged": 20,
+        "recipe": {
+          "sha256": "6998a744fc7a8cd0889c3e262d07e1bd4443dae7e0e16f81672ab00f123040c4",
+          "size": 5975
+        },
+        "root_receipt": {
+          "sha256": "bc7c1fd881a225c9b4d2c81159c46ba49b0ba34710f4c0fb54e65220e089f8ee",
+          "size": 7109
+        },
+        "scope": "Source allocation, checked adapter contracts and unchanged normal-root products.",
+        "status": "pass",
+        "strict_boots": 2,
+        "uncompressed": {
+          "sha256": "63ddf6f9c4ba1db3aa221abb0012a8c8b38d06a90c7f1d1198f1c2e7fc0b2ea5",
+          "size": 464173
+        },
+        "user_abi_fields": 103,
+        "user_abi_providers": 101,
+        "whole_image_equal_preceding_consumer": true,
+        "whole_products_equal_preceding_consumer": {
+          "linked": 4,
+          "objects": 429,
+          "user_products": 6
+        }
+      },
+      "report_identity": {
+        "sha256": "f4538c8595f8be7c7404227cd7bd2047d94501f47f7fdb93f69389d0568d5478",
+        "size": 1363
+      },
+      "uncompressed": {
+        "sha256": "63ddf6f9c4ba1db3aa221abb0012a8c8b38d06a90c7f1d1198f1c2e7fc0b2ea5",
+        "size": 464173
+      }
+    },
+    "owner-child-instruction-diagnosis": {
+      "archive": {
+        "sha256": "23bb0ef0d01f5238310e95df71996b2fc43001866ca358be5771269521c7bf80",
+        "size": 689004
+      },
+      "path": "docs/bootstrap/evidence/fullpath-storage-owner-child-instruction-diagnosis-20261011.json.gz",
+      "report": {
+        "child_exit_code": 0,
+        "child_pid": 41408,
+        "child_thread_id": 36800,
+        "failed_wpr_before_child": {
+          "exit_code": 3310899217,
+          "owned_recording_may_remain": false
+        },
+        "final_cpu_io": {
+          "creation_filetime": 134362246781327283,
+          "io": {
+            "OtherOperationCount": 550171,
+            "OtherTransferCount": 46395182,
+            "ReadOperationCount": 16384,
+            "ReadTransferCount": 196608,
+            "WriteOperationCount": 8,
+            "WriteTransferCount": 27
+          },
+          "kernel_seconds": 4.421875,
+          "user_seconds": 6.390625
+        },
+        "initial_cpu_io": {
+          "creation_filetime": 134362246781327283,
+          "io": {
+            "OtherOperationCount": 0,
+            "OtherTransferCount": 0,
+            "ReadOperationCount": 0,
+            "ReadTransferCount": 0,
+            "WriteOperationCount": 0,
+            "WriteTransferCount": 0
+          },
+          "kernel_seconds": 0.0,
+          "user_seconds": 0.0
+        },
+        "mapped_sample_count": 606,
+        "matching_resumes": 2190,
+        "originals": {
+          "sha256": "23bb0ef0d01f5238310e95df71996b2fc43001866ca358be5771269521c7bf80",
+          "size": 689004
+        },
+        "outside_mapped_functions_sample_count": 1584,
+        "per_phase": {
+          "before-opened": [
+            [
+              "memset",
+              158
+            ],
+            [
+              "strcmp",
+              11
+            ],
+            [
+              "memcmp",
+              10
+            ],
+            [
+              "next_utf8",
+              6
+            ],
+            [
+              "strlen",
+              6
+            ],
+            [
+              "memcpy",
+              6
+            ],
+            [
+              "cupidbuild_observer_scalar",
+              4
+            ],
+            [
+              "next_utf16",
+              3
+            ],
+            [
+              "cupidbuild_path_to_utf16",
+              2
+            ],
+            [
+              "cupid_heap_split",
+              2
+            ],
+            [
+              "cupidbuild_observer_bucket",
+              2
+            ],
+            [
+              "cupidbuild_path_to_utf8",
+              1
+            ]
+          ],
+          "opened": [
+            [
+              "memset",
+              158
+            ],
+            [
+              "memcmp",
+              10
+            ],
+            [
+              "cupid_format_number",
+              5
+            ],
+            [
+              "next_utf8",
+              5
+            ],
+            [
+              "strlen",
+              3
+            ],
+            [
+              "next_utf16",
+              2
+            ],
+            [
+              "cupidbuild_path_to_utf16",
+              2
+            ],
+            [
+              "cupidbuild_path_to_utf8",
+              2
+            ],
+            [
+              "cupidbuild_observer_retained_file",
+              1
+            ],
+            [
+              "memcpy",
+              1
+            ]
+          ],
+          "ready": [
+            [
+              "memset",
+              134
+            ],
+            [
+              "strlen",
+              8
+            ],
+            [
+              "memcmp",
+              7
+            ],
+            [
+              "next_utf16",
+              7
+            ],
+            [
+              "cupidbuild_path_to_utf16",
+              5
+            ],
+            [
+              "cupidbuild_path_to_utf8",
+              4
+            ],
+            [
+              "next_utf8",
+              3
+            ],
+            [
+              "cupidbuild_observer_same",
+              2
+            ],
+            [
+              "cupid_format_number",
+              2
+            ],
+            [
+              "cupid_heap_bin",
+              2
+            ],
+            [
+              "cupidbuild_sha_finish",
+              1
+            ],
+            [
+              "cupidbuild_sha_block",
+              1
+            ]
+          ],
+          "viewed": [
+            [
+              "cupidbuild_sha_block",
+              4
+            ],
+            [
+              "memset",
+              2
+            ],
+            [
+              "cupid_format_number",
+              2
+            ],
+            [
+              "cupidbuild_observer_bucket",
+              1
+            ],
+            [
+              "cupidbuild_observer_lookup",
+              1
+            ],
+            [
+              "cupidbuild_sha_finish",
+              1
+            ],
+            [
+              "cupidbuild_observer_open_child_mode",
+              1
+            ],
+            [
+              "cupidbuild_observer_require_current",
+              1
+            ],
+            [
+              "cupidbuild_observer_scalar",
+              1
+            ]
+          ]
+        },
+        "preserved_files": 4154,
+        "qualification": false,
+        "recipe": {
+          "sha256": "eab1f764c0a3afe17dbf04a391a9574c082eb5f8b3f3289f9d1aceb73854f7e2",
+          "size": 7847
+        },
+        "references": [
+          "https://learn.microsoft.com/en-us/windows/win32/api/wow64apiset/nf-wow64apiset-wow64getthreadcontext",
+          "https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-wow64_context",
+          "https://learn.microsoft.com/en-us/windows/win32/api/wow64apiset/nf-wow64apiset-wow64suspendthread",
+          "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-resumethread"
+        ],
+        "sample_count": 2190,
+        "scope": "Debugger samples only the launched child. No other process is suspended. Instruction-pointer sample counts do not give CPU percentages or establish speed or capacity qualification.",
+        "seconds": 22.84952249994967,
+        "source_case_fixture_or_limit_changes": false,
+        "stage_count": 4096,
+        "status": "preserved-owned-child-instruction-diagnosis",
+        "successful_suspends": 2190,
+        "suspend_resume_total_seconds": 0.21368250285740942,
+        "timed_out": false,
+        "timeout_seconds": 60,
+        "top_function_offsets": {
+          "cupid_format_number": [
+            [
+              673,
+              2
+            ],
+            [
+              680,
+              2
+            ],
+            [
+              277,
+              1
+            ],
+            [
+              246,
+              1
+            ],
+            [
+              280,
+              1
+            ],
+            [
+              655,
+              1
+            ],
+            [
+              259,
+              1
+            ]
+          ],
+          "cupidbuild_observer_scalar": [
+            [
+              50,
+              1
+            ],
+            [
+              10,
+              1
+            ],
+            [
+              149,
+              1
+            ],
+            [
+              69,
+              1
+            ],
+            [
+              1140,
+              1
+            ]
+          ],
+          "cupidbuild_path_to_utf16": [
+            [
+              1341,
+              1
+            ],
+            [
+              735,
+              1
+            ],
+            [
+              638,
+              1
+            ],
+            [
+              1087,
+              1
+            ],
+            [
+              602,
+              1
+            ],
+            [
+              782,
+              1
+            ],
+            [
+              795,
+              1
+            ],
+            [
+              1369,
+              1
+            ],
+            [
+              1055,
+              1
+            ]
+          ],
+          "cupidbuild_path_to_utf8": [
+            [
+              803,
+              1
+            ],
+            [
+              1813,
+              1
+            ],
+            [
+              798,
+              1
+            ],
+            [
+              1080,
+              1
+            ],
+            [
+              1676,
+              1
+            ],
+            [
+              1186,
+              1
+            ],
+            [
+              987,
+              1
+            ]
+          ],
+          "cupidbuild_sha_block": [
+            [
+              1042,
+              1
+            ],
+            [
+              1720,
+              1
+            ],
+            [
+              1366,
+              1
+            ],
+            [
+              1169,
+              1
+            ],
+            [
+              1712,
+              1
+            ]
+          ],
+          "memcmp": [
+            [
+              73,
+              3
+            ],
+            [
+              99,
+              3
+            ],
+            [
+              54,
+              2
+            ],
+            [
+              202,
+              2
+            ],
+            [
+              125,
+              2
+            ],
+            [
+              129,
+              2
+            ],
+            [
+              130,
+              2
+            ],
+            [
+              95,
+              1
+            ],
+            [
+              193,
+              1
+            ],
+            [
+              117,
+              1
+            ],
+            [
+              107,
+              1
+            ],
+            [
+              108,
+              1
+            ]
+          ],
+          "memcpy": [
+            [
+              66,
+              1
+            ],
+            [
+              113,
+              1
+            ],
+            [
+              112,
+              1
+            ],
+            [
+              145,
+              1
+            ],
+            [
+              119,
+              1
+            ],
+            [
+              139,
+              1
+            ],
+            [
+              156,
+              1
+            ],
+            [
+              73,
+              1
+            ]
+          ],
+          "memset": [
+            [
+              113,
+              52
+            ],
+            [
+              152,
+              35
+            ],
+            [
+              100,
+              22
+            ],
+            [
+              74,
+              22
+            ],
+            [
+              148,
+              22
+            ],
+            [
+              108,
+              21
+            ],
+            [
+              79,
+              21
+            ],
+            [
+              111,
+              20
+            ],
+            [
+              151,
+              19
+            ],
+            [
+              95,
+              19
+            ],
+            [
+              140,
+              18
+            ],
+            [
+              66,
+              18
+            ]
+          ],
+          "next_utf16": [
+            [
+              128,
+              2
+            ],
+            [
+              81,
+              2
+            ],
+            [
+              554,
+              1
+            ],
+            [
+              111,
+              1
+            ],
+            [
+              75,
+              1
+            ],
+            [
+              86,
+              1
+            ],
+            [
+              129,
+              1
+            ],
+            [
+              46,
+              1
+            ],
+            [
+              125,
+              1
+            ],
+            [
+              101,
+              1
+            ]
+          ],
+          "next_utf8": [
+            [
+              51,
+              1
+            ],
+            [
+              169,
+              1
+            ],
+            [
+              609,
+              1
+            ],
+            [
+              162,
+              1
+            ],
+            [
+              1138,
+              1
+            ],
+            [
+              788,
+              1
+            ],
+            [
+              73,
+              1
+            ],
+            [
+              1077,
+              1
+            ],
+            [
+              127,
+              1
+            ],
+            [
+              226,
+              1
+            ],
+            [
+              153,
+              1
+            ],
+            [
+              178,
+              1
+            ]
+          ],
+          "strcmp": [
+            [
+              98,
+              2
+            ],
+            [
+              151,
+              1
+            ],
+            [
+              65,
+              1
+            ],
+            [
+              186,
+              1
+            ],
+            [
+              168,
+              1
+            ],
+            [
+              119,
+              1
+            ],
+            [
+              52,
+              1
+            ],
+            [
+              47,
+              1
+            ],
+            [
+              107,
+              1
+            ],
+            [
+              155,
+              1
+            ],
+            [
+              29,
+              1
+            ]
+          ],
+          "strlen": [
+            [
+              39,
+              4
+            ],
+            [
+              100,
+              3
+            ],
+            [
+              47,
+              2
+            ],
+            [
+              25,
+              2
+            ],
+            [
+              49,
+              2
+            ],
+            [
+              55,
+              1
+            ],
+            [
+              40,
+              1
+            ],
+            [
+              85,
+              1
+            ],
+            [
+              91,
+              1
+            ]
+          ]
+        },
+        "top_functions": [
+          [
+            "memset",
+            452
+          ],
+          [
+            "memcmp",
+            27
+          ],
+          [
+            "strlen",
+            17
+          ],
+          [
+            "next_utf8",
+            14
+          ],
+          [
+            "next_utf16",
+            12
+          ],
+          [
+            "strcmp",
+            12
+          ],
+          [
+            "cupidbuild_path_to_utf16",
+            9
+          ],
+          [
+            "cupid_format_number",
+            9
+          ],
+          [
+            "memcpy",
+            8
+          ],
+          [
+            "cupidbuild_path_to_utf8",
+            7
+          ],
+          [
+            "cupidbuild_observer_scalar",
+            5
+          ],
+          [
+            "cupidbuild_sha_block",
+            5
+          ],
+          [
+            "cupid_heap_bin",
+            3
+          ],
+          [
+            "cupidbuild_observer_bucket",
+            3
+          ],
+          [
+            "cupid_heap_split",
+            2
+          ],
+          [
+            "malloc",
+            2
+          ],
+          [
+            "cupidbuild_observer_retained_file",
+            2
+          ],
+          [
+            "cupidbuild_sha_finish",
+            2
+          ],
+          [
+            "cupidbuild_observer_same",
+            2
+          ],
+          [
+            "cupidbuild_host_path_missing",
+            1
+          ],
+          [
+            "cupidbuild_observer_child_absent",
+            1
+          ],
+          [
+            "cupidbuild_observer_path_kind_profile",
+            1
+          ],
+          [
+            "strncmp",
+            1
+          ],
+          [
+            "cupid_heap_free_remove",
+            1
+          ]
+        ],
+        "uncompressed": {
+          "sha256": "5c5bfa7563c82b17a66dbf7f18bba867ddc00bc127d0147292e17b327fd2a2fa",
+          "size": 4371522
+        }
+      },
+      "report_identity": {
+        "sha256": "83c770864b4ee6eb17885ba78ed0424a461f8d94a702e6962a1f50c2a2521f37",
+        "size": 10712
+      },
+      "uncompressed": {
+        "sha256": "5c5bfa7563c82b17a66dbf7f18bba867ddc00bc127d0147292e17b327fd2a2fa",
+        "size": 4371522
+      }
+    },
+    "owner-memset-caller-diagnosis": {
+      "archive": {
+        "sha256": "da144f98d4c4c439360963d6c5dc5a39433e437586d52e5990cce059a0f02921",
+        "size": 729507
+      },
+      "path": "docs/bootstrap/evidence/fullpath-storage-owner-memset-caller-diagnosis-20261011.json.gz",
+      "report": {
+        "child_exit_code": 0,
+        "child_pid": 38240,
+        "child_thread_id": 21296,
+        "failed_wpr_before_child": {
+          "exit_code": 3310899217,
+          "owned_recording_may_remain": false
+        },
+        "final_cpu_io": {
+          "creation_filetime": 134362247892014972,
+          "io": {
+            "OtherOperationCount": 550173,
+            "OtherTransferCount": 46395182,
+            "ReadOperationCount": 16385,
+            "ReadTransferCount": 198297,
+            "WriteOperationCount": 8,
+            "WriteTransferCount": 27
+          },
+          "kernel_seconds": 4.609375,
+          "user_seconds": 6.6875
+        },
+        "initial_cpu_io": {
+          "creation_filetime": 134362247892014972,
+          "io": {
+            "OtherOperationCount": 1,
+            "OtherTransferCount": 0,
+            "ReadOperationCount": 0,
+            "ReadTransferCount": 0,
+            "WriteOperationCount": 0,
+            "WriteTransferCount": 0
+          },
+          "kernel_seconds": 0.0,
+          "user_seconds": 0.0
+        },
+        "mapped_sample_count": 616,
+        "matching_resumes": 2195,
+        "memset_argument_samples": [
+          {
+            "samples": 446,
+            "size": 65536,
+            "value": 0
+          },
+          {
+            "samples": 3,
+            "size": 310,
+            "value": 0
+          },
+          {
+            "samples": 3,
+            "size": 44,
+            "value": 0
+          },
+          {
+            "samples": 2,
+            "size": 24,
+            "value": 0
+          },
+          {
+            "samples": 1,
+            "size": 180356,
+            "value": 0
+          },
+          {
+            "samples": 1,
+            "size": 16396,
+            "value": 0
+          }
+        ],
+        "memset_caller_chains": [
+          [
+            "calloc -> cupid_windows_get_full_path_name -> _fullpath -> cupidbuild_host_absolute_directory",
+            446
+          ],
+          [
+            "calloc -> path_utf16 -> cupid_windows_get_full_path_name -> _fullpath",
+            3
+          ],
+          [
+            "cupidbuild_observer_stat_kind -> cupidbuild_observer_stat -> cupidbuild_observer_path_kind_profile -> cupidbuild_observer_paths_kind_profile",
+            2
+          ],
+          [
+            "cupidbuild_observer_open_child_mode -> cupidbuild_observer_open_child_status -> cupidbuild_observer_open_child -> cupidbuild_observer_require_current",
+            2
+          ],
+          [
+            "calloc -> cupidbuild_disk_input_discovery_open_quota -> main -> cupid_windows_runtime_start",
+            1
+          ],
+          [
+            "calloc -> input_capture_pending -> cupidbuild_disk_input_discovery_open_quota -> main",
+            1
+          ],
+          [
+            "cupidbuild_observer_stat_kind -> cupidbuild_observer_stat -> cupidbuild_observer_require_current -> cupidbuild_host_observer_require_source_unchanged",
+            1
+          ]
+        ],
+        "memset_caller_samples": [
+          [
+            "calloc",
+            451
+          ],
+          [
+            "cupidbuild_observer_stat_kind",
+            3
+          ],
+          [
+            "cupidbuild_observer_open_child_mode",
+            2
+          ]
+        ],
+        "originals": {
+          "sha256": "da144f98d4c4c439360963d6c5dc5a39433e437586d52e5990cce059a0f02921",
+          "size": 729507
+        },
+        "outside_mapped_functions_sample_count": 1579,
+        "per_phase": {
+          "before-opened": [
+            [
+              "memset",
+              157
+            ],
+            [
+              "strlen",
+              12
+            ],
+            [
+              "strcmp",
+              11
+            ],
+            [
+              "next_utf8",
+              9
+            ],
+            [
+              "memcmp",
+              7
+            ],
+            [
+              "cupidbuild_path_to_utf16",
+              4
+            ],
+            [
+              "next_utf16",
+              3
+            ],
+            [
+              "memcpy",
+              3
+            ],
+            [
+              "cupidbuild_observer_scalar",
+              3
+            ],
+            [
+              "cupidbuild_observer_require_current",
+              2
+            ],
+            [
+              "cupid_heap_free_insert",
+              1
+            ],
+            [
+              "malloc",
+              1
+            ]
+          ],
+          "opened": [
+            [
+              "memset",
+              152
+            ],
+            [
+              "next_utf8",
+              10
+            ],
+            [
+              "memcmp",
+              9
+            ],
+            [
+              "memcpy",
+              3
+            ],
+            [
+              "next_utf16",
+              3
+            ],
+            [
+              "strlen",
+              2
+            ],
+            [
+              "cupidbuild_path_to_utf16",
+              2
+            ],
+            [
+              "cupid_format_number",
+              2
+            ],
+            [
+              "cupidbuild_observer_same",
+              1
+            ],
+            [
+              "cupidbuild_observer_bucket",
+              1
+            ],
+            [
+              "cupidbuild_observer_scalar",
+              1
+            ],
+            [
+              "malloc",
+              1
+            ]
+          ],
+          "ready": [
+            [
+              "memset",
+              147
+            ],
+            [
+              "next_utf8",
+              10
+            ],
+            [
+              "memcmp",
+              9
+            ],
+            [
+              "next_utf16",
+              4
+            ],
+            [
+              "strlen",
+              3
+            ],
+            [
+              "strcmp",
+              3
+            ],
+            [
+              "cupidbuild_sha_block",
+              2
+            ],
+            [
+              "cupidbuild_observer_open_child_mode",
+              2
+            ],
+            [
+              "cupidbuild_path_to_utf8",
+              2
+            ],
+            [
+              "memcpy",
+              1
+            ],
+            [
+              "cupidbuild_request_group_compare",
+              1
+            ],
+            [
+              "cupidbuild_observer_stream_read",
+              1
+            ]
+          ],
+          "viewed": [
+            [
+              "cupidbuild_sha_block",
+              5
+            ],
+            [
+              "cupidbuild_observer_open_child_mode",
+              3
+            ],
+            [
+              "strcmp",
+              2
+            ],
+            [
+              "cupidbuild_sha_finish",
+              2
+            ],
+            [
+              "cupidbuild_observer_scalar",
+              1
+            ],
+            [
+              "strlen",
+              1
+            ],
+            [
+              "cupidbuild_observer_stream_group_member",
+              1
+            ],
+            [
+              "memcpy",
+              1
+            ]
+          ]
+        },
+        "preserved_files": 4160,
+        "qualification": false,
+        "recipe": {
+          "sha256": "2af391160ca8c4cbc58549edf89678ca5824be69bf419097dee042f5b8e0d42e",
+          "size": 8993
+        },
+        "references": [
+          "https://learn.microsoft.com/en-us/windows/win32/api/wow64apiset/nf-wow64apiset-wow64getthreadcontext",
+          "https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-wow64_context",
+          "https://learn.microsoft.com/en-us/windows/win32/api/wow64apiset/nf-wow64apiset-wow64suspendthread",
+          "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-resumethread"
+        ],
+        "sample_count": 2195,
+        "scope": "Debugger samples only the launched child. No other process is suspended. Instruction-pointer sample counts do not give CPU percentages or establish speed or capacity qualification.",
+        "seconds": 22.91704289999325,
+        "source_case_fixture_or_limit_changes": false,
+        "stage_count": 4096,
+        "status": "preserved-owned-child-instruction-diagnosis",
+        "successful_suspends": 2195,
+        "suspend_resume_total_seconds": 0.228062201756984,
+        "timed_out": false,
+        "timeout_seconds": 60,
+        "top_function_offsets": {
+          "cupidbuild_observer_open_child_mode": [
+            [
+              645,
+              2
+            ],
+            [
+              1548,
+              2
+            ],
+            [
+              266,
+              1
+            ],
+            [
+              246,
+              1
+            ]
+          ],
+          "cupidbuild_observer_scalar": [
+            [
+              71,
+              1
+            ],
+            [
+              263,
+              1
+            ],
+            [
+              1149,
+              1
+            ],
+            [
+              192,
+              1
+            ],
+            [
+              69,
+              1
+            ]
+          ],
+          "cupidbuild_path_to_utf16": [
+            [
+              1087,
+              1
+            ],
+            [
+              638,
+              1
+            ],
+            [
+              1375,
+              1
+            ],
+            [
+              921,
+              1
+            ],
+            [
+              956,
+              1
+            ],
+            [
+              743,
+              1
+            ],
+            [
+              1327,
+              1
+            ]
+          ],
+          "cupidbuild_sha_block": [
+            [
+              1302,
+              1
+            ],
+            [
+              1466,
+              1
+            ],
+            [
+              1531,
+              1
+            ],
+            [
+              1444,
+              1
+            ],
+            [
+              964,
+              1
+            ],
+            [
+              1689,
+              1
+            ],
+            [
+              987,
+              1
+            ]
+          ],
+          "memcmp": [
+            [
+              99,
+              4
+            ],
+            [
+              188,
+              4
+            ],
+            [
+              128,
+              3
+            ],
+            [
+              217,
+              2
+            ],
+            [
+              64,
+              2
+            ],
+            [
+              130,
+              2
+            ],
+            [
+              125,
+              2
+            ],
+            [
+              117,
+              1
+            ],
+            [
+              82,
+              1
+            ],
+            [
+              182,
+              1
+            ],
+            [
+              92,
+              1
+            ],
+            [
+              119,
+              1
+            ]
+          ],
+          "memcpy": [
+            [
+              86,
+              1
+            ],
+            [
+              130,
+              1
+            ],
+            [
+              117,
+              1
+            ],
+            [
+              95,
+              1
+            ],
+            [
+              54,
+              1
+            ],
+            [
+              112,
+              1
+            ],
+            [
+              105,
+              1
+            ],
+            [
+              114,
+              1
+            ]
+          ],
+          "memset": [
+            [
+              113,
+              47
+            ],
+            [
+              79,
+              34
+            ],
+            [
+              152,
+              26
+            ],
+            [
+              151,
+              26
+            ],
+            [
+              148,
+              25
+            ],
+            [
+              66,
+              22
+            ],
+            [
+              74,
+              19
+            ],
+            [
+              87,
+              17
+            ],
+            [
+              95,
+              17
+            ],
+            [
+              111,
+              15
+            ],
+            [
+              78,
+              15
+            ],
+            [
+              126,
+              15
+            ]
+          ],
+          "next_utf16": [
+            [
+              3,
+              2
+            ],
+            [
+              128,
+              2
+            ],
+            [
+              154,
+              1
+            ],
+            [
+              545,
+              1
+            ],
+            [
+              135,
+              1
+            ],
+            [
+              139,
+              1
+            ],
+            [
+              133,
+              1
+            ],
+            [
+              124,
+              1
+            ]
+          ],
+          "next_utf8": [
+            [
+              174,
+              2
+            ],
+            [
+              321,
+              2
+            ],
+            [
+              1022,
+              2
+            ],
+            [
+              136,
+              1
+            ],
+            [
+              138,
+              1
+            ],
+            [
+              1065,
+              1
+            ],
+            [
+              126,
+              1
+            ],
+            [
+              151,
+              1
+            ],
+            [
+              178,
+              1
+            ],
+            [
+              51,
+              1
+            ],
+            [
+              1217,
+              1
+            ],
+            [
+              35,
+              1
+            ]
+          ],
+          "strcmp": [
+            [
+              39,
+              4
+            ],
+            [
+              98,
+              3
+            ],
+            [
+              76,
+              2
+            ],
+            [
+              56,
+              1
+            ],
+            [
+              103,
+              1
+            ],
+            [
+              188,
+              1
+            ],
+            [
+              55,
+              1
+            ],
+            [
+              168,
+              1
+            ],
+            [
+              65,
+              1
+            ],
+            [
+              177,
+              1
+            ],
+            [
+              49,
+              1
+            ]
+          ],
+          "strlen": [
+            [
+              47,
+              4
+            ],
+            [
+              56,
+              3
+            ],
+            [
+              46,
+              2
+            ],
+            [
+              57,
+              2
+            ],
+            [
+              87,
+              1
+            ],
+            [
+              31,
+              1
+            ],
+            [
+              25,
+              1
+            ],
+            [
+              85,
+              1
+            ],
+            [
+              36,
+              1
+            ],
+            [
+              113,
+              1
+            ],
+            [
+              29,
+              1
+            ]
+          ]
+        },
+        "top_functions": [
+          [
+            "memset",
+            456
+          ],
+          [
+            "next_utf8",
+            29
+          ],
+          [
+            "memcmp",
+            25
+          ],
+          [
+            "strlen",
+            18
+          ],
+          [
+            "strcmp",
+            17
+          ],
+          [
+            "next_utf16",
+            10
+          ],
+          [
+            "memcpy",
+            8
+          ],
+          [
+            "cupidbuild_path_to_utf16",
+            7
+          ],
+          [
+            "cupidbuild_sha_block",
+            7
+          ],
+          [
+            "cupidbuild_observer_open_child_mode",
+            6
+          ],
+          [
+            "cupidbuild_observer_scalar",
+            5
+          ],
+          [
+            "cupidbuild_path_to_utf8",
+            3
+          ],
+          [
+            "malloc",
+            2
+          ],
+          [
+            "cupidbuild_observer_require_current",
+            2
+          ],
+          [
+            "cupid_format_number",
+            2
+          ],
+          [
+            "cupidbuild_sha_finish",
+            2
+          ],
+          [
+            "cupid_heap_free_insert",
+            1
+          ],
+          [
+            "path_utf16",
+            1
+          ],
+          [
+            "input_selection_less",
+            1
+          ],
+          [
+            "cupidbuild_observer_path_name_valid",
+            1
+          ],
+          [
+            "cupid_heap_bin",
+            1
+          ],
+          [
+            "strncmp",
+            1
+          ],
+          [
+            "strcpy",
+            1
+          ],
+          [
+            "cupid_heap_free_remove",
+            1
+          ]
+        ],
+        "uncompressed": {
+          "sha256": "b59896dedfbd652431f2c7809d9cc18801750fae133a64f770bcbf4a9e94a686",
+          "size": 6383751
+        }
+      },
+      "report_identity": {
+        "sha256": "c11f90c11e5faf20bafe708ae9e9767921a2f5040fef4586d3221a8be5b3e0da",
+        "size": 11943
+      },
+      "uncompressed": {
+        "sha256": "b59896dedfbd652431f2c7809d9cc18801750fae133a64f770bcbf4a9e94a686",
+        "size": 6383751
+      }
+    },
+    "owner-process-accounting": {
+      "archive": {
+        "sha256": "418ef8faa0a0eb837acba10a926e4027411c5efa683cd85a1115f6cb42e2a67f",
+        "size": 768388
+      },
+      "path": "docs/bootstrap/evidence/fullpath-storage-owner-process-accounting-20261011.json.gz",
+      "report": {
+        "originals": {
+          "sha256": "418ef8faa0a0eb837acba10a926e4027411c5efa683cd85a1115f6cb42e2a67f",
+          "size": 768388
+        },
+        "outcomes": {
+          "checked-drive": {
+            "exit_code": 0,
+            "io_deltas": {
+              "OtherOperationCount": 550176,
+              "OtherTransferCount": 45533120,
+              "ReadOperationCount": 16385,
+              "ReadTransferCount": 198127,
+              "WriteOperationCount": 8,
+              "WriteTransferCount": 27
+            },
+            "kernel_cpu_delta_seconds": 4.59375,
+            "markers": [
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362236277400831,
+                  "io": {
+                    "OtherOperationCount": 225942,
+                    "OtherTransferCount": 19888464,
+                    "ReadOperationCount": 1,
+                    "ReadTransferCount": 1519,
+                    "WriteOperationCount": 2,
+                    "WriteTransferCount": 7
+                  },
+                  "kernel_seconds": 2.140625,
+                  "user_seconds": 2.75
+                },
+                "phase": "opened",
+                "seconds": 4.9136856000404805
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362236277400831,
+                  "io": {
+                    "OtherOperationCount": 299901,
+                    "OtherTransferCount": 26196548,
+                    "ReadOperationCount": 1,
+                    "ReadTransferCount": 1519,
+                    "WriteOperationCount": 4,
+                    "WriteTransferCount": 14
+                  },
+                  "kernel_seconds": 2.84375,
+                  "user_seconds": 4.765625
+                },
+                "phase": "viewed",
+                "seconds": 7.630130199948326
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362236277400831,
+                  "io": {
+                    "OtherOperationCount": 439336,
+                    "OtherTransferCount": 37160652,
+                    "ReadOperationCount": 8193,
+                    "ReadTransferCount": 99823,
+                    "WriteOperationCount": 6,
+                    "WriteTransferCount": 20
+                  },
+                  "kernel_seconds": 3.703125,
+                  "user_seconds": 5.078125
+                },
+                "phase": "ready",
+                "seconds": 8.814515499980189
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362236277400831,
+                  "io": {
+                    "OtherOperationCount": 550172,
+                    "OtherTransferCount": 45533120,
+                    "ReadOperationCount": 16385,
+                    "ReadTransferCount": 198127,
+                    "WriteOperationCount": 8,
+                    "WriteTransferCount": 27
+                  },
+                  "kernel_seconds": 4.59375,
+                  "user_seconds": 7.15625
+                },
+                "phase": "accept",
+                "seconds": 11.787659000023268
+              }
+            ],
+            "seconds": 11.78917929995805,
+            "timed_out": false,
+            "user_cpu_delta_seconds": 7.15625
+          },
+          "checked-unc": {
+            "exit_code": 0,
+            "io_deltas": {
+              "OtherOperationCount": 550007,
+              "OtherTransferCount": 47938050,
+              "ReadOperationCount": 16384,
+              "ReadTransferCount": 196608,
+              "WriteOperationCount": 8,
+              "WriteTransferCount": 27
+            },
+            "kernel_cpu_delta_seconds": 17.046875,
+            "markers": [
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362236396470827,
+                  "io": {
+                    "OtherOperationCount": 225843,
+                    "OtherTransferCount": 21226142,
+                    "ReadOperationCount": 1,
+                    "ReadTransferCount": 1519,
+                    "WriteOperationCount": 2,
+                    "WriteTransferCount": 7
+                  },
+                  "kernel_seconds": 7.265625,
+                  "user_seconds": 2.53125
+                },
+                "phase": "opened",
+                "seconds": 17.633284499985166
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362236396470827,
+                  "io": {
+                    "OtherOperationCount": 299772,
+                    "OtherTransferCount": 27854528,
+                    "ReadOperationCount": 1,
+                    "ReadTransferCount": 1519,
+                    "WriteOperationCount": 4,
+                    "WriteTransferCount": 14
+                  },
+                  "kernel_seconds": 9.53125,
+                  "user_seconds": 4.59375
+                },
+                "phase": "viewed",
+                "seconds": 23.94855730002746
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362236396470827,
+                  "io": {
+                    "OtherOperationCount": 439197,
+                    "OtherTransferCount": 39245280,
+                    "ReadOperationCount": 8193,
+                    "ReadTransferCount": 99823,
+                    "WriteOperationCount": 6,
+                    "WriteTransferCount": 20
+                  },
+                  "kernel_seconds": 13.75,
+                  "user_seconds": 5.03125
+                },
+                "phase": "ready",
+                "seconds": 46.884498100029305
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362236396470827,
+                  "io": {
+                    "OtherOperationCount": 550003,
+                    "OtherTransferCount": 47938050,
+                    "ReadOperationCount": 16385,
+                    "ReadTransferCount": 198127,
+                    "WriteOperationCount": 8,
+                    "WriteTransferCount": 27
+                  },
+                  "kernel_seconds": 17.046875,
+                  "user_seconds": 7.171875
+                },
+                "phase": "accept",
+                "seconds": 55.112619400024414
+              }
+            ],
+            "seconds": 55.11409239994828,
+            "timed_out": false,
+            "user_cpu_delta_seconds": 7.171875
+          },
+          "native-drive": {
+            "exit_code": 0,
+            "io_deltas": {
+              "OtherOperationCount": 550171,
+              "OtherTransferCount": 22686592,
+              "ReadOperationCount": 16385,
+              "ReadTransferCount": 197944,
+              "WriteOperationCount": 4,
+              "WriteTransferCount": 31
+            },
+            "kernel_cpu_delta_seconds": 3.5625,
+            "markers": [
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362235630970915,
+                  "io": {
+                    "OtherOperationCount": 225938,
+                    "OtherTransferCount": 8031636,
+                    "ReadOperationCount": 1,
+                    "ReadTransferCount": 1336,
+                    "WriteOperationCount": 1,
+                    "WriteTransferCount": 8
+                  },
+                  "kernel_seconds": 1.59375,
+                  "user_seconds": 0.171875
+                },
+                "phase": "opened",
+                "seconds": 1.767212799983099
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362235630970915,
+                  "io": {
+                    "OtherOperationCount": 299893,
+                    "OtherTransferCount": 11041836,
+                    "ReadOperationCount": 1,
+                    "ReadTransferCount": 1336,
+                    "WriteOperationCount": 2,
+                    "WriteTransferCount": 16
+                  },
+                  "kernel_seconds": 2.0,
+                  "user_seconds": 0.25
+                },
+                "phase": "viewed",
+                "seconds": 2.2512746000429615
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362235630970915,
+                  "io": {
+                    "OtherOperationCount": 439330,
+                    "OtherTransferCount": 17612008,
+                    "ReadOperationCount": 8193,
+                    "ReadTransferCount": 99640,
+                    "WriteOperationCount": 3,
+                    "WriteTransferCount": 23
+                  },
+                  "kernel_seconds": 3.03125,
+                  "user_seconds": 0.3125
+                },
+                "phase": "ready",
+                "seconds": 17.35010349994991
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362235630970915,
+                  "io": {
+                    "OtherOperationCount": 550165,
+                    "OtherTransferCount": 22686592,
+                    "ReadOperationCount": 16385,
+                    "ReadTransferCount": 197944,
+                    "WriteOperationCount": 4,
+                    "WriteTransferCount": 31
+                  },
+                  "kernel_seconds": 3.5625,
+                  "user_seconds": 0.359375
+                },
+                "phase": "accept",
+                "seconds": 17.92957809998188
+              }
+            ],
+            "seconds": 17.93170239997562,
+            "timed_out": false,
+            "user_cpu_delta_seconds": 0.359375
+          },
+          "native-unc": {
+            "exit_code": 0,
+            "io_deltas": {
+              "OtherOperationCount": 550005,
+              "OtherTransferCount": 22851050,
+              "ReadOperationCount": 16384,
+              "ReadTransferCount": 196608,
+              "WriteOperationCount": 4,
+              "WriteTransferCount": 31
+            },
+            "kernel_cpu_delta_seconds": 16.328125,
+            "markers": [
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362235811350574,
+                  "io": {
+                    "OtherOperationCount": 225837,
+                    "OtherTransferCount": 8195350,
+                    "ReadOperationCount": 0,
+                    "ReadTransferCount": 0,
+                    "WriteOperationCount": 1,
+                    "WriteTransferCount": 8
+                  },
+                  "kernel_seconds": 6.6875,
+                  "user_seconds": 0.328125
+                },
+                "phase": "opened",
+                "seconds": 14.073502599960193
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362235811350574,
+                  "io": {
+                    "OtherOperationCount": 299766,
+                    "OtherTransferCount": 11206142,
+                    "ReadOperationCount": 0,
+                    "ReadTransferCount": 0,
+                    "WriteOperationCount": 2,
+                    "WriteTransferCount": 16
+                  },
+                  "kernel_seconds": 8.421875,
+                  "user_seconds": 0.40625
+                },
+                "phase": "viewed",
+                "seconds": 18.13969460001681
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362235811350574,
+                  "io": {
+                    "OtherOperationCount": 439191,
+                    "OtherTransferCount": 17775874,
+                    "ReadOperationCount": 8192,
+                    "ReadTransferCount": 98304,
+                    "WriteOperationCount": 3,
+                    "WriteTransferCount": 23
+                  },
+                  "kernel_seconds": 13.21875,
+                  "user_seconds": 0.46875
+                },
+                "phase": "ready",
+                "seconds": 40.07735639996827
+              },
+              {
+                "cpu_io": {
+                  "creation_filetime": 134362235811350574,
+                  "io": {
+                    "OtherOperationCount": 549998,
+                    "OtherTransferCount": 22851050,
+                    "ReadOperationCount": 16384,
+                    "ReadTransferCount": 196608,
+                    "WriteOperationCount": 4,
+                    "WriteTransferCount": 31
+                  },
+                  "kernel_seconds": 16.328125,
+                  "user_seconds": 0.546875
+                },
+                "phase": "accept",
+                "seconds": 46.49148809991311
+              }
+            ],
+            "seconds": 46.493970899959095,
+            "timed_out": false,
+            "user_cpu_delta_seconds": 0.546875
+          }
+        },
+        "preserved_files": 4155,
+        "prior_quiet_outcomes": {
+          "checked-drive": {
+            "exit_code": 0,
+            "markers": [
+              {
+                "phase": "opened",
+                "seconds": 5.989428699947894
+              },
+              {
+                "phase": "viewed",
+                "seconds": 8.876930200029165
+              },
+              {
+                "phase": "ready",
+                "seconds": 10.15558320004493
+              },
+              {
+                "phase": "accept",
+                "seconds": 13.47916680003982
+              }
+            ],
+            "seconds": 13.481166700017639,
+            "timed_out": false
+          },
+          "checked-unc": {
+            "exit_code": 1,
+            "markers": [
+              {
+                "phase": "opened",
+                "seconds": 19.707901699934155
+              },
+              {
+                "phase": "viewed",
+                "seconds": 26.576189199928194
+              },
+              {
+                "phase": "ready",
+                "seconds": 52.75862669991329
+              }
+            ],
+            "seconds": 60.33488709991798,
+            "timed_out": true
+          },
+          "native-drive": {
+            "exit_code": 0,
+            "markers": [
+              {
+                "phase": "opened",
+                "seconds": 2.0220213999273255
+              },
+              {
+                "phase": "viewed",
+                "seconds": 2.54075159993954
+              },
+              {
+                "phase": "ready",
+                "seconds": 25.305732800043188
+              },
+              {
+                "phase": "accept",
+                "seconds": 25.94236450002063
+              }
+            ],
+            "seconds": 25.9448366999859,
+            "timed_out": false
+          },
+          "native-unc": {
+            "exit_code": 0,
+            "markers": [
+              {
+                "phase": "opened",
+                "seconds": 16.47690559993498
+              },
+              {
+                "phase": "viewed",
+                "seconds": 21.177716399892233
+              },
+              {
+                "phase": "ready",
+                "seconds": 46.9843019999098
+              },
+              {
+                "phase": "accept",
+                "seconds": 55.48615749995224
+              }
+            ],
+            "seconds": 55.48934809991624,
+            "timed_out": false
+          }
+        },
+        "qualification": false,
+        "recipe": {
+          "sha256": "1308cb7657aa446e90be9b3563fce7bd34d0e112b6091505fbe220fa66154b3e",
+          "size": 7784
+        },
+        "scope": "CPU sums cover child threads. Process I/O accounting is not an API query vector and excludes other processes. Initial samples occur just after launch; phase samples observe printed markers without stopping the child. This does not qualify capacity or establish speed.",
+        "source_case_fixture_or_limit_changes": false,
+        "stage_count": 4096,
+        "status": "preserved-unchanged-owner-process-accounting",
+        "successful_calls": 4,
+        "timed_out_calls": 0,
+        "timeout_seconds": 60,
+        "uncompressed": {
+          "sha256": "8aac908e9bc1f166aa40d8d9b5c7f64c4282f8e6eab404aee6072bad21a26b5b",
+          "size": 3372837
+        }
+      },
+      "report_identity": {
+        "sha256": "29664e4868bebdcb7b17ff760c2ff07c5a3265c03b69fec413fbaac61ad7a2a5",
+        "size": 13372
+      },
+      "uncompressed": {
+        "sha256": "8aac908e9bc1f166aa40d8d9b5c7f64c4282f8e6eab404aee6072bad21a26b5b",
+        "size": 3372837
+      }
+    },
+    "owner-profile-first-attempt": {
+      "archive": {
+        "sha256": "483f97787e4066749e85569a950d68c3261086c7d4a0efe1f5f7dd070d212395",
+        "size": 469203
+      },
+      "path": "docs/bootstrap/evidence/fullpath-storage-owner-profile-first-attempt-20261011.json.gz",
+      "report": {
+        "child_exit_code": 0,
+        "child_seconds": 34.26513920002617,
+        "child_timed_out": false,
+        "failed_wpr_error": "0xc5585011: Failed to enable the policy to profile system performance.",
+        "instruction_samples": 0,
+        "matching_resumes": 1,
+        "originals": {
+          "sha256": "483f97787e4066749e85569a950d68c3261086c7d4a0efe1f5f7dd070d212395",
+          "size": 469203
+        },
+        "preserved_files": 4142,
+        "qualification": false,
+        "recipe": {
+          "sha256": "c392313166f2d22222d23b5e02751a468c113e528867730688dbf20fc9aededa",
+          "size": 4118
+        },
+        "sampling_correction": "OpenThread used 0x42, omitting the 0x08 THREAD_GET_CONTEXT right. Use 0x4a for suspend/resume, get-context, and query-information rights.",
+        "sampling_error": "PermissionError(13, 'Access is denied.', None, 5)",
+        "stage_count": 4096,
+        "status": "preserved-failed-owner-profile-attempts",
+        "successful_suspends": 1,
+        "timeout_seconds": 60,
+        "uncompressed": {
+          "sha256": "fb84158f11bd6e5f56c0969da83d6b1e18684406f7c62b9a24ce14235c978d61",
+          "size": 2633466
+        },
+        "wpr_owned_recording_may_remain": false
+      },
+      "report_identity": {
+        "sha256": "08653230668ce93263db050ef0f007463ea1550a4933eb3445817c66b82f6359",
+        "size": 1076
+      },
+      "uncompressed": {
+        "sha256": "fb84158f11bd6e5f56c0969da83d6b1e18684406f7c62b9a24ce14235c978d61",
+        "size": 2633466
+      }
+    },
+    "quiet-owner-capacity": {
+      "archive": {
+        "sha256": "99bb19166477582ff9021bd4b321ff6bdd16bc507b6887c8107ff2e8d99d8829",
+        "size": 563311
+      },
+      "path": "docs/bootstrap/evidence/fullpath-storage-quiet-owner-capacity-20261011.json.gz",
+      "report": {
+        "normal_root_completed": true,
+        "originals": {
+          "sha256": "99bb19166477582ff9021bd4b321ff6bdd16bc507b6887c8107ff2e8d99d8829",
+          "size": 563311
+        },
+        "outcomes": {
+          "checked-drive": {
+            "exit_code": 0,
+            "markers": [
+              {
+                "phase": "opened",
+                "seconds": 5.989428699947894
+              },
+              {
+                "phase": "viewed",
+                "seconds": 8.876930200029165
+              },
+              {
+                "phase": "ready",
+                "seconds": 10.15558320004493
+              },
+              {
+                "phase": "accept",
+                "seconds": 13.47916680003982
+              }
+            ],
+            "seconds": 13.481166700017639,
+            "timed_out": false
+          },
+          "checked-unc": {
+            "exit_code": 1,
+            "markers": [
+              {
+                "phase": "opened",
+                "seconds": 19.707901699934155
+              },
+              {
+                "phase": "viewed",
+                "seconds": 26.576189199928194
+              },
+              {
+                "phase": "ready",
+                "seconds": 52.75862669991329
+              }
+            ],
+            "seconds": 60.33488709991798,
+            "timed_out": true
+          },
+          "native-drive": {
+            "exit_code": 0,
+            "markers": [
+              {
+                "phase": "opened",
+                "seconds": 2.0220213999273255
+              },
+              {
+                "phase": "viewed",
+                "seconds": 2.54075159993954
+              },
+              {
+                "phase": "ready",
+                "seconds": 25.305732800043188
+              },
+              {
+                "phase": "accept",
+                "seconds": 25.94236450002063
+              }
+            ],
+            "seconds": 25.9448366999859,
+            "timed_out": false
+          },
+          "native-unc": {
+            "exit_code": 0,
+            "markers": [
+              {
+                "phase": "opened",
+                "seconds": 16.47690559993498
+              },
+              {
+                "phase": "viewed",
+                "seconds": 21.177716399892233
+              },
+              {
+                "phase": "ready",
+                "seconds": 46.9843019999098
+              },
+              {
+                "phase": "accept",
+                "seconds": 55.48615749995224
+              }
+            ],
+            "seconds": 55.48934809991624,
+            "timed_out": false
+          }
+        },
+        "preserved_files": 4118,
+        "qualification": false,
+        "recipe": {
+          "sha256": "88b28767ebaa780fe6ed1e1cd355cd4975577e3b44ca1d51e44588a9b26a3c11",
+          "size": 5560
+        },
+        "scope": "Fresh replay of unchanged flat owner capacity after this agent normal-root build completes. Other machine activity is not controlled. Only output location and accepted root-control bookkeeping change; this is not owner or speed qualification.",
+        "source_case_fixture_or_limit_changes": false,
+        "stage_count": 4096,
+        "status": "preserved-unchanged-quiet-owner-capacity",
+        "successful_calls": 3,
+        "timed_out_calls": 1,
+        "timeout_seconds": 60,
+        "uncompressed": {
+          "sha256": "4be63d39eecd351cf18e4e64976458424d0880452a53e83f5eb17dbae8ac559f",
+          "size": 2238635
+        }
+      },
+      "report_identity": {
+        "sha256": "5579700475d9d9f747094da1779860b19492f06c6076513a3a475dfb3d3a08b0",
+        "size": 2823
+      },
+      "uncompressed": {
+        "sha256": "4be63d39eecd351cf18e4e64976458424d0880452a53e83f5eb17dbae8ac559f",
+        "size": 2238635
+      }
+    }
+  },
+  "canonical_linux": {
+    "application": {
+      "sha256": "bd5d2ca78e260aa94fa43335a813481bf4500e423e2133ddfc6da710409a65f9",
+      "size": 2230
+    },
+    "exit_code": 0,
+    "host": "linux",
+    "qualification": false,
+    "runner": {
+      "sha256": "2f0d646ae16cbe0620a93efa7fef572d909236f0f6234af982107ce04e477013",
+      "size": 1673
+    },
+    "seconds": 81.60176263700123,
+    "status": "pass",
+    "stderr": {
+      "sha256": "8900446f228785132366574a79d398691517501130b75b0ad2228884b34029bc",
+      "size": 1299
+    },
+    "stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    }
+  },
+  "canonical_windows_and_os": {
+    "application": {
+      "sha256": "bd5d2ca78e260aa94fa43335a813481bf4500e423e2133ddfc6da710409a65f9",
+      "size": 2230
+    },
+    "commands": [
+      {
+        "argv": [
+          "C:\\Python314\\python.exe",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.test_windows_utf8_checked"
+        ],
+        "exit_code": 0,
+        "label": "canonical-checked-adapters",
+        "log": {
+          "sha256": "56ac630ccffe9f47bc364faf6901b96fb7e1d25dbd05598e07f583f11e163372",
+          "size": 1218
+        },
+        "seconds": 48.8494614000665
+      },
+      {
+        "argv": [
+          "make",
+          "-j4",
+          "CC=forbidden-host-CC",
+          "CXX=forbidden-host-CXX",
+          "CPP=forbidden-host-CPP",
+          "AS=forbidden-host-AS",
+          "AR=forbidden-host-AR",
+          "LD=forbidden-host-LD",
+          "NM=forbidden-host-NM",
+          "OBJCOPY=forbidden-host-OBJCOPY",
+          "NASM=forbidden-host-NASM",
+          "all"
+        ],
+        "exit_code": 0,
+        "label": "normal-all",
+        "log": {
+          "sha256": "d0cb1f83c42ba19c265153970f922393a613b7d8098fc78348935aa1ec46fd4c",
+          "size": 145456
+        },
+        "seconds": 1832.6502462000353
+      },
+      {
+        "argv": [
+          "make",
+          "-j4",
+          "CC=forbidden-host-CC",
+          "CXX=forbidden-host-CXX",
+          "CPP=forbidden-host-CPP",
+          "AS=forbidden-host-AS",
+          "AR=forbidden-host-AR",
+          "LD=forbidden-host-LD",
+          "NM=forbidden-host-NM",
+          "OBJCOPY=forbidden-host-OBJCOPY",
+          "NASM=forbidden-host-NASM",
+          "-C",
+          "user",
+          "all"
+        ],
+        "exit_code": 0,
+        "label": "user-all",
+        "log": {
+          "sha256": "dce8fa44e16237745bb8bf0d544952c5a166f97f7905a0aec068a2b8780d84d8",
+          "size": 2391
+        },
+        "seconds": 16.42934230004903
+      },
+      {
+        "argv": [
+          "C:\\Users\\admin\\cupid-bootstrap-20261009\\bootstrap\\seeds\\i386-windows\\cupidbuild.exe",
+          "verify-user-abi",
+          "--root",
+          "C:\\Users\\admin\\cupid-bootstrap-20261009"
+        ],
+        "exit_code": 0,
+        "label": "user-abi",
+        "log": {
+          "sha256": "7e317c2d8bc55f471ac4f81b98a615094b729987b5a979d07de876b8018bb0bd",
+          "size": 704
+        },
+        "seconds": 0.12145049998071045
+      },
+      {
+        "argv": [
+          "C:\\Users\\admin\\cupid-bootstrap-20261009\\bootstrap\\seeds\\i386-windows\\cupidbuild.exe",
+          "verify-artifact-sizes",
+          "--root",
+          "C:\\Users\\admin\\cupid-bootstrap-20261009",
+          "--policy",
+          "bootstrap/artifact-size-policy.json",
+          "--seed-manifest",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "--checked-manifest",
+          "bootstrap/seeds/i386-windows/manifest.json",
+          "--execution-manifest",
+          "bootstrap/seeds/i386-windows/manifest.json"
+        ],
+        "exit_code": 0,
+        "label": "artifact-gates",
+        "log": {
+          "sha256": "34f506486ad1da383ac33cbef46959711f9aa73bc43444502b88d0a86f104b1d",
+          "size": 46
+        },
+        "seconds": 1.754919300088659
+      },
+      {
+        "argv": [
+          "C:\\Python314\\python.exe",
+          "C:\\Users\\admin\\cupid-bootstrap-20261009\\tools\\gui_terminal_smoke.py",
+          "--image",
+          "C:\\Users\\admin\\cupid-bootstrap-20261009\\cupidos.img",
+          "--log",
+          "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\native-fullpath-storage-20261011\\root-verification2\\boot-ls-serial.log",
+          "--smp",
+          "4",
+          "--cpu",
+          "max",
+          "--nic",
+          "e1000",
+          "--verify-smp-runtime",
+          "--private-image",
+          "--require-command-completion",
+          "--timeout",
+          "150",
+          "--command",
+          "ls"
+        ],
+        "exit_code": 0,
+        "label": "boot-ls",
+        "log": {
+          "sha256": "5b67ace42d4657f3123f43caf8ff844bfb1010351ac4df66296c55bc39f00aae",
+          "size": 27
+        },
+        "seconds": 48.217825199943036
+      },
+      {
+        "argv": [
+          "C:\\Python314\\python.exe",
+          "C:\\Users\\admin\\cupid-bootstrap-20261009\\tools\\gui_terminal_smoke.py",
+          "--image",
+          "C:\\Users\\admin\\cupid-bootstrap-20261009\\cupidos.img",
+          "--log",
+          "C:\\Users\\admin\\cupid-bootstrap-20261009\\build\\native-fullpath-storage-20261011\\root-verification2\\boot-iso-serial.log",
+          "--smp",
+          "4",
+          "--cpu",
+          "max",
+          "--nic",
+          "e1000",
+          "--verify-smp-runtime",
+          "--private-image",
+          "--require-command-completion",
+          "--timeout",
+          "150",
+          "--command",
+          "/bin/feature17_iso.cc",
+          "--success-pattern",
+          "PASS feature17_iso"
+        ],
+        "exit_code": 0,
+        "label": "boot-iso",
+        "log": {
+          "sha256": "5b67ace42d4657f3123f43caf8ff844bfb1010351ac4df66296c55bc39f00aae",
+          "size": 27
+        },
+        "seconds": 59.29061659995932
+      }
+    ],
+    "exact_artifact_gates": 16,
+    "host": "windows",
+    "image": {
+      "sha256": "48b3bb46b884a5cfa39b8003d21ad53c1e8115d7b79f909ba8aea314ea8680d2",
+      "size": 209715200
+    },
+    "normal_source_inputs_changed": [
+      "toolchain/hosted/i386-windows/windows_utf8.cc"
+    ],
+    "normal_source_inputs_unchanged": 98,
+    "preceding_root": {
+      "sha256": "3ae990321b8fba1b45f8c46719413b6c2c5fc921d35a8a078f630db3a74fed8e",
+      "size": 7152
+    },
+    "producer_sentinels": {
+      "AR": "forbidden-host-AR",
+      "AS": "forbidden-host-AS",
+      "CC": "forbidden-host-CC",
+      "CPP": "forbidden-host-CPP",
+      "CXX": "forbidden-host-CXX",
+      "LD": "forbidden-host-LD",
+      "NASM": "forbidden-host-NASM",
+      "NM": "forbidden-host-NM",
+      "OBJCOPY": "forbidden-host-OBJCOPY"
+    },
+    "production_objects": 429,
+    "projected_files_changed": [],
+    "qualification": false,
+    "root_source_files_changed": 3,
+    "runner": {
+      "sha256": "7b87d264cfbacaab858667e28ee6ded293d9af42cfbd05c9ea0e6a4cce9e13ff",
+      "size": 6154
+    },
+    "seconds": 2008.8245708000613,
+    "status": "pass",
+    "strict_boots": 2,
+    "user_abi": {
+      "abi_sha256": "3e4d31320b2f56d19d37796ef679d1abbb228de9f36c9520d2dd5ec430c3c0bc",
+      "dirent_offsets": {
+        "name": 0,
+        "size": 128,
+        "type": 132
+      },
+      "dirent_size": 136,
+      "field_count": 103,
+      "first_function": "print",
+      "last_function": "sock_state",
+      "provider_count": 101,
+      "provider_sha256": "0a51ba85c93b0249215b05e54867fabe0e7206d7e58a7695911a6ecb060916f4",
+      "scalar_types": {
+        "int32_t": {
+          "bytes": 4,
+          "signed": true
+        },
+        "size_t": {
+          "bytes": 4,
+          "signed": false
+        },
+        "uint16_t": {
+          "bytes": 2,
+          "signed": false
+        },
+        "uint32_t": {
+          "bytes": 4,
+          "signed": false
+        },
+        "uint8_t": {
+          "bytes": 1,
+          "signed": false
+        }
+      },
+      "schema": "cupid.user-syscall-abi.v1",
+      "stat_offsets": {
+        "size": 0,
+        "type": 4
+      },
+      "stat_size": 8,
+      "table_size": 412,
+      "version": 5
+    },
+    "whole_image_equal_preceding_acceptance": true,
+    "whole_linked_outputs_equal_preceding_acceptance": 4,
+    "whole_objects_equal_preceding_acceptance": 429,
+    "whole_user_outputs_equal_preceding_acceptance": 6
+  },
+  "checkpoint": "dde9f72aada6974d626813c41b12f402f71309a0",
+  "complete_owner_qualified": false,
+  "installed_execution_seeds_changed": false,
+  "manual_acceptance": "separate subsequent step",
+  "normal_cupidbuild_actions": 449,
+  "normal_python_coordinators": 3,
+  "recipe": {
+    "sha256": "79f140f43b41b9069a9db57c122f743e873f74fa0372b775a9313342bae5521b",
+    "size": 4788
+  },
+  "schema": "cupid.windows-fullpath-storage.v1",
+  "scope": "Windows full-path output allocation, checked adapter contracts and unchanged normal OS products.",
+  "source_application": {
+    "files": {
+      "tests/test_windows_utf8_checked.py": {
+        "after": {
+          "sha256": "bb5c1e840ee9b7f4b2615ae4589157a7fdb94e661154d7b35f33bdb3ff88af54",
+          "size": 12955
+        },
+        "before": {
+          "sha256": "15f5f285713638d038e448de0347f57eb5721346bd0c8dfa1e6d9b2d926bd091",
+          "size": 12691
+        }
+      },
+      "toolchain/hosted/i386-windows/windows_utf8.cc": {
+        "after": {
+          "sha256": "e4bc69f37422bde4350163f2c8906b7f7505ac5433ebf390d96f598908451b50",
+          "size": 11701
+        },
+        "before": {
+          "sha256": "9dd8d79c1cd796f8fa71226d4f5ef1009d94a3b5121c5456794713d281a4487d",
+          "size": 11700
+        }
+      },
+      "toolchain/tests/windows_utf8_contract.cc": {
+        "after": {
+          "sha256": "c4a3061fb812d7a4243fb8ef1678db3a03f1e901acbedc626027f3d4cafbe8f3",
+          "size": 11741
+        },
+        "before": {
+          "sha256": "18dc42abc6ad8b2fc2d14d09bc9095065b072cc85a751e1f9111a538afaf8b19",
+          "size": 10216
+        }
+      }
+    },
+    "head": "dde9f72aada6974d626813c41b12f402f71309a0",
+    "private_acceptance": {
+      "sha256": "9172ad49dccbf7e4c576d6bd0d7e4c7c17d78cd0c623df0b79c22600a8db1272",
+      "size": 19527
+    },
+    "recipe": {
+      "sha256": "c0d5a2eee844711e8ce50736beb782667795cc2de71154a448f97ccf191cbe5a",
+      "size": 3428
+    },
+    "status": "applied-source-verification-pending",
+    "user_checkout_head": "f2c924627b339bca7f0cb36fe0a8da33ea86fcfe",
+    "user_checkout_status": " M .gitignore\n M Makefile\n M cupidos-txt/01SHELL.CTXT\n M cupidos-txt/12HOLYC-CUPIDC.CTXT\n M drivers/keyboard.h\n M drivers/rtc.c\n M tests/e1000.pcap\n M tests/rtl8139.pcap\n M tests/test_build_graph_audit.py\n M tests/test_cupidc_kernel_compile.py\n M toolchain/tests/cupidc_pp_active_cases.inc\n M tools/build_graph_audit.py\n M tools/cupidc_kernel_compile.py\n?? .agents/\n?? .worktrees/\n?? TempleOS/\n?? cupidc_frontend.plist\n?? cupidc_frontend_contract.plist\n?? cupidc_ir.plist\n?? cupidc_ir_contract.plist\n?? cupidc_main.plist\n?? cupidc_object_contract.plist\n?? cutoff\n?? docs/bootstrap/BOOTSTRAP-COMPLETION-ASSESSMENT.md\n?? hosted_i386_runtime_contract.plist\n?? toolchain/cupidc_emit.plist\n?? toolchain/cupidc_ir.plist\n?? toolchain/cupidc_object_contract.plist\n"
+  },
+  "status": "pass"
+}

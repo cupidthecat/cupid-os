@@ -1,0 +1,354 @@
+# Native image input discovery
+
+## Complete-owner capacity follow-up, 2026-10-11
+
+The [fresh Windows replay](NATIVE-OWNER-CAPACITY-FOLLOWUP.md) passes all four
+flat calls and both distinct-parent drive calls. Both distinct-parent UNC
+callers still time out at sixty seconds. Native diagnosis attributes
+the metadata queries. The tested replacement APIs either reject UNC queries
+or take longer. Complete
+input ownership and publication remain unqualified.
+
+## Windows full-path storage manual acceptance, 2026-10-11
+
+The [OS manual acceptance](FULLPATH-STORAGE-MANUAL.md) passes both complete
+host builds and normal-root verification, including six strict four-CPU boots.
+The manual has 84,889 bytes and the raw kernel 9,314,136 bytes. The
+allocation component retains its accepted tests and source bytes. Its private
+capacity measurements do not qualify complete native input ownership or
+publication.
+
+## Windows full-path allocation follow-up, 2026-10-11
+
+The [checked Windows adapter](NATIVE-FULLPATH-STORAGE.md) now allocates its
+full-path output without an initial clear. Conversion, allocation failures,
+API errors and cleanup pass their dirty-storage contracts on both hosts.
+This does not change retained metadata, path bindings or payload custody.
+The private complete owner retains its unresolved UNC deadline and stays
+outside normal image discovery and publication.
+
+## Initial leaf metadata manual acceptance, 2026-10-11
+
+The [OS manual acceptance](KIND-METADATA-MANUAL.md) passes both complete
+host builds and normal-root verification, including all six strict SMP boots.
+The manual has 83,721 bytes and the raw kernel 9,312,968 bytes. Complete
+native input and publication qualification remain open. Held component replay
+keeps its recorded source, manual and policy checkpoint.
+
+## Initial leaf metadata reuse follow-up, 2026-10-11
+
+The held [initial leaf metadata reuse](NATIVE-KIND-METADATA.md) preserves this
+component's validation and custody rules. Both complete repository replays pass
+all 3,630 existing outcomes, 99 strict checks, 23 whole object pairs and 152
+altered-evidence controls. The public header and API signatures retain their
+accepted bytes. Complete input ownership and publication remain open; the
+private complete owner is excluded from the held source cohort.
+
+## Source selection group manual acceptance, 2026-10-11
+
+The [OS manual acceptance](SOURCE-SELECTION-GROUP-MANUAL.md) passes both complete
+host builds and normal-root verification, including all six strict SMP boots.
+The manual has 82,330 bytes and the raw kernel 9,311,576 bytes. Complete
+native input and publication qualification remain open. Held component replay
+keeps its recorded source, manual and policy checkpoint.
+
+## Source selection group follow-up, 2026-10-11
+
+The held [source selection observation group](NATIVE-SOURCE-SELECTION-GROUP.md)
+preserves this component and all 3,438 preceding API outcomes. Both complete
+repository replays add 192 cases, pass 99 strict checks and preserve 23 whole
+object pairs. Independent review and 152 rejection controls pass. Temporary
+selection observers reject publication borrowing, and complete input custody
+stays with the retained owner. Complete owner and publication acceptance remain
+open; the private owner implementation is excluded from this held patch.
+
+## Original file-request group manual acceptance, 2026-10-11
+
+The [OS manual acceptance](FILE-REQUEST-GROUP-MANUAL.md) passes both complete
+host builds and normal-root verification, including all six strict SMP boots.
+The manual has 80,111 bytes and the raw kernel 9,309,356 bytes. Complete
+native input and publication qualification remain open. Held component replay
+keeps its recorded source, manual and policy checkpoint.
+
+## Original-request group follow-up, 2026-10-11
+
+The held [original file-request binding group](NATIVE-FILE-REQUEST-GROUP.md)
+retains this component and all 3,228 preceding API outcomes. Both complete
+repository replays add 210 cases, pass 95 strict checks and preserve 22 whole
+object pairs. Independent review and one hundred rejection controls pass.
+Complete root and payload validation remains outside the metadata group.
+The separate complete owner still times out on the Cupid-built UNC caller;
+normal image publication remains Python-owned.
+
+## Path observation group manual acceptance, 2026-10-11
+
+The current [OS manual acceptance](PATH-OBSERVATION-GROUP-MANUAL.md) passes both
+complete host builds and normal-root verification, including all six strict
+SMP boots. The manual has 77,802 bytes and the raw kernel 9,307,048 bytes.
+Complete native input ownership remains unqualified on Windows UNC paths;
+normal image publication still uses Python. Held component replay keeps its
+recorded source, manual and policy checkpoint.
+
+## Path observation group follow-up, 2026-10-11
+
+The held [path observation group](NATIVE-PATH-OBSERVATION-GROUP.md) supplies serialized ordinary path capture with complete validation before and after the group. It preserves root metadata, immediate-parent and fresh no-follow leaf checks, provisional kinds and permanent failure. Both complete repository replays pass 168 new cases and all 3,060 preceding outcomes, with 91 strict checks and 21 whole object pairs. Independent whole-product and runtime review passes; sixty altered-evidence controls reject.
+
+The separate complete owner preserves copied options, both views, original-request checks and payload capture, but both UNC callers still exceed sixty seconds. A fresh 512-input query diagnosis reduces constructor directory stats from 13,971 to 5,771 and directory child opens from 4,666 to 563. Remaining temporary selection and original-request validation need further work. Normal image publication remains Python-owned.
+
+## Retained stream group manual acceptance, 2026-10-11
+
+The preceding [OS manual acceptance](RETAINED-STREAM-GROUP-MANUAL.md) passes
+paired builds, complete product comparison and six strict SMP boots. The
+manual has 75,963 bytes; the raw kernel has 9,305,208 bytes. Native input
+discovery remains held and unqualified on Windows UNC paths. The normal
+image coordinator still uses Python.
+
+## Group capture follow-up, 2026-10-11
+
+The held [retained file stream group](NATIVE-RETAINED-STREAM-GROUP.md) brackets
+serialized payload capture with complete observer validation and keeps every
+member's immediate parent, leaf, metadata and digest checks. Both complete
+repository replays preserve all 2,916 preceding outcomes and add 144 cases.
+Whole-product and runtime review passes, including forty verifier rejection
+controls. The accepted patch excludes the complete input-discovery module.
+
+A fresh six-call owner probe captures 4,096 distinct flat present stages as one
+group. Both Linux and both Windows drive callers pass. Both Windows UNC callers
+exceed sixty seconds after construction and the first view; their recorded
+phases still spend most of that bound before capture completes. The fixture
+uses dummy required files rather than a qualified release manifest. These
+results remain diagnostic evidence. Complete discovery, physical-root ownership
+and normal publication still need acceptance.
+
+## Shared selection follow-up, 2026-10-10
+
+The current held [selection and binding packet](NATIVE-SOURCE-SELECTION.md)
+supplies temporary selectors that retain the original parent and leaf but
+permanently reject publication borrowing. Complete observers retain custody.
+Captured parent/file comparisons and fresh original-request checks add no
+observations. Both complete repository replays preserve all 862 new API calls
+and 2,054 preceding outcomes. Independent whole-product, stream and runtime
+review passes, including twenty verifier rejection controls.
+
+The separate complete input owner now passes thirty Linux capacity calls and
+222 deterministic owner-allocation failure checks across both hosts. Windows
+remains unqualified: both final 4,096-input UNC phase processes time out at
+sixty seconds. The combined shared-API patch excludes this owner. Full image
+discovery, physical-root interning and publication therefore remain open.
+
+The earlier [source selection manual acceptance](SOURCE-SELECTION-MANUAL.md)
+installs the 74,594-byte manual and 9,303,840-byte raw kernel after paired and
+normal-root builds, whole-product checks and six strict boots. Source APIs
+remain held, and full image discovery and publication remain open.
+
+## Image-stage compatibility, 2026-10-10
+
+The separate [image-stage owner](NATIVE-SOURCE-STAGE.md) supplies the normal
+command's complete missing-path predicate without changing this optional
+owner. Its 312 new calls and both complete repository replays pass. Full
+discovery, physical-root interning and present-stage capacity remain open.
+
+## Optional source-file follow-up, 2026-10-10
+
+The later [optional source-file owner](NATIVE-SOURCE-OPTIONAL.md) retains
+nearest-existing parents and complete missing suffixes. Its 382 new contracts
+and both full repository replays pass while retaining every preceding API
+and legacy result. Its separate source-validation API preserves required-file
+metadata checks and captured-membership rejection. Complete Python discovery
+compatibility and native image integration remain open. The historical
+acceptance below retains its original checkpoint and guards.
+
+## Current integration boundary, 2026-10-10
+
+The shared [hosted heap](HOSTED-HEAP.md) is now normal source at `1d852023`.
+Current tests cover both hosts and the normal Windows UTF-8/long-path profile;
+both complete qualifications pass for the exact 99-input source cohort, with
+replacement-tool consumers and seed adoption complete. Both private host
+images and the normal root pass their full builds and strict boots. Normal
+image publication still uses Python. The discovery, option and quota extensions
+described below remain private implementations. Their `cp7` products are absent
+from the current linked worktree and cannot establish current integration.
+
+The current [argument owner](NATIVE-IMAGE-ARGUMENT-OWNER.md),
+[retained observer prerequisites](NATIVE-RETAINED-OBSERVER.md) and
+[observer-path extension](NATIVE-OBSERVER-PATHS.md) have held patches and repository
+replays. Four callers complete all 4,096 distinct present and missing flat/nested
+inputs under the original bounds. Current APIs supply quotas, retained streaming,
+captured identities, first absences, ordinary UNC roots and Unicode/long directory
+resolution. The [source spelling component](NATIVE-SOURCE-PATHS.md) now passes
+354 calls covering actual Python spellings and useful API failures through four
+native/Cupid callers. It normalizes lexical paths before aliases are resolved
+and retains an unapplied patch and repository replay. The later required-file
+owner supplies regular-file selection. The later optional owner supplies
+nearest-existing-parent and missing-suffix retention. The image-stage owner
+separately preserves the normal command's full-path missing rules. Complete
+discovery, physical-root interning and present-stage capacity still need
+integrated acceptance.
+
+The [source observer profile](NATIVE-SOURCE-OBSERVER.md) also has a direct held
+patch and complete paired replays. It retains the POSIX colon/backslash names
+accepted by the original image command. All 564 new calls and original observer
+selections pass; every complete checked replay product equals its original.
+Original-request binding and physical selection remain outside this profile.
+
+The [held source-root constructor](NATIVE-SOURCE-ROOT.md) now owns an original
+absolute directory request and physical root through validation and borrowed
+publication. Its 176 new calls, all preceding selections and both complete
+replays pass. The [required source-file owner](NATIVE-SOURCE-FILE.md) now retains
+each original absolute parent request and regular leaf. Its 232 new contracts
+and both repository replays pass. The full selection preserves all 1,360 current
+API outcomes, every original legacy/alias result and all 35 whole checked objects
+and eighteen programs. The later optional owner passes its complete paired
+replays and is documented in the [accepted OS manual](SOURCE-OWNER-MANUAL.md).
+The image-stage owner separately supplies the command's missing-path
+semantics. Physical-root interning, distinct present-stage capacity and
+the complete owner below remain open.
+
+The private source at `C:/Users/admin/cp7/input-discovery-source4` owns the
+path strings and read-only observers needed by an interpreted image request.
+Its Linux copy is `/var/tmp/input-discovery-source4`. This follows the
+[native option owner](NATIVE-IMAGE-OPTIONS.md) and the retained
+[UNC observer](OBSERVER-UNC-ROOTS.md). Normal image publication still uses Python.
+
+## Retained selection and lifetime
+
+The host path selector normalizes the working-root/request spelling, resolves
+existing parent aliases and retains the physical directory before closing the
+resolution handle. Required files must exist and be ordinary regular files.
+Optional missing paths retain the first absent component beneath the nearest
+existing parent. Directory selection retains the directory itself. Linked and
+special file leaves fail. Existing parent aliases remain accepted.
+
+Selection owns its physical root, relative logical path and absolute file path.
+Revalidation checks all ordinary metadata, streamed payload and absence
+observations, then reopens the original parent spelling and compares its
+directory identity. The shared directory resolver now returns ordinary UNC
+physical names as well as drive names. No hosted runtime import is added.
+
+Discovery owns the working-root spelling, requested and physical input paths,
+stage destinations and image spelling. It observes the required seed-manifest,
+bootloader and kernel paths plus optional stages. Files beneath the primary
+physical root use that observer; external roots are interned by retained
+directory identity. Exact repeated requests reuse their observations. Every
+original path binding is checked again during revalidation. A failed check
+invalidates later views. Partial construction closes every owned root slot.
+
+The retained file-identity comparison reads only cached file observations after
+ordinary revalidation. It cannot discover an unobserved leaf or authorize it.
+Invalid arguments, unretained paths and changed observations fail and poison
+the supplied observers. A supplied result is cleared on failure. The caller
+must close any transaction borrowing discovery's observers before closing
+discovery itself.
+
+## Actual builds and runtime contracts
+
+The first complete discovery selection executes 128 methods and 188 calls
+through four callers, with twelve platform skips. Its accepted record is
+`input-discovery-independent2/closed.json` under `C:/Users/admin/cp7`.
+The subsequent fixture adds five direct file-identity methods while preserving
+every implementation byte. Fresh native and Cupid builds pass all forty methods
+per caller: 160 selections, 148 executions, twelve skips and 236 actual calls.
+Windows executes sixty calls per caller; Linux executes fifty-eight. Forty-eight
+calls exercise the direct comparison boundary.
+
+Actual cases cover copied argument lifetimes, primary descendants, three
+external required roots, shared external parents, duplicate sources, parent
+aliases, required hardlinks, long Unicode paths, real drive/UNC/server aliases,
+missing ancestors, useful file/directory/link/FIFO rejections and cleanup.
+Held processes check original parent and working-root rebinding, metadata drift,
+same-size streamed edits with restored timestamps and first-absence appearance.
+All 4,096 stage rows survive released option/argv storage. That case repeats one
+source file; it does not prove 4,096 distinct retained observations. Sixty-four
+external roots pass, and a sixty-fifth external root rejects cleanly. Help does
+not observe an unavailable working root. Large sector geometries are retained
+without creating or publishing a large image.
+
+Both checked builds use the Cupid compiler from the complete qualified normal
+99-input source preparation and the existing installed seed helper tools.
+Two compile workers, original process bounds and all nine forbidden conventional
+producer settings remain. Actual i386 objects and ELF/PE import profiles are
+validated. Linux runtime calls keep sixty seconds and 32 MiB. Native builds use
+Clang only as the separately recorded comparison path.
+
+Independent evidence is `input-discovery-independent4/closed.json`; its outer
+receipt is `input-discovery-independent4-record.json`. It passes in 30.282
+seconds and rereads all 206 source/support controls, every command/result,
+complete objects, actual compiler copies, original preparation and parent tools.
+Native/Cupid complete results agree on each host after replacing only each
+fixture's products-root spelling. Five whole checked object pairs agree:
+
+| Object | Bytes | SHA-256 |
+| --- | ---: | --- |
+| path_encoding | 10,000 | `34ab4aeaa38aed335ac99ac3a3deccfa27e9c6ac70de3dfb8f898ec34cf03192` |
+| cupidbuild_disk_stage_arguments | 5,932 | `825fc3800386166cf0df354a725149f8ff3a011ecdd477f0741dea06fd3371f5` |
+| cupidbuild_disk_image_options | 19,736 | `28b73d656d6e6bb48361588e9875cad0884562ba964b3bbfe0acd722da31bdfd` |
+| cupidbuild_disk_input_discovery | 15,340 | `930b7ccac1b4d7b63e7cab7105970e54f03c97427ee0c47c1b82c3894b50a372` |
+| disk-input-discovery-contract | 21,220 | `6f7507b06dd4aa35de3d2b1cee07e84339932eb31b3d74005a59f0c0ffad640e` |
+
+The 13,002-byte discovery implementation has SHA-256
+`c34a324bc1f5209fb0250fd2b33c62127ff43ba5e6be8a398e722460ff1c8b34`.
+Its source-controls record measures 179,465 bytes, SHA-256
+`98e72d9e239606824f2a5924e715e7d5839299bec75c7952b699fbe52041d921`.
+
+The changed host also passes all 52 ordinary-root and 48 Windows UNC regression
+executions, for 106 actual calls and four ordinary platform skips. Those fresh
+checked builds retain every non-fixture object byte from the discovery builds.
+Their fixtures and sixty-second/32-MiB profiles remain unchanged. The independent
+record checks all six regression selections and their complete actual results.
+
+## Retained failures and remaining work
+
+The [distinct-input follow-up](../adr/0460-retain-distinct-image-input-capacity.md)
+now retains explicit observer quotas, streams already retained file records and
+validates the complete construction before exposing a view. It is held separately
+in `input-discovery-source7` and its paired Linux copy. All four builders and both
+native 64-method selections pass, including 4,096 distinct present/missing/nested
+inputs. All 100 original ordinary/UNC observer regression executions and 106
+calls also pass. Deterministic construction hooks prove rejection of kernel
+metadata drift and original working-root/selected-parent rebinding before return.
+
+Source seven's checked selections remain preserved failures: Windows has four
+capacity allocation failures, and Linux has four original sixty-second failures
+with 32 MiB. The [hosted heap follow-up](HOSTED-HEAP.md) isolates Windows address
+placement and Linux's quadratic allocated-block search, then changes only the
+shared runtime in private source nine. All four complete 64-method selections
+and legacy observer selections pass through guarded cohort ten. It retains every
+original runtime deadline and Linux memory bound and enforces all nine checked
+host-producer sentinels. Paired independent review accepts all 242 executions
+and 410 discovery calls, five complete object pairs, and all 100 legacy observer
+executions with 106 calls. It rereads 206 controls and confirms that every checked
+object other than the runtime retains its source-seven bytes on each host.
+Named-commit source qualification and normal command integration remain required.
+The preceding complete 236-call acceptance and every later failed selection
+stay preserved.
+
+The first fixtures spell the WAD option incorrectly and match a UNC kind against
+the word "missing" in the test directory name. A second fixture assumes the
+wrong WAD destination. Corrections use `--wads`, explicit kind expectations and
+the original `_wad_dest` oracle. All implementation and C contract bytes remain
+unchanged across those corrections. The later direct-identity extension changes
+only the two contract fixtures. Original failed calls remain retained.
+
+The first independent checker assumes forty-five Linux calls where the actual
+selection has forty-six. Its successor checks the measured complete multiplicity
+and all observer regressions. The expanded checker initially retains old
+artifact-directory labels. Correcting those locations preserves every source,
+profile, method, result and whole-object predicate. Both failures remain held.
+
+Discovery currently keeps the existing 8,191-byte path, 1,023-byte component,
+observer-entry and transaction-input bounds. The strict POSIX name profile also
+needs review against the complete original CLI pathname surface. Input discovery
+does not validate the selected seed release, grant source authority, freeze
+external required inputs, prepare output parents, reject output/input aliases or
+publish an image. The image request is an owned spelling only.
+
+Full command integration must retain the complete paired seed trust unit,
+external required boot/kernel inputs, original path observations and prepared
+output through guarded publication. It must preserve ordinary parent aliases,
+input aliases, optional missing paths and accepted large image geometries.
+Unique-input capacity and complete CLI diagnostics remain acceptance work.
+Source-plan integration must capture every new source and decimal table, then
+pass complete producer qualification and normal OS/SDK/public consumers before
+recipe adoption. No coordinator or ownership count changes through this private
+record. The 99 normal inputs still equal committed `acbbd834`; fifteen installed
+seed files retain their parent identities. TempleOS stays read-only and excluded.

@@ -1,8 +1,8 @@
 # Shell Commands
 
-cupid-os provides shell commands through a mix of built-in functions and auto-discovered CupidC programs in `/bin/` and `/home/bin/`. The shell features command history (arrow up/down), context-aware tab completion for commands and paths, current working directory tracking, prompt display showing the CWD, pipes, redirects, and ANSI terminal color support.
+cupid-os shell commands come from built-in functions and discovered CupidC programs in `/bin/` and `/home/bin/`. The shell supports command history, context-aware completion for commands and paths, current-directory tracking, pipes, redirects, and ANSI terminal colors.
 
-Commands marked with _(CupidC)_ are user programs in `/bin/` that are JIT-compiled when invoked. See [User Programs](User-Programs) for how to write your own.
+Commands marked with _(CupidC)_ are programs in `/bin/` that are JIT-compiled when invoked. See [User Programs](User-Programs) for authoring instructions.
 
 ---
 
@@ -112,6 +112,21 @@ Color values: 0=Black, 1=Blue, 2=Green, 3=Cyan, 4=Red, 5=Magenta, 6=Brown, 7=Lig
 
 ### Debug Commands
 
+`dis FILE` lists an ELF binary or compiles a `.cc` source listing. Saved raw
+images require an explicit mode and origin, or the map written by CupidASM:
+
+```text
+dis --raw --mode 16 --base 0x7c00 boot.bin
+dis --raw --range-map boot.map --require-known boot.bin
+```
+
+The map supplies the origin and code16, code32, or data boundaries. Both
+`cupid.raw-map.v1` and `v2` are accepted. Its recorded size must match the
+image. `--require-known` rejects unknown, invalid, or truncated code before
+printing a listing; declared data remains `db` rows. Paths resolve against
+the current directory and use unquoted tokens. Mode/base options and a map
+cannot be combined. `exec -d FILE` keeps its ELF or `.cc` form.
+
 | Command | Usage | Description |
 |---------|-------|-------------|
 | `memdump` | `memdump <hex_addr> [length]` | Hex + ASCII dump of memory (default 64 bytes, max 512) _(CupidC)_ |
@@ -207,10 +222,10 @@ jobs -l                 # List with PIDs
 ```
 
 ### Tab Completion
-- Type a partial command name + Tab -> completes built-ins and discovered commands from `/bin` and `/home/bin`
-- Type a command followed by a path prefix + Tab -> completes files/directories relative to CWD or absolute paths
-- Directory prefixes such as `cupidasm /demos/` list matching entries and keep the editable prefix intact
-- Multiple matches -> lists all possibilities without consuming the current command line
+- Press Tab after a partial command name to complete built-ins and discovered commands from `/bin` and `/home/bin`.
+- Press Tab after a path prefix to complete files and directories relative to the current directory or an absolute path.
+- Directory prefixes such as `cupidasm /demos/` list matching entries and keep the editable prefix intact.
+- When several entries match, the shell lists them without consuming the current command line.
 
 ### Command History
 - **Up arrow** - Previous command
@@ -269,8 +284,8 @@ REPL notes:
 ```
 
 - Reset persistent REPL state with `reset`.
-- Forward-call patches now stay in the long-lived REPL compiler state, so a
-  later function definition can satisfy earlier REPL-defined callers.
+- Forward-call patches remain in the long-lived REPL compiler state, so a later
+  function definition can satisfy earlier REPL-defined callers.
 
 ---
 

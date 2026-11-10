@@ -1,6 +1,6 @@
 # Debugging & Memory Safety
 
-cupid-os provides extensive debugging facilities through serial logging, memory safety checks, and introspection commands.
+cupid-os provides serial logging, memory safety checks, and introspection commands for debugging the kernel.
 
 ---
 
@@ -25,6 +25,19 @@ qemu-system-i386 -serial stdio ...
 ```
 
 This prints all kernel debug output to your host terminal.
+
+### Serial record ownership
+
+After the kernel lock is initialized, `serial_write_string` holds it for the
+complete string, and `serial_write_char` holds it for the character and any
+CRLF expansion. `serial_printf` and `klog` retain their formatted-record
+ownership. Separate calls can still have another writer between them.
+
+Fatal diagnostics use `serial_write_string_emergency` or
+`serial_write_char_emergency` to bypass that lock. Both panic entry points
+emit their literal header before console callbacks. Emergency bytes may
+interleave with other writers and still wait for UART readiness; formatted
+panic dumps retain their existing lock requirement.
 
 ---
 
@@ -74,7 +87,7 @@ The kernel maintains a circular log buffer in memory. Use `logdump` to view rece
 
 ## Memory Safety
 
-cupid-os implements multiple layers of memory protection to catch bugs early.
+cupid-os checks heap and stack metadata to catch memory corruption near its source.
 
 ### Heap Canaries
 
@@ -90,7 +103,7 @@ Every allocation from `kmalloc()` is wrapped with canary values:
 - **Head canary**: `0xDEADBEEF` - placed before user data
 - **Tail canary**: `0xBEEFDEAD` - placed after user data
 - Checked on every `kfree()` call
-- Buffer overflows and underflows corrupt canaries -> detected and reported
+- A corrupt canary indicates an out-of-bounds write before or after the buffer.
 
 ### Free-Memory Poisoning
 
@@ -179,7 +192,7 @@ Every process stack has a canary at the bottom:
 |-------|----------|---------|
 | `0xDEADC0DE` | Bottom of stack | Detect stack overflow |
 
-Checked on every context switch. If the canary is corrupted -> **kernel panic** identifying the process.
+The scheduler checks the canary on every context switch. A corrupted canary causes a kernel panic that identifies the process.
 
 ---
 
@@ -266,7 +279,7 @@ KASSERT(condition, "message");
 KASSERT(ptr != NULL, "Null pointer in process_create");
 ```
 
-If the condition is false -> kernel panic with file, line, and message.
+If the condition is false, the kernel panics with the file, line, and message.
 
 ---
 

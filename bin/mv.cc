@@ -1,31 +1,46 @@
-//help: Move or rename files
-//help: Usage: mv <source> <dest>
-//help: If <dest> is a directory, moves the file into it.
-//help: Supports both relative and absolute paths.
-//help: Examples:
-//help:   mv old.txt new.txt
-//help:   mv report.txt /tmp/
+// help: Move or rename files
+// help: Usage: mv <source> <dest>
+// help: If <dest> is a directory, moves the file into it.
+// help: Supports both relative and absolute paths.
+// help: Examples:
+// help:   mv old.txt new.txt
+// help:   mv report.txt /tmp/
 
 void resolve_path(char *out, char *path) {
     int i = 0;
     if (path[0] == '/') {
-        while (path[i]) { out[i] = path[i]; i = i + 1; }
+        while (path[i]) {
+            out[i] = path[i];
+            i = i + 1;
+        }
         out[i] = 0;
         return;
     }
-    char *cwd = (char*)get_cwd();
+    char *cwd = (char *)get_cwd();
     int ci = 0;
-    while (cwd[ci]) { out[i] = cwd[ci]; i = i + 1; ci = ci + 1; }
-    if (i > 1) { out[i] = '/'; i = i + 1; }
+    while (cwd[ci]) {
+        out[i] = cwd[ci];
+        i = i + 1;
+        ci = ci + 1;
+    }
+    if (i > 1) {
+        out[i] = '/';
+        i = i + 1;
+    }
     int pi = 0;
-    while (path[pi]) { out[i] = path[pi]; i = i + 1; pi = pi + 1; }
+    while (path[pi]) {
+        out[i] = path[pi];
+        i = i + 1;
+        pi = pi + 1;
+    }
     out[i] = 0;
 }
 
 char *basename(char *path) {
     int i = strlen(path) - 1;
     while (i >= 0) {
-        if (path[i] == '/') return path + i + 1;
+        if (path[i] == '/')
+            return path + i + 1;
         i = i - 1;
     }
     return path;
@@ -34,15 +49,26 @@ char *basename(char *path) {
 void append_filename(char *dst, char *dir, char *fname) {
     int i = 0;
     int di = 0;
-    while (dir[di]) { dst[i] = dir[di]; i = i + 1; di = di + 1; }
-    if (i > 0 && dst[i - 1] != '/') { dst[i] = '/'; i = i + 1; }
+    while (dir[di]) {
+        dst[i] = dir[di];
+        i = i + 1;
+        di = di + 1;
+    }
+    if (i > 0 && dst[i - 1] != '/') {
+        dst[i] = '/';
+        i = i + 1;
+    }
     int fi = 0;
-    while (fname[fi]) { dst[i] = fname[fi]; i = i + 1; fi = fi + 1; }
+    while (fname[fi]) {
+        dst[i] = fname[fi];
+        i = i + 1;
+        fi = fi + 1;
+    }
     dst[i] = 0;
 }
 
 void main() {
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
     if (strlen(args) == 0) {
         println("Usage: mv <source> <dest>");
         return;
@@ -50,13 +76,23 @@ void main() {
     char src_arg[256];
     int ai = 0;
     int si = 0;
-    while (args[ai] == ' ') ai = ai + 1;
-    while (args[ai] && args[ai] != ' ') { src_arg[si] = args[ai]; si = si + 1; ai = ai + 1; }
+    while (args[ai] == ' ')
+        ai = ai + 1;
+    while (args[ai] && args[ai] != ' ') {
+        src_arg[si] = args[ai];
+        si = si + 1;
+        ai = ai + 1;
+    }
     src_arg[si] = 0;
-    while (args[ai] == ' ') ai = ai + 1;
+    while (args[ai] == ' ')
+        ai = ai + 1;
     char dst_arg[256];
     int di = 0;
-    while (args[ai] && args[ai] != ' ') { dst_arg[di] = args[ai]; di = di + 1; ai = ai + 1; }
+    while (args[ai] && args[ai] != ' ') {
+        dst_arg[di] = args[ai];
+        di = di + 1;
+        ai = ai + 1;
+    }
     dst_arg[di] = 0;
     if (strlen(src_arg) == 0 || strlen(dst_arg) == 0) {
         println("mv: missing operand");
@@ -74,7 +110,10 @@ void main() {
             char full_dst[256];
             append_filename(full_dst, abs_dst, fname);
             int ci = 0;
-            while (full_dst[ci]) { abs_dst[ci] = full_dst[ci]; ci = ci + 1; }
+            while (full_dst[ci]) {
+                abs_dst[ci] = full_dst[ci];
+                ci = ci + 1;
+            }
             abs_dst[ci] = 0;
         }
     }

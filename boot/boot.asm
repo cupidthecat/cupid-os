@@ -46,15 +46,13 @@ BOOT_DRIVE db 0
 ; MBR partition table at byte offset 446
 times 446-($-$$) db 0
 
-; Partition entry 1: FAT16, bootable, LBA 16384, 98304 sectors
-; (Kernel area expanded to LBA 5..16383 = 16379 sectors = ~8 MB,
-;  so bundled fonts + browser image fit alongside the rest of the
-;  kernel image without overflowing the reserved area.)
+; Partition entry 1: FAT16, bootable, LBA 20480, 98304 sectors
+; LBA 5..20479 gives the file-backed kernel just under 10 MiB.
 db 0x80
 db 0xFE, 0xFF, 0xFF
 db 0x06
 db 0xFE, 0xFF, 0xFF
-dd 16384
+dd 20480
 dd 98304
 
 ; Partition entries 2-4: empty
@@ -108,7 +106,7 @@ stage2_entry:
 
     ; Load kernel above 1MB (chunked LBA reads)
     mov dword [dest_high], KERNEL_OFFSET
-    mov word [sectors_left], 16379   ; LBA 5 through 16383
+    mov word [sectors_left], 20475   ; LBA 5 through 20479
 
 .read_loop:
     cmp word [sectors_left], 0
@@ -258,10 +256,8 @@ init_pm:
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    mov esp, 0xD00000           ; Boot stack top (2 MB stack from 0xB00000).
-                                ; Moved from 0xA00000 because kernel BSS now
-                                ; extends through 0x800000 (cc_pp_seen_files_storage
-                                ; sat at 0x7fc820..0x800820 spanning the guard).
+    mov esp, 0x1100000          ; Boot stack top (2 MiB from 0xF00000).
+                                ; The stack ends where CupidC's arena begins.
     mov ebp, esp
 
     ; Quick sanity: write 'P' to VGA text buffer (visible briefly)

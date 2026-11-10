@@ -1,0 +1,63 @@
+{
+  "artifacts": {
+    "digests_equal": false,
+    "first_digest": "fc3e626f85780e4973b57a010528e4e3e59d72c63c54cc3701e61936555bc960",
+    "hash_equality_gating": false,
+    "logical_artifact_count": 447,
+    "physical_paths_equal": false,
+    "second_digest": "38bd2192e3d973b8c5b03d04ea69ed4397769913931ef0127c8fe8fee0536c0d"
+  },
+  "gate": {
+    "failures": [],
+    "passed": true
+  },
+  "hosts": [
+    {
+      "machine": "AMD64",
+      "python_version": "3.14.3",
+      "release": "10",
+      "system": "Windows"
+    },
+    {
+      "distribution": {
+        "id": "ubuntu",
+        "pretty_name": "Ubuntu 24.04.2 LTS",
+        "version_id": "24.04"
+      },
+      "machine": "x86_64",
+      "python_version": "3.12.3",
+      "release": "6.6.87.2-microsoft-standard-WSL2",
+      "system": "Linux",
+      "wsl_distribution": "Ubuntu"
+    }
+  ],
+  "quality": {
+    "disk_image_bytes": {
+      "delta": 0,
+      "first": 209715200,
+      "percent_from_first": 0.0,
+      "second": 209715200
+    },
+    "kernel_binary_bytes": {
+      "delta": -307830,
+      "first": 6078269,
+      "percent_from_first": -5.064435,
+      "second": 5770439
+    },
+    "kernel_elf_bytes": {
+      "delta": -304980,
+      "first": 6252832,
+      "percent_from_first": -4.87747,
+      "second": 5947852
+    },
+    "kernel_text_bytes": {
+      "delta": -317436,
+      "first": 1396388,
+      "percent_from_first": -22.73265,
+      "second": 1078952
+    }
+  },
+  "schema": "cupid.bootstrap-host-comparison.v1",
+  "source_revision": "1e079d1d466d9880d5fbf1541c92880fae7106a1",
+  "status": "pass"
+}

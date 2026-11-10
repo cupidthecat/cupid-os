@@ -1,7 +1,7 @@
-//help: Reboot the machine
-//help: Usage: reboot
-//help: Sends the reset command (0xFE) to the keyboard
-//help: controller to perform a hardware reboot.
+// help: Reboot the machine
+// help: Usage: reboot
+// help: Sends the reset command (0xFE) to the keyboard
+// help: controller to perform a hardware reboot.
 
 void main() {
     println("Syncing disk cache...");

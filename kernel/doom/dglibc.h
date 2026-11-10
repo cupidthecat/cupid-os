@@ -9,6 +9,7 @@ typedef struct DG_FILE DG_FILE;
 extern DG_FILE *dg_stdin;
 extern DG_FILE *dg_stdout;
 extern DG_FILE *dg_stderr;
+extern int dg_errno;
 
 /* heap */
 void *dg_malloc(uint32_t n);
@@ -45,15 +46,19 @@ void     dg_clearerr(DG_FILE *f);
 char    *dg_fgets(char *s, int n, DG_FILE *f);
 int      dg_fgetc(DG_FILE *f);
 int      dg_fputc(int c, DG_FILE *f);
+int      dg_fputs(const char *s, DG_FILE *f);
+int      dg_fflush(DG_FILE *f);
+int      dg_ferror(DG_FILE *f);
 int      dg_fprintf(DG_FILE *f, const char *fmt, ...);
+int      dg_vfprintf(DG_FILE *f, const char *fmt, void *va);
 int      dg_printf(const char *fmt, ...);
 int      dg_sprintf(char *s, const char *fmt, ...);
 int      dg_snprintf(char *s, uint32_t n, const char *fmt, ...);
 int      dg_vsnprintf(char *s, uint32_t n, const char *fmt, void *va);
 
 /* exit/abort */
-void dg_exit(int code);
-void dg_abort(void);
+void dg_exit(int code) __attribute__((noreturn));
+void dg_abort(void) __attribute__((noreturn));
 
 /* qsort */
 void dg_qsort(void *base, uint32_t n, uint32_t sz,
@@ -61,11 +66,12 @@ void dg_qsort(void *base, uint32_t n, uint32_t sz,
 
 /* setjmp/longjmp */
 typedef uint32_t dg_jmp_buf[6];
-int  dg_setjmp(dg_jmp_buf env);
-void dg_longjmp(dg_jmp_buf env, int val);
+int  dg_setjmp(dg_jmp_buf env) __attribute__((returns_twice));
+void dg_longjmp(dg_jmp_buf env, int val) __attribute__((noreturn));
 
 /* exit envelope (used by doom_main; landing slot for dg_exit longjmp) */
 void dg_arm_exit(dg_jmp_buf env);
+void dg_disarm_exit(void);
 
 /* Self-test entry - dispatched from CupidC bin/dglibc_test.cc */
 int  dglibc_test_main(void);

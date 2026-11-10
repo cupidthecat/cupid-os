@@ -11,6 +11,7 @@
 
 // FAT entry values
 #define FAT16_FREE         0x0000
+#define FAT16_RESERVED_MIN 0xFFF0
 #define FAT16_BAD_CLUSTER  0xFFF7
 #define FAT16_EOC_MIN      0xFFF8
 #define FAT16_EOC_MAX      0xFFFF

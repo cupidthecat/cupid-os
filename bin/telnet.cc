@@ -1,35 +1,35 @@
-//help: Interactive Telnet client.
-//help: Usage: telnet <host> [port]
-//help:   Default port is 23. Press Ctrl+] for the local telnet prompt.
+// help: Interactive Telnet client.
+// help: Usage: telnet <host> [port]
+// help:   Default port is 23. Press Ctrl+] for the local telnet prompt.
 
 enum {
     SOCK_TCP = 2,
     TCPS_ESTABLISHED = 4,
 
-    TEL_SE   = 240,
-    TEL_NOP  = 241,
-    TEL_DM   = 242,
-    TEL_BRK  = 243,
-    TEL_IP   = 244,
-    TEL_AO   = 245,
-    TEL_AYT  = 246,
-    TEL_EC   = 247,
-    TEL_EL   = 248,
-    TEL_GA   = 249,
-    TEL_SB   = 250,
+    TEL_SE = 240,
+    TEL_NOP = 241,
+    TEL_DM = 242,
+    TEL_BRK = 243,
+    TEL_IP = 244,
+    TEL_AO = 245,
+    TEL_AYT = 246,
+    TEL_EC = 247,
+    TEL_EL = 248,
+    TEL_GA = 249,
+    TEL_SB = 250,
     TEL_WILL = 251,
     TEL_WONT = 252,
-    TEL_DO   = 253,
+    TEL_DO = 253,
     TEL_DONT = 254,
-    TEL_IAC  = 255,
+    TEL_IAC = 255,
 
     OPT_BINARY = 0,
-    OPT_ECHO   = 1,
-    OPT_SGA    = 3,
-    OPT_TTYPE  = 24,
-    OPT_NAWS   = 31,
+    OPT_ECHO = 1,
+    OPT_SGA = 3,
+    OPT_TTYPE = 24,
+    OPT_NAWS = 31,
 
-    TTYPE_IS   = 0,
+    TTYPE_IS = 0,
     TTYPE_SEND = 1,
 
     RX_CAP = 1024,
@@ -51,13 +51,15 @@ int pending_cr = 0;
 
 int cstrlen(char *s) {
     int n = 0;
-    while (s[n]) n = n + 1;
+    while (s[n])
+        n = n + 1;
     return n;
 }
 
 int streq(char *a, char *b) {
     int i = 0;
-    while (a[i] && a[i] == b[i]) i = i + 1;
+    while (a[i] && a[i] == b[i])
+        i = i + 1;
     return a[i] == b[i];
 }
 
@@ -72,8 +74,10 @@ void cstrcpy_n(char *d, char *s, int max) {
 
 int next_token(char *s, int pos, char *out, int max) {
     int i = pos;
-    while (s[i] == ' ' || s[i] == '\t') i = i + 1;
-    if (s[i] == 0) return -1;
+    while (s[i] == ' ' || s[i] == '\t')
+        i = i + 1;
+    if (s[i] == 0)
+        return -1;
     int j = 0;
     while (s[i] && s[i] != ' ' && s[i] != '\t' && j < max - 1) {
         out[j] = s[i];
@@ -87,14 +91,18 @@ int next_token(char *s, int pos, char *out, int max) {
 int parse_port(char *s) {
     int i = 0;
     int v = 0;
-    if (!s || s[0] == 0) return -1;
+    if (!s || s[0] == 0)
+        return -1;
     while (s[i]) {
-        if (s[i] < '0' || s[i] > '9') return -1;
+        if (s[i] < '0' || s[i] > '9')
+            return -1;
         v = v * 10 + (s[i] - '0');
-        if (v > 65535) return -1;
+        if (v > 65535)
+            return -1;
         i = i + 1;
     }
-    if (v <= 0) return -1;
+    if (v <= 0)
+        return -1;
     return v;
 }
 
@@ -113,9 +121,12 @@ int send_all(char *buf, int len) {
     int sent = 0;
     while (sent < len) {
         int r = send(fd, buf + sent, len - sent);
-        if (r < 0) return -1;
-        if (r == 0) yield();
-        else sent = sent + r;
+        if (r < 0)
+            return -1;
+        if (r == 0)
+            yield();
+        else
+            sent = sent + r;
     }
     return 0;
 }
@@ -136,29 +147,38 @@ void send_iac_opt(int cmd, int opt) {
 }
 
 void request_local(int opt) {
-    if (local_opt[opt] || local_req[opt]) return;
+    if (local_opt[opt] || local_req[opt])
+        return;
     local_req[opt] = 1;
     send_iac_opt(TEL_WILL, opt);
 }
 
 void request_remote(int opt) {
-    if (remote_opt[opt] || remote_req[opt]) return;
+    if (remote_opt[opt] || remote_req[opt])
+        return;
     remote_req[opt] = 1;
     send_iac_opt(TEL_DO, opt);
 }
 
 int support_local(int opt) {
-    if (opt == OPT_BINARY) return 1;
-    if (opt == OPT_SGA) return 1;
-    if (opt == OPT_TTYPE) return 1;
-    if (opt == OPT_NAWS) return 1;
+    if (opt == OPT_BINARY)
+        return 1;
+    if (opt == OPT_SGA)
+        return 1;
+    if (opt == OPT_TTYPE)
+        return 1;
+    if (opt == OPT_NAWS)
+        return 1;
     return 0;
 }
 
 int support_remote(int opt) {
-    if (opt == OPT_BINARY) return 1;
-    if (opt == OPT_ECHO) return 1;
-    if (opt == OPT_SGA) return 1;
+    if (opt == OPT_BINARY)
+        return 1;
+    if (opt == OPT_ECHO)
+        return 1;
+    if (opt == OPT_SGA)
+        return 1;
     return 0;
 }
 
@@ -177,20 +197,28 @@ void send_naws() {
     int rows;
     char b[16];
     int p = 0;
-    if (!local_opt[OPT_NAWS]) return;
+    if (!local_opt[OPT_NAWS])
+        return;
     get_screen_size(&cols, &rows);
-    if (cols <= 0) cols = 80;
-    if (rows <= 0) rows = 24;
+    if (cols <= 0)
+        cols = 80;
+    if (rows <= 0)
+        rows = 24;
 
-    b[p] = TEL_IAC; p = p + 1;
-    b[p] = TEL_SB;  p = p + 1;
-    b[p] = OPT_NAWS; p = p + 1;
+    b[p] = TEL_IAC;
+    p = p + 1;
+    b[p] = TEL_SB;
+    p = p + 1;
+    b[p] = OPT_NAWS;
+    p = p + 1;
     p = sb_put(b, p, (cols >> 8) & 0xFF);
     p = sb_put(b, p, cols & 0xFF);
     p = sb_put(b, p, (rows >> 8) & 0xFF);
     p = sb_put(b, p, rows & 0xFF);
-    b[p] = TEL_IAC; p = p + 1;
-    b[p] = TEL_SE;  p = p + 1;
+    b[p] = TEL_IAC;
+    p = p + 1;
+    b[p] = TEL_SE;
+    p = p + 1;
     send_all(b, p);
 }
 
@@ -199,17 +227,24 @@ void send_ttype() {
     char *name = "CUPIDOS";
     int p = 0;
     int i = 0;
-    if (!local_opt[OPT_TTYPE]) return;
-    b[p] = TEL_IAC; p = p + 1;
-    b[p] = TEL_SB; p = p + 1;
-    b[p] = OPT_TTYPE; p = p + 1;
-    b[p] = TTYPE_IS; p = p + 1;
+    if (!local_opt[OPT_TTYPE])
+        return;
+    b[p] = TEL_IAC;
+    p = p + 1;
+    b[p] = TEL_SB;
+    p = p + 1;
+    b[p] = OPT_TTYPE;
+    p = p + 1;
+    b[p] = TTYPE_IS;
+    p = p + 1;
     while (name[i]) {
         p = sb_put(b, p, name[i] & 0xFF);
         i = i + 1;
     }
-    b[p] = TEL_IAC; p = p + 1;
-    b[p] = TEL_SE; p = p + 1;
+    b[p] = TEL_IAC;
+    p = p + 1;
+    b[p] = TEL_SE;
+    p = p + 1;
     send_all(b, p);
 }
 
@@ -230,7 +265,8 @@ void handle_do(int opt) {
             local_opt[opt] = 1;
             send_iac_opt(TEL_WILL, opt);
         }
-        if (opt == OPT_NAWS) send_naws();
+        if (opt == OPT_NAWS)
+            send_naws();
     } else {
         local_req[opt] = 0;
         send_iac_opt(TEL_WONT, opt);
@@ -304,23 +340,25 @@ void render_data(int c) {
 void handle_sb() {
     if (tel_sb_opt == OPT_TTYPE && sb_len >= 1) {
         int q = sb_buf[0] & 0xFF;
-        if (q == TTYPE_SEND) send_ttype();
+        if (q == TTYPE_SEND)
+            send_ttype();
     }
 }
 
 void parse_telnet_byte(int c) {
     c = c & 0xFF;
     if (tel_state == 0) {
-        if (c == TEL_IAC) tel_state = 1;
-        else render_data(c);
+        if (c == TEL_IAC)
+            tel_state = 1;
+        else
+            render_data(c);
         return;
     }
     if (tel_state == 1) {
         if (c == TEL_IAC) {
             render_data(TEL_IAC);
             tel_state = 0;
-        } else if (c == TEL_WILL || c == TEL_WONT ||
-                   c == TEL_DO || c == TEL_DONT) {
+        } else if (c == TEL_WILL || c == TEL_WONT || c == TEL_DO || c == TEL_DONT) {
             tel_cmd = c;
             tel_state = 2;
         } else if (c == TEL_SB) {
@@ -331,10 +369,14 @@ void parse_telnet_byte(int c) {
         return;
     }
     if (tel_state == 2) {
-        if (tel_cmd == TEL_DO) handle_do(c);
-        else if (tel_cmd == TEL_DONT) handle_dont(c);
-        else if (tel_cmd == TEL_WILL) handle_will(c);
-        else if (tel_cmd == TEL_WONT) handle_wont(c);
+        if (tel_cmd == TEL_DO)
+            handle_do(c);
+        else if (tel_cmd == TEL_DONT)
+            handle_dont(c);
+        else if (tel_cmd == TEL_WILL)
+            handle_will(c);
+        else if (tel_cmd == TEL_WONT)
+            handle_wont(c);
         tel_state = 0;
         return;
     }
@@ -407,13 +449,20 @@ void send_user_key(char *buf, int len) {
 
 void print_status() {
     print("connected, options: ");
-    if (remote_opt[OPT_ECHO]) print("remote-echo ");
-    if (remote_opt[OPT_SGA]) print("remote-sga ");
-    if (remote_opt[OPT_BINARY]) print("remote-binary ");
-    if (local_opt[OPT_SGA]) print("local-sga ");
-    if (local_opt[OPT_TTYPE]) print("ttype ");
-    if (local_opt[OPT_NAWS]) print("naws ");
-    if (local_opt[OPT_BINARY]) print("local-binary ");
+    if (remote_opt[OPT_ECHO])
+        print("remote-echo ");
+    if (remote_opt[OPT_SGA])
+        print("remote-sga ");
+    if (remote_opt[OPT_BINARY])
+        print("remote-binary ");
+    if (local_opt[OPT_SGA])
+        print("local-sga ");
+    if (local_opt[OPT_TTYPE])
+        print("ttype ");
+    if (local_opt[OPT_NAWS])
+        print("naws ");
+    if (local_opt[OPT_BINARY])
+        print("local-binary ");
     println("");
 }
 
@@ -421,23 +470,41 @@ int local_prompt() {
     char line[64];
     print("\ntelnet> ");
     int n = read_line(line, 64);
-    if (n < 0) return -1;
-    if (streq(line, "quit") || streq(line, "close")) return -1;
+    if (n < 0)
+        return -1;
+    if (streq(line, "quit") || streq(line, "close"))
+        return -1;
     if (streq(line, "status")) {
         print_status();
         return 0;
     }
-    if (streq(line, "send ayt")) { send_iac_cmd(TEL_AYT); return 0; }
-    if (streq(line, "send brk")) { send_iac_cmd(TEL_BRK); return 0; }
-    if (streq(line, "send ip"))  { send_iac_cmd(TEL_IP);  return 0; }
-    if (streq(line, "send ao"))  { send_iac_cmd(TEL_AO);  return 0; }
-    if (streq(line, "send nop")) { send_iac_cmd(TEL_NOP); return 0; }
+    if (streq(line, "send ayt")) {
+        send_iac_cmd(TEL_AYT);
+        return 0;
+    }
+    if (streq(line, "send brk")) {
+        send_iac_cmd(TEL_BRK);
+        return 0;
+    }
+    if (streq(line, "send ip")) {
+        send_iac_cmd(TEL_IP);
+        return 0;
+    }
+    if (streq(line, "send ao")) {
+        send_iac_cmd(TEL_AO);
+        return 0;
+    }
+    if (streq(line, "send nop")) {
+        send_iac_cmd(TEL_NOP);
+        return 0;
+    }
     println("commands: quit, close, status, send ayt, send brk, send ip, send ao, send nop");
     return 0;
 }
 
 int resolve_host(char *host, U32 *ip) {
-    if (ip_parse(host, ip) == 0) return 0;
+    if (ip_parse(host, ip) == 0)
+        return 0;
     return dns_resolve(host, ip);
 }
 
@@ -450,22 +517,27 @@ int io_loop() {
 
     while (1) {
         int avail = sock_avail(fd);
-        if (sock_state(fd) != TCPS_ESTABLISHED && avail <= 0) break;
+        if (sock_state(fd) != TCPS_ESTABLISHED && avail <= 0)
+            break;
 
         while (avail > 0) {
             int want = avail;
-            if (want > RX_CAP) want = RX_CAP;
+            if (want > RX_CAP)
+                want = RX_CAP;
             int n = recv(fd, rx, want);
-            if (n <= 0) return -1;
+            if (n <= 0)
+                return -1;
             parse_telnet(rx, n);
             avail = sock_avail(fd);
         }
 
         while (1) {
             int n = poll_key_vt(key);
-            if (n <= 0) break;
+            if (n <= 0)
+                break;
             if (n == 1 && (key[0] & 0xFF) == 29) {
-                if (local_prompt() < 0) return 0;
+                if (local_prompt() < 0)
+                    return 0;
             } else {
                 send_user_key(key, n);
             }
@@ -488,7 +560,7 @@ int io_loop() {
 }
 
 void main() {
-    char *raw = (char*)get_args();
+    char *raw = (char *)get_args();
     char host[256];
     char tok[256];
     int port = 23;

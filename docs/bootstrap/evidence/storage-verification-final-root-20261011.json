@@ -1,0 +1,40 @@
+{
+  "accepted_image": {
+    "sha256": "7bab2d2a8f5f647675bc4cb01a174c5a770ed6d1866cc822bc8b03c1f78fb45d",
+    "size": 209715200
+  },
+  "accepted_os_products_unchanged": 439,
+  "audit_regenerated_and_reproduced": true,
+  "expected_skips": 4,
+  "installed_seeds_unchanged": true,
+  "native_environment_correction_seconds": 53.79013949993532,
+  "normal_source_input_count": 99,
+  "original_environment_failure_preserved": true,
+  "originals_archive": {
+    "sha256": "7e15ccfb5a8a2fb0df3ec7bb0c7e0d07f68d15425a59357df77f5f1fdc4590da",
+    "size": 836638
+  },
+  "originals_uncompressed": {
+    "sha256": "5bf0f5ed9bb1bb634b94996a91b1a4c6ebf6c2b5b7b99b0d860cc209bbc20565",
+    "size": 8725099
+  },
+  "portable_tests": 155,
+  "producer_changes": {
+    "toolchain/artifact_size_policy.cc": {
+      "after": {
+        "sha256": "1c24676cff73eaf689d5c53bc8988c9d92a23e021ca10ccb24afecf3d126036e",
+        "size": 81164
+      },
+      "before": {
+        "sha256": "702b4ac437fc89297bc6291f06f5e2f704c80ffa21a4ef652a6b6b6e576ba7cb",
+        "size": 79937
+      }
+    }
+  },
+  "schema": "cupid.storage-verification-final-root-review.v1",
+  "seconds": 1494.5663353999844,
+  "seconds_are_sum_of_successful_commands": true,
+  "source_control_count": 2216,
+  "status": "pass",
+  "whole_repository_suite_claimed": false
+}

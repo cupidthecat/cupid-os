@@ -1,0 +1,73 @@
+#ifndef CUPID_TOOLCHAIN_CUPIDC_EMIT_H
+#define CUPID_TOOLCHAIN_CUPIDC_EMIT_H
+
+#include "cupidc_frontend.h"
+
+typedef enum {
+  CTOOL_C_EMIT_DIAG_INVALID_REQUEST = 0x0c000001u,
+  CTOOL_C_EMIT_DIAG_INVALID_UNIT = 0x0c000002u,
+  CTOOL_C_EMIT_DIAG_UNSUPPORTED = 0x0c000003u,
+  CTOOL_C_EMIT_DIAG_INITIALIZER = 0x0c000004u,
+  CTOOL_C_EMIT_DIAG_SYMBOL = 0x0c000005u,
+  CTOOL_C_EMIT_DIAG_RELOCATION = 0x0c000006u,
+  CTOOL_C_EMIT_DIAG_LIMIT = 0x0c000007u,
+  CTOOL_C_EMIT_DIAG_INTERNAL = 0x0c000008u,
+  CTOOL_C_EMIT_DIAG_SECTION = 0x0c000009u
+} ctool_c_emit_diag_code_t;
+
+ctool_status_t ctool_c_emit_object(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_buffer_t *output);
+
+/* The typed translation unit is borrowed and remains unchanged. The output
+ * must be empty. Success writes one deterministic i386 ELF relocatable
+ * object. A failure after argument validation restores the output, rewinds
+ * allocations made during the operation, and retains a structured
+ * diagnostic. The emitter lowers represented functions, including
+ * target-sized fixed local frames, stable slots for block-scope compound
+ * literals, automatic narrow character-array string initialization, runtime
+ * narrow string literals, one-byte, two-byte, or four-byte integer loads and
+ * stores, represented four-byte bit-field loads and plain assignments, and
+ * four-byte pointer values, through CupidC linear IR and the shared x86 model.
+ * Eight-byte integer constants, loads, conversions, and operation results use
+ * private frame snapshots. The emitter widens represented signed or unsigned
+ * integers, narrows wide values to represented integer lanes, and normalizes
+ * wide Boolean conversions from both words. An object pointer widens with a
+ * zero high word, and a wide integer converted to an object pointer keeps its
+ * low word. Function pointers do not use that path. A direct four-byte
+ * integer literal zero may form a null function pointer. Same-width
+ * signed-to-unsigned conversion and GNU wide-enum promotion preserve the
+ * snapshot bits. Scalar
+ * members of structure-result snapshots use the ordinary member address and
+ * typed load path. Structure copies retain nested union bytes. It also
+ * emits two-word addition, subtraction, multiplication, division, remainder,
+ * unary negate, complement, left and signed or unsigned right shifts, AND, OR,
+ * XOR, comparisons, logical operations, conditional selection, structured
+ * scalar conditions, and signed or unsigned switch dispatch. Wide division
+ * and remainder use a fixed 64-step restoring loop and fresh result
+ * snapshots. Runtime cases that C leaves undefined promise neither a trap nor
+ * a result. A wide switch duplicates the immutable snapshot handle while it
+ * compares full-width case values. Unary plus keeps its input snapshot. Calls
+ * preserve the i386 low word in EAX and high word in EDX, and matching returns
+ * restore the same register pair.
+ * Non-atomic `long double` values use twelve-byte snapshots and 80-bit x87
+ * loads and stores. Static-duration objects accept canonical x87 zero,
+ * subnormal, normal, infinity, and NaN payloads. Implicit or integer-constant
+ * positive zero occupies twelve zero-filled bytes in BSS.
+ * Floating-width conversions, unary signs, and the four arithmetic operators
+ * preserve one abstract value handle.
+ * All six long-double comparisons use `FUCOMIP ST0, ST1`, discard the
+ * surviving operand with `FSTP ST0`, and leave one normalized integer result
+ * with no x87 stack growth.
+ * Direct and indirect fixed, variadic, and unprototyped arguments occupy
+ * three cdecl words. Variadic reads advance twelve bytes, and functions return
+ * through x87 ST0 before callers spill the result into a fresh snapshot.
+ * Direct object and literal addresses use text `R_386_32` relocations,
+ * including linked objects first declared by a block extern. Block-static
+ * initializer references use the same relocation type against their local
+ * symbols.
+ * Block typedefs consume no frame storage and produce no target record.
+ * Direct calls use `R_386_PC32`. The emitter writes those functions beside
+ * static definitions in the same object. */
+
+#endif

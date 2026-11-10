@@ -1,6 +1,6 @@
-//help: CupidC Feature 2 demo - top-level statement execution (no mandatory main)
-//help: Usage: feature2_top_level
-//help: Verifies top-level code runs automatically and main() still runs after top-level.
+// help: CupidC Feature 2 demo - top-level statement execution (no mandatory main)
+// help: Usage: feature2_top_level
+// help: Verifies top-level code runs automatically and main() still runs after top-level.
 
 print("[feature2] top-level begin\n");
 

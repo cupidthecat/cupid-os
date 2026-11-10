@@ -1,8 +1,8 @@
 # Opt-in Swap in CupidOS
 
-CupidOS has a handle-based swap system for callers that want more
-logical memory than physical RAM holds. Swap is explicit - standard
-`kmalloc` stays untouched.
+CupidOS has a handle-based swap system for callers that need more logical
+memory than physical RAM can hold. Callers opt in to swap; standard `kmalloc`
+allocations are unaffected.
 
 ## Quick start
 
@@ -82,11 +82,10 @@ void main() {
 
 ## Why opt-in?
 
-Classic page-fault swap is architecturally hostile on a ring-0
-identity-mapped kernel - every C dereference would need to be
-page-fault-safe, including IRQ handlers. Opt-in handles deliver the
-same user-facing capability (logical > physical memory) while leaving
-the rest of the kernel untouched.
+Classic page-fault swap does not fit a ring-0, identity-mapped kernel without
+making every C dereference, including those in IRQ handlers, safe to fault.
+Explicit handles provide logical memory beyond physical RAM without changing
+ordinary kernel pointers.
 
 ## Testing
 

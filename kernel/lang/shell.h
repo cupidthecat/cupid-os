@@ -108,6 +108,17 @@ char shell_jit_program_pollchar(void);
 int shell_jit_program_start(const char *name);
 
 /**
+ * Mark that a JIT program with explicitly placed code/data regions is about
+ * to start.  Nested programs snapshot the regions owned by the current JIT
+ * program, which allows CupidC and CupidASM to use distinct fixed addresses.
+ */
+int shell_jit_program_start_regions(const char *name,
+                                    uint32_t code_address,
+                                    uint32_t code_bytes,
+                                    uint32_t data_address,
+                                    uint32_t data_bytes);
+
+/**
  * Mark that a JIT program has finished execution.
  * Switches keyboard input routing back to the shell.
 */

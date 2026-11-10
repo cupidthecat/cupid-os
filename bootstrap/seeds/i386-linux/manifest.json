@@ -1,0 +1,355 @@
+{
+  "artifacts": [
+    {
+      "file": "cupidasm.elf",
+      "name": "cupidasm",
+      "producer": true,
+      "sha256": "d72c63e51fe687ea25e80087fd2574108bdfd93419b183cac396c9ce1b225b0f",
+      "size": 485192
+    },
+    {
+      "file": "cupiddis.elf",
+      "name": "cupiddis",
+      "producer": false,
+      "sha256": "81788f23045380a428c2180ac0cbec341600c149e9c1aa9f9bfb93d462921cbc",
+      "size": 510320
+    },
+    {
+      "file": "cupidld.elf",
+      "name": "cupidld",
+      "producer": true,
+      "sha256": "8fa010b4034f14423b78e25af4bf1dbcc09e3a5cac7896cb4a39ec1226bdd18a",
+      "size": 297032
+    },
+    {
+      "file": "cupidobj.elf",
+      "name": "cupidobj",
+      "producer": false,
+      "sha256": "e7ead217e1018f7b628ba9f2e0eb8b886baa1ea23939f71f7f336498bec6b4cc",
+      "size": 389516
+    },
+    {
+      "file": "cupidc.elf",
+      "name": "cupidc",
+      "producer": true,
+      "sha256": "584948f9e23af0446c899fdcf41199e1200fb1ada9b6f0c5b3bc8b0ccaa2cb26",
+      "size": 2549392
+    },
+    {
+      "file": "cupidbuild.elf",
+      "name": "cupidbuild",
+      "producer": false,
+      "sha256": "92d1d98210a87c8427d68b066ac1a24de9d03f3f27f50d33874ed69896efdd36",
+      "size": 1133640
+    }
+  ],
+  "build_plan": {
+    "include_arguments": [
+      "-I",
+      "/toolchain",
+      "--include-angle",
+      "/toolchain/hosted/i386-linux/include"
+    ],
+    "links": {
+      "cupidasm": [
+        "start",
+        "cupidasm_main",
+        "cupidasm",
+        "ctool_host",
+        "ctool",
+        "elf32",
+        "x86",
+        "runtime"
+      ],
+      "cupidbuild": [
+        "start",
+        "cupidbuild_main",
+        "cupidbuild",
+        "cupidbuild_host",
+        "ctool_host",
+        "ctool",
+        "elf32",
+        "seed_manifest",
+        "seed_release",
+        "contract_parse_internal",
+        "cupidbuild_artifacts",
+        "artifact_size_policy",
+        "user_syscall_abi",
+        "cupidbuild_user_abi",
+        "iso_fixture_bundle",
+        "cupidbuild_iso",
+        "cupidbuild_iso_capture",
+        "cupidbuild_iso_image",
+        "cupidbuild_iso_publication",
+        "fat16_stage",
+        "fat16_names",
+        "disk_image",
+        "runtime"
+      ],
+      "cupidc": [
+        "start",
+        "cupidc_main",
+        "cupidc_emit",
+        "cupidc_ir",
+        "cupidc_frontend",
+        "cupidc_type",
+        "cupidc_pp",
+        "ctool_host",
+        "ctool",
+        "elf32",
+        "x86",
+        "runtime"
+      ],
+      "cupiddis": [
+        "start",
+        "cupiddis_main",
+        "cupiddis",
+        "ctool_host",
+        "ctool",
+        "elf32",
+        "x86",
+        "runtime"
+      ],
+      "cupidld": [
+        "start",
+        "cupidld_main",
+        "cupidld",
+        "ctool_host",
+        "ctool",
+        "elf32",
+        "runtime"
+      ],
+      "cupidobj": [
+        "start",
+        "cupidobj_main",
+        "cupidobj",
+        "iso_fixture_bundle",
+        "ctool_host",
+        "ctool",
+        "elf32",
+        "runtime"
+      ]
+    },
+    "producer_tools": [
+      "cupidc",
+      "cupidasm",
+      "cupidld"
+    ],
+    "sources": [
+      {
+        "gnu_extensions": true,
+        "name": "runtime",
+        "path": "/toolchain/hosted/i386-linux/runtime.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "ctool",
+        "path": "/toolchain/ctool.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "ctool_host",
+        "path": "/toolchain/ctool_host.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "elf32",
+        "path": "/toolchain/elf32.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "x86",
+        "path": "/toolchain/x86.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidasm",
+        "path": "/toolchain/cupidasm.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidasm_main",
+        "path": "/toolchain/cupidasm_main.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupiddis",
+        "path": "/toolchain/cupiddis.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupiddis_main",
+        "path": "/toolchain/cupiddis_main.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidobj",
+        "path": "/toolchain/cupidobj.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidobj_main",
+        "path": "/toolchain/cupidobj_main.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidld",
+        "path": "/toolchain/cupidld.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidld_main",
+        "path": "/toolchain/cupidld_main.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidc_pp",
+        "path": "/toolchain/cupidc_pp.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidc_type",
+        "path": "/toolchain/cupidc_type.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidc_frontend",
+        "path": "/toolchain/cupidc_frontend.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidc_ir",
+        "path": "/toolchain/cupidc_ir.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidc_emit",
+        "path": "/toolchain/cupidc_emit.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidc_main",
+        "path": "/toolchain/cupidc_main.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidbuild",
+        "path": "/toolchain/cupidbuild.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidbuild_host",
+        "path": "/toolchain/cupidbuild_host.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidbuild_main",
+        "path": "/toolchain/cupidbuild_main.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "seed_manifest",
+        "path": "/toolchain/seed_manifest.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "seed_release",
+        "path": "/toolchain/seed_release.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "contract_parse_internal",
+        "path": "/toolchain/contract_parse_internal.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidbuild_artifacts",
+        "path": "/toolchain/cupidbuild_artifacts.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "artifact_size_policy",
+        "path": "/toolchain/artifact_size_policy.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "user_syscall_abi",
+        "path": "/toolchain/user_syscall_abi.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidbuild_user_abi",
+        "path": "/toolchain/cupidbuild_user_abi.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "iso_fixture_bundle",
+        "path": "/toolchain/iso_fixture_bundle.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidbuild_iso",
+        "path": "/toolchain/cupidbuild_iso.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidbuild_iso_capture",
+        "path": "/toolchain/cupidbuild_iso_capture.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidbuild_iso_image",
+        "path": "/toolchain/cupidbuild_iso_image.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "cupidbuild_iso_publication",
+        "path": "/toolchain/cupidbuild_iso_publication.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "fat16_stage",
+        "path": "/toolchain/fat16_stage.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "fat16_names",
+        "path": "/toolchain/fat16_names.cc"
+      },
+      {
+        "gnu_extensions": false,
+        "name": "disk_image",
+        "path": "/toolchain/disk_image.cc"
+      }
+    ],
+    "startup": "/toolchain/hosted/i386-linux/start.asm",
+    "workers": 2
+  },
+  "build_plan_sha256": "808d9a566c3dd200252cb6ca974dfa19992a923867dc60f500797efd5169c73e",
+  "provenance": {
+    "artifact_generation": "paired-stage-four-six-tool",
+    "fixed_point_command": "make bootstrap-from-seed",
+    "fixed_point_result": "pass",
+    "parent_seed_manifest_sha256": "9cae50a046fb1cb22b9dba6276201ec683070be192b2376e3fa0ff555734bab8",
+    "parent_seed_source_revision": "1d852023df98c03481c4b3979dccb398288b7115",
+    "producer_lineage": {
+      "assembly": "stage-three CupidASM from the checked-seed bootstrap",
+      "c": "stage-three CupidC from the checked-seed bootstrap",
+      "link": "stage-three CupidLD from the checked-seed bootstrap"
+    },
+    "seed_generation": "stage-four",
+    "source_input_count": 99,
+    "source_revision": "4cb7bc80ba613ff2e34794c828dc3db8ae4131cd",
+    "source_snapshot_sha256": "b19c72eed1d786af6de4470bce590d688462f67a01c9d6d968c50a0fdb791461"
+  },
+  "schema": "cupid.bootstrap-seed.v2",
+  "target": {
+    "abi": "linux-int80",
+    "architecture": "i386",
+    "byte_order": "little",
+    "elf_class": 32,
+    "entry": 134512640,
+    "linkage": "static",
+    "operating_system": "linux"
+  }
+}

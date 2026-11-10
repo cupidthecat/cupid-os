@@ -1,6 +1,6 @@
-//help: TempleOS-style AutoComplete over /god/Vocab.DD
-//help: Usage: auto <prefix>
-//help: Lists all dictionary words that start with <prefix>.
+// help: TempleOS-style AutoComplete over /god/Vocab.DD
+// help: Usage: auto <prefix>
+// help: Lists all dictionary words that start with <prefix>.
 
 #define AU_VOCAB_PATH "/god/Vocab.DD"
 #define AU_BUF_MAX 65535
@@ -9,15 +9,18 @@
 char au_vocab[65536];
 
 int au_tolower(int c) {
-    if (c >= 65 && c <= 90) return c + 32;
+    if (c >= 65 && c <= 90)
+        return c + 32;
     return c;
 }
 
 int au_starts_with_ci(char *s, int slen, char *prefix) {
     int i = 0;
     while (prefix[i]) {
-        if (i >= slen) return 0;
-        if (au_tolower(s[i]) != au_tolower(prefix[i])) return 0;
+        if (i >= slen)
+            return 0;
+        if (au_tolower(s[i]) != au_tolower(prefix[i]))
+            return 0;
         i = i + 1;
     }
     return 1;
@@ -57,19 +60,30 @@ void main() {
     while (i < n && hits < AU_MAX_HITS) {
         int ls = i;
         int le = i;
-        while (le < n && au_vocab[le] != 10 && au_vocab[le] != 13) le = le + 1;
+        while (le < n && au_vocab[le] != 10 && au_vocab[le] != 13)
+            le = le + 1;
         if (le > ls && au_starts_with_ci(au_vocab + ls, le - ls, prefix)) {
             int k = 0;
             int L = le - ls;
-            while (k < L) { putchar(au_vocab[ls + k]); k = k + 1; }
-            if (col >= 3) { putchar(10); col = 0; }
-            else { putchar(9); col = col + 1; }
+            while (k < L) {
+                putchar(au_vocab[ls + k]);
+                k = k + 1;
+            }
+            if (col >= 3) {
+                putchar(10);
+                col = 0;
+            } else {
+                putchar(9);
+                col = col + 1;
+            }
             hits = hits + 1;
         }
         i = le;
-        while (i < n && (au_vocab[i] == 10 || au_vocab[i] == 13)) i = i + 1;
+        while (i < n && (au_vocab[i] == 10 || au_vocab[i] == 13))
+            i = i + 1;
     }
-    if (col != 0) putchar(10);
+    if (col != 0)
+        putchar(10);
     print("+++ ");
     print_int(hits);
     println(" match(es) +++");

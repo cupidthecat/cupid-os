@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 DolDoc Docs In CupidOS Storage
-Verified against source on: 2026-05-15
+Verified against source on: 2026-08-29
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -13,8 +13,8 @@ Verified against source on: 2026-05-15
 >style linkhover #0B3AA8
 >rule
 
-This repo folder is the source of truth for the shipped manual set.
-CupidOS embeds every cupidos-txt/*.CTXT file into ramfs as /docs/*.ctxt, then
+The cupidos-txt/ directory is the canonical source for the shipped manuals.
+Cupid OS embeds every cupidos-txt/*.CTXT file into ramfs as /docs/*.ctxt, then
 renders them inside Notepad as live DolDoc-style manuals.
 
 >sprite /home/snail.bmp 64 64 | open:11CTXT.CTXT
@@ -36,22 +36,61 @@ Workflow:
 3) Open /docs/00INDEX.ctxt or any /docs/*.ctxt page in Notepad
 4) Press F2 to switch between source and rendered DolDoc view
 
-This is the TempleOS-style path. The document source stays readable as text,
-but rendered view gains live buttons, runnable CupidC, action links, trees,
-and inline BMP, PNG, or JPEG widgets.
+The source remains readable as text. Rendered view adds working buttons,
+runnable CupidC, action links, trees, and inline BMP, PNG, or JPEG widgets.
 >endtree
 
 >h2 Makefile Auto-Discovery
 >tree open Makefile Auto-Discovery
 The Makefile auto-discovers and embeds these source sets:
 
-  bin/*.cc     -> kernel/util/bin_programs_gen.c  -> /bin/*.cc in ramfs
-  bin/*.h      -> kernel/util/bin_programs_gen.c  -> /bin/*.h in ramfs
-  bin/browser/*.cc -> kernel/util/bin_programs_gen.c -> /bin/browser/*.cc
-  cupidos-txt/*.CTXT -> kernel/util/docs_programs_gen.c -> /docs/*.ctxt
-  *.bmp/*.png/*.jpg/*.jpeg -> kernel/util/docs_programs_gen.c -> /home/<same name>
-  demos/*.asm  -> kernel/util/demos_programs_gen.c -> /demos/*.asm in ramfs
-  god/*.DD     -> embedded via objcopy        -> /god/*.DD in image
+  bin/*.cc     -> kernel/util/bin_programs_gen.cc  -> /bin/*.cc in ramfs
+  bin/*.h      -> kernel/util/bin_programs_gen.cc  -> /bin/*.h in ramfs
+  bin/browser/*.cc -> kernel/util/bin_programs_gen.cc -> /bin/browser/*.cc
+  cupidos-txt/*.CTXT -> kernel/util/docs_programs_gen.cc -> /docs/*.ctxt
+  *.bmp/*.png/*.jpg/*.jpeg -> kernel/util/docs_programs_gen.cc -> /home/<same name>
+  demos/*.asm  -> kernel/util/demos_programs_gen.cc -> /demos/*.asm in ramfs
+  god/*.DD     -> wrapped by CupidObj         -> /god/*.DD in image
+
+CupidObj uses its text wrapper for every source set above. CRLF pairs become
+LF in the wrapped object, while lone carriage returns stay intact. This keeps
+the installed files and kernel layout stable across Windows and Linux
+checkouts. Images, fonts, and other binary inputs still use byte-exact wrap.
+
+CupidObj also understands the three generated installation-table formats.
+Its install-source command validates bin, docs, home-asset, browser, header,
+and demo path groups before it writes a .cc table. Repeated generation is
+byte-identical, and a failed request leaves the previous table intact. The
+checked seed applies one overflow-safe limit of 512 paths across every group
+before it dispatches a mode. It also keeps caller order when home assets mix
+extensions.
+Before writing a table, CupidObj compares the complete wrapped symbol for
+every entry. Distinct paths that collapse to one linked symbol are rejected.
+The exact same BMP may appear once in the docs list and once in the home list
+because both entries use the same wrapped object.
+The Python oracle follows the same order. The command is self-hosted and
+present in the checked toolchain seed. The current image build runs checked
+CupidObj for all three tables. Its active inventories remain within the limit
+and keep the same bytes. The recipes depend on the complete checked-seed trust
+unit. At the preceding v1 checkpoint, the Windows execution seed supplied the
+375,808-byte CupidObj image with SHA-256
+079bc115e74772e6224e4da164115cc5696e357cca0cb1a0583985b88381cb79.
+The active Windows v2 execution seed supplies a 375,808-byte image with SHA-256
+b6f6a5b66f8e2bcb4b779a16428d7b77a956113c5ca301344537b35839611572.
+The Python generator remains a byte-parity oracle but no longer owns these
+production sources. ADR 0204 records the transfer, and ADR 0206 records the
+first seed with the linked-symbol collision checks. ADR 0258 records the
+preceding checked seed. ADRs 0280, 0281, and 0292 preserve the preceding
+promotions. ADR 0312 records the preceding local-target seed, ADR 0318 records
+the preceding linked-image seeds, ADR 0323 records the preceding code-anchor
+seeds, ADR 0336 records the parent pair, and ADR 0353 records the paired v2
+contract. ADR 0367 records the preceding pair, and ADR 0370 records the active pair.
+
+The normal Make graph launches these three generators and its 183 ordinary
+text and binary wrappers through the promoted CupidBuild runner. The runner
+freezes and rechecks the selected six-tool seed around each CupidObj call.
+Python remains on the four composite paths that add an independent format check
+or a controlled publication boundary.
 
 Makefile variable definitions:
   BIN_CC_SRCS  := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))
@@ -61,22 +100,30 @@ Makefile variable definitions:
   DEMO_ASM_SRCS := $(wildcard demos/*.asm)
   GOD_DD_SRCS   := $(wildcard god/*.DD)
 
-Adding a new .CTXT file to cupidos-txt/ is enough: the next build will pick
-it up automatically through docs_programs_gen.c.
+The next build finds new .CTXT files in cupidos-txt/ through
+docs_programs_gen.cc. It also embeds new top-level .bmp, .png, .jpg, and .jpeg
+files, which the boot path installs under /home with their original names.
+Checked CupidObj accepts sequential SOF0 or SOF1 JPEG files and rejects
+progressive, unsupported, or malformed input. The promoted CupidBuild
+transaction checks the exact relocatable payload and identity symbols, applies
+an independent native JPEG parser, and publishes only after every guarded
+boundary still matches.
 
-Adding a top-level .bmp, .png, .jpg, or .jpeg file is enough: the next build
-embeds it and the boot path installs it to /home with the same filename.
-JPEG files are normalized to baseline JPEG while embedding so progressive
-source files still load in the current in-kernel decoder.
+The normal Make edge now uses CupidBuild's typed publication boundary. It
+freezes the asset and six-tool v2 seed, runs CupidObj against the
+private bytes under the original identity, checks the exact data payload and
+three identity symbols in the data-only relocatable, and applies a separate
+native SOF0/SOF1 check before guarded publication. Both active seeds carry the
+command. ADR 0368 records the production handoff.
 
-Adding a new .cc to bin/ is enough: bin_programs_gen.c handles it.
+bin_programs_gen.cc likewise finds new .cc files under bin/.
 
-The god/*.DD files are embedded via objcopy pattern rules; they are available
-at runtime under /god/ for godspeak, oracle, and bible commands.
+The god/*.DD files are wrapped by CupidObj pattern rules; they are available at
+runtime under /god/ for godspeak, oracle, and bible commands.
 >endtree
 
->h2 Method A: FAT16 Persistent Docs (/home)
->tree open Method A: FAT16 Persistent Docs
+>h2 Method A: Homefs Persistent Docs (/home)
+>tree open Method A: Homefs Persistent Docs
 Goal:
 - Copy docs under /home when you want user-editable or persistent local copies.
 
@@ -84,7 +131,7 @@ Current image model:
 - cupidos.img is a single HDD image.
 - /home is the persistent writable filesystem inside cupidos.img (homefs).
 
-Recommended target layout:
+Suggested target layout:
   /home/docs/00INDEX.CTXT
   /home/docs/01SHELL.CTXT
   ...
@@ -101,13 +148,15 @@ Simple in-OS approach:
 3) Run sync after edits.
 
 Host copy approach (recommended for bulk docs):
-  mcopy -o -i cupidos.img@@2097152 00INDEX.CTXT ::/00INDEX.CTXT
-  mcopy -o -i cupidos.img@@2097152 01SHELL.CTXT ::/01SHELL.CTXT
-  mdir  -i cupidos.img@@2097152 ::/
+  mcopy -o -i cupidos.img@@10485760 00INDEX.CTXT ::/00INDEX.CTXT
+  mcopy -o -i cupidos.img@@10485760 01SHELL.CTXT ::/01SHELL.CTXT
+  mdir  -i cupidos.img@@10485760 ::/
 
 Mapping reminder:
-- FAT ::/ is CupidOS /home.
-- Copy to ::/ (not ::/home).
+- FAT ::/ is always mounted as CupidOS /disk.
+- On a fresh image with no HOMEFS.SYS, the first homefs mount imports FAT-root
+  files into /home once. Later host-staged files remain under /disk until an
+  in-guest copy places them in /home.
 
 If you open a copied .CTXT file in Notepad, the same DolDoc-lite renderer
 still applies as long as the filename keeps the .ctxt or .CTXT suffix.
@@ -118,9 +167,9 @@ still applies as long as the filename keeps the .ctxt or .CTXT suffix.
 Goal:
 - Bundle small docs directly in kernel boot memory files.
 
-This is now mostly the legacy/manual approach.
-For shipped manuals, prefer the generated /docs/*.ctxt install path instead
-of hardcoding text blobs into kernel/fs/fs.c.
+This older approach remains available for manually bundled files. Shipped
+manuals should use the generated /docs/*.ctxt path instead of hardcoded text
+blobs in kernel/fs/fs.cc.
 
 Tradeoff:
 - Always available at boot
@@ -135,15 +184,15 @@ Pattern is already implemented for:
 - /demos asm sources (demos/*.asm)
 - /docs/image.bmp sprite assets
 - /home image assets (*.bmp, *.png, *.jpg, *.jpeg at repo root)
-- /god/*.DD word lists (via objcopy)
+- /god/*.DD word lists (via CupidObj)
 
 Build-time generators:
-- kernel/util/bin_programs_gen.c
-- kernel/util/docs_programs_gen.c
-- kernel/util/demos_programs_gen.c
+- kernel/util/bin_programs_gen.cc
+- kernel/util/docs_programs_gen.cc
+- kernel/util/demos_programs_gen.cc
 
 Tradeoff:
-- Scales better than hardcoding large strings in kernel/fs/fs.c
+- Avoids hardcoded strings in kernel/fs/fs.cc
 - Requires Makefile and kernel generation changes
 
 >button List /docs | shell:ls /docs
@@ -163,13 +212,14 @@ For user-customized copies:
 3) Keep the .CTXT extension so render mode still works
 
 For asm demos used in docs:
-- Use make sync-demos to refresh /home/demos in cupidos.img
+- Use make sync-demos to refresh /home/demos in cupidos.img.
 
 For image assets used in docs:
 - Put BMP, PNG, JPG, or JPEG files at the repo root
 - Rebuild so /home/<same filename> is available to >sprite, >image, and >img
-- Top-level JPG/JPEG sources may be progressive; the build embeds baseline
-  JPEG bytes under the same /home filename
+- Top-level JPG/JPEG sources must use sequential SOF0 or SOF1 encoding
+- Progressive, unsupported, or malformed input stops the build with a useful
+  diagnostic and leaves the previous object unchanged
 >endtree
 
 >h2 See Also
