@@ -55,6 +55,9 @@ complete OS can rebuild itself from inside the guest.
 
 ## Records
 
+- [Remaining formatting fixtures](REMAINING-FORMAT-FIXTURES.md): bounded user
+  profile readback, exact producer snapshot and paired complete user checks.
+
 - [Freestanding compiler engine](FREESTANDING-COMPILER-ENGINE.md): all nine
   objects and the complete engine reproduce themselves in a Linux harness;
   guest loading and self-recompilation remain unfinished.

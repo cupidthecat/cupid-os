@@ -1,5 +1,22 @@
 # Bootstrapping log
 
+## 2026-11-10: Repair the remaining user-profile and producer-snapshot fixtures
+
+The user compiler fixture now reads balanced C blocks instead of a closing-brace
+line. It retains every source, header and option check and rejects duplicate
+rows. The full bootstrap method binds the qualified 114-input source snapshot;
+all other method AST nodes and its 6,000-second bound remain unchanged.
+
+Each host passes 28 seed-validation methods and the complete 16-test user
+compilation class with the private qualified tools, without skips. Whitespace
+and comment controls pass, while seven table mutations and one changed source
+stream are rejected. The older full Make run remains failed; corrected complete
+replays are running with their original limits and regenerated expected audit.
+
+The [fixture record](REMAINING-FORMAT-FIXTURES.md) retains before/after inputs,
+complete focused logs, exact Git inventory comparison and original full-run
+failures in a byte-verified archive. Production source and objects are unchanged.
+
 ## 2026-11-10: Rebuild a freestanding compiler engine through its loaded entry
 
 Checked Cupid tools build a complete freestanding compiler engine that fits

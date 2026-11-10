@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 from tests.artifact_release_fixtures import released_behavior_fixture
+from tests.c_source_spelling import _c_spelling_tokens, c_block
 import re
 import shutil
 import subprocess
@@ -176,14 +177,18 @@ class CupidBuildCompileUserTests(unittest.TestCase):
 
     def test_exact_user_closures_and_profile_match_the_wrapper(self):
         text = (ROOT / 'toolchain/cupidbuild.cc').read_text()
-        block = text.split('cupidbuild_compile_user_closures[] = {', 1)[1].split('\n};', 1)[0]
-        rows = re.findall(r'\{"([^"]+)", \{(.*?)\}, (\d+)u\}', block)
+        left, right = c_block(text, 'cupidbuild_compile_user_closures[] =')
+        block = ' '.join(token for token, _, _ in _c_spelling_tokens(text[left:right]))
+        rows = re.findall(r'\{\s*"([^"]+)"\s*,\s*\{(.*?)\}\s*,\s*(\d+)u\s*\}', block, re.S)
+        self.assertEqual(len(rows), len(USER_SOURCES))
         self.assertEqual({name: tuple(re.findall(r'"([^"]+)"', inputs))
                           for name, inputs, _ in rows},
                          {name: ('user/cupid.h', name) for name in USER_SOURCES})
         self.assertTrue(all(count == '2' for _, _, count in rows))
-        profile = text.split('cupidbuild_compile_user_profile[] = {', 1)[1].split('\n};', 1)[0]
-        self.assertEqual(tuple(re.findall(r'"([^"]+)"', profile)), USER_I386_ARGUMENTS)
+        left, right = c_block(text, 'cupidbuild_compile_user_profile[] =')
+        profile = tuple(token[1:-1] for token, _, _ in _c_spelling_tokens(text[left:right])
+                        if token.startswith('"'))
+        self.assertEqual(profile, USER_I386_ARGUMENTS)
 
     def test_lexical_aliases_absolute_outputs_unicode_spaces_and_long_components(self):
         directories = ('build', '.hidden/nested', 'temp/../custom', 'custom/./nested',

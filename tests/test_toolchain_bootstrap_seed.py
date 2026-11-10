@@ -124,6 +124,9 @@ WINDOWS_SEED_MANIFEST = (
     / "i386-windows"
     / "manifest.json"
 )
+CURRENT_SOURCE_HEAD_SNAPSHOT_SHA256 = (
+    "8f570ec78b0e81c2bb31b6a0774d3726b0f972d88cdb0556f83437050adbd36e"
+)
 
 
 def _fixture_windows_imports(names):
@@ -144,6 +147,29 @@ def _promoted_windows_profile_flags(plan_sha256, source_input_count):
 
 
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
+    def test_source_head_inventory_matches_exact_snapshot_before_bootstrap(self):
+        plan = _candidate_build_plan(json.loads(SEED_MANIFEST.read_bytes())["build_plan"])
+        inventory = capture_source_snapshot(
+            REPO_ROOT, plan, windows_utf8=True, windows_long_paths=True,
+            windows_user_link_aliases=True, windows_observer_workers=True,
+        )
+        self.assertEqual(len(inventory), 114)
+        digest = hashlib.sha256(json.dumps(
+            inventory, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+        ).encode("ascii")).hexdigest()
+        self.assertEqual(digest, CURRENT_SOURCE_HEAD_SNAPSHOT_SHA256)
+
+    def test_source_head_inventory_rejects_source_content_drift(self):
+        read = Path.read_bytes
+        source = REPO_ROOT / "toolchain/cupidbuild_disk_input_discovery.cc"
+
+        def changed(path):
+            data = read(path)
+            return data + b"\n" if path == source else data
+
+        with mock.patch.object(Path, "read_bytes", changed), self.assertRaises(AssertionError):
+            self.test_source_head_inventory_matches_exact_snapshot_before_bootstrap()
+
     def test_promoted_complete_disk_plan_retains_the_closed_source_and_link_contract(self):
         manifest = historical_disk_manifest(json.loads(SEED_MANIFEST.read_bytes()))
         _validate_build_plan(manifest, promoted=True)
@@ -12072,8 +12098,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["source_snapshot_sha256"], source_head_snapshot
             )
-            self.assertEqual(source_head_snapshot,
-                             "8dccf54316a29ab55262a680ef269903bccf60dea64f5b06dc58ad20871ec39e")
+            self.assertEqual(source_head_snapshot, CURRENT_SOURCE_HEAD_SNAPSHOT_SHA256)
             self.assertEqual(report["source_inputs"]["files"], candidate_inventory)
             self.assertEqual(
                 initial_matches,
