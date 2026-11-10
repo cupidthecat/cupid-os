@@ -1,5 +1,24 @@
 # Bootstrapping log
 
+## 2026-11-10: Recheck Doom fingerprints and retain an uninterrupted exit
+
+The original 80-source Doom tree and three-source compatibility methods pass
+on both hosts, including native/Cupid compiler agreement and repeated checked
+seed emission. Four retained before/after objects keep all sizes, canonical
+function instructions, relocation targets, section/symbol metadata and data.
+Only measured source and whole-object locks change; no production source or
+test bound changes.
+
+The uninterrupted private Windows guest also returns from the rendered game
+and runs its first fresh `ls`. Long and short F10 inputs leave different prompt
+states. No source changes between attempts, and the earlier failed handoff
+remains unresolved. Captured nonzero AC97 audio does not establish smooth music.
+
+The [Doom follow-up](FORMATTED-DOOM-DIAGNOSTIC.md#uninterrupted-replay-and-compiler-locks)
+retains the inputs, raw capture, screenshots, object comparisons and passing
+compiler logs in a verified archive. Complete repository acceptance, Linux
+gameplay, timedemo and installed seed adoption remain open.
+
 ## 2026-11-10: Pass the complete SDK matrix and paired cold builds
 
 Ordinary and long-path SDK publications pass on both hosts. All 22 executable

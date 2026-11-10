@@ -54,3 +54,37 @@ embedded. The archive has 30,696,735 bytes and SHA-256
 Smooth audio, timedemo completion, the new handoff failure and the equivalent
 Linux guest comparison remain open. Issue #41 remains open. Installed seeds
 and normal-build ownership do not change.
+
+## Uninterrupted replay and compiler locks
+
+A later private replay uses the closed diagnostic image without a debugger
+attachment. It renders the level, returns from Doom and successfully runs the
+first fresh `ls`. The strict SMP validator finds all 62 TLS successes. A
+2,000 ms F10 hold does not leave the quit prompt open; a later 100 ms press
+does. The subsequent Y hold lasts 2,000 ms. The full input sequence and both
+prompt captures remain retained.
+
+No code changes between these guest attempts. Their image/configuration and
+input histories differ, so the passing replay does not identify or fix the
+earlier failure. Its AC97 capture has 49,773,421 stereo frames at 44,100 Hz,
+6,598,113 active frames and peak magnitude 8,222. The PC speaker capture has
+no PCM frames. Those counts establish captured audio, not music quality or
+performance. Linux gameplay and timedemo acceptance remain open.
+
+Three original Doom compiler methods also pass on Windows and Linux in
+99.241 and 123.782 seconds. They preserve the 80-source tree, three-source
+compatibility profile, repeated checked-seed emission and individual
+180-second tool bounds. Source locks now match the formatted bytes.
+
+The four pinned objects keep their original sizes. All 121 functions compare
+equally after relocation normalization, with equal section/symbol metadata
+and data. The libc-stub object remains byte-identical; the other three whole
+hashes change with symbol/relocation order. No existing test method is removed,
+and only the compatibility method's expected constants change.
+
+The [follow-up archive](evidence/formatted-doom-followup-20261110.json.gz)
+retains both compiler transcripts, before/after objects, comparison code,
+screenshots and complete raw audio. All 120 file records and 79 payloads pass
+size and SHA-256 readback. Its 26,973,524 bytes have SHA-256
+`81558862fefbac6b5bbfa4a905b9db7358b7815d589d3f2790c3b30ce047a4c4`.
+The private whole image remains a local hash reference.

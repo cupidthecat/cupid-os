@@ -145,8 +145,7 @@ DOOM_TREE_FRONTIER_FAILURES = {}
 DOOM_COMPAT_OBJECTS = {
     "/kernel/doom/dglibc.cc": (
                                   88972,
-                                  "11ebab6f151eab5290e19d0eede7bddb"
-                                  "3dd351da306726bba6390daeb094300b",
+                                  '139525ec8651f3cff341c5c5c037b73111e2aa2c76d1dd840d6ae066cab98ce9',
                               ),
     "/kernel/doom/doom_libc_stubs.cc": (
                                            16136,
@@ -155,13 +154,12 @@ DOOM_COMPAT_OBJECTS = {
                                        ),
     "/kernel/doom/doomgeneric_cupidos.cc": (
                                                10792,
-                                               "91b1255399b4cf7f3b71cbeeccddb9f1"
-                                               "471bd0241c4af71470efa034e8af11c0",
+                                               '431fd57dac2a6062ddc50aa2a428c735492044d25ae02afc46641c5993fe51de',
                                            ),
 }
 DOOM_I_VIDEO_OBJECT_SIZE = 9088
 DOOM_I_VIDEO_OBJECT_SHA256 = (
-    "ed30a9e3a00d10b98ce6ca4f2da4cad216a73ea971f7da15254434dc296834b7"
+    'e381fa61c65cd52eec177aac0bb03498658bc9fdf02e597adfcbb60f775fd43f'
 )
 LIBM_SOURCE_SIZE = 46508
 LIBM_SOURCE_SHA256 = (

@@ -274,6 +274,10 @@ and disk images, and private `ls` and ISO boots pass. This validation uses a
 private seed projection; complete repository acceptance and installed seed
 adoption remain open.
 
+The original kernel and Doom compiler checks also pass after their formatted
+source and object locks are verified. Doom gameplay, music quality and guest
+self-hosting still need separate runtime acceptance.
+
 Use the repository's `.clang-format` for Cupid C source:
 
 ```sh

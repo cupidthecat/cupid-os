@@ -134,6 +134,12 @@ All four [SDK publication profiles](FORMATTED-SDK-CONSUMERS.md) and paired
 projection. Four strict private boots also pass. Installed seed adoption and
 complete repository acceptance remain open.
 
+The original Doom tree and compatibility compiler checks also pass on both
+hosts after [measured fingerprint repair](FORMATTED-DOOM-DIAGNOSTIC.md#uninterrupted-replay-and-compiler-locks).
+All object sizes, canonical functions and data stay fixed. A later guest exit
+and first `ls` pass, but the earlier handoff failure and music quality remain
+unresolved.
+
 The formatted installed-seed image also passes the complete
 [31-command guest frontier](FORMATTED-OS-RUNTIME-FRONTIER.md), including
 graphics, USB replug and captured nonzero AC97/PC speaker audio. The source
