@@ -1,5 +1,27 @@
 # Bootstrapping log
 
+## 2026-11-10: Retain the full-audio Freedoom diagnostic and synthesis comparison
+
+The private formatted-image guest renders a level, accepts game input and
+returns from Doom. Its first `ls` then fails with `undefined variable` after
+the long-held quit confirmation. The diagnostic remains failed. Debugger
+timeouts, packet-order mistakes and paused intervals are retained; explicit
+continue and monitor readback confirm resumption. No throughput claim uses
+those intervals. Raw AC97 audio is present, but quality stays unaccepted.
+
+An isolated comparison links the exact production MIDI/OPL objects with
+CupidLD and the qualified Linux startup/runtime. All nine fixed PCM outputs
+match native 32-bit and 64-bit source oracles. The production objects take
+about 12.6 times the native 32-bit wall time for this workload. This identifies
+a code-generation performance target without proving the cause of all guest
+audio stalls. The 32-bit oracle uses repository declarations after two retained
+header/preparation failures; no host dependencies are installed.
+
+[The diagnostic record](FORMATTED-DOOM-DIAGNOSTIC.md) retains commands,
+screenshots, raw captures, failures and the independently verified archive.
+Issue #41, equivalent Linux guest behavior, smooth audio and timedemo completion
+remain open. Production inputs, seeds and build ownership remain unchanged.
+
 ## 2026-11-10: Match the ordinary SDK publications across hosts
 
 The private formatted-cohort ordinary SDK publications pass on Linux and

@@ -14,6 +14,11 @@ acceptance remain open; installed seeds have not changed. The
 [consumer record](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FORMATTED-SDK-CONSUMERS.md)
 retains exact scope and evidence.
 
+A private Freedoom run renders a level and quits, then fails its first shell
+command. Audio quality and timedemo completion remain open. The
+[Doom diagnostic](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FORMATTED-DOOM-DIAGNOSTIC.md)
+retains the failure and a separate sample-identical synthesis comparison.
+
 ## Source-owner integration, 2026-11-08
 
 Current producer plans include the path, file, stage, integer, option and
