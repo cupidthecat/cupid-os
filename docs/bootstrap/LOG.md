@@ -16,6 +16,13 @@ guide uses CupidBuild's own help and records the operation-specific constraint.
 These changes affect wiki content only; the guest manual and OS image stay
 unchanged.
 
+The [publication run](https://github.com/cupidthecat/cupid-os/actions/runs/42763301766)
+passes. Independent Git-blob readback verifies all 31 tracked files, the
+published source revision and eight unchanged website-only pages. It also
+checks that the previous Home body is retained in full. The
+[navigation evidence](evidence/wiki-navigation-publication-20261110.json)
+records those comparisons.
+
 ## 2026-11-10: Pass the formatted OS guest frontier
 
 The unchanged guest runner passes all 31 frontier commands in 892.128 seconds
