@@ -450,8 +450,8 @@ int main(int argc, char **argv) {
 
     def test_native_policy_matches_all_python_closures_and_profile(self):
         source = (ROOT / "toolchain/cupidbuild.cc").read_text()
-        block = source.split("cupidbuild_compile_closures[] = {", 1)[1].split("\n};", 1)[0]
-        matches = re.findall(r'\{"([^"]+)", \{(.*?)\}, (\d+)u\}', block, re.S)
+        block = source.split("cupidbuild_compile_closures[] = {", 1)[1].split("};", 1)[0]
+        matches = re.findall(r'\{\s*"([^"]+)"\s*,\s*\{(.*?)\}\s*,\s*(\d+)u\s*\}', block, re.S)
         actual = {name: re.findall(r'"([^"]+)"', inputs) for name, inputs, _ in matches}
         expected = {name: sorted((name, *headers)) for name, headers in FROZEN_KERNEL_INPUT_CLOSURES.items()}
         self.assertEqual(len(matches), 157)
@@ -460,7 +460,7 @@ int main(int argc, char **argv) {
         self.assertEqual(actual, expected)
         for name, _, count in matches:
             self.assertEqual(int(count), len(expected[name]))
-        profile = source.split("cupidbuild_compile_profile[] = {", 1)[1].split("\n};", 1)[0]
+        profile = source.split("cupidbuild_compile_profile[] = {", 1)[1].split("};", 1)[0]
         self.assertEqual(re.findall(r'"([^"]+)"', profile), list(KERNEL_I386_ARGUMENTS))
 
     def test_native_object_validator_keeps_compiler_relocation_policy(self):

@@ -1,5 +1,19 @@
 # Bootstrapping log
 
+## 2026-11-09: Read formatted compile-policy tables
+
+The kernel and generated-source closure checks now accept line breaks between
+initializer fields and find the closing declaration independently of its line.
+Both source-only readbacks pass on Windows and Linux. Six altered-table controls
+on each host retain rejection of header substitutions, wrong counts, missing
+rows and duplicate rows. The generated-source check now rejects duplicates
+explicitly. Native coordinator execution remains covered by its separate tests.
+
+The [formatting record](CUPIDC-SOURCE-FORMATTING.md#compile-policy-table-readbacks)
+links the failed and passing evidence. Fresh named producer preparations are
+running from committed `d13ed4aa`; their behavior and installed-seed acceptance
+remain open.
+
 ## 2026-11-09: Format Cupid C and repair source-dependent checks
 
 All 492 tracked `.cc` files pass the configured Clang style. The changes repair

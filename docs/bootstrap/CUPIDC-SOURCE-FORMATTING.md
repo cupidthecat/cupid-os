@@ -113,3 +113,18 @@ The complete current repository replays, installed seed adoption and in-guest
 self-hosting remain unfinished. The [evidence archive](evidence/cupidc-source-formatting-20261109.json.gz)
 retains source and product identities, failed attempts and the passing scoped
 checks above.
+
+## Compile-policy table readbacks
+
+The continuing replay found two more source readers that expected initializer
+fields and closing `};` tokens on particular lines. They now allow whitespace
+between fields and stop at the declaration terminator. Exact kernel closures,
+profile arguments and generated-source closures remain checked; duplicate
+production rows also fail.
+
+Both source-only readbacks pass on Windows and Linux. Six controls on each host
+reject changed headers, wrong counts, missing rows and duplicate rows. These
+checks read the actual C tables; they do not execute the native coordinator.
+The [readback evidence](evidence/compile-policy-layout-20261109.json.gz) retains
+the failures, corrected sources and controls. Installed-seed acceptance remains
+open.
