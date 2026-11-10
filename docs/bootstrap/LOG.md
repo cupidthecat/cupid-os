@@ -1,5 +1,28 @@
 # Bootstrapping log
 
+## 2026-11-10: Qualify the formatted producer cohort
+
+Fresh preparations and complete reviewed-release qualifications pass on native
+Windows and native Linux from committed `d13ed4aa`. The qualifications take
+2,388.527 and 2,165.487 seconds respectively, under the original 7,200-second
+bound. Both retain all tool limits, nine forbidden conventional producers and
+unchanged source and installed-seed guards.
+
+Independent readback verifies 333 artifacts, 111 complete fixed-point pairs and
+114 Git source blobs. Linux passes 73 successful cases, 66 expected failures
+and seven help cases. Windows passes 60, 54 and seven. The 15 installed seed
+files remain unchanged.
+
+The exact 17-file private projection passes paired-seed verification in isolated
+Windows and native Linux consumers. Ordinary SDK publication is now running on
+both hosts with two workers and the reviewed release. No installed seed
+transition or replacement-consumer success is claimed.
+
+[The qualification record](FORMATTED-PRODUCER-QUALIFICATION.md) links all
+portable products, controllers, source bytes, independent checks and private
+projections. The existing complete graphics/USB/audio guest check also runs
+separately against a private copy of the formatted OS image.
+
 ## 2026-11-09: Validate wiki publication and retain deletion history
 
 The first pushed Actions run succeeds with the built-in workflow token.

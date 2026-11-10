@@ -114,6 +114,12 @@ self-hosting remain unfinished. The [evidence archive](evidence/cupidc-source-fo
 retains source and product identities, failed attempts and the passing scoped
 checks above.
 
+Fresh [formatted-producer qualifications](FORMATTED-PRODUCER-QUALIFICATION.md)
+now pass on Windows and Linux against the separately reviewed current cohort.
+Independent checks cover all 333 staged artifacts, 111 complete fixed-point
+pairs and 114 Git source inputs. Private replacement seeds verify on each
+host; their SDK and normal-build acceptance still precede installation.
+
 ## Compile-policy table readbacks
 
 The continuing replay found two more source readers that expected initializer
