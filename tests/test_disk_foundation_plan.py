@@ -75,7 +75,9 @@ class DiskFoundationPlanTests(unittest.TestCase):
 
     def test_sdk_bootstrap_capture_retains_the_same_explicit_unicode_table(self):
         with policy._PinnedRepository(ROOT) as reader:
-            self.assertEqual(len(sdk._contract_input_logical_paths(reader)), 112)
+            contract_paths = sdk._contract_input_logical_paths(reader)
+            self.assertEqual(len(contract_paths), 113)
+            self.assertIn('toolchain/tests/cupidc_source_spelling_fixture.h', contract_paths)
             for long_paths, aliases, expected in ((False, False, 111), (True, False, 112),
                                                  (False, True, 112), (True, True, 113)):
                 paths = sdk._bootstrap_input_logical_paths(reader, self.plan,

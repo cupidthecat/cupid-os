@@ -13,6 +13,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest import mock
+from tests.c_source_spelling import _c_spelling_ranges
 
 from tools import cupidc_kernel_compile as kernel_compile
 from tests.test_cupidc_kernel_compile import (
@@ -330,9 +331,7 @@ class DoomCupidCProductionTests(unittest.TestCase):
         self.assertIn("exit_funcs = NULL;", system_source)
         self.assertIn("already_quitting = false;", system_source)
         self.assertEqual(platform_source.count("I_ResetExitState();"), 2)
-        self.assertIn(
-            "extern void  I_ResetExitState(void);", platform_source
-        )
+        self.assertTrue(_c_spelling_ranges(platform_source, "extern void I_ResetExitState(void);"))
         self.assertIn("I_Quit();", platform_source)
         self.assertNotIn("I_Endoom(endoom);\n\n\texit(0);", main_source)
         self.assertIn(
@@ -378,15 +377,13 @@ class DoomCupidCProductionTests(unittest.TestCase):
         self.assertIn("return VFS_EBUSY;", homefs_source)
         self.assertIn("return failure;", homefs_source)
         self.assertIn("return load_status;", homefs_source)
-        self.assertIn("if (g_homefs) return VFS_EBUSY;", homefs_source)
+        self.assertTrue(_c_spelling_ranges(homefs_source, "if (g_homefs) return VFS_EBUSY;"))
         self.assertIn("int homefs_batch_begin(void);", homefs_header)
         self.assertIn("int homefs_batch_end(void);", homefs_header)
-        self.assertIn(
-            "if (fs->batch_depth > 0u) return VFS_OK;", homefs_source
-        )
-        self.assertIn(
-            "if (fs->batch_depth > 0u) return VFS_EBUSY;", homefs_source
-        )
+        self.assertTrue(_c_spelling_ranges(homefs_source,
+            "if (fs->batch_depth > 0u) return VFS_OK;"))
+        self.assertTrue(_c_spelling_ranges(homefs_source,
+            "if (fs->batch_depth > 0u) return VFS_EBUSY;"))
         self.assertIn(
             "g_homefs->batch_depth == 0xffffffffu", homefs_source
         )
@@ -427,10 +424,8 @@ class DoomCupidCProductionTests(unittest.TestCase):
             ramfs_write.index("if (end > RAMFS_MAX_DATA)"),
             ramfs_write.index("/* Grow buffer if needed */"),
         )
-        self.assertIn(
-            "if (new_pos > RAMFS_MAX_DATA) return VFS_ENOSPC;",
-            ramfs_source,
-        )
+        self.assertTrue(_c_spelling_ranges(ramfs_source,
+            "if (new_pos > RAMFS_MAX_DATA) return VFS_ENOSPC;"))
         self.assertNotIn(
             "ramfs_mkdirs(fs->root, new_path", ramfs_source
         )
@@ -624,7 +619,7 @@ class DoomCupidCProductionTests(unittest.TestCase):
             (len(image), hashlib.sha256(image).hexdigest()),
             (
                 50552,
-                "fcb257cd9a2727ac1b928366b07a9ff2b4328c01c889a5de00546dca91ccd23b",
+                "3710f0688dd11b5e00e561da567ba71b545de337fcef6210cc9c86ca590f4515",
             ),
         )
 

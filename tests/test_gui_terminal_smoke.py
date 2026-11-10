@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from tools import gui_terminal_smoke
+from tests.c_source_spelling import _c_spelling_ranges, c_block, c_literal_text
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -1897,18 +1898,14 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 re.S,
             ),
         )
-        self.assertIn(
+        self.assertTrue(_c_spelling_ranges(source,
             "static void shell_print(const char *s) {\n"
             "  shell_route_print(s, 0);\n"
-            "}",
-            source,
-        )
-        self.assertIn(
+            "}"))
+        self.assertTrue(_c_spelling_ranges(source,
             "static void shell_dis_print(const char *s) {\n"
             "  shell_route_print(s, 1);\n"
-            "}",
-            source,
-        )
+            "}"))
         self.assertEqual(
             source.count("cupidc_dis(rpath, shell_dis_print);"),
             3,
@@ -1970,11 +1967,9 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn(
+        self.assertTrue(_c_spelling_ranges(source,
             'serial_printf("[godsong] settings ready\\n");\n'
-            "  c = popup_menu(220, 110, (void*)items, 3);",
-            source,
-        )
+            "  c = popup_menu(220, 110, (void*)items, 3);"))
         popup = (REPO_ROOT / "kernel" / "gfx" / "gfx2d.cc").read_text(
             encoding="utf-8"
         ).split("int gfx2d_popup_menu(", 1)[1]
@@ -2138,8 +2133,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
 
     def test_gfxgui_non_gui_mode_is_an_immediate_serial_failure(self):
         source = GFXGUI_SOURCE.read_text(encoding="utf-8")
-        gui_guard = source.index("if (!is_gui_mode())")
-        next_block = source.index("\n  }", gui_guard)
+        gui_guard, next_block = c_block(source, "if (!is_gui_mode())")
         self.assertIn(
             "[gfxgui_test] FAIL requires GUI mode",
             source[gui_guard:next_block],
@@ -2641,7 +2635,10 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "[feature14-callback-field-call] PASS typedef=1 raw=1 "
             "float4=4 once=1 calls=2",
         ):
-            self.assertIn(spelling, source)
+            if spelling.startswith("["):
+                self.assertIn(spelling, c_literal_text(source))
+            else:
+                self.assertTrue(_c_spelling_ranges(source, spelling), spelling)
 
     def test_feature14_raw_callback_failure_cannot_hide_behind_pass_evidence(self):
         sample = _frontier_command_output("/bin/feature14_simd.cc")
@@ -2879,7 +2876,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "*(int*)&pointer_old",
         ):
             with self.subTest(expression=expression):
-                self.assertIn(expression, source)
+                self.assertTrue(_c_spelling_ranges(source, expression), expression)
 
     def test_feature13_requires_aot_and_external_update_evidence(self):
         aot = _frontier_command(

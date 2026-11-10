@@ -128,3 +128,18 @@ checks read the actual C tables; they do not execute the native coordinator.
 The [readback evidence](evidence/compile-policy-layout-20261109.json.gz) retains
 the failures, corrected sources and controls. Installed-seed acceptance remains
 open.
+
+## Runtime-source readbacks
+
+The shared Python C-token fixture also supports graphics handoff, shell
+routing, indirect floating updates, callback checks and Doom exit checks.
+Block extraction follows balanced braces outside comments and literals.
+SIMD markers may span adjacent string literals; their content stays exact.
+The SDK inventory check requires the shared C spelling header explicitly.
+
+All 109 focused methods pass on Windows and Linux, including the checked-seed
+`g_game.cc` object fingerprint. Seven altered-source controls on each host
+reject changes to the guarded operations. The
+[runtime fixture evidence](evidence/formatted-runtime-fixtures-20261109.json.gz)
+retains sources, controls and failed and passing logs. These checks do not
+replace the complete repository replay or installed-cohort acceptance.

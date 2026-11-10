@@ -5,6 +5,7 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from tests.c_source_spelling import _c_spelling_ranges, c_block
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -462,7 +463,9 @@ class Gfx2DFullscreenHandoffContractTests(unittest.TestCase):
         )
         confirm = _function_source(gfx2d, "gfx2d_confirm_dialog")
         terminal_key = confirm.index("if (evt.scancode == FDLG_SC_ENTER)")
-        self.assertGreater(confirm.index("if (result >= 0) break;"), terminal_key)
+        breaks = _c_spelling_ranges(confirm, "if (result >= 0) break;")
+        self.assertEqual(len(breaks), 1)
+        self.assertGreater(breaks[0][0], terminal_key)
 
         modal_target = _function_source(gfx2d, "fdlg_window_modal_target")
         modal_window = _function_source(gfx2d, "fdlg_run_window")
@@ -990,12 +993,11 @@ class Gfx2DFullscreenHandoffContractTests(unittest.TestCase):
         source = GFXGUI_SOURCE.read_text(encoding="utf-8")
 
         self.assertIn("for (handoff = 0; handoff < 32; handoff++)", source)
-        self.assertIn("gfx2d_fullscreen_exit();\n    yield();", source)
+        handoff_exits = _c_spelling_ranges(source, "gfx2d_fullscreen_exit(); yield();")
+        self.assertEqual(len(handoff_exits), 1)
         self.assertIn("FAIL font pixel handoff=%d value=%x", source)
-        loop = source.split(
-            "for (handoff = 0; handoff < 32; handoff++) {",
-            1,
-        )[1].split("\n  }", 1)[0]
+        begin, end = c_block(source, "for (handoff = 0; handoff < 32; handoff++)")
+        loop = source[begin:end]
         self.assertLess(
             loop.index("gfx2d_fullscreen_enter();"),
             loop.index("gfx2d_blend_mode(0);"),
@@ -1006,7 +1008,7 @@ class Gfx2DFullscreenHandoffContractTests(unittest.TestCase):
         )
         final_enter = source.index(
             "gfx2d_fullscreen_enter();",
-            source.index("gfx2d_fullscreen_exit();\n    yield();"),
+            handoff_exits[0][1],
         )
         self.assertGreater(source.index("gfx2d_transform_init();"), final_enter)
 

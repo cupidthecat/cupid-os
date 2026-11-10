@@ -1,5 +1,28 @@
 # Bootstrapping log
 
+## 2026-11-09: Repair formatted runtime-source fixtures
+
+The shared Python source reader now serves the audit and runtime checks.
+Graphics handoff, shell routing, callback and Doom exit checks compare C
+tokens without fixing whitespace. Block extraction counts braces outside
+comments and literals. SIMD marker checks join adjacent string literals while
+preserving their escape spelling and keeping separate expressions apart.
+The SDK inventory check explicitly includes the shared C spelling fixture.
+
+Both hosts pass all 109 focused methods, including the actual checked-seed
+`g_game.cc` compilation. The object keeps its 50,552-byte size and has SHA-256
+`3710f0688dd11b5e00e561da567ba71b545de337fcef6210cc9c86ca590f4515`.
+Seven actual-source controls on each host reject altered shell routing,
+readiness, pointer access, callback failure handling, handoff yield, modal
+escape and the Doom exit declaration. Three helper methods also check token
+boundaries, literal contents and ambiguous or unterminated blocks.
+
+The [fixture evidence](evidence/formatted-runtime-fixtures-20261109.json.gz)
+retains failed attempts, passing logs, controls and before/after sources.
+OS source, installed tools and build ownership do not change in this repair.
+The complete Windows replay and current-cohort behavior qualifications remain
+separate live jobs.
+
 ## 2026-11-09: Add wiki publication on push
 
 The `Publish wiki` workflow copies tracked `wiki/` pages and assets to the

@@ -1,5 +1,4 @@
 import ast
-from functools import lru_cache
 import importlib.util
 import json
 import re
@@ -12,6 +11,8 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
+
+from tests.c_source_spelling import _c_spelling_ranges
 
 from tools.cupidc_kernel_compile import (
     APPROVED_DOOM_COMPAT_SOURCES,
@@ -63,46 +64,6 @@ LINUX_PRODUCTION_SEED_INPUTS = (
     "bootstrap/seeds/release.json",
     *LINUX_BOOTSTRAP_SEED_INPUTS[1:],
 )
-
-
-_C_SPELLING_TOKEN = re.compile(
-    r'//[^\n]*|/\*.*?\*/|(?:u8|[LuU])?"(?:\\.|[^"\\\n])*"'
-    r"|(?:[LuU])?'(?:\\.|[^'\\\n])*'"
-    r'|[A-Za-z_][A-Za-z_0-9]*'
-    r'|(?:\d|\.\d)(?:[A-Za-z_0-9.]|(?<=[eEpP])[+-])*'
-    r'|>>=|<<=|\.\.\.|->|\+\+|--|&&|\|\||<=|>=|==|!=|<<|>>'
-    r'|[+*/%&|^=-]=|##|[^\s]',
-    re.S,
-)
-
-
-@lru_cache(maxsize=16)
-def _c_spelling_tokens(source):
-    tokens = []
-    for match in _C_SPELLING_TOKEN.finditer(source):
-        value = match.group()
-        if value == '/' and source.startswith('/*', match.start()):
-            raise ValueError('incomplete C comment in source fixture')
-        if value.startswith(('//', '/*')):
-            continue
-        if value in ('"', "'"):
-            raise ValueError('incomplete C literal in source fixture')
-        tokens.append((value, match.start(), match.end()))
-    return tuple(tokens)
-
-
-def _c_spelling_ranges(source, fragment, start=0):
-    tokens = _c_spelling_tokens(source)
-    wanted = tuple(value for value, _start, _end in _c_spelling_tokens(fragment))
-    if not wanted:
-        raise ValueError('empty C source fixture')
-    values = tuple(value for value, _start, _end in tokens)
-    count = len(wanted)
-    return [(tokens[index][1], tokens[index + count - 1][2])
-            for index in range(len(tokens) - count + 1)
-            if tokens[index][1] >= start and values[index] == wanted[0]
-            and values[index:index + count] == wanted]
-
 
 
 def _write(path, content):
