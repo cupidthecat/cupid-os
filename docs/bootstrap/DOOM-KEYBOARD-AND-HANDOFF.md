@@ -58,8 +58,9 @@ startup and input return.
 The four-vCPU timedemo reproduced the EHCI ownership panic after graphics
 initialized. A register trace caught a separate failure before submission,
 followed by the controller eventually asserting halt. With the fallback
-halt wait extended to 100 ms, a repeat initialized graphics and ran for
-1,500 seconds without an EHCI ownership failure. See the
+halt wait extended to 100 ms, the timedemo completed 7,117 game ticks
+at 7.14 fps, exited fullscreen and returned to the shell without an
+EHCI ownership failure. See the
 [EHCI halt decision](../adr/0491-allow-time-for-ehci-halt-proof.md).
 
 ## Evidence and limits

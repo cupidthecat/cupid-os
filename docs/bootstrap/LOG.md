@@ -85,9 +85,11 @@ controller to prove ownership has ended. The normal async stop keeps its
 On Windows and WSL, the old code failed the injected delayed-halt case after
 20 ms of polling. The new code accepted the 22 ms halt, kept the fast path and
 still rejected a controller that never halted. All 46 USB tests passed on
-each host. The four-vCPU timedemo with the longer wait reached graphics and
-ran for 1,500 seconds with neither EHCI ownership failure. The diagnostic with
-the periodic schedule disabled reached the same observation limit.
+each host. The retained four-vCPU timedemo log records 7,117 game ticks
+in 34,906 real ticks (7.14 fps), followed by fullscreen exit, shell return
+and command completion. The log contains neither EHCI ownership failure.
+The diagnostic with the periodic schedule disabled reached its 1,500-second
+observation limit after graphics startup.
 
 The normal checked link and image recipe passed all 16 exact artifact gates
 with the revised USB manual. The raw kernel is 9,507,492 bytes, SHA-256
