@@ -105,6 +105,13 @@ The guest flattener reproduced all 9,507,492 bytes of the checked raw kernel.
 Each worker reuses released work buffers and drains the cache before
 publishing output and on return.
 
+## Guest disk template
+
+`make -C bootstrap/guest guest-disk` builds the disk-template worker. Put
+the bootloader, raw kernel and output paths in `/home/cupiddisk.job`, then
+run `exec /disk/cupdisk`. The output covers the standard disk from the boot
+sectors through the empty FAT16 directory.
+
 ## History
 
 The [bootstrap log](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/LOG.md)

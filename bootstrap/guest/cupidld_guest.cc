@@ -19,23 +19,6 @@ typedef struct {
     ctool_u32 count;
 } guest_link_job_t;
 
-static char *next_line(char **cursor, char *end) {
-    char *line = *cursor;
-    if (line >= end)
-        return NULL;
-    char *stop = line;
-    while (stop < end && *stop != '\n') {
-        if (*stop == '\r' || *stop == '\0')
-            return NULL;
-        stop++;
-    }
-    if (stop == line)
-        return NULL;
-    *stop = '\0';
-    *cursor = stop < end ? stop + 1 : stop;
-    return line;
-}
-
 static int read_link_job(char *file, guest_link_job_t *job) {
     int bytes = __sys->vfs_read_text(LINK_JOB, file, LINK_JOB_BYTES);
     if (bytes <= 0 || (ctool_u32)bytes >= LINK_JOB_BYTES)
@@ -43,9 +26,9 @@ static int read_link_job(char *file, guest_link_job_t *job) {
 
     char *cursor = file;
     char *end = file + bytes;
-    char *output = next_line(&cursor, end);
-    char *layout = next_line(&cursor, end);
-    char *argument = next_line(&cursor, end);
+    char *output = cupid_guest_next_job_line(&cursor, end);
+    char *layout = cupid_guest_next_job_line(&cursor, end);
+    char *argument = cupid_guest_next_job_line(&cursor, end);
     if (!output || !layout || !argument)
         return 0;
 
@@ -78,7 +61,7 @@ static int read_link_job(char *file, guest_link_job_t *job) {
 
     job->count = 0;
     while (cursor < end) {
-        char *path = next_line(&cursor, end);
+        char *path = cupid_guest_next_job_line(&cursor, end);
         if (!path || job->count >= LINK_MAX_OBJECTS)
             return 0;
         ctool_path_t item = {ctool_string(path)};

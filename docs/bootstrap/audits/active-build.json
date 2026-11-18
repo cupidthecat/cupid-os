@@ -47054,13 +47054,13 @@
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
         "residual_c_sources": 17,
         "runtime_delivery_sources": 130,
-        "sha256": "3b7966810b6a698ec21a36dca6993ea900ac4375ad95ee13fdb7551b82e40bc1",
-        "unreachable_cupid_c_sources": 70
+        "sha256": "d6c7ef9e783176e47f68f1d80780a9f1ea12b565a4e1235d6cd4628393268644",
+        "unreachable_cupid_c_sources": 71
       },
       "proven_cupidc_owned_tracked_cupid_c_sources": 432,
       "status": "pass",
       "tracked_c_sources": 17,
-      "tracked_cupid_c_sources": 502,
+      "tracked_cupid_c_sources": 503,
       "unreachable": [
         {
           "classification": "historical_copy",
@@ -47155,6 +47155,11 @@
         {
           "classification": "host_fixture",
           "path": "bootstrap/guest/cupidc_guest_linux_contract.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
+          "path": "bootstrap/guest/cupiddisk_guest.cc",
           "policy": "source_suffix_policy"
         },
         {
@@ -47484,7 +47489,7 @@
         }
       ],
       "unreachable_tracked_c_sources": 17,
-      "unreachable_tracked_cupid_c_sources": 70
+      "unreachable_tracked_cupid_c_sources": 71
     },
     "cupid_toolchain_fixed_point": {
       "checked_seed_publication": "complete-bundle",
@@ -62639,7 +62644,7 @@
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
-        "sha256": "3b7966810b6a698ec21a36dca6993ea900ac4375ad95ee13fdb7551b82e40bc1"
+        "sha256": "d6c7ef9e783176e47f68f1d80780a9f1ea12b565a4e1235d6cd4628393268644"
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
@@ -92442,7 +92447,7 @@
     "active_sources": 801,
     "features": 257,
     "transforms": 452,
-    "unreachable_sources": 97
+    "unreachable_sources": 98
   },
   "supplemental_builds": [
     {
@@ -93281,6 +93286,16 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
+      "lines": 56,
+      "path": "bootstrap/guest/cupiddisk_guest.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "2640e865d2b6ef472bab50937bcbd58189e1ffa1fd6431271532e45b97164f0d"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
       "lines": 73,
       "path": "bootstrap/guest/cupidksyms_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
@@ -93291,11 +93306,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 162,
+      "lines": 145,
       "path": "bootstrap/guest/cupidld_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "792125b090a4d19715f9e04796c07bf84465bbf1fdc0e08bfe398c3939c9e36b"
+      "sha256": "07a77c4c72ff39edc917665c6ac3333a79d64500f74ea35ffc8a4b67460f4429"
     },
     {
       "classification": "not_reached",
@@ -93341,21 +93356,21 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 187,
+      "lines": 201,
       "path": "bootstrap/guest/guest_job.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "c2cf55ce6a3dc1312f9bbf693f1d05ced571582b9c610ce56795d3e3d36dba17"
+      "sha256": "38bfde694e222ec3d1894d899862812f597c06bd31d67c75ef12991203e3eb38"
     },
     {
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "c_header",
-      "lines": 34,
+      "lines": 40,
       "path": "bootstrap/guest/guest_job.h",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "81745afa9977137f4020138c66f9a367241bc44e441b72521433323fbcf4103a"
+      "sha256": "3708ff546ac06c49debd081eb9138bb4f63bc982401cb59449d9be85c54b05cd"
     },
     {
       "classification": "superseded",

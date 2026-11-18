@@ -67,12 +67,16 @@ GUEST_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/cupidobj.o \
 GUEST_KSYMS := $(BUILD)/cupidksyms-guest.elf
 GUEST_KSYMS_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/x86.o \
     $(BUILD)/cupiddis.o $(BUILD)/cupidobj.o $(GUEST_SUPPORT) $(BUILD)/cupidksyms_guest.o
+GUEST_DISK := $(BUILD)/cupiddisk-guest.elf
+GUEST_DISK_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/cupidobj.o \
+    $(GUEST_SUPPORT) $(BUILD)/cupiddisk_guest.o
 
-.PHONY: guest-compiler guest-linker guest-object guest-ksyms
+.PHONY: guest-compiler guest-linker guest-object guest-ksyms guest-disk
 guest-compiler: $(GUEST_COMPILER)
 guest-linker: $(GUEST_LINKER)
 guest-object: $(GUEST_OBJECT)
 guest-ksyms: $(GUEST_KSYMS)
+guest-disk: $(GUEST_DISK)
 
 $(BUILD)/cupidc_guest.o: cupidc_guest.cc guest_job.h ../../user/cupid.h $(HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/cupidc_guest.cc -o $(PUBLISH)/cupidc_guest.o
@@ -108,6 +112,13 @@ $(GUEST_KSYMS): $(GUEST_KSYMS_OBJECTS) Makefile $(SEED_INPUTS)
 	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry cupidksyms_guest_run \
 		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
 
+$(BUILD)/cupiddisk_guest.o: cupiddisk_guest.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupidobj.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
+	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/cupiddisk_guest.cc -o $(PUBLISH)/cupiddisk_guest.o
+
+$(GUEST_DISK): $(GUEST_DISK_OBJECTS) Makefile $(SEED_INPUTS)
+	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry cupiddisk_guest_run \
+		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
+
 # Preserve repository-relative paths so the guest can use the same logical
 # source and include names as the checked host compiler.
 ISO := $(BUILD)/engsrc.iso
@@ -119,7 +130,7 @@ ISO_SOURCES := $(addprefix toolchain/,$(addsuffix .cc,$(CORE))) \
 	bootstrap/guest/cupidc_engine.cc bootstrap/guest/cupidc_engine.h \
 	bootstrap/guest/cupidc_guest.cc bootstrap/guest/guest_job.cc bootstrap/guest/guest_job.h \
 	bootstrap/guest/cupidld_guest.cc bootstrap/guest/cupidobj_guest.cc \
-	bootstrap/guest/cupidksyms_guest.cc bootstrap/guest/TOOLS.CTXT \
+	bootstrap/guest/cupidksyms_guest.cc bootstrap/guest/cupiddisk_guest.cc bootstrap/guest/TOOLS.CTXT \
 	toolchain/cupidld.cc toolchain/cupidld.h user/cupid.h $(ISO_PEER_SOURCES) \
 	$(patsubst ../../%,%,$(filter-out cupidc_engine.h,$(HEADERS)))
 ISO_ENGINE := cupidc-engine.elf
@@ -209,6 +220,22 @@ $(GUEST_KSYMS_CONTRACT): $(GUEST_KSYMS_CONTRACT_OBJECTS) Makefile $(SEED_INPUTS)
 $(BUILD)/cupidksyms_guest_linux_contract.o: cupidc_guest_linux_contract.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/ctool_host.h $(TOOLCHAIN)/ctool.h $(HOST_HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(HOSTED_CFLAGS) -I /user -D CUPID_TEST_GUEST_ENTRY=cupidksyms_guest_run \
 		-c /bootstrap/guest/cupidc_guest_linux_contract.cc -o $(PUBLISH)/cupidksyms_guest_linux_contract.o
+
+GUEST_DISK_CONTRACT := $(BUILD)/cupiddisk-guest-linux-contract.elf
+GUEST_DISK_CONTRACT_OBJECTS := $(GUEST_DISK_OBJECTS) $(addprefix $(BUILD)/,start.o linux_runtime.o \
+	ctool_host.o cupiddisk_guest_linux_contract.o)
+
+.PHONY: check-guest-disk
+check-guest-disk: $(GUEST_DISK) $(GUEST_DISK_CONTRACT)
+	$(PYTHON) check_guest_disk.py "$(ROOT)"
+
+$(GUEST_DISK_CONTRACT): $(GUEST_DISK_CONTRACT_OBJECTS) Makefile $(SEED_INPUTS)
+	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x08048000 --entry _start \
+		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
+
+$(BUILD)/cupiddisk_guest_linux_contract.o: cupidc_guest_linux_contract.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/ctool_host.h $(TOOLCHAIN)/ctool.h $(HOST_HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
+	$(RUN) --tool cupidc -- $(HOSTED_CFLAGS) -I /user -D CUPID_TEST_GUEST_ENTRY=cupiddisk_guest_run \
+		-c /bootstrap/guest/cupidc_guest_linux_contract.cc -o $(PUBLISH)/cupiddisk_guest_linux_contract.o
 
 .PHONY: check-load check-linux
 check-load: $(ENGINE) $(LINUX_CONTRACT)

@@ -74,3 +74,16 @@ first line and a /home output path on the second line.
 Stage the worker as /cupobj on the disk and run exec /disk/cupobj.
 HomeFS saves the worker output through a replacement file. FAT16 syncs its
 data chain before publishing the updated directory entry.
+
+>h2 Build a disk template
+
+In /home/cupiddisk.job, put the five-sector bootloader path, raw kernel
+path and output path on separate lines.
+
+  /home/boot.bin
+  /home/kernel.bin
+  /home/disk-prefix.img
+
+Stage the worker as /cupdisk and run exec /disk/cupdisk. The result ends
+after the empty FAT16 root directory. It describes the standard 200 MiB
+image with its partition starting at sector 20480.

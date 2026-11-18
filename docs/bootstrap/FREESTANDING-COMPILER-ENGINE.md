@@ -334,6 +334,27 @@ In a four-vCPU guest, the production ELF flattened to 9,507,492 bytes.
 HomeFS readback matched the checked host output, SHA-256
 `01f737eb769ec52948c8739e0fc9062f147a7e888b4b255576bc42c4acfdaf6b`.
 
+## Build the disk template inside Cupid OS
+
+Build the worker with `make -C bootstrap/guest guest-disk` and stage it
+as `/cupdisk`. Put the bootloader, raw kernel and output paths in
+`/home/cupiddisk.job`, one per line.
+
+```text
+/home/boot.bin
+/home/kernel.bin
+/home/disk-prefix.img
+```
+
+Run `exec /disk/cupdisk`. The result contains the boot and kernel blocks,
+both FAT16 tables and the empty root directory for a fresh 200 MiB disk.
+
+On Linux or WSL, `make -C bootstrap/guest check-guest-disk` compares the
+prefix with the checked host tool and checks rejected jobs.
+`python3 bootstrap/guest/check_guest_disk_runtime.py` runs the job in
+Cupid OS, compares the prefix, extends the file with zeroes and boots it.
+The replay accepts `--boot` and `--kernel` to select saved guest artifacts.
+
 ## Retained proof
 
 The module SHA-256 is

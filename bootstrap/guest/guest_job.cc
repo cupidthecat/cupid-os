@@ -3,36 +3,50 @@
 #define GUEST_ENOENT (-2)
 #define GUEST_ENOSPC (-28)
 
+char *cupid_guest_next_job_line(char **cursor, char *end) {
+    char *line = *cursor;
+    if (line >= end)
+        return NULL;
+    char *stop = line;
+    while (stop < end && *stop != '\n') {
+        if (*stop == '\r' || *stop == '\0')
+            return NULL;
+        stop++;
+    }
+    if (stop == line)
+        return NULL;
+    *stop = '\0';
+    *cursor = stop < end ? stop + 1 : stop;
+    return line;
+}
+
+int cupid_guest_read_paths(cupid_syscall_table_t *sys, const char *job_path,
+                          char *file, ctool_u32 capacity, ctool_path_t *paths, ctool_u32 count) {
+    int size = sys->vfs_read_text(job_path, file, capacity);
+    if (size < 1 || (ctool_u32)size >= capacity || count == 0u)
+        return 0;
+    char *cursor = file;
+    char *end = file + size;
+    for (ctool_u32 i = 0; i < count; i++) {
+        char *line = cupid_guest_next_job_line(&cursor, end);
+        if (!line)
+            return 0;
+        ctool_path_t path = {ctool_string(line)};
+        if (path.text.size >= VFS_MAX_PATH || !ctool_path_is_canonical(&path))
+            return 0;
+        paths[i] = path;
+    }
+    ctool_string_t output = paths[count - 1u].text;
+    return cursor == end && output.size >= 7u && sys->strncmp(output.data, "/home/", 6u) == 0;
+}
+
 int cupid_guest_read_path_job(cupid_syscall_table_t *sys, const char *job_path,
                               char *file, ctool_invocation_request_t *invocation) {
-    int size = sys->vfs_read_text(job_path, file, CUPID_GUEST_PATH_JOB_BYTES);
-    if (size < 1 || (ctool_u32)size >= CUPID_GUEST_PATH_JOB_BYTES)
+    ctool_path_t paths[2];
+    if (!cupid_guest_read_paths(sys, job_path, file, CUPID_GUEST_PATH_JOB_BYTES, paths, 2u))
         return 0;
-    file[size] = '\0';
-    int split = 0;
-    while (split < size && file[split] != '\n' && file[split] != '\0' && file[split] != '\r')
-        split++;
-    if (split == 0 || split >= VFS_MAX_PATH || split >= size || file[split] != '\n')
-        return 0;
-    file[split] = '\0';
-
-    char *output = file + split + 1;
-    int length = size - split - 1;
-    if (length > 0 && output[length - 1] == '\n')
-        output[--length] = '\0';
-    if (length < 7 || length >= VFS_MAX_PATH || sys->strncmp(output, "/home/", 6u) != 0)
-        return 0;
-    for (int i = 6; i < length; i++) {
-        if (output[i] == '\0' || output[i] == '\n' || output[i] == '\r')
-            return 0;
-    }
-
-    ctool_path_t input = {{file, (ctool_u32)split}};
-    ctool_path_t destination = {{output, (ctool_u32)length}};
-    if (!ctool_path_is_canonical(&input) || !ctool_path_is_canonical(&destination))
-        return 0;
-    invocation->input_path = input.text;
-    invocation->output_path = destination.text;
+    invocation->input_path = paths[0].text;
+    invocation->output_path = paths[1].text;
     return 1;
 }
 

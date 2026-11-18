@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## 2026-11-18 — Author the boot disk prefix inside Cupid OS
+
+The guest disk worker uses CupidObj to write the standard 200 MiB disk's
+MBR, boot area, kernel and empty FAT16 structures. The Linux adapter test
+matched checked CupidObj and preserved the output across seven rejected
+requests. The compiler, linker, symbol and object tests passed with the
+same job line reader. Windows and WSL produced the same worker ELF, SHA-256
+`4655c55fa9dbb0266bc083e118ae445d93cabebe477e07f83c6e7224b73161b7`.
+The source ISO readback matched 49 files and seven directories.
+
+A four-vCPU guest used the guest-assembled bootloader and the guest-produced
+raw kernel to build the 10,697,216-byte disk prefix. HomeFS readback matched
+the checked host template, SHA-256
+`0e079a653c0aa120dc8d8074b039525aead16560634ab930e323e62c809a88d3`.
+The replay extended the prefix to 200 MiB with zeroes. The resulting disk
+passed strict boot and the shell JIT smoke. See the
+[disk replay procedure](FREESTANDING-COMPILER-ENGINE.md#build-the-disk-template-inside-cupid-os).
+
 ## 2026-11-18 — Skip repeated checks for increasing initializers
 
 The generated kernel symbol table exposed repeated duplicate checks in the

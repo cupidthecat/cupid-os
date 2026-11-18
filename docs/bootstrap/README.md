@@ -13,7 +13,9 @@ Cupid OS remains unfinished.
   inside Cupid OS. The rebuilt compiler reproduced the CupidASM, CupidDis
   and CupidObj core objects. The guest build ran both production kernel
   links, generated and compiled the symbol table, and flattened the final
-  ELF with byte-for-byte matches. See the [guest build record](FREESTANDING-COMPILER-ENGINE.md).
+  ELF with byte-for-byte matches. CupidObj also authored a fresh disk
+  prefix in the guest. It booted after zero extension.
+  See the [guest build record](FREESTANDING-COMPILER-ENGINE.md).
 - Source-owner modules are in current producer plans, and paired named
   preparations reach a fixed point. The C reader now recognizes their exact
   behavior profiles. Both refreshed full qualifications pass. Replacement-tool
