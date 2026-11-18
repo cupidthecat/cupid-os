@@ -1,5 +1,25 @@
 # Bootstrapping log
 
+## 2026-11-18 — Qualify the paired hosted seed candidate
+
+Fresh WSL and native Windows stages reproduced the six tools from the 114
+inputs in `b4c507f8`. Independent readback compared every captured source
+with that commit, checked both parent manifests and compared all 333 stage
+artifacts, including the byte-identical final stages on each host.
+
+The independently checked release candidate is 2,737 bytes, SHA-256
+`27ecc6d89c10bd3f01008987ec665361ddbee8ad88b7c38c9e6ea6a982156553`.
+Both authorized qualifications rebuilt and rechecked their preparations.
+WSL passed 73 success, 66 failure and seven help cases. Windows passed 60
+success, 54 failure and seven help cases. Each host tested two generations.
+
+The installed release rejected the changed producer plan. The direct
+bootstrap without an explicit release also reached the strict provenance
+check and was rejected. A lower-load retry passed the earlier WSL compiler
+deadline. The paired preparation and qualification flow accepted the new
+producer after reviewing its plans, parents and artifact bytes. The checked
+installed seeds still serve the normal OS build.
+
 ## 2026-11-18 — Relink and boot the production kernel
 
 CupidLD now accepts a script path and an ordered object list in its guest
