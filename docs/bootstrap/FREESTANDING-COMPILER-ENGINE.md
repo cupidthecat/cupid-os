@@ -1,11 +1,36 @@
-# Freestanding compiler engine experiment
+# Freestanding compiler engine
 
 A loadable freestanding CupidC engine rebuilt all nine of its own objects,
 then relinked to the same complete image. This ran in a native Linux harness
 at the existing guest compiler arena address. Execution inside Cupid OS and
 normal-build integration remain unfinished.
 
-## What ran
+## Build and verify
+
+Run from the repository root. Linux, WSL and Windows use their own checked
+CupidC and CupidLD seeds to build the same i386 ELF.
+
+```sh
+make -j4 -C bootstrap/guest
+```
+
+The module is `build/guest-engine/cupidc-engine.elf`. On Linux or WSL
+with i386 execution enabled, run:
+
+```sh
+make -j4 -C bootstrap/guest check-linux
+```
+
+The check loads the ELF through the shared ELF32 reader and calls its entry on
+a two-MiB Linux stack. It checks the request ABI, a malformed source, the input
+size limit and an invalid ELF entry point. Rejected requests preserve a
+sentinel file. Successful requests return their job allocations and reproduce
+all nine objects and the relinked ELF byte for byte.
+
+Native Windows and WSL produced the same 2,486,352-byte module. Its SHA-256 is
+`732dabe3f2086109c85661b9aa4c648188bee70dcc746bcb4e80bd62b658b9bd`.
+
+## Original Linux experiment
 
 Checked CupidC compiled the unchanged core, ELF, x86, preprocessor, type,
 frontend, IR and emitter sources with `--gnu --freestanding`. A small ninth

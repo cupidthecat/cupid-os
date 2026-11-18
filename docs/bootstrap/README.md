@@ -58,9 +58,9 @@ complete OS can rebuild itself from inside the guest.
 - [Remaining formatting fixtures](REMAINING-FORMAT-FIXTURES.md): bounded user
   profile readback, exact producer snapshot and paired complete user checks.
 
-- [Freestanding compiler engine](FREESTANDING-COMPILER-ENGINE.md): all nine
-  objects and the complete engine reproduce themselves in a Linux harness;
-  guest loading and self-recompilation remain unfinished.
+- [Freestanding compiler engine](FREESTANDING-COMPILER-ENGINE.md): build the
+  i386 ELF with checked tools and verify its nine-object fixed point on Linux.
+  Guest loading and self-recompilation remain unfinished.
 
 - [Keyboard FIFO repair](KEYBOARD-FIFO-REPAIR.md): shared reader cursor, checked
   tool fixtures, complete kernel rechecks and the 31-command guest frontier.

@@ -1,5 +1,32 @@
 # Bootstrapping log
 
+## 2026-11-17: Build and replay the freestanding compiler engine
+
+`make -C bootstrap/guest` builds the nine-object CupidC engine with checked tools.
+The Linux test loads the engine on a two-MiB stack, checks invalid ABI and
+source requests, and compares the rebuilt objects and complete ELF.
+The replay reproduced all nine objects and the complete 2,486,352-byte ELF.
+The active build audit, its manifest drift test, and the wiki link check
+passed.
+
+The first source placement put the engine header in the Doom profile's
+include inventory. Moving the opt-in build to `bootstrap/guest` kept the
+profile focused on its existing inputs. The test also caught two launcher
+assumptions. CupidBuild runs its checked linker from the repository root, so
+the subdirectory passes absolute file paths. CupidLD emits an empty GNU stack
+header alongside its load segments, which the harness now accepts.
+
+Doom's checked compiler walks the directories under `toolchain/`. Two
+parallel image attempts failed with a directory-closure error during the
+engine experiments. A focused replay removed the same temporary directory after
+CupidC started. Removing it under `toolchain/build` failed and preserved the
+old object. Removing it under top-level `build` passed and published the new
+ELF object. The engine now writes its products and tests in top-level
+`build/guest-engine`.
+
+The [engine record](FREESTANDING-COMPILER-ENGINE.md) gives the replay commands
+and keeps the remaining guest work explicit.
+
 ## 2026-11-10: Measure the full compiler's worker-stack requirement
 
 The unchanged loaded compiler faults while compiling its full frontend on a

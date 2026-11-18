@@ -423,7 +423,8 @@ The permanently reserved identity-mapped range `[0x01C00000, 0x01E00000)` leased
 _Avoid_: dynamically allocated user memory, CupidC region, CupidASM region
 
 **TempleOS reference tree**:
-The checked-in TempleOS source consulted for design understanding but excluded from Cupid OS source, builds, and progress measures.
+Local TempleOS source used for design reference. Cupid OS builds and progress
+counts exclude this tree.
 _Avoid_: vendored Cupid OS source, Cupid OS source
 
 ### Runtime diagnostics
@@ -447,6 +448,11 @@ _Avoid_: CupidC when referring to the language
 **CupidC**:
 The compiler for C and Cupid C source.
 _Avoid_: Cupid C when referring to the compiler
+
+**Freestanding compiler engine**:
+The loadable i386 ELF that runs CupidC preprocessing, parsing and object
+emission with allocator, file and diagnostic callbacks supplied by its caller.
+Its versioned entry accepts one synchronous compilation request.
 
 **Linear IR**:
 The typed, target-neutral instruction sequence between CupidC's function-body AST and machine-code emission. Its stack entries distinguish object addresses from scalar and structure values. Branch targets stay relative to one function, while parameters, represented automatic objects, compound-literal objects, runtime string literals, block-static objects, linked file objects, and linked function references retain their absolute frontend identities. Machine addresses, section offsets, symbol-table indices, frame offsets, literal symbols, and value snapshot storage remain private to target emission.
