@@ -50,7 +50,9 @@ Cupid OS loads the worker into a dedicated arena with a two-MiB stack.
 Mount the source ISO at `/src`, place the two-line request in
 `/home/cupidc.job` and run `exec /disk/cupcc` after staging the executable
 as `/cupcc` on the guest disk. The first QEMU run rebuilt `ctool.o`
-byte for byte and released the worker lease.
+byte for byte and released the worker lease. A longer run mounted the
+source ISO from HomeFS and rebuilt the complete CupidC frontend. The object
+read back from the guest disk matched all 1,024,260 checked host bytes.
 [Engine build and evidence](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md)
 
 ## Guest linker

@@ -1,5 +1,38 @@
 # Bootstrapping log
 
+## 2026-11-17 — Initialize matching x86 encoder candidates
+
+Guest frontend samples found the encoder clearing an 84-byte candidate for
+every catalogue row. It now checks the mnemonic and operands before clearing
+storage. The original row order still decides ties between equally short
+encodings. See the [encoder decision](../adr/0489-initialize-matching-x86-encoder-candidates.md).
+
+The checked i386 Linux frontend replay dropped from 248.034 to 104.240
+seconds and reproduced all 1,024,260 object bytes. All 36 selected x86,
+CupidASM and CupidDis contracts passed.
+
+Checked Windows and WSL compiles produced the same kernel encoder object,
+SHA-256 `0535e2150e21c2b8976bff460f0f6d86a2f8e8224e631e09f4f6e490e6850cf9`.
+The checked two-pass link and strict CupidDis validation accepted the changed
+kernel. All 16 exact artifact checks passed before the normal image recipe
+published the disk from the retained object cohort. The raw kernel is
+9,507,552 bytes, SHA-256
+`4e834c3c7b3d02a92c2e58a14712c64dbbd9d2e02eebfef6d8a63545236695a1`.
+
+The four-vCPU guest assembled and disassembled an ELF32 object. Its persisted
+`.text` contained `31 c0 c3` (`xor eax, eax` and `ret`). A separate boot with
+QEMU's `max` CPU passed the strict SMP, TLS, disassembly and shell checks.
+The first disassembly assertion expected a different heading. The default
+QEMU CPU also lacked the strict gate's RDRAND marker.
+
+The Linux engine rebuilt all nine input objects and relinked a byte-identical
+2,486,352-byte executable. In the separate guest run, Cupid OS rebuilt the
+complete frontend from the HomeFS-backed source ISO under a 3,600-second QEMU
+deadline. Readback matched all 1,024,260 bytes, SHA-256
+`247ef308ec75bd3079497bc97cbc4454b0e062675868bc8d982e611304addd87`.
+That run used the instrumented worker with the original encoder. The earlier
+900- and 1,800-second runs expired before writing the frontend object.
+
 ## 2026-11-17 — Reuse temporary guest tool allocations
 
 Guest instruction samples found the frontend spending time in the kernel

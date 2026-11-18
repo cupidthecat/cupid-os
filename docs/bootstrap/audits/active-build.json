@@ -62608,7 +62608,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "edd9dbe79c963b7d596b0b9186d93d17aea5a3cef71f77915aa817dedb5b7a0e",
+    "active_source_digest": "e890498597699be5e785b59aac0e307393699923afd56eb2d3d2835b5480d86e",
     "control_files": [
       {
         "path": "Makefile",
@@ -92255,12 +92255,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 3652,
+      "lines": 3653,
       "origin": "tracked",
       "path": "toolchain/x86.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c75afe4455c45f679a0e0968dd3595a21cd08d44dfea8720dc8d395e35495863"
+      "sha256": "a8c8a5b1d3ee362ff0fd3c603dac10d859684dc3d6257e399b00751180e269b4"
     },
     {
       "build_owners": [

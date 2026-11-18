@@ -2000,7 +2000,7 @@ static ctool_bool x86_form_matches(ctool_x86_mode_t mode,
                                    const ctool_x86_instruction_t *instruction,
                                    const x86_form_row_t *row) {
     ctool_u32 index;
-    if ((row->modes & x86_mode_mask(mode)) == 0u || row->mnemonic != instruction->mnemonic ||
+    if ((row->modes & x86_mode_mask(mode)) == 0u ||
         row->operand_count != instruction->operand_count) {
         return CTOOL_FALSE;
     }
@@ -2720,11 +2720,12 @@ ctool_status_t ctool_x86_encode(ctool_job_t *job, ctool_x86_mode_t mode,
         ctool_x86_encoding_t candidate;
         ctool_u32 clear_index;
         const x86_form_row_t *row = &x86_forms[index];
+        if (row->mnemonic != instruction->mnemonic ||
+            x86_form_matches(mode, instruction, row) == CTOOL_FALSE) {
+            continue;
+        }
         for (clear_index = 0u; clear_index < (ctool_u32)sizeof(candidate); clear_index++) {
             ((ctool_u8 *)&candidate)[clear_index] = 0u;
-        }
-        if (x86_form_matches(mode, instruction, row) == CTOOL_FALSE) {
-            continue;
         }
         failure = x86_encode_form(mode, instruction, row, index + 1u, &candidate);
         if (failure == CTOOL_OK) {

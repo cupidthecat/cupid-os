@@ -176,7 +176,12 @@ missing-source request preserved it. Its SHA-256 is
 `b3c53624564e96d88100950babb28d768c40eb288195d958cdc4a7c4a5c0fa20`.
 Through the Linux syscall fixture, the full frontend produced the same
 1,024,260-byte object as the checked host compiler and released its allocations.
-The first full frontend run in QEMU reached its 900-second limit.
+In Cupid OS, the instrumented worker completed the same object with the source
+ISO mounted from HomeFS and a 3,600-second QEMU deadline. The persisted object
+matched the checked host bytes with SHA-256
+`247ef308ec75bd3079497bc97cbc4454b0e062675868bc8d982e611304addd87`.
+Earlier runs expired at 900 and 1,800 seconds. A complete guest rebuild still
+requires every compiler object and a guest relink.
 
 ## Link objects inside Cupid OS
 
