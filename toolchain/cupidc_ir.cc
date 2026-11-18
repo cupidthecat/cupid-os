@@ -7831,6 +7831,7 @@ static ctool_status_t cir_lower_aggregate_initializer_list(cir_context_t *contex
     const ctool_c_initializer_t *initializer;
     const ctool_c_type_node_t *parent;
     ctool_u32 edge_offset;
+    ctool_u32 highest_subobject = 0u;
     if (initializer_index >= context->unit->initializer_count ||
         depth >= CTOOL_C_PARSE_NESTING_LIMIT) {
         return cir_invalid_unit(context, object != (const cir_initializer_object_t *)0
@@ -7869,15 +7870,18 @@ static ctool_status_t cir_lower_aggregate_initializer_list(cir_context_t *contex
             &context->unit->initializer_elements[initializer->first_element + edge_offset];
         const ctool_c_initializer_t *child;
         cir_initializer_path_t *path = &context->initializer_path[depth];
-        ctool_u32 previous;
         if (edge->initializer >= initializer_index) {
             return cir_invalid_unit(context, &initializer->location);
         }
         child = &context->unit->initializers[edge->initializer];
-        for (previous = 0u; previous < edge_offset; previous++) {
-            if (context->unit->initializer_elements[initializer->first_element + previous]
-                    .subobject == edge->subobject) {
-                return cir_invalid_unit(context, &initializer->location);
+        if (edge->subobject > highest_subobject) {
+            highest_subobject = edge->subobject;
+        } else {
+            for (ctool_u32 previous = 0u; previous < edge_offset; previous++) {
+                if (context->unit->initializer_elements[initializer->first_element + previous]
+                        .subobject == edge->subobject) {
+                    return cir_invalid_unit(context, &initializer->location);
+                }
             }
         }
         path->parent_type = initializer->type;

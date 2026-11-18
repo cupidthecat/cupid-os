@@ -7101,7 +7101,7 @@ static int validate_toolchain_frontier(const char *host_root) {
     } toolchain_frontier_case_t;
 
     static const toolchain_frontier_case_t cases[] = {
-        {"/toolchain/ctool.cc", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1012u, 5981u, 133u, 33u, 0u, 0u},
+        {"/toolchain/ctool.cc", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1008u, 5968u, 132u, 33u, 0u, 0u},
         {"/toolchain/cupiddis.cc", CTOOL_OK, 0u, 0u, 0u, "", 141u, 3861u, 26472u, 461u, 413u, 1u,
          1u},
         {"/toolchain/cupidld.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 2875u, 18200u, 369u, 337u, 0u, 2u},
@@ -7110,13 +7110,13 @@ static int validate_toolchain_frontier(const char *host_root) {
         {"/toolchain/cupidc_type.cc", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u, 5487u, 85u, 43u, 0u, 0u},
         {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u, 25287u, 479u, 286u, 0u,
          0u},
-        {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 270u, 7629u, 70758u, 1005u, 369u, 0u,
+        {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 270u, 7633u, 70772u, 1006u, 371u, 0u,
          0u},
-        {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 374u, 9583u, 81059u, 1192u, 796u,
+        {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 374u, 9587u, 81073u, 1193u, 798u,
          0u, 0u},
-        {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 463u, 17781u, 116583u, 2650u,
-         1599u, 0u, 0u},
-        {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 91u, 3379u, 22318u, 376u, 209u, 0u,
+        {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 463u, 17789u, 116609u, 2652u,
+         1602u, 0u, 0u},
+        {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 91u, 3383u, 22340u, 376u, 209u, 0u,
          0u},
         {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u, 9457u, 143u, 70u, 0u, 1u},
         {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1866u, 12549u, 200u, 17124u, 3u, 0u}};
@@ -7184,7 +7184,7 @@ static int validate_toolchain_frontier(const char *host_root) {
                 int static_string_valid = 1;
                 if (strcmp(test_case->path, "/toolchain/ctool.cc") == 0) {
                     static_string_valid = validate_toolchain_static_string(
-                                              &unit, "digits", "/toolchain/ctool.cc", 1087u) == 0;
+                                              &unit, "digits", "/toolchain/ctool.cc", 1083u) == 0;
                 } else if (strcmp(test_case->path, "/toolchain/cupiddis.cc") == 0) {
                     static_string_valid = validate_toolchain_static_string(
                                               &unit, "hex", "/toolchain/cupiddis.cc", 2206u) == 0;

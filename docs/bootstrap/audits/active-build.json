@@ -52479,7 +52479,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5802
+      "occurrences": 5806
     },
     {
       "category": "control",
@@ -53277,7 +53277,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 46099
+      "occurrences": 46103
     },
     {
       "category": "control",
@@ -62623,7 +62623,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "bc908de49340a49d5db16c052c55a3fa301ce7125ef791927831518b4df81a39",
+    "active_source_digest": "2196c76be85747ac4564030e9f9904f2006c78ccd6b2f1e2a0d38f8bdb1e20a8",
     "control_files": [
       {
         "path": "Makefile",
@@ -88677,12 +88677,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 14555,
+      "lines": 14559,
       "origin": "tracked",
       "path": "toolchain/cupidc_emit.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ff188e65b7f0fb173a8ebcd5ee12db41744901c1ddd7b106ea7783152471b92a"
+      "sha256": "63d17cf07c431697ead17473c10f8b148852d3a24c2c3440655f44c80b716c46"
     },
     {
       "build_owners": [
@@ -88754,12 +88754,12 @@
         "toolchain/cupidc_frontend.h"
       ],
       "language": "cupid_c",
-      "lines": 24660,
+      "lines": 24668,
       "origin": "tracked",
       "path": "toolchain/cupidc_frontend.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e64ca450c2981d79799ee340d623a0f78f80c2ad9ceffafa2e7650864b299b0d"
+      "sha256": "37efd27d318b5f8c2e1a7bb93e75da8e17a7e9529690ca5ddfc90a0cd1341edc"
     },
     {
       "build_owners": [
@@ -88835,12 +88835,12 @@
         "toolchain/cupidc_ir.h"
       ],
       "language": "cupid_c",
-      "lines": 11874,
+      "lines": 11878,
       "origin": "tracked",
       "path": "toolchain/cupidc_ir.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "7b8673b2be74ca5ecb249468f3344e35a14d8763af352b402de7094ea3c461c9"
+      "sha256": "323d2a13fb951f94e3a268c1484d5b2116ec6f6832086b277b24eddc9935b070"
     },
     {
       "build_owners": [
@@ -91343,7 +91343,7 @@
       "path": "toolchain/tests/cupidc_frontend_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c13dd411f3b2eaefac67612efdcc78d042af19abf035d9433cfb5c9185b9f1ec"
+      "sha256": "827327f741de7006f597e4c5fbbe99a001443c995b59f9a0a32d6eef9b31638f"
     },
     {
       "build_owners": [

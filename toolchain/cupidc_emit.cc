@@ -1812,6 +1812,7 @@ static ctool_status_t cemit_index_initializers(cemit_context_t *context) {
         } else if (initializer->kind == CTOOL_C_INITIALIZER_LIST) {
             const ctool_c_type_node_t *parent_type =
                 cemit_unwrapped_type(context, initializer->type);
+            ctool_u32 highest_subobject = 0u;
             if (parent_type == (const ctool_c_type_node_t *)0 || initializer->element_count == 0u ||
                 initializer->first_element != element_cursor ||
                 initializer->first_element > context->unit->initializer_element_count ||
@@ -1851,16 +1852,19 @@ static ctool_status_t cemit_index_initializers(cemit_context_t *context) {
                     &context->unit->initializer_elements[initializer->first_element + edge_index];
                 const ctool_c_initializer_t *child;
                 ctool_u32 child_type = CTOOL_C_TYPE_NONE;
-                ctool_u32 previous;
                 if (edge->initializer >= index) {
                     return cemit_invalid_unit(context, &initializer->location);
                 }
                 child = &context->unit->initializers[edge->initializer];
-                for (previous = 0u; previous < edge_index; previous++) {
-                    const ctool_c_initializer_element_t *previous_edge =
-                        &context->unit->initializer_elements[initializer->first_element + previous];
-                    if (previous_edge->subobject == edge->subobject) {
-                        return cemit_invalid_unit(context, &initializer->location);
+                if (edge->subobject > highest_subobject) {
+                    highest_subobject = edge->subobject;
+                } else {
+                    for (ctool_u32 previous = 0u; previous < edge_index; previous++) {
+                        const ctool_c_initializer_element_t *previous_edge =
+                            &context->unit->initializer_elements[initializer->first_element + previous];
+                        if (previous_edge->subobject == edge->subobject) {
+                            return cemit_invalid_unit(context, &initializer->location);
+                        }
                     }
                 }
                 if (parent_type->kind == CTOOL_C_TYPE_ARRAY) {

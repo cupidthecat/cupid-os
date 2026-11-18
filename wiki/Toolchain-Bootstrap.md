@@ -76,6 +76,10 @@ Between the links, the guest symbol worker uses CupidDis and CupidObj to
 generate the kernel symbol source. CupidC reads it from HomeFS, and the
 second link uses the resulting object.
 
+CupidC tracks the highest selector in each initializer list so it can
+compile large sequential tables efficiently. Out-of-order selectors keep
+their source order and duplicate checks.
+
 CupidASM also reproduced the 2,560-byte production bootloader inside Cupid
 OS. CupidDis decoded the result with the generated mixed-mode range map.
 

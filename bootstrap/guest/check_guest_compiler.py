@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -75,3 +76,27 @@ with tempfile.TemporaryDirectory(dir=build, prefix="guest-driver-") as temporary
     check(b"/home/missing.cc\n/home/local.o\n", b"compilation failed: not_found")
     assert local.read_bytes() == reference and not pending.exists()
     print("Guest compiler matched the ISO and HomeFS objects and preserved eight rejected outputs.")
+
+    words = range(32768)
+    (home / "ordered.cc").write_text(
+        "const unsigned words[] = {\n" + ", ".join(map(str, words)) + "\n};\n", encoding="ascii"
+    )
+    check(b"/home/ordered.cc\n/home/ordered.o\n", b"wrote /home/ordered.o")
+    assert struct.pack(f"<{len(words)}I", *words) in (home / "ordered.o").read_bytes()
+
+    unordered = home / "unordered.cc"
+    unordered.write_text(
+        "const unsigned values[] = {[7] = 9, [2] = 5, [0] = 4, [4] = 6};\n"
+        "int f(void) { int values[4] = {[3] = 6, [0] = 8}; return values[3] + values[0]; }\n",
+        encoding="ascii",
+    )
+    designators = b"/home/unordered.cc\n/home/unordered.o\n"
+    check(designators, b"wrote /home/unordered.o")
+    result = (home / "unordered.o").read_bytes()
+    assert struct.pack("<8I", 4, 0, 5, 0, 6, 0, 0, 9) in result
+    unordered.write_text(
+        "const unsigned values[] = {[7] = 9, [2] = 5, [2] = 4};\n", encoding="ascii"
+    )
+    check(designators, b"overriding initialized subobjects")
+    assert (home / "unordered.o").read_bytes() == result and not pending.exists()
+    print("Ordered and out-of-order initializers passed; a duplicate preserved the preceding object.")

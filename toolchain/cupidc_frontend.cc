@@ -16293,6 +16293,7 @@ static ctool_status_t cfront_parse_aggregate_initializer(
     ctool_u32 array_cursor = 0u;
     ctool_u32 array_extent = 0u;
     ctool_u32 record_member_cursor = 0u;
+    ctool_u32 highest_subobject = 0u;
     ctool_bool aggregate_full = CTOOL_FALSE;
     ctool_bool prepared_available =
         prepared_value != (const cfront_expression_value_t *)0 ? CTOOL_TRUE : CTOOL_FALSE;
@@ -16543,7 +16544,10 @@ static ctool_status_t cfront_parse_aggregate_initializer(
             }
             child_type = member.type;
         }
-        if (status == CTOOL_OK) {
+        /* A selector above every earlier one cannot override a subobject. */
+        if (edge.subobject > highest_subobject) {
+            highest_subobject = edge.subobject;
+        } else if (status == CTOOL_OK) {
             ctool_u32 pending_index;
             ctool_bool duplicate = CTOOL_FALSE;
             for (pending_index = pending_mark;
@@ -22600,6 +22604,7 @@ static ctool_status_t cfront_freeze(cfront_context_t *context, ctool_c_translati
             ctool_u32 aggregate_base;
             ctool_u32 aggregate_qualifiers;
             ctool_u32 child_offset;
+            ctool_u32 highest_subobject = 0u;
             status = cfront_underlying_type(context, initializer->type, &aggregate_base,
                                             &aggregate_qualifiers, &aggregate);
             (void)aggregate_base;
@@ -22627,13 +22632,16 @@ static ctool_status_t cfront_freeze(cfront_context_t *context, ctool_c_translati
                 const ctool_c_initializer_element_t *edge =
                     &initializer_elements[initializer->first_element + child_offset];
                 ctool_u32 child_type = CTOOL_C_TYPE_NONE;
-                ctool_u32 previous_offset;
-                for (previous_offset = 0u; valid == CTOOL_TRUE && previous_offset < child_offset;
-                     previous_offset++) {
-                    const ctool_c_initializer_element_t *previous =
-                        &initializer_elements[initializer->first_element + previous_offset];
-                    if (previous->subobject == edge->subobject) {
-                        valid = CTOOL_FALSE;
+                if (edge->subobject > highest_subobject) {
+                    highest_subobject = edge->subobject;
+                } else {
+                    for (ctool_u32 previous_offset = 0u;
+                         valid == CTOOL_TRUE && previous_offset < child_offset; previous_offset++) {
+                        const ctool_c_initializer_element_t *previous =
+                            &initializer_elements[initializer->first_element + previous_offset];
+                        if (previous->subobject == edge->subobject) {
+                            valid = CTOOL_FALSE;
+                        }
                     }
                 }
                 if (valid == CTOOL_TRUE && aggregate.kind == CTOOL_C_TYPE_ARRAY) {

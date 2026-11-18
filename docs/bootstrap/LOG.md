@@ -1,5 +1,32 @@
 # Bootstrapping log
 
+## 2026-11-18 — Skip repeated checks for increasing initializers
+
+The generated kernel symbol table exposed repeated duplicate checks in the
+parser, typed-unit validation, IR and object emitter. Increasing selectors
+now advance the largest index seen. Earlier-index selectors continue through
+the duplicate check, so source order and rejection behavior are preserved.
+
+The i386 Linux syscall harness compiled the actual symbol source in 148.473
+seconds before the change and 1.945 seconds after it. Both results matched
+all 132,492 checked object bytes. The old worker timed out on the new
+32,768-clause test. The updated worker emitted its complete expected data,
+accepted unordered static and automatic lists, and preserved the object
+after rejecting a duplicate.
+
+The Linux compiler-engine replay reproduced all nine input objects and
+relinked the 2,490,448-byte engine byte for byte. Windows and WSL produced
+the same three changed core objects. In the four-vCPU kernel replay, the
+optimized compiler reproduced the symbol object. All five outputs matched
+and the resulting disk passed strict boot.
+
+The first broad contract run lacked the full tree and audit. With those
+inputs present, the unchanged compiler also failed two stale inventory
+and typed-unit expectations. The refreshed guards use the measured
+source counts and retain their exact comparisons. All 187 frontend, IR
+and selected object tests passed. See the
+[initializer decision](../adr/0496-skip-rechecks-for-increasing-initializer-selectors.md).
+
 ## 2026-11-18 — Flush the FAT data chain once before publication
 
 The FAT writer lets the block cache write back sectors as needed and checks

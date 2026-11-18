@@ -48,6 +48,7 @@ path on separate lines.
 
 Stage the symbol worker as /cupks and run exec /disk/cupks. Compile the
 generated source with CupidC and append its object to the second link.
+Increasing initializer indices need one duplicate check per validation stage.
 
 >h2 Assemble a relocatable object
 
