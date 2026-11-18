@@ -58,6 +58,7 @@
 #define EHCI_QTD_IOC (1u << 15)
 #define EHCI_POLL_STEP_US 50u
 #define EHCI_QUIESCE_TIMEOUT_US 10000u
+#define EHCI_HALT_TIMEOUT_US 100000u
 
 typedef struct __attribute__((packed, aligned(32))) {
     uint32_t next;
@@ -137,7 +138,7 @@ static bool ehci_wait_status(ehci_ctrl_t *c, uint32_t mask, bool want_set, uint3
 static bool ehci_halt_controller(ehci_ctrl_t *c) {
     uint32_t command = ehci_op_read(c, EHCI_OP_USBCMD);
     ehci_op_write(c, EHCI_OP_USBCMD, command & ~EHCI_CMD_RUN);
-    if (!ehci_wait_status(c, EHCI_STS_HALTED, true, EHCI_QUIESCE_TIMEOUT_US)) {
+    if (!ehci_wait_status(c, EHCI_STS_HALTED, true, EHCI_HALT_TIMEOUT_US)) {
         return false;
     }
 

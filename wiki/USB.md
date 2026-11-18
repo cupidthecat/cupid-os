@@ -476,10 +476,9 @@ The IRQ records changed root ports in an atomic pending bitmap.
 bit only after the work ring accepts the request.
 
 EHCI disables the asynchronous schedule and checks its status before it
-changes the list or frees synchronous-transfer QHs and qTDs. If schedule
-revocation cannot be proved, the controller halts and verifies that state.
-Failure takes the panic path instead of freeing memory still visible to
-hardware.
+changes the list or frees synchronous-transfer QHs and qTDs. If the schedule
+stalls, the driver requests a halt and waits up to 100 ms for the controller
+to confirm it. A failed teardown keeps the DMA buffers live and panics.
 
 Each interrupt slot carries active and cancellation state, an in-flight
 claim, and a generation. Pollers copy a claimed transfer under the submit

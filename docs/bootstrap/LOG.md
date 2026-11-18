@@ -1,5 +1,26 @@
 # Bootstrapping log
 
+## 2026-11-18 — Wait for EHCI halt proof
+
+The four-vCPU Freedoom timedemo reproduced an EHCI DMA ownership panic. An
+independent trace showed the controller reporting halt after the driver gave
+up waiting. The fallback now waits up to 100 ms and still requires the
+controller to prove ownership has ended. The normal async stop keeps its
+10 ms deadline. See the [EHCI halt decision](../adr/0491-allow-time-for-ehci-halt-proof.md).
+
+On Windows and WSL, the old code failed the injected delayed-halt case after
+20 ms of polling. The new code accepted the 22 ms halt, kept the fast path and
+still rejected a controller that never halted. All 46 USB tests passed on
+each host. The four-vCPU timedemo with the longer wait reached graphics and
+ran for 1,500 seconds with neither EHCI ownership failure. The diagnostic with
+the periodic schedule disabled reached the same observation limit.
+
+The normal checked link and image recipe passed all 16 exact artifact gates
+with the revised USB manual. The raw kernel is 9,507,492 bytes, SHA-256
+`01f737eb769ec52948c8739e0fc9062f147a7e888b4b255576bc42c4acfdaf6b`.
+The four-vCPU image passed strict boot and shell JIT tests. A separate smoke
+also ran and reaped the freshly built `hello`, `cat` and `ls` ELF programs.
+
 ## 2026-11-17 — Clear arena bytes on allocation
 
 The core now clears the bytes it returns from an arena. It skips the unused

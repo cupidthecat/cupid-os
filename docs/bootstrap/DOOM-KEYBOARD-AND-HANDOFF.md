@@ -55,6 +55,13 @@ through the F10 confirmation and ran `ls` through the CupidC JIT. The
 shell resumed input and completed the command. This replay covered
 startup and input return.
 
+The four-vCPU timedemo reproduced the EHCI ownership panic after graphics
+initialized. A register trace caught a separate failure before submission,
+followed by the controller eventually asserting halt. With the fallback
+halt wait extended to 100 ms, a repeat initialized graphics and ran for
+1,500 seconds without an EHCI ownership failure. See the
+[EHCI halt decision](../adr/0491-allow-time-for-ehci-halt-proof.md).
+
 ## Evidence and limits
 
 The first rebuilt guest exposes both the missing space and the input leak; it
@@ -71,7 +78,5 @@ archives and sixteen locally retained large-file references. SHA-256:
 `5477a16687ccf1bd0379c63e9d9871e7460fb26d0c40f5d40b1f8674d1b561d6`.
 Only the newly created save files are exported from HomeFS.
 
-Full gameplay, smooth audio and timedemo completion remain open, as does the
-older EHCI ownership failure recorded in ADR 0405. Installed seeds, image-command
-ownership and the 449 CupidBuild / three Python transform split are unchanged.
+Full gameplay, smooth audio and timedemo completion remain open.
 TempleOS remains reference material and is excluded from these checks.

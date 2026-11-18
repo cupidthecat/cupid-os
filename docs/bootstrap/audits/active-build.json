@@ -55781,7 +55781,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3494
+      "occurrences": 3495
     },
     {
       "category": "preprocessor",
@@ -62608,7 +62608,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "56e79f4d3dceb7d3369e22d50587b4f5b98fbd8144f8e4b8327af68b3e16b6df",
+    "active_source_digest": "9c35bad9424a405c3d20e798afaa8e1a07f967419de1038d21a70457a354f8c8",
     "control_files": [
       {
         "path": "Makefile",
@@ -86590,12 +86590,12 @@
         "kernel/usb/usb_hc.h"
       ],
       "language": "cupid_c",
-      "lines": 702,
+      "lines": 703,
       "origin": "tracked",
       "path": "kernel/usb/ehci.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "d550855d16842dc89f3c483d0589f9c9dc9f5ed7d8151aa8f683547bb1998817"
+      "sha256": "2dd64938a879821c11d67181478d793c14faa6dbf22a60d3128ea7450acb57ba"
     },
     {
       "build_owners": [

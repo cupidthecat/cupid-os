@@ -319,8 +319,8 @@ EHCI IRQ handling records changed root ports in an atomic pending bitmap.
 ehci_poll_ports() clears a bit only after the serialized USB core accepts the
 work. Before changing ASYNCLISTADDR or releasing a QH and qTD, EHCI disables
 the asynchronous schedule and verifies its state. It halts the controller if
-normal schedule revocation stalls. Failure takes the panic path instead of
-freeing memory still visible to hardware.
+the schedule stalls, then waits up to 100 ms for proof of halt. A failed
+teardown keeps the DMA buffers live and panics.
 
 Interrupt slots carry active and cancellation state, an in-flight claim, and
 a generation. Pollers release the submit lock before DMA and callback

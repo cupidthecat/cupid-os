@@ -1,4 +1,8 @@
+import os
 import re
+import shlex
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -79,6 +83,37 @@ class UsbDataToggleContractTests(unittest.TestCase):
         self.assertIn("kernel_panic(", teardown)
         self.assertIn("DMA ownership could not be revoked", teardown)
         self.assertNotIn("kfree(", teardown)
+
+    def test_ehci_can_prove_a_delayed_halt(self):
+        names = {
+            "EHCI_OP_USBCMD", "EHCI_OP_USBSTS", "EHCI_CMD_RUN", "EHCI_CMD_ASYNC_EN",
+            "EHCI_STS_ASYNC", "EHCI_STS_HALTED", "EHCI_POLL_STEP_US",
+            "EHCI_QUIESCE_TIMEOUT_US", "EHCI_HALT_TIMEOUT_US",
+        }
+        definitions = [
+            line for line in self.ehci.splitlines()
+            if line.startswith("#define ") and line.split()[1] in names
+        ]
+        start = self.ehci.index("static bool ehci_wait_status(")
+        end = self.ehci.index("\nstatic int ehci_submit_sync(", start)
+        compiler = shlex.split(os.environ.get("CC", "clang" if os.name == "nt" else "cc"))
+        fixture = ROOT / "tests" / "usb_ehci_quiescence_contract.cc"
+        with tempfile.TemporaryDirectory(prefix="cupid-ehci-quiescence-") as temp:
+            build = Path(temp)
+            (build / "ehci_quiescence.inc").write_text(
+                "\n".join(definitions) + "\n" + self.ehci[start:end], encoding="utf-8"
+            )
+            executable = build / ("quiescence.exe" if os.name == "nt" else "quiescence")
+            built = subprocess.run(
+                [*compiler, "-std=c11", "-x", "c", "-Wall", "-Wextra", "-Werror",
+                 "-I", str(build), str(fixture), "-o", str(executable)],
+                text=True, capture_output=True, timeout=30,
+            )
+            self.assertEqual(built.returncode, 0, built.stdout + built.stderr)
+            checked = subprocess.run(
+                [str(executable)], text=True, capture_output=True, timeout=10,
+            )
+            self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
 
     def test_interrupt_pollers_persist_successful_toggles(self):
         self.assertIn(
