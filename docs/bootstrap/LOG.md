@@ -1,5 +1,48 @@
 # Bootstrapping log
 
+## 2026-11-17 — Run the standalone compiler in Cupid OS
+
+A separate lease from 30 to 34 MiB keeps the standalone compiler and
+ordinary external executables independent. The ELF loader hands the
+compiler its own syscall table and two-MiB process stack. Its allocator
+tracks job blocks until the worker frees them or the scheduler reaps them
+after detachment.
+
+In a four-vCPU guest, the ordinary external hello program exited and
+released its lease. The compiler then built ctool.o from the mounted
+source ISO. The 41,864-byte object persisted in HOMEFS.SYS and matched the
+checked host output byte for byte. A missing-source retry preserved that
+file. The guest released the compiler lease after each request. The Linux
+syscall fixture rebuilt the complete 1,024,260-byte frontend object and
+returned all job allocations.
+
+All 56 loader and scheduler contracts passed on Windows and WSL. The new
+cases check a busy compiler lease, a distinct syscall table, wrong stack
+and entry rejection, allocation ownership, alignment and cleanup after
+kill. Native Windows CupidC reproduced all four changed kernel objects
+byte for byte. The checked two-pass build produced a 9,507,224-byte raw
+kernel and passed all 16 exact artifact-size checks.
+
+The full scheduler-commit frontier passed on native WSL storage in
+1,822 seconds. The normal warm `-j4` rebuild rejected a changed directory
+closure and seed-input check. A separate `-j2` run also rejected the
+directory closure. A serial image replay is running on native WSL storage.
+
+The first source-media boot tried to import the ISO into /home and spent
+its timeout there. The runtime check seeds /home on a small first boot,
+then stages the source ISO and compiler ELF. The first guest frontend run
+exceeded 900 seconds. A RAMFS copy also failed because the ISO exceeds the
+64-KiB file limit. The frontend still needs full guest acceptance.
+
+A private CupidLD adapter linked and ran an ordinary ELF inside Cupid OS.
+It also relinked the full 2,498,900-byte compiler worker from ten host-built
+objects. The relinked worker matched the checked ELF byte for byte and
+rebuilt `ctool.o` inside Cupid OS. The adapter remains outside the branch.
+
+See the
+[replay commands](FREESTANDING-COMPILER-ENGINE.md#reproduce-an-in-guest-compile)
+and the [lease decision](../adr/0485-lease-an-arena-for-the-compiler-worker.md).
+
 ## 2026-11-17: Build the compiler with a Cupid OS syscall adapter
 
 The opt-in standalone ELF links the existing compiler objects with a VFS

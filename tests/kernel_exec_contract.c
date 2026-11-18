@@ -35,12 +35,16 @@ static uint32_t test_heap_frees;
 static bool test_claim_allowed = true;
 static bool test_create_allowed = true;
 static uint32_t test_claim_calls;
+static uint32_t test_compiler_claim_calls;
+static uint32_t test_started_stack;
+static uint32_t test_started_arg;
 static uint32_t test_discard_calls;
 static uint32_t test_create_calls;
 static uint32_t test_yield_calls;
 static uint32_t test_fixed_copy_calls;
 static process_image_t test_created_image;
 static uint8_t test_external_arena[PAGE_SIZE];
+static uint8_t test_compiler_arena[PAGE_SIZE];
 static uint8_t test_old_external_arena[PAGE_SIZE];
 static uint8_t test_cupidc_arena[PAGE_SIZE];
 static uint8_t test_cupidasm_arena[PAGE_SIZE];
@@ -58,6 +62,7 @@ static bool strings_equal(const char *left, const char *right) {
 
 static bool address_is_executable_arena(uint32_t address) {
     return address == EXTERNAL_EXEC_ARENA_START ||
+           address == COMPILER_EXEC_ARENA_START ||
            address == TEST_OLD_EXTERNAL_BASE ||
            address == CUPIDC_EXEC_ARENA_START ||
            address == CUPIDASM_EXEC_ARENA_START;
@@ -69,6 +74,9 @@ static uint8_t *arena_shadow(uint32_t address, size_t count) {
     if (address == EXTERNAL_EXEC_ARENA_START) {
         base = EXTERNAL_EXEC_ARENA_START;
         shadow = test_external_arena;
+    } else if (address == COMPILER_EXEC_ARENA_START) {
+        base = COMPILER_EXEC_ARENA_START;
+        shadow = test_compiler_arena;
     } else if (address == TEST_OLD_EXTERNAL_BASE) {
         base = TEST_OLD_EXTERNAL_BASE;
         shadow = test_old_external_arena;
@@ -129,6 +137,9 @@ static void reset_observations(void) {
     test_claim_allowed = true;
     test_create_allowed = true;
     test_claim_calls = 0u;
+    test_compiler_claim_calls = 0u;
+    test_started_stack = 0u;
+    test_started_arg = 0u;
     test_discard_calls = 0u;
     test_create_calls = 0u;
     test_yield_calls = 0u;
@@ -256,18 +267,30 @@ void kfree(void *pointer) {
     }
 }
 
-bool process_external_image_claim(process_image_t *image) {
-    test_claim_calls++;
+static bool claim_image(process_image_t *image, uint32_t base, uint32_t end,
+                        process_image_ownership_t ownership) {
     if (!test_claim_allowed || !image || image->base != 0u ||
         image->size != 0u || image->ownership != PROCESS_IMAGE_NONE ||
         image->lease_generation != 0u) {
         return false;
     }
-    image->base = EXTERNAL_EXEC_ARENA_START;
-    image->size = EXTERNAL_EXEC_ARENA_END - EXTERNAL_EXEC_ARENA_START;
-    image->ownership = PROCESS_IMAGE_EXTERNAL_LEASE;
+    image->base = base;
+    image->size = end - base;
+    image->ownership = ownership;
     image->lease_generation = 7u;
     return true;
+}
+
+bool process_external_image_claim(process_image_t *image) {
+    test_claim_calls++;
+    return claim_image(image, EXTERNAL_EXEC_ARENA_START, EXTERNAL_EXEC_ARENA_END,
+                       PROCESS_IMAGE_EXTERNAL_LEASE);
+}
+
+bool process_compiler_image_claim(process_image_t *image) {
+    test_compiler_claim_calls++;
+    return claim_image(image, COMPILER_EXEC_ARENA_START, COMPILER_EXEC_ARENA_END,
+                       PROCESS_IMAGE_COMPILER_LEASE);
 }
 
 void process_image_discard(process_image_t *image) {
@@ -285,8 +308,8 @@ uint32_t process_create_with_arg_image_ex(void (*entry_point)(void),
                                           process_image_t *image) {
     (void)entry_point;
     (void)name;
-    (void)stack_size;
-    (void)arg;
+    test_started_stack = stack_size;
+    test_started_arg = arg;
     if (domain != PROCESS_DOMAIN_EXTERNAL || !image) {
         return 0u;
     }
@@ -314,6 +337,10 @@ void process_yield(void) {
 
 cupid_syscall_table_t *syscall_get_table(void) {
     return (cupid_syscall_table_t *)0x00123000u;
+}
+
+cupid_syscall_table_t *syscall_get_compiler_table(void) {
+    return (cupid_syscall_table_t *)0x00124000u;
 }
 
 void serial_printf(const char *format, ...) {
@@ -354,8 +381,41 @@ static int run_valid_external(void) {
             EXTERNAL_EXEC_ARENA_END - EXTERNAL_EXEC_ARENA_START ||
         test_created_image.ownership != PROCESS_IMAGE_EXTERNAL_LEASE ||
         test_created_image.lease_generation != 7u) return 4;
+    if (test_compiler_claim_calls != 0u ||
+        test_started_arg != (uint32_t)syscall_get_table()) return 6;
     if (loaded[0] != 0x90u || loaded[1] != 0x90u ||
         loaded[2] != 0xC3u || loaded[3] != 0xCCu || loaded[4] != 0u) return 5;
+    return 0;
+}
+
+static int run_valid_compiler(void) {
+    initialize_valid_elf(COMPILER_EXEC_ARENA_START);
+    if (prepare_arena(EXTERNAL_EXEC_ARENA_START) != 0 ||
+        prepare_arena(COMPILER_EXEC_ARENA_START) != 0) return 70;
+
+    if (elf_exec("/compiler", "compiler") != 77 || test_claim_calls != 0u ||
+        test_compiler_claim_calls != 1u || test_create_calls != 1u ||
+        test_discard_calls != 0u || test_yield_calls != 1u) return 1;
+    if (test_created_image.base != COMPILER_EXEC_ARENA_START ||
+        test_created_image.size != COMPILER_EXEC_ARENA_END - COMPILER_EXEC_ARENA_START ||
+        test_created_image.ownership != PROCESS_IMAGE_COMPILER_LEASE ||
+        test_started_stack != COMPILER_EXEC_STACK_SIZE ||
+        test_started_arg != (uint32_t)syscall_get_compiler_table()) return 2;
+    if (test_fixed_copy_calls != 1u || !arena_unchanged(EXTERNAL_EXEC_ARENA_START) ||
+        test_compiler_arena[0] != 0x90u || test_compiler_arena[2] != 0xC3u ||
+        test_compiler_arena[4] != 0u || test_heap_used) return 3;
+    return 0;
+}
+
+static int run_busy_compiler(void) {
+    initialize_valid_elf(COMPILER_EXEC_ARENA_START);
+    if (prepare_arena(COMPILER_EXEC_ARENA_START) != 0) return 70;
+    test_claim_allowed = false;
+
+    if (elf_exec("/compiler", "compiler") != VFS_ENOSPC || test_claim_calls != 0u ||
+        test_compiler_claim_calls != 1u || test_create_calls != 0u ||
+        test_fixed_copy_calls != 0u || test_heap_used ||
+        !arena_unchanged(COMPILER_EXEC_ARENA_START)) return 1;
     return 0;
 }
 
@@ -548,6 +608,8 @@ static int run_process_create_failure(void) {
 static int __attribute__((used)) contract_main(int argc, char **argv) {
     if (argc != 2) return 64;
     if (strings_equal(argv[1], "valid-external")) return run_valid_external();
+    if (strings_equal(argv[1], "valid-compiler")) return run_valid_compiler();
+    if (strings_equal(argv[1], "busy-compiler")) return run_busy_compiler();
     if (strings_equal(argv[1], "valid-legacy")) return run_valid_legacy();
     if (strings_equal(argv[1], "busy-external")) return run_busy_external();
     if (strings_equal(argv[1], "truncated-table")) return run_truncated_table();

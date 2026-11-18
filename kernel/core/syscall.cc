@@ -244,6 +244,7 @@ static uint32_t sc_pci_bar(int idx, int bar) {
 }
 
 static cupid_syscall_table_t syscall_table;
+static cupid_syscall_table_t compiler_syscall_table;
 
 /* Static asserts: AOT asm programs hard-code these offsets via SYS_*
  * equ constants in as.cc. If anyone reorders cupid_syscall_table_t these
@@ -402,10 +403,18 @@ void syscall_init(void) {
     syscall_table.sock_avail = socket_avail;
     syscall_table.sock_state = socket_state;
 
+    compiler_syscall_table = syscall_table;
+    compiler_syscall_table.malloc = process_compiler_allocate;
+    compiler_syscall_table.free = process_compiler_release;
+
     serial_printf("[SYSCALL] Syscall table initialized (v%u, %u bytes)\n", syscall_table.version,
                   syscall_table.table_size);
 }
 
 cupid_syscall_table_t *syscall_get_table(void) {
     return &syscall_table;
+}
+
+cupid_syscall_table_t *syscall_get_compiler_table(void) {
+    return &compiler_syscall_table;
 }

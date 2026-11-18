@@ -33,7 +33,12 @@
 #define ELF_PF_R 0x4u
 #define ELF_PF_KNOWN (ELF_PF_X | ELF_PF_W | ELF_PF_R)
 
-typedef enum { ELF_IMAGE_EXTERNAL = 0, ELF_IMAGE_CUPIDC, ELF_IMAGE_CUPIDASM } elf_image_kind_t;
+typedef enum {
+    ELF_IMAGE_EXTERNAL = 0,
+    ELF_IMAGE_CUPIDC,
+    ELF_IMAGE_CUPIDASM,
+    ELF_IMAGE_COMPILER
+} elf_image_kind_t;
 
 typedef struct {
     uint32_t start;
@@ -63,6 +68,7 @@ _Static_assert((CUPIDASM_EXEC_ARENA_START & (PAGE_SIZE - 1u)) == 0u &&
 
 static const elf_image_region_t elf_image_regions[] = {
     {EXTERNAL_EXEC_ARENA_START, EXTERNAL_EXEC_ARENA_END, ELF_IMAGE_EXTERNAL, "external"},
+    {COMPILER_EXEC_ARENA_START, COMPILER_EXEC_ARENA_END, ELF_IMAGE_COMPILER, "compiler"},
     {CUPIDC_EXEC_ARENA_START, CUPIDC_EXEC_ARENA_END, ELF_IMAGE_CUPIDC, "CupidC"},
     {CUPIDASM_EXEC_ARENA_START, CUPIDASM_EXEC_ARENA_END, ELF_IMAGE_CUPIDASM, "CupidASM"}};
 
@@ -392,7 +398,15 @@ int elf_exec(const char *path, const char *proc_name) {
         return close_status;
     }
 
-    if (plan.region->kind == ELF_IMAGE_EXTERNAL) {
+    uint32_t stack_size = DEFAULT_STACK_SIZE;
+    if (plan.region->kind == ELF_IMAGE_COMPILER) {
+        if (!process_compiler_image_claim(&image)) {
+            kfree(staging);
+            serial_printf("[elf] Compiler executable arena is busy for %s\n", path);
+            return VFS_ENOSPC;
+        }
+        stack_size = COMPILER_EXEC_STACK_SIZE;
+    } else if (plan.region->kind == ELF_IMAGE_EXTERNAL) {
         if (!process_external_image_claim(&image)) {
             kfree(staging);
             serial_printf("[elf] External executable arena is busy for %s\n", path);
@@ -421,9 +435,11 @@ int elf_exec(const char *path, const char *proc_name) {
 
     /* Create the process and atomically transfer image ownership while
      * publishing the syscall-table argument on its initial stack. */
-    uint32_t pid = process_create_with_arg_image_ex(entry_fn, pname, DEFAULT_STACK_SIZE,
-                                                    (uint32_t)syscall_get_table(),
-                                                    PROCESS_DOMAIN_EXTERNAL, &image);
+    cupid_syscall_table_t *syscalls = plan.region->kind == ELF_IMAGE_COMPILER
+        ? syscall_get_compiler_table() : syscall_get_table();
+    uint32_t pid = process_create_with_arg_image_ex(entry_fn, pname, stack_size,
+                                                    (uint32_t)syscalls, PROCESS_DOMAIN_EXTERNAL,
+                                                    &image);
 
     if (pid == 0) {
         process_image_discard(&image);

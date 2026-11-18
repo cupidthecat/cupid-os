@@ -40,7 +40,8 @@ typedef enum {
 typedef enum {
     PROCESS_IMAGE_NONE = 0,
     PROCESS_IMAGE_PERMANENT,
-    PROCESS_IMAGE_EXTERNAL_LEASE
+    PROCESS_IMAGE_EXTERNAL_LEASE,
+    PROCESS_IMAGE_COMPILER_LEASE
 } process_image_ownership_t;
 
 /* A process image descriptor is consumed only after successful process
@@ -155,6 +156,11 @@ uint32_t process_create_with_arg_image_ex(void (*entry_point)(void),
  * lease.  The descriptor must be consumed by process creation or discarded.
  */
 bool process_external_image_claim(process_image_t *image);
+bool process_compiler_image_claim(process_image_t *image);
+
+/* These callbacks belong to the standalone compiler's syscall table. */
+void *process_compiler_allocate(size_t size);
+void process_compiler_release(void *pointer);
 
 /**
  * process_image_discard - Release an unconsumed image descriptor

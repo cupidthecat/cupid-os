@@ -454,6 +454,12 @@ The loadable i386 ELF that runs CupidC preprocessing, parsing and object
 emission with allocator, file and diagnostic callbacks supplied by its caller.
 Its versioned entry accepts one synchronous compilation request.
 
+**Standalone compiler worker**:
+An external CupidC ELF with a dedicated lease from 30 to 34 MiB and a
+two-MiB process stack. It reads a compile request in /home and source under
+/src. The scheduler reaps its outstanding job allocations after the worker
+leaves the CPU.
+
 **Linear IR**:
 The typed, target-neutral instruction sequence between CupidC's function-body AST and machine-code emission. Its stack entries distinguish object addresses from scalar and structure values. Branch targets stay relative to one function, while parameters, represented automatic objects, compound-literal objects, runtime string literals, block-static objects, linked file objects, and linked function references retain their absolute frontend identities. Machine addresses, section offsets, symbol-table indices, frame offsets, literal symbols, and value snapshot storage remain private to target emission.
 _Avoid_: AST, x86 bytecode, machine code

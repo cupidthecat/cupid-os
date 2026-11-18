@@ -42,14 +42,14 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `generated_symbol_table` | 1 | 0 |
 | `kernel_assembly` | 3 | 536 |
 | `kernel_audio` | 14 | 4115 |
-| `kernel_core` | 17 | 4225 |
+| `kernel_core` | 17 | 4340 |
 | `kernel_cpu` | 19 | 3230 |
 | `kernel_crypto` | 40 | 5431 |
 | `kernel_fs` | 27 | 7783 |
 | `kernel_gfx` | 29 | 14208 |
 | `kernel_gui` | 28 | 12525 |
-| `kernel_lang` | 20 | 11039 |
-| `kernel_mm` | 7 | 1330 |
+| `kernel_lang` | 20 | 11055 |
+| `kernel_mm` | 7 | 1338 |
 | `kernel_network` | 20 | 4057 |
 | `kernel_smp` | 14 | 1223 |
 | `kernel_tls` | 13 | 5866 |
@@ -100,16 +100,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1533 |
 | `asm.relocation` | 1 | 95 |
-| `c.control` | 12 | 98207 |
-| `c.declaration` | 1 | 32 |
+| `c.control` | 12 | 98236 |
+| `c.declaration` | 1 | 33 |
 | `c.declarator` | 4 | 4194 |
-| `c.expression` | 2 | 7292 |
+| `c.expression` | 2 | 7293 |
 | `c.extension` | 20 | 428 |
-| `c.initializer` | 1 | 650 |
-| `c.preprocessor` | 18 | 8674 |
-| `c.qualifier` | 2 | 19399 |
-| `c.storage` | 4 | 11845 |
-| `c.type` | 15 | 65069 |
+| `c.initializer` | 1 | 656 |
+| `c.preprocessor` | 18 | 8678 |
+| `c.qualifier` | 2 | 19401 |
+| `c.storage` | 4 | 11849 |
+| `c.type` | 15 | 65086 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
@@ -206,8 +206,8 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `kernel/gui/terminal_ansi.c` | `c` | `superseded` | 285 | superseded_by: `kernel/gui/ansi.cc` |
 | `kernel/lang/cupidc_runtime.c` | `c` | `dormant` | 284 | unlinked runtime draft outside the supported build roots |
 | `tests/kernel_contract_support/percpu.h` | `c_header` | `not_reached` | 43 | not reachable from the supported Make target or include closure |
-| `tests/kernel_exec_contract.c` | `c` | `host_fixture` | 601 | native kernel behavior fixture compiled by the host test harness |
-| `tests/kernel_process_contract.c` | `c` | `host_fixture` | 1006 | native kernel behavior fixture compiled by the host test harness |
+| `tests/kernel_exec_contract.c` | `c` | `host_fixture` | 663 | native kernel behavior fixture compiled by the host test harness |
+| `tests/kernel_process_contract.c` | `c` | `host_fixture` | 1091 | native kernel behavior fixture compiled by the host test harness |
 | `tests/support/windows_i386_oracle.cc` | `cupid_c` | `not_reached` | 181 | not reachable from the supported Make target or include closure |
 | `tests/support/windows_i386_stack.S` | `assembly` | `not_reached` | 19 | not reachable from the supported Make target or include closure |
 | `tests/usb_interrupt_ownership_contract.c` | `c` | `host_fixture` | 50 | native USB behavior fixture compiled by the host test harness |

@@ -14,6 +14,18 @@ Verified against source on: 2026-09-27
 >rule
 >sprite /docs/image.bmp 64 64 | open:11CTXT.CTXT
 
+>h2 Standalone compiler worker
+A CupidC worker ELF can compile a file from the compiler source ISO mounted
+at /src. Put the source path relative to the ISO root on the first line of
+/home/cupidc.job. Put the absolute /home output path ending in .o on the
+second line. For example, the lines can be /toolchain/ctool.cc and
+/home/ctool.o. Launch the worker with exec /disk/cupcc.
+
+The worker uses its own executable arena and two-MiB process stack. The
+scheduler returns unused worker allocations and releases the arena after
+the worker leaves the CPU. A completed compile replaces the output through
+a same-filesystem rename.
+
 >h2 Private integer storage and array lists
 >tree open Private integer storage and array lists
 The private compiler gives short, I16 and U16 two-byte storage. Fixed native

@@ -34,13 +34,17 @@ typedef struct heap_block {
 
 /* Fixed executable arenas are identity-mapped and permanently reserved.
  * CupidC and CupidASM keep their existing bases. External CupidLD programs
- * use the two mebibytes immediately after CupidASM. */
+ * use the two mebibytes immediately after CupidASM. The standalone compiler
+ * uses the following four mebibytes, with a separately allocated stack. */
 #define CUPIDC_EXEC_ARENA_START   0x01100000u
 #define CUPIDC_EXEC_ARENA_END     0x01A00000u
 #define CUPIDASM_EXEC_ARENA_START 0x01A00000u
 #define CUPIDASM_EXEC_ARENA_END   0x01C00000u
 #define EXTERNAL_EXEC_ARENA_START 0x01C00000u
 #define EXTERNAL_EXEC_ARENA_END   0x01E00000u
+#define COMPILER_EXEC_ARENA_START EXTERNAL_EXEC_ARENA_END
+#define COMPILER_EXEC_ARENA_END   0x02200000u
+#define COMPILER_EXEC_STACK_SIZE  (2u * 1024u * 1024u)
 
 _Static_assert(STACK_SIZE == 2u * 1024u * 1024u,
                "fixed kernel stack must remain 2 MiB");
@@ -49,6 +53,8 @@ _Static_assert(STACK_TOP == CUPIDC_EXEC_ARENA_START,
 _Static_assert(EXTERNAL_EXEC_ARENA_END - EXTERNAL_EXEC_ARENA_START ==
                    2u * 1024u * 1024u,
                "external ELF arena must remain 2 MiB");
+_Static_assert(COMPILER_EXEC_ARENA_END - COMPILER_EXEC_ARENA_START == 4u * 1024u * 1024u,
+               "standalone compiler arena must remain 4 MiB");
 _Static_assert(CUPIDC_EXEC_ARENA_END == CUPIDASM_EXEC_ARENA_START,
                "CupidC and CupidASM arenas must be adjacent");
 _Static_assert(CUPIDASM_EXEC_ARENA_END == EXTERNAL_EXEC_ARENA_START,

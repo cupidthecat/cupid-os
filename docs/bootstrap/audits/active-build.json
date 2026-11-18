@@ -53252,7 +53252,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 46085
+      "occurrences": 46098
     },
     {
       "category": "control",
@@ -53653,7 +53653,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28598
+      "occurrences": 28612
     },
     {
       "category": "control",
@@ -54067,7 +54067,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3163
+      "occurrences": 3165
     },
     {
       "category": "declaration",
@@ -54099,7 +54099,7 @@
         "toolchain/hosted/i386-linux/runtime.cc"
       ],
       "id": "c.declaration.static_assert",
-      "occurrences": 32
+      "occurrences": 33
     },
     {
       "category": "declarator",
@@ -54667,7 +54667,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 7250
+      "occurrences": 7251
     },
     {
       "category": "extension",
@@ -55246,6 +55246,7 @@
       "files": [
         "drivers/timer.cc",
         "kernel/core/app_launch.cc",
+        "kernel/core/process.cc",
         "kernel/doom/doomgeneric_cupidos.cc",
         "kernel/doom/i_sound_cupidos.cc",
         "kernel/fs/devfs.cc",
@@ -55264,7 +55265,7 @@
         "toolchain/tests/x86_contract.cc"
       ],
       "id": "c.initializer.designated",
-      "occurrences": 650
+      "occurrences": 656
     },
     {
       "category": "preprocessor",
@@ -55334,6 +55335,7 @@
         "kernel/core/kernel.h",
         "kernel/core/panic.h",
         "kernel/core/ports.h",
+        "kernel/core/process.cc",
         "kernel/core/process.h",
         "kernel/core/scheduler.h",
         "kernel/core/string.h",
@@ -55769,7 +55771,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3490
+      "occurrences": 3494
     },
     {
       "category": "preprocessor",
@@ -57562,7 +57564,7 @@
       "category": "preprocessor",
       "examples": [
         {
-          "line": 264,
+          "line": 265,
           "path": "kernel/core/syscall.cc",
           "text": "#undef SC_OFF"
         },
@@ -58051,7 +58053,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 19128
+      "occurrences": 19130
     },
     {
       "category": "qualifier",
@@ -58622,7 +58624,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10995
+      "occurrences": 10999
     },
     {
       "category": "type",
@@ -59116,7 +59118,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 12677
+      "occurrences": 12678
     },
     {
       "category": "type",
@@ -60466,7 +60468,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 1169
+      "occurrences": 1172
     },
     {
       "category": "type",
@@ -60785,7 +60787,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 1231
+      "occurrences": 1233
     },
     {
       "category": "type",
@@ -61667,7 +61669,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 16406
+      "occurrences": 16417
     },
     {
       "category": "declaration",
@@ -62596,7 +62598,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "9bffe9183a279e38f21c70d0c235051f557691c3b3fea7581e5c9870b72089b7",
+    "active_source_digest": "6ea9fd654910acfa7b17c0cc3d40b6da72ea50b1811397987b7291e56122862c",
     "control_files": [
       {
         "path": "Makefile",
@@ -69902,6 +69904,8 @@
         "c.extension.builtin.offsetof",
         "c.extension.gnu_alignof",
         "c.extension.inline_assembly",
+        "c.initializer.designated",
+        "c.preprocessor.define",
         "c.preprocessor.include",
         "c.qualifier.const",
         "c.qualifier.volatile",
@@ -69933,12 +69937,12 @@
         "kernel/smp/smp.h"
       ],
       "language": "cupid_c",
-      "lines": 1142,
+      "lines": 1241,
       "origin": "tracked",
       "path": "kernel/core/process.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9cdf9e47dd2d534ed4b3f43609dc02b0faebfedc60ba460b32aa5b22ce257ce2"
+      "sha256": "d43a91fee8cd3d7817ba77c1b63e56197fc50d066b0c8d6b410a7da6cdf6670c"
     },
     {
       "build_owners": [
@@ -69969,12 +69973,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 307,
+      "lines": 313,
       "origin": "tracked",
       "path": "kernel/core/process.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "30adcad79a0a28c48ae4a310f338180fb7cbcd95d6c01e58e8e48734e9b2d913"
+      "sha256": "a124a892ddbe112920ea33b3129712eccdbdef9ec5421f5f7ca7cd5246e0b0ee"
     },
     {
       "build_owners": [
@@ -70140,12 +70144,12 @@
         "kernel/smp/lapic.h"
       ],
       "language": "cupid_c",
-      "lines": 411,
+      "lines": 420,
       "origin": "tracked",
       "path": "kernel/core/syscall.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "a55bacefdc286322397cf857550020c937c6b6e2813507539d6762324f2177c0"
+      "sha256": "4371a10d53d4dd43ce9d73418158b1553adf157f0159328e3ff4e3e9144f88e5"
     },
     {
       "build_owners": [
@@ -70177,12 +70181,12 @@
         "kernel/fs/vfs.h"
       ],
       "language": "c_header",
-      "lines": 211,
+      "lines": 212,
       "origin": "tracked",
       "path": "kernel/core/syscall.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "73b4e6c643bf4b9bf27da2b83d3f442293699fc348fa7ba2dfe852f61751709f"
+      "sha256": "38eda82f9155a52d0041bd9a736cc65f9441466d4a5ab6f9703cc3f39e04172d"
     },
     {
       "build_owners": [
@@ -84146,12 +84150,12 @@
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 596,
+      "lines": 612,
       "origin": "tracked",
       "path": "kernel/lang/exec.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "d1d301072894a9ab8b1d38b3a1457b63754e8ab2f0a71395db3397a32001b7f6"
+      "sha256": "d1c41ad6529ef529be1fc90c4e8c567df577284e6ed515d40f86e636e97b5b0a"
     },
     {
       "build_owners": [
@@ -84500,12 +84504,12 @@
         "kernel/smp/bkl.h"
       ],
       "language": "cupid_c",
-      "lines": 567,
+      "lines": 569,
       "origin": "tracked",
       "path": "kernel/mm/memory.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "76ec6729a4616ba976d20051ad51061bd9af694e531637e99e9ed5d7d85ba7b8"
+      "sha256": "ab62743c795f0bfe7ea6b2e48645fe67c515c33a2ed0b2bb516edd8ba52c87e3"
     },
     {
       "build_owners": [
@@ -84536,12 +84540,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 124,
+      "lines": 130,
       "origin": "tracked",
       "path": "kernel/mm/memory.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9da877d60a6166b54aedc27d6433f1824b43f65c0ae077036ccbc99427fb47a8"
+      "sha256": "50c165084464259ea37d776cb77ca22a532b651482895c6f6bdcdc5b801c0bff"
     },
     {
       "build_owners": [
@@ -93366,21 +93370,21 @@
       "classification": "host_fixture",
       "duplicate_of": [],
       "language": "c",
-      "lines": 601,
+      "lines": 663,
       "path": "tests/kernel_exec_contract.c",
       "reason": "native kernel behavior fixture compiled by the host test harness",
       "relations": [],
-      "sha256": "ac2ef4ed3691014954d19f5f043cbff4905672276a94e8596c798bcb5615a1bd"
+      "sha256": "2264492d34ef8f0ff4aaf63036be2579e942d29603e3847d8e71c5af321c558a"
     },
     {
       "classification": "host_fixture",
       "duplicate_of": [],
       "language": "c",
-      "lines": 1006,
+      "lines": 1091,
       "path": "tests/kernel_process_contract.c",
       "reason": "native kernel behavior fixture compiled by the host test harness",
       "relations": [],
-      "sha256": "b0db2411cdf298bb5a1b81f5c9e9604f44e5d2fa3b35cf09038fd8563627d1e3"
+      "sha256": "ba2e069d44b702bc01e4260c08f1079e9f81eb265005e0ce4b65effffc215256"
     },
     {
       "classification": "not_reached",

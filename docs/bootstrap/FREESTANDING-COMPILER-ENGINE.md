@@ -2,8 +2,9 @@
 
 A loadable freestanding CupidC engine rebuilt all nine of its own objects,
 then relinked to the same complete image. This ran in a native Linux harness
-at the existing guest compiler arena address. Execution inside Cupid OS and
-normal-build integration remain unfinished.
+at the existing guest compiler arena address. The standalone version also
+rebuilds a compiler object inside Cupid OS. The complete in-guest fixed
+point and normal-build integration remain unfinished.
 
 ## Build and verify
 
@@ -59,8 +60,8 @@ python3 tools/hostbuild.py stage --image build/guest-engine/engboot.img \
 
 Boot the copy and run `mount /disk/engsrc.iso /src`. The compiler entry is
 available at `/src/cupidc-engine.elf`, and the sources are under
-`/src/toolchain` and `/src/bootstrap/guest`. A guest worker still needs to
-map those VFS paths to the compiler's logical paths.
+`/src/toolchain` and `/src/bootstrap/guest`. The standalone worker preserves
+those logical paths while reading through the VFS mount.
 
 ## Standalone compiler executable
 
@@ -123,7 +124,7 @@ provide `exit`. The Linux-only harness now exits through the existing syscall
 adapter. Compiler and production runtime sources did not change. The failed
 command and original harness remain in the evidence.
 
-## Guest integration still needed
+## Worker stack and lifetime
 
 The kernel's default process stack is 32 KiB. A second Linux harness calls the
 unchanged engine on a separately mapped stack with inaccessible pages at both
@@ -138,11 +139,12 @@ valid compiler inputs. The guarded run takes 536.090 seconds. Its stack-switch
 trampoline belongs only to the Linux experiment. Guest integration must allocate
 an actual process stack through the scheduler.
 
-The Linux harness does not establish the kernel's memory, stack or process
-lifetime behavior. The guest loader must validate the module before copying,
-honor the shell's compiler-region ownership, provide a sufficient worker stack
-and reclaim job storage when the process exits or is killed. The checked
-source ISO supplies the module and compiler inputs for that worker.
+The guest ELF loader validates segments before copying and gives the
+standalone worker its own lease at 30–34 MiB. The scheduler supplies the
+two-MiB stack and reclaims live worker allocations after CPU detachment.
+The ordinary external and legacy compiler arenas keep their own ownership.
+The [worker decision](../adr/0485-lease-an-arena-for-the-compiler-worker.md)
+records exit and interrupt behavior.
 
 The scheduler now starts both process entry forms through an aligned
 i386 cdecl trampoline. The first-dispatch contract checks the initial stack,
@@ -151,9 +153,37 @@ The [scheduler decision](../adr/0483-align-new-process-entry-stacks.md)
 records the original mismatch and its repair.
 
 The current kernel has about 980 KB of raw-image headroom and 493 KB before
-its fixed stack. Embedding this engine would exceed those limits. Keeping the
-payload on disk and loading it into the existing compiler arena is the measured
-integration direction; a real guest self-recompile is still required.
+its fixed stack. Embedding this engine would exceed those limits. The
+standalone worker stays on disk and loads into its own compiler arena.
+
+## Reproduce an in-guest compile
+
+Build the kernel, compiler executable and source ISO with checked tools.
+The runtime check starts a disposable four-vCPU QEMU guest, mounts the
+source ISO and sends the compile requests through the terminal. It checks
+that a missing source preserves the object already published. Add
+`--frontend` to include the full frontend compilation.
+
+```sh
+make -j2 all
+make -j4 -C bootstrap/guest guest-compiler source-iso
+python3 bootstrap/guest/check_guest_runtime.py
+```
+
+A four-vCPU run rebuilt `ctool.o` and released the worker lease. The 41,864-byte
+file read from the guest disk matches the checked host object. A subsequent
+missing-source request preserved it. Its SHA-256 is
+`b3c53624564e96d88100950babb28d768c40eb288195d958cdc4a7c4a5c0fa20`.
+Through the Linux syscall fixture, the full frontend produced the same
+1,024,260-byte object as the checked host compiler and released its allocations.
+The first full frontend run in QEMU reached its 900-second limit.
+
+A private CupidLD adapter also linked the 2,498,900-byte standalone worker
+from ten host-built objects inside Cupid OS. The worker matched the checked
+ELF byte for byte, then compiled `ctool.cc` as a second guest process. The
+adapter is experimental. This proves guest relinking with the checked
+objects. A full guest fixed point requires rebuilding all ten objects
+inside Cupid OS.
 
 ## Retained proof
 

@@ -13,6 +13,7 @@
 #include "timer.h"
 
 #define TEST_STACK_COUNT (MAX_PROCESSES + 2u)
+#define TEST_COMPILER_BLOCKS 2u
 
 per_cpu_t kernel_contract_cpu;
 per_cpu_t kernel_contract_remote_cpu;
@@ -21,6 +22,11 @@ int smp_cpu_count_var = 1;
 
 static uint8_t test_stacks[TEST_STACK_COUNT][DEFAULT_STACK_SIZE]
     __attribute__((aligned(16)));
+static uint8_t test_compiler_stack[COMPILER_EXEC_STACK_SIZE] __attribute__((aligned(16)));
+static uint8_t test_compiler_blocks[TEST_COMPILER_BLOCKS][128u] __attribute__((aligned(16)));
+static bool test_compiler_stack_used;
+static bool test_compiler_block_used[TEST_COMPILER_BLOCKS];
+static uint32_t test_compiler_frees;
 static bool test_stack_used[TEST_STACK_COUNT];
 static uint32_t test_stack_allocations;
 static uint32_t test_stack_frees;
@@ -89,6 +95,20 @@ void *memcpy(void *destination, const void *source, size_t count) {
 void *kmalloc_debug(size_t size, const char *file, uint32_t line) {
     (void)file;
     (void)line;
+    if (size == COMPILER_EXEC_STACK_SIZE && !test_compiler_stack_used) {
+        test_compiler_stack_used = true;
+        test_stack_allocations++;
+        return test_compiler_stack;
+    }
+    if (size < sizeof(test_compiler_blocks[0])) {
+        for (uint32_t i = 0u; i < TEST_COMPILER_BLOCKS; i++) {
+            if (!test_compiler_block_used[i]) {
+                test_compiler_block_used[i] = true;
+                return test_compiler_blocks[i] + 1u;
+            }
+        }
+        return NULL;
+    }
     if (size > DEFAULT_STACK_SIZE) {
         return NULL;
     }
@@ -105,6 +125,18 @@ void *kmalloc_debug(size_t size, const char *file, uint32_t line) {
 void kfree(void *pointer) {
     if (!pointer) {
         return;
+    }
+    if (pointer == test_compiler_stack && test_compiler_stack_used) {
+        test_compiler_stack_used = false;
+        test_stack_frees++;
+        return;
+    }
+    for (uint32_t i = 0u; i < TEST_COMPILER_BLOCKS; i++) {
+        if (pointer == test_compiler_blocks[i] + 1u && test_compiler_block_used[i]) {
+            test_compiler_block_used[i] = false;
+            test_compiler_frees++;
+            return;
+        }
     }
     for (uint32_t i = 0u; i < TEST_STACK_COUNT; i++) {
         if (pointer == test_stacks[i] && test_stack_used[i]) {
@@ -579,6 +611,56 @@ static int run_remote_idle_owned(void) {
     return 0;
 }
 
+static int run_compiler_lease_cleanup(void) {
+    process_image_t compiler = {0};
+    process_image_t ordinary = {0};
+    process_image_t busy = {0};
+    if (create_idle_slot() != 0 || !process_external_image_claim(&ordinary) ||
+        !process_compiler_image_claim(&compiler) || process_compiler_image_claim(&busy) ||
+        !descriptor_is_empty(&busy)) return 1;
+
+    void (*entry)(void) = (void (*)(void))COMPILER_EXEC_ARENA_START;
+    uint32_t generation = compiler.lease_generation;
+    if (process_create_with_arg_image_ex(entry, "short-stack", DEFAULT_STACK_SIZE,
+                                          0u, PROCESS_DOMAIN_EXTERNAL, &compiler) != 0u ||
+        process_create_with_arg_image_ex(dummy_entry, "wrong-entry", COMPILER_EXEC_STACK_SIZE,
+                                          0u, PROCESS_DOMAIN_EXTERNAL, &compiler) != 0u ||
+        compiler.lease_generation != generation) return 2;
+
+    uint32_t pid = process_create_with_arg_image_ex(entry, "compiler", COMPILER_EXEC_STACK_SIZE,
+                                                     0u, PROCESS_DOMAIN_EXTERNAL, &compiler);
+    if (pid != 2u || !descriptor_is_empty(&compiler) ||
+        process_compiler_allocate(32u) != NULL) return 3;
+
+    process_start_scheduler();
+    hosted_schedule_once();
+    if (kernel_contract_cpu.current_pid != pid || !test_compiler_stack_used) return 4;
+    void *released = process_compiler_allocate(32u);
+    void *outstanding = process_compiler_allocate(32u);
+    if (!released || !outstanding || released == outstanding ||
+        ((uint32_t)released & 15u) != 0u || ((uint32_t)outstanding & 15u) != 0u ||
+        process_compiler_allocate(TOTAL_MEMORY_BYTES + 1u) != NULL) return 5;
+
+    kernel_contract_remote_cpu.cpu_id = 1u;
+    kernel_contract_this_cpu = &kernel_contract_remote_cpu;
+    process_compiler_release(outstanding);
+    if (test_compiler_frees != 0u || process_compiler_allocate(32u) != NULL) return 6;
+    kernel_contract_this_cpu = &kernel_contract_cpu;
+    process_compiler_release(released);
+    process_compiler_release(released);
+    if (test_compiler_frees != 1u || process_compiler_allocate(0u) != NULL) return 7;
+
+    hosted_kill(pid);
+    if (test_compiler_frees != 1u || test_stack_frees != 0u ||
+        process_compiler_allocate(32u) != NULL) return 8;
+    if (!process_compiler_image_claim(&compiler) || compiler.lease_generation == generation ||
+        test_compiler_frees != 2u || test_stack_frees != 1u || test_compiler_stack_used ||
+        test_pmm_releases != 0u || process_external_image_claim(&busy)) return 9;
+    process_image_discard(&compiler);
+    process_image_discard(&ordinary);
+    return 0;
+}
+
 static int run_terminated_ap_idle_context(void) {
     process_image_t image = {0};
     process_image_t next = {0};
@@ -914,6 +996,9 @@ static int run_descriptor_cleanup(void) {
 static int __attribute__((used)) contract_main(int argc, char **argv) {
     if (argc != 2) {
         return 64;
+    }
+    if (strings_equal(argv[1], "compiler-lease-cleanup")) {
+        return run_compiler_lease_cleanup();
     }
     if (strings_equal(argv[1], "claim-busy-discard")) {
         return run_claim_busy_discard();

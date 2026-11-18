@@ -78,8 +78,10 @@ void pmm_init(uint32_t kernel_end) {
      *   17 MiB - 26 MiB  CupidC   (1 MiB code + 8 MiB data)
      *   26 MiB - 28 MiB  CupidASM (1 MiB code + 1 MiB data)
      *   28 MiB - 30 MiB  external CupidLD executables
+     *   30 MiB - 34 MiB  standalone compiler
      */
     pmm_mark_region(EXTERNAL_EXEC_ARENA_START, EXTERNAL_EXEC_ARENA_END, 1);
+    pmm_mark_region(COMPILER_EXEC_ARENA_START, COMPILER_EXEC_ARENA_END, 1);
     pmm_mark_region(CUPIDC_EXEC_ARENA_START, CUPIDC_EXEC_ARENA_END, 1);
     pmm_mark_region(CUPIDASM_EXEC_ARENA_START, CUPIDASM_EXEC_ARENA_END, 1);
 

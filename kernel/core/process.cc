@@ -70,9 +70,29 @@ static bool cpu_idle_context_valid[SMP_MAX_CPUS];
 static uint32_t next_schedule_index = 0;
 static uint32_t process_count = 0;
 static bool scheduler_active = false;
-static uint32_t external_image_generation = 0;
-static uint32_t external_image_owner_pid = 0;
-static uint32_t next_external_image_generation = 0;
+typedef struct {
+    uint32_t base;
+    uint32_t end;
+    const char *name;
+    uint32_t generation;
+    uint32_t owner_pid;
+    uint32_t next_generation;
+} process_image_lease_t;
+
+static process_image_lease_t external_image_lease = {
+    .base = EXTERNAL_EXEC_ARENA_START, .end = EXTERNAL_EXEC_ARENA_END, .name = "external"
+};
+static process_image_lease_t compiler_image_lease = {
+    .base = COMPILER_EXEC_ARENA_START, .end = COMPILER_EXEC_ARENA_END, .name = "compiler"
+};
+
+typedef struct compiler_allocation {
+    struct compiler_allocation *next;
+    void *payload;
+} compiler_allocation_t;
+
+#define COMPILER_HEAP_ALIGNMENT 16u
+static compiler_allocation_t *compiler_allocations;
 static uint32_t next_process_lifetime_generation = 0;
 
 static const char *state_names[] = {"READY", "RUNNING", "BLOCKED", "TERMINATED"};
@@ -180,6 +200,58 @@ static uint32_t find_free_slot(void) {
     return MAX_PROCESSES;
 }
 
+static process_image_lease_t *process_image_lease(process_image_ownership_t ownership) {
+    if (ownership == PROCESS_IMAGE_EXTERNAL_LEASE)
+        return &external_image_lease;
+    if (ownership == PROCESS_IMAGE_COMPILER_LEASE)
+        return &compiler_image_lease;
+    return NULL;
+}
+
+static bool compiler_worker_is_current(void) {
+    uint32_t pid = this_cpu()->current_pid;
+    if (pid == 0 || pid != compiler_image_lease.owner_pid)
+        return false;
+    const process_t *owner = &process_table[pid - 1u];
+    return owner->state == PROCESS_RUNNING && owner->on_cpu == this_cpu()->cpu_id;
+}
+
+void *process_compiler_allocate(size_t size) {
+    if (size == 0 || size > TOTAL_MEMORY_BYTES)
+        return NULL;
+    compiler_allocation_t *allocation = NULL;
+    bkl_lock();
+    if (compiler_worker_is_current()) {
+        allocation = kmalloc(sizeof(*allocation) + COMPILER_HEAP_ALIGNMENT - 1u + size);
+        if (allocation) {
+            uint32_t payload = (uint32_t)(allocation + 1);
+            allocation->payload = (void *)((payload + COMPILER_HEAP_ALIGNMENT - 1u) &
+                                            ~(COMPILER_HEAP_ALIGNMENT - 1u));
+            allocation->next = compiler_allocations;
+            compiler_allocations = allocation;
+        }
+    }
+    bkl_unlock();
+    return allocation ? allocation->payload : NULL;
+}
+
+void process_compiler_release(void *pointer) {
+    if (!pointer)
+        return;
+    bkl_lock();
+    if (compiler_worker_is_current()) {
+        compiler_allocation_t **link = &compiler_allocations;
+        while (*link && (*link)->payload != pointer)
+            link = &(*link)->next;
+        if (*link) {
+            compiler_allocation_t *allocation = *link;
+            *link = allocation->next;
+            kfree(allocation);
+        }
+    }
+    bkl_unlock();
+}
+
 static void process_release_image_locked(process_t *process) {
     if (!bkl_held_by_this_cpu()) {
         KERROR("process_release_image_locked requires BKL");
@@ -194,18 +266,25 @@ static void process_release_image_locked(process_t *process) {
     process->image_ownership = PROCESS_IMAGE_NONE;
     process->image_lease_generation = 0;
 
-    if (ownership == PROCESS_IMAGE_EXTERNAL_LEASE) {
-        if (generation != 0 && generation == external_image_generation &&
-            process->pid == external_image_owner_pid) {
-            serial_printf("[PROCESS] PID %u released external image lease %u\n", process->pid,
-                          generation);
-            external_image_generation = 0;
-            external_image_owner_pid = 0;
-        } else {
-            serial_printf("[PROCESS] PID %u has stale external image lease %u\n", process->pid,
-                          generation);
+    process_image_lease_t *lease = process_image_lease(ownership);
+    if (!lease)
+        return;
+    if (generation == 0 || generation != lease->generation || process->pid != lease->owner_pid) {
+        serial_printf("[PROCESS] PID %u has stale %s image lease %u\n", process->pid,
+                      lease->name, generation);
+        return;
+    }
+    if (lease == &compiler_image_lease) {
+        while (compiler_allocations) {
+            compiler_allocation_t *allocation = compiler_allocations;
+            compiler_allocations = allocation->next;
+            kfree(allocation);
         }
     }
+    serial_printf("[PROCESS] PID %u released %s image lease %u\n", process->pid,
+                  lease->name, generation);
+    lease->generation = 0;
+    lease->owner_pid = 0;
 }
 
 static bool process_cleanup_resources_locked(process_t *process) {
@@ -282,9 +361,13 @@ void process_init(void) {
     next_schedule_index = 0;
     process_count = 0;
     scheduler_active = false;
-    external_image_generation = 0;
-    external_image_owner_pid = 0;
-    next_external_image_generation = 0;
+    external_image_lease.generation = 0;
+    external_image_lease.owner_pid = 0;
+    external_image_lease.next_generation = 0;
+    compiler_image_lease.generation = 0;
+    compiler_image_lease.owner_pid = 0;
+    compiler_image_lease.next_generation = 0;
+    compiler_allocations = NULL;
     next_process_lifetime_generation = 0;
 
     uint32_t pid = process_create(idle_process, "idle", DEFAULT_STACK_SIZE);
@@ -306,16 +389,21 @@ static uint32_t process_create_common_locked(void (*entry_point)(void), const ch
         KERROR("process_create: NULL entry point");
         return 0;
     }
+    process_image_lease_t *lease = image ? process_image_lease(image->ownership) : NULL;
     if (image) {
         bool range_valid = image->size > 0 && image->base <= 0xFFFFFFFFu - image->size;
         if (image->ownership == PROCESS_IMAGE_NONE) {
             range_valid = image->base == 0 && image->size == 0 && image->lease_generation == 0;
-        } else if (image->ownership == PROCESS_IMAGE_EXTERNAL_LEASE) {
-            range_valid = range_valid && image->base == EXTERNAL_EXEC_ARENA_START &&
-                          image->size == EXTERNAL_EXEC_ARENA_END - EXTERNAL_EXEC_ARENA_START &&
+        } else if (lease) {
+            range_valid = range_valid && image->base == lease->base &&
+                          image->size == lease->end - lease->base &&
                           image->lease_generation != 0 &&
-                          image->lease_generation == external_image_generation &&
-                          external_image_owner_pid == 0 && domain == PROCESS_DOMAIN_EXTERNAL;
+                          image->lease_generation == lease->generation &&
+                          lease->owner_pid == 0 && domain == PROCESS_DOMAIN_EXTERNAL;
+            if (lease == &compiler_image_lease)
+                range_valid = range_valid && stack_size == COMPILER_EXEC_STACK_SIZE &&
+                              (uint32_t)entry_point >= lease->base &&
+                              (uint32_t)entry_point < lease->end;
         } else if (image->ownership == PROCESS_IMAGE_PERMANENT) {
             uint32_t image_end = range_valid ? image->base + image->size : 0u;
             bool in_cupidc =
@@ -410,9 +498,8 @@ static uint32_t process_create_common_locked(void (*entry_point)(void), const ch
         p->image_size = image->size;
         p->image_ownership = image->ownership;
         p->image_lease_generation = image->lease_generation;
-        if (image->ownership == PROCESS_IMAGE_EXTERNAL_LEASE) {
-            external_image_owner_pid = slot + 1;
-        }
+        if (lease)
+            lease->owner_pid = slot + 1u;
         image->base = 0;
         image->size = 0;
         image->ownership = PROCESS_IMAGE_NONE;
@@ -480,32 +567,41 @@ uint32_t process_create_with_arg_image_ex(void (*entry_point)(void), const char 
     return process_create_common(entry_point, name, stack_size, true, arg, domain, image);
 }
 
-bool process_external_image_claim(process_image_t *image) {
-    if (!image || image->base != 0 || image->size != 0 || image->ownership != PROCESS_IMAGE_NONE ||
+static bool process_claim_image(process_image_t *image, process_image_ownership_t ownership) {
+    process_image_lease_t *lease = process_image_lease(ownership);
+    if (!lease || !image || image->base != 0 || image->size != 0 || image->ownership != PROCESS_IMAGE_NONE ||
         image->lease_generation != 0) {
         return false;
     }
 
     bkl_lock();
     process_reap_terminated_impl();
-    if (external_image_generation != 0) {
+    if (lease->generation != 0) {
         bkl_unlock();
         return false;
     }
 
-    next_external_image_generation++;
-    if (next_external_image_generation == 0) {
-        next_external_image_generation++;
+    lease->next_generation++;
+    if (lease->next_generation == 0) {
+        lease->next_generation++;
     }
-    external_image_generation = next_external_image_generation;
-    external_image_owner_pid = 0;
-    image->base = EXTERNAL_EXEC_ARENA_START;
-    image->size = EXTERNAL_EXEC_ARENA_END - EXTERNAL_EXEC_ARENA_START;
-    image->ownership = PROCESS_IMAGE_EXTERNAL_LEASE;
-    image->lease_generation = external_image_generation;
-    serial_printf("[PROCESS] Claimed external image lease %u\n", external_image_generation);
+    lease->generation = lease->next_generation;
+    lease->owner_pid = 0;
+    image->base = lease->base;
+    image->size = lease->end - lease->base;
+    image->ownership = ownership;
+    image->lease_generation = lease->generation;
+    serial_printf("[PROCESS] Claimed %s image lease %u\n", lease->name, lease->generation);
     bkl_unlock();
     return true;
+}
+
+bool process_external_image_claim(process_image_t *image) {
+    return process_claim_image(image, PROCESS_IMAGE_EXTERNAL_LEASE);
+}
+
+bool process_compiler_image_claim(process_image_t *image) {
+    return process_claim_image(image, PROCESS_IMAGE_COMPILER_LEASE);
 }
 
 void process_image_discard(process_image_t *image) {
@@ -513,12 +609,15 @@ void process_image_discard(process_image_t *image) {
         return;
 
     bkl_lock();
-    if (image->ownership == PROCESS_IMAGE_EXTERNAL_LEASE && image->lease_generation != 0) {
-        if (image->lease_generation == external_image_generation && external_image_owner_pid == 0) {
-            serial_printf("[PROCESS] Cancelled external image lease %u\n", image->lease_generation);
-            external_image_generation = 0;
+    process_image_lease_t *lease = process_image_lease(image->ownership);
+    if (lease && image->lease_generation != 0 && image->base == lease->base &&
+        image->size == lease->end - lease->base) {
+        if (image->lease_generation == lease->generation && lease->owner_pid == 0) {
+            serial_printf("[PROCESS] Cancelled %s image lease %u\n", lease->name,
+                          image->lease_generation);
+            lease->generation = 0;
         } else {
-            serial_printf("[PROCESS] Ignored stale external image lease %u\n",
+            serial_printf("[PROCESS] Ignored stale %s image lease %u\n", lease->name,
                           image->lease_generation);
         }
     }

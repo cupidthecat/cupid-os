@@ -128,6 +128,12 @@ class KernelElfLoaderContractTests(KernelContractCase):
     def test_valid_external_image_is_staged_loaded_and_published(self):
         self.run_contract("valid-external")
 
+    def test_compiler_image_receives_its_own_stack_and_syscall_table(self):
+        self.run_contract("valid-compiler")
+
+    def test_busy_compiler_lease_leaves_fixed_memory_unchanged(self):
+        self.run_contract("busy-compiler")
+
     def test_cupidc_and_cupidasm_legacy_arenas_remain_loadable(self):
         self.run_contract("valid-legacy")
 
@@ -187,6 +193,9 @@ class KernelProcessImageContractTests(KernelContractCase):
 
     def test_stale_descriptor_cannot_cancel_a_newer_lease(self):
         self.run_contract("stale-discard")
+
+    def test_compiler_allocations_are_reaped_after_detachment(self):
+        self.run_contract("compiler-lease-cleanup")
 
     def test_process_creation_consumes_and_kill_releases_the_lease(self):
         self.run_contract("consume-kill")

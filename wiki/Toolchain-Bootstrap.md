@@ -46,8 +46,11 @@ with a Cupid OS syscall adapter. On Linux or WSL,
 `make -C bootstrap/guest check-guest-compiler` compares the emitted object
 and checks rejected requests.
 
-Launching the executable in Cupid OS requires an arena claim, a
-scheduler-owned stack and cleanup after exit or kill.
+Cupid OS loads the worker into a dedicated arena with a two-MiB stack.
+Mount the source ISO at `/src`, place the two-line request in
+`/home/cupidc.job` and run `exec /disk/cupcc` after staging the executable
+as `/cupcc` on the guest disk. The first QEMU run rebuilt `ctool.o`
+byte for byte and released the worker lease.
 [Engine build and evidence](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md)
 
 ## History
