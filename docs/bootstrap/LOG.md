@@ -1,5 +1,39 @@
 # Bootstrapping log
 
+## 2026-11-17: Align scheduler entry for a compiler worker
+
+A new process starts in an i386 cdecl trampoline. Both entry forms receive
+an aligned stack. Returning now calls process exit from the trampoline, and
+the reaper still waits for CPU detachment before freeing the stack.
+
+The one-argument contract rejects the old scheduler's ESP residue of 8.
+The two new cases execute the entry on the prepared stack, test argument
+delivery and return, then reclaim the stack. All 53 loader and scheduler
+tests pass on Windows and WSL. Two Windows frontier compiles match the
+32,032-byte WSL production object.
+
+A separate Make invocation failed the Doom profile's directory-membership
+check while the image build was active. The existing build published the
+scheduler object. A frontier replay caught a terminal comment edit in its
+frozen inputs. After that edit, the rebuilt terminal and context-switch
+objects match their earlier bytes.
+
+Checked tools built a 9,503,228-byte raw kernel and both ELF outputs.
+Updating the three measured sizes let an isolated copy pass all 16 exact
+artifact checks. The four-vCPU e1000 guest ran the external hello program,
+printed through its syscall table, exited and released its image lease.
+
+The first boot timed out while importing the source ISO into a fresh home
+filesystem. Booting with hello alone then staging the ISO let the next boot
+mount it at `/src`. The graphical listing stayed in the GUI. A checked
+guest ELF then verified the sizes and the first 256 bytes of the engine
+and frontend files through VFS. Its first version used a whole-file helper
+with a prefix buffer. Using open, read and close passed the check. The probe
+returned through the trampoline and released its image lease.
+
+- Hello serial log SHA-256: `85518aa78b55f1ec3ab6b3b357ef038b9fa7c6c0cfa70ff7dae132a5ee806640`
+- ISO probe serial log SHA-256: `b74875cf3c0e4055ff51d7114251a355ce9c3a904ca5a44cf57798d935226b32`
+
 ## 2026-11-17: Publish the compiler ISO from a private input tree
 
 CupidObj's generic runner writes its output directly. The source ISO now

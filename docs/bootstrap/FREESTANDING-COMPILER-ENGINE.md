@@ -121,11 +121,11 @@ honor the shell's compiler-region ownership, provide a sufficient worker stack
 and reclaim job storage when the process exits or is killed. The checked
 source ISO supplies the module and compiler inputs for that worker.
 
-The scheduler's first dispatch also needs the i386 cdecl entry alignment.
-A probe of the process contract observes ESP modulo 16 at 12 for a process
-with no argument and 8 for a process with one argument. CupidC expects 12 in
-both cases. A private trampoline prototype reaches 12 for both. The kernel
-still uses its existing entry path.
+The scheduler now starts both process entry forms through an aligned
+i386 cdecl trampoline. The first-dispatch contract checks the initial stack,
+argument delivery, entry return, CPU detachment and deferred stack cleanup.
+The [scheduler decision](../adr/0483-align-new-process-entry-stacks.md)
+records the original mismatch and its repair.
 
 The current kernel has about 980 KB of raw-image headroom and 493 KB before
 its fixed stack. Embedding this engine would exceed those limits. Keeping the

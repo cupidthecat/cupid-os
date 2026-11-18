@@ -52444,7 +52444,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5800
+      "occurrences": 5801
     },
     {
       "category": "control",
@@ -54225,7 +54225,7 @@
         "user/cupid.h"
       ],
       "id": "c.declarator.function_pointer",
-      "occurrences": 1032
+      "occurrences": 1033
     },
     {
       "category": "declarator",
@@ -61657,7 +61657,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 16404
+      "occurrences": 16406
     },
     {
       "category": "declaration",
@@ -62586,7 +62586,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "ac1835f6e6fe478a9c2f72b872132fd7282916b7b9011ce264c7362bbd98b755",
+    "active_source_digest": "9bffe9183a279e38f21c70d0c235051f557691c3b3fea7581e5c9870b72089b7",
     "control_files": [
       {
         "path": "Makefile",
@@ -69567,7 +69567,7 @@
       "path": "kernel/core/context_switch.asm",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidASM",
-      "sha256": "3158476a3fcc014b48b704004e9ca629dfa2fd159d2d8b49582d523c90313cdb"
+      "sha256": "fbf71e5c71ae5c38916ec8f988f18385e9dc418f83b609bbc488752db6066f23"
     },
     {
       "build_owners": [
@@ -69923,12 +69923,12 @@
         "kernel/smp/smp.h"
       ],
       "language": "cupid_c",
-      "lines": 1150,
+      "lines": 1142,
       "origin": "tracked",
       "path": "kernel/core/process.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "39ee95606b6f357fe1e0c4b7044fbc9983b0960d6975eb121bbcd96343fbff5e"
+      "sha256": "9cdf9e47dd2d534ed4b3f43609dc02b0faebfedc60ba460b32aa5b22ce257ce2"
     },
     {
       "build_owners": [
@@ -82683,7 +82683,7 @@
       "path": "kernel/gui/terminal_app.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b662e1ac06cafae2e8b30f9b72d786d2a4e0593237f6eaca96481f88c5fffa31"
+      "sha256": "c9159413cb5fc798098b90003b50f75188d9a1016548891a8f95c14482277265"
     },
     {
       "build_owners": [
@@ -93346,11 +93346,11 @@
       "classification": "host_fixture",
       "duplicate_of": [],
       "language": "c",
-      "lines": 950,
+      "lines": 1006,
       "path": "tests/kernel_process_contract.c",
       "reason": "native kernel behavior fixture compiled by the host test harness",
       "relations": [],
-      "sha256": "2995286f54f196e0678e0086336818d7e50917397c566a032e9f47acf36a230e"
+      "sha256": "b0db2411cdf298bb5a1b81f5c9e9604f44e5d2fa3b35cf09038fd8563627d1e3"
     },
     {
       "classification": "not_reached",

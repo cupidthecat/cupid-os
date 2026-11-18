@@ -419,6 +419,11 @@ The first AP dispatch saves that PID-less bootstrap stack and FPU state in
 cpu_idle_contexts[cpu_id]. A blocked or terminated AP task can later switch
 back to the same CPU-local context, publish its PCB detached, and become safe
 for quiescent cleanup without borrowing PID 1 or another CPU's stack.
+
+A new process starts in a trampoline with an i386 cdecl stack frame.
+The trampoline calls the entry function with its optional argument and
+exits if the function returns. The scheduler detaches the process before
+the reaper frees its stack.
 >endtree
 
 >h2 Interrupt Entry and Per-CPU GS

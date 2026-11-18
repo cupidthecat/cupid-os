@@ -200,6 +200,12 @@ class KernelProcessImageContractTests(KernelContractCase):
     def test_remote_running_process_is_quiescent_before_deferred_reaping(self):
         self.run_contract("deferred-remote-reap")
 
+    def test_first_dispatch_calls_and_reaps_a_returning_process(self):
+        self.run_contract("first-dispatch")
+
+    def test_first_dispatch_aligns_and_passes_the_process_argument(self):
+        self.run_contract("first-dispatch-arg")
+
     def test_context_switch_handoff_releases_once_and_preserves_caller_flags(self):
         self.run_contract("schedule-handoff")
 

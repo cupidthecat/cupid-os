@@ -63,7 +63,7 @@ static void terminal_process_entry(void) {
         /* Yield until next time slice */
         process_yield();
     }
-    /* Falls through to process_exit_trampoline */
+    /* Returning to the entry trampoline exits the terminal process. */
 }
 
 static void terminal_on_close(window_t *win) {

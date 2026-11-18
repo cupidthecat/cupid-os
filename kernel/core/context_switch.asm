@@ -86,8 +86,8 @@ context_switch:
 
     ; Jump to new task's EIP.  For a resumed process that is
     ; context_switch_resume (we seeded it below before switching).
-    ; For a brand-new process, it's the entry point with
-    ; process_exit_trampoline as the return address on its stack.
+    ; A new process starts in process_entry_trampoline with an aligned
+    ; cdecl frame prepared by process_create_common_locked.
 .jump_target:
     jmp dword [edx + PCB_EIP_OFFSET]
 

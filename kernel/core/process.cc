@@ -14,8 +14,8 @@
  *   saved registers and does `ret`, returning normally to whoever
  *   called schedule().
  *
- *   New processes have their initial EIP set to their entry function
- *   with a return address of process_exit_trampoline on the stack.
+ *   New processes start in a cdecl trampoline that calls their entry function
+ *   and exits when it returns.
  */
 
 #include "process.h"
@@ -94,10 +94,13 @@ static uint32_t process_create_common(void (*entry_point)(void), const char *nam
                                       uint32_t stack_size, bool with_arg, uint32_t arg,
                                       process_domain_t domain, process_image_t *image);
 
-/* Trampoline: if a process entry function returns, we land here
- *  and call process_exit() to clean up.
- **/
-static void process_exit_trampoline(void) {
+static void process_entry_trampoline(void (*entry_point)(void), uint32_t arg,
+                                     uint32_t with_arg) {
+    if (with_arg) {
+        ((void (*)(uint32_t))entry_point)(arg);
+    } else {
+        entry_point();
+    }
     process_exit();
     while (1) {
         __asm__ volatile("hlt");
@@ -381,28 +384,18 @@ static uint32_t process_create_common_locked(void (*entry_point)(void), const ch
         p->name[i] = '\0';
     }
 
-    /*
-     * Set up initial stack for first context switch.
-     *
-     * When schedule() picks this process for the first time, it calls:
-     *   context_switch(old_proc, new_proc)
-     * which loads ESP from new_proc->context.esp and jumps to
-     * new_proc->context.eip.  For a brand-new process we set
-     * context.eip = entry_point and pre-place process_exit_trampoline
-     * as a fake return address on its stack, so when entry_point
-     * returns, `ret` lands in the trampoline.
-     */
+    /* Enter the trampoline with the cdecl entry alignment and three
+     * arguments. The trampoline calls the application and handles return. */
     uint32_t top = ((uint32_t)stack + stack_size) & ~0xFu;
-    uint32_t *sp = (uint32_t *)top;
-    if (with_arg) {
-        sp--;
-        *sp = arg;
-    }
-    sp--;
-    *sp = (uint32_t)process_exit_trampoline;
+    uint32_t *sp = (uint32_t *)top - 5;
+    sp[0] = 0u; /* The trampoline exits without returning. */
+    sp[1] = (uint32_t)entry_point;
+    sp[2] = arg;
+    sp[3] = with_arg ? 1u : 0u;
+    sp[4] = 0u; /* Padding above the arguments. */
 
     p->context.esp = (uint32_t)sp;
-    p->context.eip = (uint32_t)entry_point;
+    p->context.eip = (uint32_t)process_entry_trampoline;
     p->context.eflags = 0x00000202u; /* reserved bit + interrupts enabled */
 
     /* Seed fp_state with a fresh FXSAVE from the currently-init'd FPU
@@ -964,9 +957,8 @@ static bool schedule_locked(void) {
      *
      * For a previously-saved process, new_proc->context.eip =
      * context_switch_resume (we seed it below before switching).
-     * For a brand-new process, new_proc->context.eip = entry_point;
-     * its stack already has process_exit_trampoline as the return
-     * address (set up by process_create_common_locked).
+     * A new process starts in process_entry_trampoline with an aligned
+     * initial frame prepared by process_create_common_locked.
      *
      * context_switch never returns normally - when THIS process is
      * later resumed, context_switch_resume pops the saved regs and

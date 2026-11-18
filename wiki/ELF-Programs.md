@@ -392,9 +392,8 @@ void _start(cupid_syscall_table_t *sys) {
 }
 ```
 
-The initial process stack supplies `process_exit_trampoline` as `_start()`'s
-return address, so falling off the end marks the process terminated just like
-an explicit `exit()` call. Explicit `exit()` remains useful for early exits.
+The scheduler's entry trampoline calls `_start()` with the syscall table.
+Returning exits the process. Call `exit()` to stop early.
 
 ---
 

@@ -38,6 +38,10 @@ static uint32_t test_resume_esp;
 static void *test_resume_eip;
 static bool test_resume_armed;
 static uint32_t test_resume_eflags;
+static bool test_enter_new_process;
+static uint32_t test_initial_stack_residue;
+static uint32_t test_entry_calls;
+static uint32_t test_entry_arg;
 static uint32_t test_outer_eflags = 0x00000202u;
 
 void context_switch(process_t *old_proc, process_t *new_proc,
@@ -164,19 +168,28 @@ bool bkl_context_switch_release(void) {
 void context_switch(process_t *old_proc, process_t *new_proc,
                     uint32_t resume_eflags) {
     (void)old_proc;
-    (void)new_proc;
     if (!test_resume_armed) {
         for (;;) {
         }
     }
     uint32_t resume_esp = test_resume_esp;
     void *resume_eip = test_resume_eip;
-    test_resume_armed = false;
     test_resume_eflags = resume_eflags;
     if (!bkl_context_switch_release()) {
         for (;;) {
         }
     }
+    if (test_enter_new_process) {
+        test_enter_new_process = false;
+        test_initial_stack_residue = new_proc->context.esp & 15u;
+        if (test_initial_stack_residue == 12u) {
+            __asm__ volatile("movl %0, %%esp; jmp *%1"
+                             : : "r"(new_proc->context.esp), "r"(new_proc->context.eip)
+                             : "memory");
+            __builtin_unreachable();
+        }
+    }
+    test_resume_armed = false;
     __asm__ volatile("movl %0, %%esp; jmp *%1"
                      : : "r"(resume_esp), "r"(resume_eip) : "memory");
     __builtin_unreachable();
@@ -447,6 +460,43 @@ static uint32_t create_running_external(uint32_t *generation) {
         return 0u;
     }
     return pid;
+}
+
+static void returning_entry(void) {
+    test_entry_calls++;
+}
+
+static void returning_entry_with_arg(uint32_t arg) {
+    test_entry_arg = arg;
+    returning_entry();
+}
+
+static int run_first_dispatch(bool with_arg) {
+    if (create_idle_slot() != 0)
+        return 1;
+    uint32_t argument = 0x18f0ab1eu;
+    uint32_t pid = with_arg
+        ? process_create_with_arg((void (*)(void))returning_entry_with_arg,
+                                  "returning", DEFAULT_STACK_SIZE, argument)
+        : process_create(returning_entry, "returning", DEFAULT_STACK_SIZE);
+    if (pid != 2u)
+        return 2;
+
+    process_start_scheduler();
+    test_enter_new_process = true;
+    hosted_schedule_once();
+    if (test_enter_new_process || test_initial_stack_residue != 12u)
+        return 3;
+    if (test_entry_calls != 1u || test_entry_arg != (with_arg ? argument : 0u))
+        return 4;
+    if (kernel_contract_cpu.current_pid != 1u ||
+        process_get_state(pid) != (int)PROCESS_TERMINATED ||
+        test_bkl_handoff_releases != 2u || test_stack_frees != 0u)
+        return 5;
+    if (process_create(dummy_entry, "replacement", DEFAULT_STACK_SIZE) != pid ||
+        test_stack_frees != 1u)
+        return 6;
+    return 0;
 }
 
 static int run_schedule_handoff(void) {
@@ -882,6 +932,12 @@ static int __attribute__((used)) contract_main(int argc, char **argv) {
     }
     if (strings_equal(argv[1], "deferred-remote-reap")) {
         return run_deferred_remote_reap();
+    }
+    if (strings_equal(argv[1], "first-dispatch")) {
+        return run_first_dispatch(false);
+    }
+    if (strings_equal(argv[1], "first-dispatch-arg")) {
+        return run_first_dispatch(true);
     }
     if (strings_equal(argv[1], "schedule-handoff")) {
         return run_schedule_handoff();
