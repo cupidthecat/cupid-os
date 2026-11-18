@@ -78,10 +78,12 @@ static int run_foundations(void) {
     ctool_mut_bytes_t reserved;
     ctool_u32 offset;
     void *allocation;
+    void *reused = (void *)0;
     ctool_u8 *bytes;
     ctool_u32 index;
     ctool_status_t status;
     const ctool_u8 expected[] = {'A', 'B', 0x78u, 0x56u, 0x34u, 0x12u};
+    const ctool_u8 zeroes[19] = {0};
     if (!open_host_job(".", ctool_default_limits(), &adapter, &config, &job)) {
         return 1;
     }
@@ -119,6 +121,21 @@ static int run_foundations(void) {
             ctool_job_close(job);
             return 1;
         }
+    }
+    mark = ctool_arena_mark(arena);
+    status = ctool_arena_alloc(arena, (ctool_u32)sizeof(zeroes), 16u, &allocation);
+    if (status == CTOOL_OK) {
+        (void)memset(allocation, 0xa5, sizeof(zeroes));
+        status = ctool_arena_rewind(arena, mark);
+    }
+    if (status == CTOOL_OK) {
+        status = ctool_arena_alloc(arena, (ctool_u32)sizeof(zeroes), 16u, &reused);
+    }
+    if (!check_status(status, CTOOL_OK, "rewind within the live arena block") ||
+        reused != allocation || memcmp(reused, zeroes, sizeof(zeroes)) != 0) {
+        (void)fprintf(stderr, "aligned arena bytes were not cleared on reuse\n");
+        ctool_job_close(job);
+        return 1;
     }
     status = ctool_job_open_buffer(job, 2u, 64u, &buffer);
     if (!check_status(status, CTOOL_OK, "buffer open")) {

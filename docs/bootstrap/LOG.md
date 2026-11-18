@@ -1,5 +1,31 @@
 # Bootstrapping log
 
+## 2026-11-17 — Clear arena bytes on allocation
+
+The core now clears the bytes it returns from an arena. It skips the unused
+portion of each new block and avoids the duplicate clear in the counted API.
+The rewind contract still clears discarded bytes in a live block. See the
+[arena decision](../adr/0490-clear-arena-bytes-when-allocated.md).
+
+The prototype used the filtered encoder and the guest allocation cache.
+It rebuilt the frontend in about 26 minutes and persisted the same 1,024,260
+bytes as the checked host compiler. An earlier result from a comparison
+script treated the raw HomeFS payload as a file mapping. The corrected
+readback parsed the HomeFS directory and compared the object bytes directly.
+
+The native and checked CupidC core contracts passed all four selectors.
+Windows and WSL produced the same kernel core object, SHA-256
+`fd735b2efc66fb954b60578559eb1acb84ba5cee0f1428ac9b4575a17d9c0e17`.
+The raw kernel shrank by 64 bytes to 9,507,488. Both kernel ELF sizes stayed
+the same. The exact policy records the measured raw size.
+The checked image build passed all 16 size gates and the four-vCPU guest
+passed the core self-test, strict boot checks and shell JIT smoke. The Linux
+compiler engine rebuilt all nine inputs and reproduced the complete module.
+
+An in-place frontend vector update also matched the checked object, with
+294,987 underlying allocations versus 295,646 in the filtered-encoder run.
+It remains an experiment.
+
 ## 2026-11-17 — Initialize matching x86 encoder candidates
 
 Guest frontend samples found the encoder clearing an 84-byte candidate for

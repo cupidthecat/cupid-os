@@ -53262,7 +53262,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 46099
+      "occurrences": 46101
     },
     {
       "category": "control",
@@ -53663,7 +53663,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28612
+      "occurrences": 28613
     },
     {
       "category": "control",
@@ -54677,7 +54677,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 7251
+      "occurrences": 7255
     },
     {
       "category": "extension",
@@ -58063,7 +58063,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 19134
+      "occurrences": 19135
     },
     {
       "category": "qualifier",
@@ -61679,7 +61679,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 16417
+      "occurrences": 16423
     },
     {
       "category": "declaration",
@@ -62608,7 +62608,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "e890498597699be5e785b59aac0e307393699923afd56eb2d3d2835b5480d86e",
+    "active_source_digest": "56e79f4d3dceb7d3369e22d50587b4f5b98fbd8144f8e4b8327af68b3e16b6df",
     "control_files": [
       {
         "path": "Makefile",
@@ -87272,12 +87272,12 @@
         "toolchain/ctool.h"
       ],
       "language": "cupid_c",
-      "lines": 1267,
+      "lines": 1263,
       "origin": "tracked",
       "path": "toolchain/ctool.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "7636643aeafa1205fc70713fa19e962c90070a6be4e8d1d33b9544d95c4f1f8f"
+      "sha256": "8649663fd18d2ded2a5625f19742e008e9ed7ff81edfc26f6d2a34c79bb1983a"
     },
     {
       "build_owners": [
@@ -91110,12 +91110,12 @@
         "toolchain/ctool_host.h"
       ],
       "language": "cupid_c",
-      "lines": 598,
+      "lines": 615,
       "origin": "tracked",
       "path": "toolchain/tests/core_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "894ccbc5b62212b15d91bc7af006af695c7dfb48e6efffd49950b41f9b2f305b"
+      "sha256": "53de4f957374db46c7c22e0c71755d5d4741477da3277b925cecc4deee1f2439"
     },
     {
       "build_owners": [

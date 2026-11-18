@@ -230,7 +230,6 @@ static ctool_status_t ctool_arena_add_block(ctool_arena_t *arena, ctool_u32 byte
     block->used = 0u;
     block->generation = arena->next_block_generation;
     arena->next_block_generation++;
-    ctool_zero(block + 1, payload);
     arena->current = block;
     arena->committed_bytes += payload;
     return CTOOL_OK;
@@ -258,6 +257,7 @@ ctool_status_t ctool_arena_alloc(ctool_arena_t *arena, ctool_u32 bytes, ctool_u3
         if (padding <= block->payload_bytes - block->used &&
             bytes <= block->payload_bytes - block->used - padding) {
             block->used += padding + bytes;
+            ctool_zero((void *)aligned, bytes);
             *allocation_out = (void *)aligned;
             return CTOOL_OK;
         }
@@ -271,6 +271,7 @@ ctool_status_t ctool_arena_alloc(ctool_arena_t *arena, ctool_u32 bytes, ctool_u3
     aligned = (address + (ctool_uintptr_t)(alignment - 1u)) & ~((ctool_uintptr_t)alignment - 1u);
     padding = (ctool_u32)(aligned - address);
     block->used = padding + bytes;
+    ctool_zero((void *)aligned, bytes);
     *allocation_out = (void *)aligned;
     return CTOOL_OK;
 }
@@ -279,7 +280,6 @@ ctool_status_t ctool_arena_alloc_zero(ctool_arena_t *arena, ctool_u32 count,
                                       ctool_u32 element_bytes, ctool_u32 alignment,
                                       void **allocation_out) {
     ctool_u32 total;
-    ctool_status_t status;
     if (allocation_out == (void **)0 || count == 0u || element_bytes == 0u) {
         return CTOOL_ERR_INVALID_ARGUMENT;
     }
@@ -288,11 +288,7 @@ ctool_status_t ctool_arena_alloc_zero(ctool_arena_t *arena, ctool_u32 count,
         return CTOOL_ERR_OVERFLOW;
     }
     total = count * element_bytes;
-    status = ctool_arena_alloc(arena, total, alignment, allocation_out);
-    if (status == CTOOL_OK) {
-        ctool_zero(*allocation_out, total);
-    }
-    return status;
+    return ctool_arena_alloc(arena, total, alignment, allocation_out);
 }
 
 ctool_arena_mark_t ctool_arena_mark(const ctool_arena_t *arena) {
