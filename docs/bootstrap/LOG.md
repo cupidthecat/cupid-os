@@ -24,6 +24,16 @@ old object. Removing it under top-level `build` passed and published the new
 ELF object. The engine now writes its products and tests in top-level
 `build/guest-engine`.
 
+A fresh replay from that output path matched all nine objects and the ELF.
+The parallel WSL image build then passed with the conventional compiler,
+assembler, linker, and binutils Make variables set to `false`. All 16 exact
+artifact checks passed. The 209,715,200-byte image passed the four-CPU e1000
+QEMU smoke, including `ls` through CupidC and terminal completion.
+
+- Image SHA-256: `0197b14c5ed3a8c2a71120f8a2902125e40dcc2096250bb473257996b58b191f`
+- Serial log SHA-256: `3cb4bcae7b5477349ac9b1f0aba621c0ff59381f9f5fc035aa8ee41266a34b77`
+- Loader and scheduler contracts: 51 passed.
+
 The [engine record](FREESTANDING-COMPILER-ENGINE.md) gives the replay commands
 and keeps the remaining guest work explicit.
 
