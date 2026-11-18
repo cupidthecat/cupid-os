@@ -21,14 +21,42 @@ with i386 execution enabled, run:
 make -j4 -C bootstrap/guest check-linux
 ```
 
-The check loads the ELF through the shared ELF32 reader and calls its entry on
-a two-MiB Linux stack. It checks the request ABI, a malformed source, the input
-size limit and an invalid ELF entry point. Rejected requests preserve a
-sentinel file. Successful requests return their job allocations and reproduce
-all nine objects and the relinked ELF byte for byte.
+The check uses the same bounded image plan for the full engine and a small
+ELF fixture with gaps and zero-fill. The loader checks the complete image
+before copying it, then clears gaps and BSS. It rejects a short destination
+before writing. Run `make -C bootstrap/guest check-load` for these checks and
+the malformed ELF cases without the compiler replay.
+
+The full check calls the loaded entry on a two-MiB Linux stack. It checks
+the request ABI, a malformed source and the input size limit. Rejected
+requests preserve a sentinel file. Successful requests return their job
+allocations and reproduce all nine objects and the relinked ELF byte for byte.
 
 Native Windows and WSL produced the same 2,486,352-byte module. Its SHA-256 is
 `732dabe3f2086109c85661b9aa4c648188bee70dcc746bcb4e80bd62b658b9bd`.
+
+## Package the compiler inputs
+
+`make -j4 -C bootstrap/guest source-iso` builds
+`build/guest-engine/engsrc.iso` with checked CupidObj. It contains the engine
+ELF at the root and the nine source files and their headers at their
+repository-relative paths. Run `make -C bootstrap/guest check-source-iso`
+with xorriso installed to compare every member and check that a failed
+authoring request preserves its previous output.
+
+To inspect the ISO from Cupid OS, stage it onto a copy of an existing
+system image:
+
+```sh
+cp cupidos.img build/guest-engine/engboot.img
+python3 tools/hostbuild.py stage --image build/guest-engine/engboot.img \
+  --fat-start-lba 20480 build/guest-engine/engsrc.iso:/engsrc.iso
+```
+
+Boot the copy and run `mount /disk/engsrc.iso /src`. The compiler entry is
+available at `/src/cupidc-engine.elf`, and the sources are under
+`/src/toolchain` and `/src/bootstrap/guest`. A guest worker still needs to
+map those VFS paths to the compiler's logical paths.
 
 ## Original Linux experiment
 

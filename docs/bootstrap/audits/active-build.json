@@ -47054,13 +47054,13 @@
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
         "residual_c_sources": 17,
         "runtime_delivery_sources": 130,
-        "sha256": "01845a5c47fc1f54ac8476e3eae726170956baaf0c73770375b84121c6696038",
-        "unreachable_cupid_c_sources": 62
+        "sha256": "701eacee8758e3fce15a6e3925ebca1abf9c110e7f8b3282c737b8be79750e1a",
+        "unreachable_cupid_c_sources": 63
       },
       "proven_cupidc_owned_tracked_cupid_c_sources": 432,
       "status": "pass",
       "tracked_c_sources": 17,
-      "tracked_cupid_c_sources": 494,
+      "tracked_cupid_c_sources": 495,
       "unreachable": [
         {
           "classification": "historical_copy",
@@ -47145,6 +47145,11 @@
         {
           "classification": "not_reached",
           "path": "bootstrap/guest/cupidc_engine.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "host_fixture",
+          "path": "bootstrap/guest/engine_image.cc",
           "policy": "source_suffix_policy"
         },
         {
@@ -47444,7 +47449,7 @@
         }
       ],
       "unreachable_tracked_c_sources": 17,
-      "unreachable_tracked_cupid_c_sources": 62
+      "unreachable_tracked_cupid_c_sources": 63
     },
     "cupid_toolchain_fixed_point": {
       "checked_seed_publication": "complete-bundle",
@@ -62597,7 +62602,7 @@
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
-        "sha256": "01845a5c47fc1f54ac8476e3eae726170956baaf0c73770375b84121c6696038"
+        "sha256": "701eacee8758e3fce15a6e3925ebca1abf9c110e7f8b3282c737b8be79750e1a"
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
@@ -62618,7 +62623,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "8ef1c0727f19e148edc04ea1c7a759a5aadccc988bcf8c0e9d489a8d3a406b32"
+      "sha256": "63ef23ca779f3086baef9d1366484ea715f275f0cf8efbece687aad9b1c621ff"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -92398,7 +92403,7 @@
     "active_sources": 801,
     "features": 257,
     "transforms": 452,
-    "unreachable_sources": 87
+    "unreachable_sources": 89
   },
   "supplemental_builds": [
     {
@@ -93217,11 +93222,31 @@
       "classification": "host_fixture",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 180,
-      "path": "bootstrap/guest/engine_linux_contract.cc",
-      "reason": "Linux loader for the opt-in freestanding compiler fixed-point test",
+      "lines": 72,
+      "path": "bootstrap/guest/engine_image.cc",
+      "reason": "external compiler image loader used by the Linux fixed-point test",
       "relations": [],
-      "sha256": "696700910ffb866d6e0fe7b6ee9b1d59ecbfedec7bd1353afb02a3f42bdedebc"
+      "sha256": "36bc3f5812f39a99b5d7051683a10f550b7fe82a86362349aa705320151d8313"
+    },
+    {
+      "classification": "host_fixture",
+      "duplicate_of": [],
+      "language": "c_header",
+      "lines": 23,
+      "path": "bootstrap/guest/engine_image.h",
+      "reason": "image-plan interface used by the Linux fixed-point test",
+      "relations": [],
+      "sha256": "4d102186904044a5d3ef393cfca70dcc735c9442822166e2f05ce154872c3b35"
+    },
+    {
+      "classification": "host_fixture",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 188,
+      "path": "bootstrap/guest/engine_linux_contract.cc",
+      "reason": "Linux harness for the opt-in freestanding compiler fixed-point test",
+      "relations": [],
+      "sha256": "7b7a1444c6f9602d917c0919ea641fd6adbe545c486349523d19725e8116ad6e"
     },
     {
       "classification": "superseded",

@@ -839,9 +839,17 @@ KNOWN_UNREACHABLE_SOURCE_POLICIES = {
         "host_fixture",
         "native USB behavior fixture compiled by the host test harness",
     ),
+    "bootstrap/guest/engine_image.cc": (
+        "host_fixture",
+        "external compiler image loader used by the Linux fixed-point test",
+    ),
+    "bootstrap/guest/engine_image.h": (
+        "host_fixture",
+        "image-plan interface used by the Linux fixed-point test",
+    ),
     "bootstrap/guest/engine_linux_contract.cc": (
         "host_fixture",
-        "Linux loader for the opt-in freestanding compiler fixed-point test",
+        "Linux harness for the opt-in freestanding compiler fixed-point test",
     ),
     "toolchain/tests/elf32_oracle.c": (
         "host_oracle",

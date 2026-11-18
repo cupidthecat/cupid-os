@@ -45,13 +45,43 @@ $(BUILD)/cupidc_engine.o: cupidc_engine.cc $(HEADERS) Makefile $(SEED_INPUTS) | 
 $(ENGINE): $(OBJECTS) Makefile $(SEED_INPUTS)
 	$(ENGINE_LINK) -o "$(abspath $@)" $(foreach obj,$(OBJECTS),"$(abspath $(obj))")
 
+# Preserve repository-relative paths so the guest can use the same logical
+# source and include names as the checked host compiler.
+ISO := $(BUILD)/engsrc.iso
+ISO_MANIFEST := $(BUILD)/engine-iso.manifest
+ISO_DIRS := bootstrap bootstrap/guest toolchain toolchain/hosted \
+	toolchain/hosted/i386-linux toolchain/hosted/i386-linux/include
+ISO_SOURCES := $(addprefix toolchain/,$(addsuffix .cc,$(CORE))) \
+	bootstrap/guest/cupidc_engine.cc bootstrap/guest/cupidc_engine.h \
+	$(patsubst ../../%,%,$(filter-out cupidc_engine.h,$(HEADERS)))
+ISO_ENGINE := cupidc-engine.elf
+
+.PHONY: source-iso check-source-iso
+source-iso: $(ISO)
+
+check-source-iso: $(ISO)
+	$(PYTHON) check_source_iso.py "$(ROOT)" "$(abspath $(ENGINE))" \
+		"$(abspath $(ISO_MANIFEST))" "$(abspath $(ISO))" -- $(RUN)
+
+$(ISO_MANIFEST): Makefile $(addprefix ../../,$(ISO_SOURCES)) | $(BUILD)
+	$(PYTHON) -c "from pathlib import Path; import sys; Path(sys.argv[1]).write_bytes(('\n'.join(sys.argv[2:]) + '\n').encode('ascii'))" "$@" $(sort $(ISO_DIRS) $(ISO_SOURCES) $(ISO_ENGINE))
+
+$(ISO): $(ENGINE) $(addprefix ../../,$(ISO_SOURCES)) $(ISO_MANIFEST) $(SEED_INPUTS)
+	$(RUN) --tool cupidobj -- iso-fixture "$(abspath $(ISO_MANIFEST))" \
+		$(foreach directory,$(ISO_DIRS),--directory $(directory)) \
+		$(foreach source,$(ISO_SOURCES),--file $(source) "$(ROOT)/$(source)") \
+		--file $(ISO_ENGINE) "$(abspath $(ENGINE))" -o "$(abspath $@)"
+
 ifneq ($(OS),Windows_NT)
 LINUX_CONTRACT := $(BUILD)/engine-linux-contract.elf
 LINUX_CONTRACT_OBJECTS := $(addprefix $(BUILD)/,start.o linux_runtime.o ctool_host.o \
-	engine_linux_contract.o ctool.o elf32.o)
+	engine_linux_contract.o engine_image.o ctool.o elf32.o)
 HOSTED_CFLAGS := --root "$(ROOT)" --gnu -I /toolchain --include-angle /toolchain/hosted/i386-linux/include
 
-.PHONY: check-linux
+.PHONY: check-load check-linux
+check-load: $(ENGINE) $(LINUX_CONTRACT)
+	$(PYTHON) check_fixed_point.py "$(ROOT)" --load-only
+
 check-linux: $(ENGINE) $(LINUX_CONTRACT)
 	$(PYTHON) check_fixed_point.py "$(ROOT)" $(CORE) -- $(ENGINE_LINK)
 
@@ -59,8 +89,11 @@ $(LINUX_CONTRACT): $(LINUX_CONTRACT_OBJECTS) Makefile $(SEED_INPUTS)
 	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x08048000 --entry _start \
 		-o "$(abspath $@)" $(foreach obj,$(LINUX_CONTRACT_OBJECTS),"$(abspath $(obj))")
 
-$(BUILD)/engine_linux_contract.o: engine_linux_contract.cc $(HEADERS) $(TOOLCHAIN)/ctool_host.h Makefile $(SEED_INPUTS) | $(BUILD)
+$(BUILD)/engine_linux_contract.o: engine_linux_contract.cc engine_image.h $(HEADERS) $(TOOLCHAIN)/ctool_host.h Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(HOSTED_CFLAGS) -c /bootstrap/guest/engine_linux_contract.cc -o $(PUBLISH)/engine_linux_contract.o
+
+$(BUILD)/engine_image.o: engine_image.cc engine_image.h $(TOOLCHAIN)/elf32.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
+	$(RUN) --tool cupidc -- $(CFLAGS) -c /bootstrap/guest/engine_image.cc -o $(PUBLISH)/engine_image.o
 
 $(BUILD)/ctool_host.o: $(TOOLCHAIN)/ctool_host.cc $(TOOLCHAIN)/ctool_host.h $(TOOLCHAIN)/ctool.h $(HOST_HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(HOSTED_CFLAGS) -c /toolchain/ctool_host.cc -o $(PUBLISH)/ctool_host.o

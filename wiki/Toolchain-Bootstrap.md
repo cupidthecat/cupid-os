@@ -37,7 +37,11 @@ compares each object and the relinked ELF byte for byte.
 make -j4 -C bootstrap/guest check-linux
 ```
 
-Running this engine in Cupid OS still requires a guest loader, a
+`make -C bootstrap/guest check-load` runs the ELF checks without replaying
+the compiler. `make -C bootstrap/guest source-iso` packages the engine and
+its source tree as a read-only ISO that Cupid OS can mount.
+
+Running the engine in Cupid OS still requires an arena claim, a
 scheduler-owned compiler stack and cleanup after exit or kill.
 [Engine build and evidence](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md)
 

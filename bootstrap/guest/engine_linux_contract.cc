@@ -1,13 +1,12 @@
 #include "ctool_host.h"
 #include "cupidc_engine.h"
-#include "elf32.h"
+#include "engine_image.h"
 
 #include <stdio.h>
 #include <string.h>
 
 #define ENGINE_START 0x01100000u
 #define ENGINE_END 0x01a00000u
-#define ELF_PT_GNU_STACK 0x6474e551u
 #define I386_SYS_MMAP 90
 #define I386_PROT_RWX 7u
 #define I386_MAP_PRIVATE_ANONYMOUS_NOREPLACE 0x100022u
@@ -19,52 +18,56 @@ _Static_assert(sizeof(ctool_c_engine_request_t) == 156u, "unexpected i386 engine
 
 int cupid_linux_syscall1(int number, unsigned int argument);
 
+static int zeroed(const ctool_u8 *bytes, ctool_u32 size) {
+    for (ctool_u32 i = 0; i < size; i++) {
+        if (bytes[i] != 0u)
+            return 0;
+    }
+    return 1;
+}
+
+static int verify_install(const ctool_c_engine_image_t *plan) {
+    ctool_u8 *bytes = (ctool_u8 *)plan->base;
+    memset(bytes, 0xa5, plan->size + 1u);
+    ctool_mut_bytes_t destination = {bytes, plan->size - 1u};
+    if (ctool_c_engine_install_image(plan, destination) != CTOOL_ERR_LIMIT ||
+        bytes[0] != 0xa5u || bytes[plan->size - 1u] != 0xa5u)
+        return 0;
+    destination.size = plan->size + 1u;
+    if (ctool_c_engine_install_image(plan, destination) != CTOOL_OK ||
+        bytes[plan->size] != 0xa5u)
+        return 0;
+
+    ctool_u32 previous_end = 0u;
+    for (ctool_u32 i = 0; i < plan->segment_count; i++) {
+        const ctool_elf32_program_header_t *segment = &plan->segments[i];
+        if (segment->type != CTOOL_ELF32_PT_LOAD)
+            continue;
+        ctool_u32 start = segment->virtual_address - plan->base;
+        if (!zeroed(bytes + previous_end, start - previous_end) ||
+            memcmp(bytes + start, segment->contents.data, segment->file_size) != 0 ||
+            !zeroed(bytes + start + segment->file_size, segment->memory_size - segment->file_size))
+            return 0;
+        previous_end = start + segment->memory_size;
+    }
+    return 1;
+}
+
 static engine_entry_t load_engine(ctool_job_t *job, const char *path) {
     ctool_path_t module_path = {ctool_string(path)};
     ctool_source_t source;
-    ctool_elf32_object_t object;
+    ctool_c_engine_image_t plan;
     if (ctool_job_load_source(job, &module_path, &source) != CTOOL_OK ||
-        ctool_elf32_read(job, &source, &object) != CTOOL_OK ||
-        object.file_type != CTOOL_ELF32_ET_EXEC)
+        ctool_c_engine_plan_image(job, &source, ENGINE_START, ENGINE_END - ENGINE_START,
+                                   &plan) != CTOOL_OK)
         return (engine_entry_t)0;
 
-    for (ctool_u32 i = 1; i < object.symbol_count; i++) {
-        if (object.symbols[i].placement == CTOOL_ELF32_SYMBOL_UNDEFINED)
-            return (engine_entry_t)0;
-    }
-
-    ctool_bool executable_entry = CTOOL_FALSE;
-    ctool_u32 end = ENGINE_START;
-    for (ctool_u32 i = 0; i < object.program_header_count; i++) {
-        const ctool_elf32_program_header_t *segment = &object.program_headers[i];
-        ctool_u32 start = segment->virtual_address;
-        if (segment->type == ELF_PT_GNU_STACK &&
-            segment->file_size == 0 && segment->memory_size == 0)
-            continue;
-        if (segment->type != CTOOL_ELF32_PT_LOAD || start < end || start >= ENGINE_END ||
-            segment->memory_size == 0 || segment->memory_size > ENGINE_END - start ||
-            (segment->flags & ~(CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_W | CTOOL_ELF32_PF_X)))
-            return (engine_entry_t)0;
-        if ((segment->flags & CTOOL_ELF32_PF_X) && object.entry_point >= start &&
-            object.entry_point - start < segment->file_size)
-            executable_entry = CTOOL_TRUE;
-        end = start + segment->memory_size;
-    }
-    if (!executable_entry)
-        return (engine_entry_t)0;
-
-    /* The Linux test runs in a fresh address space for each invocation. */
-    ctool_u32 mapping[] = {ENGINE_START, end - ENGINE_START, I386_PROT_RWX,
+    ctool_u32 mapping[] = {plan.base, plan.size + 1u, I386_PROT_RWX,
                            I386_MAP_PRIVATE_ANONYMOUS_NOREPLACE, 0xffffffffu, 0u};
-    if ((ctool_u32)cupid_linux_syscall1(I386_SYS_MMAP, (ctool_u32)mapping) != ENGINE_START)
+    if ((ctool_u32)cupid_linux_syscall1(I386_SYS_MMAP, (ctool_u32)mapping) != plan.base)
         return (engine_entry_t)0;
 
-    for (ctool_u32 i = 0; i < object.program_header_count; i++) {
-        const ctool_elf32_program_header_t *segment = &object.program_headers[i];
-        if (segment->type == CTOOL_ELF32_PT_LOAD && segment->file_size)
-            memcpy((void *)segment->virtual_address, segment->contents.data, segment->file_size);
-    }
-    return (engine_entry_t)object.entry_point;
+    return verify_install(&plan) ? (engine_entry_t)plan.entry : (engine_entry_t)0;
 }
 
 typedef struct {
@@ -131,7 +134,7 @@ static int verify_requests(engine_entry_t entry, const ctool_c_engine_request_t 
 int main(int argc, char **argv) {
     ctool_host_adapter_t host;
     ctool_job_t *job;
-    if (argc != 7 || ctool_host_adapter_init(&host, argv[1]) != CTOOL_OK)
+    if ((argc != 3 && argc != 7) || ctool_host_adapter_init(&host, argv[1]) != CTOOL_OK)
         return 2;
 
     ctool_c_engine_request_t request = {0};
@@ -143,6 +146,11 @@ int main(int argc, char **argv) {
     if (!entry) {
         fprintf(stderr, "compiler engine ELF rejected\n");
         return 4;
+    }
+
+    if (argc == 3) {
+        puts("compiler engine load verified");
+        return 0;
     }
 
     request.config.limits.arena_bytes = 192u * 1024u * 1024u;

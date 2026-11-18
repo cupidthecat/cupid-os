@@ -1,5 +1,27 @@
 # Bootstrapping log
 
+## 2026-11-17: Validate compiler engine loads and package the sources
+
+The Linux harness now uses a portable engine image planner. It checks all
+segments before copying. The installer clears gaps and BSS and leaves a short
+destination untouched. The real engine and a small zero-fill fixture pass.
+Nine malformed ELF images fail, including an entry in zero-fill, overlapping
+loads and executable stack metadata. The full Linux replay reproduces all
+nine objects and the complete 2,486,352-byte ELF.
+
+The opt-in source ISO carries the ELF and the compiler's source and header
+paths. Windows and WSL CupidObj produce the same 5,863,424-byte image.
+Independent readback matches all 30 files and six directories. An incomplete
+inventory is rejected and preserves an existing output.
+
+An initial audit run caught the missing suffix-ownership row for the new
+loader. With the row in place, the audit and manifest drift test pass.
+The audit still counts 801 active sources and 452 normal transforms.
+
+The [engine record](FREESTANDING-COMPILER-ENGINE.md) gives the build,
+readback and replay commands. The compiler worker and in-guest rebuild
+remain open.
+
 ## 2026-11-17: Build and replay the freestanding compiler engine
 
 `make -C bootstrap/guest` builds the nine-object CupidC engine with checked tools.

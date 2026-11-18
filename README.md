@@ -33,6 +33,7 @@ a terminal. See [shell commands](wiki/Shell-Commands.md) and
 - [CupidC language reference](wiki/CupidC-Language-Reference.md)
 - [CupidASM assembler](wiki/CupidASM-Assembler.md)
 - [Bootstrap capabilities and validation](docs/bootstrap/README.md)
+- [Freestanding CupidC build and replay](docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md)
 - [Active build ownership audit](docs/bootstrap/ACTIVE-SOURCE-AUDIT.md)
 - [Architectural decisions](docs/adr/)
 - [Detailed reference and historical checkpoints](docs/README-reference.md)

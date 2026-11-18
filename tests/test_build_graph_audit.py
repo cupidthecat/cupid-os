@@ -10431,7 +10431,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "active_sources": 801,
                     "features": 257,
                     "transforms": 452,
-                    "unreachable_sources": 87,
+                    "unreachable_sources": 89,
                 },
             )
             features = {
@@ -10450,6 +10450,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ):
                 self.assertEqual(unreachable[fixture], "not_reached")
             for fixture in (
+                "bootstrap/guest/engine_image.cc",
+                "bootstrap/guest/engine_image.h",
                 "bootstrap/guest/engine_linux_contract.cc",
                 "toolchain/tests/user_abi_allocation_probe.cc",
                 "toolchain/tests/user_abi_observer_probe.cc",
