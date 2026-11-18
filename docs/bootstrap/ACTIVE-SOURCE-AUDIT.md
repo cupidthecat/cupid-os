@@ -33,7 +33,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_c_browser_fragment` | 22 | 19539 |
 | `cupid_c_program` | 108 | 23029 |
 | `cupid_c_runtime_header` | 2 | 286 |
-| `cupidasm` | 7 | 10317 |
+| `cupidasm` | 7 | 10320 |
 | `cupidc` | 8 | 20012 |
 | `cupiddis` | 5 | 5949 |
 | `doom_port` | 7 | 4354 |
@@ -56,7 +56,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_usb` | 8 | 3151 |
 | `kernel_util` | 2 | 692 |
 | `project_source` | 1 | 5 |
-| `toolchain_contract` | 25 | 148479 |
+| `toolchain_contract` | 25 | 148493 |
 | `toolchain_core` | 101 | 116497 |
 | `toolchain_host_adapter` | 2 | 255 |
 | `toolchain_kernel_adapter` | 2 | 579 |
@@ -100,14 +100,14 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1533 |
 | `asm.relocation` | 1 | 95 |
-| `c.control` | 12 | 98236 |
+| `c.control` | 12 | 98238 |
 | `c.declaration` | 1 | 33 |
 | `c.declarator` | 4 | 4194 |
 | `c.expression` | 2 | 7293 |
 | `c.extension` | 20 | 428 |
 | `c.initializer` | 1 | 656 |
 | `c.preprocessor` | 18 | 8678 |
-| `c.qualifier` | 2 | 19401 |
+| `c.qualifier` | 2 | 19405 |
 | `c.storage` | 4 | 11849 |
 | `c.type` | 15 | 65086 |
 | `cupid_c.declaration` | 1 | 3 |

@@ -401,6 +401,9 @@ static asm_section_t *asm_get_section(asm_context_t *context, ctool_string_t spe
     } else if (asm_string_equal_case(spelling, ".data") == CTOOL_TRUE) {
         section->flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE;
         section->alignment = 4u;
+    } else if (asm_string_equal_case(spelling, ".rodata") == CTOOL_TRUE) {
+        section->flags = CTOOL_ELF32_SHF_ALLOC;
+        section->alignment = 4u;
     } else if (asm_string_equal_case(spelling, ".bss") == CTOOL_TRUE) {
         section->type = CTOOL_ELF32_SHT_NOBITS;
         section->flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE;

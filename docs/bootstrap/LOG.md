@@ -1,5 +1,35 @@
 # Bootstrapping log
 
+## 2026-11-17 — Allocate CupidASM read-only data
+
+An assembly-to-link smoke produced a valid `R_386_32` relocation to a
+message in `.rodata`, but the section lacked `SHF_ALLOC`. CupidLD
+rejected the link because it had no load address for the message.
+
+CupidASM now gives `.rodata` four-byte default alignment and the ELF32
+allocation flag. The section remains read-only and non-executable.
+The relocation contract rejects the old assembler and confirms that
+custom metadata still stays outside the loaded image. All 13 native
+assembler modes passed. Checked Windows and WSL builds matched all
+169,608 bytes of the changed kernel object.
+
+The checked kernel link and flatten path produced a 9,507,552-byte raw
+kernel. Both ELF sizes stayed the same and all 16 exact-size checks
+passed. The earlier compiler-arena frontier also completed both passes
+over all 156 inputs on native WSL storage.
+
+The four-vCPU runtime check assembled the original source, linked it in
+Cupid OS and printed its 17-byte message. The object retained extra kernel
+binding symbols. Its `.text`, `.rodata` and relocation matched the native
+assembler. The complete 8,536-byte guest executable matched the checked
+host link and returned normally. See the
+[assembler decision](../adr/0487-allocate-cupidasm-read-only-data.md).
+
+The refreshed guest frontend test copied the ISO to HomeFS and verified
+the source read, preprocessing and parsing. The 1,800-second QEMU run
+expired during object emission. The complete in-guest frontend result
+remains unverified.
+
 ## 2026-11-17 — Link ELF executables in Cupid OS
 
 The opt-in CupidLD worker links the existing core and shares the compiler's

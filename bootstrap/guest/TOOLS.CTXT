@@ -24,3 +24,10 @@ matches the link order.
 Use 0x01c00000 for an ordinary executable and 0x01e00000 for a compiler
 worker. Each worker returns to the shell after reporting its result.
 Wait for its lease to be released before starting another worker.
+
+>h2 Assemble a relocatable object
+
+  as -f elf32 -o /home/start.o /home/start.asm
+
+The assembler gives .rodata four-byte default alignment. CupidLD places
+the bytes in a read-only ELF segment and resolves references to its labels.

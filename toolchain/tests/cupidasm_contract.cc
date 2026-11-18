@@ -749,13 +749,15 @@ static int run_object_entry(void) {
 
 static int run_object_symbolic_immediate(void) {
     static const char source_text[] = "BITS 32\n"
-                                      "section .data\n"
+                                      "section .rodata\n"
                                       "message: db 0\n"
                                       "section .text\n"
                                       "global entry\n"
                                       "entry:\n"
                                       " push message\n"
-                                      " ret\n";
+                                      " ret\n"
+                                      "section .metadata\n"
+                                      "db 0x71\n";
     static const ctool_u8 expected_text[] = {0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0xc3u};
     ctool_host_adapter_t adapter;
     ctool_job_config_t config;
@@ -767,6 +769,8 @@ static int run_object_symbolic_immediate(void) {
     ctool_asm_result_t result;
     ctool_elf32_object_t object;
     const ctool_elf32_section_t *text;
+    const ctool_elf32_section_t *read_only;
+    const ctool_elf32_section_t *metadata;
     const ctool_elf32_symbol_t *message;
     ctool_status_t status;
 
@@ -799,13 +803,23 @@ static int run_object_symbolic_immediate(void) {
         status = ctool_elf32_read(job, &object_source, &object);
     }
     text = find_section(&object, ".text");
+    read_only = find_section(&object, ".rodata");
+    metadata = find_section(&object, ".metadata");
     message = find_symbol(&object, "message");
     if (!check_status(status, CTOOL_OK, "symbolic immediate ELF32 assembly") ||
         text == (const ctool_elf32_section_t *)0 ||
         text->contents.size != (ctool_u32)sizeof(expected_text) ||
         memcmp(text->contents.data, expected_text, sizeof(expected_text)) != 0 ||
         message == (const ctool_elf32_symbol_t *)0 || message->binding != CTOOL_ELF32_BIND_LOCAL ||
-        message->placement != CTOOL_ELF32_SYMBOL_DEFINED || object.relocation_count != 1u ||
+        read_only == (const ctool_elf32_section_t *)0 ||
+        read_only->type != CTOOL_ELF32_SHT_PROGBITS ||
+        read_only->flags != CTOOL_ELF32_SHF_ALLOC || read_only->alignment != 4u ||
+        read_only->contents.size != 1u || read_only->contents.data[0] != 0u ||
+        metadata == (const ctool_elf32_section_t *)0 ||
+        metadata->flags != 0u || metadata->contents.size != 1u ||
+        metadata->contents.data[0] != 0x71u ||
+        message->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        message->section_file_index != read_only->file_index || object.relocation_count != 1u ||
         text->relocation_count != 1u ||
         object.relocations[0].target_section_file_index != text->file_index ||
         object.relocations[0].offset != 1u ||
@@ -813,7 +827,7 @@ static int run_object_symbolic_immediate(void) {
         object.relocations[0].type != CTOOL_ELF32_R_386_32 ||
         object.relocations[0].addend_known == CTOOL_FALSE || object.relocations[0].addend != 0 ||
         ctool_job_diagnostic_count(job) != 0u) {
-        (void)fprintf(stderr, "symbolic immediate width or relocation differs\n");
+        (void)fprintf(stderr, "symbolic immediate relocation or section flags differ\n");
         (void)ctool_job_render_diagnostics(job);
         ctool_buffer_close(output);
         ctool_job_close(job);

@@ -81,6 +81,10 @@ Select an artifact explicitly with `-f`:
 > as -f exec -o hello demos/hello.asm
 ```
 
+ELF32 `.rodata` sections contain allocated read-only bytes and default to
+four-byte alignment. CupidLD resolves references to labels in those
+sections when it links an executable.
+
 Hosted CupidASM also accepts `--caller-owned-output` when it runs inside a
 larger transaction. The flag writes the requested object, raw image, and map
 directly to the supplied paths and bypasses standalone `.cupid-as-*` recovery.

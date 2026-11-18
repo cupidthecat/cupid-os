@@ -1791,6 +1791,8 @@ _Avoid_: CupidASM when referring to the language, NASM syntax
 
 **CupidASM**:
 The assembler for Cupid ASM source.
+In ELF32 objects, .rodata holds allocated, read-only bytes with a default
+alignment of four bytes. CupidLD can resolve relocations to those bytes.
 The active demo corpus contains 22 shipped `.asm` sources. Its hosted
 fixed-image contract supplies each source with the kernel binding spellings it
 needs. The contract assembles each source twice and requires identical bytes
