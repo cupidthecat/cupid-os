@@ -62,6 +62,29 @@ available at `/src/cupidc-engine.elf`, and the sources are under
 `/src/toolchain` and `/src/bootstrap/guest`. A guest worker still needs to
 map those VFS paths to the compiler's logical paths.
 
+## Standalone compiler executable
+
+`make -j4 -C bootstrap/guest guest-compiler` links the engine and its
+Cupid OS adapter as `build/guest-engine/cupidc-guest.elf`. The adapter reads
+a source path and an output path from `/home/cupidc.job`. Those two lines
+use LF endings. For example:
+
+```text
+/toolchain/ctool.cc
+/home/ctool.o
+```
+
+The input is read through the `/src` mount and keeps its logical
+`/toolchain/ctool.cc` path in the compiler. The output goes through the
+home filesystem's rename operation after the compiler produces a complete
+object. `make -C bootstrap/guest check-guest-compiler` runs the same
+adapter and engine on Linux or WSL with a test syscall table. It checks
+byte-for-byte output and rejects malformed requests and failed publication.
+
+The executable needs a leased compiler arena, a two-MiB process stack and
+worker cleanup before it can run in Cupid OS.
+[Standalone program decision](../adr/0484-build-cupidc-as-a-standalone-guest-program.md)
+
 ## Original Linux experiment
 
 Checked CupidC compiled the unchanged core, ELF, x86, preprocessor, type,

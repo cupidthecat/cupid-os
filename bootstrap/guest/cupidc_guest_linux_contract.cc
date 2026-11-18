@@ -1,0 +1,146 @@
+#include "ctool_host.h"
+#include "cupid.h"
+
+void cupidc_guest_run(cupid_syscall_table_t *sys);
+int cupid_linux_syscall1(int number, unsigned int argument);
+int cupid_linux_syscall2(int number, unsigned int first, unsigned int second);
+int cupid_linux_syscall3(int number, unsigned int first, unsigned int second, unsigned int third);
+
+static ctool_host_adapter_t adapter;
+static ctool_job_config_t config;
+static unsigned live_allocations;
+static const char *root;
+
+static void *host_alloc(size_t size) {
+    void *pointer = config.allocator.allocate(config.allocator.context, (ctool_u32)size);
+    if (pointer)
+        live_allocations++;
+    return pointer;
+}
+
+static void host_release(void *pointer) {
+    if (pointer) {
+        live_allocations--;
+        config.allocator.release(config.allocator.context, pointer, 0);
+    }
+}
+
+static size_t host_length(const char *text) {
+    return ctool_string(text).size;
+}
+
+static int host_equal_n(const char *a, const char *b, size_t size) {
+    for (size_t i = 0; i < size; i++) {
+        int difference = (unsigned char)a[i] - (unsigned char)b[i];
+        if (difference != 0 || a[i] == '\0')
+            return difference;
+    }
+    return 0;
+}
+
+static int host_equal(const char *a, const char *b) {
+    return host_equal_n(a, b, host_length(a) + 1);
+}
+
+static void *host_copy(void *destination, const void *source, size_t bytes) {
+    unsigned char *out = destination;
+    const unsigned char *in = source;
+    for (size_t i = 0; i < bytes; i++)
+        out[i] = in[i];
+    return destination;
+}
+
+static int host_result(ctool_status_t status) {
+    return status == CTOOL_OK ? 0 : status == CTOOL_ERR_NOT_FOUND ? -2 : -5;
+}
+
+static int host_stat(const char *path, cupid_stat_t *info) {
+    int result = host_result(config.files.file_size(config.files.context, ctool_string(path),
+                                                     &info->size));
+    info->type = VFS_TYPE_FILE;
+    return result;
+}
+
+static int host_read_all(const char *path, void *bytes, uint32_t size) {
+    cupid_stat_t info;
+    int result = host_stat(path, &info);
+    if (result < 0)
+        return result;
+    if (info.size > size)
+        return -28;
+    result = host_result(config.files.read_exact(config.files.context, ctool_string(path),
+                                                 bytes, info.size));
+    return result == 0 ? (int)info.size : result;
+}
+
+static int host_read_text(const char *path, char *text, uint32_t size) {
+    int count = host_read_all(path, text, size - 1u);
+    if (count >= 0)
+        text[count] = '\0';
+    return count;
+}
+
+static int host_write_all(const char *path, const void *bytes, uint32_t size) {
+    int result = host_result(config.files.write_all(config.files.context, ctool_string(path),
+                                                    ctool_bytes(bytes, size)));
+    return result == 0 ? (int)size : result;
+}
+
+static int absolute_path(const char *logical, char absolute[4096]) {
+    size_t prefix = host_length(root);
+    size_t suffix = host_length(logical) + 1;
+    if (prefix + suffix > 4096)
+        return 0;
+    host_copy(absolute, root, prefix);
+    host_copy(absolute + prefix, logical, suffix);
+    return 1;
+}
+
+static int host_rename(const char *old_path, const char *new_path) {
+    char old_absolute[4096];
+    char new_absolute[4096];
+    if (!absolute_path(old_path, old_absolute) || !absolute_path(new_path, new_absolute))
+        return -22;
+    return cupid_linux_syscall2(38, (unsigned int)old_absolute, (unsigned int)new_absolute);
+}
+
+static int host_unlink(const char *path) {
+    char absolute[4096];
+    if (!absolute_path(path, absolute))
+        return -22;
+    return cupid_linux_syscall1(10, (unsigned int)absolute);
+}
+
+static void host_serial(const char *text) {
+    cupid_linux_syscall3(4, 1u, (unsigned int)text, (unsigned int)host_length(text));
+}
+
+static void host_serial_char(char c) {
+    cupid_linux_syscall3(4, 1u, (unsigned int)&c, 1u);
+}
+
+int main(int argc, char **argv) {
+    if (argc != 2 || ctool_host_adapter_init(&adapter, argv[1]) != CTOOL_OK)
+        return 2;
+    root = argv[1];
+    config = ctool_host_job_config(&adapter, ctool_default_limits());
+    cupid_syscall_table_t sys = {0};
+    sys.version = CUPID_SYSCALL_VERSION;
+    sys.table_size = sizeof(sys);
+    sys.malloc = host_alloc;
+    sys.free = host_release;
+    sys.strlen = host_length;
+    sys.strcmp = host_equal;
+    sys.strncmp = host_equal_n;
+    sys.memcpy = host_copy;
+    sys.vfs_stat = host_stat;
+    sys.vfs_read_all = host_read_all;
+    sys.vfs_read_text = host_read_text;
+    sys.vfs_write_all = host_write_all;
+    sys.vfs_rename = host_rename;
+    sys.vfs_unlink = host_unlink;
+    sys.serial_write_string = host_serial;
+    sys.serial_write_char = host_serial_char;
+    cupidc_guest_run(&sys);
+    return live_allocations != 0;
+}

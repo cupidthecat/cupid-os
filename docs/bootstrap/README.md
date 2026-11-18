@@ -59,8 +59,8 @@ complete OS can rebuild itself from inside the guest.
   profile readback, exact producer snapshot and paired complete user checks.
 
 - [Freestanding compiler engine](FREESTANDING-COMPILER-ENGINE.md) covers the
-  ELF loader, compiler-source ISO and nine-object Linux fixed point. The
-  guest worker and in-OS self-recompilation remain open.
+  ELF loader, compiler-source ISO, standalone executable and nine-object
+  Linux fixed point. The kernel worker launch and in-OS rebuild remain open.
 
 - [Keyboard FIFO repair](KEYBOARD-FIFO-REPAIR.md): shared reader cursor, checked
   tool fixtures, complete kernel rechecks and the 31-command guest frontier.

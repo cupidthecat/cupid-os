@@ -1,5 +1,27 @@
 # Bootstrapping log
 
+## 2026-11-17: Build the compiler with a Cupid OS syscall adapter
+
+The opt-in standalone ELF links the existing compiler objects with a VFS
+adapter. It reads the build request from `/home/cupidc.job` and preserves
+logical source names while reading through `/src`. The adapter publishes
+a complete object through a pending file and rename in the home filesystem.
+
+The Linux syscall fixture reproduces `ctool.o` byte for byte and checks
+that each job releases its allocations. Seven rejected requests cover
+missing or invalid source, path traversal, extra request lines, the
+reserved pending name, an occupied pending file and a failed rename.
+A valid retry succeeds. Windows and WSL link the same 2,498,900-byte ELF.
+The active build audit still records 801 active sources and 452 transforms.
+
+The scheduler frontier replay on the Windows mount timed out at its
+existing 2,340-second limit. A new replay uses an archive of the exact
+scheduler commit on WSL's native filesystem with the same limit.
+
+The [standalone build record](FREESTANDING-COMPILER-ENGINE.md) gives the
+commands. Kernel launch, exit and kill cleanup, and guest self-recompilation
+remain open.
+
 ## 2026-11-17: Align scheduler entry for a compiler worker
 
 A new process starts in an i386 cdecl trampoline. Both entry forms receive

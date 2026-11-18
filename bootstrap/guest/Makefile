@@ -45,6 +45,19 @@ $(BUILD)/cupidc_engine.o: cupidc_engine.cc $(HEADERS) Makefile $(SEED_INPUTS) | 
 $(ENGINE): $(OBJECTS) Makefile $(SEED_INPUTS)
 	$(ENGINE_LINK) -o "$(abspath $@)" $(foreach obj,$(OBJECTS),"$(abspath $(obj))")
 
+GUEST_COMPILER := $(BUILD)/cupidc-guest.elf
+GUEST_ENTRY := cupidc_guest_run
+
+.PHONY: guest-compiler
+guest-compiler: $(GUEST_COMPILER)
+
+$(BUILD)/cupidc_guest.o: cupidc_guest.cc ../../user/cupid.h $(HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
+	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/cupidc_guest.cc -o $(PUBLISH)/cupidc_guest.o
+
+$(GUEST_COMPILER): $(OBJECTS) $(BUILD)/cupidc_guest.o Makefile $(SEED_INPUTS)
+	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry $(GUEST_ENTRY) \
+		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
+
 # Preserve repository-relative paths so the guest can use the same logical
 # source and include names as the checked host compiler.
 ISO := $(BUILD)/engsrc.iso
@@ -77,6 +90,21 @@ LINUX_CONTRACT := $(BUILD)/engine-linux-contract.elf
 LINUX_CONTRACT_OBJECTS := $(addprefix $(BUILD)/,start.o linux_runtime.o ctool_host.o \
 	engine_linux_contract.o engine_image.o ctool.o elf32.o)
 HOSTED_CFLAGS := --root "$(ROOT)" --gnu -I /toolchain --include-angle /toolchain/hosted/i386-linux/include
+
+GUEST_LINUX_CONTRACT := $(BUILD)/cupidc-guest-linux-contract.elf
+GUEST_LINUX_OBJECTS := $(OBJECTS) $(addprefix $(BUILD)/,start.o linux_runtime.o ctool_host.o \
+	cupidc_guest.o cupidc_guest_linux_contract.o)
+
+.PHONY: check-guest-compiler
+check-guest-compiler: $(GUEST_COMPILER) $(GUEST_LINUX_CONTRACT)
+	$(PYTHON) check_guest_compiler.py "$(ROOT)"
+
+$(GUEST_LINUX_CONTRACT): $(GUEST_LINUX_OBJECTS) Makefile $(SEED_INPUTS)
+	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x08048000 --entry _start \
+		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
+
+$(BUILD)/cupidc_guest_linux_contract.o: cupidc_guest_linux_contract.cc ../../user/cupid.h $(TOOLCHAIN)/ctool_host.h $(TOOLCHAIN)/ctool.h $(HOST_HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
+	$(RUN) --tool cupidc -- $(HOSTED_CFLAGS) -I /user -c /bootstrap/guest/cupidc_guest_linux_contract.cc -o $(PUBLISH)/cupidc_guest_linux_contract.o
 
 .PHONY: check-load check-linux
 check-load: $(ENGINE) $(LINUX_CONTRACT)

@@ -41,8 +41,13 @@ make -j4 -C bootstrap/guest check-linux
 the compiler. `make -C bootstrap/guest source-iso` packages the engine and
 its source tree as a read-only ISO that Cupid OS can mount.
 
-Running the engine in Cupid OS still requires an arena claim, a
-scheduler-owned compiler stack and cleanup after exit or kill.
+`make -C bootstrap/guest guest-compiler` builds the standalone CupidC ELF
+with a Cupid OS syscall adapter. On Linux or WSL,
+`make -C bootstrap/guest check-guest-compiler` compares the emitted object
+and checks rejected requests.
+
+Launching the executable in Cupid OS requires an arena claim, a
+scheduler-owned stack and cleanup after exit or kill.
 [Engine build and evidence](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md)
 
 ## History

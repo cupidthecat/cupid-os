@@ -839,6 +839,10 @@ KNOWN_UNREACHABLE_SOURCE_POLICIES = {
         "host_fixture",
         "native USB behavior fixture compiled by the host test harness",
     ),
+    "bootstrap/guest/cupidc_guest_linux_contract.cc": (
+        "host_fixture",
+        "Linux syscall fixture for the opt-in compiler executable",
+    ),
     "bootstrap/guest/engine_image.cc": (
         "host_fixture",
         "external compiler image loader used by the Linux fixed-point test",
