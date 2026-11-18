@@ -1,5 +1,20 @@
 # Bootstrapping log
 
+## 2026-11-18 — Qualify the optimized CupidC seed on both hosts
+
+Fresh WSL and native Windows builds qualified the ordered-initializer
+compiler from `5f8bbf81`. Independent readback matched all 114 producer
+inputs to that commit and verified both parent manifests, all 333 stage
+artifacts and the final fixed point on each host.
+
+The 2,737-byte reviewed release has SHA-256
+`cc6c47b7178be2b33a8ed5df48c8ae1185b3c5bd292860eb485a88f01b7e817c`.
+It binds the producer snapshot with SHA-256
+`72c800bbb2519721a2f4d1f7f2c60ab27767442a345103a983d243187facee7e`.
+Both rebuilt qualifications matched the reviewed artifacts and tested two
+generations. WSL passed 73 success, 66 failure and seven help cases.
+Windows passed 60 success, 54 failure and seven help cases.
+
 ## 2026-11-18 — Author the boot disk prefix inside Cupid OS
 
 The guest disk worker uses CupidObj to write the standard 200 MiB disk's
