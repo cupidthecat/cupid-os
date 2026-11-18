@@ -16,8 +16,10 @@ short destination before writing, clears the image span, and copies the
 file-backed bytes. The plan borrows its input and metadata until installation.
 
 The engine and its source build inputs also travel together on an opt-in ISO.
-Checked CupidObj keeps their repository-relative names. The worker can
-resolve logical source names under a single read-only mount.
+Checked CupidObj keeps their repository-relative names. CupidBuild authors
+and verifies the ISO in a private directory. The build replaces the
+public path only after that check passes. The worker can resolve logical
+source names under a single read-only mount.
 
 The existing JIT and AOT paths still own the legacy compiler region. The
 guest worker needs an exclusive arena, a scheduler-owned stack, and a way

@@ -48,7 +48,6 @@ $(ENGINE): $(OBJECTS) Makefile $(SEED_INPUTS)
 # Preserve repository-relative paths so the guest can use the same logical
 # source and include names as the checked host compiler.
 ISO := $(BUILD)/engsrc.iso
-ISO_MANIFEST := $(BUILD)/engine-iso.manifest
 ISO_DIRS := bootstrap bootstrap/guest toolchain toolchain/hosted \
 	toolchain/hosted/i386-linux toolchain/hosted/i386-linux/include
 ISO_SOURCES := $(addprefix toolchain/,$(addsuffix .cc,$(CORE))) \
@@ -56,21 +55,22 @@ ISO_SOURCES := $(addprefix toolchain/,$(addsuffix .cc,$(CORE))) \
 	$(patsubst ../../%,%,$(filter-out cupidc_engine.h,$(HEADERS)))
 ISO_ENGINE := cupidc-engine.elf
 
+ISO_LINUX_SEED_DIR := ../../bootstrap/seeds/i386-linux
+ISO_WINDOWS_SEED_DIR := ../../bootstrap/seeds/i386-windows
+ISO_SEEDS := $(addprefix $(ISO_LINUX_SEED_DIR)/,manifest.json $(addsuffix .elf,$(SEED_TOOLS))) \
+	$(addprefix $(ISO_WINDOWS_SEED_DIR)/,manifest.json $(addsuffix .exe,$(SEED_TOOLS))) $(SEED_RELEASE)
+ISO_PUBLISHER := $(abspath $(SEED_DIR)/cupidbuild.$(SEED_SUFFIX))
+ISO_ARGUMENTS := "$(ISO_PUBLISHER)" "$(ROOT)" "$(abspath $(ENGINE))" "$(abspath $(ISO))" \
+	$(sort $(ISO_DIRS) $(ISO_SOURCES) $(ISO_ENGINE))
+
 .PHONY: source-iso check-source-iso
 source-iso: $(ISO)
 
 check-source-iso: $(ISO)
-	$(PYTHON) check_source_iso.py "$(ROOT)" "$(abspath $(ENGINE))" \
-		"$(abspath $(ISO_MANIFEST))" "$(abspath $(ISO))" -- $(RUN)
+	$(PYTHON) check_source_iso.py $(ISO_ARGUMENTS)
 
-$(ISO_MANIFEST): Makefile $(addprefix ../../,$(ISO_SOURCES)) | $(BUILD)
-	$(PYTHON) -c "from pathlib import Path; import sys; Path(sys.argv[1]).write_bytes(('\n'.join(sys.argv[2:]) + '\n').encode('ascii'))" "$@" $(sort $(ISO_DIRS) $(ISO_SOURCES) $(ISO_ENGINE))
-
-$(ISO): $(ENGINE) $(addprefix ../../,$(ISO_SOURCES)) $(ISO_MANIFEST) $(SEED_INPUTS)
-	$(RUN) --tool cupidobj -- iso-fixture "$(abspath $(ISO_MANIFEST))" \
-		$(foreach directory,$(ISO_DIRS),--directory $(directory)) \
-		$(foreach source,$(ISO_SOURCES),--file $(source) "$(ROOT)/$(source)") \
-		--file $(ISO_ENGINE) "$(abspath $(ENGINE))" -o "$(abspath $@)"
+$(ISO): $(ENGINE) $(addprefix ../../,$(ISO_SOURCES)) Makefile source_iso.py $(ISO_SEEDS)
+	$(PYTHON) source_iso.py $(ISO_ARGUMENTS)
 
 ifneq ($(OS),Windows_NT)
 LINUX_CONTRACT := $(BUILD)/engine-linux-contract.elf

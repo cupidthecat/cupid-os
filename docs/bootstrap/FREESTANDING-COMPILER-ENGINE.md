@@ -38,11 +38,15 @@ Native Windows and WSL produced the same 2,486,352-byte module. Its SHA-256 is
 ## Package the compiler inputs
 
 `make -j4 -C bootstrap/guest source-iso` builds
-`build/guest-engine/engsrc.iso` with checked CupidObj. It contains the engine
-ELF at the root and the nine source files and their headers at their
-repository-relative paths. Run `make -C bootstrap/guest check-source-iso`
-with xorriso installed to compare every member and check that a failed
-authoring request preserves its previous output.
+`build/guest-engine/engsrc.iso` through CupidBuild's checked ISO publisher.
+CupidObj authors the candidate from a private copy of the engine, source
+files and headers. CupidBuild verifies the candidate before it replaces the
+public image. The ISO keeps the ELF at the root and each source file at its
+repository-relative path.
+
+Run `make -C bootstrap/guest check-source-iso` with xorriso installed.
+It reads back all files, checks that an incomplete inventory leaves the
+output intact, and verifies that an unchanged rebuild keeps its timestamp.
 
 To inspect the ISO from Cupid OS, stage it onto a copy of an existing
 system image:

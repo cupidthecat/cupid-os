@@ -1,5 +1,21 @@
 # Bootstrapping log
 
+## 2026-11-17: Publish the compiler ISO from a private input tree
+
+CupidObj's generic runner writes its output directly. The source ISO now
+uses CupidBuild to verify a complete candidate in a private tree containing
+the engine inputs and both checked seed bundles. The Make recipe replaces
+the public path only after verification and preserves the timestamp when
+the bytes match.
+
+Publishing from the live worktree collided with retained directory
+observations during simultaneous Windows and WSL runs. A serial retry
+also failed while the OS build was writing. Both hosts passed with private
+trees while that build continued. Both ISOs match the original bytes,
+including the 30 files and six directories. A missing engine member
+preserves the preceding output. A repeat publication preserves both its
+timestamp and contents.
+
 ## 2026-11-17: Validate compiler engine loads and package the sources
 
 The Linux harness now uses a portable engine image planner. It checks all
