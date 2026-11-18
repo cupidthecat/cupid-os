@@ -197,8 +197,11 @@ worker. The linker and compiler share their VFS and allocation callbacks.
 The completed ELF replaces the output through a rename within `/home`.
 
 `make -C bootstrap/guest check-guest-linker` compares both layouts with the
-checked host tool. Nine rejected requests preserve the previous output. The
-four-vCPU QEMU run linked `hello.elf`, rejected a request targeting the kernel
+checked host tool. Nine rejected requests preserve the previous output. Both
+host syscall fixtures also check exact-size allocation reuse, recovery under
+heap pressure, and cleanup. The shared guest adapter bounds cached blocks to
+eight MiB and drains them before publishing a file or returning from a worker.
+The four-vCPU QEMU run linked `hello.elf`, rejected a request targeting the kernel
 stack and then ran the preserved ELF. Its 13,992 persisted bytes matched the
 checked host link.
 

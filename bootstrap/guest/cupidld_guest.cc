@@ -80,13 +80,17 @@ static int read_link_job(char *file, guest_link_job_t *job) {
 }
 
 static ctool_status_t link_image(cupid_syscall_table_t *sys, const guest_link_job_t *link) {
-    cupid_guest_io_t io = {sys, ctool_string(""), LINK_PENDING};
+    cupid_guest_io_t io = {
+        .sys = sys, .input_prefix = ctool_string(""), .pending_path = LINK_PENDING
+    };
     ctool_job_config_t config = cupid_guest_job_config(&io);
 
     ctool_job_t *job = NULL;
     ctool_status_t status = ctool_job_open(&config, &job);
-    if (status != CTOOL_OK)
+    if (status != CTOOL_OK) {
+        cupid_guest_job_drain_cache(&io);
         return status;
+    }
 
     ctool_source_t objects[LINK_MAX_OBJECTS];
     ctool_buffer_t *buffer = NULL;
@@ -112,6 +116,7 @@ static ctool_status_t link_image(cupid_syscall_table_t *sys, const guest_link_jo
     if (buffer)
         ctool_buffer_close(buffer);
     ctool_job_close(job);
+    cupid_guest_job_drain_cache(&io);
     return status;
 }
 

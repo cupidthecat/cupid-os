@@ -1,5 +1,5 @@
 #include "ctool_host.h"
-#include "cupid.h"
+#include "guest_job.h"
 
 #ifndef CUPID_TEST_GUEST_ENTRY
 #define CUPID_TEST_GUEST_ENTRY cupidc_guest_run
@@ -13,9 +13,12 @@ int cupid_linux_syscall3(int number, unsigned int first, unsigned int second, un
 static ctool_host_adapter_t adapter;
 static ctool_job_config_t config;
 static unsigned live_allocations;
+static int simulate_heap_pressure;
 static const char *root;
 
 static void *host_alloc(size_t size) {
+    if (simulate_heap_pressure && live_allocations != 0u)
+        return NULL;
     void *pointer = config.allocator.allocate(config.allocator.context, (ctool_u32)size);
     if (pointer)
         live_allocations++;
@@ -123,6 +126,37 @@ static void host_serial_char(char c) {
     cupid_linux_syscall3(4, 1u, (unsigned int)&c, 1u);
 }
 
+static int check_allocation_cache(cupid_syscall_table_t *sys) {
+    cupid_guest_io_t io = {.sys = sys};
+    ctool_job_config_t guest_config = cupid_guest_job_config(&io);
+    ctool_allocator_t allocator = guest_config.allocator;
+    int accepted = 0;
+
+    void *original = allocator.allocate(allocator.context, 128u);
+    if (!original)
+        return 0;
+    allocator.release(allocator.context, original, 128u);
+    if (live_allocations != 1u || allocator.allocate(allocator.context, 0u) != NULL)
+        goto done;
+
+    void *reused = allocator.allocate(allocator.context, 128u);
+    if (reused)
+        allocator.release(allocator.context, reused, 128u);
+    if (reused != original || live_allocations != 1u)
+        goto done;
+
+    simulate_heap_pressure = 1;
+    void *replacement = allocator.allocate(allocator.context, 197u);
+    simulate_heap_pressure = 0;
+    if (replacement)
+        allocator.release(allocator.context, replacement, 197u);
+    accepted = replacement != NULL && live_allocations == 1u;
+
+done:
+    cupid_guest_job_drain_cache(&io);
+    return accepted && live_allocations == 0u;
+}
+
 int main(int argc, char **argv) {
     if (argc != 2 || ctool_host_adapter_init(&adapter, argv[1]) != CTOOL_OK)
         return 2;
@@ -145,6 +179,10 @@ int main(int argc, char **argv) {
     sys.vfs_unlink = host_unlink;
     sys.serial_write_string = host_serial;
     sys.serial_write_char = host_serial_char;
+    if (!check_allocation_cache(&sys)) {
+        host_serial("Guest allocation cache contract failed.\n");
+        return 3;
+    }
     CUPID_TEST_GUEST_ENTRY(&sys);
     return live_allocations != 0;
 }

@@ -57,7 +57,9 @@ void cupidc_guest_run(cupid_syscall_table_t *sys) {
     };
     request.abi = CTOOL_C_ENGINE_ABI;
     request.bytes = sizeof(request);
-    cupid_guest_io_t io = {sys, ctool_string(SOURCE_MOUNT), PENDING_PATH};
+    cupid_guest_io_t io = {
+        .sys = sys, .input_prefix = ctool_string(SOURCE_MOUNT), .pending_path = PENDING_PATH
+    };
     request.config = cupid_guest_job_config(&io);
     request.config.limits.arena_bytes = JOB_ARENA_BYTES;
     request.preprocessor.mode = CTOOL_C_PP_MODE_C11;
@@ -69,6 +71,7 @@ void cupidc_guest_run(cupid_syscall_table_t *sys) {
 
     ctool_invocation_result_t result = {0};
     ctool_status_t status = ctool_c_engine_compile(&request, &result);
+    cupid_guest_job_drain_cache(&io);
     if (status == CTOOL_OK && result.output_committed) {
         sys->serial_write_string("[cupidc-guest] wrote ");
         sys->serial_write_string(request.invocation.output_path.data);

@@ -195,14 +195,14 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bin/terminal_app.c` | `c` | `historical_copy` | 318 | historical_copy_of: `kernel/gui/terminal_app.cc` |
 | `bootstrap/guest/cupidc_engine.cc` | `cupid_c` | `not_reached` | 30 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_engine.h` | `c_header` | `not_reached` | 22 | not reachable from the supported Make target or include closure |
-| `bootstrap/guest/cupidc_guest.cc` | `cupid_c` | `not_reached` | 81 | not reachable from the supported Make target or include closure |
-| `bootstrap/guest/cupidc_guest_linux_contract.cc` | `cupid_c` | `host_fixture` | 150 | Linux syscall fixture for the opt-in compiler and linker workers |
-| `bootstrap/guest/cupidld_guest.cc` | `cupid_c` | `not_reached` | 138 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupidc_guest.cc` | `cupid_c` | `not_reached` | 84 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupidc_guest_linux_contract.cc` | `cupid_c` | `host_fixture` | 188 | Linux syscall fixture for the opt-in compiler and linker workers |
+| `bootstrap/guest/cupidld_guest.cc` | `cupid_c` | `not_reached` | 143 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/engine_image.cc` | `cupid_c` | `host_fixture` | 72 | external compiler image loader used by the Linux fixed-point test |
 | `bootstrap/guest/engine_image.h` | `c_header` | `host_fixture` | 23 | image-plan interface used by the Linux fixed-point test |
 | `bootstrap/guest/engine_linux_contract.cc` | `cupid_c` | `host_fixture` | 188 | Linux harness for the opt-in freestanding compiler fixed-point test |
-| `bootstrap/guest/guest_job.cc` | `cupid_c` | `not_reached` | 101 | not reachable from the supported Make target or include closure |
-| `bootstrap/guest/guest_job.h` | `c_header` | `not_reached` | 17 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/guest_job.cc` | `cupid_c` | `not_reached` | 154 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/guest_job.h` | `c_header` | `not_reached` | 29 | not reachable from the supported Make target or include closure |
 | `demos/paint.cc` | `cupid_c` | `superseded` | 629 | superseded_by: `bin/paint.cc` |
 | `kernel/core/scheduler.c` | `c` | `superseded` | 154 | superseded_by: `kernel/core/process.cc` |
 | `kernel/gui/notepad.c` | `c` | `superseded` | 5683 | superseded_by: `bin/notepad.cc` |

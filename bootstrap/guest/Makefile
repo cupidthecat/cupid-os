@@ -124,7 +124,7 @@ $(GUEST_LINUX_CONTRACT): $(GUEST_LINUX_OBJECTS) Makefile $(SEED_INPUTS)
 	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x08048000 --entry _start \
 		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
 
-$(BUILD)/cupidc_guest_linux_contract.o: cupidc_guest_linux_contract.cc ../../user/cupid.h $(TOOLCHAIN)/ctool_host.h $(TOOLCHAIN)/ctool.h $(HOST_HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
+$(BUILD)/cupidc_guest_linux_contract.o: cupidc_guest_linux_contract.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/ctool_host.h $(TOOLCHAIN)/ctool.h $(HOST_HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(HOSTED_CFLAGS) -I /user -c /bootstrap/guest/cupidc_guest_linux_contract.cc -o $(PUBLISH)/cupidc_guest_linux_contract.o
 
 GUEST_LINKER_CONTRACT := $(BUILD)/cupidld-guest-linux-contract.elf
@@ -139,7 +139,7 @@ $(GUEST_LINKER_CONTRACT): $(GUEST_LINKER_CONTRACT_OBJECTS) Makefile $(SEED_INPUT
 	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x08048000 --entry _start \
 		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
 
-$(BUILD)/cupidld_guest_linux_contract.o: cupidc_guest_linux_contract.cc ../../user/cupid.h $(TOOLCHAIN)/ctool_host.h $(TOOLCHAIN)/ctool.h $(HOST_HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
+$(BUILD)/cupidld_guest_linux_contract.o: cupidc_guest_linux_contract.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/ctool_host.h $(TOOLCHAIN)/ctool.h $(HOST_HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(HOSTED_CFLAGS) -I /user -D CUPID_TEST_GUEST_ENTRY=cupidld_guest_run \
 		-c /bootstrap/guest/cupidc_guest_linux_contract.cc -o $(PUBLISH)/cupidld_guest_linux_contract.o
 

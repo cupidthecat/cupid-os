@@ -50,6 +50,11 @@ health, ammunition, position, angle and saved level-time offset agree; the load
 menu retains the name. It also quits and runs `ls`. Both logs pass the unchanged
 strict SMP/network/desktop/command validator with all 62 TLS checks.
 
+The 2026-11-17 four-vCPU replay loaded the bundled Freedoom 1 WAD, quit
+through the F10 confirmation and ran `ls` through the CupidC JIT. The
+shell resumed input and completed the command. This replay covered
+startup and input return.
+
 ## Evidence and limits
 
 The first rebuilt guest exposes both the missing space and the input leak; it

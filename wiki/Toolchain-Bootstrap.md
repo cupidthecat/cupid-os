@@ -66,6 +66,9 @@ workers. A four-vCPU run linked and executed `hello.elf`. The saved ELF
 matched the checked host link. The Linux check exercises both base addresses
 and rejected requests.
 
+The compiler and linker reuse released work buffers during each job. Both
+drain the cache before publishing a file and when the worker returns.
+
 ## History
 
 The [bootstrap log](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/LOG.md)

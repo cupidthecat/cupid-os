@@ -1,5 +1,37 @@
 # Bootstrapping log
 
+## 2026-11-17 — Reuse temporary guest tool allocations
+
+Guest instruction samples found the frontend spending time in the kernel
+heap's allocation and free scans. A bounded cache now lets the guest
+adapter reuse an exact-size block after the tool releases it. It drains
+before writing output, retries once under heap pressure and releases its
+blocks after each job.
+
+The full Linux replay reproduced all 1,024,260 frontend object bytes.
+The cache reduced underlying allocations from 612,950 to 295,646.
+A separate one-MiB arena-block experiment made 531,349 allocations.
+The syscall fixtures exercise reuse, heap-pressure recovery and cleanup
+through both workers. See the
+[cache decision](../adr/0488-reuse-released-guest-tool-blocks.md).
+The four-vCPU guest ran the cache-enabled compiler through a successful
+`ctool.o` build and a missing-source rejection. Both jobs released their
+leases. Readback matched all 41,864 bytes of the checked host object.
+
+The compiler-arena kernel completed a serial `make all` on native WSL storage
+with `CC`, `CXX`, `AS`, `NASM`, `LD`, `AR`, `OBJCOPY`, `OBJDUMP` and `NM` set to
+`false`. All 16 exact artifact sizes passed and the graph published a 200 MiB
+image. Parallel attempts on the Windows mount reported input directory and
+seed snapshot drift.
+
+QEMU also sampled time in the compiler's bytewise zeroing routine.
+The checked CupidC seed rejected the GNU inline `rep stosb` template.
+A separate CupidASM memory routine is under test.
+
+The four-vCPU kernel with the read-only-data fix loaded the bundled
+Freedoom WAD. F10 and confirmation returned input to the shell. The
+next `ls` ran through CupidC's JIT and completed.
+
 ## 2026-11-17 — Allocate CupidASM read-only data
 
 An assembly-to-link smoke produced a valid `R_386_32` relocation to a

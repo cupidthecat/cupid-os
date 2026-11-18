@@ -61,6 +61,7 @@ static ctool_status_t guest_write(void *context, ctool_string_t path, ctool_byte
     int status = io->sys->vfs_stat(io->pending_path, &pending);
     if (status != GUEST_ENOENT)
         return file_failure(status);
+    cupid_guest_job_drain_cache(io);
     status = io->sys->vfs_write_all(io->pending_path, contents.data, contents.size);
     if (status >= 0 && (ctool_u32)status == contents.size)
         status = io->sys->vfs_rename(io->pending_path, path.data);
@@ -80,15 +81,67 @@ static ctool_status_t guest_diagnostic(void *context, ctool_bytes_t text) {
     return CTOOL_OK;
 }
 
+#define GUEST_CACHE_LIMIT (8u * 1024u * 1024u)
+
+/* Arena rewinds and temporary buffers request the same sizes repeatedly. */
+static cupid_guest_cached_allocation_t *guest_cache_slot(cupid_guest_io_t *io, ctool_u32 size) {
+    ctool_u32 hash = size ^ (size >> 4u) ^ (size >> 12u);
+    return &io->cache[hash & (CUPID_GUEST_CACHE_SLOTS - 1u)];
+}
+
+void cupid_guest_job_drain_cache(cupid_guest_io_t *io) {
+    for (ctool_u32 i = 0; i < CUPID_GUEST_CACHE_SLOTS; i++) {
+        cupid_guest_cached_allocation_t *slot = &io->cache[i];
+        if (slot->allocation) {
+            io->sys->free(slot->allocation);
+            slot->allocation = NULL;
+            slot->size = 0u;
+        }
+    }
+    io->cached_bytes = 0u;
+}
+
 static void *guest_allocate(void *context, ctool_u32 size) {
+    if (size == 0u)
+        return NULL;
     cupid_guest_io_t *io = context;
-    return io->sys->malloc(size);
+    cupid_guest_cached_allocation_t *slot = guest_cache_slot(io, size);
+    if (slot->allocation && slot->size == size) {
+        void *allocation = slot->allocation;
+        slot->allocation = NULL;
+        slot->size = 0u;
+        io->cached_bytes -= size;
+        return allocation;
+    }
+
+    void *allocation = io->sys->malloc(size);
+    if (!allocation && io->cached_bytes != 0u) {
+        cupid_guest_job_drain_cache(io);
+        allocation = io->sys->malloc(size);
+    }
+    return allocation;
 }
 
 static void guest_release(void *context, void *allocation, ctool_u32 size) {
     cupid_guest_io_t *io = context;
-    (void)size;
-    io->sys->free(allocation);
+    if (!allocation)
+        return;
+    if (size == 0u || size > GUEST_CACHE_LIMIT) {
+        io->sys->free(allocation);
+        return;
+    }
+
+    cupid_guest_cached_allocation_t *slot = guest_cache_slot(io, size);
+    ctool_u32 retained = io->cached_bytes - slot->size;
+    if (size > GUEST_CACHE_LIMIT - retained) {
+        io->sys->free(allocation);
+        return;
+    }
+    if (slot->allocation)
+        io->sys->free(slot->allocation);
+    slot->allocation = allocation;
+    slot->size = size;
+    io->cached_bytes = retained + size;
 }
 
 ctool_job_config_t cupid_guest_job_config(cupid_guest_io_t *io) {
