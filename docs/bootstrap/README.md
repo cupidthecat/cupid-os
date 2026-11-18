@@ -59,9 +59,9 @@ complete OS can rebuild itself from inside the guest.
   profile readback, exact producer snapshot and paired complete user checks.
 
 - [Freestanding compiler engine](FREESTANDING-COMPILER-ENGINE.md) covers the
-  ELF loader, compiler-source ISO, standalone executable and nine-object
-  Linux fixed point. Cupid OS can launch the worker and rebuild the full
-  CupidC frontend. The complete in-guest toolchain rebuild remains open.
+  ELF loader, compiler-source ISO and standalone executable. Cupid OS rebuilt
+  all eleven compiler objects, linked the executable and ran it. The complete
+  in-guest toolchain rebuild remains open.
 
 - [Keyboard FIFO repair](KEYBOARD-FIFO-REPAIR.md): shared reader cursor, checked
   tool fixtures, complete kernel rechecks and the 31-command guest frontier.

@@ -19,6 +19,9 @@ FAT_START_LBA = 20480
 SEED_MANIFEST = "bootstrap/seeds/i386-linux/manifest.json"
 HOMEFS_MAGIC = 0x31465348
 COMPILER_REAPED = r".*?released compiler image lease"
+COMPILE_JOB = b"/toolchain/ctool.cc\n/home/ctool.o\n"
+REJECTED_JOB = b"/toolchain/missing.cc\n/home/ctool.o\n"
+FRONTEND_JOB = b"/toolchain/cupidc_frontend.cc\n/home/frontend.o\n"
 
 
 def run(*arguments: str) -> None:
@@ -87,43 +90,63 @@ def compare_objects(payload: bytes, include_frontend: bool) -> None:
         raise ValueError(f"missing guest objects: {', '.join(references)}")
 
 
-def check(scratch: Path, qemu: str, timeout: float, include_frontend: bool) -> None:
-    disk = scratch / "cupidos.img"
-    job = scratch / "cupidc.job"
-    job.write_bytes(b"/toolchain/ctool.cc\n/home/ctool.o\n")
-    rejected = scratch / "bad.job"
-    rejected.write_bytes(b"/toolchain/missing.cc\n/home/ctool.o\n")
-    stages = [f"{BUILD}/engsrc.iso:/engsrc.iso", f"{BUILD}/cupidc-guest.elf:/cupcc",
-              f"{rejected}:/bad.job"]
-    if include_frontend:
-        frontend = scratch / "front.job"
-        frontend.write_bytes(b"/toolchain/cupidc_frontend.cc\n/home/frontend.o\n")
-        stages.append(f"{frontend}:/front.job")
+def write_frontend_homefs(path: Path) -> None:
+    files = ((b"cupidc.job", COMPILE_JOB), (b"bad.job", REJECTED_JOB),
+             (b"front.job", FRONTEND_JOB), (b"src.iso", (BUILD / "engsrc.iso").read_bytes()))
+    with path.open("wb") as output:
+        output.write(struct.pack("<III", HOMEFS_MAGIC, 1, len(files) + 1))
+        output.write(struct.pack("<IIII", 0xffffffff, 1, 0, 0))
+        for name, contents in files:
+            output.write(struct.pack("<IIII", 0, 0, len(contents), len(name)))
+            output.write(name)
+            output.write(contents)
 
+
+def create_disk(disk: Path, *staged: str) -> None:
+    stage_args = [argument for item in staged for argument in ("--stage", item)]
     run("tools/hostbuild.py", "image", "--seed-manifest", SEED_MANIFEST,
         "--image", str(disk), "--bootloader", "boot/boot.bin",
         "--kernel", "kernel/kernel.bin", "--hdd-mb", "200",
-        "--fat-start-lba", str(FAT_START_LBA), "--stage", f"{job}:/cupidc.job")
+        "--fat-start-lba", str(FAT_START_LBA), *stage_args)
+
+
+def check(scratch: Path, qemu: str, timeout: float, include_frontend: bool) -> None:
+    disk = scratch / "cupidos.img"
+    worker = f"{BUILD}/cupidc-guest.elf:/cupcc"
     smoke = ("tools/gui_terminal_smoke.py", "--qemu", qemu, "--image", str(disk),
-             "--smp", "4", "--nic", "e1000", "--require-command-completion",
+             "--smp", "1" if include_frontend else "4", "--nic", "e1000",
+             "--require-command-completion",
              "--timeout", str(timeout))
-    log_name = 'frontend' if include_frontend else 'ctool'
+    log_name = "frontend" if include_frontend else "ctool"
     completed = r"\[terminal\] command complete"
-    # First boot seeds /home from the staged request. Stage the large ISO and
-    # executable after that import so they remain on FAT16.
-    run(*smoke, "--log", str(BUILD / f"cupidc-{log_name}-seed-home.log"), "--command", "ls",
-        "--success-pattern", completed)
-    run("tools/hostbuild.py", "stage", "--image", str(disk), "--fat-start-lba",
-        str(FAT_START_LBA), *stages)
+
+    if include_frontend:
+        homefs = scratch / "homefs.sys"
+        write_frontend_homefs(homefs)
+        create_disk(disk, f"{homefs}:/homefs.sys", worker)
+        source_iso, requests = "/home/src.iso", "/home"
+    else:
+        job = scratch / "cupidc.job"
+        job.write_bytes(COMPILE_JOB)
+        rejected = scratch / "bad.job"
+        rejected.write_bytes(REJECTED_JOB)
+        # Let the normal first-boot import place the request in /home.
+        create_disk(disk, f"{job}:/cupidc.job")
+        run(*smoke, "--log", str(BUILD / "cupidc-ctool-seed-home.log"), "--command", "ls",
+            "--success-pattern", completed)
+        run("tools/hostbuild.py", "stage", "--image", str(disk), "--fat-start-lba",
+            str(FAT_START_LBA), f"{BUILD}/engsrc.iso:/engsrc.iso", worker, f"{rejected}:/bad.job")
+        source_iso, requests = "/disk/engsrc.iso", "/disk"
+
     commands = [
-        ("mount /disk/engsrc.iso /src", r"VFS: mounted .* at .*/src"),
+        (f"mount {source_iso} /src", r"VFS: mounted 'iso9660' at '/src'"),
         ("exec /disk/cupcc", r"\[cupidc-guest\] wrote /home/ctool[.]o" + COMPILER_REAPED),
-        ("cp /disk/bad.job /home/cupidc.job", completed),
-        ("exec /disk/cupcc", r"\[cupidc-guest\] compilation failed: " + COMPILER_REAPED),
+        (f"cp {requests}/bad.job /home/cupidc.job", completed),
+        ("exec /disk/cupcc", r"\[cupidc-guest\] compilation failed: not_found" + COMPILER_REAPED),
     ]
     if include_frontend:
         commands.extend((
-            ("cp /disk/front.job /home/cupidc.job", completed),
+            ("cp /home/front.job /home/cupidc.job", completed),
             ("exec /disk/cupcc", r"\[cupidc-guest\] wrote /home/frontend[.]o" + COMPILER_REAPED),
         ))
     arguments = []
@@ -138,11 +161,12 @@ def check(scratch: Path, qemu: str, timeout: float, include_frontend: bool) -> N
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--qemu", default="qemu-system-i386")
-    parser.add_argument("--timeout", type=float, default=1800)
+    parser.add_argument("--timeout", type=float, help="QEMU phase deadline in seconds")
     parser.add_argument("--frontend", action="store_true", help="also rebuild the full frontend")
     args = parser.parse_args()
+    timeout = args.timeout if args.timeout is not None else (3600 if args.frontend else 1800)
     with tempfile.TemporaryDirectory(prefix="cupidc-guest-") as temporary:
-        check(Path(temporary), args.qemu, args.timeout, args.frontend)
+        check(Path(temporary), args.qemu, timeout, args.frontend)
 
 
 if __name__ == "__main__":

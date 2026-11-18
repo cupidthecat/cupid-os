@@ -22,7 +22,8 @@ matches the link order.
   /home/hello.o
 
 Use 0x01c00000 for an ordinary executable and 0x01e00000 for a compiler
-worker. Each worker returns to the shell after reporting its result.
+worker. The standalone compiler uses cupidc_guest_run as its entry.
+Each worker returns to the shell after reporting its result.
 Wait for its lease to be released before starting another worker.
 Both workers release cached work buffers before publishing output and
 again when the job ends.

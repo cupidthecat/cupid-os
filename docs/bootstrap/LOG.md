@@ -1,5 +1,22 @@
 # Bootstrapping log
 
+## 2026-11-18 — Rebuild standalone CupidC inside Cupid OS
+
+At `c8447942`, CupidC rebuilt all eleven inputs to the standalone compiler
+inside Cupid OS. Each persisted object matched the corresponding checked
+host object. CupidLD linked those guest objects to a 2,504,444-byte compiler
+with SHA-256 `a2c0c9ff6f0cfb17c17e10cba4e0c5d567f0ba575d577e4baac7242c6cf0fe88`.
+The complete ELF matched the checked host link. The rebuilt executable ran
+inside Cupid OS, rebuilt `ctool.o` again and released its lease. Its 41,864
+persisted bytes matched the checked object.
+
+The repeatable frontend check now starts with a HomeFS-backed source ISO
+and allows 3,600 seconds for each phase on one vCPU. The four-vCPU smoke
+still verifies ordinary first-boot import, failed-request preservation and
+lease release. Both checks passed. The arena-updated worker also rebuilt
+its own 41,804-byte `ctool.o` in the guest. See the
+[job files and replay procedure](FREESTANDING-COMPILER-ENGINE.md).
+
 ## 2026-11-18 — Wait for EHCI halt proof
 
 The four-vCPU Freedoom timedemo reproduced an EHCI DMA ownership panic. An

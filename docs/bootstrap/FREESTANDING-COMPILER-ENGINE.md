@@ -2,9 +2,9 @@
 
 A loadable freestanding CupidC engine rebuilt all nine of its own objects,
 then relinked to the same complete image. This ran in a native Linux harness
-at the existing guest compiler arena address. The standalone version also
-rebuilds a compiler object inside Cupid OS. The complete in-guest fixed
-point and normal-build integration remain unfinished.
+at the existing guest compiler arena address. Cupid OS also rebuilt and
+relinked the eleven-object standalone compiler. The rebuilt executable ran
+inside Cupid OS and reproduced `ctool.o`.
 
 ## Build and verify
 
@@ -161,8 +161,7 @@ standalone worker stays on disk and loads into its own compiler arena.
 Build the kernel, compiler executable and source ISO with checked tools.
 The runtime check starts a disposable four-vCPU QEMU guest, mounts the
 source ISO and sends the compile requests through the terminal. It checks
-that a missing source preserves the object already published. Add
-`--frontend` to include the full frontend compilation.
+that a missing source preserves the object already published.
 
 ```sh
 make -j2 all
@@ -170,18 +169,25 @@ make -j4 -C bootstrap/guest guest-compiler source-iso
 python3 bootstrap/guest/check_guest_runtime.py
 ```
 
+Pass `--frontend` to add the complete frontend compile. This replay stages
+the ISO in HomeFS and uses one vCPU with a 3,600-second phase deadline.
+Use `--timeout` to set a different deadline.
+
 A four-vCPU run rebuilt `ctool.o` and released the worker lease. The 41,864-byte
 file read from the guest disk matches the checked host object. A subsequent
 missing-source request preserved it. Its SHA-256 is
 `b3c53624564e96d88100950babb28d768c40eb288195d958cdc4a7c4a5c0fa20`.
+After the arena change, a fresh replay matched the current 41,804-byte
+`ctool.o`, SHA-256
+`fd735b2efc66fb954b60578559eb1acb84ba5cee0f1428ac9b4575a17d9c0e17`.
 Through the Linux syscall fixture, the full frontend produced the same
 1,024,260-byte object as the checked host compiler and released its allocations.
 In Cupid OS, the instrumented worker completed the same object with the source
 ISO mounted from HomeFS and a 3,600-second QEMU deadline. The persisted object
 matched the checked host bytes with SHA-256
 `247ef308ec75bd3079497bc97cbc4454b0e062675868bc8d982e611304addd87`.
-Earlier runs expired at 900 and 1,800 seconds. A complete guest rebuild still
-requires every compiler object and a guest relink.
+Earlier runs expired at 900 and 1,800 seconds. The automated HomeFS replay
+completed with both saved objects matching their checked references.
 
 ## Link objects inside Cupid OS
 
@@ -212,11 +218,43 @@ checked host link.
 
 The source ISO includes both worker sources, their shared adapter,
 `user/cupid.h` and `/src/bootstrap/guest/TOOLS.CTXT`. Its checked readback
-matched all 38 files and seven directories. CupidC rebuilt the shared
-adapter inside the guest. CupidLD linked that object with ten checked host
-objects and produced a byte-identical compiler ELF. The relinked compiler
-ran and rebuilt the same adapter. Building all compiler inputs inside the
-guest remains open.
+matched all 38 files and seven directories. The first relink used one guest
+object and ten checked host objects. The full reconstruction below uses
+eleven guest-built inputs.
+
+## Rebuild the standalone compiler in Cupid OS
+
+For the first eight objects below, use the corresponding `.cc` paths under
+`/toolchain`. Compile `cupidc_engine.cc`, `guest_job.cc` and `cupidc_guest.cc`
+from `/bootstrap/guest` in the source ISO. Pass each logical `.cc` path and its
+`/home` output path in `/home/cupidc.job`, then run `exec /disk/cupcc`.
+Once all objects are in `/home`, use this `/home/cupidld.job` and run
+`exec /disk/cupld`.
+
+```text
+/home/rebuilt.elf
+0x01e00000
+cupidc_guest_run
+/home/ctool.o
+/home/elf32.o
+/home/x86.o
+/home/cupidc_pp.o
+/home/cupidc_type.o
+/home/cupidc_frontend.o
+/home/cupidc_ir.o
+/home/cupidc_emit.o
+/home/cupidc_engine.o
+/home/guest_job.o
+/home/cupidc_guest.o
+```
+
+At `c8447942`, all eleven objects produced inside Cupid OS matched the
+checked host objects. The complete 2,504,444-byte executable saved by the
+guest linker matched the checked host ELF, SHA-256
+`a2c0c9ff6f0cfb17c17e10cba4e0c5d567f0ba575d577e4baac7242c6cf0fe88`.
+`exec /home/rebuilt.elf` then rebuilt `ctool.o` under a second name. All
+41,864 bytes matched and both worker leases were released. The complete
+toolchain and OS image still need an in-guest build.
 
 ## Retained proof
 

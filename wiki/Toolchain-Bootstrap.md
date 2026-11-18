@@ -68,6 +68,10 @@ workers. A four-vCPU run linked and executed `hello.elf`. The saved ELF
 matched the checked host link. The Linux check exercises both base addresses
 and rejected requests.
 
+Cupid OS rebuilt all eleven standalone compiler objects and linked a new
+CupidC executable from them. The guest ELF matched the checked host build
+byte for byte. It ran in Cupid OS and reproduced `ctool.o` again.
+
 The compiler and linker reuse released work buffers during each job. Both
 drain the cache before publishing a file and when the worker returns.
 
