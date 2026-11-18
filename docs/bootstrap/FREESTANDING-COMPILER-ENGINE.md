@@ -207,11 +207,11 @@ The base is `0x01c00000` for an ordinary executable or `0x01e00000` for a
 worker. The linker and compiler share their VFS and allocation callbacks.
 The completed ELF replaces the output through a rename within `/home`.
 
-`make -C bootstrap/guest check-guest-linker` compares fixed and script layouts
-with the checked host tool. Twelve rejected requests preserve the previous output. Both
-host syscall fixtures also check exact-size allocation reuse, recovery under
-heap pressure, and cleanup. The shared guest adapter bounds cached blocks to
-eight MiB and drains them before publishing a file or returning from a worker.
+`make -C bootstrap/guest check-guest-linker` compares the fixed and script
+layouts with the checked host tool. Twelve rejected requests preserve the
+previous output. The host syscall fixtures also check exact-size allocation
+reuse, recovery under heap pressure, and cleanup. The guest adapter caps the
+cache at eight MiB and drains it before publishing a file or returning.
 The four-vCPU QEMU run linked `hello.elf`, rejected a request targeting the kernel
 stack and then ran the preserved ELF. Its 13,992 persisted bytes matched the
 checked host link.
@@ -276,15 +276,23 @@ script
 From a completed checked Linux or WSL build, run the kernel replay.
 
 ```sh
-make -C bootstrap/guest guest-linker guest-object
+make -C bootstrap/guest guest-compiler guest-linker guest-ksyms guest-object
 python3 bootstrap/guest/check_guest_kernel_link.py
 ```
 
 The replay gets the ordered inputs from the normal Make recipes. It stages
-the existing objects, including the generated symbol-table object, runs both
-links and flattens the final ELF inside Cupid OS. It compares all three files
-after HomeFS readback and boots a disk made with the guest-produced raw kernel.
-`--production-root` selects another completed checked build.
+the checked pass-one objects and runs both links inside Cupid OS. Between
+them, the guest generates and compiles the kernel symbol table. It flattens
+the final ELF, compares the five saved artifacts, then boots a disk made
+with the guest-produced raw kernel. `--production-root` selects another
+completed checked build.
+
+The symbol worker takes the pass-one ELF and output source paths, one per
+line in `/home/cupidksyms.job`. Stage the worker as `/cupks` and run
+`exec /disk/cupks`. CupidC reads an input under `/home` from HomeFS. Put
+`ksyms.h` and `types.h` beside the generated source so the compiler can
+resolve the quoted includes. `make -C bootstrap/guest check-guest-ksyms`
+compares the source with checked CupidBuild and checks rejected jobs.
 
 To rebuild the bootloader, stage `boot/boot.asm` as `/boot.asm` on the guest
 disk. CupidASM writes the mixed-mode range map along with the raw image.

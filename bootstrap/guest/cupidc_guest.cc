@@ -32,8 +32,10 @@ void cupidc_guest_run(cupid_syscall_table_t *sys) {
     };
     request.abi = CTOOL_C_ENGINE_ABI;
     request.bytes = sizeof(request);
+    const char *source_mount =
+        strncmp(request.invocation.input_path.data, "/home/", 6u) == 0 ? "" : SOURCE_MOUNT;
     cupid_guest_io_t io = {
-        .sys = sys, .input_prefix = ctool_string(SOURCE_MOUNT), .pending_path = PENDING_PATH
+        .sys = sys, .input_prefix = ctool_string(source_mount), .pending_path = PENDING_PATH
     };
     request.config = cupid_guest_job_config(&io);
     request.config.limits.arena_bytes = JOB_ARENA_BYTES;

@@ -59,4 +59,19 @@ with tempfile.TemporaryDirectory(dir=build, prefix="guest-driver-") as temporary
     check(success, b"[cupidc-guest] wrote /home/ctool.o")
     assert object_file.read_bytes() == (build / "ctool.o").read_bytes()
     assert not pending.exists()
-    print("Guest compiler adapter reproduced ctool.o; seven rejected requests preserved output.")
+
+    (home / "value.h").write_bytes(b"#define VALUE 23\n")
+    (home / "source.cc").write_bytes(b'#include "value.h"\nint value(void) { return VALUE; }\n')
+    seed = root / "bootstrap/seeds/i386-linux"
+    subprocess.run([seed / "cupidbuild.elf", "run", "--root", root,
+                    "--seed-manifest", seed / "manifest.json", "--seed-release",
+                    root / "bootstrap/seeds/release.json", "--tool", "cupidc", "--",
+                    "--root", jail, "--gnu", "--freestanding", "-c", "/home/source.cc",
+                    "-o", "/home/checked.o"], check=True, timeout=180)
+    check(b"/home/source.cc\n/home/local.o\n", b"[cupidc-guest] wrote /home/local.o")
+    local = home / "local.o"
+    reference = (home / "checked.o").read_bytes()
+    assert local.read_bytes() == reference and not pending.exists()
+    check(b"/home/missing.cc\n/home/local.o\n", b"compilation failed: not_found")
+    assert local.read_bytes() == reference and not pending.exists()
+    print("Guest compiler matched the ISO and HomeFS objects and preserved eight rejected outputs.")

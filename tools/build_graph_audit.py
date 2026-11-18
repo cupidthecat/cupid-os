@@ -845,7 +845,7 @@ KNOWN_UNREACHABLE_SOURCE_POLICIES = {
     ),
     "bootstrap/guest/cupidc_guest_linux_contract.cc": (
         "host_fixture",
-        "Linux syscall fixture for the opt-in compiler, linker and object workers",
+        "Linux syscall fixture for the opt-in toolchain workers",
     ),
     "bootstrap/guest/engine_image.cc": (
         "host_fixture",

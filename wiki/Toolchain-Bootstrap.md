@@ -72,6 +72,10 @@ For a script layout, put `script` on the second job line and the script path
 on the third. The kernel replay uses the production `link.ld` and both
 ordered object sets from Make.
 
+Between the links, the guest symbol worker uses CupidDis and CupidObj to
+generate the kernel symbol source. CupidC reads it from HomeFS, and the
+second link uses the resulting object.
+
 CupidASM also reproduced the 2,560-byte production bootloader inside Cupid
 OS. CupidDis decoded the result with the generated mixed-mode range map.
 

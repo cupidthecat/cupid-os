@@ -6,6 +6,8 @@ Mount the compiler source ISO at /src. Run the staged worker ELF with exec.
 
 Place two LF-terminated lines in /home/cupidc.job. The first names the
 source relative to the ISO root. The second names the output under /home.
+An input under /home is read from HomeFS. Put local quoted headers next
+to that source.
 
   /toolchain/ctool.cc
   /home/ctool.o
@@ -35,6 +37,17 @@ script path on the third line. List objects in link order below it.
   script
   /disk/link.ld
   /disk/obj0/i000.o
+
+>h2 Generate kernel symbols
+
+In /home/cupidksyms.job, put the pass-one ELF path and the output source
+path on separate lines.
+
+  /home/pass1.elf
+  /home/ksyms_data.cc
+
+Stage the symbol worker as /cupks and run exec /disk/cupks. Compile the
+generated source with CupidC and append its object to the second link.
 
 >h2 Assemble a relocatable object
 

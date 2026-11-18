@@ -1,5 +1,32 @@
 # Bootstrapping log
 
+## 2026-11-18 — Build the kernel symbol table in Cupid OS
+
+The symbol worker runs CupidDis and CupidObj on the pass-one ELF. The
+checked Windows and WSL worker ELFs matched, SHA-256
+`073eac36b9386f9789776bd1e7a0fc5b1e0eefe403052058649c108ec6546104`.
+The Linux fixture matched the source produced by checked CupidBuild and
+preserved it across four rejected requests.
+
+CupidC can now read a source and its quoted headers from HomeFS. The ISO
+and writable-source fixtures passed and preserved earlier objects on
+eight rejected requests. A four-vCPU guest also rebuilt the production
+SHA-256 and SHA-512 sources from HomeFS. The 6,632-byte and 12,792-byte
+objects matched the checked build.
+
+A complete four-vCPU replay started with the 428 checked pass-one objects.
+CupidLD linked the first ELF, the symbol worker emitted a 437,798-byte
+source, and CupidC compiled it to the 132,492-byte symbol object. CupidLD
+used that guest-produced object in the second pass. CupidObj flattened the
+final ELF, and HomeFS readback matched all five artifacts byte for byte.
+The raw kernel retained SHA-256
+`01f737eb769ec52948c8739e0fc9062f147a7e888b4b255576bc42c4acfdaf6b`.
+A fresh disk with that kernel passed strict four-vCPU boot and the shell
+JIT smoke. A separate disk also booted using both the guest-assembled
+bootloader and the guest-flattened raw kernel.
+The updated source ISO passed readback for 48 files and seven directories,
+and the build-graph drift check passed.
+
 ## 2026-11-18 — Qualify the paired hosted seed candidate
 
 Fresh WSL and native Windows stages reproduced the six tools from the 114

@@ -7,7 +7,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Root Make target: `all`
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 801
-- Unreachable source-like files: 96
+- Unreachable source-like files: 97
 - Reachable output transforms: 452
 - Distinct feature requirements: 257
 - Make conditionals use the canonical `OS=Windows_NT` graph and the C locale fixes wildcard order on every host. Direct Linux build tests cover the Linux execution branch.
@@ -173,7 +173,7 @@ It is also a declared Make prerequisite.
 | `historical_copy` | 7 |
 | `host_fixture` | 12 |
 | `host_oracle` | 2 |
-| `not_reached` | 68 |
+| `not_reached` | 69 |
 | `superseded` | 4 |
 
 An exact content match does not by itself prove semantic duplication; path-sensitive compatibility headers remain removal-blocked.
@@ -195,8 +195,9 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bin/terminal_app.c` | `c` | `historical_copy` | 318 | historical_copy_of: `kernel/gui/terminal_app.cc` |
 | `bootstrap/guest/cupidc_engine.cc` | `cupid_c` | `not_reached` | 30 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_engine.h` | `c_header` | `not_reached` | 22 | not reachable from the supported Make target or include closure |
-| `bootstrap/guest/cupidc_guest.cc` | `cupid_c` | `not_reached` | 59 | not reachable from the supported Make target or include closure |
-| `bootstrap/guest/cupidc_guest_linux_contract.cc` | `cupid_c` | `host_fixture` | 188 | Linux syscall fixture for the opt-in compiler, linker and object workers |
+| `bootstrap/guest/cupidc_guest.cc` | `cupid_c` | `not_reached` | 61 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupidc_guest_linux_contract.cc` | `cupid_c` | `host_fixture` | 188 | Linux syscall fixture for the opt-in toolchain workers |
+| `bootstrap/guest/cupidksyms_guest.cc` | `cupid_c` | `not_reached` | 73 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidld_guest.cc` | `cupid_c` | `not_reached` | 162 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidobj_guest.cc` | `cupid_c` | `not_reached` | 47 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/engine_image.cc` | `cupid_c` | `host_fixture` | 72 | external compiler image loader used by the Linux fixed-point test |
@@ -289,7 +290,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 759 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 428 tracked + 4 generated translation units (KERNEL_I386=156, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, FREESTANDING_I386=1, CUPID_RUNTIME=108, HOSTED_TOOLCHAIN_64=0, HOSTED_KERNEL_BRIDGE_64=0, HOSTED_I386_LINUX=59, HOSTED_I386_WINDOWS=9, HOSTED_I386_KERNEL_BRIDGE=2, HOSTED_I386_LINUX_GNU=3, HOSTED_I386_WINDOWS_UTF8=1, HOSTED_I386_WINDOWS_PUBLICATION=1, HOSTED_I386_WINDOWS_BUILD=1, HOSTED_I386_WINDOWS_UTF8_GNU=1); 22 include-only, 2 non-root headers; 0 hosted deferred (0 external, 0 hermetic) |
-| `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable; 501 tracked .cc sources; 432 active with independent CupidC evidence; 69 unreachable |
+| `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable; 502 tracked .cc sources; 432 active with independent CupidC evidence; 70 unreachable |
 | `cupid_toolchain_fixed_point` | `pass` | 44 tool C sources (43 strict, 1 GNU); 6 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=8, cupidc=12, cupidbuild=30); 44 C objects and 1 startup object compared across stages; 6 tool images; 73 success and 66 failure cases; i386-linux |
 
 ## Interpretation limits
