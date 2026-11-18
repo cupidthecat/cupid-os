@@ -489,6 +489,19 @@ class DoomCupidCProductionTests(unittest.TestCase):
             "file->position + count > file->file_size", fat16_source
         )
         self.assertIn("if (blockcache_sync() == 0)", publish_helper)
+        write_data = write_file[
+            write_file.index("uint16_t cur_cluster = first_cluster;"):
+            write_file.index("/* Find or create directory entry */")
+        ]
+        self.assertEqual(write_data.count("blockcache_sync()"), 1)
+        self.assertLess(
+            write_data.rindex("if (bytes_written < size)"),
+            write_data.index("if (blockcache_sync() != 0)"),
+        )
+        self.assertIn(
+            "fat16_release_unpublished_chain(first_cluster);",
+            write_data[write_data.index("if (blockcache_sync() != 0)"):],
+        )
         self.assertIn(
             "blockcache_write(lba, original) == 0 && "
             "blockcache_sync() == 0",

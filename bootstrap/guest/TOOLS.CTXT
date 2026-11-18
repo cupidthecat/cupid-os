@@ -71,3 +71,5 @@ first line and a /home output path on the second line.
   /home/kernel.bin
 
 Stage the worker as /cupobj on the disk and run exec /disk/cupobj.
+HomeFS saves the worker output through a replacement file. FAT16 syncs its
+data chain before publishing the updated directory entry.

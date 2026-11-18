@@ -286,6 +286,10 @@ sync restores the previous sector when possible.
 ## HomeFS
 
 HomeFS serializes a nested logical tree into the FAT16 `HOMEFS.SYS` container.
+
+FAT16 writes a replacement container into a new cluster chain. It checks the
+data sync before changing the directory entry, then releases the older chain
+after the new entry is durable.
 Mounting an existing malformed container fails instead of importing a fresh
 tree over it. The decoder checks sizes, names, duplicate siblings, exact input
 consumption, and a 32-level depth limit.

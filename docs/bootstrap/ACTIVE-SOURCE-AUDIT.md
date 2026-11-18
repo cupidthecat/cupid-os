@@ -45,7 +45,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_core` | 17 | 4340 |
 | `kernel_cpu` | 19 | 3230 |
 | `kernel_crypto` | 40 | 5431 |
-| `kernel_fs` | 27 | 7783 |
+| `kernel_fs` | 27 | 7772 |
 | `kernel_gfx` | 29 | 14208 |
 | `kernel_gui` | 28 | 12525 |
 | `kernel_lang` | 20 | 11055 |
@@ -100,7 +100,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1533 |
 | `asm.relocation` | 1 | 95 |
-| `c.control` | 12 | 98241 |
+| `c.control` | 12 | 98238 |
 | `c.declaration` | 1 | 33 |
 | `c.declarator` | 4 | 4194 |
 | `c.expression` | 2 | 7297 |

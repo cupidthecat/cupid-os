@@ -1,5 +1,25 @@
 # Bootstrapping log
 
+## 2026-11-18 — Flush the FAT data chain once before publication
+
+The FAT writer lets the block cache write back sectors as needed and checks
+one final data sync before changing the directory entry. The regression
+check failed against the old driver because its data path had two sync sites.
+It passes with the final sync and unpublished-chain cleanup in place.
+
+A four-vCPU guest flattened the same production ELF and preserved all
+9,507,492 output bytes. The same run passed the dglibc storage checks,
+including cache writeback failure, busy FAT replacement and HomeFS batches.
+Its trace had no per-cluster flush messages.
+
+The checked kernel rebuild changed the raw size from 9,507,492 to 9,507,188
+bytes. The old exact-size gate rejected it. The measured row passed all
+16 artifact checks and the normal image recipe, followed by a strict
+four-vCPU boot. The Windows and WSL driver objects matched SHA-256
+`1459d35b42b974c53dbc6eb987a9c82eb5b5afacad12e10f7e9361af401ffa97`.
+See the
+[FAT writeback decision](../adr/0495-sync-fat-data-before-publishing-the-directory.md).
+
 ## 2026-11-18 — Build the kernel symbol table in Cupid OS
 
 The symbol worker runs CupidDis and CupidObj on the pass-one ELF. The

@@ -1109,17 +1109,6 @@ int fat16_write_file(const char *filename, const void *data, uint32_t size) {
 
             clusters_written++;
 
-            /* DIAGNOSTIC: Flush after EVERY cluster to force write-through */
-            if (clusters_written % 10 == 0) {
-                serial_printf("[WRITE] Flushing cache at cluster %u/%u\n", clusters_written,
-                              clusters_needed);
-            }
-            if (blockcache_sync() != 0) {
-                serial_printf("[fat16_write_file] data sync failed at cluster %u\n", cur_cluster);
-                fat16_release_unpublished_chain(first_cluster);
-                return -1;
-            }
-
             uint16_t next_cluster = fat16_read_fat_entry(cur_cluster);
             if (clusters_written < 5 || clusters_written % 50 == 0) {
                 serial_printf("[WRITE] cluster %u -> next %u (EOC if >= 0x%04X)\n", cur_cluster,
@@ -1142,7 +1131,7 @@ int fat16_write_file(const char *filename, const void *data, uint32_t size) {
             return -1;
         }
 
-        /* Final flush to ensure all remaining data is on disk */
+        /* Finish data writeback before publishing the new directory entry. */
         serial_printf("[WRITE] Final flush after writing all %u clusters\n", clusters_written);
         if (blockcache_sync() != 0) {
             serial_printf("[fat16_write_file] final data sync failed\n");

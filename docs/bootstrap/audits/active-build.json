@@ -53277,7 +53277,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 46101
+      "occurrences": 46099
     },
     {
       "category": "control",
@@ -53678,7 +53678,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28613
+      "occurrences": 28612
     },
     {
       "category": "control",
@@ -62623,7 +62623,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "9c35bad9424a405c3d20e798afaa8e1a07f967419de1038d21a70457a354f8c8",
+    "active_source_digest": "bc908de49340a49d5db16c052c55a3fa301ce7125ef791927831518b4df81a39",
     "control_files": [
       {
         "path": "Makefile",
@@ -79906,12 +79906,12 @@
         "kernel/fs/fat16_control.h"
       ],
       "language": "cupid_c",
-      "lines": 2003,
+      "lines": 1992,
       "origin": "tracked",
       "path": "kernel/fs/fat16.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "485d22c7fea80f40f394623aa6c2864cbfa59b530681fc80cb0a4411b1dcadfe"
+      "sha256": "ebfec4af7440eca87eb2353bbcf9ff3ee00fdd0f23fa0c508f2e69700f91a2b6"
     },
     {
       "build_owners": [
