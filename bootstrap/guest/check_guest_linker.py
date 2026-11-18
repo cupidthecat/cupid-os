@@ -74,7 +74,33 @@ def check(root: Path, scratch: Path) -> None:
         invoke(start.replace(b"0x01c00000", base.encode("ascii")) + objects,
                b"[cupidld-guest] wrote /home/test.elf")
         assert elf.read_bytes() == reference.read_bytes() and not pending.exists()
-    print("Guest linker matched both checked ELF images and preserved output across nine rejections.")
+
+    script = inputs / "link.ld"
+    script.write_text(
+        "ENTRY(_start)\nSECTIONS { . = 0x100000; .text : { *(.text) } }\n",
+        encoding="ascii",
+    )
+    script_job = b"/home/test.elf\nscript\n/inputs/link.ld\n" + objects
+    subprocess.run([*command, "cupidld", "--", "-m", "elf_i386", "-T", script,
+                    "-o", reference, inputs / "entry.o", inputs / "left.o"],
+                   check=True, timeout=120)
+    invoke(script_job, b"[cupidld-guest] wrote /home/test.elf")
+    assert elf.read_bytes() == reference.read_bytes() and not pending.exists()
+
+    script.write_text(
+        "ENTRY(_start)\nSECTIONS { . = 0x100000; .text : { *(.text) } "
+        'ASSERT(1 <= 0, "guest script guard") }\n',
+        encoding="ascii",
+    )
+    for request, marker in (
+        (script_job.replace(b"/inputs/link.ld", b"/inputs/../link.ld"), invalid),
+        (script_job.replace(b"/inputs/link.ld", b"/inputs/missing.ld"), failed + b": not_found"),
+        (script_job, b"guest script guard"),
+    ):
+        invoke(request, marker)
+        assert elf.read_bytes() == reference.read_bytes() and not pending.exists()
+
+    print("Guest linker matched three checked ELF images and preserved output across twelve rejections.")
 
 
 if __name__ == "__main__":

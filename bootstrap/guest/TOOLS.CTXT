@@ -28,6 +28,14 @@ Wait for its lease to be released before starting another worker.
 Both workers release cached work buffers before publishing output and
 again when the job ends.
 
+For a script layout, write script on the second line and the absolute
+script path on the third line. List objects in link order below it.
+
+  /home/kernel.elf
+  script
+  /disk/link.ld
+  /disk/obj0/i000.o
+
 >h2 Assemble a relocatable object
 
   as -f elf32 -o /home/start.o /home/start.asm

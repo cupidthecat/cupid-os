@@ -207,8 +207,8 @@ The base is `0x01c00000` for an ordinary executable or `0x01e00000` for a
 worker. The linker and compiler share their VFS and allocation callbacks.
 The completed ELF replaces the output through a rename within `/home`.
 
-`make -C bootstrap/guest check-guest-linker` compares both layouts with the
-checked host tool. Nine rejected requests preserve the previous output. Both
+`make -C bootstrap/guest check-guest-linker` compares fixed and script layouts
+with the checked host tool. Twelve rejected requests preserve the previous output. Both
 host syscall fixtures also check exact-size allocation reuse, recovery under
 heap pressure, and cleanup. The shared guest adapter bounds cached blocks to
 eight MiB and drains them before publishing a file or returning from a worker.
@@ -259,6 +259,43 @@ The rebuilt CupidC also compiled both CupidLD sources. CupidLD then linked five
 guest-produced objects into a byte-identical 251,904-byte copy of itself.
 The new linker produced the checked hello ELF from an object assembled inside
 Cupid OS. That program ran and released its external image lease.
+
+## Relink the production kernel
+
+Put `script` on the second line of `/home/cupidld.job` and the linker script
+path on the third line. The remaining paths are the objects in link order.
+CupidLD uses the same script parser and assertions as the checked host tool.
+
+```text
+/home/kernel.elf
+script
+/disk/link.ld
+/disk/obj0/i000.o
+```
+
+From a completed checked Linux or WSL build, run the kernel replay.
+
+```sh
+make -C bootstrap/guest guest-linker guest-object
+python3 bootstrap/guest/check_guest_kernel_link.py
+```
+
+The replay gets the ordered inputs from the normal Make recipes. It stages
+the existing objects, including the generated symbol-table object, runs both
+links and flattens the final ELF inside Cupid OS. It compares all three files
+after HomeFS readback and boots a disk made with the guest-produced raw kernel.
+`--production-root` selects another completed checked build.
+
+To rebuild the bootloader, stage `boot/boot.asm` as `/boot.asm` on the guest
+disk. CupidASM writes the mixed-mode range map along with the raw image.
+
+```text
+as -f bin --map /home/boot.map -o /home/boot.bin /disk/boot.asm
+dis --raw --range-map /home/boot.map --require-known /home/boot.bin
+```
+
+All 2,560 guest-produced bytes matched the checked bootloader. A rejected
+assembly preserved the saved image and its map remained usable by CupidDis.
 
 ## Compile peer tool objects
 

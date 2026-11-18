@@ -65,8 +65,15 @@ object paths, one per line. Stage the ELF as `/cupld` and run
 
 The linker supports the fixed addresses for ordinary executables and compiler
 workers. A four-vCPU run linked and executed `hello.elf`. The saved ELF
-matched the checked host link. The Linux check exercises both base addresses
-and rejected requests.
+matched the checked host link. The Linux check exercises both base addresses,
+script layouts and rejected requests.
+
+For a script layout, put `script` on the second job line and the script path
+on the third. The kernel replay uses the production `link.ld` and both
+ordered object sets from Make.
+
+CupidASM also reproduced the 2,560-byte production bootloader inside Cupid
+OS. CupidDis decoded the result with the generated mixed-mode range map.
 
 Cupid OS rebuilt all eleven standalone compiler objects and linked a new
 CupidC executable from them. The guest ELF matched the checked host build

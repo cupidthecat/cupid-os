@@ -1,5 +1,29 @@
 # Bootstrapping log
 
+## 2026-11-18 — Relink and boot the production kernel
+
+CupidLD now accepts a script path and an ordered object list in its guest
+job. The Windows and WSL worker ELFs matched, SHA-256
+`6a83e20e9d1bc42e60a018693cd83b9b5b9ea1fb71f98d9691e48e87cd5a02c6`.
+The Linux fixture matched both fixed layouts and the script layout. It
+preserved the previous output in all twelve rejection cases. The old worker
+rejected the new script job. The first assertion fixture used a spelling
+CupidLD does not support. The corrected fixture checks a failed `<=`
+assertion and its diagnostic.
+
+A four-vCPU replay linked the checked 428 pass-one objects and 429 final
+objects inside Cupid OS. HomeFS readback matched the 9,603,060-byte pass-one
+ELF, the 9,738,228-byte final ELF and the 9,507,492-byte raw kernel. A fresh
+disk using the guest-produced raw kernel passed strict boot and shell smoke.
+The first staging attempt filled one FAT directory. The replay now places at
+most 64 objects in each directory. The build-graph drift check also passed.
+
+CupidASM rebuilt the complete 2,560-byte production bootloader inside Cupid
+OS, SHA-256 `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
+A rejected assembly preserved those bytes. CupidDis decoded the image with
+its mixed-mode map and strict instruction checks. See the
+[kernel replay procedure](FREESTANDING-COMPILER-ENGINE.md#relink-the-production-kernel).
+
 ## 2026-11-18 — Rebuild CupidLD and flatten the kernel inside Cupid OS
 
 The rebuilt guest CupidC compiled both CupidLD sources. Their 126,964 and

@@ -53,16 +53,14 @@ def read_homefs(image: Path) -> bytes:
         return bytes(payload)
 
 
-def compare_objects(payload: bytes, include_frontend: bool) -> None:
+def compare_homefs_files(payload: bytes, references: dict[str, Path]) -> dict[str, bytes]:
     magic, version, count = struct.unpack_from("<III", payload)
     if magic != HOMEFS_MAGIC or version != 1:
         raise ValueError("invalid HOMEFS.SYS header")
 
     offset = 12
     paths = []
-    references = {"ctool.o": BUILD / "ctool.o"}
-    if include_frontend:
-        references["frontend.o"] = BUILD / "cupidc_frontend.o"
+    matched = {}
     for index in range(count):
         parent, _, size, name_size = struct.unpack_from("<IIII", payload, offset)
         offset += 16
@@ -81,18 +79,18 @@ def compare_objects(payload: bytes, include_frontend: bool) -> None:
 
         if path in references:
             data = payload[end_name:end_file]
-            if data != references.pop(path).read_bytes():
-                raise ValueError(f"guest /home/{path} differs from the checked object")
+            if path in matched or data != references[path].read_bytes():
+                raise ValueError(f"guest /home/{path} differs from the checked file")
             digest = hashlib.sha256(data).hexdigest()
             print(f"/home/{path} matches all {len(data)} bytes ({digest})")
+            matched[path] = data
         offset = end_file
-    if references:
-        raise ValueError(f"missing guest objects: {', '.join(references)}")
+    if missing := references.keys() - matched.keys():
+        raise ValueError(f"missing guest files: {', '.join(sorted(missing))}")
+    return matched
 
 
-def write_frontend_homefs(path: Path) -> None:
-    files = ((b"cupidc.job", COMPILE_JOB), (b"bad.job", REJECTED_JOB),
-             (b"front.job", FRONTEND_JOB), (b"src.iso", (BUILD / "engsrc.iso").read_bytes()))
+def write_homefs(path: Path, files: tuple[tuple[bytes, bytes], ...]) -> None:
     with path.open("wb") as output:
         output.write(struct.pack("<III", HOMEFS_MAGIC, 1, len(files) + 1))
         output.write(struct.pack("<IIII", 0xffffffff, 1, 0, 0))
@@ -102,11 +100,14 @@ def write_frontend_homefs(path: Path) -> None:
             output.write(contents)
 
 
-def create_disk(disk: Path, *staged: str) -> None:
+def create_disk(disk: Path, *staged: str, production_root: Path = ROOT,
+                kernel_image: Path | None = None) -> None:
     stage_args = [argument for item in staged for argument in ("--stage", item)]
+    if kernel_image is None:
+        kernel_image = production_root / "kernel/kernel.bin"
     run("tools/hostbuild.py", "image", "--seed-manifest", SEED_MANIFEST,
-        "--image", str(disk), "--bootloader", "boot/boot.bin",
-        "--kernel", "kernel/kernel.bin", "--hdd-mb", "200",
+        "--image", str(disk), "--bootloader", str(production_root / "boot/boot.bin"),
+        "--kernel", str(kernel_image), "--hdd-mb", "200",
         "--fat-start-lba", str(FAT_START_LBA), *stage_args)
 
 
@@ -122,7 +123,9 @@ def check(scratch: Path, qemu: str, timeout: float, include_frontend: bool) -> N
 
     if include_frontend:
         homefs = scratch / "homefs.sys"
-        write_frontend_homefs(homefs)
+        write_homefs(homefs, ((b"cupidc.job", COMPILE_JOB), (b"bad.job", REJECTED_JOB),
+                             (b"front.job", FRONTEND_JOB),
+                             (b"src.iso", (BUILD / "engsrc.iso").read_bytes())))
         create_disk(disk, f"{homefs}:/homefs.sys", worker)
         source_iso, requests = "/home/src.iso", "/home"
     else:
@@ -155,7 +158,10 @@ def check(scratch: Path, qemu: str, timeout: float, include_frontend: bool) -> N
     command, pattern = commands[-1]
     run(*smoke, "--log", str(BUILD / f"cupidc-{log_name}-runtime.log"), *arguments,
         "--command", command, "--success-pattern", pattern)
-    compare_objects(read_homefs(disk), include_frontend)
+    references = {"ctool.o": BUILD / "ctool.o"}
+    if include_frontend:
+        references["frontend.o"] = BUILD / "cupidc_frontend.o"
+    compare_homefs_files(read_homefs(disk), references)
 
 
 def main() -> None:

@@ -93276,11 +93276,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 143,
+      "lines": 162,
       "path": "bootstrap/guest/cupidld_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "3906729af749cddbdbd708b8f5a3a2e8a18270cf8a46f7026b35882471726e5a"
+      "sha256": "792125b090a4d19715f9e04796c07bf84465bbf1fdc0e08bfe398c3939c9e36b"
     },
     {
       "classification": "not_reached",

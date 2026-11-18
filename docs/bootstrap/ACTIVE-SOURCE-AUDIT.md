@@ -197,7 +197,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bootstrap/guest/cupidc_engine.h` | `c_header` | `not_reached` | 22 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_guest.cc` | `cupid_c` | `not_reached` | 59 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_guest_linux_contract.cc` | `cupid_c` | `host_fixture` | 188 | Linux syscall fixture for the opt-in compiler, linker and object workers |
-| `bootstrap/guest/cupidld_guest.cc` | `cupid_c` | `not_reached` | 143 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupidld_guest.cc` | `cupid_c` | `not_reached` | 162 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidobj_guest.cc` | `cupid_c` | `not_reached` | 47 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/engine_image.cc` | `cupid_c` | `host_fixture` | 72 | external compiler image loader used by the Linux fixed-point test |
 | `bootstrap/guest/engine_image.h` | `c_header` | `host_fixture` | 23 | image-plan interface used by the Linux fixed-point test |
