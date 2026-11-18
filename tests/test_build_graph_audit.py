@@ -10431,7 +10431,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "active_sources": 801,
                     "features": 257,
                     "transforms": 452,
-                    "unreachable_sources": 91,
+                    "unreachable_sources": 94,
                 },
             )
             features = {
@@ -10459,8 +10459,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ):
                 self.assertEqual(unreachable[fixture], "host_fixture")
             expected_c_expression_inventory = {
-                "c.declaration.static_assert": (32, 8),
-                "c.expression.sizeof": (7250, 198),
+                "c.declaration.static_assert": (33, 8),
+                "c.expression.sizeof": (7251, 198),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }

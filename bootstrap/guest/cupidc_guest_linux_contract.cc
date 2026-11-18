@@ -1,7 +1,11 @@
 #include "ctool_host.h"
 #include "cupid.h"
 
-void cupidc_guest_run(cupid_syscall_table_t *sys);
+#ifndef CUPID_TEST_GUEST_ENTRY
+#define CUPID_TEST_GUEST_ENTRY cupidc_guest_run
+#endif
+
+void CUPID_TEST_GUEST_ENTRY(cupid_syscall_table_t *sys);
 int cupid_linux_syscall1(int number, unsigned int argument);
 int cupid_linux_syscall2(int number, unsigned int first, unsigned int second);
 int cupid_linux_syscall3(int number, unsigned int first, unsigned int second, unsigned int third);
@@ -141,6 +145,6 @@ int main(int argc, char **argv) {
     sys.vfs_unlink = host_unlink;
     sys.serial_write_string = host_serial;
     sys.serial_write_char = host_serial_char;
-    cupidc_guest_run(&sys);
+    CUPID_TEST_GUEST_ENTRY(&sys);
     return live_allocations != 0;
 }

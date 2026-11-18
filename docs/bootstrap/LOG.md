@@ -1,5 +1,42 @@
 # Bootstrapping log
 
+## 2026-11-17 — Link ELF executables in Cupid OS
+
+The opt-in CupidLD worker links the existing core and shares the compiler's
+VFS, allocation and publication callbacks. Its job file names the output,
+the text base, the entry and the ordered objects. The worker supports the
+ordinary and compiler ELF arenas.
+
+Windows and WSL produced the same 251,824-byte worker, with SHA-256
+`98259239f76cacaa5fc954cf918f595cf57aeed4f5b8f432cdcab6272fe1e164`.
+The Linux fixture reproduced checked ELF bytes at both bases and verified
+nine rejected jobs. The compiler fixture passed all seven rejection checks
+after sharing the callbacks.
+
+QEMU linked and ran the 13,992-byte hello executable on four vCPUs. An invalid
+base preserved the result and released the worker lease. Readback matched
+the checked host executable. The expanded source ISO passed its 38-file,
+seven-directory readback, incomplete-inventory and unchanged-output checks.
+
+The ownership audit includes the opt-in linker and shared adapter outside
+the normal graph. The generated inventory and its contract both passed.
+
+CupidC rebuilt the shared adapter from the new source ISO. CupidLD linked
+that guest object and ten checked host objects into a new compiler. The
+new compiler ran and rebuilt the same adapter again. Its 8,576 persisted
+object bytes and the 2,504,368-byte compiler ELF matched the checked host
+outputs. The planned switch to a second request did not take effect, so
+the relinked executable repeated the adapter job.
+
+A separate assembler probe found that CupidASM gives its .rodata section
+no allocation flag. CupidLD then rejects an absolute relocation to the
+message in that section. The NASM oracle and an isolated CupidASM patch
+both emit allocatable read-only data with four-byte alignment. The patch
+is under guest verification.
+
+Kernel links still use their checked scripts and existing build driver.
+See the [worker decision](../adr/0486-run-cupidld-as-a-guest-worker.md).
+
 ## 2026-11-17 — Run the standalone compiler in Cupid OS
 
 A separate lease from 30 to 34 MiB keeps the standalone compiler and

@@ -53,6 +53,19 @@ as `/cupcc` on the guest disk. The first QEMU run rebuilt `ctool.o`
 byte for byte and released the worker lease.
 [Engine build and evidence](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md)
 
+## Guest linker
+
+`make -C bootstrap/guest guest-linker` builds the CupidLD worker. Set up
+`/home/cupidld.job` with the output path, text base, entry symbol and ordered
+object paths, one per line. Stage the ELF as `/cupld` and run
+`exec /disk/cupld`. The source ISO includes the job format in
+`/src/bootstrap/guest/TOOLS.CTXT`.
+
+The linker supports the fixed addresses for ordinary executables and compiler
+workers. A four-vCPU run linked and executed `hello.elf`. The saved ELF
+matched the checked host link. The Linux check exercises both base addresses
+and rejected requests.
+
 ## History
 
 The [bootstrap log](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/LOG.md)

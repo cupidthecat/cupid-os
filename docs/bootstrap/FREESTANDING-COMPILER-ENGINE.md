@@ -178,12 +178,37 @@ Through the Linux syscall fixture, the full frontend produced the same
 1,024,260-byte object as the checked host compiler and released its allocations.
 The first full frontend run in QEMU reached its 900-second limit.
 
-A private CupidLD adapter also linked the 2,498,900-byte standalone worker
-from ten host-built objects inside Cupid OS. The worker matched the checked
-ELF byte for byte, then compiled `ctool.cc` as a second guest process. The
-adapter is experimental. This proves guest relinking with the checked
-objects. A full guest fixed point requires rebuilding all ten objects
-inside Cupid OS.
+## Link objects inside Cupid OS
+
+`make -C bootstrap/guest guest-linker` builds
+`build/guest-engine/cupidld-guest.elf`. Stage it onto the guest disk as
+`/cupld`. Put the output path, text base, entry symbol and ordered object
+paths in `/home/cupidld.job`, then run `exec /disk/cupld`.
+
+```text
+/home/hello.elf
+0x01c00000
+_start
+/home/hello.o
+```
+
+The base is `0x01c00000` for an ordinary executable or `0x01e00000` for a
+worker. The linker and compiler share their VFS and allocation callbacks.
+The completed ELF replaces the output through a rename within `/home`.
+
+`make -C bootstrap/guest check-guest-linker` compares both layouts with the
+checked host tool. Nine rejected requests preserve the previous output. The
+four-vCPU QEMU run linked `hello.elf`, rejected a request targeting the kernel
+stack and then ran the preserved ELF. Its 13,992 persisted bytes matched the
+checked host link.
+
+The source ISO includes both worker sources, their shared adapter,
+`user/cupid.h` and `/src/bootstrap/guest/TOOLS.CTXT`. Its checked readback
+matched all 38 files and seven directories. CupidC rebuilt the shared
+adapter inside the guest. CupidLD linked that object with ten checked host
+objects and produced a byte-identical compiler ELF. The relinked compiler
+ran and rebuilt the same adapter. Building all compiler inputs inside the
+guest remains open.
 
 ## Retained proof
 
