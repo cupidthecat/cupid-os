@@ -1,5 +1,38 @@
 # Bootstrapping log
 
+## 2026-11-18 — Rebuild CupidLD and flatten the kernel inside Cupid OS
+
+The rebuilt guest CupidC compiled both CupidLD sources. Their 126,964 and
+12,188 bytes matched the checked host objects. CupidLD linked five objects
+produced inside Cupid OS into a 251,904-byte copy of itself, SHA-256
+`c00f59ed489be70590c12223536e1b4c17f7ea8a235e4c3d335a58e5ae028969`.
+That copy linked a guest-assembled object into the same 8,536-byte hello ELF
+as the checked host tools. The program ran in Cupid OS and reported
+`fnv1a=0x64881ddf`. Both linker and external program leases were released.
+
+The rebuilt compiler reproduced the checked CupidASM, CupidDis and CupidObj
+core objects in Cupid OS. Windows and WSL references matched all three
+objects, respectively 169,608, 223,128 and 215,040 bytes. The opt-in source ISO
+now carries 47 files and seven directories. An incremental run that reused
+the previous ISO failed the inventory comparison. A fresh package passed
+the inventory, rejected-input and unchanged-output checks.
+
+The new CupidObj worker produced the same ELF32 load image as the checked
+hosted tool. Its contract exercises seven rejected requests and checks that
+earlier output survives. The seven compiler and nine linker rejection cases
+also passed. The Windows and WSL object worker ELFs matched, SHA-256
+`a9da230e7e4828de848a290b9dde55a94848fe679956f946a5bb763678371869`.
+In a four-vCPU guest, CupidObj opened the production kernel ELF from FAT,
+persisted 9,507,492 bytes in HomeFS and released the worker lease. All bytes
+matched the checked raw kernel, SHA-256
+`01f737eb769ec52948c8739e0fc9062f147a7e888b4b255576bc42c4acfdaf6b`.
+The audit initially rejected the new EHCI fixture without an ownership
+entry. It now records that fixture as a host test and the object worker as
+part of the opt-in build. The normal graph still has 801 sources and 452
+transforms.
+See the [object worker decision](../adr/0492-flatten-elf-images-in-cupid-os.md)
+and [guest jobs](FREESTANDING-COMPILER-ENGINE.md).
+
 ## 2026-11-18 — Rebuild standalone CupidC inside Cupid OS
 
 At `c8447942`, CupidC rebuilt all eleven inputs to the standalone compiler

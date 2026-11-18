@@ -7,43 +7,18 @@
 #define JOB_ARENA_BYTES (192u * 1024u * 1024u)
 
 static int read_request(char *file, ctool_invocation_request_t *invocation) {
-    int size = __sys->vfs_read_text(JOB_PATH, file, 2u * VFS_MAX_PATH + 1u);
-    if (size < 1)
+    if (!cupid_guest_read_path_job(__sys, JOB_PATH, file, invocation))
         return 0;
-    int split = 0;
-    while (split < size && file[split] != '\n' && file[split] != '\0' && file[split] != '\r')
-        split++;
-    if (split == 0 || split >= VFS_MAX_PATH || split >= size || file[split] != '\n')
-        return 0;
-    file[split] = '\0';
-
-    char *output = file + split + 1;
-    int length = size - split - 1;
-    if (length > 0 && output[length - 1] == '\n')
-        output[--length] = '\0';
-    if (length < 8 || length >= VFS_MAX_PATH || strncmp(output, "/home/", 6u) != 0 ||
-        output[length - 2] != '.' || output[length - 1] != 'o' ||
-        strcmp(output, PENDING_PATH) == 0)
-        return 0;
-    for (int i = 6; i < length; i++) {
-        if (output[i] == '\0' || output[i] == '\n' || output[i] == '\r')
-            return 0;
-    }
-
-    ctool_path_t input_path = {{file, (ctool_u32)split}};
-    ctool_path_t output_path = {{output, (ctool_u32)length}};
-    if (!ctool_path_is_canonical(&input_path) || !ctool_path_is_canonical(&output_path))
-        return 0;
-    invocation->input_path = input_path.text;
-    invocation->output_path = output_path.text;
-    return 1;
+    ctool_string_t output = invocation->output_path;
+    return output.size >= 8u && strcmp(output.data + output.size - 2u, ".o") == 0 &&
+           strcmp(output.data, PENDING_PATH) != 0;
 }
 
 void cupidc_guest_run(cupid_syscall_table_t *sys) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
         return;
     cupid_init(sys);
-    char file[2u * VFS_MAX_PATH + 1u];
+    char file[CUPID_GUEST_PATH_JOB_BYTES];
     ctool_c_engine_request_t request = {0};
     if (!read_request(file, &request.invocation)) {
         sys->serial_write_string("[cupidc-guest] invalid request file: " JOB_PATH "\n");

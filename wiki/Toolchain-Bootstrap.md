@@ -72,8 +72,23 @@ Cupid OS rebuilt all eleven standalone compiler objects and linked a new
 CupidC executable from them. The guest ELF matched the checked host build
 byte for byte. It ran in Cupid OS and reproduced `ctool.o` again.
 
-The compiler and linker reuse released work buffers during each job. Both
-drain the cache before publishing a file and when the worker returns.
+The rebuilt compiler produced the linker objects. The guest linker then
+rebuilt itself from all five guest objects and linked a guest-assembled
+hello program. Cupid OS ran the resulting program.
+
+The source ISO also carries the shared CupidASM, CupidDis and CupidObj
+sources and headers. `make -C bootstrap/guest peer-objects` builds the checked
+reference objects for comparisons with guest output.
+
+## Guest CupidObj
+
+`make -C bootstrap/guest guest-object` builds the ELF flattener. Stage it as
+`/cupobj`, place the ELF path and a `/home` output path on separate lines in
+`/home/cupidobj.job`, then run `exec /disk/cupobj`.
+
+The guest flattener reproduced all 9,507,492 bytes of the checked raw kernel.
+Each worker reuses released work buffers and drains the cache before
+publishing output and on return.
 
 ## History
 

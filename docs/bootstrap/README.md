@@ -9,6 +9,10 @@ Cupid OS remains unfinished.
 
 - The normal graph has 452 transforms: 449 use CupidBuild and three retain
   Python coordination. GNU Make still schedules the build.
+- CupidC and CupidLD have rebuilt and run their own standalone executables
+  inside Cupid OS. The rebuilt compiler reproduced the CupidASM, CupidDis
+  and CupidObj core objects. The guest CupidObj flattened the production
+  kernel ELF with a byte-for-byte match. See the [guest build record](FREESTANDING-COMPILER-ENGINE.md).
 - Source-owner modules are in current producer plans, and paired named
   preparations reach a fixed point. The C reader now recognizes their exact
   behavior profiles. Both refreshed full qualifications pass. Replacement-tool

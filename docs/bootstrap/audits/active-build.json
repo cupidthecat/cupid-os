@@ -47054,13 +47054,13 @@
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
         "residual_c_sources": 17,
         "runtime_delivery_sources": 130,
-        "sha256": "b8cf4ba1f17ecb67ea723a70e55bade3ee9b2c47cd5c4533add81052380b2d6a",
-        "unreachable_cupid_c_sources": 67
+        "sha256": "41271998b8475a9b7f877ca6fac323680687cf1a4656e9d50fa0f4b182d1c990",
+        "unreachable_cupid_c_sources": 69
       },
       "proven_cupidc_owned_tracked_cupid_c_sources": 432,
       "status": "pass",
       "tracked_c_sources": 17,
-      "tracked_cupid_c_sources": 499,
+      "tracked_cupid_c_sources": 501,
       "unreachable": [
         {
           "classification": "historical_copy",
@@ -47163,6 +47163,11 @@
           "policy": "source_suffix_policy"
         },
         {
+          "classification": "not_reached",
+          "path": "bootstrap/guest/cupidobj_guest.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
           "classification": "host_fixture",
           "path": "bootstrap/guest/engine_image.cc",
           "policy": "source_suffix_policy"
@@ -47185,6 +47190,11 @@
         {
           "classification": "not_reached",
           "path": "tests/support/windows_i386_oracle.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "host_fixture",
+          "path": "tests/usb_ehci_quiescence_contract.cc",
           "policy": "source_suffix_policy"
         },
         {
@@ -47469,7 +47479,7 @@
         }
       ],
       "unreachable_tracked_c_sources": 17,
-      "unreachable_tracked_cupid_c_sources": 67
+      "unreachable_tracked_cupid_c_sources": 69
     },
     "cupid_toolchain_fixed_point": {
       "checked_seed_publication": "complete-bundle",
@@ -62624,7 +62634,7 @@
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
-        "sha256": "b8cf4ba1f17ecb67ea723a70e55bade3ee9b2c47cd5c4533add81052380b2d6a"
+        "sha256": "41271998b8475a9b7f877ca6fac323680687cf1a4656e9d50fa0f4b182d1c990"
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
@@ -62645,7 +62655,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "c8dbdac9e0eb7ec2c4ccf74ca6483f5d848b71a76805d301abbc3703df057a1c"
+      "sha256": "c4d4e7d79ee443226e4328117d3b81b541eac58e8220e9e53c26f2f0578ec6da"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -92427,7 +92437,7 @@
     "active_sources": 801,
     "features": 257,
     "transforms": 452,
-    "unreachable_sources": 94
+    "unreachable_sources": 96
   },
   "supplemental_builds": [
     {
@@ -93246,11 +93256,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 84,
+      "lines": 59,
       "path": "bootstrap/guest/cupidc_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "01c1f1923030ed1758a86a8cea34081e6c0791d26da6ecf2700d638a90ada0c3"
+      "sha256": "c80025bf96e063982782f2337f4fc13b1db06faf60a74fadb15c5fc4c0b91d52"
     },
     {
       "classification": "host_fixture",
@@ -93258,7 +93268,7 @@
       "language": "cupid_c",
       "lines": 188,
       "path": "bootstrap/guest/cupidc_guest_linux_contract.cc",
-      "reason": "Linux syscall fixture for the opt-in compiler and linker workers",
+      "reason": "Linux syscall fixture for the opt-in compiler, linker and object workers",
       "relations": [],
       "sha256": "25dca17d7409779f2d157db0b7b5bb13f04a94482a5bcd95ca38744b33b066aa"
     },
@@ -93271,6 +93281,16 @@
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
       "sha256": "3906729af749cddbdbd708b8f5a3a2e8a18270cf8a46f7026b35882471726e5a"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 47,
+      "path": "bootstrap/guest/cupidobj_guest.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "3c0a19fd30528fdb7980f01aa6fda9186ec8b12ee5825c081a3cd436fdddcb21"
     },
     {
       "classification": "host_fixture",
@@ -93306,21 +93326,21 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 154,
+      "lines": 187,
       "path": "bootstrap/guest/guest_job.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "56dbab149b6040354869bcf44f38b1035fafaf8f1904bdf196369c2225b79dd7"
+      "sha256": "c2cf55ce6a3dc1312f9bbf693f1d05ced571582b9c610ce56795d3e3d36dba17"
     },
     {
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "c_header",
-      "lines": 29,
+      "lines": 34,
       "path": "bootstrap/guest/guest_job.h",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "12bc922f43f1539335f3377bd78c3e7bf06bd73643d36c341dcb14d3fa0afeff"
+      "sha256": "81745afa9977137f4020138c66f9a367241bc44e441b72521433323fbcf4103a"
     },
     {
       "classification": "superseded",
@@ -93445,6 +93465,16 @@
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
       "sha256": "3d0b60ebd775448b51fbc3e4e068b8699a8c1d82fa669b4b4a49fa1b0cccd347"
+    },
+    {
+      "classification": "host_fixture",
+      "duplicate_of": [],
+      "language": "cupid_c",
+      "lines": 82,
+      "path": "tests/usb_ehci_quiescence_contract.cc",
+      "reason": "native EHCI shutdown fixture compiled by the host test harness",
+      "relations": [],
+      "sha256": "33dcdcc1c488729060009174342b0f5bbde7f13868e50607d2950e2ee65422fd"
     },
     {
       "classification": "host_fixture",

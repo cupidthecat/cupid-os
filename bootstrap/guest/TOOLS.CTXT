@@ -34,3 +34,19 @@ again when the job ends.
 
 The assembler gives .rodata four-byte default alignment. CupidLD places
 the bytes in a read-only ELF segment and resolves references to its labels.
+
+>h2 Compile peer tool sources
+
+Use the same compiler job format with /toolchain/cupidasm.cc,
+/toolchain/cupiddis.cc or /toolchain/cupidobj.cc. The ISO includes their
+headers. Keep the resulting objects under /home.
+
+>h2 Flatten an ELF image
+
+The CupidObj worker reads /home/cupidobj.job. Put the input ELF path on the
+first line and a /home output path on the second line.
+
+  /disk/kern.elf
+  /home/kernel.bin
+
+Stage the worker as /cupobj on the disk and run exec /disk/cupobj.

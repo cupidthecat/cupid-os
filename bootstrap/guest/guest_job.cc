@@ -3,6 +3,39 @@
 #define GUEST_ENOENT (-2)
 #define GUEST_ENOSPC (-28)
 
+int cupid_guest_read_path_job(cupid_syscall_table_t *sys, const char *job_path,
+                              char *file, ctool_invocation_request_t *invocation) {
+    int size = sys->vfs_read_text(job_path, file, CUPID_GUEST_PATH_JOB_BYTES);
+    if (size < 1 || (ctool_u32)size >= CUPID_GUEST_PATH_JOB_BYTES)
+        return 0;
+    file[size] = '\0';
+    int split = 0;
+    while (split < size && file[split] != '\n' && file[split] != '\0' && file[split] != '\r')
+        split++;
+    if (split == 0 || split >= VFS_MAX_PATH || split >= size || file[split] != '\n')
+        return 0;
+    file[split] = '\0';
+
+    char *output = file + split + 1;
+    int length = size - split - 1;
+    if (length > 0 && output[length - 1] == '\n')
+        output[--length] = '\0';
+    if (length < 7 || length >= VFS_MAX_PATH || sys->strncmp(output, "/home/", 6u) != 0)
+        return 0;
+    for (int i = 6; i < length; i++) {
+        if (output[i] == '\0' || output[i] == '\n' || output[i] == '\r')
+            return 0;
+    }
+
+    ctool_path_t input = {{file, (ctool_u32)split}};
+    ctool_path_t destination = {{output, (ctool_u32)length}};
+    if (!ctool_path_is_canonical(&input) || !ctool_path_is_canonical(&destination))
+        return 0;
+    invocation->input_path = input.text;
+    invocation->output_path = destination.text;
+    return 1;
+}
+
 static ctool_status_t file_failure(int status) {
     if (status == GUEST_ENOENT)
         return CTOOL_ERR_NOT_FOUND;

@@ -218,7 +218,7 @@ checked host link.
 
 The source ISO includes both worker sources, their shared adapter,
 `user/cupid.h` and `/src/bootstrap/guest/TOOLS.CTXT`. Its checked readback
-matched all 38 files and seven directories. The first relink used one guest
+matches 47 files and seven directories. The first relink used one guest
 object and ten checked host objects. The full reconstruction below uses
 eleven guest-built inputs.
 
@@ -253,8 +253,41 @@ checked host objects. The complete 2,504,444-byte executable saved by the
 guest linker matched the checked host ELF, SHA-256
 `a2c0c9ff6f0cfb17c17e10cba4e0c5d567f0ba575d577e4baac7242c6cf0fe88`.
 `exec /home/rebuilt.elf` then rebuilt `ctool.o` under a second name. All
-41,864 bytes matched and both worker leases were released. The complete
-toolchain and OS image still need an in-guest build.
+41,864 bytes matched and both worker leases were released.
+
+The rebuilt CupidC also compiled both CupidLD sources. CupidLD then linked five
+guest-produced objects into a byte-identical 251,904-byte copy of itself.
+The new linker produced the checked hello ELF from an object assembled inside
+Cupid OS. That program ran and released its external image lease.
+
+## Compile peer tool objects
+
+`make -C bootstrap/guest peer-objects source-iso` builds checked host
+references for the shared CupidASM, CupidDis and CupidObj cores and packages
+their sources and headers. The guest compiler accepts `/toolchain/cupidasm.cc`,
+`/toolchain/cupiddis.cc` and `/toolchain/cupidobj.cc` in the same job format.
+Compare the resulting objects with the corresponding files in
+`build/guest-engine`.
+
+## Flatten an ELF image inside Cupid OS
+
+Build the CupidObj worker with `make -C bootstrap/guest guest-object`. Stage
+`build/guest-engine/cupidobj-guest.elf` as `/cupobj`. Put the ELF input and
+the raw output path in `/home/cupidobj.job`.
+
+```text
+/disk/kern.elf
+/home/kernel.bin
+```
+
+Run `exec /disk/cupobj`. The worker accepts ELF inputs up to 16 MiB, writes
+the initialized load image, and releases its worker lease. On Linux or WSL,
+`make -C bootstrap/guest check-guest-object` compares the output against the
+checked hosted CupidObj and exercises rejected requests.
+
+In a four-vCPU guest, the production ELF flattened to 9,507,492 bytes.
+HomeFS readback matched the checked host output, SHA-256
+`01f737eb769ec52948c8739e0fc9062f147a7e888b4b255576bc42c4acfdaf6b`.
 
 ## Retained proof
 

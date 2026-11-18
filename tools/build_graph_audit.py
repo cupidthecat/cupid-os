@@ -831,6 +831,10 @@ KNOWN_UNREACHABLE_SOURCE_POLICIES = {
         "host_fixture",
         "native USB behavior fixture compiled by the host test harness",
     ),
+    "tests/usb_ehci_quiescence_contract.cc": (
+        "host_fixture",
+        "native EHCI shutdown fixture compiled by the host test harness",
+    ),
     "tests/usb_msc_lifetime_contract.c": (
         "host_fixture",
         "native USB behavior fixture compiled by the host test harness",
@@ -841,7 +845,7 @@ KNOWN_UNREACHABLE_SOURCE_POLICIES = {
     ),
     "bootstrap/guest/cupidc_guest_linux_contract.cc": (
         "host_fixture",
-        "Linux syscall fixture for the opt-in compiler and linker workers",
+        "Linux syscall fixture for the opt-in compiler, linker and object workers",
     ),
     "bootstrap/guest/engine_image.cc": (
         "host_fixture",
