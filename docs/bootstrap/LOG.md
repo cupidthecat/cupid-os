@@ -1,5 +1,13 @@
 # Bootstrapping log
 
+## 2026-11-21 — Boot the kernel linked from the read-only plan
+
+The seven-step media plan consumed 430 checked pass-one objects. Both
+links, the symbol source and object, the bootloader, the raw kernel, and
+the disk prefix matched the checked files byte for byte. The disk booted
+with four CPUs and passed TLS, e1000, DHCP, and `ls`. The replay that
+builds its own pass-one objects is still running.
+
 ## 2026-11-21 — Document the PS/2 keyboard driver
 
 The Doxygen header replaces the existing title without shifting code lines.

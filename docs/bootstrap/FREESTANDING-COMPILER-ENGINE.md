@@ -661,6 +661,14 @@ plan ISOs, and builds five files. The ISR object, generated demo source
 and object, and `hello` object and executable match the hosted build.
 The guest runs the resulting `hello` executable.
 
+A second media replay staged the 430 checked pass-one objects on FAT16
+and ran the final seven steps from `/plan`. The bootloader, both ELFs,
+symbol source and object, raw kernel, and disk prefix matched the checked
+build. The 10,697,216-byte prefix had SHA-256
+`a46676434647dfdc79e6e2f387f4c6b5a9fb42e04c29a0baa9ff644ef63251be`.
+The resulting disk booted with four CPUs and passed TLS, e1000, DHCP,
+and `ls`.
+
 The default mode keeps every object in HomeFS. In the earlier HomeFS plan
 replay, all 428 pass-one objects, the generated symbol object, three
 installation sources, the trampoline, and the final boot and kernel
