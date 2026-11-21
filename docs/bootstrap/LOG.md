@@ -16,6 +16,11 @@ step produced identical raw kernels. An isolated image build passed all
 libc markers, including the HomeFS batch test. The guest disk worker also
 saved and booted a matching 10,697,216-byte disk prefix.
 
+The two-stage frontier replay compiled 156 sources per stage. Its aggregate
+assertion caught the old total object size. The 324-byte FAT16 object growth
+puts the checked total at 4,258,428 bytes. All assertions passed against an
+independent readback of the checked production objects.
+
 ## 2026-11-20 — Assemble the production kernel objects in Cupid OS
 
 The shell assembler added kernel bindings to the ISR object. The standalone

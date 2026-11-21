@@ -42,6 +42,11 @@ fixture file for ELF objects and expected inputs. Each test body kept
 its original assertions. The three files have 739, 963 and 901 lines.
 All 36 tests in the two new suites passed on Windows.
 
+The 2,348-line kernel frontier suite now keeps its source lists and fake
+compiler in a 376-line fixture module. The 1,953-line suite keeps its Make
+entry point. The split drops an unused seed helper. All 39 focused tests
+passed on Windows and WSL.
+
 ## Doom production tests
 
 The 2,456-line Doom suite now separates compiler and Make coverage from
