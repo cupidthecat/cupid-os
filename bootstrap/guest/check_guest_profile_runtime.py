@@ -75,7 +75,7 @@ def compile_profile_batch(scratch: Path, root: Path, profile: str, sources: list
     publish_profile_iso(iso, root, sources, profile)
     jobs = []
     references = {}
-    commands = [("mount /disk/profile.iso /src", r"VFS: mounted 'iso9660' at '/src'")]
+    commands = [("mount /disk/p.iso /src", r"VFS: mounted 'iso9660' at '/src'")]
     for index, source in enumerate(sources):
         output = f"obj{index}.o"
         job = f"cc{index}.job" if index else "cupidc.job"
@@ -83,20 +83,20 @@ def compile_profile_batch(scratch: Path, root: Path, profile: str, sources: list
         jobs.append((job.encode("ascii"), compile_job(source, profile, output)))
         if index:
             commands.append((f"cp /home/{job} /home/cupidc.job", r"\[terminal\] command complete"))
-        commands.append(("exec /disk/cupcc", rf"\[cupidc-guest\] wrote /home/obj{index}[.]o" + COMPILER_REAPED))
+        commands.append(("exec /disk/c", rf"\[cupidc-guest\] wrote /home/obj{index}[.]o" + COMPILER_REAPED))
 
     homefs = scratch / "homefs.sys"
     write_homefs(homefs, tuple(jobs))
     disk = scratch / "profile.img"
-    create_disk(disk, f"{homefs}:/homefs.sys", f"{iso}:/profile.iso",
-                f"{BUILD / 'cupidc-guest.elf'}:/cupcc", production_root=root)
+    create_disk(disk, f"{homefs}:/homefs.sys", f"{iso}:/p.iso",
+                f"{BUILD / 'cupidc-guest.elf'}:/c", production_root=root)
     arguments = []
     for command, pattern in commands[:-1]:
         arguments.extend(("--setup-command", command, "--setup-success-pattern", pattern))
     command, pattern = commands[-1]
     log = BUILD / f"production-profile-{sources[0].replace('/', '-')}.log"
     run("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "4",
-        "--cpu", "max", "--nic", "e1000", "--timeout", str(timeout),
+        "--cpu", "max", "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.5",
         "--image", str(disk), "--log", str(log), "--require-command-completion",
         *arguments, "--command", command, "--success-pattern", pattern)
 

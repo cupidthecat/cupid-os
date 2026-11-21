@@ -1,5 +1,13 @@
 # Bootstrapping log
 
+## 2026-11-21 — Rebuild the kernel parser inside Cupid OS
+
+The production-profile replay compiled `kernel/lang/cupidc_parse.cc` in
+the guest. Its 491,708-byte object matched the checked build.
+The first boot missed the final key in `/src` and mounted at `/sr`.
+Shorter staged filenames and a longer key pause let the retry mount at the
+expected path and run the compiler.
+
 ## 2026-11-21 — Link a kernel with guest-wrapped assets
 
 The kernel replay used the guest-built `bin/ls.o` and `image.bmp.o` in both
