@@ -80,6 +80,13 @@ All 102 cases passed on WSL. Windows passed with three platform skips.
 The first pair shared a checkout and hit the root-change guard. Both
 retries ran in separate checkouts and kept that guard enabled.
 
+## Native contract runner tests
+
+The 3,944-line suite now separates publication and user ABI cases from
+contract planning. The four files each stay below 1,700 lines and share
+ELF and process fixtures. All 84 cases kept their unittest names and
+assertions, and passed on Windows and WSL.
+
 ## QEMU terminal smoke test
 
 `tools/gui_terminal_smoke.py` drives QEMU and checks the resulting output.
