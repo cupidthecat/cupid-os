@@ -113,6 +113,7 @@ typedef struct {
     size_t limit;
     int previous_output;
     int external_input;
+    int frozen_tool_output;
 #if defined(_WIN32)
     HANDLE frozen_handle;
 #else
@@ -207,6 +208,8 @@ struct cupidbuild_host_transaction {
     int candidate_publish_created;
     int candidate_published;
     int private_output_captured;
+    int private_output_ready;
+    int private_output_transferred;
     int private_output_sealed;
     int tool_stdout_sealed;
     int tool_stderr_sealed;
@@ -7913,6 +7916,9 @@ static int cupidbuild_host_register_input(cupidbuild_host_transaction_t *transac
     }
     input->snapshot = *snapshot;
     input->limit = limit;
+    input->previous_output = 0;
+    input->external_input = 0;
+    input->frozen_tool_output = 0;
     transaction->input_count++;
     return 1;
 }
@@ -9698,6 +9704,7 @@ int cupidbuild_host_transaction_close(cupidbuild_host_transaction_t *transaction
             private_cleanup_succeeded = 0;
         }
         if (private_cleanup_succeeded != 0 && transaction->private_created != 0 &&
+            !transaction->private_output_transferred &&
             !cupidbuild_host_delete_owned_private_name(transaction, "candidate.map",
                                                        &transaction->private_output_snapshot)) {
             cleanup_succeeded = 0;
@@ -10111,7 +10118,8 @@ static int cupidbuild_host_run_at(cupidbuild_host_transaction_t *transaction, co
 #endif
     if (transaction == (cupidbuild_host_transaction_t *)0 ||
         transaction->candidate_store_state != CUPIDBUILD_CANDIDATE_STORE_CLOSED ||
-        transaction->candidate_store_failed || tool == (const char *)0 ||
+        transaction->candidate_store_failed || transaction->private_output_transferred ||
+        tool == (const char *)0 ||
         arguments == (const char *const *)0 || transaction->runner_transaction != 0 ||
         timeout_milliseconds == 0u || !cupidbuild_host_require_frozen_inputs(transaction)) {
         return -1;
@@ -10121,6 +10129,7 @@ static int cupidbuild_host_run_at(cupidbuild_host_transaction_t *transaction, co
         cupidbuild_host_set_error(transaction, "checked tool is not a frozen input");
         return -1;
     }
+    transaction->private_output_ready = 0;
     if (!cupidbuild_host_close_private_stream_handles(transaction) ||
         !cupidbuild_host_delete_owned_private_name(transaction, "tool.stdout",
                                                    &transaction->tool_stdout_snapshot) ||
@@ -10249,6 +10258,7 @@ static int cupidbuild_host_run_at(cupidbuild_host_transaction_t *transaction, co
     } else if (result == 124) {
         cupidbuild_host_set_error(transaction, "checked tool timed out");
     }
+    transaction->private_output_ready = result == 0;
     return result;
 }
 
@@ -10281,7 +10291,8 @@ int cupidbuild_host_run_to_private_output(cupidbuild_host_transaction_t *transac
     (void)memset(&stderr_snapshot, 0, sizeof(stderr_snapshot));
     if (transaction == (cupidbuild_host_transaction_t *)0 ||
         transaction->candidate_store_state != CUPIDBUILD_CANDIDATE_STORE_CLOSED ||
-        transaction->candidate_store_failed || transaction->runner_transaction != 0 ||
+        transaction->candidate_store_failed || transaction->private_output_transferred ||
+        transaction->runner_transaction != 0 ||
         tool == (const char *)0 || arguments == (const char *const *)0 ||
         timeout_milliseconds == 0u || !cupidbuild_host_require_frozen_inputs(transaction)) {
         if (transaction != (cupidbuild_host_transaction_t *)0) {
@@ -10295,6 +10306,7 @@ int cupidbuild_host_run_to_private_output(cupidbuild_host_transaction_t *transac
         cupidbuild_host_set_error(transaction, "checked tool is not a frozen input");
         return -1;
     }
+    transaction->private_output_ready = 0;
     if (!cupidbuild_host_close_private_output_handle(transaction) ||
         !cupidbuild_host_delete_owned_private_name(transaction, "candidate.map",
                                                    &transaction->private_output_snapshot) ||
@@ -10411,10 +10423,12 @@ int cupidbuild_host_run_to_private_output(cupidbuild_host_transaction_t *transac
     } else if (result == 124) {
         cupidbuild_host_set_error(transaction, "checked tool timed out");
     }
+    transaction->private_output_ready = result == 0;
     return result;
 }
 
 #include "cupidbuild_host_candidate_store.inc"
+#include "cupidbuild_host_frozen_inputs.inc"
 
 static int cupidbuild_host_read_candidate(cupidbuild_host_transaction_t *transaction,
                                           cupidbuild_host_snapshot_t *snapshot,
@@ -10876,7 +10890,7 @@ int cupidbuild_host_capture_private_output(cupidbuild_host_transaction_t *transa
     if (bytes_out != (unsigned char **)0) {
         *bytes_out = (unsigned char *)0;
     }
-    if (transaction == (cupidbuild_host_transaction_t *)0) {
+    if (transaction == (cupidbuild_host_transaction_t *)0 || transaction->private_output_transferred) {
         cupidbuild_host_set_error(transaction, "checked private output cannot be pinned");
         return 0;
     }
@@ -10964,9 +10978,10 @@ int cupidbuild_host_write_private_output_bounded(cupidbuild_host_transaction_t *
                                                  const unsigned char *bytes, size_t size,
                                                  size_t capacity) {
     cupidbuild_host_snapshot_t snapshot;
-    if (transaction == (cupidbuild_host_transaction_t *)0 ||
+    if (transaction == (cupidbuild_host_transaction_t *)0 || transaction->private_output_transferred ||
         transaction->candidate_store_state != CUPIDBUILD_CANDIDATE_STORE_CLOSED ||
-        transaction->candidate_store_failed || bytes == (const unsigned char *)0 ||
+        transaction->candidate_store_failed || transaction->private_output_transferred ||
+        bytes == (const unsigned char *)0 ||
         capacity == 0u || capacity > 2147483647u || size > capacity ||
         !cupidbuild_host_require_frozen_inputs(transaction) ||
         !cupidbuild_host_close_private_output_handle(transaction) ||
@@ -11009,6 +11024,7 @@ int cupidbuild_host_write_private_output_bounded(cupidbuild_host_transaction_t *
     }
     transaction->private_output_snapshot = snapshot;
     transaction->private_output_limit = capacity;
+    transaction->private_output_ready = 0;
     transaction->private_output_captured = 0;
     return 1;
 }
@@ -11027,7 +11043,8 @@ int cupidbuild_host_require_inputs(cupidbuild_host_transaction_t *transaction) {
         return 0;
     for (index = 0u; index < transaction->input_count; index++) {
         cupidbuild_host_snapshot_t current;
-        if (transaction->inputs[index].previous_output || transaction->inputs[index].external_input) {
+        if (transaction->inputs[index].previous_output || transaction->inputs[index].external_input ||
+            transaction->inputs[index].frozen_tool_output) {
             require_private_copy = 1;
             continue;
         }

@@ -6,7 +6,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 
 - Root Make target: `all`
 - Supplemental builds: `user:all`, `toolchain:all`
-- Active source inputs: 815
+- Active source inputs: 816
 - Unreachable source-like files: 106
 - Reachable output transforms: 455
 - Distinct feature requirements: 257
@@ -21,7 +21,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Language | Files |
 | --- | ---: |
 | `assembly` | 38 |
-| `c_header` | 339 |
+| `c_header` | 340 |
 | `cupid_c` | 438 |
 
 ## Source cohorts
@@ -57,7 +57,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_util` | 2 | 692 |
 | `project_source` | 1 | 5 |
 | `toolchain_contract` | 25 | 137747 |
-| `toolchain_core` | 108 | 117363 |
+| `toolchain_core` | 109 | 117583 |
 | `toolchain_host_adapter` | 2 | 255 |
 | `toolchain_kernel_adapter` | 2 | 579 |
 | `user_program` | 3 | 139 |
@@ -100,16 +100,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1533 |
 | `asm.relocation` | 1 | 95 |
-| `c.control` | 12 | 96757 |
+| `c.control` | 12 | 96810 |
 | `c.declaration` | 1 | 33 |
 | `c.declarator` | 4 | 3874 |
-| `c.expression` | 2 | 6700 |
+| `c.expression` | 2 | 6703 |
 | `c.extension` | 20 | 426 |
 | `c.initializer` | 1 | 654 |
-| `c.preprocessor` | 18 | 8788 |
-| `c.qualifier` | 2 | 18943 |
-| `c.storage` | 4 | 11414 |
-| `c.type` | 15 | 64231 |
+| `c.preprocessor` | 18 | 8809 |
+| `c.qualifier` | 2 | 18949 |
+| `c.storage` | 4 | 11416 |
+| `c.type` | 15 | 64277 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 135 |
 | `cupid_c.directive` | 1 | 1 |
@@ -140,15 +140,15 @@ It is also a declared Make prerequisite.
 
 | Rank | Capability | Source evidence |
 | ---: | --- | ---: |
-| 1 | `host_runnable_toolchain_core` - Establish a host-runnable shared Cupid Toolchain core | 157 |
+| 1 | `host_runnable_toolchain_core` - Establish a host-runnable shared Cupid Toolchain core | 158 |
 | 2 | `elf32_relocatable_interchange` - Emit and consume deterministic ELF32 relocatable objects | 248 |
 | 3 | `shared_i386_abi_and_instruction_model` - Share one i386 ABI and instruction model | 78 |
 | 4 | `cupiddis_object_inspection` - Make CupidDis inspect raw and ELF32 relocatable output | 21 |
 | 5 | `cupidasm_source_controls_and_expressions` - Implement the active Cupid ASM directives and expression language | 38 |
 | 6 | `cupidasm_encoding_and_raw_parity` - Reach byte parity for boot and trampoline binaries | 26 |
 | 7 | `cupidasm_symbols_and_relocations` - Emit ELF32 sections, symbols, and i386 relocations | 14 |
-| 8 | `cupidc_preprocessor` - Implement the active C and Cupid C preprocessing contract | 625 |
-| 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 735 |
+| 8 | `cupidc_preprocessor` - Implement the active C and Cupid C preprocessing contract | 626 |
+| 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 736 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 60 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 208 |
 | 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 385 |
@@ -157,7 +157,7 @@ It is also a declared Make prerequisite.
 
 | Rank | Cohort step | Files | Rationale |
 | ---: | --- | ---: | --- |
-| 1 | `toolchain_sources` | 157 | Bootstrap the tools that transfer ownership to every later cohort. |
+| 1 | `toolchain_sources` | 158 | Bootstrap the tools that transfer ownership to every later cohort. |
 | 2 | `boot_and_kernel_assembly` | 4 | Keep the four boot and kernel transforms plus the ISO lane fixture CupidASM-owned while retaining NASM only as an optional parity oracle. |
 | 3 | `kernel_and_drivers` | 280 | Move foundational strict C before vendored compatibility cohorts. |
 | 4 | `doom_and_vendored_c` | 208 | Preserve upstream behavior under a deliberate compatibility mode. |
@@ -233,7 +233,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `toolchain/tests/artifact_size_policy_contract.cc` | `cupid_c` | `not_reached` | 97 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_artifact_allocation_contract.cc` | `cupid_c` | `not_reached` | 134 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_artifact_race_contract.cc` | `cupid_c` | `not_reached` | 63 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_candidate_extent_contract.cc` | `cupid_c` | `not_reached` | 381 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_candidate_extent_contract.cc` | `cupid_c` | `not_reached` | 460 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_disk_input_discovery_contract.cc` | `cupid_c` | `not_reached` | 267 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_frozen_stream_contract.cc` | `cupid_c` | `not_reached` | 182 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_hash_workload.cc` | `cupid_c` | `not_reached` | 17 | not reachable from the supported Make target or include closure |
@@ -293,10 +293,10 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | --- | --- | --- |
 | `assembly_source_ownership` | `pass` | 38 active assembly sources; 38 CupidASM-owned; 11 Toolchain startup; 0 other-owned; 0 ownerless; 0 explicit host-only classifications |
 | `bootstrap_artifact_coverage` | `pass` | 432 linked objects; 439 declared artifacts; 0 missing |
-| `c_preprocessor_conditionals` | `pass` | 514 conditional expressions (486 #if, 28 #elif); 63 normalized expressions; 66 directive/expression pairs |
+| `c_preprocessor_conditionals` | `pass` | 521 conditional expressions (493 #if, 28 #elif); 63 normalized expressions; 66 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |
-| `c_preprocessor_include_operands` | `pass` | 2677 C include operands (2329 quoted, 348 angle, 0 pp-token); 773 source files; max conditional depth 2 |
-| `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 773 source files; max conditional depth 0 |
+| `c_preprocessor_include_operands` | `pass` | 2678 C include operands (2330 quoted, 348 angle, 0 pp-token); 774 source files; max conditional depth 2 |
+| `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 774 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 428 tracked + 4 generated translation units (KERNEL_I386=156, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, FREESTANDING_I386=1, CUPID_RUNTIME=108, HOSTED_TOOLCHAIN_64=0, HOSTED_KERNEL_BRIDGE_64=0, HOSTED_I386_LINUX=59, HOSTED_I386_WINDOWS=9, HOSTED_I386_KERNEL_BRIDGE=2, HOSTED_I386_LINUX_GNU=3, HOSTED_I386_WINDOWS_UTF8=1, HOSTED_I386_WINDOWS_PUBLICATION=1, HOSTED_I386_WINDOWS_BUILD=1, HOSTED_I386_WINDOWS_UTF8_GNU=1); 24 include-only, 3 non-root headers; 0 hosted deferred (0 external, 0 hermetic) |
 | `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable; 511 tracked .cc sources; 434 active with independent CupidC evidence; 77 unreachable |

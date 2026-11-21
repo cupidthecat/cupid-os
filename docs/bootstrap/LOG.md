@@ -1,5 +1,27 @@
 # Bootstrapping log
 
+## 2026-11-21 — Retain checked templates for disk composition
+
+CupidBuild can read ranges from pinned inputs and transfer a successful
+checked tool's private output into the frozen-input table. The transfer
+keeps the same file and closes the old output slot. When a checked launch
+also left an empty, sealed candidate, the transfer releases that reservation
+so the image store can open a writable candidate. The first Windows named
+output test exposed that sharing conflict.
+
+Native and strict checked tests passed on Windows and WSL. All 199 seed
+and manifest checks and the build audit passed on each host. Both the
+121-input and 122-input Windows cohorts rebuilt and reached a fixed point.
+The first 122-input run received Windows access denied when publishing its
+prepared directory. A fresh run passed with the same sources.
+
+The private image caller used installed CupidObj, an external 9,507,764-byte
+kernel, a Unicode file name, an empty file, and a replacement file. All four
+runners matched the Python writer's 3,200 blocks. The resulting image passed
+a four-CPU boot, TLS, e1000 DHCP and `ls`. The first boot command requested a
+USB fixture that was absent. The image and boot evidence is archived as
+`cupid-retained-complete-image-proof-20261121.tar.gz`.
+
 ## 2026-11-21 — Build bounded image candidates in retained storage
 
 The hosted adapter can open an output transaction before capturing inputs.

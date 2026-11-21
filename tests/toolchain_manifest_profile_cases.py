@@ -316,7 +316,7 @@ class ManifestProfileCases:
             data = (REPO_ROOT / name).read_bytes()
             sources["files"][name] = {"size": len(data), "sha256": _digest(data)}
         sources["count"] = len(sources["files"])
-        self.assertEqual(sources["count"], 121)
+        self.assertEqual(sources["count"], 122)
         sources["sha256"] = _digest(_json_bytes(sources["files"]))
         for mode in ("author", "check"):
             with self.subTest(mode=mode):

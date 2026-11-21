@@ -171,6 +171,30 @@ class CupidBuildCandidateExtentTests(unittest.TestCase):
                                  (before.st_ino, before.st_mtime_ns))
                 self.assertEqual(list(output.parent.iterdir()), [output])
 
+    def test_frozen_inputs_supply_the_same_range_from_prior_and_tool_output(self):
+        size = len(BLOCK) + 7
+        expected = BLOCK[-6:] + BLOCK[:7]
+        for mode in ('frozen-previous', 'frozen-tool'):
+            with self.subTest(mode=mode):
+                root = self.fixture(mode, existing=size if mode == 'frozen-previous' else b'prior')
+                output = root / 'nested/file.o'
+                self.call(mode, size, size, root)
+                self.assertEqual(output.read_bytes(), expected)
+                self.assertEqual(list(output.parent.iterdir()), [output])
+
+    def test_frozen_input_failures_keep_the_prior_output(self):
+        size = len(BLOCK) + 7
+        for mode in ('frozen-invalid-range', 'frozen-tool-repeat', 'frozen-tool-failure'):
+            with self.subTest(mode=mode):
+                root = self.fixture(mode, existing=size)
+                output = root / 'nested/file.o'
+                before = output.stat()
+                self.call(mode, size, size, root)
+                after = output.stat()
+                self.assertEqual((after.st_ino, after.st_mtime_ns),
+                                 (before.st_ino, before.st_mtime_ns))
+                self.check_output(root, size)
+
     def test_complete_200_mib_replaces_large_previous_output(self):
         root = self.fixture(existing=IMAGE_BYTES - 1)
         result, _ = self.call('candidate', IMAGE_BYTES, IMAGE_BYTES, root)

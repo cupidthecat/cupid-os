@@ -516,6 +516,12 @@ int cupidbuild_host_reserve_inputs(
 unsigned char *cupidbuild_host_read_frozen_input(
     cupidbuild_host_transaction_t *transaction, const char *frozen_path,
     size_t limit, size_t *size_out);
+/* Read up to 64 KiB from a transaction-owned frozen file. Check its retained
+ * identity and metadata before and after the read. A failed request leaves
+ * the caller's buffer unchanged and prevents publication. */
+int cupidbuild_host_read_frozen_input_range(
+    cupidbuild_host_transaction_t *transaction, const char *frozen_path,
+    unsigned long long offset, unsigned char *bytes, size_t size);
 int cupidbuild_host_make_input_executable(
     cupidbuild_host_transaction_t *transaction, const char *frozen_path);
 int cupidbuild_host_seed_members_exact(
@@ -585,6 +591,13 @@ int cupidbuild_host_capture_candidate(
 int cupidbuild_host_require_candidate(
     cupidbuild_host_transaction_t *transaction,
     const cupidbuild_host_snapshot_t *expected);
+/* Transfer a successful checked tool's private output into the frozen input
+ * table without copying the bytes. The transaction retains and closes it.
+ * Reserve the input table before holding frozen paths. The private output
+ * slot is closed to subsequent tool launches and writes. */
+int cupidbuild_host_freeze_tool_output(
+    cupidbuild_host_transaction_t *transaction, const char **frozen_path_out,
+    cupidbuild_host_snapshot_t *snapshot_out);
 int cupidbuild_host_capture_private_output(
     cupidbuild_host_transaction_t *transaction,
     cupidbuild_host_snapshot_t *snapshot_out,

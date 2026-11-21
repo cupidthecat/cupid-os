@@ -250,6 +250,7 @@ static int external_case(const char *root, const char *mode, const char *externa
   cupidbuild_host_entry_kind_t kind;
   unsigned char *bytes = NULL;
   unsigned char digest[32];
+  unsigned char tail[2];
   const char *frozen = NULL;
   const char *arguments[3];
   char writer[8192];
@@ -303,7 +304,10 @@ static int external_case(const char *root, const char *mode, const char *externa
   if (!bytes || size != 8193u || snapshot.size != size || bytes[size - 1u] != '!')
     goto done;
   cupidbuild_host_sha256_bytes(bytes, size, digest);
-  if (memcmp(digest, snapshot.sha256, sizeof(digest)))
+  if (memcmp(digest, snapshot.sha256, sizeof(digest)) ||
+      !cupidbuild_host_read_frozen_input_range(transaction, frozen, size - sizeof(tail),
+                                               tail, sizeof(tail)) ||
+      memcmp(tail, bytes + size - sizeof(tail), sizeof(tail)))
     goto done;
   if (puts("ready observer") < 0 || fflush(stdout) != 0 || fread(&resume, 1, 1, stdin) != 1)
     goto done;
@@ -469,9 +473,8 @@ class CupidBuildObserverTests(unittest.TestCase):
 
         source = directory / "source"
         paths = [ROOT / "toolchain" / name for name in
-                 ("cupidbuild_host.cc", "cupidbuild_host.h", "cupidbuild_host_candidate_store.inc",
-                  "cupidbuild_host_external_inputs.inc",
-                  "path_encoding.cc", "path_encoding.h")]
+                 ("cupidbuild_host.cc", "cupidbuild_host.h", "path_encoding.cc", "path_encoding.h")]
+        paths.extend(ROOT / fragment for fragment in seed.CUPIDBUILD_HOST_FRAGMENTS)
         paths.extend(path for path in (ROOT / "toolchain/hosted").rglob("*") if path.is_file())
         for path in paths:
             destination = source / path.relative_to(ROOT)

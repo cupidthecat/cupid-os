@@ -173,25 +173,30 @@ static int cupidbuild_host_store_range(cupidbuild_host_transaction_t *transactio
            (unsigned long long)size <= transaction->candidate_snapshot.size - offset;
 }
 
-static int cupidbuild_host_store_read_range(cupidbuild_host_transaction_t *transaction,
-                                            unsigned long long offset, unsigned char *bytes,
+static int cupidbuild_host_read_at(
+#if defined(_WIN32)
+    HANDLE handle,
+#else
+    int descriptor,
+#endif
+    unsigned long long offset, unsigned char *bytes,
                                             size_t size) {
     size_t done = 0u;
 #if defined(_WIN32)
-    if (!cupidbuild_host_store_seek(transaction->candidate_handle, offset))
+    if (!cupidbuild_host_store_seek(handle, offset))
         return 0;
 #endif
     while (done < size) {
 #if defined(_WIN32)
         DWORD count = 0u;
-        if (!ReadFile(transaction->candidate_handle, bytes + done, (DWORD)(size - done), &count,
+        if (!ReadFile(handle, bytes + done, (DWORD)(size - done), &count,
                       (LPOVERLAPPED)0) ||
             !count || (size_t)count > size - done)
             return 0;
 #elif defined(CUPIDBUILD_CUSTOM_LINUX)
         unsigned long long position = offset + (unsigned long long)done;
         int count = cupid_linux_syscall5(CUPIDBUILD_LINUX_SYS_PREAD64,
-                                         (unsigned int)transaction->candidate_descriptor,
+                                         (unsigned int)descriptor,
                                          (unsigned int)(bytes + done), (unsigned int)(size - done),
                                          (unsigned int)position, (unsigned int)(position >> 32u));
         if (count == -CUPIDBUILD_LINUX_EINTR)
@@ -199,7 +204,7 @@ static int cupidbuild_host_store_read_range(cupidbuild_host_transaction_t *trans
         if (count <= 0 || (size_t)count > size - done)
             return 0;
 #else
-        ssize_t count = pread(transaction->candidate_descriptor, bytes + done, size - done,
+        ssize_t count = pread(descriptor, bytes + done, size - done,
                               (off_t)(offset + (unsigned long long)done));
         if (count < 0 && errno == EINTR)
             continue;
@@ -226,7 +231,13 @@ int cupidbuild_host_candidate_store_read(cupidbuild_host_transaction_t *transact
         valid = staged != (void *)0;
     }
     if (valid)
-        valid = cupidbuild_host_store_read_range(transaction, offset, staged, size) &&
+        valid = cupidbuild_host_read_at(
+#if defined(_WIN32)
+                    transaction->candidate_handle,
+#else
+                    transaction->candidate_descriptor,
+#endif
+                    offset, staged, size) &&
                 cupidbuild_host_store_check(transaction);
     if (valid && size)
         (void)memcpy(bytes, staged, size);

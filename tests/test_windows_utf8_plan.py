@@ -44,7 +44,7 @@ class WindowsUtf8PlanTests(unittest.TestCase):
     def test_long_source_capture_includes_the_complete_selected_plan(self):
         canonical = bootstrap._candidate_build_plan(json.loads(
             (ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"])
-        for linux, count in ((self.linux, 99), (canonical, 119)):
+        for linux, count in ((self.linux, 100), (canonical, 120)):
             wide = bootstrap.capture_source_snapshot(ROOT, linux, windows_utf8=True)
             long = bootstrap.capture_source_snapshot(ROOT, linux,
                 windows_utf8=True, windows_long_paths=True)

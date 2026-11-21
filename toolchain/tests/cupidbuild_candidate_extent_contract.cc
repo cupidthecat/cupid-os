@@ -183,6 +183,83 @@ done:
     return cupidbuild_host_transaction_close(transaction) && ok;
 }
 
+static int frozen_input_case(const char *root, const char *mode, const char *size_text,
+                             size_t size) {
+    cupidbuild_host_transaction_t *transaction = NULL;
+    cupidbuild_host_snapshot_t snapshot;
+    const char *frozen = NULL;
+    unsigned char tail[13];
+    size_t offset;
+    size_t index;
+    int ok = 0;
+
+    if (size < sizeof(tail) ||
+        !cupidbuild_host_publication_transaction_open_bounded(root, "nested/file.o", size,
+                                                              &transaction) ||
+        !cupidbuild_host_reserve_inputs(transaction, 8u))
+        goto done;
+    if (strncmp(mode, "frozen-tool", 11u) == 0) {
+        const char *tool = NULL;
+        const char *arguments[4] = {"emit-file", NULL, size_text, NULL};
+        char executable[8192];
+        int reject = strcmp(mode, "frozen-tool-failure") == 0;
+        int status;
+        snprintf(executable, sizeof(executable), "%s/writer", root);
+        if (!cupidbuild_host_freeze_input(transaction, executable, "writer.exe", &tool, NULL) ||
+            !cupidbuild_host_make_input_executable(transaction, tool))
+            goto done;
+        arguments[1] = cupidbuild_host_private_output(transaction);
+        if (reject)
+            arguments[0] = "invalid-command";
+        status = cupidbuild_host_run_in_private(transaction, tool, arguments, 10000u);
+        if (reject) {
+            ok = status == 90 &&
+                 !cupidbuild_host_freeze_tool_output(transaction, &frozen, &snapshot) &&
+                 !frozen && !snapshot.present && !cupidbuild_host_publish(transaction);
+            goto done;
+        }
+        if (status != 0 || !cupidbuild_host_freeze_tool_output(transaction, &frozen, &snapshot))
+            goto done;
+        if (strcmp(mode, "frozen-tool-repeat") == 0) {
+            ok = !cupidbuild_host_freeze_tool_output(transaction, &frozen, &snapshot) &&
+                 !frozen && !snapshot.present && !cupidbuild_host_publish(transaction);
+            goto done;
+        }
+        if (cupidbuild_host_capture_private_output(transaction, NULL, NULL) ||
+            cupidbuild_host_write_private_output(transaction, tail, 0u))
+            goto done;
+    } else if (!cupidbuild_host_freeze_previous_output(transaction, "previous.img", &frozen,
+                                                       &snapshot)) {
+        goto done;
+    }
+    offset = size - sizeof(tail);
+    if (!snapshot.present || snapshot.size != size ||
+        !cupidbuild_host_read_frozen_input_range(transaction, frozen, offset, tail, sizeof(tail)) ||
+        !cupidbuild_host_read_frozen_input_range(transaction, frozen, size, NULL, 0u))
+        goto done;
+    for (index = 0u; index < sizeof(tail); index++) {
+        if (tail[index] != (unsigned char)((offset + index) * 29u + 17u))
+            goto done;
+    }
+    if (strcmp(mode, "frozen-invalid-range") == 0) {
+        ok = !cupidbuild_host_read_frozen_input_range(transaction, frozen, offset + 1u, tail,
+                                                      sizeof(tail)) &&
+             tail[0] == (unsigned char)(offset * 29u + 17u) &&
+             !cupidbuild_host_candidate_store_open(transaction, sizeof(tail)) &&
+             !cupidbuild_host_publish(transaction);
+        goto done;
+    }
+    ok = cupidbuild_host_candidate_store_open(transaction, sizeof(tail)) &&
+         cupidbuild_host_candidate_store_write(transaction, 0u, tail, sizeof(tail)) &&
+         cupidbuild_host_candidate_store_finish(transaction, &snapshot) &&
+         cupidbuild_host_publish(transaction);
+
+done:
+    if (!ok)
+        fprintf(stderr, "%s\n", cupidbuild_host_error(transaction));
+    return cupidbuild_host_transaction_close(transaction) && ok;
+}
+
 int main(int argc, char **argv) {
     cupidbuild_host_transaction_t *transaction = NULL;
     cupidbuild_host_snapshot_t snapshot;
@@ -211,6 +288,8 @@ int main(int argc, char **argv) {
     if (argc != 5 || !decode(argv[1]))
         return 90;
     mode = argv[2];
+    if (strncmp(mode, "frozen-", 7u) == 0)
+        return frozen_input_case(argv[1], mode, argv[3], size) ? 0 : 3;
     if (strncmp(mode, "store-", 6u) == 0) {
         size_t capacity = 0u;
         unsigned long long selected;
