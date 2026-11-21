@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-21 — Sync each guest output once
+
+Guest workers keep the candidate descriptor open while HomeFS renames and
+syncs it. The asset bundle completes with one 5,649,236-byte sync. The prior
+run wrote 11,298,483 bytes over two syncs. The saved ISO and all 182 objects
+still matched.
+
+All seven Linux worker contracts passed. A short write followed by a
+capacity error left the preceding output intact and removed the candidate.
+The full kernel and boot-media replay also matched both ELFs, the symbol
+files, the raw kernel and the disk prefix. The disk booted with four CPUs,
+TLS, e1000 and DHCP and ran `ls`.
+
 ## 2026-11-21 — Wrap the ordinary kernel asset set in one guest job
 
 CupidObj reads the asset list, wraps each member and publishes one ISO.

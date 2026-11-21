@@ -19,6 +19,7 @@ static ctool_host_adapter_t adapter;
 static ctool_job_config_t config;
 static unsigned live_allocations;
 static int simulate_heap_pressure;
+static int simulate_write_failure;
 static const char *root;
 
 static void *host_alloc(size_t size) {
@@ -92,12 +93,6 @@ static int host_read_text(const char *path, char *text, uint32_t size) {
     return count;
 }
 
-static int host_write_all(const char *path, const void *bytes, uint32_t size) {
-    int result = host_result(config.files.write_all(config.files.context, ctool_string(path),
-                                                    ctool_bytes(bytes, size)));
-    return result == 0 ? (int)size : result;
-}
-
 static int absolute_path(const char *logical, char absolute[4096]) {
     size_t prefix = host_length(root);
     size_t suffix = host_length(logical) + 1;
@@ -106,6 +101,30 @@ static int absolute_path(const char *logical, char absolute[4096]) {
     host_copy(absolute, root, prefix);
     host_copy(absolute + prefix, logical, suffix);
     return 1;
+}
+
+static int host_open(const char *path, uint32_t flags) {
+    char absolute[4096];
+    const unsigned int linux_create_write = 1u | 64u | 512u;
+    if (flags != (O_WRONLY | O_CREAT | O_TRUNC) || !absolute_path(path, absolute))
+        return -22;
+    return cupid_linux_syscall3(5, (unsigned int)absolute, linux_create_write, 0600u);
+}
+
+static int host_write(int fd, const void *bytes, uint32_t size) {
+    if (simulate_write_failure == 2)
+        return -28;
+    if (simulate_write_failure == 1) {
+        simulate_write_failure = 2;
+        size = 1u;
+    }
+    if (size > 32768u)
+        size = 32768u;
+    return cupid_linux_syscall3(4, (unsigned int)fd, (unsigned int)bytes, size);
+}
+
+static int host_close(int fd) {
+    return cupid_linux_syscall1(6, (unsigned int)fd);
 }
 
 static int host_rename(const char *old_path, const char *new_path) {
@@ -163,9 +182,11 @@ done:
 }
 
 int main(int argc, char **argv) {
-    if (argc != 2 || ctool_host_adapter_init(&adapter, argv[1]) != CTOOL_OK)
+    if ((argc != 2 && (argc != 3 || host_equal(argv[2], "--fail-write") != 0)) ||
+        ctool_host_adapter_init(&adapter, argv[1]) != CTOOL_OK)
         return 2;
     root = argv[1];
+    simulate_write_failure = argc == 3;
     config = ctool_host_job_config(&adapter, ctool_default_limits());
     cupid_syscall_table_t sys = {0};
     sys.version = CUPID_SYSCALL_VERSION;
@@ -179,7 +200,9 @@ int main(int argc, char **argv) {
     sys.vfs_stat = host_stat;
     sys.vfs_read_all = host_read_all;
     sys.vfs_read_text = host_read_text;
-    sys.vfs_write_all = host_write_all;
+    sys.vfs_open = host_open;
+    sys.vfs_write = host_write;
+    sys.vfs_close = host_close;
     sys.vfs_rename = host_rename;
     sys.vfs_unlink = host_unlink;
     sys.serial_write_string = host_serial;

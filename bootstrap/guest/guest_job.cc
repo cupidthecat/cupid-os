@@ -121,11 +121,25 @@ static ctool_status_t guest_write(void *context, ctool_string_t path, ctool_byte
     if (status != GUEST_ENOENT)
         return file_failure(status);
     cupid_guest_job_drain_cache(io);
-    status = io->sys->vfs_write_all(io->pending_path, contents.data, contents.size);
-    if (status >= 0 && (ctool_u32)status == contents.size)
+    int fd = io->sys->vfs_open(io->pending_path, O_WRONLY | O_CREAT | O_TRUNC);
+    if (fd < 0)
+        return file_failure(fd);
+
+    ctool_u32 written = 0u;
+    status = 0;
+    while (written < contents.size) {
+        ctool_u32 remaining = contents.size - written;
+        int count = io->sys->vfs_write(fd, contents.data + written, remaining);
+        if (count <= 0 || (ctool_u32)count > remaining) {
+            status = count < 0 ? count : -1;
+            break;
+        }
+        written += (ctool_u32)count;
+    }
+    /* HomeFS syncs the rename. Keep the candidate open until that commit. */
+    if (status == 0)
         status = io->sys->vfs_rename(io->pending_path, path.data);
-    else if (status >= 0)
-        status = -1;
+    io->sys->vfs_close(fd);
     if (status < 0) {
         io->sys->vfs_unlink(io->pending_path);
         return file_failure(status);

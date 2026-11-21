@@ -43,9 +43,9 @@ def check(root: Path, scratch: Path) -> None:
     with (scratch / "big.elf").open("wb") as oversized:
         oversized.truncate(16 * 1024 * 1024 + 1)
 
-    def invoke(task: bytes, marker: bytes) -> None:
+    def invoke(task: bytes, marker: bytes, *flags: str) -> None:
         job.write_bytes(task)
-        result = subprocess.run([runner, scratch], check=True, capture_output=True, timeout=90)
+        result = subprocess.run([runner, scratch, *flags], check=True, capture_output=True, timeout=90)
         assert marker in result.stdout, result.stdout
 
     for task, marker in (
@@ -70,7 +70,9 @@ def check(root: Path, scratch: Path) -> None:
 
     invoke(request, b"[cupidobj-guest] wrote /home/flat.bin")
     assert output.read_bytes() == expected.read_bytes() and not pending.exists()
-    print("Guest CupidObj matched the checked raw image and preserved output across seven rejections.")
+    invoke(request, failed + b"limit", "--fail-write")
+    assert output.read_bytes() == expected.read_bytes() and not pending.exists()
+    print("Guest CupidObj matched the checked raw image and preserved output across eight failures.")
 
     asset = scratch / "asset"
     wrapped = home / "asset.o"
