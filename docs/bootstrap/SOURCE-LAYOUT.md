@@ -42,6 +42,14 @@ fixture file for ELF objects and expected inputs. Each test body kept
 its original assertions. The three files have 739, 963 and 901 lines.
 All 36 tests in the two new suites passed on Windows.
 
+## Doom production tests
+
+The 2,456-line Doom suite now separates compiler and Make coverage from
+input-manifest publication. The modules have 1,109 and 1,327 lines. They
+share a 49-line fixture that creates the source and seed tree. The split
+preserves all 44 test cases and their assertions. The suites passed on
+Windows with two platform skips and WSL with one.
+
 ## QEMU terminal smoke test
 
 `tools/gui_terminal_smoke.py` drives QEMU and checks the resulting output.
