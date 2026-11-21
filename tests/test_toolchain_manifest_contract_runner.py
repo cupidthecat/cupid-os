@@ -1,3 +1,5 @@
+## @file
+#  @brief Verify guarded execution of the toolchain manifest contract.
 import hashlib
 import json
 import os
@@ -9,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from tests.test_toolchain_manifest_contract import (
+from tests.toolchain_manifest_fixtures import (
     _disk_context_fixture,
     _owner_context_fixture,
     _seed_context_bytes,

@@ -72,6 +72,14 @@ CupidObj keeps typed profile checks in a 769-line module. The 1,925-line
 command-line suite still provides the build helper used by the ISO tests.
 The two suites passed 58 cases on WSL and on Windows with three skips.
 
+## Toolchain manifest tests
+
+The 2,761-line manifest suite now has a 1,943-line test module and an
+867-line fixture module. The runner tests use the same request fixtures.
+All 102 cases passed on WSL. Windows passed with three platform skips.
+The first pair shared a checkout and hit the root-change guard. Both
+retries ran in separate checkouts and kept that guard enabled.
+
 ## QEMU terminal smoke test
 
 `tools/gui_terminal_smoke.py` drives QEMU and checks the resulting output.
