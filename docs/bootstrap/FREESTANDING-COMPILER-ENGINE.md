@@ -424,6 +424,33 @@ python3 bootstrap/guest/check_guest_asset_runtime.py --production-root /path/to/
 The saved `bin/ls.o` and `image.bmp.o` matched the checked objects. A request
 with a parent path component left the existing `ls` object intact.
 
+## Generate kernel installation sources inside Cupid OS
+
+Build the installation worker and stage `cupidinstall-guest.elf` as
+`/cupinst`. Run `exec /disk/cupinst` with the destination, kind and
+repository path groups in `/home/cupidinstall.job`, one field per line.
+
+```text
+/home/demos_programs_gen.cc
+demos
+--demos
+/demos/hello.asm
+```
+
+The `bin` request uses `--bin`, `--headers`, and `--browser`. The `docs`
+request uses `--ctxt`, `--doc-assets`, and `--home-assets`. Keep each heading
+in order, including empty groups. CupidObj uses the inventory to name the
+embedded objects in the generated source.
+
+```sh
+make -C bootstrap/guest guest-install guest-compiler check-guest-install
+python3 bootstrap/guest/check_guest_install_runtime.py --production-root /path/to/checked/build
+```
+
+The replay uses the installation recipes from Make. All three saved
+sources and their CupidC objects matched the checked build byte for
+byte. An invalid demo path preserved the preceding generated source.
+
 ## Build the disk template inside Cupid OS
 
 Build the worker with `make -C bootstrap/guest guest-disk` and stage it

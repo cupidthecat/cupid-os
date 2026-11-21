@@ -66,6 +66,9 @@ GUEST_LINKER_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/cupidld.o \
 GUEST_OBJECT := $(BUILD)/cupidobj-guest.elf
 GUEST_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/cupidobj.o \
     $(GUEST_SUPPORT) $(BUILD)/cupidobj_guest.o
+GUEST_INSTALL := $(BUILD)/cupidinstall-guest.elf
+GUEST_INSTALL_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/cupidobj.o \
+    $(GUEST_SUPPORT) $(BUILD)/cupidinstall_guest.o
 
 GUEST_KSYMS := $(BUILD)/cupidksyms-guest.elf
 GUEST_KSYMS_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/x86.o \
@@ -74,11 +77,12 @@ GUEST_DISK := $(BUILD)/cupiddisk-guest.elf
 GUEST_DISK_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/cupidobj.o \
     $(GUEST_SUPPORT) $(BUILD)/cupiddisk_guest.o
 
-.PHONY: guest-compiler guest-assembler guest-linker guest-object guest-ksyms guest-disk
+.PHONY: guest-compiler guest-assembler guest-linker guest-object guest-install guest-ksyms guest-disk
 guest-compiler: $(GUEST_COMPILER)
 guest-assembler: $(GUEST_ASSEMBLER)
 guest-linker: $(GUEST_LINKER)
 guest-object: $(GUEST_OBJECT)
+guest-install: $(GUEST_INSTALL)
 guest-ksyms: $(GUEST_KSYMS)
 guest-disk: $(GUEST_DISK)
 
@@ -116,6 +120,13 @@ $(GUEST_OBJECT): $(GUEST_OBJECTS) Makefile $(SEED_INPUTS)
 	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry cupidobj_guest_run \
 		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
 
+$(BUILD)/cupidinstall_guest.o: cupidinstall_guest.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupidobj.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
+	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/cupidinstall_guest.cc -o $(PUBLISH)/cupidinstall_guest.o
+
+$(GUEST_INSTALL): $(GUEST_INSTALL_OBJECTS) Makefile $(SEED_INPUTS)
+	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry cupidinstall_guest_run \
+		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
+
 $(BUILD)/cupidksyms_guest.o: cupidksyms_guest.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupiddis.h $(TOOLCHAIN)/cupidobj.h $(TOOLCHAIN)/elf32.h $(TOOLCHAIN)/pe32.h $(TOOLCHAIN)/x86.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/cupidksyms_guest.cc -o $(PUBLISH)/cupidksyms_guest.o
 
@@ -141,6 +152,7 @@ ISO_SOURCES := $(addprefix toolchain/,$(addsuffix .cc,$(CORE))) \
 	bootstrap/guest/cupidc_engine.cc bootstrap/guest/cupidc_engine.h \
 	bootstrap/guest/cupidc_guest.cc bootstrap/guest/guest_job.cc bootstrap/guest/guest_job.h \
 	bootstrap/guest/cupidasm_guest.cc bootstrap/guest/cupidld_guest.cc bootstrap/guest/cupidobj_guest.cc \
+	bootstrap/guest/cupidinstall_guest.cc \
 	bootstrap/guest/cupidksyms_guest.cc bootstrap/guest/cupiddisk_guest.cc bootstrap/guest/TOOLS.CTXT \
 	toolchain/cupidld.cc toolchain/cupidld.h user/cupid.h $(ISO_PEER_SOURCES) \
 	$(patsubst ../../%,%,$(filter-out cupidc_engine.h,$(HEADERS)))
@@ -215,6 +227,22 @@ $(GUEST_OBJECT_CONTRACT): $(GUEST_OBJECT_CONTRACT_OBJECTS) Makefile $(SEED_INPUT
 $(BUILD)/cupidobj_guest_linux_contract.o: cupidc_guest_linux_contract.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/ctool_host.h $(TOOLCHAIN)/ctool.h $(HOST_HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(HOSTED_CFLAGS) -I /user -D CUPID_TEST_GUEST_ENTRY=cupidobj_guest_run \
 		-c /bootstrap/guest/cupidc_guest_linux_contract.cc -o $(PUBLISH)/cupidobj_guest_linux_contract.o
+
+GUEST_INSTALL_CONTRACT := $(BUILD)/cupidinstall-guest-linux-contract.elf
+GUEST_INSTALL_CONTRACT_OBJECTS := $(GUEST_INSTALL_OBJECTS) $(addprefix $(BUILD)/,start.o linux_runtime.o \
+	ctool_host.o cupidinstall_guest_linux_contract.o)
+
+.PHONY: check-guest-install
+check-guest-install: $(GUEST_INSTALL) $(GUEST_INSTALL_CONTRACT)
+	$(PYTHON) check_guest_install.py "$(ROOT)" "$(abspath $(GUEST_INSTALL_CONTRACT))"
+
+$(GUEST_INSTALL_CONTRACT): $(GUEST_INSTALL_CONTRACT_OBJECTS) Makefile $(SEED_INPUTS)
+	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x08048000 --entry _start \
+		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
+
+$(BUILD)/cupidinstall_guest_linux_contract.o: cupidc_guest_linux_contract.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/ctool_host.h $(TOOLCHAIN)/ctool.h $(HOST_HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
+	$(RUN) --tool cupidc -- $(HOSTED_CFLAGS) -I /user -D CUPID_TEST_GUEST_ENTRY=cupidinstall_guest_run \
+		-c /bootstrap/guest/cupidc_guest_linux_contract.cc -o $(PUBLISH)/cupidinstall_guest_linux_contract.o
 
 GUEST_KSYMS_CONTRACT := $(BUILD)/cupidksyms-guest-linux-contract.elf
 GUEST_KSYMS_CONTRACT_OBJECTS := $(GUEST_KSYMS_OBJECTS) $(addprefix $(BUILD)/,start.o linux_runtime.o \

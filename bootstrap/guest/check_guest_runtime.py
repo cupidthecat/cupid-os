@@ -93,11 +93,29 @@ def compare_homefs_files(payload: bytes, references: dict[str, Path]) -> dict[st
 
 
 def write_homefs(path: Path, files: tuple[tuple[bytes, bytes], ...]) -> None:
+    entries = [(0xffffffff, 1, b"", b"")]
+    directories = {(): 0}
+    seen = set()
+    for name, contents in files:
+        parts = tuple(name.split(b"/"))
+        if parts in seen or parts in directories or any(part in (b"", b".", b"..") for part in parts):
+            raise ValueError(f"invalid HomeFS fixture path {name!r}")
+        parent = 0
+        for count in range(1, len(parts)):
+            directory = parts[:count]
+            if directory in seen:
+                raise ValueError(f"HomeFS fixture parent is a file for {name!r}")
+            if directory not in directories:
+                directories[directory] = len(entries)
+                entries.append((parent, 1, directory[-1], b""))
+            parent = directories[directory]
+        entries.append((parent, 0, parts[-1], contents))
+        seen.add(parts)
+
     with path.open("wb") as output:
-        output.write(struct.pack("<III", HOMEFS_MAGIC, 1, len(files) + 1))
-        output.write(struct.pack("<IIII", 0xffffffff, 1, 0, 0))
-        for name, contents in files:
-            output.write(struct.pack("<IIII", 0, 0, len(contents), len(name)))
+        output.write(struct.pack("<III", HOMEFS_MAGIC, 1, len(entries)))
+        for parent, kind, name, contents in entries:
+            output.write(struct.pack("<IIII", parent, kind, len(contents), len(name)))
             output.write(name)
             output.write(contents)
 

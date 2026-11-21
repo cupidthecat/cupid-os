@@ -110,6 +110,20 @@ root. That last path supplies the ELF symbol names.
   wrap-text
   /bin/ls.cc
 
+>h2 Generate kernel installation source
+
+In /home/cupidinstall.job, put the output source path, the installation
+kind and the input groups. Use one repository path per line.
+
+  /home/demos_programs_gen.cc
+  demos
+  --demos
+  /demos/hello.asm
+
+For bin, use --bin, --headers and --browser in that order. For docs, use
+--ctxt, --doc-assets and --home-assets. Keep the heading for an empty group.
+Stage the installation worker as /cupinst and run exec /disk/cupinst.
+
 >h2 Build a disk template
 
 Assemble the bootloader and check its saved range map.

@@ -120,6 +120,10 @@ To wrap an asset, put its input and output paths first. Add `wrap` or
 `wrap-text` on the third line and the path from the repository root on the
 fourth. CupidObj uses the fourth line to name the data symbols.
 
+The installation worker reads the production file lists and generates the
+`bin`, `docs` and `demos` sources in HomeFS for CupidC to compile. See the
+[installation job format](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#generate-kernel-installation-sources-inside-cupid-os).
+
 The guest flattener reproduced all 9,507,492 bytes of the checked raw kernel.
 Each worker reuses released work buffers and drains the cache before
 publishing output and on return.

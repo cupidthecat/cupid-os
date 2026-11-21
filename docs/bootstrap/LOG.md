@@ -1,5 +1,20 @@
 # Bootstrapping log
 
+## 2026-11-21 — Generate installation sources in Cupid OS
+
+The guest CupidObj worker generates the `bin`, `docs` and `demos` sources
+from the same ordered input lists used by Make. CupidC can compile the saved
+sources with their kernel headers in HomeFS. Windows and WSL produced the
+same 336,636-byte worker. The Linux contract matched checked CupidObj and
+preserved the previous output across seven rejected requests.
+
+The first QEMU sequence left a preceding job in place after a shell copy.
+Each retry boot got its job up front. All three generated sources and all
+three compiled objects matched the checked build. A fourth boot rejected an
+invalid demo path and preserved the generated source. The source ISO
+readback matched 51 files and seven directories. The ownership audit passed
+after recording the opt-in worker.
+
 ## 2026-11-21 — Wrap kernel assets in Cupid OS
 
 The CupidObj worker accepts an asset path, a HomeFS output, a wrapping mode

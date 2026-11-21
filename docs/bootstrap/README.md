@@ -13,18 +13,17 @@ Cupid OS remains unfinished.
   inside Cupid OS. The rebuilt compiler reproduced the CupidASM, CupidDis
   and CupidObj core objects. It also reproduced selected kernel and Doom
   objects with their production profiles. The assembler worker reproduced
-  both production kernel assembly objects. The guest built and ran the
-  `cat`, `hello` and `ls` examples. It ran both kernel
-  links, generated and compiled the symbol table, and flattened the final
-  ELF with byte-for-byte matches. The boot-media replay feeds the guest's
-  bootloader and raw kernel to CupidObj. The resulting disk boots after
-  zero extension.
+  both production kernel assembly objects. The guest wrapped two kernel
+  assets and generated and compiled all three installation sources. It ran
+  the `cat`, `hello` and `ls` examples, completed both kernel links and
+  flattened the final ELF. The boot-media replay uses the guest's
+  bootloader and raw kernel to make a disk that boots.
   See the [guest build record](FREESTANDING-COMPILER-ENGINE.md).
 - Source-owner modules are in current producer plans, and paired named
   preparations reach a fixed point. The C reader now recognizes their exact
   behavior profiles. The installed seeds come from the same 114-file snapshot.
   Cold OS and user builds agree across Windows and WSL, including the full disk
-  image. Full repository replays and the normal image-command handoff remain open.
+  image. The full guest build and the normal image-command handoff remain open.
 - The private in-OS compiler supports halfword storage, integer array lists
   and typed native calls. Its remaining language gaps and guest acceptance
   are separate from hosted compiler fixed points. The shell can inspect

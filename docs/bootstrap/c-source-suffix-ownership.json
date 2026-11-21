@@ -159,6 +159,7 @@
     "bootstrap/guest/cupidc_guest.cc": "not_reached",
     "bootstrap/guest/cupidc_guest_linux_contract.cc": "host_fixture",
     "bootstrap/guest/cupiddisk_guest.cc": "not_reached",
+    "bootstrap/guest/cupidinstall_guest.cc": "not_reached",
     "bootstrap/guest/cupidksyms_guest.cc": "not_reached",
     "bootstrap/guest/cupidld_guest.cc": "not_reached",
     "bootstrap/guest/cupidobj_guest.cc": "not_reached",
