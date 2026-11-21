@@ -9,7 +9,7 @@ and their headers as of November 21, 2026. It excludes TempleOS. The
 | Area | Files |
 | --- | --- |
 | Browser | `bin/browser/js_interp.cc` |
-| Installed programs | `bin/notepad.cc`, `bin/ssh.cc` |
+| Installed programs | `bin/notepad.cc` |
 | Graphics and window management | `kernel/gfx/gfx2d.cc`, `kernel/gui/desktop.cc` |
 | Language and shell | `kernel/lang/as.cc`, `kernel/lang/cupidc.cc`, `kernel/lang/cupidc_parse.cc`, `kernel/lang/shell.cc` |
 | Generated TLS data | `kernel/tls/tls_ca_bundle_data.cc` |
@@ -17,6 +17,10 @@ and their headers as of November 21, 2026. It excludes TempleOS. The
 Separate parser logic from runtime bindings, and graphics primitives from
 surface and window management. Update the TLS generator if the generated
 certificate data moves into several files.
+
+SSH keeps setup and authentication in `bin/ssh.cc`. Its private
+`bin/ssh_channel.h` holds the session and terminal code. Both files are
+installed with the other `/bin` sources so the shell can compile `ssh`.
 
 ## Toolchain
 

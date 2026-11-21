@@ -2805,6 +2805,29 @@
       },
       {
         "inputs": [
+          "bin/ssh_channel.h",
+          "Makefile",
+          "bootstrap/seeds/i386-windows/manifest.json",
+          "bootstrap/seeds/release.json",
+          "bootstrap/seeds/i386-windows/cupidasm.exe",
+          "bootstrap/seeds/i386-windows/cupidc.exe",
+          "bootstrap/seeds/i386-windows/cupiddis.exe",
+          "bootstrap/seeds/i386-windows/cupidld.exe",
+          "bootstrap/seeds/i386-windows/cupidobj.exe",
+          "bootstrap/seeds/i386-windows/cupidbuild.exe"
+        ],
+        "operation": "wrap_text_as_elf32_relocatable",
+        "output": "bin/ssh_channel.h.o",
+        "recipe": [
+          "$(CUPIDOBJ) wrap-text $< -o $@"
+        ],
+        "tools": [
+          "cupid_object",
+          "cupid_builder"
+        ]
+      },
+      {
+        "inputs": [
           "bin/stacktrace.cc",
           "Makefile",
           "bootstrap/seeds/i386-windows/manifest.json",
@@ -39559,6 +39582,7 @@
           "bin/yield.o",
           "bin/fat16.h.o",
           "bin/shell.h.o",
+          "bin/ssh_channel.h.o",
           "bin/browser/css.o",
           "bin/browser/dom.o",
           "bin/browser/font_face.o",
@@ -40022,6 +40046,7 @@
           "bin/yield.o",
           "bin/fat16.h.o",
           "bin/shell.h.o",
+          "bin/ssh_channel.h.o",
           "bin/browser/css.o",
           "bin/browser/dom.o",
           "bin/browser/font_face.o",
@@ -40479,6 +40504,7 @@
           "bin/yield.o",
           "bin/fat16.h.o",
           "bin/shell.h.o",
+          "bin/ssh_channel.h.o",
           "bin/browser/css.o",
           "bin/browser/dom.o",
           "bin/browser/font_face.o",
@@ -43179,6 +43205,7 @@
           "bin/yield.cc",
           "bin/fat16.h",
           "bin/shell.h",
+          "bin/ssh_channel.h",
           "bin/browser/css.cc",
           "bin/browser/dom.cc",
           "bin/browser/font_face.cc",
@@ -43928,8 +43955,8 @@
       "toolchain_startup_sources": 11
     },
     "bootstrap_artifact_coverage": {
-      "declared_artifacts": 438,
-      "linked_objects": 431,
+      "declared_artifacts": 439,
+      "linked_objects": 432,
       "missing_link_inputs": [],
       "status": "pass"
     },
@@ -47677,12 +47704,12 @@
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
       "direct_angle_occurrences": 346,
-      "direct_quoted_occurrences": 2322,
-      "include_occurrences": 2668,
+      "direct_quoted_occurrences": 2323,
+      "include_occurrences": 2669,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2668,
+      "ordinary_marker_occurrences": 2669,
       "pp_token_operand_occurrences": 0,
-      "source_files": 766,
+      "source_files": 767,
       "status": "pass"
     },
     "c_preprocessor_line_directives": {
@@ -47695,7 +47722,7 @@
       "numeric_marker_occurrences": 0,
       "ordinary_marker_occurrences": 0,
       "pp_token_line_occurrences": 0,
-      "source_files": 766,
+      "source_files": 767,
       "status": "pass"
     },
     "c_preprocessor_pragmas": {
@@ -47776,7 +47803,7 @@
       "deferred_external_header_units": 0,
       "deferred_hermetic_units": 0,
       "deferred_hosted_translation_units": 0,
-      "delivered_non_root_headers": 2,
+      "delivered_non_root_headers": 3,
       "generated_translation_units": 4,
       "include_only_fragments": 24,
       "profiles": [
@@ -53067,6 +53094,7 @@
         "bin/sort.cc",
         "bin/spawn.cc",
         "bin/ssh.cc",
+        "bin/ssh_channel.h",
         "bin/telnet.cc",
         "bin/touch.cc",
         "bin/wget.cc",
@@ -53381,6 +53409,7 @@
         "bin/grep.cc",
         "bin/notepad.cc",
         "bin/ssh.cc",
+        "bin/ssh_channel.h",
         "bin/terminal.cc",
         "bin/touch.cc",
         "drivers/pci.cc",
@@ -53774,6 +53803,7 @@
         "bin/setcolor.cc",
         "bin/sort.cc",
         "bin/ssh.cc",
+        "bin/ssh_channel.h",
         "bin/tail.cc",
         "bin/telnet.cc",
         "bin/terminal.cc",
@@ -54505,6 +54535,7 @@
         "bin/sort.cc",
         "bin/spawn.cc",
         "bin/ssh.cc",
+        "bin/ssh_channel.h",
         "bin/tail.cc",
         "bin/telnet.cc",
         "bin/terminal.cc",
@@ -54922,6 +54953,7 @@
         "bin/setcolor.cc",
         "bin/sort.cc",
         "bin/ssh.cc",
+        "bin/ssh_channel.h",
         "bin/tail.cc",
         "bin/telnet.cc",
         "bin/terminal.cc",
@@ -55410,6 +55442,7 @@
         "bin/sort.cc",
         "bin/spawn.cc",
         "bin/ssh.cc",
+        "bin/ssh_channel.h",
         "bin/tail.cc",
         "bin/telnet.cc",
         "bin/terminal.cc",
@@ -56865,6 +56898,7 @@
         "bin/godspeak.cc",
         "bin/oracle.cc",
         "bin/shell.h",
+        "bin/ssh_channel.h",
         "drivers/ata.h",
         "drivers/e1000.cc",
         "drivers/keyboard.cc",
@@ -57340,7 +57374,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3502
+      "occurrences": 3503
     },
     {
       "category": "preprocessor",
@@ -57451,6 +57485,7 @@
         "bin/cupidc_test5.cc",
         "bin/fat16.h",
         "bin/shell.h",
+        "bin/ssh_channel.h",
         "drivers/ata.h",
         "drivers/keyboard.h",
         "drivers/mouse.h",
@@ -57812,7 +57847,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 929
+      "occurrences": 930
     },
     {
       "category": "preprocessor",
@@ -58104,6 +58139,7 @@
         "bin/cupidc_test2.cc",
         "bin/fat16.h",
         "bin/shell.h",
+        "bin/ssh_channel.h",
         "drivers/ata.h",
         "drivers/keyboard.h",
         "drivers/mouse.h",
@@ -58414,7 +58450,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.ifndef",
-      "occurrences": 341
+      "occurrences": 342
     },
     {
       "category": "preprocessor",
@@ -58442,6 +58478,7 @@
         "bin/fat16.h",
         "bin/notepad.cc",
         "bin/shell.h",
+        "bin/ssh.cc",
         "drivers/ata.cc",
         "drivers/ata.h",
         "drivers/e1000.cc",
@@ -59007,7 +59044,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2668
+      "occurrences": 2669
     },
     {
       "category": "preprocessor",
@@ -60332,6 +60369,7 @@
         "bin/sort.cc",
         "bin/spawn.cc",
         "bin/ssh.cc",
+        "bin/ssh_channel.h",
         "bin/tail.cc",
         "bin/telnet.cc",
         "bin/time.cc",
@@ -61052,6 +61090,7 @@
         "bin/sort.cc",
         "bin/spawn.cc",
         "bin/ssh.cc",
+        "bin/ssh_channel.h",
         "bin/sysinfo.cc",
         "bin/tail.cc",
         "bin/telnet.cc",
@@ -62739,6 +62778,7 @@
         "bin/sort.cc",
         "bin/spawn.cc",
         "bin/ssh.cc",
+        "bin/ssh_channel.h",
         "bin/stacktrace.cc",
         "bin/sync.cc",
         "bin/sysinfo.cc",
@@ -63295,14 +63335,20 @@
           "line": 1,
           "path": "bin/shell.h",
           "text": "wrap_text_as_elf32_relocatable -> bin/shell.h.o"
+        },
+        {
+          "line": 1,
+          "path": "bin/ssh_channel.h",
+          "text": "wrap_text_as_elf32_relocatable -> bin/ssh_channel.h.o"
         }
       ],
       "files": [
         "bin/fat16.h",
-        "bin/shell.h"
+        "bin/shell.h",
+        "bin/ssh_channel.h"
       ],
       "id": "cupid_c.delivery.embedded_header",
-      "occurrences": 2
+      "occurrences": 3
     },
     {
       "category": "delivery",
@@ -64185,7 +64231,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "e187fdd9418ad4f7e06e0deb325eb3acb7d6595e7086073548412a5a8547613c",
+    "active_source_digest": "a031fe0fb34c4176190fd910c3de8d6e6152280d2c1fbb8d7ed8a0dbc097afde",
     "control_files": [
       {
         "path": "Makefile",
@@ -64246,7 +64292,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "6b7bd64e46da5a04983e636e68d48dc3be4773bd1f1817c61cb1af624cc97f58"
+      "sha256": "9d879580d299b02f7a4f41af492a9381ee6d924cff511deb794fb8f87d75359d"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -64643,7 +64689,7 @@
           "bin/godspeak.cc",
           "bin/notepad.cc"
         ],
-        "source_count": 619,
+        "source_count": 621,
         "title": "Implement the active C and Cupid C preprocessing contract"
       },
       {
@@ -64689,7 +64735,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 728,
+        "source_count": 729,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -64800,7 +64846,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 384,
+        "source_count": 385,
         "title": "Scale Cupid mode across embedded programs and browser fragments"
       }
     ],
@@ -64951,7 +64997,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 156
+        "source_count": 157
       }
     ]
   },
@@ -68372,6 +68418,7 @@
         "c.control.if",
         "c.control.return",
         "c.control.while",
+        "c.preprocessor.include",
         "c.qualifier.const",
         "c.type.char",
         "c.type.enum",
@@ -68380,14 +68427,49 @@
         "cupid_c.delivery.embedded_source",
         "cupid_c.type.u32"
       ],
-      "includes": [],
+      "includes": [
+        "bin/ssh_channel.h"
+      ],
       "language": "cupid_c",
-      "lines": 2034,
+      "lines": 1642,
       "origin": "tracked",
       "path": "bin/ssh.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b15e2ffd6281fc761d17c75ede40ad402675b8a96052e741e156aac731022585"
+      "sha256": "5d7a8418e89ea642f744ee35c356fd35f8d1162758fbcb9bca8370814717953c"
+    },
+    {
+      "build_owners": [
+        "cupid_builder",
+        "cupid_object"
+      ],
+      "builds": [
+        "."
+      ],
+      "cohort": "cupid_c_runtime_header",
+      "features": [
+        "c.control.break",
+        "c.control.continue",
+        "c.control.else",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.type.char",
+        "c.type.int",
+        "c.type.void",
+        "cupid_c.delivery.embedded_header"
+      ],
+      "includes": [],
+      "language": "c_header",
+      "lines": 408,
+      "origin": "tracked",
+      "path": "bin/ssh_channel.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "559c4a33cf777c83cdbe280c772ed99e4108277f553e68389580795bc6101d89"
     },
     {
       "build_owners": [
@@ -93329,7 +93411,7 @@
       "path": "toolchain/tests/cupidc_pp_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "cd91dceee9042cef86868bda55f04948cec4fd7bf2a44bccf0fb347e371bfcc6"
+      "sha256": "45fc2b754f51250c0ffb5f6f424b41570d6e31bd2c859e1dad77cd5b06924aaf"
     },
     {
       "build_owners": [
@@ -94212,9 +94294,9 @@
     }
   ],
   "summary": {
-    "active_sources": 808,
+    "active_sources": 809,
     "features": 257,
-    "transforms": 454,
+    "transforms": 455,
     "unreachable_sources": 106
   },
   "supplemental_builds": [

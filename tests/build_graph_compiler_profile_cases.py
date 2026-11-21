@@ -581,7 +581,7 @@ class CompilerProfileCases:
         )
         self.assertEqual(
             [path for path, _ in non_roots],
-            ["/bin/fat16.h", "/bin/shell.h"],
+            ["/bin/fat16.h", "/bin/shell.h", "/bin/ssh_channel.h"],
         )
         self.assertEqual(deferred, [])
         self.assertTrue(all(reason for _, reason in [*non_roots, *deferred]))
@@ -748,7 +748,7 @@ class CompilerProfileCases:
                     "generated_translation_units": 4,
                     "total_translation_units": 432,
                     "include_only_fragments": 24,
-                    "delivered_non_root_headers": 2,
+                    "delivered_non_root_headers": 3,
                     "deferred_hosted_translation_units": 0,
                     "deferred_external_header_units": 0,
                     "deferred_hermetic_units": 0,
@@ -835,9 +835,9 @@ class CompilerProfileCases:
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 808,
+                    "active_sources": 809,
                     "features": 257,
-                    "transforms": 454,
+                    "transforms": 455,
                     "unreachable_sources": 106,
                 },
             )
@@ -867,7 +867,7 @@ class CompilerProfileCases:
                 self.assertEqual(unreachable[fixture], "host_fixture")
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (33, 8),
-                "c.expression.sizeof": (7211, 199),
+                "c.expression.sizeof": (6662, 199),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -1436,8 +1436,8 @@ class CompilerProfileCases:
                 {
                     "cupid_c_compiler": 248,
                     "cupid_assembler": 7,
-                    "cupid_builder": 451,
-                    "cupid_object": 194,
+                    "cupid_builder": 452,
+                    "cupid_object": 195,
                     "cupid_linker": 7,
                     "cupid_disassembler": 10,
                     "cupid_c_contract": 2,

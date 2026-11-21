@@ -613,3 +613,4 @@ CUPIDC_PP_INCLUDE_ONLY("/bin/browser/woff2.cc", "/bin/browser.cc")
 
 CUPIDC_PP_NON_ROOT("/bin/fat16.h", "delivered header requires a translation-unit owner context")
 CUPIDC_PP_NON_ROOT("/bin/shell.h", "delivered header requires a translation-unit owner context")
+CUPIDC_PP_NON_ROOT("/bin/ssh_channel.h", "delivered header requires a translation-unit owner context")

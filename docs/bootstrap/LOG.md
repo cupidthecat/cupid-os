@@ -1,5 +1,20 @@
 # Bootstrapping log
 
+## 2026-11-21 — Separate SSH channel handling
+
+`ssh.cc` now keeps connection setup and authentication. `ssh_channel.h`
+holds the session, PTY and terminal forwarding code. The normal source
+installer delivers both files. The audit caught a second inventory that
+still expected two delivered headers. Its regression suite also caught a
+stale `sizeof` count from the earlier contract splits.
+
+Windows and WSL produced matching `ssh.cc` and header embed objects.
+The kernel linked 431 pass-one objects. The program embed, header embed
+and generated installer were the three changed inputs. The size check
+accepted all sixteen artifacts. The checked preprocessor passed both
+source corpus modes. The four-CPU guest ran `ssh` without arguments and
+returned to the shell after printing the usage message.
+
 ## 2026-11-21 — Resolve build job directories from the project
 
 Project compile lists and kernel jobs can use `root .` or a named

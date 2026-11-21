@@ -7,7 +7,7 @@ Cupid OS remains unfinished.
 
 ## Current boundaries
 
-- The normal graph has 454 transforms: 451 use CupidBuild and three retain
+- The normal graph has 455 transforms. CupidBuild owns 452 and three retain
   Python coordination. GNU Make still schedules the build.
 - Cupid OS rebuilt and ran the full CupidC, CupidASM, CupidLD, CupidObj
   and CupidBuild workers. The assembler includes CupidDis. The 19-request

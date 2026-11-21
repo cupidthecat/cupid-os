@@ -269,6 +269,7 @@ bin/wget.o
 bin/yield.o
 bin/fat16.h.o
 bin/shell.h.o
+bin/ssh_channel.h.o
 bin/browser/css.o
 bin/browser/dom.o
 bin/browser/font_face.o

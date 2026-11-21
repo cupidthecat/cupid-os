@@ -1286,6 +1286,7 @@ _C_PP_GENERATED_KERNEL_CASES = (
 _C_PP_NON_ROOT_HEADERS = (
     "/bin/fat16.h",
     "/bin/shell.h",
+    "/bin/ssh_channel.h",
 )
 _C_PP_DEFERRED_HOSTED_CASES: tuple[str, ...] = ()
 _C_PP_HOSTED_BRIDGE_CASES = frozenset(
@@ -15345,7 +15346,7 @@ def _validate_cupidobj_install_source_delivery(
             for path in content_set
             if path.startswith("bin/browser/") and path.endswith(".cc")
         }
-        expected_headers = {"bin/fat16.h", "bin/shell.h"}
+        expected_headers = {"bin/fat16.h", "bin/shell.h", "bin/ssh_channel.h"}
         content_valid = (
             len(programs) == 108
             and headers == expected_headers
