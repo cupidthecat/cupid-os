@@ -67,3 +67,9 @@ The fresh WSL build supplied all 156 production objects for the frontier
 fixture. Its FAT16, x86 and EHCI object bytes exposed stale locks from earlier
 changes. Every frontier assertion passed against the measured objects and
 snapshot from this build.
+
+The standalone replay compiled all 156 sources twice and reached the
+output assertions with matching stage pairs. That run still held the old
+EHCI expectation. Independent readback matched 311 saved objects against
+the checked kernel build. The replay's temporary directory closed before
+readback retained the second x86 object.

@@ -9,6 +9,10 @@ the final ELF. All five products matched the checked WSL build byte
 for byte. A new image using the 9,507,640-byte guest kernel booted and
 completed a shell command.
 
+The earlier kernel also passed the replay using four guest-built inputs
+from the kernel, Doom shim and Doom tree profiles. All five products
+matched the checked build and the resulting disk booted.
+
 The replay rejects the generated symbol source as a pass-one input.
 The first link must run before the symbol source can be generated.
 
