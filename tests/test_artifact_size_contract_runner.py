@@ -1060,10 +1060,11 @@ class ArtifactSizeMakeOrderTests(unittest.TestCase):
         checked_targets = build_graph_audit._reachable_rules(
             self.rules, "verify-artifact-sizes"
         )
-        # Starting the host coordinator imports the disk and ISO modules.
+        # Starting the host coordinator imports the image and path modules.
         self.assertEqual(
             all_targets - checked_targets,
-            {"all", "cupidos.img", "tools/hostbuild.py", "tools/hostbuild_disk.py", "tools/hostbuild_iso.py"},
+            {"all", "cupidos.img", "tools/hostbuild.py", "tools/hostbuild_disk.py",
+             "tools/hostbuild_iso.py", "tools/hostbuild_code_paths.py"},
         )
 
     def _parallel_fixture(self, *, fail_iso=False, remove_barrier=False):

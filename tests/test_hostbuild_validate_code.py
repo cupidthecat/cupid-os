@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from tools import hostbuild
+from tools import hostbuild, hostbuild_code_paths
 from tools.bootstrap_toolchain import BootstrapError
 
 
@@ -1029,7 +1029,7 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                 checked.assert_not_called()
 
     def test_windows_code_walk_uses_parent_relative_nofollow_handles(self):
-        tree = ast.parse(Path(hostbuild.__file__).read_text(encoding="utf-8"))
+        tree = ast.parse(Path(hostbuild_code_paths.__file__).read_text(encoding="utf-8"))
         child = next(
             node
             for node in tree.body
@@ -1096,7 +1096,7 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                 encoding="utf-8",
                 newline="\n",
             )
-            original_child_open = hostbuild._open_windows_code_child
+            original_child_open = hostbuild_code_paths._open_windows_code_child
             replacement_was_blocked = False
 
             def open_after_replacement_attempt(
@@ -1123,7 +1123,7 @@ class HostbuildValidateCodeTests(unittest.TestCase):
 
             with (
                 mock.patch(
-                    "tools.hostbuild._open_windows_code_child",
+                    "tools.hostbuild_code_paths._open_windows_code_child",
                     side_effect=open_after_replacement_attempt,
                 ),
                 mock.patch(
@@ -1238,7 +1238,7 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                 return subprocess.CompletedProcess(list(arguments), 0, "", "")
 
             if os.name == "nt":
-                original_child = hostbuild._open_windows_code_child
+                original_child = hostbuild_code_paths._open_windows_code_child
 
                 def child_with_swap(
                     parent_handle,
@@ -1267,7 +1267,7 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                     )
 
                 path_patch = mock.patch(
-                    "tools.hostbuild._open_windows_code_child",
+                    "tools.hostbuild_code_paths._open_windows_code_child",
                     side_effect=child_with_swap,
                 )
             else:

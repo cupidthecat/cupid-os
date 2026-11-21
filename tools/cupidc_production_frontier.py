@@ -83,6 +83,7 @@ GENERATED_CONTROL_FILES = (
     "tools/hostbuild.py",
     "tools/hostbuild_disk.py",
     "tools/hostbuild_iso.py",
+    "tools/hostbuild_code_paths.py",
 )
 
 

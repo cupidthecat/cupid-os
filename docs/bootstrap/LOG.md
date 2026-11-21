@@ -1,5 +1,15 @@
 # Bootstrapping log
 
+## 2026-11-21 — Separate retained host code paths from command dispatch
+
+The path module keeps Windows handle and POSIX file-descriptor checks
+together. Its 22 moved definitions kept their syntax trees. The public
+validation and assembly commands still use those checks.
+
+The 167 validation, assembly and build cases passed on Windows and WSL
+with six and three platform skips. The no-follow fixture checks the moved
+Windows handle code at its new path.
+
 ## 2026-11-21 — Split build graph tests by responsibility
 
 The suite keeps its original 143 unittest names. Make recipes, source
