@@ -1,6 +1,6 @@
 /**
- * kernel.c - Core kernel functionality for cupid-os
- *
+ * @file kernel.cc
+ * @brief Initialize Cupid OS and run its main kernel loop.
  * This file implements the main kernel functionality including:
  * - Core kernel initialization and entry point (_start and kmain)
  * - VGA text mode driver with 80x25 character display
@@ -101,6 +101,7 @@ int cursor_y = 0;
 // Global tick counters
 static uint32_t ticks_channel0 = 0;
 static uint32_t ticks_channel1 = 0;
+static uint32_t blockcache_last_flush_tick;
 
 /* Deferred reschedule flag - set inside IRQ, checked at safe points */
 static volatile bool need_reschedule = false;
@@ -158,6 +159,17 @@ void timer_callback_channel1(struct registers *r, uint32_t channel) {
     if (channel == 1) {
         ticks_channel1++;
     }
+}
+
+/* The timer driver dispatches channel callbacks on every PIT interrupt. */
+static void flush_blockcache_on_tick(struct registers *r, uint32_t channel) {
+    uint32_t now = (uint32_t)timer_get_ticks();
+    uint32_t frequency = timer_get_frequency();
+    if (frequency == 0u || now - blockcache_last_flush_tick < 5u * frequency)
+        return;
+
+    blockcache_last_flush_tick = now;
+    blockcache_periodic_flush(r, channel);
 }
 
 /**
@@ -710,8 +722,8 @@ void kmain(void) {
         if (blockcache_init(hdd) != 0) {
             KERROR("Block cache initialization failed");
         } else {
-            // Set up periodic flush every 5 seconds using timer channel 1
-            timer_configure_channel(1, 100, blockcache_periodic_flush);
+            blockcache_last_flush_tick = (uint32_t)timer_get_ticks();
+            timer_configure_channel(1, 100, flush_blockcache_on_tick);
             KINFO("Block cache: periodic flush enabled (5s interval)");
         }
 

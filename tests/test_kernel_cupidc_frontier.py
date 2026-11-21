@@ -1988,7 +1988,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                4257520,
+                4258104,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -2163,8 +2163,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                                                  "9f6ffc63da7e25ccee9c1133edba2bf8",
                                              ),
                 "kernel/core/kernel.cc": (
-                                             25384,
-                                             '1854937a0925b88b60ff8b4db42e7ff97b0a05fc38aee5ec5805f00c4b0e8da7',
+                                             25968,
+                                             '745ea24c6b51659270b61476d817f7a6fd923b2355e966b872407cec47e7601e',
                                          ),
                 "kernel/core/panic.cc": (
                                             9884,
@@ -2327,7 +2327,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             )
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                'c303c7aa92e5160fb5e3f93ff48ea88c9d6da4900d11ad66264b9cfaa8978b7a',
+                '0a91f8fa0af2ab21566edffb16d4a88521df232ea65205a7337201f483efd095',
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

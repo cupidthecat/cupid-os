@@ -1,3 +1,5 @@
+## @file
+#  @brief Test kernel ELF loading, process startup, and storage callback contracts.
 import os
 import re
 import shlex
@@ -401,6 +403,73 @@ class KernelBlockCacheSourceContractTests(unittest.TestCase):
         )
         periodic = self.function_body("blockcache_periodic_flush")
         self.assertIn("blockcache_flush_all()", periodic)
+
+    def test_periodic_writeback_uses_elapsed_ticks(self):
+        kernel = (REPO_ROOT / "kernel/core/kernel.cc").read_text()
+        self.assertRegex(
+            kernel,
+            r"timer_configure_channel\(1,\s*100,\s*flush_blockcache_on_tick\)",
+        )
+        match = re.search(
+            r"^static void flush_blockcache_on_tick\([^)]*\) \{.*?\n\}",
+            kernel,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        program = r'''
+#include <assert.h>
+#include <stdint.h>
+
+struct registers { int unused; };
+static uint32_t blockcache_last_flush_tick;
+static uint64_t ticks;
+static uint32_t rate;
+static unsigned flushes;
+static struct registers regs;
+static uint64_t timer_get_ticks(void) { return ticks; }
+static uint32_t timer_get_frequency(void) { return rate; }
+static void blockcache_periodic_flush(struct registers *r, uint32_t channel) {
+    assert(r == &regs && channel == 1);
+    flushes++;
+}
+''' + match.group() + r'''
+static void tick(uint64_t time, unsigned expected) {
+    ticks = time;
+    flush_blockcache_on_tick(&regs, 1);
+    assert(flushes == expected);
+}
+int main(void) {
+    rate = 100;
+    blockcache_last_flush_tick = 8;
+    tick(9, 0);
+    tick(507, 0);
+    tick(508, 1);
+    tick(509, 1);
+    tick(1007, 1);
+    tick(1008, 2);
+
+    rate = 250;
+    blockcache_last_flush_tick = UINT32_MAX - 49u;
+    tick((uint64_t)UINT32_MAX + 1200u, 2);
+    tick((uint64_t)UINT32_MAX + 1201u, 3);
+    rate = 0;
+    tick((uint64_t)UINT32_MAX + 1202u, 3);
+    return 0;
+}
+'''
+        with tempfile.TemporaryDirectory(prefix="cupid-blockcache-interval-") as temp:
+            root = Path(temp)
+            source = root / "interval.c"
+            source.write_text(program, encoding="utf-8")
+            output = root / ("interval.exe" if os.name == "nt" else "interval")
+            compiler = shlex.split(os.environ.get("CC", "clang" if os.name == "nt" else "cc"))
+            subprocess.run(
+                [*compiler, "-std=c11", "-Wall", "-Wextra", "-Werror",
+                 str(source), "-o", str(output)],
+                check=True,
+                timeout=60,
+            )
+            subprocess.run([str(output)], check=True, timeout=15)
 
     def test_sync_holds_the_guard_across_homefs_and_cache_flush(self):
         body = self.function_body("blockcache_sync")

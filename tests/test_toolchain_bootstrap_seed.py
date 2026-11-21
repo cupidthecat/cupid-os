@@ -1,3 +1,5 @@
+## @file
+#  @brief Verify checked seed behavior, provenance, and toolchain convergence.
 import ast
 import contextlib
 import hashlib
@@ -11087,11 +11089,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     def test_checked_seed_emits_complete_unchanged_kernel_entry_object(self):
         self._assert_checked_seed_emits_complete_unchanged_kernel_object(
             "kernel/core/kernel.cc",
-            31164,
-            956,
-            'c3b53e5fc75e2a8704c864f2bdfc15296985d14e35f650204c99d80b14133eee',
-            25384,
-            '1854937a0925b88b60ff8b4db42e7ff97b0a05fc38aee5ec5805f00c4b0e8da7',
+            31654,
+            968,
+            '7dc9898969de8e484be92172bdfe0e5852c03caf8d90c12571f134dc0dcc39aa',
+            25968,
+            '745ea24c6b51659270b61476d817f7a6fd923b2355e966b872407cec47e7601e',
         )
 
     def test_checked_seed_emits_page_aligned_kernel_stack_top(self):

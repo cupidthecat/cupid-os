@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## 2026-11-20 — Honor the five-second block-cache interval
+
+The PIT dispatches registered callbacks on every tick. The kernel now
+measures five seconds before it asks the block cache to flush. The old
+direct registration failed the timing test. The new callback passed at
+100 Hz and 250 Hz and across a 32-bit tick wrap on Windows and WSL.
+
+Checked CupidC on both hosts produced the same 25,968-byte kernel entry
+object. The two focused compiler object tests passed on WSL. The raw
+kernel measured 9,507,640 bytes. The final and pass-one ELFs measured
+9,738,268 and 9,603,100 bytes. All 16 exact artifact gates passed.
+
+The four-vCPU QEMU boot passed the SMP and network checks and all 23
+dglibc markers. The old and new dglibc runs each started 19 FAT16 writes
+and saved a 1,295,697-byte HomeFS container. The traces contained 700 and
+77 integer-print records, respectively. The count measures serial
+traffic during this check.
+
 ## 2026-11-20 — Document the guest toolchain sources
 
 Every C, header and Python source in `bootstrap/guest` has a Doxygen file

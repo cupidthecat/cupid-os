@@ -1,3 +1,5 @@
+## @file
+#  @brief Check CupidC object bytes, relocations, and publication behavior.
 import hashlib
 import json
 import os
@@ -165,9 +167,9 @@ LIBM_SOURCE_SIZE = 46508
 LIBM_SOURCE_SHA256 = (
     '2b10a62a7aefdafa09020e69205fafc278fd130477f95944e6c6ac3bda378169'
 )
-KERNEL_SOURCE_SIZE = 31164
+KERNEL_SOURCE_SIZE = 31654
 KERNEL_SOURCE_SHA256 = (
-    'c3b53e5fc75e2a8704c864f2bdfc15296985d14e35f650204c99d80b14133eee'
+    '7dc9898969de8e484be92172bdfe0e5852c03caf8d90c12571f134dc0dcc39aa'
 )
 
 
@@ -1569,7 +1571,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         source = REPO_ROOT / "kernel/core/kernel.cc"
         source_bytes = source.read_bytes()
         self.assertEqual(len(source_bytes), KERNEL_SOURCE_SIZE)
-        self.assertEqual(source_bytes.count(b"\n"), 956)
+        self.assertEqual(source_bytes.count(b"\n"), 968)
         self.assertEqual(
             hashlib.sha256(source_bytes).hexdigest(),
             KERNEL_SOURCE_SHA256,
@@ -1639,8 +1641,8 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(
                 (len(objects[0]), digest),
                 (
-                    25384,
-                    '1854937a0925b88b60ff8b4db42e7ff97b0a05fc38aee5ec5805f00c4b0e8da7',
+                    25968,
+                    '745ea24c6b51659270b61476d817f7a6fd923b2355e966b872407cec47e7601e',
                 ),
                 (
                     "kernel object lock changed: "

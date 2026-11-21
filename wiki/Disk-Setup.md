@@ -258,7 +258,8 @@ cupidc /home/DEMO.CC
 
 ### Syncing to Disk
 
-Writes go through a **block cache** and may not be flushed to disk immediately. The cache auto-flushes every 5 seconds, but you can force it:
+The block cache writes dirty sectors to disk every five seconds. Run
+`sync` to flush pending writes immediately.
 
 ```bash
 sync

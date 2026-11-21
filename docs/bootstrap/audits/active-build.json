@@ -53366,7 +53366,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 45986
+      "occurrences": 45987
     },
     {
       "category": "control",
@@ -53767,7 +53767,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28516
+      "occurrences": 28517
     },
     {
       "category": "control",
@@ -58736,7 +58736,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10988
+      "occurrences": 10990
     },
     {
       "category": "type",
@@ -60579,7 +60579,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 1172
+      "occurrences": 1173
     },
     {
       "category": "type",
@@ -61780,7 +61780,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 16402
+      "occurrences": 16403
     },
     {
       "category": "declaration",
@@ -62709,7 +62709,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "17b76fd99b6bb70b17a5cb24900eb5092a06e71c9c071ea256f5a446e3866989",
+    "active_source_digest": "40fc126b836915955fe24e204817691faec2cd0f467cd327e1d00941c581c464",
     "control_files": [
       {
         "path": "Makefile",
@@ -69822,12 +69822,12 @@
         "kernel/usb/usb.h"
       ],
       "language": "cupid_c",
-      "lines": 956,
+      "lines": 968,
       "origin": "tracked",
       "path": "kernel/core/kernel.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c3b53e5fc75e2a8704c864f2bdfc15296985d14e35f650204c99d80b14133eee"
+      "sha256": "7dc9898969de8e484be92172bdfe0e5852c03caf8d90c12571f134dc0dcc39aa"
     },
     {
       "build_owners": [
