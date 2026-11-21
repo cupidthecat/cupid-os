@@ -79,12 +79,12 @@ class HostBuildJpegCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                     create=True,
                 ),
                 mock.patch(
-                    "tools.hostbuild._prepare_baseline_jpeg",
+                    "tools.hostbuild_assets._prepare_baseline_jpeg",
                     side_effect=run_oracle,
                 ),
                 mock.patch(
@@ -139,12 +139,12 @@ class HostBuildJpegCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                     create=True,
                 ),
                 mock.patch(
-                    "tools.hostbuild._prepare_baseline_jpeg",
+                    "tools.hostbuild_assets._prepare_baseline_jpeg",
                     side_effect=AssertionError(
                         "Python oracle must not run before CupidObj"
                     ),
@@ -195,7 +195,7 @@ class HostBuildJpegCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 contextlib.redirect_stderr(diagnostic),
@@ -248,7 +248,7 @@ class HostBuildJpegCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 contextlib.redirect_stderr(diagnostic),
@@ -350,11 +350,11 @@ class HostBuildJpegCases:
                     side_effect=AssertionError("host converter lookup"),
                 ),
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 mock.patch(
-                    "tools.hostbuild._prepare_baseline_jpeg",
+                    "tools.hostbuild_assets._prepare_baseline_jpeg",
                     side_effect=AssertionError(
                         "Python oracle must not run before CupidObj"
                     ),
@@ -415,11 +415,11 @@ class HostBuildJpegCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 mock.patch(
-                    "tools.hostbuild._prepare_baseline_jpeg",
+                    "tools.hostbuild_assets._prepare_baseline_jpeg",
                     side_effect=AssertionError(
                         "Python oracle must not run before CupidObj"
                     ),
@@ -471,11 +471,11 @@ class HostBuildJpegCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 mock.patch(
-                    "tools.hostbuild._prepare_baseline_jpeg",
+                    "tools.hostbuild_assets._prepare_baseline_jpeg",
                     side_effect=hostbuild.EmbedJpegError(
                         "Python rejected the frame"
                     ),
@@ -532,7 +532,7 @@ class HostBuildJpegCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 mock.patch(
@@ -590,11 +590,11 @@ class HostBuildJpegCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 mock.patch(
-                    "tools.hostbuild._prepare_baseline_jpeg",
+                    "tools.hostbuild_assets._prepare_baseline_jpeg",
                     side_effect=alter_oracle,
                 ),
                 contextlib.redirect_stderr(diagnostic),
@@ -632,11 +632,11 @@ class HostBuildJpegCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     return_value=success,
                 ),
                 mock.patch(
-                    "tools.hostbuild._prepare_baseline_jpeg",
+                    "tools.hostbuild_assets._prepare_baseline_jpeg",
                     side_effect=AssertionError(
                         "Python oracle must not inspect a missing candidate"
                     ),
@@ -693,11 +693,11 @@ class HostBuildJpegCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 mock.patch(
-                    "tools.hostbuild._prepare_baseline_jpeg",
+                    "tools.hostbuild_assets._prepare_baseline_jpeg",
                     side_effect=AssertionError(
                         "Python oracle must not inspect a linked candidate"
                     ),
@@ -741,7 +741,7 @@ class HostBuildJpegCases:
                     diagnostic = io.StringIO()
                     with (
                         mock.patch(
-                            "tools.hostbuild.run_seed_tool",
+                            "tools.hostbuild_assets.run_seed_tool",
                             side_effect=AssertionError(
                                 "CupidObj must not run for an unsafe path"
                             ),
@@ -782,7 +782,7 @@ class HostBuildJpegCases:
                     diagnostic = io.StringIO()
                     with (
                         mock.patch(
-                            "tools.hostbuild.run_seed_tool",
+                            "tools.hostbuild_assets.run_seed_tool",
                             side_effect=AssertionError(
                                 "CupidObj must not run for an unsafe input"
                             ),
@@ -822,7 +822,7 @@ class HostBuildJpegCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=AssertionError(
                         "CupidObj must not run for a linked output"
                     ),
@@ -872,7 +872,7 @@ class HostBuildJpegCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 mock.patch(

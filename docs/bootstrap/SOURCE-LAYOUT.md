@@ -37,7 +37,7 @@ Compare emitted objects and checked seed outputs after moving code.
 | Compiler contracts | `toolchain/tests/cupidc_frontend_contract.cc`, `toolchain/tests/cupidc_ir_contract.cc`, `toolchain/tests/cupidc_object_contract.cc`, `toolchain/tests/cupidc_pp_contract.cc`, `toolchain/tests/cupidc_type_contract.cc` |
 | Assembler and format contracts | `toolchain/tests/cupidasm_contract.cc`, `toolchain/tests/cupidasm_kernel_elf_contract.cc`, `toolchain/tests/cupiddis_contract.cc`, `toolchain/tests/cupidobj_contract.cc`, `toolchain/tests/x86_contract.cc` |
 | Manifest contracts | `toolchain/tests/toolchain_manifest_contract.cc` |
-| Build and verification scripts | `tools/bootstrap_toolchain.py`, `tools/build_graph_audit.py`, `tools/cupidc_toolchain_contracts.py`, `tools/hostbuild.py` |
+| Build and verification scripts | `tools/bootstrap_toolchain.py`, `tools/build_graph_audit.py`, `tools/cupidc_toolchain_contracts.py` |
 
 Organize contract cases by behavior and keep the existing test commands.
 The seed suite now keeps all 156 test IDs under the original module while
@@ -237,3 +237,10 @@ The 13,912-line suite now separates Make rules, source inventories, compiler
 profiles, and fixed-point checks. Every file stays under 2,000 lines. All 143
 unittest names are unchanged. Windows and WSL passed the four reruns after
 the source counts and kernel-wrapper fixtures were refreshed.
+
+## Host build commands
+
+`hostbuild.py` keeps the command line, checked assembly and code validation.
+Separate modules own disk images, ISO fixtures, retained code paths and
+asset generation. All five files stay under 1,800 lines. The 181 build,
+validation and artifact cases passed on Windows and WSL with platform skips.

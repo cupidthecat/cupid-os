@@ -3939,6 +3939,7 @@
           "tools/hostbuild_disk.py",
           "tools/hostbuild_iso.py",
           "tools/hostbuild_code_paths.py",
+          "tools/hostbuild_assets.py",
           "Makefile",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
@@ -63278,7 +63279,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "4b6f58ec1f4def2971695a384a7f371461dd9cdd4bcb1d925acd4911863579aa"
+        "sha256": "32155e6b604776ecdbb5ed06cdc659ded5e52dcc52760ab545b68be51d381cf1"
       },
       {
         "path": "user/Makefile",

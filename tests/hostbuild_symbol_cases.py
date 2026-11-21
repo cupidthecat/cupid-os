@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest import mock
 
 from tests.hostbuild_fixtures import REPO_ROOT
-from tools import hostbuild
+from tools import hostbuild, hostbuild_assets
 
 
 class HostBuildSymbolCases:
@@ -73,7 +73,7 @@ class HostBuildSymbolCases:
                 )
 
             with mock.patch(
-                "tools.hostbuild.run_seed_tool",
+                "tools.hostbuild_assets.run_seed_tool",
                 side_effect=run_seed,
                 create=True,
             ):
@@ -130,7 +130,7 @@ class HostBuildSymbolCases:
             diagnostic = io.StringIO()
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                     create=True,
                 ),
@@ -188,7 +188,7 @@ class HostBuildSymbolCases:
             diagnostic = io.StringIO()
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                     create=True,
                 ),
@@ -236,7 +236,7 @@ class HostBuildSymbolCases:
             diagnostic = io.StringIO()
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                     create=True,
                 ),
@@ -278,7 +278,7 @@ class HostBuildSymbolCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     return_value=failure,
                     create=True,
                 ),
@@ -327,7 +327,7 @@ class HostBuildSymbolCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 contextlib.redirect_stderr(diagnostic),
@@ -393,7 +393,7 @@ class HostBuildSymbolCases:
             diagnostic = io.StringIO()
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_assets.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 contextlib.redirect_stderr(diagnostic),
@@ -820,7 +820,7 @@ class HostBuildSymbolCases:
             reader.write_bytes(b"checked CupidDis")
             elf.write_bytes(b"pass-one ELF")
             with mock.patch.object(
-                hostbuild,
+                hostbuild_assets,
                 "_symbols_from_nm",
                 return_value=symbols,
             ):

@@ -1,5 +1,15 @@
 # Bootstrapping log
 
+## 2026-11-21 — Separate host asset generation from command dispatch
+
+Kernel symbol sources, installation tables and JPEG wrapping now live in
+one asset module. Its 22 moved definitions kept their syntax trees. With
+disk, ISO and path handling already split, `hostbuild.py` has 1,752 lines.
+
+The 181 build, artifact and code validation cases passed on Windows and
+WSL with six and three platform skips. The existing commands keep their
+arguments and checked outputs.
+
 ## 2026-11-21 — Separate retained host code paths from command dispatch
 
 The path module keeps Windows handle and POSIX file-descriptor checks
