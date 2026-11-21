@@ -203,8 +203,9 @@ With options present, list all include roots in the intended search order.
 | `doom` | Enable the hosted Doom compatibility rules |
 
 The replay uses the checked kernel, Doom shim and vendored Doom profiles.
-Each profile gets a source ISO with the original paths. The replay compares
-each object saved by a fresh guest with the complete checked host object.
+Each batch boots once for up to eight sources from one profile. Its source
+ISO preserves the original paths. The replay compares each saved object
+with the complete checked host object before passing it to a link.
 
 ```sh
 make -C bootstrap/guest guest-compiler
@@ -402,6 +403,20 @@ prefix with the checked host tool and checks rejected jobs.
 `python3 bootstrap/guest/check_guest_disk_runtime.py` runs the job in
 Cupid OS, compares the prefix, extends the file with zeroes and boots it.
 The replay accepts `--boot` and `--kernel` to select saved guest artifacts.
+
+Run the full boot-media replay from a completed checked Linux or WSL build.
+
+```sh
+make -C bootstrap/guest guest-compiler guest-linker guest-ksyms guest-object guest-disk
+python3 bootstrap/guest/check_guest_kernel_link.py --rebuild-disk \
+  --rebuild-source kernel/core/kernel.cc
+```
+
+CupidASM assembles the bootloader and CupidDis checks its range map.
+A second guest runs the disk worker with the bootloader and raw kernel
+read back from the kernel replay. The test zero-extends the saved prefix
+and boots it with four virtual CPUs. It checks SMP, TLS, e1000 and DHCP,
+then runs the shell's `ls` through CupidC.
 
 ## Retained proof
 

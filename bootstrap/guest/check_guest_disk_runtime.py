@@ -51,7 +51,8 @@ def check(scratch: Path, root: Path, boot: Path, kernel: Path, qemu: str, timeou
         disk.write(matched["disk-prefix.img"])
         disk.truncate(200 * 1024 * 1024)
     run(*smoke, "--image", str(media), "--log", str(BUILD / "disk-template-boot.log"),
-        "--command", "ls", "--success-pattern", r"\[terminal\] command complete")
+        "--verify-smp-runtime", "--command", "ls",
+        "--success-pattern", r"\[cupidc\] JIT compile: /bin/ls[.]cc.*?\[cupidc\] JIT execution complete")
 
 
 def main() -> None:

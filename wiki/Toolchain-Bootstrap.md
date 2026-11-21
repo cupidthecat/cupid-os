@@ -121,6 +121,11 @@ the bootloader, raw kernel and output paths in `/home/cupiddisk.job`, then
 run `exec /disk/cupdisk`. The output covers the standard disk from the boot
 sectors through the empty FAT16 directory.
 
+The boot-media replay feeds the guest-built bootloader and raw kernel to
+the disk worker. It matches the checked disk prefix, extends it with zeroes
+and boots it. The test checks four CPUs, TLS, network startup and the shell.
+See the [guest build commands](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#build-the-disk-template-inside-cupid-os).
+
 ## History
 
 The [bootstrap log](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/LOG.md)

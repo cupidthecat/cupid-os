@@ -5,7 +5,6 @@
 
 import argparse
 from pathlib import Path
-import re
 import tempfile
 
 from check_guest_runtime import (
@@ -32,6 +31,7 @@ DEFAULT_SOURCES = (
     "kernel/doom/src/sha1.cc",
     "kernel/doom/src/d_main.cc",
 )
+MAX_BATCH_SOURCES = 8
 SOURCE_PROFILES = {
     source: profile
     for profile, sources in COMPILER_PROFILE_SOURCES.items()
@@ -69,6 +69,48 @@ def publish_profile_iso(iso: Path, root: Path, sources: list[str], profile: str)
         raise RuntimeError(f"{profile} ISO publication failed with status {result}")
 
 
+def compile_profile_batch(scratch: Path, root: Path, profile: str, sources: list[str],
+                          qemu: str, timeout: float) -> dict[str, Path]:
+    iso = scratch / "profile.iso"
+    publish_profile_iso(iso, root, sources, profile)
+    jobs = []
+    references = {}
+    commands = [("mount /disk/profile.iso /src", r"VFS: mounted 'iso9660' at '/src'")]
+    for index, source in enumerate(sources):
+        output = f"obj{index}.o"
+        job = f"cc{index}.job" if index else "cupidc.job"
+        references[output] = root / Path(source).with_suffix(".o")
+        jobs.append((job.encode("ascii"), compile_job(source, profile, output)))
+        if index:
+            commands.append((f"cp /home/{job} /home/cupidc.job", r"\[terminal\] command complete"))
+        commands.append(("exec /disk/cupcc", rf"\[cupidc-guest\] wrote /home/obj{index}[.]o" + COMPILER_REAPED))
+
+    homefs = scratch / "homefs.sys"
+    write_homefs(homefs, tuple(jobs))
+    disk = scratch / "profile.img"
+    create_disk(disk, f"{homefs}:/homefs.sys", f"{iso}:/profile.iso",
+                f"{BUILD / 'cupidc-guest.elf'}:/cupcc", production_root=root)
+    arguments = []
+    for command, pattern in commands[:-1]:
+        arguments.extend(("--setup-command", command, "--setup-success-pattern", pattern))
+    command, pattern = commands[-1]
+    log = BUILD / f"production-profile-{sources[0].replace('/', '-')}.log"
+    run("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "4",
+        "--cpu", "max", "--nic", "e1000", "--timeout", str(timeout),
+        "--image", str(disk), "--log", str(log), "--require-command-completion",
+        *arguments, "--command", command, "--success-pattern", pattern)
+
+    matched = compare_homefs_files(read_homefs(disk), references)
+    objects = {}
+    for output, reference in references.items():
+        logical_object = reference.relative_to(root)
+        destination = scratch.parent / "objects" / logical_object
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(matched[output])
+        objects[logical_object.as_posix()] = destination
+    return objects
+
+
 def compile_production_objects(
     scratch: Path, root: Path, sources: list[str], qemu: str, timeout: float,
 ) -> dict[str, Path]:
@@ -76,41 +118,16 @@ def compile_production_objects(
         return {}
     scratch.mkdir()
 
-    # Keep the source trees within the checked ISO publisher's entry limit.
     groups: dict[str, list[str]] = {}
     for source in sources:
         groups.setdefault(SOURCE_PROFILES[source], []).append(source)
-    images = {}
-    for profile, members in groups.items():
-        iso = scratch / f"{profile}.iso"
-        publish_profile_iso(iso, root, members, profile)
-        images[profile] = iso
-
     objects = {}
-    for index, source in enumerate(sources):
-        profile = SOURCE_PROFILES[source]
-        logical_object = Path(source).with_suffix(".o")
-        reference = root / logical_object
-        output = reference.name
-        homefs = scratch / "homefs.sys"
-        write_homefs(homefs, ((b"cupidc.job", compile_job(source, profile, output)),))
-        disk = scratch / f"profile-{index}.img"
-        create_disk(disk, f"{homefs}:/homefs.sys", f"{images[profile]}:/profile.iso",
-                    f"{BUILD / 'cupidc-guest.elf'}:/cupcc", production_root=root)
-        pattern = r"\[cupidc-guest\] wrote /home/" + re.escape(output) + COMPILER_REAPED
-        log = BUILD / f"production-profile-{source.replace('/', '-')}.log"
-        run("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "4",
-            "--cpu", "max", "--nic", "e1000", "--timeout", str(timeout),
-            "--image", str(disk), "--log", str(log), "--require-command-completion",
-            "--setup-command", "mount /disk/profile.iso /src",
-            "--setup-success-pattern", r"VFS: mounted 'iso9660' at '/src'",
-            "--command", "exec /disk/cupcc", "--success-pattern", pattern)
-        matched = compare_homefs_files(read_homefs(disk), {output: reference})
-        destination = scratch / "objects" / logical_object
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(matched[output])
-        objects[logical_object.as_posix()] = destination
-        disk.unlink()
+    for profile, members in groups.items():
+        # Bound ISO membership and the HomeFS output accumulated in each boot.
+        for start in range(0, len(members), MAX_BATCH_SOURCES):
+            batch = members[start:start + MAX_BATCH_SOURCES]
+            with tempfile.TemporaryDirectory(dir=scratch, prefix=f"{profile}-") as temporary:
+                objects.update(compile_profile_batch(Path(temporary), root, profile, batch, qemu, timeout))
     return objects
 
 

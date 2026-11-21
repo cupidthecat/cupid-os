@@ -1,5 +1,24 @@
 # Bootstrapping log
 
+## 2026-11-20 — Boot media rebuilt in Cupid OS
+
+The kernel replay compiled `kernel/core/kernel.cc` in Cupid OS and matched
+both links, the symbol source and object, and the 9,507,640-byte raw kernel.
+CupidASM rebuilt the 2,560-byte bootloader, and CupidDis checked its range
+map. CupidObj received both saved guest artifacts and produced the exact
+10,697,216-byte disk prefix. QEMU booted the zero-extended disk on four
+virtual CPUs and checked TLS, e1000, DHCP and the shell's `ls` command.
+
+The production compiler replay now boots once per batch of up to eight
+sources in one profile. It matched all four objects across three boots for
+the kernel, Doom shim and Doom tree. A host-side check exercised the
+eight-source boundary and checked temporary directory cleanup. An initial
+run used an older local image that rejected the compiler worker. The retry
+selected the completed checked WSL build.
+
+The checked WSL frontier test compiled all 156 sources in two stages and
+passed the updated exact-byte checks in 1,654 seconds.
+
 ## 2026-11-20 — Link a kernel with an object compiled in Cupid OS
 
 The replay compiled `kernel/core/kernel.cc` in Cupid OS and fed the

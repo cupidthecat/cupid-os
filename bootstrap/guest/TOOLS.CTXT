@@ -91,6 +91,11 @@ data chain before publishing the updated directory entry.
 
 >h2 Build a disk template
 
+Assemble the bootloader and check its saved range map.
+
+  as -f bin --map /home/boot.map -o /home/boot.bin /disk/boot.asm
+  dis --raw --range-map /home/boot.map --require-known /home/boot.bin
+
 In /home/cupiddisk.job, put the five-sector bootloader path, raw kernel
 path and output path on separate lines.
 

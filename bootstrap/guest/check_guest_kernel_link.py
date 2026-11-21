@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 ## @file
 #  @brief Rebuild and boot a kernel with the guest toolchain workers.
-"""Replay production compilation, kernel links and ELF flattening inside Cupid OS."""
+"""Replay production compilation, kernel links and boot media inside Cupid OS."""
 
 import argparse
 from pathlib import Path
@@ -9,6 +9,7 @@ import shlex
 import subprocess
 import tempfile
 
+from check_guest_disk_runtime import check as check_disk
 from check_guest_profile_runtime import SOURCE_PROFILES, compile_production_objects
 from check_guest_runtime import (
     BUILD,
@@ -49,7 +50,7 @@ def production_objects(root: Path) -> list[str]:
 
 
 def check(scratch: Path, root: Path, qemu: str, timeout: float,
-          rebuild_sources: list[str]) -> None:
+          rebuild_sources: list[str], rebuild_disk: bool) -> None:
     objects = production_objects(root)[:-1]
     for source in rebuild_sources:
         if Path(source).with_suffix(".o").as_posix() not in objects:
@@ -61,6 +62,8 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float,
     stage_objects = [
         f"{rebuilt.get(path, root / path)}:{alias}" for path, alias in zip(objects, inputs)
     ]
+    if rebuild_disk:
+        stage_objects.append(f"{root / 'boot/boot.asm'}:/boot.asm")
     disk_objects = [f"/disk{alias}" for alias in inputs]
 
     def link_request(destination: str, cohort: list[str]) -> bytes:
@@ -88,7 +91,16 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float,
     smoke = ("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "4",
              "--cpu", "max", "--nic", "e1000", "--timeout", str(timeout),
              "--require-command-completion")
+    boot_commands = ()
+    if rebuild_disk:
+        boot_commands = (
+            "--setup-command", "as -f bin --map /home/boot.map -o /home/boot.bin /disk/boot.asm",
+            "--setup-success-pattern", r"\[asm\] Wrote raw image: /home/boot[.]bin .*map: /home/boot[.]map",
+            "--setup-command", "dis --raw --range-map /home/boot.map --require-known /home/boot.bin",
+            "--setup-success-pattern", r"^\[disassembly raw\]\r?$",
+        )
     run(*smoke, "--image", str(image), "--log", str(BUILD / "kernel-build-runtime.log"),
+        *boot_commands,
         "--setup-command", "exec /disk/cupld",
         "--setup-success-pattern", r"\[cupidld-guest\] wrote /home/pass1[.]elf" + COMPILER_REAPED,
         "--setup-command", "exec /disk/cupks",
@@ -102,15 +114,26 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float,
         "--command", "exec /disk/cupobj",
         "--success-pattern", r"\[cupidobj-guest\] wrote /home/kernel[.]bin" + COMPILER_REAPED)
 
-    matched = compare_homefs_files(read_homefs(image), {
+    references = {
         "pass1.elf": root / "kernel/kernel.elf.pass1",
         "ksyms_data.cc": root / "kernel/cpu/ksyms_data.cc",
         "ksyms_data.o": root / "kernel/cpu/ksyms_data.o",
         "kernel.elf": root / "kernel/kernel.elf",
         "kernel.bin": root / "kernel/kernel.bin",
-    })
+    }
+    if rebuild_disk:
+        references["boot.bin"] = root / "boot/boot.bin"
+    matched = compare_homefs_files(read_homefs(image), references)
     kernel = scratch / "kernel.bin"
     kernel.write_bytes(matched["kernel.bin"])
+    if rebuild_disk:
+        boot = scratch / "boot.bin"
+        boot.write_bytes(matched["boot.bin"])
+        disk = scratch / "disk"
+        disk.mkdir()
+        check_disk(disk, root, boot, kernel, qemu, timeout)
+        return
+
     boot_image = scratch / "relinked.img"
     create_disk(boot_image, production_root=root, kernel_image=kernel)
     run(*smoke, "--image", str(boot_image), "--log", str(BUILD / "kernel-build-boot.log"),
@@ -123,6 +146,8 @@ def main() -> None:
                         help="completed checked OS build with both kernel ELF files")
     parser.add_argument("--rebuild-source", action="append", default=[], metavar="PATH",
                         help="compile a production source inside Cupid OS before linking (repeatable)")
+    parser.add_argument("--rebuild-disk", action="store_true",
+                        help="assemble the bootloader and build the final disk prefix in Cupid OS")
     parser.add_argument("--qemu", default="qemu-system-i386")
     parser.add_argument("--timeout", type=float, default=1800)
     args = parser.parse_args()
@@ -132,7 +157,7 @@ def main() -> None:
         parser.error("production sources must be distinct")
     with tempfile.TemporaryDirectory(prefix="cupid-kernel-link-") as temporary:
         check(Path(temporary), args.production_root.resolve(), args.qemu, args.timeout,
-              args.rebuild_source)
+              args.rebuild_source, args.rebuild_disk)
 
 
 if __name__ == "__main__":

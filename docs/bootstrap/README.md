@@ -15,8 +15,9 @@ Cupid OS remains unfinished.
   objects with their production profiles. The guest built and ran the
   `cat`, `hello` and `ls` examples. It ran both kernel
   links, generated and compiled the symbol table, and flattened the final
-  ELF with byte-for-byte matches. CupidObj also authored a fresh disk
-  prefix in the guest. It booted after zero extension.
+  ELF with byte-for-byte matches. The boot-media replay feeds the guest's
+  bootloader and raw kernel to CupidObj. The resulting disk boots after
+  zero extension.
   See the [guest build record](FREESTANDING-COMPILER-ENGINE.md).
 - Source-owner modules are in current producer plans, and paired named
   preparations reach a fixed point. The C reader now recognizes their exact
