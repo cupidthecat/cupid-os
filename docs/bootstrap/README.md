@@ -11,9 +11,9 @@ Cupid OS remains unfinished.
   Python coordination. GNU Make still schedules the build.
 - Cupid OS rebuilt and ran the full CupidC, CupidASM, CupidLD, CupidObj
   and CupidBuild workers. The assembler includes CupidDis. One guest build
-  plan rebuilt all 429 linked objects from source, including Doom and the
-  generated symbol table. Both kernel ELFs and the disk prefix matched the
-  checked build. The resulting disk booted with four CPUs and ran `ls`.
+  plan rebuilt all 431 linked objects from source and asset media, including
+  Doom and the generated symbol table. Both kernel ELFs and the disk prefix
+  matched the checked build. The resulting disk booted with four CPUs and ran `ls`.
   A second guest plan compiled and linked `cat`, `hello` and `ls` in one
   command, then each program ran from HomeFS.
   See the [guest build record](FREESTANDING-COMPILER-ENGINE.md).

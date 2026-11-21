@@ -308,26 +308,32 @@ guest linker matched the checked host ELF, SHA-256
 
 ## Rebuild and run the peer workers
 
-The guest plan compiles every object for the selected worker, links its
-executable, and runs the result in the same guest. The replay compares the
-objects, executable and output with the checked build.
+The guest starts with a fresh HomeFS. A read-only ISO supplies one compile
+list and one link job for the selected worker. The guest copies the final
+test request from FAT16 and runs the rebuilt executable. The replay
+compares every object, the executable, and its output with the checked build.
 
 ```sh
-make -C bootstrap/guest source-iso guest-build guest-assembler guest-linker guest-object
+make -C bootstrap/guest source-iso guest-media-build guest-build +  guest-compiler guest-assembler guest-linker guest-object
+python3 bootstrap/guest/check_guest_peer_self_host.py cupidc --production-root /path/to/checked/build
 python3 bootstrap/guest/check_guest_peer_self_host.py cupidasm --production-root /path/to/checked/build
 python3 bootstrap/guest/check_guest_peer_self_host.py cupidld --production-root /path/to/checked/build
 python3 bootstrap/guest/check_guest_peer_self_host.py cupidobj --production-root /path/to/checked/build
 python3 bootstrap/guest/check_guest_peer_self_host.py cupidbuild --production-root /path/to/checked/build --timeout 7200
 ```
 
-CupidASM rebuilt from seven objects, including CupidDis, and reproduced the
-checked ISR object. CupidLD rebuilt from five objects and linked the checked
-`hello` ELF. CupidObj rebuilt from five objects and wrapped the production
-JPEG into the checked object.
+The earlier peer replays rebuilt CupidASM from seven objects, including
+CupidDis, and reproduced the checked ISR object. CupidLD rebuilt from
+five objects and linked the checked `hello` ELF. CupidObj rebuilt from
+five objects and wrapped the production JPEG into the checked object.
 
 CupidBuild rebuilt all 24 objects and linked the 3,293,380-byte driver.
 The rebuilt driver ran an assembly job and reproduced the checked ISR
 object inside the same guest.
+
+The read-only CupidLD replay matched all five worker objects, the
+260,400-byte linker ELF, and the `hello` ELF it produced. The compiler
+source ISO readback matched 58 files and seven directories.
 
 ## Run a build plan inside Cupid OS
 
@@ -703,6 +709,11 @@ build. The 10,697,216-byte prefix had SHA-256
 `a46676434647dfdc79e6e2f387f4c6b5a9fb42e04c29a0baa9ff644ef63251be`.
 The resulting disk booted with four CPUs and passed TLS, e1000, DHCP,
 and `ls`.
+
+The complete four-mount replay also rebuilt all 430 pass-one objects from
+source and asset media in RAMFS, then generated and compiled the symbol
+object. All eleven saved products matched the checked build, including the
+same disk prefix. A four-CPU boot passed SMP, TLS, e1000, DHCP and `ls`.
 
 The default mode keeps every object in HomeFS. In the earlier HomeFS plan
 replay, all 428 pass-one objects, the generated symbol object, three

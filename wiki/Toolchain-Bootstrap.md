@@ -106,12 +106,14 @@ byte for byte. It ran in Cupid OS and reproduced `ctool.o` again.
 Cupid OS rebuilt and ran the complete CupidASM, CupidLD, CupidObj and
 CupidBuild workers. The assembler includes CupidDis. The linker produced
 the checked `hello` ELF, CupidObj wrapped the kernel JPEG, and the rebuilt
-driver ran a checked assembly job.
+driver ran a checked assembly job. The peer replay can also rebuild
+CupidC. It reads its build plan from an ISO and starts with a fresh HomeFS.
 [Peer replay commands](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#rebuild-and-run-the-peer-workers)
 
-One guest build plan rebuilds the kernel and Doom from source, wraps the
-assets, assembles the bootloader, runs both links and saves a checked disk
-prefix. The earlier replay booted the result with four CPUs and ran `ls`.
+One guest build plan rebuilt all 431 linked kernel objects from source and
+asset media, including Doom and the generated symbols. Both kernel ELFs and
+the disk prefix matched the checked build. The resulting disk booted with
+four CPUs and ran `ls`.
 The source-media worker reads jobs and assets from `/plan` and headers
 from `/src`. Source lists share compiler options. Asset lists share a
 wrapping mode. The production replay uses three read-only mounts.

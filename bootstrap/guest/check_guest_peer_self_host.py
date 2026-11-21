@@ -18,11 +18,12 @@ from check_guest_runtime import (
     create_disk,
     read_homefs,
     run,
-    write_homefs,
 )
+from check_guest_source_plan import MEDIA_BUILD, PLAN_ISO, job_contents, publish_plan_iso
 
 
 PEERS = {
+    "cupidc": COMPILER_SOURCES,
     "cupidasm": (
         "toolchain/ctool.cc", "toolchain/elf32.cc", "toolchain/x86.cc",
         "toolchain/cupidasm.cc", "toolchain/cupiddis.cc", "bootstrap/guest/guest_job.cc",
@@ -48,59 +49,69 @@ PEERS = {
 }
 
 
-def fixture(root: Path, peer: str) -> tuple[tuple[bytes, bytes], str, tuple[str, Path]]:
+def fixture(root: Path, peer: str) -> tuple[tuple[tuple[str, bytes], ...], tuple[str, ...], tuple[str, Path]]:
+    if peer == "cupidc":
+        request = ("cupidc.job", job_contents("/toolchain/ctool.cc", "/home/check.o"))
+        return (request,), (), ("check.o", BUILD / "ctool.o")
     if peer in ("cupidasm", "cupidbuild"):
         source = root / "kernel/cpu/isr.asm"
-        name = b"asm.job" if peer == "cupidbuild" else b"cupidasm.job"
-        return (name, b"/disk/in.asm\n/home/check.o\n"), f"{source}:/in.asm", (
-            "check.o", source.with_suffix(".o"),
-        )
+        name = "asm.job" if peer == "cupidbuild" else "cupidasm.job"
+        jobs = ((name, job_contents("/disk/in.asm", "/home/check.o")),)
+        if peer == "cupidbuild":
+            jobs += (("cupidbuild.job", job_contents("assemble", "/home/asm.job")),)
+        return jobs, (f"{source}:/in.asm",), ("check.o", source.with_suffix(".o"))
     if peer == "cupidld":
-        request = b"/home/hello.elf\n0x01c00000\n_start\n/disk/in.o\n"
-        return (b"cupidld.job", request), f"{root / 'user/build/hello.o'}:/in.o", (
+        request = job_contents("/home/hello.elf", "0x01c00000", "_start", "/disk/in.o")
+        return (("cupidld.job", request),), (f"{root / 'user/build/hello.o'}:/in.o",), (
             "hello.elf", root / "user/build/hello",
         )
     source = "file_example_JPG_1MB.jpg"
-    request = f"/disk/in.jpg\n/home/check.o\nwrap-jpeg\n/{source}\n".encode("ascii")
-    return (b"cupidobj.job", request), f"{root / source}:/in.jpg", ("check.o", root / (source + ".o"))
+    request = job_contents("/disk/in.jpg", "/home/check.o", "wrap-jpeg", f"/{source}")
+    return (("cupidobj.job", request),), (f"{root / source}:/in.jpg",), ("check.o", root / (source + ".o"))
 
 
 def check(scratch: Path, root: Path, peer: str, qemu: str, timeout: float) -> None:
-    jobs = []
-    plan = []
-    inputs = []
+    sources = PEERS[peer]
+    inputs = [f"/home/i{index}.o" for index in range(len(sources))]
     references = {"worker.elf": BUILD / f"{peer}-guest.elf"}
-    for index, source in enumerate(PEERS[peer]):
-        alias = f"i{index}.o"
-        job = f"c{index}.job"
-        jobs.append((job.encode("ascii"), f"/{source}\n/home/{alias}\n".encode("ascii")))
-        plan.extend(("compile", f"/home/{job}"))
-        inputs.append(f"/home/{alias}")
-        references[alias] = BUILD / Path(source).with_suffix(".o").name
-    link = ("\n".join(("/home/worker.elf", "0x01e00000", f"{peer}_guest_run", *inputs)) + "\n").encode("ascii")
-    plan.extend(("link", "/home/link.job"))
-    request, source_alias, (output, expected) = fixture(root, peer)
+    pairs = tuple(path for source, obj in zip(sources, inputs, strict=True) for path in (f"/{source}", obj))
+    references.update((Path(obj).name, BUILD / Path(source).with_suffix(".o").name)
+                      for source, obj in zip(sources, inputs, strict=True))
+    steps = (
+        ("compile-list", b"sources.job", job_contents("sources", *pairs)),
+        ("link", b"link.job", job_contents("/home/worker.elf", "0x01e00000", f"{peer}_guest_run", *inputs)),
+    )
+    plan = scratch / PLAN_ISO[0]
+    publisher = ROOT / "bootstrap/seeds/i386-linux/cupidbuild.elf"
+    if publish_plan_iso(publisher, root, plan, steps):
+        raise ValueError("could not publish the peer build plan ISO")
+
+    jobs, asset_inputs, (output, expected) = fixture(root, peer)
     references[output] = expected
     success = rf"\[{peer}-guest\] wrote /home/{re.escape(output)}" + COMPILER_REAPED
-    setup = ()
     if peer == "cupidbuild":
-        jobs.append((b"r", b"assemble\n/home/asm.job\n"))
-        setup = ("--setup-command", "cp /home/r /home/cupidbuild.job",
-                 "--setup-success-pattern", r"\[terminal\] command complete")
         success = r"\[cupidasm-guest\] wrote /home/check[.]o.*?\[cupidbuild-guest\] build complete" + COMPILER_REAPED
-    homefs = scratch / "homefs.sys"
-    write_homefs(homefs, ((b"cupidbuild.job", ("\n".join(plan) + "\n").encode("ascii")),
-                         (b"link.job", link), request, *jobs))
+    staged = []
+    setup = []
+    for index, (name, contents) in enumerate(jobs):
+        alias = f"r{index}"
+        request = scratch / alias
+        request.write_bytes(contents)
+        staged.append(f"{request}:/{alias}")
+        setup.extend(("--setup-command", f"cp /disk/{alias} /home/{name}",
+                      "--setup-success-pattern", r"\[terminal\] command complete"))
 
     image = scratch / "peer.img"
-    create_disk(image, f"{homefs}:/homefs.sys", f"{BUILD / 'engsrc.iso'}:/s.iso",
-                f"{BUILD / 'cupidbuild-guest.elf'}:/b", source_alias, production_root=root)
+    create_disk(image, f"{BUILD / 'engsrc.iso'}:/s.iso", f"{plan}:/{plan.name}",
+                f"{BUILD / MEDIA_BUILD}:/b", *asset_inputs, *staged, production_root=root)
     run("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "1", "--cpu", "max",
         "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.75",
         "--image", str(image), "--log", str(BUILD / f"self-host-{peer}.log"),
         "--require-command-completion", "--failure-pattern", BUILD_FAILURE_PATTERN,
         "--setup-command", "mount /disk/s.iso /src",
         "--setup-success-pattern", r"VFS: mounted 'iso9660' at '/src'",
+        "--setup-command", f"mount /disk/{plan.name} {PLAN_ISO[1]}",
+        "--setup-success-pattern", f"VFS: mounted 'iso9660' at '{PLAN_ISO[1]}'",
         "--setup-command", "exec /disk/b",
         "--setup-success-pattern", r"\[cupidbuild-guest\] build complete" + COMPILER_REAPED, *setup,
         "--command", "exec /home/worker.elf",
