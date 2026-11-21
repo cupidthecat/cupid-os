@@ -460,7 +460,7 @@ int cupidbuild_generate_ksyms_with_release(const cupidbuild_ksyms_request_t *req
         (void)fprintf(stderr, "cupidbuild: %s\n", cupidbuild_host_error(transaction));
         goto done;
     }
-    if (!cupidbuild_render_ksyms_source(symbols, symbols_snapshot.size, &expected, &expected_size,
+    if (!cupidbuild_render_ksyms_source(symbols, (size_t)symbols_snapshot.size, &expected, &expected_size,
                                         &validation_reason, &validation_line)) {
         if (validation_line != 0u) {
             (void)fprintf(stderr,

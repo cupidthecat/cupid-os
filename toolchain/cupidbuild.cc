@@ -755,7 +755,7 @@ static int cupidbuild_assemble(const cupidbuild_assembly_request_t *request,
         goto done;
     }
     if (kind == CUPIDBUILD_ASSEMBLY_OBJECT) {
-        if (!cupidbuild_validate_relocatable(candidate, candidate_snapshot.size, 1)) {
+        if (!cupidbuild_validate_relocatable(candidate, (size_t)candidate_snapshot.size, 1)) {
             (void)fprintf(stderr,
                           "cupidbuild: checked CupidASM relocatable object validation failed\n");
             goto done;
@@ -958,7 +958,7 @@ int cupidbuild_embed_jpeg_with_release(const cupidbuild_jpeg_request_t *request,
         (void)fprintf(stderr, "cupidbuild: frozen JPEG input cannot be inspected\n");
         goto done;
     }
-    if (!cupidbuild_validate_jpeg_object_bytes(candidate, candidate_snapshot.size, source,
+    if (!cupidbuild_validate_jpeg_object_bytes(candidate, (size_t)candidate_snapshot.size, source,
                                                source_size, request->source)) {
         (void)fprintf(stderr, "cupidbuild: checked CupidObj JPEG object validation failed\n");
         goto done;
@@ -1089,7 +1089,7 @@ static int cupidbuild_link_user_prepared(const cupidbuild_user_link_request_t *r
     if (!cupidbuild_host_capture_candidate(transaction, &candidate_snapshot, &candidate)) {
         goto host_failure;
     }
-    if (!cupidbuild_validate_user_executable_bytes(candidate, candidate_snapshot.size, reason,
+    if (!cupidbuild_validate_user_executable_bytes(candidate, (size_t)candidate_snapshot.size, reason,
                                                    sizeof(reason))) {
         (void)fprintf(stderr, "cupidbuild: user executable validation failed: %s\n", reason);
         goto done;

@@ -155,6 +155,16 @@ class CupidBuildCandidateExtentTests(unittest.TestCase):
         self.assertEqual((after.st_ino, after.st_mtime_ns), (before.st_ino, before.st_mtime_ns))
         self.assertEqual(list(output.parent.iterdir()), [output])
 
+    def test_candidate_store_preserves_positions_across_four_gibibytes(self):
+        root = self.fixture(existing=b'prior output')
+        output = root / 'nested/file.o'
+        before = output.stat()
+        self.call('store-wide', 0, 0, root, memory=os.name != 'nt')
+        self.assertEqual(output.read_bytes(), b'prior output')
+        after = output.stat()
+        self.assertEqual((after.st_ino, after.st_mtime_ns), (before.st_ino, before.st_mtime_ns))
+        self.assertEqual(list(output.parent.iterdir()), [output])
+
     def test_candidate_store_rejects_invalid_mutation_and_preserves_output(self):
         root = self.case / 'source-free'
         (root / 'nested').mkdir(parents=True)
@@ -162,7 +172,7 @@ class CupidBuildCandidateExtentTests(unittest.TestCase):
         output.write_bytes(b'prior output')
         before = output.stat()
         for mode, capacity in (('store-invalid-range', 8193), ('store-late-write', 8193),
-                               ('store-invalid-capacity', 'high')):
+                               ('store-invalid-capacity', 'overflow')):
             with self.subTest(mode=mode):
                 self.call(mode, 8193, capacity, root)
                 self.assertEqual(output.read_bytes(), b'prior output')

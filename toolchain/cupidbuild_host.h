@@ -453,8 +453,11 @@ int cupidbuild_host_transaction_borrow_external_source_observer(
     cupidbuild_host_transaction_t *transaction,
     cupidbuild_host_observer_t *observer);
 
+/* SHA-256 records the file length as a 64-bit count of bits. */
+#define CUPIDBUILD_HOST_MAX_EXTENT 0x1fffffffffffffffULL
+
 typedef struct {
-  size_t size;
+  unsigned long long size;
   unsigned char sha256[32];
   unsigned int identity[4];
   unsigned int modified[2];
@@ -490,7 +493,7 @@ int cupidbuild_host_profile_transaction_open(
     cupidbuild_host_profile_parent_t *profile_parent,
     cupidbuild_host_transaction_t **transaction_out);
 /* Acquire guarded output authority without implicitly reading a source.
- * Capacity is at most 2147483647 bytes. Invalid capacity clears the result
+ * Capacity is at most CUPIDBUILD_HOST_MAX_EXTENT. Invalid capacity clears the result
  * before touching the filesystem. Capture up to 4096 stage files and their
  * checked tool inputs through the regular APIs. */
 int cupidbuild_host_publication_transaction_open_bounded(
@@ -540,7 +543,7 @@ int cupidbuild_host_freeze_external_input(
 /* Freeze a disk input whose original request is already bound to the transaction.
  * A matching physical snapshot may use an existing private copy. The source
  * is a logical path for a borrowed external observer and a repository path
- * when the observer is null. */
+ * when the observer is null. Capacity is at most CUPIDBUILD_HOST_MAX_EXTENT. */
 int cupidbuild_host_freeze_disk_input(
     cupidbuild_host_transaction_t *transaction, cupidbuild_host_observer_t *external,
     const char *source, const char *private_name, unsigned long long capacity,

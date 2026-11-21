@@ -6,6 +6,9 @@
 #if !defined(_GNU_SOURCE)
 #define _GNU_SOURCE
 #endif
+#if !defined(_WIN32) && !defined(_FILE_OFFSET_BITS)
+#define _FILE_OFFSET_BITS 64
+#endif
 #if !defined(_POSIX_C_SOURCE)
 #define _POSIX_C_SOURCE 200809L
 #endif
@@ -111,7 +114,7 @@ typedef struct {
     char *frozen_name;
     cupidbuild_host_snapshot_t snapshot;
     cupidbuild_host_snapshot_t frozen_snapshot;
-    size_t limit;
+    unsigned long long limit;
     int previous_output;
     int external_input;
     int frozen_tool_output;
@@ -202,7 +205,7 @@ struct cupidbuild_host_transaction {
     cupidbuild_host_snapshot_t candidate_publish_snapshot;
     cupidbuild_host_snapshot_t private_output_snapshot;
     size_t private_output_limit;
-    size_t candidate_limit;
+    unsigned long long candidate_limit;
     cupidbuild_host_snapshot_t lock_snapshot;
     cupidbuild_host_snapshot_t private_root_snapshot;
     cupidbuild_host_snapshot_t private_reservation_snapshot;
@@ -268,7 +271,7 @@ struct cupidbuild_host_transaction {
 };
 
 #if defined(_WIN32)
-static int cupidbuild_host_windows_read_open_regular(HANDLE handle, size_t limit,
+static int cupidbuild_host_windows_read_open_regular(HANDLE handle, unsigned long long limit,
                                                      cupidbuild_host_snapshot_t *snapshot,
                                                      unsigned char **bytes_out);
 static int cupidbuild_host_windows_dispose_retained_at(HANDLE parent, const char *name,
@@ -282,7 +285,7 @@ static int cupidbuild_host_require_borrowed_observer(cupidbuild_host_transaction
 static int cupidbuild_host_require_external_observers(cupidbuild_host_transaction_t *transaction);
 static int cupidbuild_host_require_source_requests(cupidbuild_host_transaction_t *transaction);
 static int cupidbuild_host_read_external_input(cupidbuild_host_observer_t *observer,
-                                              const char *logical, size_t capacity,
+                                              const char *logical, unsigned long long capacity,
                                               cupidbuild_host_snapshot_t *snapshot);
 static int cupidbuild_host_require_public_binding(cupidbuild_host_transaction_t *transaction,
                                                   const cupidbuild_host_snapshot_t *expected_output,
@@ -297,7 +300,7 @@ static int cupidbuild_host_private_root_is_owned(cupidbuild_host_transaction_t *
 static int cupidbuild_host_posix_atomic_replace(cupidbuild_host_transaction_t *transaction);
 static int cupidbuild_host_posix_dispose_parked_output(cupidbuild_host_transaction_t *transaction);
 static int cupidbuild_host_directory_entry_missing_at(int directory, const char *name);
-static int cupidbuild_host_read_open_file(int descriptor, size_t limit,
+static int cupidbuild_host_read_open_file(int descriptor, unsigned long long limit,
                                           cupidbuild_host_snapshot_t *snapshot,
                                           unsigned char **bytes_out);
 #endif
@@ -529,29 +532,30 @@ static int cupidbuild_host_read_open_contents(
 #else
     int descriptor,
 #endif
-    size_t size, unsigned char **bytes_out, unsigned char digest[32]) {
+    unsigned long long size, unsigned char **bytes_out, unsigned char digest[32]) {
     unsigned char block[65536];
     unsigned char *bytes = (unsigned char *)0;
     cupidbuild_sha_context_t context;
-    size_t offset = 0u;
+    unsigned long long offset = 0u;
 #if defined(_WIN32)
     if (SetFilePointer(handle, 0, 0, FILE_BEGIN) != 0u)
         return 0;
 #endif
+    if (size > CUPIDBUILD_HOST_MAX_EXTENT)
+        return 0;
     if (bytes_out != (unsigned char **)0) {
-        if (size == (size_t)-1)
+        if (size >= (size_t)-1)
             return 0;
-        bytes = (unsigned char *)malloc(size + 1u);
+        bytes = (unsigned char *)malloc((size_t)size + 1u);
         if (bytes == (unsigned char *)0)
             return 0;
     }
     cupidbuild_sha_initialize(&context);
     while (offset < size) {
-        size_t chunk = size - offset;
+        unsigned long long remaining = size - offset;
+        size_t chunk = remaining > sizeof(block) ? sizeof(block) : (size_t)remaining;
         size_t count;
-        unsigned char *destination = bytes != (unsigned char *)0 ? bytes + offset : block;
-        if (chunk > sizeof(block))
-            chunk = sizeof(block);
+        unsigned char *destination = bytes != (unsigned char *)0 ? bytes + (size_t)offset : block;
 #if defined(_WIN32)
         DWORD read_bytes = 0u;
         if (!ReadFile(handle, destination, (DWORD)chunk, &read_bytes, (LPOVERLAPPED)0)) {
@@ -564,7 +568,8 @@ static int cupidbuild_host_read_open_contents(
         do {
             read_bytes = cupid_linux_syscall5(CUPIDBUILD_LINUX_SYS_PREAD64,
                                               (unsigned int)descriptor, (unsigned int)destination,
-                                              (unsigned int)chunk, (unsigned int)offset, 0u);
+                                              (unsigned int)chunk, (unsigned int)offset,
+                                              (unsigned int)(offset >> 32u));
         } while (read_bytes == -CUPIDBUILD_LINUX_EINTR);
         count = read_bytes > 0 ? (size_t)read_bytes : 0u;
 #else
@@ -583,7 +588,7 @@ static int cupidbuild_host_read_open_contents(
     }
     cupidbuild_sha_finish(&context, digest);
     if (bytes_out != (unsigned char **)0) {
-        bytes[size] = 0u;
+        bytes[(size_t)size] = 0u;
         *bytes_out = bytes;
     }
     return 1;
@@ -2072,25 +2077,27 @@ static HANDLE cupidbuild_host_windows_open_repository(const char *path) {
 }
 
 static int cupidbuild_host_windows_read_repository_regular(HANDLE repository, const char *logical,
-                                                           size_t limit,
+                                                           unsigned long long limit,
                                                            cupidbuild_host_snapshot_t *snapshot,
                                                            unsigned char **bytes_out) {
     HANDLE handle = cupidbuild_host_windows_open_relative_path(repository, logical, 0, 1);
     BY_HANDLE_FILE_INFORMATION information;
     unsigned char *bytes = (unsigned char *)0;
     unsigned char digest[32];
-    size_t size;
+    unsigned long long size;
     (void)memset(snapshot, 0, sizeof(*snapshot));
     if (handle == INVALID_HANDLE_VALUE || !GetFileInformationByHandle(handle, &information) ||
         (information.dwFileAttributes &
          (FILE_ATTRIBUTE_DEVICE | FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) != 0u ||
-        information.nFileSizeHigh != 0u || information.nFileSizeLow > limit) {
+        (((unsigned long long)information.nFileSizeHigh << 32u) |
+          information.nFileSizeLow) > limit) {
         if (handle != INVALID_HANDLE_VALUE) {
             (void)CloseHandle(handle);
         }
         return 0;
     }
-    size = (size_t)information.nFileSizeLow;
+    size = ((unsigned long long)information.nFileSizeHigh << 32u) |
+           information.nFileSizeLow;
     if (!cupidbuild_host_read_open_contents(
             handle, size, bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
             digest)) {
@@ -2118,7 +2125,7 @@ static int cupidbuild_host_windows_read_repository_regular(HANDLE repository, co
 }
 
 static int cupidbuild_host_windows_read_relative_regular(HANDLE parent, const char *name,
-                                                         int optional, size_t limit,
+                                                         int optional, unsigned long long limit,
                                                          cupidbuild_host_snapshot_t *snapshot,
                                                          unsigned char **bytes_out) {
     long open_status = 0;
@@ -2127,7 +2134,7 @@ static int cupidbuild_host_windows_read_relative_regular(HANDLE parent, const ch
     BY_HANDLE_FILE_INFORMATION information;
     unsigned char *bytes = (unsigned char *)0;
     unsigned char digest[32];
-    size_t size;
+    unsigned long long size;
     (void)memset(snapshot, 0, sizeof(*snapshot));
     if (handle == INVALID_HANDLE_VALUE) {
         unsigned long status = (unsigned long)open_status;
@@ -2143,11 +2150,13 @@ static int cupidbuild_host_windows_read_relative_regular(HANDLE parent, const ch
     if (!GetFileInformationByHandle(handle, &information) ||
         (information.dwFileAttributes &
          (FILE_ATTRIBUTE_DEVICE | FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) != 0u ||
-        information.nFileSizeHigh != 0u || information.nFileSizeLow > limit) {
+        (((unsigned long long)information.nFileSizeHigh << 32u) |
+          information.nFileSizeLow) > limit) {
         (void)CloseHandle(handle);
         return 0;
     }
-    size = (size_t)information.nFileSizeLow;
+    size = ((unsigned long long)information.nFileSizeHigh << 32u) |
+           information.nFileSizeLow;
     if (!cupidbuild_host_read_open_contents(
             handle, size, bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
             digest)) {
@@ -2836,7 +2845,7 @@ static int cupidbuild_linux_open_relative(int parent, const char *name, int dire
     if (directory != 0) {
         flags |= CUPIDBUILD_LINUX_O_DIRECTORY;
     } else {
-        flags |= CUPIDBUILD_LINUX_O_NONBLOCK;
+        flags |= CUPIDBUILD_LINUX_O_NONBLOCK | CUPIDBUILD_LINUX_O_LARGEFILE;
     }
     return cupid_linux_syscall4(CUPIDBUILD_LINUX_SYS_OPENAT, (unsigned int)parent,
                                 (unsigned int)name, flags, 0u);
@@ -2928,12 +2937,12 @@ static int cupidbuild_linux_open_repository(const char *path) {
 }
 
 static int cupidbuild_linux_read_repository_regular(int repository, const char *logical,
-                                                    size_t limit,
+                                                    unsigned long long limit,
                                                     cupidbuild_host_snapshot_t *snapshot,
                                                     unsigned char **bytes_out) {
     unsigned char information[96];
     int descriptor = cupidbuild_linux_open_relative_path(repository, logical, 0);
-    unsigned int size;
+    unsigned long long size;
     unsigned char *bytes = (unsigned char *)0;
     unsigned char digest[32];
     (void)memset(snapshot, 0, sizeof(*snapshot));
@@ -2941,20 +2950,20 @@ static int cupidbuild_linux_read_repository_regular(int repository, const char *
         cupid_linux_syscall2(CUPIDBUILD_LINUX_SYS_FSTAT64, (unsigned int)descriptor,
                              (unsigned int)information) < 0 ||
         (cupidbuild_linux_mode(information) & CUPIDBUILD_LINUX_S_IFMT) !=
-            CUPIDBUILD_LINUX_S_IFREG ||
-        cupidbuild_linux_u32(information + 48u) != 0u) {
+            CUPIDBUILD_LINUX_S_IFREG) {
         if (descriptor >= 0) {
             (void)cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE, (unsigned int)descriptor);
         }
         return 0;
     }
-    size = cupidbuild_linux_u32(information + 44u);
-    if ((size_t)size > limit) {
+    size = ((unsigned long long)cupidbuild_linux_u32(information + 48u) << 32u) |
+           cupidbuild_linux_u32(information + 44u);
+    if (size > limit) {
         (void)cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE, (unsigned int)descriptor);
         return 0;
     }
     if (!cupidbuild_host_read_open_contents(
-            descriptor, (size_t)size,
+            descriptor, size,
             bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0, digest)) {
         (void)cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE, (unsigned int)descriptor);
         return 0;
@@ -2981,12 +2990,12 @@ static int cupidbuild_linux_read_repository_regular(int repository, const char *
 }
 
 static int cupidbuild_linux_read_relative_regular(int parent, const char *name, int optional,
-                                                  size_t limit,
+                                                  unsigned long long limit,
                                                   cupidbuild_host_snapshot_t *snapshot,
                                                   unsigned char **bytes_out) {
     unsigned char information[96];
     int descriptor = cupidbuild_linux_open_relative(parent, name, 0);
-    unsigned int size;
+    unsigned long long size;
     unsigned char *bytes = (unsigned char *)0;
     unsigned char digest[32];
     (void)memset(snapshot, 0, sizeof(*snapshot));
@@ -3002,18 +3011,18 @@ static int cupidbuild_linux_read_relative_regular(int parent, const char *name, 
     if (cupid_linux_syscall2(CUPIDBUILD_LINUX_SYS_FSTAT64, (unsigned int)descriptor,
                              (unsigned int)information) < 0 ||
         (cupidbuild_linux_mode(information) & CUPIDBUILD_LINUX_S_IFMT) !=
-            CUPIDBUILD_LINUX_S_IFREG ||
-        cupidbuild_linux_u32(information + 48u) != 0u) {
+            CUPIDBUILD_LINUX_S_IFREG) {
         (void)cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE, (unsigned int)descriptor);
         return 0;
     }
-    size = cupidbuild_linux_u32(information + 44u);
-    if ((size_t)size > limit) {
+    size = ((unsigned long long)cupidbuild_linux_u32(information + 48u) << 32u) |
+           cupidbuild_linux_u32(information + 44u);
+    if (size > limit) {
         (void)cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE, (unsigned int)descriptor);
         return 0;
     }
     if (!cupidbuild_host_read_open_contents(
-            descriptor, (size_t)size,
+            descriptor, size,
             bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0, digest)) {
         (void)cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE, (unsigned int)descriptor);
         return 0;
@@ -3604,12 +3613,12 @@ static int cupidbuild_host_linux_open_snapshot(int descriptor,
     if (cupid_linux_syscall2(CUPIDBUILD_LINUX_SYS_FSTAT64, (unsigned int)descriptor,
                              (unsigned int)information) < 0 ||
         (cupidbuild_linux_mode(information) & CUPIDBUILD_LINUX_S_IFMT) !=
-            CUPIDBUILD_LINUX_S_IFREG ||
-        cupidbuild_linux_u32(information + 48u) != 0u) {
+            CUPIDBUILD_LINUX_S_IFREG) {
         return 0;
     }
     snapshot->present = 1;
-    snapshot->size = (size_t)cupidbuild_linux_u32(information + 44u);
+    snapshot->size = ((unsigned long long)cupidbuild_linux_u32(information + 48u) << 32u) |
+                     cupidbuild_linux_u32(information + 44u);
     snapshot->identity[0] = cupidbuild_linux_u32(information);
     snapshot->identity[1] = cupidbuild_linux_u32(information + 4u);
     snapshot->identity[2] = cupidbuild_linux_u32(information + 88u);
@@ -3619,7 +3628,7 @@ static int cupidbuild_host_linux_open_snapshot(int descriptor,
     return 1;
 }
 
-static int cupidbuild_host_read_open_file(int descriptor, size_t limit,
+static int cupidbuild_host_read_open_file(int descriptor, unsigned long long limit,
                                           cupidbuild_host_snapshot_t *snapshot,
                                           unsigned char **bytes_out) {
     cupidbuild_host_snapshot_t current;
@@ -4279,12 +4288,12 @@ static int cupidbuild_native_open_repository(const char *path) {
 }
 
 static int cupidbuild_native_read_repository_regular(int repository, const char *logical,
-                                                     size_t limit,
+                                                     unsigned long long limit,
                                                      cupidbuild_host_snapshot_t *snapshot,
                                                      unsigned char **bytes_out) {
     struct stat information;
     int descriptor = cupidbuild_native_open_relative_path(repository, logical, 0);
-    size_t size;
+    unsigned long long size;
     unsigned char *bytes = (unsigned char *)0;
     unsigned char digest[32];
     (void)memset(snapshot, 0, sizeof(*snapshot));
@@ -4299,7 +4308,7 @@ static int cupidbuild_native_read_repository_regular(int repository, const char 
         (void)close(descriptor);
         return 0;
     }
-    size = (size_t)information.st_size;
+    size = (unsigned long long)information.st_size;
     if (!cupidbuild_host_read_open_contents(
             descriptor, size, bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
             digest)) {
@@ -4327,12 +4336,12 @@ static int cupidbuild_native_read_repository_regular(int repository, const char 
 }
 
 static int cupidbuild_native_read_relative_regular(int parent, const char *name, int optional,
-                                                   size_t limit,
+                                                   unsigned long long limit,
                                                    cupidbuild_host_snapshot_t *snapshot,
                                                    unsigned char **bytes_out) {
     struct stat information;
     int descriptor = cupidbuild_native_open_relative(parent, name, 0);
-    size_t size;
+    unsigned long long size;
     unsigned char *bytes = (unsigned char *)0;
     unsigned char digest[32];
     (void)memset(snapshot, 0, sizeof(*snapshot));
@@ -4351,7 +4360,7 @@ static int cupidbuild_native_read_relative_regular(int parent, const char *name,
         (void)close(descriptor);
         return 0;
     }
-    size = (size_t)information.st_size;
+    size = (unsigned long long)information.st_size;
     if (!cupidbuild_host_read_open_contents(
             descriptor, size, bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
             digest)) {
@@ -4737,7 +4746,7 @@ static int cupidbuild_host_posix_open_snapshot(int descriptor,
         return 0;
     }
     snapshot->present = 1;
-    snapshot->size = (size_t)information.st_size;
+    snapshot->size = (unsigned long long)information.st_size;
     snapshot->identity[0] = (unsigned int)information.st_dev;
     snapshot->identity[1] = (unsigned int)((unsigned long long)information.st_dev >> 32u);
     snapshot->identity[2] = (unsigned int)information.st_ino;
@@ -4746,7 +4755,7 @@ static int cupidbuild_host_posix_open_snapshot(int descriptor,
     return 1;
 }
 
-static int cupidbuild_host_read_open_file(int descriptor, size_t limit,
+static int cupidbuild_host_read_open_file(int descriptor, unsigned long long limit,
                                           cupidbuild_host_snapshot_t *snapshot,
                                           unsigned char **bytes_out) {
     cupidbuild_host_snapshot_t current;
@@ -5785,21 +5794,23 @@ static int cupidbuild_host_windows_create_lock(cupidbuild_host_transaction_t *tr
                                                            snapshot, &transaction->lock_handle);
 }
 
-static int cupidbuild_host_windows_read_open_regular(HANDLE handle, size_t limit,
+static int cupidbuild_host_windows_read_open_regular(HANDLE handle, unsigned long long limit,
                                                      cupidbuild_host_snapshot_t *snapshot,
                                                      unsigned char **bytes_out) {
     BY_HANDLE_FILE_INFORMATION information;
     unsigned char *bytes = (unsigned char *)0;
     unsigned char digest[32];
-    size_t size;
+    unsigned long long size;
     if (handle == INVALID_HANDLE_VALUE || SetFilePointer(handle, 0, 0, FILE_BEGIN) != 0u ||
         !GetFileInformationByHandle(handle, &information) ||
         (information.dwFileAttributes &
          (FILE_ATTRIBUTE_DEVICE | FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) != 0u ||
-        information.nFileSizeHigh != 0u || information.nFileSizeLow > limit) {
+        (((unsigned long long)information.nFileSizeHigh << 32u) |
+          information.nFileSizeLow) > limit) {
         return 0;
     }
-    size = (size_t)information.nFileSizeLow;
+    size = ((unsigned long long)information.nFileSizeHigh << 32u) |
+           information.nFileSizeLow;
     if (!cupidbuild_host_read_open_contents(
             handle, size, bytes_out != (unsigned char **)0 ? &bytes : (unsigned char **)0,
             digest)) {
@@ -5834,7 +5845,7 @@ static int cupidbuild_host_windows_regular_metadata(HANDLE handle,
     (void)memset(snapshot, 0, sizeof(*snapshot));
     snapshot->present = 1;
     snapshot->size =
-        information.nFileSizeHigh == 0u ? (size_t)information.nFileSizeLow : (size_t)-1;
+        ((unsigned long long)information.nFileSizeHigh << 32u) | information.nFileSizeLow;
     snapshot->identity[0] = information.dwVolumeSerialNumber;
     snapshot->identity[1] = information.nFileIndexHigh;
     snapshot->identity[2] = information.nFileIndexLow;
@@ -5960,7 +5971,7 @@ static int cupidbuild_host_windows_dispose_read_retained_at(HANDLE parent, const
 
 static int cupidbuild_host_windows_transition_retained_at_limit(
     HANDLE parent, const char *name, cupidbuild_host_snapshot_t *expected, HANDLE *retained_handle,
-    int seal, int require_unchanged, int retain_delete_access, size_t limit) {
+    int seal, int require_unchanged, int retain_delete_access, unsigned long long limit) {
     cupidbuild_host_snapshot_t current;
     cupidbuild_host_snapshot_t transition_snapshot;
     cupidbuild_host_snapshot_t final_snapshot;
@@ -6259,7 +6270,7 @@ static int cupidbuild_host_rename_entry_noreplace_at(int source_directory, const
            CUPIDBUILD_HOST_NOREPLACE_COMPLETE;
 }
 
-static int cupidbuild_host_regular_snapshot_at_limit(int directory, const char *name, size_t limit,
+static int cupidbuild_host_regular_snapshot_at_limit(int directory, const char *name, unsigned long long limit,
                                                      cupidbuild_host_snapshot_t *snapshot) {
 #if defined(CUPIDBUILD_CUSTOM_LINUX)
     return cupidbuild_linux_read_relative_regular(directory, name, 0, limit, snapshot,
@@ -6290,9 +6301,8 @@ static int cupidbuild_host_regular_metadata_at(int directory, const char *name,
         return 0;
     }
     snapshot->present = 1;
-    snapshot->size = cupidbuild_linux_u32(information + 48u) == 0u
-                         ? (size_t)cupidbuild_linux_u32(information + 44u)
-                         : (size_t)-1;
+    snapshot->size = ((unsigned long long)cupidbuild_linux_u32(information + 48u) << 32u) |
+                     cupidbuild_linux_u32(information + 44u);
     snapshot->identity[0] = cupidbuild_linux_u32(information);
     snapshot->identity[1] = cupidbuild_linux_u32(information + 4u);
     snapshot->identity[2] = cupidbuild_linux_u32(information + 88u);
@@ -6309,7 +6319,7 @@ static int cupidbuild_host_regular_metadata_at(int directory, const char *name,
         return 0;
     }
     snapshot->present = 1;
-    snapshot->size = (size_t)information.st_size;
+    snapshot->size = (unsigned long long)information.st_size;
     snapshot->identity[0] = (unsigned int)(unsigned long long)information.st_dev;
     snapshot->identity[1] = (unsigned int)((unsigned long long)information.st_dev >> 32u);
     snapshot->identity[2] = (unsigned int)(unsigned long long)information.st_ino;
@@ -6430,7 +6440,8 @@ static int cupidbuild_host_write_exclusive_at(int directory, const char *name,
         descriptor = cupid_linux_syscall4(
             CUPIDBUILD_LINUX_SYS_OPENAT, (unsigned int)directory, (unsigned int)name,
             CUPIDBUILD_LINUX_O_RDWR | CUPIDBUILD_LINUX_O_CREAT | CUPIDBUILD_LINUX_O_EXCL |
-                CUPIDBUILD_LINUX_O_NOFOLLOW | CUPIDBUILD_LINUX_O_CLOEXEC,
+                CUPIDBUILD_LINUX_O_NOFOLLOW | CUPIDBUILD_LINUX_O_CLOEXEC |
+                CUPIDBUILD_LINUX_O_LARGEFILE,
             0600u);
     } while (descriptor == -CUPIDBUILD_LINUX_EINTR);
 #else
@@ -6693,7 +6704,7 @@ static int cupidbuild_host_private_entry_path(const cupidbuild_host_transaction_
 }
 
 static int cupidbuild_host_read_private_regular(cupidbuild_host_transaction_t *transaction,
-                                                const char *name, int optional, size_t limit,
+                                                const char *name, int optional, unsigned long long limit,
                                                 cupidbuild_host_snapshot_t *snapshot,
                                                 unsigned char **bytes_out) {
     if (transaction == (cupidbuild_host_transaction_t *)0 || transaction->runner_transaction != 0 ||
@@ -6764,7 +6775,7 @@ cupidbuild_host_private_entry_is_anonymous(const cupidbuild_host_transaction_t *
 #endif
 
 static int cupidbuild_host_read_retained_private_regular(cupidbuild_host_transaction_t *transaction,
-                                                         const char *name, size_t limit,
+                                                         const char *name, unsigned long long limit,
 #if defined(_WIN32)
                                                          HANDLE handle,
 #else
@@ -7898,7 +7909,7 @@ static int cupidbuild_host_register_input(cupidbuild_host_transaction_t *transac
                                           const char *live_path, const char *frozen_path,
                                           const char *frozen_name,
                                           const cupidbuild_host_snapshot_t *snapshot,
-                                          size_t limit) {
+                                          unsigned long long limit) {
     cupidbuild_host_input_t *input;
     size_t live_size = strlen(live_path) + 1u;
     size_t frozen_size = strlen(frozen_path) + 1u;
@@ -8026,7 +8037,7 @@ static int cupidbuild_host_repository_logical_path(const cupidbuild_host_transac
 }
 
 static int cupidbuild_host_read_transaction_input(cupidbuild_host_transaction_t *transaction,
-                                                  const char *path, size_t limit,
+                                                  const char *path, unsigned long long limit,
                                                   cupidbuild_host_snapshot_t *snapshot,
                                                   unsigned char **bytes_out) {
     const char *logical;
@@ -8078,7 +8089,7 @@ int cupidbuild_host_input_matches_snapshot(cupidbuild_host_transaction_t *transa
                                            const char *live_path,
                                            const cupidbuild_host_snapshot_t *expected) {
     cupidbuild_host_snapshot_t current;
-    size_t limit = CUPIDBUILD_HOST_FILE_LIMIT;
+    unsigned long long limit = CUPIDBUILD_HOST_FILE_LIMIT;
     unsigned int index;
     if (transaction != (cupidbuild_host_transaction_t *)0 && live_path != (const char *)0) {
         for (index = 0u; index < transaction->input_count; index++) {
@@ -8229,7 +8240,7 @@ static int cupidbuild_host_read_initial_output(cupidbuild_host_transaction_t *tr
 
 static int cupidbuild_host_copy_frozen_input(cupidbuild_host_transaction_t *transaction,
                                              const char *live_path, const char *private_name,
-                                             size_t capacity, int previous_output,
+                                             unsigned long long capacity, int previous_output,
                                              cupidbuild_host_observer_t *external,
                                              const cupidbuild_host_snapshot_t *input_snapshot,
                                              cupidbuild_host_snapshot_t *frozen_snapshot,
@@ -8243,7 +8254,7 @@ static int cupidbuild_host_freeze_input_internal(cupidbuild_host_transaction_t *
                                                  const char *live_path, const char *private_name,
                                                  const char **frozen_path_out,
                                                  cupidbuild_host_snapshot_t *snapshot_out,
-                                                 size_t capacity, int streamed,
+                                                 unsigned long long capacity, int streamed,
                                                  int previous_output,
                                                  cupidbuild_host_observer_t *external,
                                                  int share_input) {
@@ -8293,7 +8304,7 @@ static int cupidbuild_host_freeze_input_internal(cupidbuild_host_transaction_t *
             *snapshot_out = snapshot;
         return 1;
     }
-    copied_size = streamed ? 0u : snapshot.size;
+    copied_size = streamed ? 0u : (size_t)snapshot.size;
     if (transaction->runner_transaction != 0) {
 #if defined(_WIN32)
         if (!cupidbuild_host_join(frozen_path, sizeof(frozen_path), transaction->private_root,
@@ -8487,8 +8498,9 @@ static int cupidbuild_host_freeze_bounded_input(cupidbuild_host_transaction_t *t
         *frozen_path_out = (const char *)0;
     if (snapshot_out != (cupidbuild_host_snapshot_t *)0)
         (void)memset(snapshot_out, 0, sizeof(*snapshot_out));
+    const unsigned long long limit = share_input ? CUPIDBUILD_HOST_MAX_EXTENT : 2147483647ULL;
     if (transaction == (cupidbuild_host_transaction_t *)0 || transaction->runner_transaction != 0 ||
-        capacity == 0u || capacity > 2147483647ULL ||
+        capacity == 0u || capacity > limit ||
         (share_input && (transaction->source_request_state != 1 ||
                          transaction->observer_publication_started))) {
         cupidbuild_host_set_error(transaction,
@@ -8496,7 +8508,7 @@ static int cupidbuild_host_freeze_bounded_input(cupidbuild_host_transaction_t *t
         return 0;
     }
     return cupidbuild_host_freeze_input_internal(transaction, live_path, private_name,
-                                                 frozen_path_out, snapshot_out, (size_t)capacity, 1,
+                                                 frozen_path_out, snapshot_out, capacity, 1,
                                                  0, NULL, share_input);
 }
 
@@ -8603,7 +8615,7 @@ unsigned char *cupidbuild_host_read_frozen_input(cupidbuild_host_transaction_t *
             free(bytes);
             return (unsigned char *)0;
         }
-        *size_out = snapshot.size;
+        *size_out = (size_t)snapshot.size;
         return bytes;
     }
     return (unsigned char *)0;
@@ -8650,7 +8662,7 @@ int cupidbuild_host_make_input_executable(cupidbuild_host_transaction_t *transac
 static int cupidbuild_host_transaction_open_internal(
     const char *repository_root, const char *source_logical, const char *output_logical,
     cupidbuild_host_profile_parent_t *profile_parent,
-    cupidbuild_host_output_parent_t *output_parent, size_t candidate_limit, int capture_source,
+    cupidbuild_host_output_parent_t *output_parent, unsigned long long candidate_limit, int capture_source,
     cupidbuild_host_transaction_t **transaction_out) {
     cupidbuild_host_transaction_t *transaction;
     cupidbuild_host_snapshot_t created_private_snapshot;
@@ -9072,7 +9084,7 @@ int cupidbuild_host_transaction_open_bounded(const char *repository_root,
         return 0;
     return cupidbuild_host_transaction_open_internal(
         repository_root, source_logical, output_logical, (cupidbuild_host_profile_parent_t *)0,
-        (cupidbuild_host_output_parent_t *)0, (size_t)candidate_capacity, 1, transaction_out);
+        (cupidbuild_host_output_parent_t *)0, candidate_capacity, 1, transaction_out);
 }
 
 int cupidbuild_host_profile_transaction_open(const char *repository_root,
@@ -9105,10 +9117,10 @@ int cupidbuild_host_publication_transaction_open_bounded(
     cupidbuild_host_transaction_t **transaction_out) {
     if (transaction_out)
         *transaction_out = NULL;
-    if (capacity == 0u || capacity > 2147483647ULL)
+    if (capacity == 0u || capacity > CUPIDBUILD_HOST_MAX_EXTENT)
         return 0;
     return cupidbuild_host_transaction_open_internal(root, NULL, output, NULL, NULL,
-                                                      (size_t)capacity, 0, transaction_out);
+                                                      capacity, 0, transaction_out);
 }
 
 int cupidbuild_host_runner_open(const char *working_directory,
@@ -10126,9 +10138,9 @@ int cupidbuild_host_forward_captured(cupidbuild_host_transaction_t *transaction)
         stdout_mode = _setmode(_fileno(stdout), _O_BINARY);
         stderr_mode = _setmode(_fileno(stderr), _O_BINARY);
         success = stdout_mode >= 0 && stderr_mode >= 0 &&
-                  fwrite(stdout_bytes, 1u, stdout_snapshot.size, stdout) == stdout_snapshot.size &&
+                  fwrite(stdout_bytes, 1u, (size_t)stdout_snapshot.size, stdout) == stdout_snapshot.size &&
                   fflush(stdout) == 0 && ferror(stdout) == 0 &&
-                  fwrite(stderr_bytes, 1u, stderr_snapshot.size, stderr) == stderr_snapshot.size &&
+                  fwrite(stderr_bytes, 1u, (size_t)stderr_snapshot.size, stderr) == stderr_snapshot.size &&
                   fflush(stderr) == 0 && ferror(stderr) == 0;
     }
     if (stdout_mode >= 0 && _setmode(_fileno(stdout), stdout_mode) < 0) {
@@ -10140,9 +10152,9 @@ int cupidbuild_host_forward_captured(cupidbuild_host_transaction_t *transaction)
 }
 #else
             success =
-                fwrite(stdout_bytes, 1u, stdout_snapshot.size, stdout) == stdout_snapshot.size &&
+                fwrite(stdout_bytes, 1u, (size_t)stdout_snapshot.size, stdout) == stdout_snapshot.size &&
                 fflush(stdout) == 0 && ferror(stdout) == 0 &&
-                fwrite(stderr_bytes, 1u, stderr_snapshot.size, stderr) == stderr_snapshot.size &&
+                fwrite(stderr_bytes, 1u, (size_t)stderr_snapshot.size, stderr) == stderr_snapshot.size &&
                 fflush(stderr) == 0 && ferror(stderr) == 0;
 #endif
 free(stdout_bytes);
@@ -10284,7 +10296,7 @@ static int cupidbuild_host_run_at(cupidbuild_host_transaction_t *transaction, co
         result = -1;
     }
     if (result != 0 && stderr_bytes != (unsigned char *)0 && stderr_snapshot.size != 0u) {
-        (void)fwrite(stderr_bytes, 1u, stderr_snapshot.size, stderr);
+        (void)fwrite(stderr_bytes, 1u, (size_t)stderr_snapshot.size, stderr);
     }
     if (result == 0 && stdout_snapshot.size != 0u) {
         cupidbuild_host_set_error(transaction, "checked tool wrote unexpected standard output");
@@ -10455,7 +10467,7 @@ int cupidbuild_host_run_to_private_output(cupidbuild_host_transaction_t *transac
         result = -1;
     }
     if (result != 0 && stderr_bytes != (unsigned char *)0 && stderr_snapshot.size != 0u) {
-        (void)fwrite(stderr_bytes, 1u, stderr_snapshot.size, stderr);
+        (void)fwrite(stderr_bytes, 1u, (size_t)stderr_snapshot.size, stderr);
     }
     if (result == 0 && stderr_snapshot.size != 0u) {
         cupidbuild_host_set_error(transaction, "checked tool wrote unexpected standard error");
@@ -10490,7 +10502,7 @@ static int cupidbuild_host_read_candidate(cupidbuild_host_transaction_t *transac
         transaction->candidate_store_state == CUPIDBUILD_CANDIDATE_STORE_WRITING)
         return 0;
 
-    size_t limit = transaction->candidate_limit;
+    unsigned long long limit = transaction->candidate_limit;
     if (bytes_out != (unsigned char **)0 && limit > CUPIDBUILD_HOST_FILE_LIMIT)
         limit = CUPIDBUILD_HOST_FILE_LIMIT;
 #if defined(_WIN32)
@@ -13740,7 +13752,7 @@ typedef struct {
             int descriptor;
 #endif
     uint64_t copied;
-    size_t capacity;
+    unsigned long long capacity;
 } cupidbuild_host_frozen_copy_t;
 
 static int cupidbuild_host_frozen_copy_block(void *opaque, uint64_t offset,
@@ -13749,7 +13761,7 @@ static int cupidbuild_host_frozen_copy_block(void *opaque, uint64_t offset,
     size_t written = 0u;
     if (copy == (cupidbuild_host_frozen_copy_t *)0 || bytes == (const unsigned char *)0 ||
         size == 0u || size > 65536u || offset != copy->copied || offset > copy->capacity ||
-        size > copy->capacity - (size_t)offset)
+        size > copy->capacity - offset)
         return 0;
     while (written < size) {
 #if defined(_WIN32)
@@ -13781,7 +13793,7 @@ static int cupidbuild_host_frozen_copy_block(void *opaque, uint64_t offset,
 
 static int cupidbuild_host_copy_frozen_input(cupidbuild_host_transaction_t *transaction,
                                              const char *live_path, const char *private_name,
-                                             size_t capacity, int previous_output,
+                                             unsigned long long capacity, int previous_output,
                                              cupidbuild_host_observer_t *external,
                                              const cupidbuild_host_snapshot_t *input_snapshot,
                                              cupidbuild_host_snapshot_t *frozen_snapshot,

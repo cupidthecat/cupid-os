@@ -1418,11 +1418,11 @@ class DirectiveInventoryCases:
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 492)
+            self.assertEqual(contract["if_occurrences"], 493)
             self.assertEqual(contract["elif_occurrences"], 28)
-            self.assertEqual(contract["expression_occurrences"], 520)
-            self.assertEqual(contract["unique_expressions"], 63)
-            self.assertEqual(contract["directive_expression_pairs"], 66)
+            self.assertEqual(contract["expression_occurrences"], 521)
+            self.assertEqual(contract["unique_expressions"], 64)
+            self.assertEqual(contract["directive_expression_pairs"], 67)
             executable_contract = CUPIDC_PP_CONTRACT.with_name(
                 "cupidc_pp_directive_contract.inc"
             ).read_text(encoding="utf-8")
@@ -1484,6 +1484,7 @@ class DirectiveInventoryCases:
                     "! defined ( _GNU_SOURCE )": 1,
                     "! defined ( _POSIX_C_SOURCE )": 1,
                     "! defined ( _WIN32 )": 1,
+                    "! defined ( _WIN32 ) && ! defined ( _FILE_OFFSET_BITS )": 1,
                     "! defined ( _WIN32 ) && ! defined ( __MACOSX__ ) && "
                     "! defined ( __DJGPP__ )": 1,
                     "! defined ( __SIZEOF_POINTER__ ) || __SIZEOF_POINTER__ != 4": 0,

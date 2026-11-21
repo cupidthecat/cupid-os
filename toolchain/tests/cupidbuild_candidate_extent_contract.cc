@@ -121,6 +121,39 @@ static int check_pattern(const char *path, size_t size) {
 #endif
 }
 
+static int wide_candidate_store_case(const char *root) {
+    static const unsigned long long offsets[] = {
+        1ULL, 0x7ffffffeULL, 0xfffffffeULL, 0xffffffffULL, 0x100000001ULL
+    };
+    static const unsigned char markers[] = {3u, 37u, 73u, 97u, 123u};
+    const unsigned long long extent = 0x100000041ULL;
+    cupidbuild_host_transaction_t *transaction = NULL;
+    unsigned long long actual_extent = 0u;
+    unsigned int index;
+    int ok = 0;
+    if (!cupidbuild_host_publication_transaction_open_bounded(root, "nested/file.o", extent,
+                                                              &transaction) ||
+        !cupidbuild_host_candidate_store_open(transaction, extent) ||
+        !cupidbuild_host_candidate_store_extent(transaction, &actual_extent) ||
+        actual_extent != extent)
+        goto done;
+    for (index = 0u; index < sizeof(markers); index++) {
+        if (!cupidbuild_host_candidate_store_write(transaction, offsets[index], &markers[index], 1u))
+            goto done;
+    }
+    for (index = 0u; index < sizeof(markers); index++) {
+        unsigned char observed = 0u;
+        if (!cupidbuild_host_candidate_store_read(transaction, offsets[index], &observed, 1u) ||
+            observed != markers[index])
+            goto done;
+    }
+    ok = cupidbuild_host_candidate_store_read(transaction, extent, NULL, 0u);
+done:
+    if (!ok)
+        fprintf(stderr, "%s\n", cupidbuild_host_error(transaction));
+    return cupidbuild_host_transaction_close(transaction) && ok;
+}
+
 static int candidate_store_case(const char *root, const char *mode, size_t size,
                                 unsigned long long capacity) {
     static unsigned char block[65536];
@@ -294,11 +327,13 @@ int main(int argc, char **argv) {
     mode = argv[2];
     if (strncmp(mode, "frozen-", 7u) == 0)
         return frozen_input_case(argv[1], mode, argv[3], size) ? 0 : 3;
+    if (strcmp(mode, "store-wide") == 0)
+        return wide_candidate_store_case(argv[1]) ? 0 : 3;
     if (strncmp(mode, "store-", 6u) == 0) {
         size_t capacity = 0u;
         unsigned long long selected;
-        if (strcmp(argv[4], "high") == 0) {
-            selected = 2147483648ULL;
+        if (strcmp(argv[4], "overflow") == 0) {
+            selected = CUPIDBUILD_HOST_MAX_EXTENT + 1u;
         } else {
             if (!extent(argv[4], &capacity))
                 return 91;

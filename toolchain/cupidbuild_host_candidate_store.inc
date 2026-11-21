@@ -74,8 +74,12 @@ static int cupidbuild_host_store_check(cupidbuild_host_transaction_t *transactio
 
 #if defined(_WIN32)
 static int cupidbuild_host_store_seek(HANDLE handle, unsigned long long offset) {
-    return offset <= 2147483647ULL &&
-           SetFilePointer(handle, (LONG)offset, NULL, FILE_BEGIN) == (DWORD)offset;
+    DWORD expected_low = (DWORD)offset;
+    LONG expected_high = (LONG)(offset >> 32u);
+    LONG high = expected_high;
+    DWORD low = SetFilePointer(handle, (LONG)expected_low, &high, FILE_BEGIN);
+    return (low != 0xffffffffu || GetLastError() == 0u) && low == expected_low &&
+           high == expected_high;
 }
 #endif
 

@@ -1,5 +1,37 @@
 # Bootstrapping log
 
+## 2026-11-21 — Keep full file extents in disk publication
+
+Output-only transactions retain 64-bit file sizes and offsets through
+capture, copying, writes and publication. The digest reader allocates one
+block. Requests for the complete file still use their existing payload
+limits. Windows uses the high and low parts of `SetFilePointer`. Linux
+opens large files and passes both halves of positioned I/O offsets.
+
+Native and checked tests wrote separate markers near 2 GiB, at byte
+`0xffffffff`, and past 4 GiB. They read each marker back and closed the
+store while preserving the previous output. The existing tests still
+exercise complete 200 MiB publication and the ordinary transaction limits.
+An i386 Clang compile found implicit narrowing where already bounded
+payloads enter the compiler-object and diagnostic readers. Those calls
+now make the conversion explicit.
+
+The 124-input Windows producer reached a fixed point with source snapshot
+SHA-256 `c966ae14e5c020a4aead6f0c6e5832de6a5a2db70b62222a536b49c3238f51f2`.
+The fixed-point guard rejected the preceding run after its live source
+changed. Both hosts passed the refreshed preprocessor inventory and the
+checked image and store tests.
+
+The checked 200 MiB builds reproduced all 3,200 blocks of the Python image
+with the real ISO and Freedoom WAD. The WSL image passed the four-CPU e1000
+boot, TLS checks and `ls` JIT smoke. The private boot preserved the image hash.
+
+The image command still uses its existing image-size limit. A 72 MiB
+probe with FAT starting at 65 MiB exposed a separate 64 MiB buffered
+template limit in the installed CupidObj. The Python recipe hit the same
+limit on both hosts. The disk store can now carry larger images once the
+command accepts the geometry.
+
 ## 2026-11-21 — Share frozen disk inputs by file identity
 
 The bootloader, kernel and FAT stage files can share a private copy when the

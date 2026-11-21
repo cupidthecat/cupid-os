@@ -140,7 +140,7 @@ static int cupidbuild_host_external_observer_is_borrowed(const cupidbuild_host_t
 }
 
 static int cupidbuild_host_read_external_input(cupidbuild_host_observer_t *observer,
-                                               const char *logical, size_t capacity,
+                                               const char *logical, unsigned long long capacity,
                                                cupidbuild_host_snapshot_t *snapshot) {
     cupidbuild_observer_entry_t *entry = cupidbuild_observer_retained_file(observer, logical);
     cupidbuild_host_stream_observation_t observed;
@@ -168,6 +168,7 @@ static int cupidbuild_host_freeze_external(cupidbuild_host_transaction_t *transa
                                             const char **frozen_path_out,
                                             cupidbuild_host_snapshot_t *snapshot_out,
                                             int share_input) {
+    const unsigned long long limit = share_input ? CUPIDBUILD_HOST_MAX_EXTENT : 2147483647ULL;
     if (frozen_path_out)
         *frozen_path_out = NULL;
     if (snapshot_out)
@@ -175,14 +176,14 @@ static int cupidbuild_host_freeze_external(cupidbuild_host_transaction_t *transa
     if (!transaction || transaction->external_binding_failed)
         return 0;
     if (transaction->observer_publication_started || !observer || !logical || capacity == 0u ||
-        capacity > 2147483647ULL || !cupidbuild_host_path_is_relative_safe(private_name) ||
+        capacity > limit || !cupidbuild_host_path_is_relative_safe(private_name) ||
         (share_input && transaction->source_request_state != 1) ||
         !cupidbuild_host_external_observer_is_borrowed(transaction, observer) ||
         !cupidbuild_host_require_borrowed_observer(transaction))
         return cupidbuild_host_external_input_failure(
             transaction, "external input could not be captured through its retained observer");
     if (!cupidbuild_host_freeze_input_internal(transaction, logical, private_name, frozen_path_out,
-                                              snapshot_out, (size_t)capacity, 1, 0, observer,
+                                              snapshot_out, capacity, 1, 0, observer,
                                               share_input)) {
         transaction->external_binding_failed = 1;
         return 0;

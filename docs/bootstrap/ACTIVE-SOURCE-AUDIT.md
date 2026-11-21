@@ -57,7 +57,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_util` | 2 | 692 |
 | `project_source` | 1 | 5 |
 | `toolchain_contract` | 25 | 137749 |
-| `toolchain_core` | 111 | 118714 |
+| `toolchain_core` | 111 | 118736 |
 | `toolchain_host_adapter` | 2 | 255 |
 | `toolchain_kernel_adapter` | 2 | 579 |
 | `user_program` | 3 | 139 |
@@ -100,16 +100,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1533 |
 | `asm.relocation` | 1 | 95 |
-| `c.control` | 12 | 97075 |
+| `c.control` | 12 | 97077 |
 | `c.declaration` | 1 | 33 |
 | `c.declarator` | 4 | 3875 |
 | `c.expression` | 2 | 6721 |
 | `c.extension` | 20 | 426 |
 | `c.initializer` | 1 | 654 |
-| `c.preprocessor` | 18 | 8821 |
-| `c.qualifier` | 2 | 19047 |
+| `c.preprocessor` | 18 | 8825 |
+| `c.qualifier` | 2 | 19049 |
 | `c.storage` | 4 | 11445 |
-| `c.type` | 15 | 64498 |
+| `c.type` | 15 | 64720 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 135 |
 | `cupid_c.directive` | 1 | 1 |
@@ -233,7 +233,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `toolchain/tests/artifact_size_policy_contract.cc` | `cupid_c` | `not_reached` | 97 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_artifact_allocation_contract.cc` | `cupid_c` | `not_reached` | 134 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_artifact_race_contract.cc` | `cupid_c` | `not_reached` | 63 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_candidate_extent_contract.cc` | `cupid_c` | `not_reached` | 464 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_candidate_extent_contract.cc` | `cupid_c` | `not_reached` | 499 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_disk_input_discovery_contract.cc` | `cupid_c` | `not_reached` | 299 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_frozen_stream_contract.cc` | `cupid_c` | `not_reached` | 182 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_hash_workload.cc` | `cupid_c` | `not_reached` | 17 | not reachable from the supported Make target or include closure |
@@ -293,7 +293,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | --- | --- | --- |
 | `assembly_source_ownership` | `pass` | 38 active assembly sources; 38 CupidASM-owned; 11 Toolchain startup; 0 other-owned; 0 ownerless; 0 explicit host-only classifications |
 | `bootstrap_artifact_coverage` | `pass` | 432 linked objects; 439 declared artifacts; 0 missing |
-| `c_preprocessor_conditionals` | `pass` | 520 conditional expressions (492 #if, 28 #elif); 63 normalized expressions; 66 directive/expression pairs |
+| `c_preprocessor_conditionals` | `pass` | 521 conditional expressions (493 #if, 28 #elif); 64 normalized expressions; 67 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |
 | `c_preprocessor_include_operands` | `pass` | 2684 C include operands (2336 quoted, 348 angle, 0 pp-token); 776 source files; max conditional depth 2 |
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 776 source files; max conditional depth 0 |

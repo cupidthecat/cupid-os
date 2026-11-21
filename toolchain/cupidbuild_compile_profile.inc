@@ -612,7 +612,7 @@ static int cupidbuild_compile_write_bundle(cupidbuild_host_transaction_t *transa
             inputs[index].snapshot.size > CUPIDBUILD_TOOL_BYTES - total - overhead) {
             return 0;
         }
-        total += overhead + inputs[index].snapshot.size;
+        total += overhead + (size_t)inputs[index].snapshot.size;
     }
     bundle = (unsigned char *)malloc(total);
     if (bundle == (unsigned char *)0) {
@@ -666,16 +666,18 @@ static int cupidbuild_compile_capture_input(cupidbuild_host_transaction_t *trans
     }
     if (strcmp(path, source) == 0) {
         unsigned char *contents;
+        size_t captured_size;
         if (discovered != (const cupidbuild_host_snapshot_t *)0 &&
             !cupidbuild_host_input_matches_snapshot(transaction, live_path, discovered)) {
             return 0;
         }
         input->frozen_path = cupidbuild_host_frozen_source(transaction);
         contents = cupidbuild_host_read_frozen_input(transaction, input->frozen_path,
-                                                     CUPIDBUILD_TOOL_BYTES, &input->snapshot.size);
+                                                     CUPIDBUILD_TOOL_BYTES, &captured_size);
         if (contents == (unsigned char *)0) {
             return 0;
         }
+        input->snapshot.size = captured_size;
         free(contents);
         return 1;
     }
@@ -954,7 +956,7 @@ static int cupidbuild_compile(const cupidbuild_compile_request_t *request,
     if (!cupidbuild_host_capture_candidate(transaction, &candidate_snapshot, &candidate)) {
         goto host_failure;
     }
-    if (!cupidbuild_validate_compiler_object_bytes(candidate, candidate_snapshot.size)) {
+    if (!cupidbuild_validate_compiler_object_bytes(candidate, (size_t)candidate_snapshot.size)) {
         (void)fprintf(stderr, "cupidbuild: compiler object validation failed\n");
         goto done;
     }
