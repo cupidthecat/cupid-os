@@ -59,8 +59,9 @@ read back from the guest disk matched all 1,024,260 checked host bytes.
 
 Compiler jobs can set the include search order, macro definitions, forced
 headers and Doom compatibility. The production compiler replay uses the
-checked kernel and Doom profiles. The kernel replay can compile selected
-production sources in the guest before running both links.
+checked kernel and Doom profiles. A `bundle` job compiles several sources
+under one profile and saves their objects in an ISO. The kernel replay
+can use those objects in both links.
 
 The user-program replay compiles, links and runs `cat`, `hello` and `ls`
 inside Cupid OS. It compares the saved objects and ELFs with the checked

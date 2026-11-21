@@ -7,11 +7,12 @@ import argparse
 from pathlib import Path
 import tempfile
 
+from check_guest_asset_bundle import expected_bundle
 from check_guest_runtime import (
     BUILD,
     COMPILER_REAPED,
     ROOT,
-    compare_homefs_files,
+    compare_object_bundle,
     create_disk,
     read_homefs,
     run,
@@ -39,8 +40,8 @@ SOURCE_PROFILES = {
 }
 
 
-def compile_job(source: str, profile: str, output: str) -> bytes:
-    lines = ["/" + source, f"/home/{output}"]
+def profile_options(profile: str) -> list[str]:
+    lines = []
     arguments = iter(COMPILER_PROFILE_ARGUMENTS[profile])
     options = {"-D": "define", "-I": "include", "--include-angle": "angle", "-include": "force"}
     for flag in arguments:
@@ -50,7 +51,7 @@ def compile_job(source: str, profile: str, output: str) -> bytes:
             lines.append("doom")
         else:
             lines.append(f"{options[flag]} {next(arguments)}")
-    return ("\n".join(lines) + "\n").encode("ascii")
+    return lines
 
 
 def publish_profile_iso(iso: Path, root: Path, sources: list[str], profile: str) -> None:
@@ -73,41 +74,35 @@ def compile_profile_batch(scratch: Path, root: Path, profile: str, sources: list
                           qemu: str, timeout: float) -> dict[str, Path]:
     iso = scratch / "profile.iso"
     publish_profile_iso(iso, root, sources, profile)
-    jobs = []
-    references = {}
-    commands = [("mount /disk/p.iso /src", r"VFS: mounted 'iso9660' at '/src'")]
-    for index, source in enumerate(sources):
-        output = f"obj{index}.o"
-        job = f"cc{index}.job" if index else "cupidc.job"
-        references[output] = root / Path(source).with_suffix(".o")
-        jobs.append((job.encode("ascii"), compile_job(source, profile, output)))
-        if index:
-            commands.append((f"cp /home/{job} /home/cupidc.job", r"\[terminal\] command complete"))
-        commands.append(("exec /disk/c", rf"\[cupidc-guest\] wrote /home/obj{index}[.]o" + COMPILER_REAPED))
-
+    members = {f"obj{index}.o": Path(source).with_suffix(".o").as_posix()
+               for index, source in enumerate(sources)}
+    reference = expected_bundle(root, scratch / "reference", members, "objects.iso")
+    sources_list = [line for source, output in zip(sources, members) for line in (f"/{source}", f"/{output}")]
+    request = ["/home/sources.list", "/home/objects.iso", "bundle", *profile_options(profile)]
     homefs = scratch / "homefs.sys"
-    write_homefs(homefs, tuple(jobs))
+    write_homefs(homefs, ((b"cupidc.job", ("\n".join(request) + "\n").encode("ascii")),
+                          (b"sources.list", ("\n".join(sources_list) + "\n").encode("ascii"))))
     disk = scratch / "profile.img"
     create_disk(disk, f"{homefs}:/homefs.sys", f"{iso}:/p.iso",
                 f"{BUILD / 'cupidc-guest.elf'}:/c", production_root=root)
-    arguments = []
-    for command, pattern in commands[:-1]:
-        arguments.extend(("--setup-command", command, "--setup-success-pattern", pattern))
-    command, pattern = commands[-1]
     log = BUILD / f"production-profile-{sources[0].replace('/', '-')}.log"
     run("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "4",
         "--cpu", "max", "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.5",
         "--image", str(disk), "--log", str(log), "--require-command-completion",
-        *arguments, "--command", command, "--success-pattern", pattern)
+        "--setup-command", "mount /disk/p.iso /src",
+        "--setup-success-pattern", r"VFS: mounted 'iso9660' at '/src'",
+        "--command", "exec /disk/c",
+        "--success-pattern", r"\[cupidc-guest\] wrote /home/objects[.]iso" + COMPILER_REAPED)
 
-    matched = compare_homefs_files(read_homefs(disk), references)
+    matched = compare_object_bundle(read_homefs(disk), scratch, reference,
+                                    {name: root / obj for name, obj in members.items()})
     objects = {}
-    for output, reference in references.items():
-        logical_object = reference.relative_to(root)
+    for name, logical_object in members.items():
         destination = scratch.parent / "objects" / logical_object
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(matched[output])
-        objects[logical_object.as_posix()] = destination
+        destination.write_bytes(matched[name].read_bytes())
+        objects[logical_object] = destination
+    print(f"All {len(objects)} guest objects matched profile {profile}.")
     return objects
 
 
@@ -134,12 +129,14 @@ def compile_production_objects(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--production-root", type=Path, default=ROOT)
-    parser.add_argument("--source", action="append", metavar="PATH",
+    cohort = parser.add_mutually_exclusive_group()
+    cohort.add_argument("--source", action="append", metavar="PATH",
                         help="replay a repository-relative production source (repeatable)")
+    cohort.add_argument("--all", action="store_true", help="replay all production profiles")
     parser.add_argument("--qemu", default="qemu-system-i386")
     parser.add_argument("--timeout", type=float, default=1800)
     args = parser.parse_args()
-    sources = args.source if args.source is not None else list(DEFAULT_SOURCES)
+    sources = list(SOURCE_PROFILES) if args.all else (args.source or list(DEFAULT_SOURCES))
     if unknown := set(sources) - SOURCE_PROFILES.keys():
         parser.error(f"no checked production profile for {', '.join(sorted(unknown))}")
     if len(set(sources)) != len(sources):

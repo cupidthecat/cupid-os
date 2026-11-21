@@ -15,7 +15,7 @@ from check_guest_runtime import (
     COMPILER_REAPED,
     ROOT,
     SEED_MANIFEST,
-    compare_homefs_files,
+    compare_object_bundle,
     create_disk,
     read_homefs,
     run,
@@ -53,7 +53,7 @@ def production_assets(root: Path) -> dict[str, tuple[str, str]]:
     return assets
 
 
-def expected_bundle(root: Path, scratch: Path, members: dict[str, str]) -> Path:
+def expected_bundle(root: Path, scratch: Path, members: dict[str, str], output: str) -> Path:
     fixtures = scratch / "fixtures"
     fixtures.mkdir(parents=True)
     for name, obj in members.items():
@@ -61,8 +61,8 @@ def expected_bundle(root: Path, scratch: Path, members: dict[str, str]) -> Path:
     write_manifest(scratch / "manifest", members)
     stage_seed_pair(ROOT, scratch)
     publisher = ROOT / Path(SEED_MANIFEST).with_name("cupidbuild.elf")
-    subprocess.run(publish_command(publisher, scratch, "assets.iso"), check=True, timeout=180)
-    return scratch / "assets.iso"
+    subprocess.run(publish_command(publisher, scratch, output), check=True, timeout=180)
+    return scratch / output
 
 
 def wrap_production_bundle(scratch: Path, root: Path, qemu: str,
@@ -78,7 +78,7 @@ def wrap_production_bundle(scratch: Path, root: Path, qemu: str,
         members[name] = obj
         manifest.extend((f"/disk{input_alias}", f"/{name}", mode, f"/{source}"))
         staged.append(f"{root / source}:{input_alias}")
-    reference = expected_bundle(root, scratch / "reference", members)
+    reference = expected_bundle(root, scratch / "reference", members, "assets.iso")
     request = b"/home/assets.list\n/home/assets.iso\nwrap-bundle\n"
     homefs = scratch / "homefs.sys"
     write_homefs(homefs, ((b"cupidobj.job", request),
@@ -92,20 +92,11 @@ def wrap_production_bundle(scratch: Path, root: Path, qemu: str,
         "--log", str(BUILD / "kernel-asset-bundle.log"), "--command", "exec /disk/o",
         "--success-pattern", r"\[cupidobj-guest\] wrote /home/assets[.]iso" + COMPILER_REAPED)
 
-    matched = compare_homefs_files(read_homefs(disk), {"assets.iso": reference})
+    matched = compare_object_bundle(read_homefs(disk), scratch, reference,
+                                    {name: root / obj for name, obj in members.items()})
     disk.unlink()
-    iso = scratch / "guest.iso"
-    iso.write_bytes(matched["assets.iso"])
-    objects = scratch / "objects"
-    subprocess.run(["xorriso", "-osirrox", "on", "-indev", iso, "-extract", "/", objects],
-                   check=True, capture_output=True, timeout=60)
-    if {path.name for path in objects.iterdir()} != set(members):
-        raise ValueError("guest asset ISO has a different object inventory")
-    for name, obj in members.items():
-        if (objects / name).read_bytes() != (root / obj).read_bytes():
-            raise ValueError(f"guest asset ISO contains different bytes for {obj}")
     print(f"All {len(members)} guest asset objects matched the checked kernel inputs.")
-    return {obj: objects / name for name, obj in members.items()}
+    return {obj: matched[name] for name, obj in members.items()}
 
 
 def main() -> None:

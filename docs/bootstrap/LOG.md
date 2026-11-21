@@ -1,5 +1,19 @@
 # Bootstrapping log
 
+## 2026-11-21 — Compile a source group in one guest job
+
+The compiler accepts a list of sources and publishes their objects in one
+ISO. Every source uses the requested production profile. A failed compile
+or invalid list leaves the previous ISO intact. Windows and Linux built the
+same 2,720,680-byte worker.
+
+The Linux contract checked two outputs and rollback for duplicate names,
+missing sources and malformed paths or records. The first QEMU run matched
+the ISO but failed while moving a read-only extracted file. The replay now
+copies verified bytes. The next boot runs matched both objects and the saved
+ISO for each of the kernel, Doom compatibility and Doom tree profiles.
+The source ISO and ownership audit also passed.
+
 ## 2026-11-21 — Use 189 guest-built inputs in both kernel links
 
 The replay rebuilt 182 ordinary asset objects, three installation objects,

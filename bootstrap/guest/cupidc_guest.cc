@@ -1,10 +1,9 @@
 /**
  * @file cupidc_guest.cc
- * @brief Compile a source using a job file and publish its object to HomeFS.
+ * @brief Compile a source or a source list and publish its output to HomeFS.
  */
 
-#include "cupidc_engine.h"
-#include "guest_job.h"
+#include "cupidc_bundle.h"
 
 #define SOURCE_MOUNT "/src"
 #define JOB_PATH "/home/cupidc.job"
@@ -16,7 +15,7 @@
 /* Allow both the name and replacement of every definition to reach their limit. */
 #define JOB_BYTES (CUPID_GUEST_PATH_JOB_BYTES + sizeof("doom\n") - 1u + \
                    (INCLUDE_ROOT_LIMIT + FORCED_INCLUDE_LIMIT) * (VFS_MAX_PATH + 8u) + \
-                   MACRO_LIMIT * (2u * VFS_MAX_PATH + 8u))
+                   MACRO_LIMIT * (2u * VFS_MAX_PATH + 8u) + sizeof("bundle\n"))
 
 typedef struct {
     ctool_c_pp_include_root_t roots[INCLUDE_ROOT_LIMIT];
@@ -82,7 +81,7 @@ static int read_option(char *line, ctool_c_engine_request_t *request,
 }
 
 static int read_request(char *file, ctool_c_engine_request_t *request,
-                        guest_compile_options_t *options) {
+                        guest_compile_options_t *options, int *bundle) {
     int size = __sys->vfs_read_text(JOB_PATH, file, JOB_BYTES);
     if (size < 1 || (ctool_u32)size >= JOB_BYTES)
         return 0;
@@ -92,9 +91,16 @@ static int read_request(char *file, ctool_c_engine_request_t *request,
     if (!cupid_guest_read_path_lines(__sys, &cursor, end, paths, 2u))
         return 0;
     ctool_string_t output = paths[1].text;
-    if (output.size < 8u || strcmp(output.data + output.size - 2u, ".o") != 0 ||
-        strcmp(output.data, PENDING_PATH) == 0)
+    if (output.size < 8u || strcmp(output.data, PENDING_PATH) == 0)
         return 0;
+    if (output.size >= 10u && strcmp(output.data + output.size - 4u, ".iso") == 0) {
+        char *mode = cupid_guest_next_job_line(&cursor, end);
+        if (!mode || strcmp(mode, "bundle") != 0)
+            return 0;
+        *bundle = 1;
+    } else if (strcmp(output.data + output.size - 2u, ".o") != 0) {
+        return 0;
+    }
     request->invocation.input_path = paths[0].text;
     request->invocation.output_path = output;
     if (cursor < end) {
@@ -110,6 +116,10 @@ static int read_request(char *file, ctool_c_engine_request_t *request,
     return 1;
 }
 
+static ctool_status_t compile_bundle(ctool_invocation_t *invocation, void *profile) {
+    return cupid_guest_compile_bundle(invocation, profile, __sys);
+}
+
 void cupidc_guest_run(cupid_syscall_table_t *sys) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
         return;
@@ -117,7 +127,8 @@ void cupidc_guest_run(cupid_syscall_table_t *sys) {
     char file[JOB_BYTES];
     ctool_c_engine_request_t request = {0};
     guest_compile_options_t options;
-    if (!read_request(file, &request, &options)) {
+    int bundle = 0;
+    if (!read_request(file, &request, &options, &bundle)) {
         sys->serial_write_string("[cupidc-guest] invalid request file: " JOB_PATH "\n");
         return;
     }
@@ -130,7 +141,7 @@ void cupidc_guest_run(cupid_syscall_table_t *sys) {
     request.abi = CTOOL_C_ENGINE_ABI;
     request.bytes = sizeof(request);
     const char *source_mount =
-        strncmp(request.invocation.input_path.data, "/home/", 6u) == 0 ? "" : SOURCE_MOUNT;
+        bundle || strncmp(request.invocation.input_path.data, "/home/", 6u) == 0 ? "" : SOURCE_MOUNT;
     cupid_guest_io_t io = {
         .sys = sys, .input_prefix = ctool_string(source_mount), .pending_path = PENDING_PATH
     };
@@ -146,7 +157,9 @@ void cupidc_guest_run(cupid_syscall_table_t *sys) {
     request.parser.gnu_extensions = request.preprocessor.gnu_extensions;
 
     ctool_invocation_result_t result = {0};
-    ctool_status_t status = ctool_c_engine_compile(&request, &result);
+    ctool_status_t status = bundle
+        ? ctool_invoke(&request.config, &request.invocation, compile_bundle, &request, &result)
+        : ctool_c_engine_compile(&request, &result);
     cupid_guest_job_drain_cache(&io);
     if (status == CTOOL_OK && result.output_committed) {
         sys->serial_write_string("[cupidc-guest] wrote ");

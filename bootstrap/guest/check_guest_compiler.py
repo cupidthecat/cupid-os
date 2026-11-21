@@ -113,13 +113,14 @@ with tempfile.TemporaryDirectory(dir=build, prefix="guest-driver-") as temporary
         "int value(void) { return legacy_call() + ACTIVE + QUOTED + ANGLE + EXTRA; }\n",
         encoding="ascii",
     )
-    subprocess.run([seed / "cupidbuild.elf", "run", "--root", root,
-                    "--seed-manifest", seed / "manifest.json", "--seed-release",
-                    root / "bootstrap/seeds/release.json", "--tool", "cupidc", "--",
-                    "--root", src, "--gnu", "--doom-compat", "--freestanding",
-                    "-D", "VALUE=7", "-D", "ACTIVE", "-I", "/include",
-                    "--include-angle", "/angle", "-include", "/forced.h",
-                    "-c", "/profile.cc", "-o", "/reference.o"], check=True, timeout=180)
+    checked = [seed / "cupidbuild.elf", "run", "--root", root,
+               "--seed-manifest", seed / "manifest.json", "--seed-release",
+               root / "bootstrap/seeds/release.json", "--tool"]
+    checked_profile = [*checked, "cupidc", "--", "--root", src, "--gnu", "--doom-compat",
+                       "--freestanding", "-D", "VALUE=7", "-D", "ACTIVE", "-I", "/include",
+                       "--include-angle", "/angle", "-include", "/forced.h"]
+    subprocess.run([*checked_profile, "-c", "/profile.cc", "-o", "/reference.o"],
+                   check=True, timeout=180)
     profile = (b"/profile.cc\n/home/profile.o\ndoom\ndefine VALUE=7\ndefine ACTIVE\n"
                b"include /include\nangle /angle\nforce /forced.h\n")
     check(profile, b"wrote /home/profile.o")
@@ -153,3 +154,29 @@ with tempfile.TemporaryDirectory(dir=build, prefix="guest-driver-") as temporary
     check(limits + definitions + include_roots + b"define ONE_MORE\n", b"invalid request")
     assert limited.read_bytes() == limits_reference and not pending.exists()
     print("Guest compiler accepted wide macro definitions and rejected a 65th definition.")
+
+    (src / "helper.cc").write_bytes(b"int helper(void) { return EXTRA + ACTIVE; }\n")
+    subprocess.run([*checked_profile, "-c", "/helper.cc", "-o", "/helper.o"], check=True, timeout=180)
+    paths = jail / "iso.paths"
+    paths.write_bytes(b"profile.o\nhelper.o\n")
+    expected_iso = jail / "expected.iso"
+    subprocess.run([*checked, "cupidobj", "--", "iso-fixture", paths,
+                    "--file", "profile.o", src / "reference.o",
+                    "--file", "helper.o", src / "helper.o", "-o", expected_iso],
+                   check=True, timeout=120)
+
+    list_file = home / "compile.list"
+    members = b"/profile.cc\n/profile.o\n/helper.cc\n/helper.o\n"
+    list_file.write_bytes(members)
+    bundle_job = b"/home/compile.list\n/home/bundle.iso\nbundle\n" + profile.split(b"\n", 2)[2]
+    bundle = home / "bundle.iso"
+    check(bundle_job, b"wrote /home/bundle.iso")
+    assert bundle.read_bytes() == expected_iso.read_bytes() and not pending.exists()
+    for bad in (members.replace(b"helper.cc", b"bad.cc"),
+                members.replace(b"helper.cc", b"missing.cc"),
+                members.replace(b"/helper.cc", b"/../helper.cc"),
+                members.replace(b"helper.o", b"Profile.o")):
+        list_file.write_bytes(bad)
+        check(bundle_job, b"compilation failed")
+        assert bundle.read_bytes() == expected_iso.read_bytes() and not pending.exists()
+    print("Guest compiler matched both bundled objects and preserved the ISO after four rejections.")

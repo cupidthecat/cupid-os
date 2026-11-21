@@ -7,7 +7,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Root Make target: `all`
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 802
-- Unreachable source-like files: 101
+- Unreachable source-like files: 103
 - Reachable output transforms: 452
 - Distinct feature requirements: 257
 - Make conditionals use the canonical `OS=Windows_NT` graph and the C locale fixes wildcard order on every host. Direct Linux build tests cover the Linux execution branch.
@@ -173,7 +173,7 @@ It is also a declared Make prerequisite.
 | `historical_copy` | 7 |
 | `host_fixture` | 12 |
 | `host_oracle` | 2 |
-| `not_reached` | 73 |
+| `not_reached` | 75 |
 | `superseded` | 4 |
 
 An exact content match does not by itself prove semantic duplication; path-sensitive compatibility headers remain removal-blocked.
@@ -194,9 +194,11 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bin/old_cc2_single.cc` | `cupid_c` | `explicitly_excluded` | 8238 | listed in a Make filter-out expression |
 | `bin/terminal_app.c` | `c` | `historical_copy` | 318 | historical_copy_of: `kernel/gui/terminal_app.cc` |
 | `bootstrap/guest/cupidasm_guest.cc` | `cupid_c` | `not_reached` | 84 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupidc_bundle.cc` | `cupid_c` | `not_reached` | 108 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupidc_bundle.h` | `c_header` | `not_reached` | 16 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_engine.cc` | `cupid_c` | `not_reached` | 35 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_engine.h` | `c_header` | `not_reached` | 27 | not reachable from the supported Make target or include closure |
-| `bootstrap/guest/cupidc_guest.cc` | `cupid_c` | `not_reached` | 160 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupidc_guest.cc` | `cupid_c` | `not_reached` | 173 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_guest_linux_contract.cc` | `cupid_c` | `host_fixture` | 216 | Linux syscall fixture for the opt-in toolchain workers |
 | `bootstrap/guest/cupiddisk_guest.cc` | `cupid_c` | `not_reached` | 61 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidinstall_guest.cc` | `cupid_c` | `not_reached` | 140 | not reachable from the supported Make target or include closure |
@@ -294,7 +296,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 760 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 428 tracked + 4 generated translation units (KERNEL_I386=156, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, FREESTANDING_I386=1, CUPID_RUNTIME=108, HOSTED_TOOLCHAIN_64=0, HOSTED_KERNEL_BRIDGE_64=0, HOSTED_I386_LINUX=59, HOSTED_I386_WINDOWS=9, HOSTED_I386_KERNEL_BRIDGE=2, HOSTED_I386_LINUX_GNU=3, HOSTED_I386_WINDOWS_UTF8=1, HOSTED_I386_WINDOWS_PUBLICATION=1, HOSTED_I386_WINDOWS_BUILD=1, HOSTED_I386_WINDOWS_UTF8_GNU=1); 22 include-only, 2 non-root headers; 0 hosted deferred (0 external, 0 hermetic) |
-| `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable; 506 tracked .cc sources; 432 active with independent CupidC evidence; 74 unreachable |
+| `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable; 507 tracked .cc sources; 432 active with independent CupidC evidence; 75 unreachable |
 | `cupid_toolchain_fixed_point` | `pass` | 44 tool C sources (43 strict, 1 GNU); 6 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=8, cupidc=12, cupidbuild=30); 44 C objects and 1 startup object compared across stages; 6 tool images; 73 success and 66 failure cases; i386-linux |
 
 ## Interpretation limits

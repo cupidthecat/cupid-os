@@ -47222,13 +47222,13 @@
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
         "residual_c_sources": 17,
         "runtime_delivery_sources": 130,
-        "sha256": "cc47e2994bd5d20febd9f7be550c577ef15df692d9ad8fd69f64ba28e717ce78",
-        "unreachable_cupid_c_sources": 74
+        "sha256": "9f1a6a721d7af1f832cc5f12b0514eca2ffd3f6d13be0fd3a4ed6d29e6b91789",
+        "unreachable_cupid_c_sources": 75
       },
       "proven_cupidc_owned_tracked_cupid_c_sources": 432,
       "status": "pass",
       "tracked_c_sources": 17,
-      "tracked_cupid_c_sources": 506,
+      "tracked_cupid_c_sources": 507,
       "unreachable": [
         {
           "classification": "historical_copy",
@@ -47313,6 +47313,11 @@
         {
           "classification": "not_reached",
           "path": "bootstrap/guest/cupidasm_guest.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "not_reached",
+          "path": "bootstrap/guest/cupidc_bundle.cc",
           "policy": "source_suffix_policy"
         },
         {
@@ -47672,7 +47677,7 @@
         }
       ],
       "unreachable_tracked_c_sources": 17,
-      "unreachable_tracked_cupid_c_sources": 74
+      "unreachable_tracked_cupid_c_sources": 75
     },
     "cupid_toolchain_fixed_point": {
       "checked_seed_publication": "complete-bundle",
@@ -62828,7 +62833,7 @@
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
-        "sha256": "cc47e2994bd5d20febd9f7be550c577ef15df692d9ad8fd69f64ba28e717ce78"
+        "sha256": "9f1a6a721d7af1f832cc5f12b0514eca2ffd3f6d13be0fd3a4ed6d29e6b91789"
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
@@ -92654,7 +92659,7 @@
     "active_sources": 802,
     "features": 257,
     "transforms": 452,
-    "unreachable_sources": 101
+    "unreachable_sources": 103
   },
   "supplemental_builds": [
     {
@@ -93463,6 +93468,26 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
+      "lines": 108,
+      "path": "bootstrap/guest/cupidc_bundle.cc",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "7e2e3dc482399a21420dd62958d373a7c96a662fe41c9626457baee439e0bc88"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "c_header",
+      "lines": 16,
+      "path": "bootstrap/guest/cupidc_bundle.h",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "187a2d6efe3b2d5682547439e7f323a3a695abda798d71b94007f5d41eea9df2"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "cupid_c",
       "lines": 35,
       "path": "bootstrap/guest/cupidc_engine.cc",
       "reason": "not reachable from the supported Make target or include closure",
@@ -93483,11 +93508,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 160,
+      "lines": 173,
       "path": "bootstrap/guest/cupidc_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "f0a951de212a3eb7ed1467c96609f4165946548715f191ba5a23231563c3d0e6"
+      "sha256": "a8fb7da0f077da14187baff3760f0a1850865ba946d6de68e7580d5f8dc21ec9"
     },
     {
       "classification": "host_fixture",

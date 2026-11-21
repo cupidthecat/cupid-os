@@ -92,6 +92,25 @@ def compare_homefs_files(payload: bytes, references: dict[str, Path]) -> dict[st
     return matched
 
 
+def compare_object_bundle(payload: bytes, scratch: Path, reference: Path,
+                          members: dict[str, Path]) -> dict[str, Path]:
+    matched = compare_homefs_files(payload, {reference.name: reference})
+    iso = scratch / reference.name
+    iso.write_bytes(matched[reference.name])
+    objects = scratch / "objects"
+    subprocess.run(["xorriso", "-osirrox", "on", "-indev", iso, "-extract", "/", objects],
+                   check=True, capture_output=True, timeout=60)
+    if {path.name for path in objects.iterdir()} != set(members):
+        raise ValueError("guest ISO has a different object inventory")
+    paths = {}
+    for name, expected in members.items():
+        destination = objects / name
+        if destination.read_bytes() != expected.read_bytes():
+            raise ValueError(f"guest ISO contains different bytes for {expected}")
+        paths[name] = destination
+    return paths
+
+
 def write_homefs(path: Path, files: tuple[tuple[bytes, bytes], ...]) -> None:
     entries = [(0xffffffff, 1, b"", b"")]
     directories = {(): 0}

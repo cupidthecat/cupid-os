@@ -20,6 +20,11 @@ When a job has options, list all include roots in search order.
 The compiler reads all source and header paths from the same filesystem.
 Use up to 64 search roots, 16 forced headers and 64 definitions.
 
+To compile several sources with the same profile, use a list path first,
+a /home output ending in .iso second and bundle third. Put any profile
+options below bundle. Each list entry is a source path under the /src mount
+followed by a root-level ISO member path ending in .o. Use one path per line.
+
 >h2 Link objects
 
 Place the output, text base, entry symbol and object paths in

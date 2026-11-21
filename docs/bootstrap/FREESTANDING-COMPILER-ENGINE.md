@@ -86,6 +86,16 @@ The executable needs a leased compiler arena, a two-MiB process stack and
 worker cleanup before it can run in Cupid OS.
 [Standalone program decision](../adr/0484-build-cupidc-as-a-standalone-guest-program.md)
 
+To compile a group with the same profile, give the job a list path and a
+HomeFS output ending in `.iso`. Put `bundle` on the third line and any profile
+options below it. Each list entry has a logical source path and a root-level
+ISO member ending in `.o`. The worker reads sources through `/src` and saves
+the ISO after the group passes.
+
+`check_guest_profile_runtime.py --all` checks all production compiler
+profiles. The replay groups sources by profile and compares each saved ISO
+and every object.
+
 ## Original Linux experiment
 
 Checked CupidC compiled the unchanged core, ELF, x86, preprocessor, type,
@@ -251,9 +261,9 @@ eleven guest-built inputs.
 
 ## Rebuild the standalone compiler in Cupid OS
 
-For the first eight objects below, use the corresponding `.cc` paths under
-`/toolchain`. Compile `cupidc_engine.cc`, `guest_job.cc` and `cupidc_guest.cc`
-from `/bootstrap/guest` in the source ISO. Pass each logical `.cc` path and its
+Use the corresponding `.cc` paths under `/toolchain` for the first eight
+objects and `cupidobj.o`. The remaining sources are under `/bootstrap/guest`
+in the source ISO. Pass each logical `.cc` path and its
 `/home` output path in `/home/cupidc.job`, then run `exec /disk/cupcc`.
 Once all objects are in `/home`, use this `/home/cupidld.job` and run
 `exec /disk/cupld`.
@@ -273,6 +283,8 @@ cupidc_guest_run
 /home/cupidc_engine.o
 /home/guest_job.o
 /home/cupidc_guest.o
+/home/cupidc_bundle.o
+/home/cupidobj.o
 ```
 
 At `c8447942`, all eleven objects produced inside Cupid OS matched the
@@ -447,9 +459,9 @@ python3 bootstrap/guest/check_guest_asset_runtime.py --production-root /path/to/
 
 The saved `bin/ls.o` and `image.bmp.o` matched the checked objects. A request
 with a parent path component left the existing `ls` object intact.
-Use `check_guest_kernel_link.py --rebuild-assets` to feed both guest objects
-into the kernel links. With `--rebuild-disk`, the replay boots the disk saved
-by the guest and runs the embedded `ls`.
+Use `check_guest_kernel_link.py --rebuild-assets` to feed all 182 ordinary
+asset objects into both kernel links. With `--rebuild-disk`, the replay boots
+the disk saved by the guest and runs the embedded `ls`.
 
 ### Bundle wrapped assets
 
@@ -523,12 +535,15 @@ The replay accepts `--boot` and `--kernel` to select saved guest artifacts.
 Run the full boot-media replay from a completed checked Linux or WSL build.
 
 ```sh
-make -C bootstrap/guest guest-compiler guest-linker guest-ksyms guest-object guest-disk
+make -C bootstrap/guest guest-compiler guest-linker guest-ksyms guest-object \
+  guest-disk guest-raw guest-assembler guest-install
 python3 bootstrap/guest/check_guest_kernel_link.py --rebuild-disk \
-  --rebuild-source kernel/core/kernel.cc
+  --rebuild-assets --rebuild-assembly --rebuild-installation \
+  --rebuild-source kernel/lang/cupidc_parse.cc
 ```
 
-CupidASM assembles the bootloader and CupidDis checks its range map.
+The raw assembly worker builds the bootloader and validates its ranges and
+control edges with CupidDis.
 A second guest runs the disk worker with the bootloader and raw kernel
 read back from the kernel replay. The test zero-extends the saved prefix
 and boots it with four virtual CPUs. It checks SMP, TLS, e1000 and DHCP,
