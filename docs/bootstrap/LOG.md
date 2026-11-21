@@ -1,5 +1,11 @@
 # Bootstrapping log
 
+## 2026-11-21 — Separate the toolchain manifest profile tests
+
+The Python suite keeps its existing entry point and all 75 test names.
+The release profiles and input inventory cases now live in a separate
+760-line file. The complete suite passed on Windows and WSL.
+
 ## 2026-11-21 — Split the CupidC preprocessor tests
 
 The 933-line runner keeps its command dispatch and active source checks.

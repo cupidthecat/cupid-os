@@ -72,6 +72,11 @@ The 5,775-line preprocessor suite now has a 933-line runner and four
 private includes for source handling, directives, macros and header lookup.
 Its 40 test modes and compiled artifacts match the earlier suite.
 
+## Toolchain manifest tests
+
+The 2,022-line Python suite moves release and inventory checks into a
+760-line module. The original entry point keeps all 75 test names.
+
 ## Kernel compiler tests
 
 The 2,555-line kernel compiler suite has separate files for Make recipes
