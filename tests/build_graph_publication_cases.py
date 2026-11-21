@@ -628,6 +628,10 @@ class BuildPublicationCases:
                 "test_iso/hello.iso",
                 "tools/bootstrap_toolchain.py",
                 "tools/hostbuild.py",
+                "tools/hostbuild_assets.py",
+                "tools/hostbuild_code_paths.py",
+                "tools/hostbuild_disk.py",
+                "tools/hostbuild_iso.py",
                 "verify-artifact-sizes",
             },
         )

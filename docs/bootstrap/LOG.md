@@ -1,5 +1,11 @@
 # Bootstrapping log
 
+## 2026-11-21 — Check all host modules used by disk publication
+
+The root build regression now requires the four host modules that the
+`cupidos.img` recipe gained when `hostbuild.py` was split. The exact input
+comparison failed before the fixture update and passed afterward on Windows.
+
 ## 2026-11-21 — Document six host tool entry points
 
 The host package, baseline capture, CSS generator, network test and packet
