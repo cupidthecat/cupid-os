@@ -24,6 +24,7 @@ BUILD := ../../build/guest-engine
 ENGINE := $(BUILD)/cupidc-engine.elf
 CORE := ctool elf32 x86 cupidc_pp cupidc_type cupidc_frontend cupidc_ir cupidc_emit
 PEERS := cupidasm cupiddis cupidobj
+CUPIDOBJ_FRAGMENTS := cupidobj_install_sources.inc cupidobj_iso.inc cupidobj_profile_manifest.inc
 CORE_OBJECTS := $(addprefix $(BUILD)/,$(addsuffix .o,$(CORE)))
 PEER_OBJECTS := $(addprefix $(BUILD)/,$(addsuffix .o,$(PEERS)))
 OBJECTS := $(CORE_OBJECTS) $(BUILD)/cupidc_engine.o
@@ -44,6 +45,7 @@ $(CORE_OBJECTS): $(HEADERS)
 $(PEER_OBJECTS): $(TOOLCHAIN)/ctool.h $(TOOLCHAIN)/elf32.h
 $(BUILD)/cupidasm.o $(BUILD)/cupiddis.o: $(TOOLCHAIN)/x86.h
 $(BUILD)/cupiddis.o: $(TOOLCHAIN)/pe32.h $(TOOLCHAIN)/pe32_impl.h
+$(BUILD)/cupidobj.o: $(addprefix $(TOOLCHAIN)/,$(CUPIDOBJ_FRAGMENTS))
 
 $(CORE_OBJECTS) $(PEER_OBJECTS): $(BUILD)/%.o: $(TOOLCHAIN)/%.cc $(TOOLCHAIN)/%.h Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(CFLAGS) -c /toolchain/$*.cc -o $(PUBLISH)/$*.o
@@ -178,7 +180,7 @@ ISO := $(BUILD)/engsrc.iso
 ISO_DIRS := bootstrap bootstrap/guest toolchain toolchain/hosted \
 	toolchain/hosted/i386-linux toolchain/hosted/i386-linux/include user
 ISO_PEER_SOURCES := $(addprefix toolchain/,$(addsuffix .cc,$(PEERS)) \
-	$(addsuffix .h,$(PEERS)) pe32.h pe32_impl.h)
+	$(addsuffix .h,$(PEERS)) $(CUPIDOBJ_FRAGMENTS) pe32.h pe32_impl.h)
 ISO_SOURCES := $(addprefix toolchain/,$(addsuffix .cc,$(CORE))) \
 	bootstrap/guest/cupidc_engine.cc bootstrap/guest/cupidc_engine.h \
 	bootstrap/guest/cupidc_guest.cc bootstrap/guest/cupidc_bundle.cc bootstrap/guest/cupidc_bundle.h \

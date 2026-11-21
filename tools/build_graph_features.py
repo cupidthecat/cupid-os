@@ -85,6 +85,9 @@ def source_language(path: str) -> str | None:
         "toolchain/cupidbuild_host_source_paths.inc",
         "toolchain/cupidbuild_kernel_image.inc",
         "toolchain/cupidbuild_validation.inc",
+        "toolchain/cupidobj_install_sources.inc",
+        "toolchain/cupidobj_iso.inc",
+        "toolchain/cupidobj_profile_manifest.inc",
     }:
         return "c_header"
     return SOURCE_SUFFIXES.get(Path(path).suffix.lower())

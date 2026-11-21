@@ -98,6 +98,8 @@ CUPIDASM_SOURCES := $(HOSTED_TOOL_CORE_SOURCES) \
 	toolchain/Makefile
 CUPIDOBJ_SOURCES := $(HOSTED_TOOL_CORE_SOURCES) \
 	toolchain/cupidobj.cc toolchain/cupidobj.h toolchain/cupidobj_main.cc \
+	toolchain/cupidobj_install_sources.inc toolchain/cupidobj_iso.inc \
+	toolchain/cupidobj_profile_manifest.inc \
 	toolchain/Makefile
 CUPIDLD_SOURCES := $(HOSTED_TOOL_CORE_SOURCES) \
 	toolchain/cupidld.cc toolchain/cupidld.h toolchain/cupidld_main.cc \

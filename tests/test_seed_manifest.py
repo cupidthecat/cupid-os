@@ -300,13 +300,13 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(windows.manifest["provenance"]["source_input_count"], seed.PROMOTED_SOURCE_INPUT_COUNT)
         plan = seed._candidate_build_plan(linux.manifest["build_plan"])
         snapshot = seed.capture_source_snapshot(ROOT, plan, windows_utf8=True, windows_user_link_aliases=True)
-        self.assertEqual(len(snapshot), 122)
+        self.assertEqual(len(snapshot), 125)
         digest = seed._build_plan_sha256(seed._windows_build_plan(plan, utf8=True, user_link_aliases=True))
         changed = seed._retarget_native_windows_behavior_seed(windows, digest, plan, snapshot,
             utf8=True, user_link_aliases=True, parent_plan_seed=linux)
         self.assertIsNot(changed, windows)
         provenance = changed.manifest["provenance"]
-        self.assertEqual(provenance["source_input_count"], 122)
+        self.assertEqual(provenance["source_input_count"], 125)
         self.assertEqual(provenance["native_build_plan_sha256"], digest)
         self.assertEqual(provenance["parent_execution_seed_manifest_sha256"], windows.manifest_sha256)
         self.assertEqual(provenance["parent_plan_seed_manifest_sha256"], linux.manifest_sha256)
@@ -344,11 +344,11 @@ class ManifestTests(unittest.TestCase):
         checked_windows = installed_manifest(2)
         plan = seed._candidate_build_plan(checked_linux["build_plan"])
         profiles = (
-            (False, False, False, 118, 6),
-            (True, False, False, 122, 7),
-            (True, True, False, 123, 8),
-            (True, False, True, 123, 9),
-            (True, True, True, 124, 10),
+            (False, False, False, 121, 6),
+            (True, False, False, 125, 7),
+            (True, True, False, 126, 8),
+            (True, False, True, 126, 9),
+            (True, True, True, 127, 10),
         )
         for utf8, long_paths, aliases, count, profile in profiles:
             with self.subTest(profile=profile):

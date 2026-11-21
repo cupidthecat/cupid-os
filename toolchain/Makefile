@@ -194,6 +194,7 @@ CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/publication_runtime.cc
                                       hosted/i386-windows/tool_start.asm \
                                       tests/hosted_i386_windows_contract.cc \
                                       tests/hosted_i386_windows_runtime_contract.cc
+CUPIDOBJ_FRAGMENTS := cupidobj_install_sources.inc cupidobj_iso.inc cupidobj_profile_manifest.inc
 CUPIDBUILD_CORE_FRAGMENTS := cupidbuild_compile_inputs.inc cupidbuild_compile_profile.inc \
                              cupidbuild_disk_image.inc cupidbuild_kernel_image.inc \
                              cupidbuild_validation.inc
@@ -236,7 +237,7 @@ CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.cc artifact_size_policy.h con
                               cupidasm.cc cupidasm.h cupidasm_main.cc \
                               cupiddis.cc cupiddis.h cupiddis_main.cc \
                               cupidld.cc cupidld.h cupidld_main.cc \
-                              cupidobj.cc cupidobj.h cupidobj_main.cc \
+                              cupidobj.cc cupidobj.h cupidobj_main.cc $(CUPIDOBJ_FRAGMENTS) \
                               iso_fixture_bundle.cc iso_fixture_bundle.h \
                               $(CUPIDC_HOSTED_I386_HEADERS) \
                               $(CUPIDC_HOSTED_I386_RUNTIME)
@@ -572,7 +573,7 @@ $(BUILD_DIR)/cupidasm.o: cupidasm.cc cupidasm.h elf32.h x86.h ctool.h | $(BUILD_
 $(BUILD_DIR)/cupidasm_main.o: cupidasm_main.cc cupidasm.h ctool_host.h ctool.h elf32.h x86.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidobj.o: cupidobj.cc cupidobj.h elf32.h ctool.h | $(BUILD_DIR)
+$(BUILD_DIR)/cupidobj.o: cupidobj.cc cupidobj.h elf32.h ctool.h $(CUPIDOBJ_FRAGMENTS) | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/iso_fixture_bundle.o: iso_fixture_bundle.cc iso_fixture_bundle.h cupidobj.h ctool.h elf32.h | $(BUILD_DIR)

@@ -28,11 +28,15 @@ installed with the other `/bin` sources so the shell can compile `ssh`.
 | --- | --- |
 | Compiler | `toolchain/cupidc_pp.cc`, `toolchain/cupidc_frontend.cc`, `toolchain/cupidc_ir.cc`, `toolchain/cupidc_emit.cc` |
 | Assembly and inspection | `toolchain/cupidasm.cc`, `toolchain/cupiddis.cc`, `toolchain/x86.cc` |
-| Linking and object production | `toolchain/cupidld.cc`, `toolchain/cupidobj.cc` |
+| Linking | `toolchain/cupidld.cc` |
 | Build commands | `toolchain/cupidbuild_host.cc` |
 
 Keep command parsing, format handling and publication in focused modules.
 Compare emitted objects and checked seed outputs after moving code.
+
+CupidObj keeps its binary transforms and dispatch in `toolchain/cupidobj.cc`.
+Private includes hold ISO 9660 and Rock Ridge output, compiler profile
+manifests, and the source tables installed in Cupid OS.
 
 CupidBuild keeps its entry points in `cupidbuild.cc`. Five private includes
 hold compiler inputs, profile transactions, kernel image work, FAT16 image

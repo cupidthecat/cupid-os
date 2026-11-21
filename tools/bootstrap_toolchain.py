@@ -304,6 +304,11 @@ EXPECTED_INCLUDE_ARGUMENTS = (
     "/toolchain/hosted/i386-linux/include",
 )
 EXPECTED_STARTUP = "/toolchain/hosted/i386-linux/start.asm"
+CUPIDOBJ_FRAGMENTS = (
+    "toolchain/cupidobj_install_sources.inc",
+    "toolchain/cupidobj_iso.inc",
+    "toolchain/cupidobj_profile_manifest.inc",
+)
 CUPIDBUILD_CORE_FRAGMENTS = (
     "toolchain/cupidbuild_compile_inputs.inc",
     "toolchain/cupidbuild_compile_profile.inc",
@@ -901,6 +906,8 @@ def _source_input_paths(
             paths.extend(source_root / fragment for fragment in CUPIDBUILD_CORE_FRAGMENTS)
         if logical_path == "/toolchain/cupidbuild_host.cc":
             paths.extend(source_root / fragment for fragment in CUPIDBUILD_HOST_FRAGMENTS)
+        if logical_path == "/toolchain/cupidobj.cc":
+            paths.extend(source_root / fragment for fragment in CUPIDOBJ_FRAGMENTS)
         if logical_path == "/toolchain/fat16_names.cc":
             paths.append(source_root / "toolchain/fat16_name_profiles.inc")
         if logical_path == "/toolchain/cupidbuild_disk_integer.cc":

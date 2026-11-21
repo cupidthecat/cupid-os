@@ -193,7 +193,10 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS := \
 	../toolchain/cupidld_main.cc \
 	../toolchain/cupidobj.cc \
 	../toolchain/cupidobj.h \
+	../toolchain/cupidobj_install_sources.inc \
+	../toolchain/cupidobj_iso.inc \
 	../toolchain/cupidobj_main.cc \
+	../toolchain/cupidobj_profile_manifest.inc \
 	../toolchain/elf32.cc \
 	../toolchain/elf32.h \
 	../toolchain/hosted/i386-linux/include/cupid_host_abi.h \

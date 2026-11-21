@@ -1,5 +1,27 @@
 # Bootstrapping log
 
+## 2026-11-21 — Split CupidObj by responsibility
+
+The 4,552-line CupidObj implementation now keeps binary transforms and the
+command dispatcher in `cupidobj.cc`. Three private includes handle ISO 9660
+and Rock Ridge, compiler profile manifests, and the installed source tables.
+All four files are under 2,000 lines. The checked Windows and Linux compilers
+produced the same 215,040-byte object before and after the move, with SHA-256
+`58106550d755d562a4c101afa02e714bc9ccaf5c17660bec87b86d005f8d42c9`.
+
+The build, bootstrap source capture, SDK verifier, and guest source ISO all
+include the three files. The first test run caught the missing SDK list. The
+corrected run passed 191 tests on both hosts, with three Windows skips. The
+Windows seed rebuilt the current 127-input producer through its fixed point.
+Both audit checks passed. The guest-object contract passed, and independent
+readback matched all 61 source ISO files. An incomplete ISO request preserved
+the previous image.
+
+The first guest run mixed an older plan publisher with the candidate seed
+pair and stopped at provenance verification. With a matching publisher and
+seed pair, Cupid OS rebuilt all five CupidObj worker objects from the ISO.
+The new worker matched the checked ELF and produced the same JPEG object.
+
 ## 2026-11-21 — Publish images inside the build directory
 
 The disk command can use a seed manifest under the working directory and
