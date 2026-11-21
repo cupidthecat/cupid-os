@@ -15,6 +15,7 @@ enum kernel_product {
 
 typedef struct {
     char list[CUPID_GUEST_PATH_BYTES(PASS_ONE_LIMIT + 2u) + sizeof("root output ")];
+    char root_path[VFS_MAX_PATH];
     const char *root;
     ctool_string_t objects[PASS_ONE_LIMIT];
     ctool_u32 count;
@@ -29,17 +30,20 @@ static char *append_text(char *out, const char *text) {
 }
 
 static int read_output_paths(cupid_syscall_table_t *sys, char **cursor, char *end,
-                             kernel_inputs_t *inputs) {
+                             const char *project_directory, kernel_inputs_t *inputs) {
     static const char *const leaves[PRODUCT_COUNT] = {
         "/boot.bin", "/pass1.elf", "/ksyms_data.cc", "/ksyms_data.o",
         "/kernel.elf", "/kernel.bin", "/disk-prefix.img"
     };
+    char absolute[VFS_MAX_PATH];
     const char *directory = "/home";
     if (end - *cursor >= 7 && strncmp(*cursor, "output ", 7u) == 0) {
         const char *line = cupid_guest_next_job_line(cursor, end);
         if (!line)
             return 0;
-        directory = line + 7;
+        directory = cupid_guest_project_path(sys, project_directory, line + 7, absolute);
+        if (!directory)
+            return 0;
     }
     ctool_path_t path = {ctool_string(directory)};
     if (!ctool_path_is_canonical(&path))
@@ -60,9 +64,10 @@ static int read_objects(cupid_syscall_table_t *sys, const cupid_guest_request_t 
         return 0;
     char *cursor = inputs->list;
     char *end = cursor + size;
-    if (!cupid_guest_read_root(sys, &cursor, end, "/src", &inputs->root) ||
+    if (!cupid_guest_read_root(sys, &cursor, end, "/src", job->project_directory,
+                               inputs->root_path, &inputs->root) ||
         strlen(inputs->root) + sizeof(BOOT_SOURCE) > VFS_MAX_PATH ||
-        !read_output_paths(sys, &cursor, end, inputs))
+        !read_output_paths(sys, &cursor, end, job->project_directory, inputs))
         return 0;
     inputs->count = 0;
     while (cursor < end && inputs->count < PASS_ONE_LIMIT) {

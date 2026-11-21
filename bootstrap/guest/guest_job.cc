@@ -27,15 +27,40 @@ char *cupid_guest_next_job_line(char **cursor, char *end) {
     return line;
 }
 
+const char *cupid_guest_project_path(cupid_syscall_table_t *sys, const char *directory,
+                                    const char *name, char absolute[VFS_MAX_PATH]) {
+    if (!name[0])
+        return NULL;
+    if (!directory || name[0] == '/')
+        return name;
+    size_t prefix = sys->strlen(directory);
+    size_t length = sys->strlen(name);
+    size_t separator = prefix > 1u;
+    if (prefix + separator + length >= VFS_MAX_PATH)
+        return NULL;
+    sys->memcpy(absolute, directory, prefix);
+    if (separator)
+        absolute[prefix++] = '/';
+    sys->memcpy(absolute + prefix, name, length + 1u);
+    return absolute;
+}
+
 int cupid_guest_read_root(cupid_syscall_table_t *sys, char **cursor, char *end,
-                          const char *fallback, const char **root) {
+                          const char *fallback, const char *project_directory,
+                          char absolute[VFS_MAX_PATH], const char **root) {
     *root = fallback;
     if (end - *cursor < 5 || sys->strncmp(*cursor, "root ", 5u) != 0)
         return 1;
     char *line = cupid_guest_next_job_line(cursor, end);
     if (!line)
         return 0;
-    ctool_path_t path = {ctool_string(line + 5)};
+    const char *name = line + 5;
+    const char *resolved = project_directory && sys->strcmp(name, ".") == 0
+                               ? project_directory
+                               : cupid_guest_project_path(sys, project_directory, name, absolute);
+    if (!resolved)
+        return 0;
+    ctool_path_t path = {ctool_string(resolved)};
     if (path.text.size >= VFS_MAX_PATH || !ctool_path_is_canonical(&path))
         return 0;
     *root = path.text.size == 1u ? "" : path.text.data;

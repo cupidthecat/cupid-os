@@ -112,6 +112,22 @@ def check_object_lists(scratch, command, reference_object, invoke):
     invoke(b"[cupidbuild-guest] build complete")
     assert all(path.read_bytes() == reference_object.read_bytes() for path in outputs)
 
+    local.write_bytes(b"root .\n" + head + first + second)
+    invoke(b"[cupidc-guest] invalid compile list")
+    project_plan = project / "cupidbuild.job"
+    project_plan.write_bytes(b"compile-list\nsources.job\n")
+    shutil.copytree(project / "user", project / "inputs/user")
+    for root in (b"", b"../project", b"inputs/..", b"a" * 512):
+        outputs[0].write_bytes(prior)
+        local.write_bytes(b"root " + root + b"\n" + head + first + second)
+        invoke(b"[cupidc-guest] invalid compile list")
+        assert outputs[0].read_bytes() == prior
+    for root in (b".", b"inputs"):
+        local.write_bytes(b"root " + root + b"\n" + head + first + second)
+        invoke(b"[cupidbuild-guest] build complete")
+        assert all(path.read_bytes() == reference_object.read_bytes() for path in outputs)
+    project_plan.unlink()
+
 
 def check(scratch: Path) -> None:
     sources = scratch / "src"
@@ -305,7 +321,11 @@ def check(scratch: Path) -> None:
     for invalid in (b"output /home/project/../build\n/disk/input.o\n",
                     b"output /src\n/disk/input.o\n",
                     b"output /home/" + b"a" * 500 + b"\n/disk/input.o\n",
-                    b"output /home/project/build\n/home/project/build/ksyms_data.o\n"):
+                    b"output /home/project/build\n/home/project/build/ksyms_data.o\n",
+                    b"output build\n/home/project/build/ksyms_data.o\n",
+                    b"output ../build\n/disk/input.o\n",
+                    b"output \n/disk/input.o\n",
+                    b"root ../project\noutput build\n/disk/input.o\n"):
         project_kernel.write_bytes(invalid)
         log = invoke(b"[cupidbuild-guest] invalid kernel object list")
         assert b"[cupidraw-guest]" not in log
@@ -315,6 +335,9 @@ def check(scratch: Path) -> None:
     invoke(b"[cupidbuild-guest] kernel build stopped at bootloader")
     assert project_boot.read_bytes() == b"preceding project bootloader"
     assert boot.read_bytes() == b"preceding bootloader"
+    project_kernel.write_bytes(b"root .\noutput build\n/disk/input.o\n")
+    invoke(b"[cupidbuild-guest] kernel build stopped at bootloader")
+    assert project_boot.read_bytes() == b"preceding project bootloader"
     local_output = project / "obj"
     local_object = local_output / "local.o"
     (project_jobs / "assemble.job").write_bytes(b"/input.asm\n/home/project/obj/local.o\n")

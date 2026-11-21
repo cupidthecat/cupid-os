@@ -97,7 +97,7 @@ class GuestSourcePlanTests(unittest.TestCase):
         self.assertEqual(references, {f"project/build/{name}": path for name, path in media_references.items()})
         requests = {name: data for _, name, data in steps}
         self.assertEqual(requests[b"source1.job"], guest_plan.job_contents(
-            "root /home/project", "define doom", "sources", "/kernel/doom/play.cc", "/tmp/i000.o",
+            "root .", "define doom", "sources", "/kernel/doom/play.cc", "/tmp/i000.o",
         ))
         self.assertEqual(requests[b"asset0.job"], guest_plan.job_contents(
             "wrap", "/home/project", "/bin/readme.txt", "/tmp/i001.o",
@@ -106,7 +106,7 @@ class GuestSourcePlanTests(unittest.TestCase):
         self.assertTrue(requests[b"install0.job"].startswith(b"/home/project/build/"))
         self.assertTrue(requests[b"a0.job"].startswith(b"/home/project/kernel/core/isr.asm\n"))
         self.assertEqual(requests[b"kernel.job"], guest_plan.job_contents(
-            "root /home/project", "output /home/project/build",
+            "root .", "output build",
             *(f"/tmp/i{index:03}.o" for index in range(len(self.objects) - 1)),
         ))
         _, _, persistent = guest_plan.source_plan(self.root, False, installed_tree=True)
@@ -118,7 +118,7 @@ class GuestSourcePlanTests(unittest.TestCase):
             source = Path("kernel/main.cc")
             (scratch / source.parent).mkdir()
             (scratch / source).write_bytes(b"int main(void) { return 0; }\n")
-            steps = (("compile-list", b"sources.job", b"root /home/project\nsources\n"),)
+            steps = (("compile-list", b"sources.job", b"root .\nsources\n"),)
             with patch.multiple(guest_plan, write_homefs=DEFAULT, create_disk=DEFAULT) as calls:
                 image = scratch / "build.img"
                 guest_plan.stage_installed_tree(scratch, scratch, image, steps, {source})

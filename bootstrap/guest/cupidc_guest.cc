@@ -204,11 +204,12 @@ ctool_status_t cupid_guest_compile_list(cupid_syscall_table_t *sys, const cupid_
     guest_compile_options_t options;
     ctool_invocation_request_t items[CUPID_GUEST_OBJECT_LIST_LIMIT];
     ctool_u32 count = 0u;
+    char root_path[VFS_MAX_PATH];
     const char *root = NULL;
     if (size > 0 && (ctool_u32)size < COMPILE_LIST_BYTES) {
         char *cursor = file;
         char *end = file + size;
-        if (cupid_guest_read_root(sys, &cursor, end, NULL, &root) &&
+        if (cupid_guest_read_root(sys, &cursor, end, NULL, job->project_directory, root_path, &root) &&
             read_profile(&cursor, end, "sources", &request, &options))
             count = cupid_guest_read_object_list(sys, cursor, end, PENDING_LEAF, items);
     }

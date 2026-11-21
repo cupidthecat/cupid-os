@@ -47,7 +47,7 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float, installed_tree: 
                                        "user/cupid.h", "user/examples/hello.cc")}
     source_root = INSTALLED_ROOT if installed_tree else "/src"
     asset_root = source_root if installed_tree else ASSET_ROOT
-    source_option = (f"root {source_root}",) if installed_tree else ()
+    source_option = ("root .",) if installed_tree else ()
     assets = (
         ("wrap", "image.bmp", "image.bmp.o"),
         ("wrap-text", "cupidos-txt/00INDEX.CTXT", "cupidos-txt/00INDEX.o"),

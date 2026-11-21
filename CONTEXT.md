@@ -57,6 +57,7 @@ object as its worker finishes.
 The VFS directory that holds a source tree. The compile list uses it to
 locate sources and headers while retaining their logical project paths.
 The kernel job also uses it to find the bootloader and linker script.
+In a local plan, `root .` selects the project directory.
 
 **Project build plan**:
 The `cupidbuild.job` in the shell's current directory. CupidBuild resolves

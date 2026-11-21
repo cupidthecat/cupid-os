@@ -96,7 +96,9 @@ A compile-list job starts with the usual compiler options, then a line
 containing sources. Write one source path and one output .o path per
 pair. CupidBuild uses the same options for every source.
 An optional first line such as root /home/project selects the source
-directory. Source and include paths keep their names within the project.
+directory. A local project plan can use root . for the project itself
+or root inputs for a directory within it. Source and include paths keep
+their names within the selected source directory.
 
 An asset-list job starts with wrap, wrap-text or wrap-jpeg, followed by
 the absolute asset directory. Each source path is relative to that
@@ -120,11 +122,11 @@ ELFs and the disk prefix. The job lists up to 511 distinct pass-one .o
 paths in link order, one per line. CupidBuild reads boot/boot.asm and
 link.ld from /src, generates the symbol object between links, and saves
 the disk prefix as /home/disk-prefix.img.
-The editable plan can also run this job. Add root /home/project on its
-first line to read boot/boot.asm, link.ld and headers from that tree.
-Add output /home/project/build after root and before the object list to
-put all seven kernel products there. Create the directory first. Without
-an output line, the job writes to /home.
+For a local project plan, use root . on the first line to read boot/boot.asm,
+link.ld and headers from the project. Use output build after root and before
+the object list to save all seven products in the project's build directory.
+Run mkdir before the kernel job. Without an output line, the job writes to
+/home.
 
 >h2 Assemble a relocatable object
 

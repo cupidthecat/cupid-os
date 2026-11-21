@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-21 — Resolve build job directories from the project
+
+Project compile lists and kernel jobs can use `root .` or a named
+subdirectory. Kernel jobs also accept `output build`. The Linux worker
+checks both source roots, preserves the previous object on invalid input
+and rejects an output that would overwrite a pass-one object.
+
+The installed `hello` replay matched all eight artifacts. The kernel
+replay linked 430 checked objects, matched all seven products and passed
+the four-CPU boot. Windows and WSL emitted identical bytes for all four
+changed worker objects. The 127 focused tests and build audit passed on
+both hosts.
+
 ## 2026-11-21 — Split four assembler, object and layout test suites
 
 Assembly source cases, artifact publication, disk and ISO cases, and

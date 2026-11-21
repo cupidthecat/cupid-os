@@ -673,12 +673,13 @@ python3 bootstrap/guest/check_guest_source_plan.py --production-root /path/to/ch
 
 The checker stages the project, plan and jobs in `/home/project`. It
 enters that directory and runs the worker. The plan creates `build`.
-The compile list keeps its logical source and include paths. The kernel
-job finds the bootloader, script and symbol headers under the project
-root and saves its products in `build`.
+Compile lists use `root .` and keep their logical source and include paths.
+The kernel job uses the same root to find the bootloader, linker script
+and symbol headers. Its `output build` line selects the products directory.
 See [ADR 0504](../adr/0504-build-from-an-installed-guest-source-tree.md),
-[ADR 0506](../adr/0506-keep-guest-kernel-products-in-the-project.md)
-and [ADR 0507](../adr/0507-create-output-directories-from-guest-plans.md).
+[ADR 0506](../adr/0506-keep-guest-kernel-products-in-the-project.md),
+[ADR 0507](../adr/0507-create-output-directories-from-guest-plans.md)
+and [ADR 0508](../adr/0508-resolve-build-job-directories-from-the-project.md).
 
 CupidBuild runs the source and asset lists in order. Each list shares
 compiler options or an asset wrapping mode. The 430-object plan now uses

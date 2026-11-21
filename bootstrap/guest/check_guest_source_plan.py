@@ -111,8 +111,8 @@ def source_plan(root: Path, temporary_objects: bool, *, installed_tree: bool = F
     references = {}
     built = set()
     source_root = INSTALLED_ROOT if installed_tree else "/src"
-    source_option = (f"root {source_root}",) if installed_tree else ()
-    output_option = (f"output {product_dir}",) if installed_tree else ()
+    source_option = ("root .",) if installed_tree else ()
+    output_option = (f"output {INSTALLED_BUILD_NAME}",) if installed_tree else ()
 
     def add(operation: str, name: str, contents: bytes) -> None:
         steps.append((operation, name.encode("ascii"), contents))
@@ -273,7 +273,7 @@ def check_kernel_job(scratch: Path, root: Path, qemu: str, timeout: float, *,
     verify_pass_one(scratch, root, objects)
     aliases = tuple(f"/obj{index // 64}/i{index:03}.o" for index in range(len(objects)))
     staged = tuple(f"{root / source}:{alias}" for source, alias in zip(objects, aliases, strict=True))
-    options = (f"root {INSTALLED_ROOT}", f"output {INSTALLED_BUILD}") if installed_tree else ()
+    options = ("root .", f"output {INSTALLED_BUILD_NAME}") if installed_tree else ()
     steps = (("kernel", b"kernel.job",
               job_contents(*options, *(f"/disk{alias}" for alias in aliases))),)
     print(f"Staging {len(objects)} checked pass-one objects for the guest kernel job.")
