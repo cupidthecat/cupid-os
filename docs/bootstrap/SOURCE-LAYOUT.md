@@ -39,6 +39,10 @@ hold compiler inputs, profile transactions, kernel image work and executable
 validation. The build audit tracks each include and bootstrap freezes it with
 the rest of the producer sources.
 
+Hosted output preparation and source path checks live in
+`toolchain/cupidbuild_host_source_paths.inc`. The remaining host adapter
+still needs to be split.
+
 ## Verification
 
 | Area | Files |

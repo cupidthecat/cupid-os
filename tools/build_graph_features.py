@@ -81,6 +81,7 @@ def source_language(path: str) -> str | None:
         "toolchain/cupidbuild_host_candidate_store.inc",
         "toolchain/cupidbuild_host_external_inputs.inc",
         "toolchain/cupidbuild_host_frozen_inputs.inc",
+        "toolchain/cupidbuild_host_source_paths.inc",
         "toolchain/cupidbuild_kernel_image.inc",
         "toolchain/cupidbuild_validation.inc",
     }:

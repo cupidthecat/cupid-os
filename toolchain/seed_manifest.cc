@@ -620,6 +620,17 @@ static const cupidbuild_current_seed_profile_t cupidbuild_iso_seed_profiles[] = 
     {121u, "f5a6202d1bd694b062d3c70552441e833a0c6bdc4afde753e82c62797454f641", 9u,
      cupidbuild_source_owner_linux_plan_sha256},
     {122u, "edf91edb181c104e9762ac7f68c4636b5da153ac43e24f1d4dc941424f96e63c", 10u,
+     cupidbuild_source_owner_linux_plan_sha256},
+    /* The hosted source and output path implementation has its own include. */
+    {117u, "0bf4abe248c229212b59293572a8437fc7fda357a642c550e334189a1be4332b", 6u,
+     cupidbuild_source_owner_linux_plan_sha256},
+    {121u, "17664a10f3d08b88d57a0be8d2824859faa8cbc3503fcd9bae73a60e6b857ca1", 7u,
+     cupidbuild_source_owner_linux_plan_sha256},
+    {122u, "f6465323611c509813922af67c31282fb30da97c0fd1c808118127656e8f9353", 8u,
+     cupidbuild_source_owner_linux_plan_sha256},
+    {122u, "f5a6202d1bd694b062d3c70552441e833a0c6bdc4afde753e82c62797454f641", 9u,
+     cupidbuild_source_owner_linux_plan_sha256},
+    {123u, "edf91edb181c104e9762ac7f68c4636b5da153ac43e24f1d4dc941424f96e63c", 10u,
      cupidbuild_source_owner_linux_plan_sha256}};
 
 static int cupidbuild_json_iso_seed_profile(const unsigned char *bytes,
@@ -639,11 +650,8 @@ static int cupidbuild_json_iso_seed_profile(const unsigned char *bytes,
             (!windows || cupidbuild_json_string_field(bytes, tokens, count, provenance,
                                                       "native_build_plan_sha256",
                                                       profile->windows_plan_sha256))) {
-            return windows        ? (int)index + 11
-                   : index >= 15u ? 26
-                   : index >= 10u ? 21
-                   : index >= 5u  ? 16
-                                  : 11;
+            /* Linux uses the first of the five profiles for its source generation. */
+            return 11 + (int)(windows ? index : index - index % 5u);
         }
     }
     return 0;

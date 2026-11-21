@@ -389,6 +389,25 @@ done:
     return status;
 }
 
+static int image_output_case(const char *absolute) {
+  cupidbuild_host_observer_t *observer = NULL;
+  cupidbuild_host_transaction_t *transaction = NULL;
+  cupidbuild_host_snapshot_t snapshot;
+  const char *parent = NULL, *leaf = NULL;
+  int result = 2;
+  if (cupidbuild_host_image_output_prepare(absolute, &observer, &parent, &leaf) &&
+      cupidbuild_host_publication_transaction_open_bounded(parent, leaf, 4096u, &transaction) &&
+      cupidbuild_host_transaction_borrow_observer(transaction, observer) &&
+      cupidbuild_host_candidate_store_open(transaction, 3u) &&
+      cupidbuild_host_candidate_store_write(transaction, 0u, (const unsigned char *)"new", 3u) &&
+      cupidbuild_host_candidate_store_finish(transaction, &snapshot))
+    result = cupidbuild_host_publish(transaction) ? 0 : 3;
+  if (result)
+    fprintf(stderr, "%s\n", cupidbuild_host_error(transaction));
+  if (!cupidbuild_host_transaction_close(transaction) || !cupidbuild_host_observer_close(observer))
+    return 4;
+  return result;
+}
 int main(int argc, char **argv) {
   cupidbuild_host_observer_t *observer = NULL;
   unsigned char *bytes = NULL;
@@ -421,6 +440,7 @@ int main(int argc, char **argv) {
 #endif
   }
   if (argc != 4 || !decode(argv[1]) || !decode(argv[3])) return 90;
+  if (strcmp(argv[2], "image-output") == 0) return image_output_case(argv[3]);
   if (strncmp(argv[2], "source-requests-", 16) == 0)
     return source_request_case(argv[1], argv[2]);
   if (strncmp(argv[2], "capacity-", 9) == 0) return capacity_case(argv[1], argv[2]);
@@ -952,6 +972,27 @@ class CupidBuildObserverTests(unittest.TestCase):
             (self.root / name).mkdir()
             (self.root / name / 'source.bin').write_bytes(b'original')
         self.make_source_junction(self.root / 'data')
+
+    def test_image_output_creates_nested_directories_and_rejects_a_linked_leaf(self):
+        external = self.root / 'external'
+        external.mkdir()
+        self.make_source_junction(external)
+        alias = self.root / 'alias'
+
+        def run(path):
+            return subprocess.run([str(self.program), '', 'image-output',
+                                   path.as_posix().encode('utf-8').hex()],
+                                  cwd=self.parent, capture_output=True, timeout=20)
+
+        path = alias / 'new' / 'deep' / 'image.bin'
+        output = external / 'new' / 'deep' / 'image.bin'
+        result = run(path)
+        self.assertEqual(result.returncode, 0, (result.stdout, result.stderr))
+        self.assertEqual(output.read_bytes(), b'new')
+        result = run(alias)
+        self.assertEqual(result.returncode, 2, (result.stdout, result.stderr))
+        self.assertEqual(output.read_bytes(), b'new')
+        self.assertFalse(list(output.parent.glob('*cupidbuild*')))
 
     def test_source_request_binding_publishes_and_rejects_repeated_binding(self):
         self.prepare_source_requests()

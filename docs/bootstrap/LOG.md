@@ -1,5 +1,32 @@
 # Bootstrapping log
 
+## 2026-11-21 — Retain output directories outside the checkout
+
+CupidBuild can resolve an absolute image output, follow an existing directory
+alias, and create missing directories below the nearest existing parent. The
+transaction checks that the original path still selects the retained parent
+through publication. A linked or non-regular output leaf is rejected. Hosted
+path handling moved into `cupidbuild_host_source_paths.inc`.
+
+Both hosts ran 28 native output and observer tests. Windows had one platform
+skip. Both checked callers passed the new output test. Alias rebinding before
+and after installation preserved the original file and allowed a fresh run.
+The first private fixture's one-entry limit could not retain a full directory
+chain. The output preparation now budgets for the complete path.
+
+The 123-input Windows producer reached a fixed point. Its source snapshot
+SHA-256 is `0a352c30b8e5f8e9b7b4ccbaaf6311e51ea0da2f2fd7818b0d44d58cddf95a40`.
+The SDK's C author and verifier initially rejected the larger inventory. Both
+passed after their exact source list added the new include.
+
+The separate native image prototype and Python oracle matched all 3,200
+blocks when both reapplied the same file stages to the existing image. The
+first comparison used the oracle before restaging and exposed different FAT
+allocations. The matched image has SHA-256
+`c460288f4bf199be7e91de3af96020e06c08f8cfc3bcd6da0dbb3b33c10b37b1`.
+Both 32 MiB runs kept the previous file's bytes and metadata on reuse and
+after an invalid stage. Forced formatting matched all 512 Python blocks.
+
 ## 2026-11-21 — Check the original disk requests during publication
 
 Disk discovery keeps the original file requests grouped by their retained

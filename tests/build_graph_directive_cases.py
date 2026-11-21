@@ -1041,7 +1041,7 @@ class DirectiveInventoryCases:
                 ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8")
             )
             contract = generated["contracts"]["c_preprocessor_line_directives"]
-            self.assertEqual(contract["source_files"], 774)
+            self.assertEqual(contract["source_files"], 775)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1062,7 +1062,7 @@ class DirectiveInventoryCases:
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 774 source files; max conditional depth 0",
+                "0 numeric markers; 775 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 

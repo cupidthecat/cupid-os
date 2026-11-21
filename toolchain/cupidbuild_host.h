@@ -417,6 +417,14 @@ const char *cupidbuild_host_observer_error(
     const cupidbuild_host_observer_t *observer);
 int cupidbuild_host_observer_close(cupidbuild_host_observer_t *observer);
 
+/* Resolve the parent of a normalized absolute image path, creating missing
+ * directories under the nearest retained parent. Follow directory aliases
+ * and reject linked or non-regular output leaves. The returned observer can
+ * bind the original parent request to a transaction rooted at physical_out.
+ * The physical parent belongs to the observer. The leaf borrows absolute. */
+int cupidbuild_host_image_output_prepare(const char *absolute,
+    cupidbuild_host_observer_t **observer_out, const char **physical_out, const char **leaf_out);
+
 /* Borrow one successful observer rooted at this transaction's retained root.
  * The caller keeps it alive through transaction close. Every publication
  * boundary rechecks captured file bytes/metadata, ancestor identities and exact

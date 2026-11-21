@@ -124,6 +124,17 @@ class CupidBuildObserverBindingRaceTests(unittest.TestCase):
                         self.prepare_source_requests()
                         self.source_request_race(phase, mutation, existing)
 
+    def test_output_directory_alias_changes_roll_back_and_recover(self):
+        base = self.root
+        for phase in ('before-mutation', 'after-install'):
+            with self.subTest(phase=phase):
+                self.root = base / phase
+                self.parent = self.root / 'nested'
+                self.parent.mkdir(parents=True)
+                (self.root / 'substitute').mkdir()
+                self.make_source_junction(self.parent)
+                self.source_request_race(phase, 'output-alias', existing=True)
+
     def source_request_race(self, phase, mutation, existing):
         output = self.parent / 'file.o'
         if existing:
@@ -137,6 +148,9 @@ class CupidBuildObserverBindingRaceTests(unittest.TestCase):
                            CUPIDBUILD_PUBLICATION_TEST_RESUME=str(resume))
         command = [str(self.program), str(self.root).encode('utf-8').hex(),
                    'source-requests-publish', '']
+        if mutation == 'output-alias':
+            requested = (self.root / 'alias' / output.name).as_posix().encode('utf-8').hex()
+            command[2:] = ['image-output', requested]
         with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               text=True, encoding='utf-8', env=environment) as process:
             try:
@@ -152,7 +166,8 @@ class CupidBuildObserverBindingRaceTests(unittest.TestCase):
                 else:
                     self.remove_source_junction()
                     self.make_source_junction(self.root / 'substitute')
-                    diagnostic = 'original source path changed'
+                    diagnostic = ('source root request no longer selects the retained directory'
+                                  if mutation == 'output-alias' else 'original source path changed')
                 resume.touch()
                 stdout, stderr = process.communicate(timeout=20)
                 self.assertEqual(process.returncode, 3, (stdout, stderr))
@@ -172,7 +187,7 @@ class CupidBuildObserverBindingRaceTests(unittest.TestCase):
             missing.unlink()
         else:
             self.remove_source_junction()
-            self.make_source_junction(self.root / 'data')
+            self.make_source_junction(self.parent if mutation == 'output-alias' else self.root / 'data')
         result = subprocess.run(command, capture_output=True, text=True, timeout=20)
         self.assertEqual(result.returncode, 0, (result.stdout, result.stderr))
         self.assertEqual(output.read_bytes(), b'new')
