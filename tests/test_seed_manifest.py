@@ -339,6 +339,48 @@ class ManifestTests(unittest.TestCase):
                 self.check_release(record, altered, fmt, False)
                 self.check(document, fmt, False)
 
+    def test_explicit_release_accepts_current_observer_worker_profiles(self):
+        checked_linux = installed_manifest(1)
+        checked_windows = installed_manifest(2)
+        plan = seed._candidate_build_plan(checked_linux["build_plan"])
+        profiles = (
+            (False, False, False, 113, 6),
+            (True, False, False, 117, 7),
+            (True, True, False, 118, 8),
+            (True, False, True, 118, 9),
+            (True, True, True, 119, 10),
+        )
+        for utf8, long_paths, aliases, count, profile in profiles:
+            with self.subTest(profile=profile):
+                inputs = seed.capture_source_snapshot(
+                    ROOT, plan, windows_utf8=utf8, windows_long_paths=long_paths,
+                    windows_user_link_aliases=aliases, windows_observer_workers=True,
+                )
+                self.assertEqual(len(inputs), count)
+                snapshot = seed._source_snapshot_sha256(inputs)
+                windows_plan = seed._windows_build_plan(
+                    plan, utf8=utf8, long_paths=long_paths, user_link_aliases=aliases,
+                    observer_workers=True,
+                )
+                windows_digest = seed._build_plan_sha256(windows_plan)
+                record = installed_release()
+                record.update(source_input_count=count, source_snapshot_sha256=snapshot,
+                              windows_plan_sha256=windows_digest)
+                linux = copy.deepcopy(checked_linux)
+                windows = copy.deepcopy(checked_windows)
+                for document in (linux, windows):
+                    document["provenance"].update(source_input_count=count,
+                                                   source_snapshot_sha256=snapshot)
+                windows["provenance"]["native_build_plan_sha256"] = windows_digest
+                self.check(linux, 1, False)
+                self.check(windows, 2, False)
+                self.check_release(record, linux, 1, expected=(6, 0))
+                self.check_release(record, windows, 2, expected=(6, profile))
+
+                windows["provenance"]["source_input_count"] += 1
+                record["source_input_count"] += 1
+                self.check_release(record, windows, 2, False)
+
     def test_release_aware_reader_clears_failures_and_bounds_diagnostics(self):
         from tests.test_seed_pair import released_alias_pair
         record, linux, windows = released_alias_pair()

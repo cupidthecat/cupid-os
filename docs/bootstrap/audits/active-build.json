@@ -64626,7 +64626,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "67942d95c5ba0a796742dac15c7e5a2354010c145d3a143680d218be2e346bad",
+    "active_source_digest": "8b83fde4d9d30e05ce20fd0b8e816ea92ee8d51c8df448f2c00b82167df3984f",
     "control_files": [
       {
         "path": "Makefile",
@@ -93386,12 +93386,12 @@
         "toolchain/seed_release.h"
       ],
       "language": "cupid_c",
-      "lines": 1684,
+      "lines": 1695,
       "origin": "tracked",
       "path": "toolchain/seed_manifest.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "74595397755c3a5bea4ab09ca24bb63a801d29fe548875d6ec0ef3219a3c0f99"
+      "sha256": "3f34dcb078317901da0b99ef10263a04a9a902a450b1a4c3672d63399d5d1717"
     },
     {
       "build_owners": [

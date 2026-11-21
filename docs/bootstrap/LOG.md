@@ -1,5 +1,16 @@
 # Bootstrapping log
 
+## 2026-11-21 — Recognize current staged seed profiles
+
+The Windows coordinator now recognizes the five current observer-worker
+profiles when a release record supplies the exact source count and plan.
+The checked seed reader still requires its recorded profile.
+
+The 71 seed and release tests and the build audit passed on Windows and
+WSL. A Windows candidate rebuilt two changed objects and linked them with
+34 verified objects from the staged cohort. It passed the kernel,
+production and user compile scenarios with an explicit release record.
+
 ## 2026-11-21 — Document the disk build sources
 
 The nine disk and source modules now have Doxygen file comments in their
