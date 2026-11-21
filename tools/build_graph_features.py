@@ -78,6 +78,7 @@ def source_language(path: str) -> str | None:
     if path in {
         "toolchain/cupidbuild_compile_inputs.inc",
         "toolchain/cupidbuild_compile_profile.inc",
+        "toolchain/cupidbuild_host_external_inputs.inc",
         "toolchain/cupidbuild_kernel_image.inc",
         "toolchain/cupidbuild_validation.inc",
     }:

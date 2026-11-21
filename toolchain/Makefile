@@ -196,6 +196,7 @@ CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/publication_runtime.cc
                                       tests/hosted_i386_windows_runtime_contract.cc
 CUPIDBUILD_CORE_FRAGMENTS := cupidbuild_compile_inputs.inc cupidbuild_compile_profile.inc \
                              cupidbuild_kernel_image.inc cupidbuild_validation.inc
+CUPIDBUILD_HOST_FRAGMENTS := cupidbuild_host_external_inputs.inc
 CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.cc artifact_size_policy.h contract_parse_internal.h \
                               path_encoding.h native_utf8.h \
                               contract_parse_internal.cc \
@@ -207,7 +208,7 @@ CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.cc artifact_size_policy.h con
                               cupidbuild_artifacts.cc cupidbuild_artifacts.h \
                               cupidbuild_user_abi.cc cupidbuild_user_abi.h \
                               user_syscall_abi.cc user_syscall_abi.h \
-                              cupidbuild_host.cc cupidbuild_host.h \
+                              cupidbuild_host.cc cupidbuild_host.h $(CUPIDBUILD_HOST_FRAGMENTS) \
                               cupidbuild_source_path.cc cupidbuild_source_path.h \
                               cupidbuild_source_file.cc cupidbuild_source_file.h \
                               cupidbuild_source_stage.cc cupidbuild_source_stage.h \
@@ -517,7 +518,7 @@ $(BUILD_DIR)/native_utf8_entry.o: native_utf8_entry.cc native_utf8.h | $(BUILD_D
 $(BUILD_DIR)/ctool_host_utf8.o: ctool_host.cc native_utf8.h ctool_host.h ctool.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -DCUPID_NATIVE_UTF8_ENABLE -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidbuild_host_utf8.o: cupidbuild_host.cc native_utf8.h path_encoding.h cupidbuild_host.h | $(BUILD_DIR)
+$(BUILD_DIR)/cupidbuild_host_utf8.o: cupidbuild_host.cc native_utf8.h path_encoding.h cupidbuild_host.h $(CUPIDBUILD_HOST_FRAGMENTS) | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -D_CRT_SECURE_NO_WARNINGS -DCUPID_NATIVE_UTF8_ENABLE -x c -c $< -o $@
 
 $(NATIVE_UTF8_MAIN_OBJECTS): $(BUILD_DIR)/%_native_utf8_main.o: %_main.cc $(wildcard *.h) | $(BUILD_DIR)
@@ -581,14 +582,14 @@ $(BUILD_DIR)/cupidld.o: cupidld.cc cupidld.h elf32.h ctool.h | $(BUILD_DIR)
 $(BUILD_DIR)/cupidld_main.o: cupidld_main.cc cupidld.h ctool_host.h ctool.h elf32.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidbuild_host.o: cupidbuild_host.cc cupidbuild_host.h path_encoding.h | $(BUILD_DIR)
+$(BUILD_DIR)/cupidbuild_host.o: cupidbuild_host.cc cupidbuild_host.h path_encoding.h $(CUPIDBUILD_HOST_FRAGMENTS) | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(CUPIDBUILD_SOURCE_OWNER_OBJECTS): $(BUILD_DIR)/%.o: %.cc $(CUPIDBUILD_SOURCE_OWNER_HEADERS) cupidbuild_disk_integer_tables.inc cupidbuild_host.h fat16_names.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidbuild_host_runner_adapter.o: \
-    cupidbuild_host.cc cupidbuild_host.h path_encoding.h | $(BUILD_DIR)
+    cupidbuild_host.cc cupidbuild_host.h path_encoding.h $(CUPIDBUILD_HOST_FRAGMENTS) | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(CUPIDBUILD_HOST_RUNNER_CONTRACT_FLAGS) \
 		-x c -c $< -o $@
 
@@ -693,7 +694,7 @@ $(BUILD_DIR)/cupidc_ir_contract.o: tests/cupidc_ir_contract.cc \
 $(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.cc \
     tests/cupidc_source_spelling_fixture.h \
     cupidbuild.cc cupidbuild.h cupidbuild_host.cc cupidbuild_host.h cupidbuild_jpeg.h \
-    $(CUPIDBUILD_CORE_FRAGMENTS) \
+    $(CUPIDBUILD_CORE_FRAGMENTS) $(CUPIDBUILD_HOST_FRAGMENTS) \
     cupidbuild_main.cc seed_manifest.cc seed_manifest.h seed_release.cc seed_release.h \
     contract_parse_internal.cc contract_parse_internal.h \
     tests/cupidc_kernel_simd_fixture.h \

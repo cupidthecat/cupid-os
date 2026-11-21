@@ -1,5 +1,26 @@
 # Bootstrapping log
 
+## 2026-11-21 — Freeze files from external observed roots
+
+Hosted transactions can now borrow a distinct retained root and freeze its
+files through the existing 64 KiB copy path. Publication rechecks the
+original observation and the private copy. Invalid authority, an output
+alias or a failed capture prevents publication. Each capture accepts an
+explicit capacity up to 2,147,483,647 bytes.
+
+Native and checked observer suites passed on Windows and WSL. The tests
+covered same-size payload drift with its timestamp restored and verified
+the prior output's bytes and identity. The broader native suites ran 124
+cases per host. Both hosts passed all 199 seed and manifest tests after
+the current inventory fixtures picked up the new include and their exact
+Windows source counts. The full producer snapshot has 120 inputs.
+The include adds one Windows conditional to the preprocessor inventory.
+Both native runners passed the updated conditional contract.
+
+A Windows candidate rebuilt three objects and linked them with 33 verified
+staged objects. It passed the kernel, production and user compile scenarios.
+Normal image publication still uses Python.
+
 ## 2026-11-21 — Recognize current staged seed profiles
 
 The Windows coordinator now recognizes the five current observer-worker

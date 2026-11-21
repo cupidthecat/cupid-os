@@ -1,3 +1,8 @@
+/**
+ * @file cupidbuild_host.h
+ * @brief Declare hosted build observations and publication transactions.
+ */
+
 #ifndef CUPID_TOOLCHAIN_BUILD_HOST_H
 #define CUPID_TOOLCHAIN_BUILD_HOST_H
 
@@ -405,6 +410,13 @@ int cupidbuild_host_transaction_borrow_observer(
     cupidbuild_host_transaction_t *transaction,
     cupidbuild_host_observer_t *observer);
 
+/* Recheck the contents, memberships and original bindings of a distinct
+ * external root at every publication boundary. Bind the primary observer
+ * first. The caller keeps both observers alive until transaction close. */
+int cupidbuild_host_transaction_borrow_external_observer(
+    cupidbuild_host_transaction_t *transaction,
+    cupidbuild_host_observer_t *observer);
+
 typedef struct {
   size_t size;
   unsigned char sha256[32];
@@ -474,6 +486,13 @@ int cupidbuild_host_freeze_input(cupidbuild_host_transaction_t *transaction,
 int cupidbuild_host_freeze_input_bounded(
     cupidbuild_host_transaction_t *transaction, const char *live_path,
     const char *private_name, unsigned long long capacity,
+    const char **frozen_path_out, cupidbuild_host_snapshot_t *snapshot_out);
+/* Freeze a regular file already retained by a borrowed external observer.
+ * Copy with fixed-size buffers and an explicit 1..2147483647-byte capacity.
+ * Failure clears both results and prevents publication. */
+int cupidbuild_host_freeze_external_input(
+    cupidbuild_host_transaction_t *transaction, cupidbuild_host_observer_t *observer,
+    const char *logical, const char *private_name, unsigned long long capacity,
     const char **frozen_path_out, cupidbuild_host_snapshot_t *snapshot_out);
 /* Capture the initial output once through its retained publication authority.
  * The transaction's candidate capacity bounds the fixed-block copy. An absent

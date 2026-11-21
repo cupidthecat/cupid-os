@@ -835,7 +835,7 @@ class CompilerProfileCases:
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 813,
+                    "active_sources": 814,
                     "features": 257,
                     "transforms": 455,
                     "unreachable_sources": 106,
@@ -867,7 +867,7 @@ class CompilerProfileCases:
                 self.assertEqual(unreachable[fixture], "host_fixture")
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (33, 8),
-                "c.expression.sizeof": (6662, 202),
+                "c.expression.sizeof": (6664, 203),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }

@@ -32,6 +32,7 @@ def historical_disk_snapshot(snapshot):
     later.update(("toolchain/cupidbuild_jpeg.h",
                   "toolchain/hosted/i386-linux/include/cupid_runtime.h"))
     later.update(bootstrap.CUPIDBUILD_CORE_FRAGMENTS)
+    later.update(bootstrap.CUPIDBUILD_HOST_FRAGMENTS)
     return {name: row for name, row in snapshot.items() if name not in later}
 
 

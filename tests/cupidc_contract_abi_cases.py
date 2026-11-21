@@ -15,6 +15,7 @@ from tests.cupidc_contract_fixtures import _test_relocatable_elf32
 from tools import cupidc_toolchain_contracts
 from tools.bootstrap_toolchain import (
     CUPIDBUILD_CORE_FRAGMENTS,
+    CUPIDBUILD_HOST_FRAGMENTS,
     _build_plan_sha256,
     _candidate_build_plan,
 )
@@ -253,8 +254,9 @@ class CupidCContractABICases:
             publication = cupidc_toolchain_contracts.verify_publication(output)
             self.assertEqual(publication["input_count"], 125)
             sources = publication["bootstrap"]["source_inputs"]
-            self.assertEqual(sources["count"], 119)
-            self.assertTrue(set(CUPIDBUILD_CORE_FRAGMENTS) <= sources["files"].keys())
+            self.assertEqual(sources["count"], 120)
+            self.assertTrue(set((*CUPIDBUILD_CORE_FRAGMENTS, *CUPIDBUILD_HOST_FRAGMENTS))
+                            <= sources["files"].keys())
             completed = subprocess.CompletedProcess(
                 ["user-syscall-abi-contract.elf"], 0,
                 json.dumps(expected) + "\n", "",

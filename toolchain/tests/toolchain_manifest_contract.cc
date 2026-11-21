@@ -85,7 +85,8 @@ static const char manifest_report_schema[] = "cupid.toolchain-manifest-verificat
 #define MANIFEST_OWNER_MAX_BOOTSTRAP_FILE_COUNT 114u
 #define MANIFEST_JPEG_BOOTSTRAP_FILE_COUNT 115u
 #define MANIFEST_BUILD_SPLIT_BOOTSTRAP_FILE_COUNT 117u
-#define MANIFEST_MAX_BOOTSTRAP_FILE_COUNT 119u
+#define MANIFEST_BUILD_SPLIT_MAX_BOOTSTRAP_FILE_COUNT 119u
+#define MANIFEST_MAX_BOOTSTRAP_FILE_COUNT 120u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
 #define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 29u
@@ -361,6 +362,7 @@ static const char *const manifest_expected_bootstrap_paths[MANIFEST_MAX_BOOTSTRA
     "toolchain/cupidbuild_compile_profile.inc",
     "toolchain/cupidbuild_kernel_image.inc",
     "toolchain/cupidbuild_validation.inc",
+    "toolchain/cupidbuild_host_external_inputs.inc",
 };
 
 static int manifest_bootstrap_count_valid(size_t count) {
@@ -669,7 +671,7 @@ static int manifest_expected_inventories_match(error_context_t *context,
     int source_spelling_inputs = state->input_count >= MANIFEST_SOURCE_SPELLING_RELEASE_INPUT_COUNT;
     int jpeg_inputs = state->input_count >= MANIFEST_JPEG_RELEASE_INPUT_COUNT;
     size_t owner_source_count = state->bootstrap_file_count >= MANIFEST_BUILD_SPLIT_BOOTSTRAP_FILE_COUNT
-                                    ? MANIFEST_MAX_BOOTSTRAP_FILE_COUNT
+                                    ? MANIFEST_BUILD_SPLIT_MAX_BOOTSTRAP_FILE_COUNT
                                 : jpeg_inputs ? MANIFEST_JPEG_BOOTSTRAP_FILE_COUNT
                                               : MANIFEST_OWNER_MAX_BOOTSTRAP_FILE_COUNT;
     int release_inputs = state->input_count == MANIFEST_RELEASE_INPUT_COUNT ||
@@ -677,6 +679,18 @@ static int manifest_expected_inventories_match(error_context_t *context,
                          state->input_count == MANIFEST_DISK_RELEASE_INPUT_COUNT ||
                          state->input_count == MANIFEST_OWNER_RELEASE_INPUT_COUNT ||
                          source_spelling_inputs;
+    if (state->bootstrap_file_count == MANIFEST_MAX_BOOTSTRAP_FILE_COUNT) {
+        owner_source_count = MANIFEST_MAX_BOOTSTRAP_FILE_COUNT;
+    } else if (state->bootstrap_file_count > MANIFEST_BUILD_SPLIT_BOOTSTRAP_FILE_COUNT) {
+        for (actual_index = 0u; actual_index < state->bootstrap_file_count; actual_index++) {
+            if (cupid_contract_text_equals_literal(
+                    &state->bootstrap_files[actual_index].path,
+                    manifest_expected_bootstrap_paths[MANIFEST_BUILD_SPLIT_MAX_BOOTSTRAP_FILE_COUNT])) {
+                owner_source_count = MANIFEST_MAX_BOOTSTRAP_FILE_COUNT;
+                break;
+            }
+        }
+    }
     if ((complete || release_inputs) && !state->has_captured_seed) {
         return cupid_contract_set_error(context,
                                         "extended producer requires captured seed context");

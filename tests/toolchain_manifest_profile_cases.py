@@ -40,7 +40,7 @@ from tests.toolchain_manifest_fixtures import (
     _seed_context_bytes,
 )
 from tools import cupidc_toolchain_contracts
-from tools.bootstrap_toolchain import CUPIDBUILD_CORE_FRAGMENTS
+from tools.bootstrap_toolchain import CUPIDBUILD_CORE_FRAGMENTS, CUPIDBUILD_HOST_FRAGMENTS
 
 
 class ManifestProfileCases:
@@ -306,6 +306,31 @@ class ManifestProfileCases:
                     bad = run(_owner_context_request(mode, manifest=changed))
                     self.assertEqual(bad.returncode, 1, bad.stderr)
                     self.assertEqual(bad.stdout, "")
+
+    def test_external_inputs_are_required_in_full_current_manifest(self):
+        profile = {"long_paths": True, "user_link_aliases": True}
+        manifest, *_ = _owner_context_fixture(**profile)
+        sources = manifest["bootstrap"]["source_inputs"]
+        for name in ("toolchain/cupidbuild_jpeg.h", *CUPIDBUILD_CORE_FRAGMENTS,
+                     *CUPIDBUILD_HOST_FRAGMENTS):
+            data = (REPO_ROOT / name).read_bytes()
+            sources["files"][name] = {"size": len(data), "sha256": _digest(data)}
+        sources["count"] = len(sources["files"])
+        self.assertEqual(sources["count"], 120)
+        sources["sha256"] = _digest(_json_bytes(sources["files"]))
+        for mode in ("author", "check"):
+            with self.subTest(mode=mode):
+                run = self.run_author_request if mode == "author" else self.run_request
+                good = run(_owner_context_request(mode, manifest=manifest, **profile))
+                self.assertEqual(good.returncode, 0, good.stderr)
+                changed = copy.deepcopy(manifest)
+                snapshot = changed["bootstrap"]["source_inputs"]
+                name, = CUPIDBUILD_HOST_FRAGMENTS
+                snapshot["files"]["toolchain/unreviewed.inc"] = snapshot["files"].pop(name)
+                snapshot["sha256"] = _digest(_json_bytes(snapshot["files"]))
+                result = run(_owner_context_request(mode, manifest=changed, **profile))
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertEqual(result.stdout, "")
 
     def test_historical_owner_rejects_a_spelling_header_in_place_of_an_old_member(self):
         original, *_ = _owner_context_fixture()

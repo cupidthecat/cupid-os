@@ -59,10 +59,11 @@ class SourceOwnerPlanTests(unittest.TestCase):
 
     def test_current_source_and_sdk_capture_agree_with_no_duplicate_codec(self):
         captured = b.capture_source_snapshot(ROOT, self.plan, **self.flags)
-        self.assertEqual(len(captured), 119)
+        self.assertEqual(len(captured), 120)
         self.assertIn(TABLE, captured)
         self.assertIn(BRIDGE, captured)
-        self.assertTrue(set(b.CUPIDBUILD_CORE_FRAGMENTS) <= captured.keys())
+        self.assertTrue(set((*b.CUPIDBUILD_CORE_FRAGMENTS, *b.CUPIDBUILD_HOST_FRAGMENTS))
+                        <= captured.keys())
         with policy._PinnedRepository(ROOT) as reader:
             selected = sdk._bootstrap_input_logical_paths(reader, self.plan,
                 windows_long_paths=True, windows_user_link_aliases=True, windows_observer_workers=True)
@@ -94,7 +95,7 @@ class SourceOwnerPlanTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             top = Path(temporary)
             live = b.freeze_source_inputs(ROOT, self.plan, top / 'live', **self.flags)
-            for name in b.CUPIDBUILD_CORE_FRAGMENTS:
+            for name in (*b.CUPIDBUILD_CORE_FRAGMENTS, *b.CUPIDBUILD_HOST_FRAGMENTS):
                 path = live.root / name
                 data = path.read_bytes()
                 path.unlink()

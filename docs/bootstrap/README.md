@@ -29,6 +29,7 @@ Cupid OS remains unfinished.
   together. The plan can create its own build directory and save its
   outputs there. A full rebuild from editable sources matched all eleven
   saved products and booted with four CPUs.
+  Hosted transactions can freeze observed inputs outside the output root.
   Linux or WSL still generates the replay plans and publishes the media.
   The normal image-command handoff and native developer build coordination
   remain open.

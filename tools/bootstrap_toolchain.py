@@ -310,6 +310,7 @@ CUPIDBUILD_CORE_FRAGMENTS = (
     "toolchain/cupidbuild_kernel_image.inc",
     "toolchain/cupidbuild_validation.inc",
 )
+CUPIDBUILD_HOST_FRAGMENTS = ("toolchain/cupidbuild_host_external_inputs.inc",)
 EXPECTED_SOURCES = (
     ("runtime", "/toolchain/hosted/i386-linux/runtime.cc", True),
     ("ctool", "/toolchain/ctool.cc", False),
@@ -892,6 +893,8 @@ def _source_input_paths(
         paths.append(source_root / logical_path.lstrip("/"))
         if logical_path == "/toolchain/cupidbuild.cc":
             paths.extend(source_root / fragment for fragment in CUPIDBUILD_CORE_FRAGMENTS)
+        if logical_path == "/toolchain/cupidbuild_host.cc":
+            paths.extend(source_root / fragment for fragment in CUPIDBUILD_HOST_FRAGMENTS)
         if logical_path == "/toolchain/fat16_names.cc":
             paths.append(source_root / "toolchain/fat16_name_profiles.inc")
         if logical_path == "/toolchain/cupidbuild_disk_integer.cc":
