@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+## @file toolchain_manifest_contract.py
+#  @brief Check SDK release manifests with the Cupid-built contract.
+
 """Check a Toolchain publication manifest with a Cupid-built contract."""
 
 from __future__ import annotations

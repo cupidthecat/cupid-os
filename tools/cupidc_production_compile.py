@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+## @file cupidc_production_compile.py
+#  @brief Compile production sources with a frozen CupidC tool.
+
 """Compile approved Cupid OS production sources with a frozen CupidC tool."""
 
 from __future__ import annotations

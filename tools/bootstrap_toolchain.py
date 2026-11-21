@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+## @file bootstrap_toolchain.py
+#  @brief Verify seed tools and use them to rebuild the Cupid Toolchain.
+
 """Verify and consume the checked Cupid Toolchain bootstrap seed."""
 
 from __future__ import annotations

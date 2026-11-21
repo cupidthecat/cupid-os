@@ -1,5 +1,12 @@
 # Bootstrapping log
 
+## 2026-11-21 — Document the host Python tools
+
+Added Doxygen file headers to the fourteen remaining Python modules in
+`tools/`. Each module's syntax tree matched its previous version. The focused
+seed, artifact policy and source inventory suites ran 45 cases on Windows
+and WSL, with one Windows skip.
+
 ## 2026-11-21 — Split CupidObj by responsibility
 
 The 4,552-line CupidObj implementation now keeps binary transforms and the

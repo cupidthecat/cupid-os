@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+## @file cupidc_production_frontier.py
+#  @brief Check deterministic CupidC output for production source groups.
+
 """Check deterministic CupidC ownership for small production cohorts."""
 
 from __future__ import annotations

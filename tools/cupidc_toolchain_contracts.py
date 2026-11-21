@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+## @file cupidc_toolchain_contracts.py
+#  @brief Build and check SDK contracts with the rebuilt Cupid tools.
+
 """Build Cupid-owned toolchain contracts across the checked fixed point."""
 
 from __future__ import annotations

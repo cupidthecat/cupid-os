@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+## @file artifact_size_policy.py
+#  @brief Verify production files against their recorded sizes.
+
 """Verify the reviewed sizes of Cupid-owned production artifacts."""
 
 from __future__ import annotations

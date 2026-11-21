@@ -1,3 +1,6 @@
+## @file bootstrap_user_abi.py
+#  @brief Check the staged ABI command against the kernel declarations.
+
 """Qualify the staged native ABI command against retained OS declarations."""
 
 from __future__ import annotations

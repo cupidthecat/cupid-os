@@ -1,3 +1,6 @@
+## @file bootstrap_stage_release.py
+#  @brief Prepare paired seed stages and qualify the reviewed release.
+
 """Prepare paired stages and qualify behavior with caller-reviewed release bytes.
 
 A preparation is not a bootstrap report or a promoted seed. The release author

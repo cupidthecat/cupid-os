@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+## @file kernel_cupidc_frontier.py
+#  @brief Check compiled kernel objects against the production source inventory.
+
 
 import argparse
 import errno

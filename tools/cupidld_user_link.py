@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+## @file cupidld_user_link.py
+#  @brief Link user programs with a frozen CupidLD tool.
+
 """Link approved Cupid OS user programs with a frozen CupidLD tool."""
 
 from __future__ import annotations

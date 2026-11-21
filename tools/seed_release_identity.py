@@ -1,3 +1,6 @@
+## @file seed_release_identity.py
+#  @brief Write and check the reviewed bootstrap release identities.
+
 """Author and check the reviewed seed identities during native-verifier migration.
 
 The tracked record is release authority, not a signature. During migration its

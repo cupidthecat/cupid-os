@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+## @file native_user_toolchain.py
+#  @brief Freeze and run native Windows tools for user programs.
+
 """Freeze and run the native Windows Cupid tools used by user builds."""
 
 from __future__ import annotations

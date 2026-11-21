@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+## @file artifact_size_contract.py
+#  @brief Run the artifact size checks with the checked CupidC contract.
+
 """Run the artifact-size policy through a checked CupidC contract."""
 
 from __future__ import annotations

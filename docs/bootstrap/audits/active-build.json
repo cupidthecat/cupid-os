@@ -50320,7 +50320,7 @@
       "tool_c_sources": 44,
       "tool_images": 6,
       "user_abi_behavior_inputs": 6,
-      "user_abi_behavior_sha256": "bb2738353eb0dea16b047808d9fde2c26c41d950754b6ae92e9ea0cb9c157ee1",
+      "user_abi_behavior_sha256": "8856b9a93fd193f7a85d8326e2f831eb6e953554e72b8c8b11ad006e7e03f9e9",
       "user_abi_failure_cases": 11,
       "user_abi_success_cases": 11,
       "windows_failure_behavior_cases": 54,
@@ -65637,11 +65637,11 @@
       },
       {
         "path": "tools/kernel_cupidc_frontier.py",
-        "sha256": "d270186fb240d6a4b40b9b963747cd73cfcbb8d61e249c16c975a8cd0b402248"
+        "sha256": "197c996d8bf842dd27b5753ffa5f43049cb7247c3537c44bfa67ea2bba94f795"
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "a25ca9b2910d7a37297e0aa8dd857aad9197ec426b5ff97ba675396fa82a68a0"
+        "sha256": "fd20c2b0f4855658542bfac53032323b6fe0279d648cbad45a794a5f33bf1b35"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",

@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+## @file user_syscall_abi.py
+#  @brief Check the i386 syscall ABI shared by the kernel and user programs.
+
 """Check the shared i386 syscall ABI used by Cupid OS user programs."""
 
 from __future__ import annotations
