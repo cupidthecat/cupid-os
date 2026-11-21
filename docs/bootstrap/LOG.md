@@ -1,5 +1,11 @@
 # Bootstrapping log
 
+## 2026-11-21 — Freedoom timedemo repeat reaches the deadline
+
+The four-vCPU replay selected the staged Freedoom WAD and started `demo1`.
+It reached graphics startup and ran past the 1,500-second limit without a
+result or a kernel panic. The November 18 run remains the completed pass.
+
 ## 2026-11-21 — Keep guest build intermediates in RAMFS
 
 The workers accept temporary outputs under `/tmp`. Each output is renamed

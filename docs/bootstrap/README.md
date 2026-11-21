@@ -26,8 +26,9 @@ Cupid OS remains unfinished.
   and typed native calls. Its remaining language gaps and guest acceptance
   are separate from hosted compiler fixed points. The shell can inspect
   saved raw files through the shared disassembler.
-- Doom keyboard, save-name, exact-image reboot and the four-vCPU Freedoom
-  timedemo pass. Gameplay and audio acceptance remain open.
+- Doom keyboard, save-name and exact-image reboot passed. A four-vCPU
+  Freedoom timedemo passed on November 18. The November 21 replay timed
+  out after graphics startup. Gameplay and audio acceptance remain open.
 - TempleOS is read-only reference material and is excluded from build counts.
 
 See the [ownership audit](ACTIVE-SOURCE-AUDIT.md),

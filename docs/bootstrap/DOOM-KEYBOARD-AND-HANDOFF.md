@@ -63,6 +63,11 @@ at 7.14 fps, exited fullscreen and returned to the shell without an
 EHCI ownership failure. See the
 [EHCI halt decision](../adr/0491-allow-time-for-ehci-halt-proof.md).
 
+The November 21 four-vCPU replay selected the same Freedoom WAD and
+started `demo1`. It reached graphics initialization and hit the
+1,500-second deadline before reporting the result. The serial log showed
+no kernel panic.
+
 ## Evidence and limits
 
 The first rebuilt guest exposes both the missing space and the input leak; it
@@ -79,5 +84,5 @@ archives and sixteen locally retained large-file references. SHA-256:
 `5477a16687ccf1bd0379c63e9d9871e7460fb26d0c40f5d40b1f8674d1b561d6`.
 Only the newly created save files are exported from HomeFS.
 
-Full gameplay, smooth audio and timedemo completion remain open.
+Full gameplay and smooth audio remain open.
 TempleOS remains reference material and is excluded from these checks.
