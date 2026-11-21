@@ -1,3 +1,5 @@
+/** @file smp.cc
+ *  @brief Start application processors and handle interprocessor interrupts. */
 #include "smp.h"
 #include "acpi.h"
 #include "bkl.h"
@@ -19,7 +21,6 @@ void ipi_call_c(void);
 extern uint8_t smp_trampoline_start[];
 extern uint8_t smp_trampoline_end[];
 extern void idt_load_ap(void);
-
 void ap_main_c(void);
 
 static void pit_udelay(uint32_t microseconds) {
@@ -55,8 +56,7 @@ static void start_ap(int cpu_id) {
 
 void smp_init(void) {
     bool mp_ok = mp_tables_discover();
-    /* If MP tables found only 1 CPU (or nothing), try ACPI MADT which
-     * QEMU populates with all SMP CPUs even when MP tables only list the BSP.*/
+    /* Try ACPI MADT if the MP table omits secondary CPUs, as QEMU often does. */
     if (!mp_ok || mp_cpu_discovered_count < 2) {
         if (!acpi_discover()) {
             if (!mp_ok) {

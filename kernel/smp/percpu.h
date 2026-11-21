@@ -1,3 +1,8 @@
+/**
+ * @file percpu.h
+ * @brief Declare per-CPU state and accessors.
+ */
+
 #ifndef PERCPU_H
 #define PERCPU_H
 

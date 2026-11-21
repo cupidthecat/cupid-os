@@ -1,5 +1,12 @@
 # Bootstrapping log
 
+## 2026-11-21 — Document the SMP sources and headers
+
+The fourteen SMP C sources and headers have Doxygen file comments.
+The startup comment preserves the stack-allocation diagnostic line.
+Checked CupidBuild reproduced all seven SMP objects on Windows and WSL.
+All 70 focused checks passed on both hosts. The build audit passed on Windows.
+
 ## 2026-11-21 — Separate the toolchain manifest profile tests
 
 The Python suite keeps its existing entry point and all 75 test names.

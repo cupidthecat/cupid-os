@@ -63857,7 +63857,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "a6fa07d95fc2033491684f937c528448f2e0f9566f110e445ce9834991388c24",
+    "active_source_digest": "df641924faf184004aabcbd6a0fda32bf88f98b479aa51b54421ca6994353713",
     "control_files": [
       {
         "path": "Makefile",
@@ -86963,12 +86963,12 @@
         "kernel/smp/mp_tables.h"
       ],
       "language": "cupid_c",
-      "lines": 153,
+      "lines": 158,
       "origin": "tracked",
       "path": "kernel/smp/acpi.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "93f505655e3a62cac8e8b3c6be528bef047d7e7c038418aefd8d070a0929360d"
+      "sha256": "a9f9efdb41bce380ebc3c28df3539f7fbfc48740b2bcbb31e0f52c0729436e79"
     },
     {
       "build_owners": [
@@ -86991,12 +86991,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 8,
+      "lines": 13,
       "origin": "tracked",
       "path": "kernel/smp/acpi.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "03e3a3cadca87cf27cc7e0810129cec9807701e6cbe52481edf8d7e015a8c2d7"
+      "sha256": "ee6367ffdd5da921a1d38494eda9fe96e7c2b30789089c5ec62edc4e1dc606c0"
     },
     {
       "build_owners": [
@@ -87026,12 +87026,12 @@
         "kernel/smp/percpu.h"
       ],
       "language": "cupid_c",
-      "lines": 100,
+      "lines": 105,
       "origin": "tracked",
       "path": "kernel/smp/bkl.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "8cb87a3fb68719328f28efd1794f1a9f8d795af3bb6f7eca62b72aa8ba54e247"
+      "sha256": "3df8d353cbbc62565aa7c98a0e7b573eeecd5ecf5a74f88e30761f2b6a0e4e97"
     },
     {
       "build_owners": [
@@ -87054,12 +87054,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 19,
+      "lines": 24,
       "origin": "tracked",
       "path": "kernel/smp/bkl.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "4282c66c68e3e2d47b3586e61de861fcc284b5f2a67af9b73868d69ea149071b"
+      "sha256": "31c2df4da12330aeca9b17d268b99b98ba8a2bce211703016af0bd075339441a"
     },
     {
       "build_owners": [
@@ -87089,12 +87089,12 @@
         "kernel/smp/ioapic.h"
       ],
       "language": "cupid_c",
-      "lines": 124,
+      "lines": 129,
       "origin": "tracked",
       "path": "kernel/smp/ioapic.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c100d0fdb042b937847f2670888b62c242f2d2878137e9a72d11e5bc3e724954"
+      "sha256": "a9ba64958aa49f5fa9e058560e8c190c9d3607d652a49b9894fce23cdd2f0427"
     },
     {
       "build_owners": [
@@ -87121,12 +87121,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 33,
+      "lines": 38,
       "origin": "tracked",
       "path": "kernel/smp/ioapic.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "eaa9cca04c93be4ec69a106c029e0c912060c05e782c69311a01f9294fa41c38"
+      "sha256": "9ba2f3377d0a9e6f53d499b6e97c91352d35c91ac178ca2893b100dc62345ecf"
     },
     {
       "build_owners": [
@@ -87155,12 +87155,12 @@
         "kernel/smp/lapic.h"
       ],
       "language": "cupid_c",
-      "lines": 99,
+      "lines": 103,
       "origin": "tracked",
       "path": "kernel/smp/lapic.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "3ee9ca28ed7f3d69a3984e08c5d8acc104dd58db8d2af25eaa65c651b38aad69"
+      "sha256": "3f258d4b5d1c295654f0e0b8ce4f7c3c9960afd888df202708ed25d6e9dd0fb9"
     },
     {
       "build_owners": [
@@ -87183,12 +87183,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 41,
+      "lines": 46,
       "origin": "tracked",
       "path": "kernel/smp/lapic.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "5a865fd03cf1bdb49b972923a8185e72ff7dd93e46e98e38395a9061c208acee"
+      "sha256": "1e6d11ceb038cc21f2c937ba993f4b6cb799a2d8a683f9ec82ab103576298e26"
     },
     {
       "build_owners": [
@@ -87223,12 +87223,12 @@
         "kernel/smp/mp_tables.h"
       ],
       "language": "cupid_c",
-      "lines": 111,
+      "lines": 116,
       "origin": "tracked",
       "path": "kernel/smp/mp_tables.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f0544868b3365461ee03eeccae446b6f9bf188eedecb8881bca97f47751d5373"
+      "sha256": "32d3a5a9377eaead67b4bb93d9d326190d24820aaafbb26fabf394f139e583fd"
     },
     {
       "build_owners": [
@@ -87257,12 +87257,12 @@
         "kernel/smp/percpu.h"
       ],
       "language": "c_header",
-      "lines": 19,
+      "lines": 24,
       "origin": "tracked",
       "path": "kernel/smp/mp_tables.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e3599904ea50079fa99a8a870b56c0a5f0051f832035129c9986df8484264cfd"
+      "sha256": "b94f574bd6043273a036fbab79f88905d68f906d09f9387cd7d77f1297c0c5db"
     },
     {
       "build_owners": [
@@ -87296,12 +87296,12 @@
         "kernel/smp/percpu.h"
       ],
       "language": "cupid_c",
-      "lines": 160,
+      "lines": 165,
       "origin": "tracked",
       "path": "kernel/smp/percpu.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e99c8298916b8dfd34b90f45a924443403f6a88d836ef1282abfb46d6202ecb1"
+      "sha256": "db2af634ee1490cc8d3ef46b1fe64d8d6468b7d401d97b0d46ff8be95d76a7b8"
     },
     {
       "build_owners": [
@@ -87339,12 +87339,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 72,
+      "lines": 77,
       "origin": "tracked",
       "path": "kernel/smp/percpu.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "dbbeb942b825c9c14ab8cc517b904ec6377bcefea2964524dc2ac32a7c715628"
+      "sha256": "0c3b3904b7b66bfa138600063b1c2a5876499cc20d4f1ab2155aeb938427e703"
     },
     {
       "build_owners": [
@@ -87397,7 +87397,7 @@
       "path": "kernel/smp/smp.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "2060949f4c97c74b85ce0f3fabe33e555b1483042702dd8c95982bde9f02fdff"
+      "sha256": "56955c8fe3b70d6d3661f5d003f58fa9ef2e64673564b694943e7eb3cdfc3e36"
     },
     {
       "build_owners": [
@@ -87423,12 +87423,12 @@
         "kernel/smp/percpu.h"
       ],
       "language": "c_header",
-      "lines": 14,
+      "lines": 19,
       "origin": "tracked",
       "path": "kernel/smp/smp.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "a3a350bba3437a864ca78e91779253b28db9cc4fcf6b979af3279d8bb6216dab"
+      "sha256": "ab4095513cffed199dbead1dd47dac243b9d0af2634214c6a7ef812af6c5a3b9"
     },
     {
       "build_owners": [

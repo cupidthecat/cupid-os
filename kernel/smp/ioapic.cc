@@ -1,3 +1,8 @@
+/**
+ * @file ioapic.cc
+ * @brief Route hardware interrupts through I/O APICs.
+ */
+
 #include "ioapic.h"
 #include "memory.h"
 #include "serial.h"

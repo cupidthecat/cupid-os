@@ -1,3 +1,8 @@
+/**
+ * @file smp.h
+ * @brief Declare multiprocessor startup and interprocessor calls.
+ */
+
 #ifndef SMP_H
 #define SMP_H
 

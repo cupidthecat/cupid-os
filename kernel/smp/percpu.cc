@@ -1,3 +1,8 @@
+/**
+ * @file percpu.cc
+ * @brief Initialize per-CPU state and its GDT selectors.
+ */
+
 #include "percpu.h"
 #include "serial.h"
 

@@ -1,3 +1,8 @@
+/**
+ * @file acpi.cc
+ * @brief Discover CPUs and interrupt controllers from ACPI tables.
+ */
+
 #include "acpi.h"
 #include "ioapic.h"
 #include "mp_tables.h"

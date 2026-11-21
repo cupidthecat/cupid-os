@@ -51,7 +51,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_lang` | 20 | 11055 |
 | `kernel_mm` | 7 | 1338 |
 | `kernel_network` | 20 | 4057 |
-| `kernel_smp` | 14 | 1223 |
+| `kernel_smp` | 14 | 1287 |
 | `kernel_tls` | 13 | 5866 |
 | `kernel_usb` | 8 | 3152 |
 | `kernel_util` | 2 | 692 |

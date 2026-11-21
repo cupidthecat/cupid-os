@@ -1,3 +1,8 @@
+/**
+ * @file ioapic.h
+ * @brief Declare I/O APIC discovery and interrupt routing.
+ */
+
 #ifndef IOAPIC_H
 #define IOAPIC_H
 

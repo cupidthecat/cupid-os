@@ -1,4 +1,8 @@
-/* CupidC-owned local APIC implementation. */
+/**
+ * @file lapic.cc
+ * @brief Configure local APIC timers and send interprocessor interrupts.
+ */
+
 #include "lapic.h"
 #include "memory.h"
 #include "ports.h"

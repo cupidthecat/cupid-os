@@ -1,3 +1,8 @@
+/**
+ * @file mp_tables.cc
+ * @brief Discover CPUs and interrupt routing from Intel MP tables.
+ */
+
 #include "mp_tables.h"
 #include "ioapic.h"
 #include "serial.h"

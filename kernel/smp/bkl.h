@@ -1,3 +1,8 @@
+/**
+ * @file bkl.h
+ * @brief Declare the kernel lock and its interrupt helpers.
+ */
+
 #ifndef BKL_H
 #define BKL_H
 

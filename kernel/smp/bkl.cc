@@ -1,3 +1,8 @@
+/**
+ * @file bkl.cc
+ * @brief Manage the kernel lock across CPUs and interrupt contexts.
+ */
+
 #include "bkl.h"
 #include "percpu.h"
 #include "process.h"
