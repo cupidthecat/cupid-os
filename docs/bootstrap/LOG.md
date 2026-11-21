@@ -1,5 +1,16 @@
 # Bootstrapping log
 
+## 2026-11-20 — Rebuild the example user programs in Cupid OS
+
+The guest compiler built `cat`, `hello` and `ls` from their original
+sources and public syscall header. Guest CupidLD linked each object at
+`0x01c00000` with entry `_start`. The same boot ran all three programs from
+HomeFS and checked output and exit against each loaded PID.
+
+All six saved artifacts matched the checked WSL user build byte for byte.
+The three objects total 18,684 bytes and the ELFs total 42,000 bytes. The
+separate normal-build user runtime gate passed for all three programs.
+
 ## 2026-11-20 — Honor the five-second block-cache interval
 
 The PIT dispatches registered callbacks on every tick. The kernel now

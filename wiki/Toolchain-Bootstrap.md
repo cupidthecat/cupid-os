@@ -59,6 +59,10 @@ Compiler jobs can set the include search order, macro definitions, forced
 headers and Doom compatibility. The production compiler replay uses the
 checked kernel and Doom profiles.
 
+The user-program replay compiles, links and runs `cat`, `hello` and `ls`
+inside Cupid OS. It compares the saved objects and ELFs with the checked
+host build. [Replay commands](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#rebuild-and-run-the-user-examples)
+
 ## Guest linker
 
 `make -C bootstrap/guest guest-linker` builds the CupidLD worker. Set up

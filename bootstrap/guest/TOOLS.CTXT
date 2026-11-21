@@ -71,6 +71,12 @@ Use the same compiler job format with /toolchain/cupidasm.cc,
 /toolchain/cupiddis.cc or /toolchain/cupidobj.cc. The ISO includes their
 headers. Keep the resulting objects under /home.
 
+>h2 Build an example user program
+
+When the source ISO includes /user/examples and /user/cupid.h, compile
+/user/examples/hello.cc to /home/hello.o with include /user. Link it at
+0x01c00000 with entry _start. Run the result with exec /home/hello.elf.
+
 >h2 Flatten an ELF image
 
 The CupidObj worker reads /home/cupidobj.job. Put the input ELF path on the

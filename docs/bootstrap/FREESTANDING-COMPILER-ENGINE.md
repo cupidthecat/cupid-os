@@ -286,6 +286,22 @@ guest-produced objects into a byte-identical 251,904-byte copy of itself.
 The new linker produced the checked hello ELF from an object assembled inside
 Cupid OS. That program ran and released its external image lease.
 
+## Rebuild and run the user examples
+
+On Linux or WSL, build the checked host references and the guest workers.
+Use a completed OS build for the replay.
+
+```sh
+make -C user all
+make -C bootstrap/guest guest-compiler guest-linker
+python3 bootstrap/guest/check_guest_user_runtime.py
+```
+
+The replay mounts the example sources, compiles and links `cat`, `hello`
+and `ls` in Cupid OS, and runs each from HomeFS. It checks program output
+and exit against the loaded PID and compares all six objects and ELFs.
+Use `--production-root` to select a separate checked OS and user build.
+
 ## Relink the production kernel
 
 Put `script` on the second line of `/home/cupidld.job` and the linker script
