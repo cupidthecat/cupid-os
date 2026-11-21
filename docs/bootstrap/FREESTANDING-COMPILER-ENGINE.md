@@ -289,7 +289,7 @@ cupidc_guest_run
 
 The automated replay compiles those thirteen inputs in one job. It mounts
 the saved object ISO inside Cupid OS and links the worker directly from it.
-The ISO and every object matched. The saved 2,720,680-byte ELF matched the
+The ISO and every object matched. The saved 2,724,816-byte ELF matched the
 checked worker and reproduced all 41,804 bytes of `ctool.o` in a fresh boot.
 
 ```sh
@@ -303,10 +303,23 @@ guest linker matched the checked host ELF, SHA-256
 `exec /home/rebuilt.elf` then rebuilt `ctool.o` under a second name. All
 41,864 bytes matched and both worker leases were released.
 
-The rebuilt CupidC also compiled both CupidLD sources. CupidLD then linked five
-guest-produced objects into a byte-identical 251,904-byte copy of itself.
-The new linker produced the checked hello ELF from an object assembled inside
-Cupid OS. That program ran and released its external image lease.
+## Rebuild and run the peer workers
+
+The guest plan compiles every object for the selected worker, links its
+executable, and runs the result in the same guest. The replay compares the
+objects, executable and output with the checked build.
+
+```sh
+make -C bootstrap/guest source-iso guest-build guest-assembler guest-linker guest-object
+python3 bootstrap/guest/check_guest_peer_self_host.py cupidasm --production-root /path/to/checked/build
+python3 bootstrap/guest/check_guest_peer_self_host.py cupidld --production-root /path/to/checked/build
+python3 bootstrap/guest/check_guest_peer_self_host.py cupidobj --production-root /path/to/checked/build
+```
+
+CupidASM rebuilt from seven objects, including CupidDis, and reproduced the
+checked ISR object. CupidLD rebuilt from five objects and linked the checked
+`hello` ELF. CupidObj rebuilt from five objects and wrapped the production
+JPEG into the checked object.
 
 ## Run a build plan inside Cupid OS
 

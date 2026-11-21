@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-21 — Rebuild and run the peer workers
+
+Cupid OS compiled and linked complete CupidASM, CupidLD and CupidObj
+workers. The seven-object assembler includes CupidDis and reproduced the
+1,892-byte ISR object. The five-object linker produced the 13,992-byte
+`hello` ELF. The five-object CupidObj worker produced the 800,860-byte
+JPEG object. The checked host build matched every object, worker and
+runtime output.
+
+The repeat CupidC run with the updated standalone adapter matched all 13
+objects and the 2,724,816-byte executable. The rebuilt compiler reproduced
+all 41,804 bytes of `ctool.o` after a fresh boot.
+
 ## 2026-11-21 — Give terminal setup commands their own deadline
 
 A mistyped mount waited for the full compiler deadline. Terminal checks
