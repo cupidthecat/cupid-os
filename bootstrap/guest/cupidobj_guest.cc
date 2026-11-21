@@ -65,8 +65,9 @@ static int read_asset(const char *mode, const char *logical, guest_object_job_t 
     return 1;
 }
 
-static int read_object_job(cupid_syscall_table_t *sys, const char *path, char *file, guest_object_job_t *job) {
-    int size = sys->vfs_read_text(path, file, OBJECT_JOB_BYTES);
+static int read_object_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *request,
+                           char *file, guest_object_job_t *job) {
+    int size = cupid_guest_read_request(sys, request, file, OBJECT_JOB_BYTES);
     if (size < 1 || (ctool_u32)size >= OBJECT_JOB_BYTES)
         return 0;
 
@@ -239,15 +240,15 @@ static ctool_status_t build_object(ctool_invocation_t *invocation, void *context
     return ctool_obj_transform(invocation->job, &request, invocation->output, &result);
 }
 
-ctool_status_t cupid_guest_object_job(cupid_syscall_table_t *sys, const char *job_path) {
+ctool_status_t cupid_guest_object_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *input) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
         return CTOOL_ERR_INVALID_ARGUMENT;
     cupid_init(sys);
     char file[OBJECT_JOB_BYTES];
     guest_object_job_t job = {0};
-    if (!read_object_job(sys, job_path, file, &job)) {
+    if (!read_object_job(sys, input, file, &job)) {
         sys->serial_write_string("[cupidobj-guest] invalid request file: ");
-        sys->serial_write_string(job_path);
+        sys->serial_write_string(input->path);
         sys->serial_write_string("\n");
         return CTOOL_ERR_INPUT;
     }
@@ -279,5 +280,5 @@ ctool_status_t cupid_guest_object_job(cupid_syscall_table_t *sys, const char *jo
 }
 
 void cupidobj_guest_run(cupid_syscall_table_t *sys) {
-    cupid_guest_object_job(sys, OBJECT_JOB);
+    cupid_guest_object_job(sys, &(cupid_guest_request_t){.path = OBJECT_JOB});
 }

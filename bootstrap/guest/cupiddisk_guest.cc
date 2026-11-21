@@ -28,13 +28,13 @@ static ctool_status_t make_template(ctool_invocation_t *invocation, void *contex
     return ctool_obj_transform(invocation->job, &request, invocation->output, &result);
 }
 
-ctool_status_t cupid_guest_disk_job(cupid_syscall_table_t *sys, const char *job_path) {
+ctool_status_t cupid_guest_disk_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
         return CTOOL_ERR_INVALID_ARGUMENT;
     cupid_init(sys);
     char file[CUPID_GUEST_PATH_BYTES(3u)];
     ctool_path_t paths[3];
-    if (!cupid_guest_read_paths(sys, job_path, file, sizeof(file), paths, 3u) ||
+    if (!cupid_guest_read_paths(sys, job, file, sizeof(file), paths, 3u) ||
         strcmp(paths[2].text.data, DISK_PENDING) == 0) {
         sys->serial_write_string("[cupiddisk-guest] invalid request\n");
         return CTOOL_ERR_INPUT;
@@ -64,5 +64,5 @@ ctool_status_t cupid_guest_disk_job(cupid_syscall_table_t *sys, const char *job_
 }
 
 void cupiddisk_guest_run(cupid_syscall_table_t *sys) {
-    cupid_guest_disk_job(sys, DISK_JOB);
+    cupid_guest_disk_job(sys, &(cupid_guest_request_t){.path = DISK_JOB});
 }

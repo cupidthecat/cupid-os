@@ -16,9 +16,10 @@ typedef enum {
     GUEST_RAW_SMP_TRAMPOLINE
 } guest_raw_kind_t;
 
-static int read_raw_job(cupid_syscall_table_t *sys, const char *path, char *file, ctool_invocation_request_t *request,
+static int read_raw_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job,
+                        char *file, ctool_invocation_request_t *request,
                         guest_raw_kind_t *kind) {
-    int size = sys->vfs_read_text(path, file, RAW_JOB_BYTES);
+    int size = cupid_guest_read_request(sys, job, file, RAW_JOB_BYTES);
     if (size < 1 || (ctool_u32)size >= RAW_JOB_BYTES)
         return 0;
     char *cursor = file;
@@ -163,16 +164,16 @@ static ctool_status_t assemble_raw_image(ctool_invocation_t *invocation, void *c
     return check_raw_image(invocation->job, invocation->input, &image, *(guest_raw_kind_t *)context);
 }
 
-ctool_status_t cupid_guest_raw_job(cupid_syscall_table_t *sys, const char *job_path) {
+ctool_status_t cupid_guest_raw_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
         return CTOOL_ERR_INVALID_ARGUMENT;
     cupid_init(sys);
     char file[RAW_JOB_BYTES];
     ctool_invocation_request_t request;
     guest_raw_kind_t kind;
-    if (!read_raw_job(sys, job_path, file, &request, &kind)) {
+    if (!read_raw_job(sys, job, file, &request, &kind)) {
         sys->serial_write_string("[cupidraw-guest] invalid request file: ");
-        sys->serial_write_string(job_path);
+        sys->serial_write_string(job->path);
         sys->serial_write_string("\n");
         return CTOOL_ERR_INPUT;
     }
@@ -196,5 +197,5 @@ ctool_status_t cupid_guest_raw_job(cupid_syscall_table_t *sys, const char *job_p
 }
 
 void cupidraw_guest_run(cupid_syscall_table_t *sys) {
-    cupid_guest_raw_job(sys, RAW_JOB);
+    cupid_guest_raw_job(sys, &(cupid_guest_request_t){.path = RAW_JOB});
 }

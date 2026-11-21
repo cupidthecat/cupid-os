@@ -46,13 +46,13 @@ static ctool_status_t generate_symbols(ctool_invocation_t *invocation, void *con
     return status;
 }
 
-ctool_status_t cupid_guest_symbols_job(cupid_syscall_table_t *sys, const char *job_path) {
+ctool_status_t cupid_guest_symbols_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
         return CTOOL_ERR_INVALID_ARGUMENT;
     cupid_init(sys);
     char file[CUPID_GUEST_PATH_JOB_BYTES];
     ctool_invocation_request_t request;
-    if (!cupid_guest_read_path_job(sys, job_path, file, &request) ||
+    if (!cupid_guest_read_path_job(sys, job, file, &request) ||
         strcmp(request.output_path.data, KSYMS_PENDING) == 0) {
         sys->serial_write_string("[cupidksyms-guest] invalid request\n");
         return CTOOL_ERR_INPUT;
@@ -81,5 +81,5 @@ ctool_status_t cupid_guest_symbols_job(cupid_syscall_table_t *sys, const char *j
 }
 
 void cupidksyms_guest_run(cupid_syscall_table_t *sys) {
-    cupid_guest_symbols_job(sys, KSYMS_JOB);
+    cupid_guest_symbols_job(sys, &(cupid_guest_request_t){.path = KSYMS_JOB});
 }

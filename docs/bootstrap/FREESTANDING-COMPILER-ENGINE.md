@@ -649,6 +649,29 @@ ISOs mounted at `/src`, `/src/kernel/doom`, and `/assets`. The bootloader
 source, linker script, and headers for generated code are on `/src`.
 HomeFS starts fresh and holds outputs created by the guest.
 
+The final `kernel` job supplies the pass-one objects in link order.
+Guest CupidBuild assembles the bootloader, runs both links and symbol
+generation, then writes the raw kernel and disk prefix. The host supplies
+the object order once. See [ADR 0502](../adr/0502-run-the-kernel-build-sequence-in-guest-cupidbuild.md).
+
+Add `--link-only` to stage checked objects and test the kernel job without
+recompiling them. The checker compares the seven resulting files and
+boots the new disk with four CPUs.
+
+The first Linux contract caught an uninitialized syscall table in the kernel
+job module. Each worker now initializes its own table before using it. The
+first link-only fixture omitted two Browser objects, which the image stager
+skipped. The checker now reports missing objects before creating media.
+The next fixture carried a stale `18NET.CTXT` object. Rebuilding that
+asset restored both checked link hashes.
+
+The single-job replay staged all 430 checked pass-one objects. All seven
+guest outputs matched, including the 10,697,216-byte disk prefix recorded
+below. The resulting disk booted with four CPUs and passed TLS, e1000,
+DHCP and `ls`. Windows and WSL built byte-identical workers. The Linux
+contract checks malformed object lists and a failed bootloader step, along
+with the existing editable and read-only plans.
+
 The replay uses one virtual CPU and retries once if a setup command finishes
 without its mount marker. One `exec /disk/b` compiles and assembles the
 kernel and Doom, wraps assets, generates the

@@ -42,6 +42,11 @@ _Avoid_: all checked-in source
 An accepted build entry point whose reachable inputs and outputs are part of Cupid OS delivery or verification. The normal root image build, separate user-program build, and hosted Cupid Toolchain contract build are current supported build roots; arbitrary Make targets are not automatically supported roots.
 _Avoid_: every build target, only the default target
 
+**Guest kernel job**:
+The source-media CupidBuild operation that accepts the ordered pass-one
+object paths, then assembles the bootloader, links both kernels, generates
+the symbol object, flattens the final ELF, and writes the disk prefix.
+
 **Source cohort**:
 A related group of active sources migrated and verified under one tool-ownership and behavior gate.
 _Avoid_: directory (a cohort may cross directories), individual file count

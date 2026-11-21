@@ -53,9 +53,20 @@ int cupid_guest_read_path_lines(cupid_syscall_table_t *sys, char **cursor, char 
     return cupid_guest_output_prefix(sys, paths[count - 1u].text) != 0u;
 }
 
-int cupid_guest_read_paths(cupid_syscall_table_t *sys, const char *job_path,
+int cupid_guest_read_request(cupid_syscall_table_t *sys, const cupid_guest_request_t *job,
+                             char *file, ctool_u32 capacity) {
+    if (!job->text.data)
+        return sys->vfs_read_text(job->path, file, capacity);
+    if (job->text.size >= capacity)
+        return GUEST_ENOSPC;
+    sys->memcpy(file, job->text.data, job->text.size);
+    file[job->text.size] = '\0';
+    return (int)job->text.size;
+}
+
+int cupid_guest_read_paths(cupid_syscall_table_t *sys, const cupid_guest_request_t *job,
                           char *file, ctool_u32 capacity, ctool_path_t *paths, ctool_u32 count) {
-    int size = sys->vfs_read_text(job_path, file, capacity);
+    int size = cupid_guest_read_request(sys, job, file, capacity);
     if (size < 1 || (ctool_u32)size >= capacity)
         return 0;
     char *cursor = file;
@@ -63,10 +74,10 @@ int cupid_guest_read_paths(cupid_syscall_table_t *sys, const char *job_path,
     return cupid_guest_read_path_lines(sys, &cursor, end, paths, count) && cursor == end;
 }
 
-int cupid_guest_read_path_job(cupid_syscall_table_t *sys, const char *job_path,
+int cupid_guest_read_path_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job,
                               char *file, ctool_invocation_request_t *invocation) {
     ctool_path_t paths[2];
-    if (!cupid_guest_read_paths(sys, job_path, file, CUPID_GUEST_PATH_JOB_BYTES, paths, 2u))
+    if (!cupid_guest_read_paths(sys, job, file, CUPID_GUEST_PATH_JOB_BYTES, paths, 2u))
         return 0;
     invocation->input_path = paths[0].text;
     invocation->output_path = paths[1].text;

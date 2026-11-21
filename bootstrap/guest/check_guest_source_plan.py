@@ -13,7 +13,7 @@ from check_guest_assembly_runtime import ASSEMBLY_SOURCES
 from check_guest_asset_bundle import production_assets
 from check_guest_install_runtime import INSTALL_HEADERS, installation_jobs
 from check_guest_kernel_link import production_objects
-from check_guest_kernel_plan import execute_kernel_plan, kernel_steps
+from check_guest_kernel_plan import execute_kernel_plan
 from check_guest_profile_runtime import SOURCE_PROFILES, profile_options
 from check_guest_raw_assembly_runtime import RAW_PRODUCTS, TRAMPOLINE_OBJECT
 from check_guest_runtime import BUILD, ROOT, build_plan_manifest, create_disk
@@ -27,6 +27,9 @@ PLAN_ISO = ("p.iso", "/plan")
 REQUEST_DIRECTORY = Path("jobs")
 MEDIA_BUILD = "cupidbuild-media.elf"
 INSTALL_INCLUDE_OPTIONS = ("include /src/kernel", "include /src/kernel/core", "include /src/kernel/fs")
+KERNEL_BUILD_FILES = frozenset(map(Path, (
+    "boot/boot.asm", "link.ld", "kernel/cpu/ksyms.h", "kernel/core/types.h",
+)))
 
 
 def object_name(source: str) -> str:
@@ -85,7 +88,7 @@ def source_plan(root: Path, temporary_objects: bool):
     output_root = "/tmp" if temporary_objects else "/home"
     aliases = {name: f"{output_root}/i{index:03}.o" for index, name in enumerate(objects)}
     steps = []
-    files = {Path(path) for path in (*INSTALL_HEADERS, "kernel/cpu/ksyms.h", "boot/boot.asm", "link.ld")}
+    files = set(KERNEL_BUILD_FILES) | set(map(Path, INSTALL_HEADERS))
     assets = set()
     references = {}
     built = set()
@@ -136,7 +139,7 @@ def source_plan(root: Path, temporary_objects: bool):
 
     if missing := aliases.keys() - built:
         raise ValueError(f"no guest source job for {', '.join(sorted(missing))}")
-    steps.extend(kernel_steps(list(aliases.values()), source_media=True))
+    steps.append(("kernel", b"kernel.job", job_contents(*aliases.values())))
     if len(steps) > 512:
         raise ValueError(f"{len(steps)} steps exceed the guest plan limit")
     doom = {path for path in files if path.is_relative_to(DOOM)}
@@ -148,11 +151,14 @@ def source_plan(root: Path, temporary_objects: bool):
     return tuple(steps), inputs, references
 
 
-def check(scratch: Path, root: Path, qemu: str, timeout: float, temporary_objects: bool) -> None:
-    steps, inputs, references = source_plan(root, temporary_objects)
+def replay(scratch: Path, root: Path, qemu: str, timeout: float,
+           steps: tuple[tuple[str, bytes, bytes], ...],
+           sources: tuple[tuple[str, str], ...],
+           inputs: tuple[tuple[Path, tuple[str, ...]], ...],
+           references: dict[str, Path], staged: tuple[str, ...] = ()) -> None:
     publisher = ROOT / "bootstrap/seeds/i386-linux/cupidbuild.elf"
     isos = []
-    for (name, _), (source, members) in zip(SOURCE_ISOS, inputs, strict=True):
+    for (name, _), (source, members) in zip(sources, inputs, strict=True):
         iso = scratch / name
         if publish_source_iso(publisher, root, BUILD / "cupidc-engine.elf", iso, members,
                               source_directory=source):
@@ -163,18 +169,42 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float, temporary_object
         raise ValueError(f"could not publish {plan.name}")
     isos.append(f"{plan}:/{plan.name}")
     image = scratch / "build.img"
-    create_disk(image, *isos, f"{BUILD / MEDIA_BUILD}:/b", production_root=root)
-    execute_kernel_plan(scratch, root, image, qemu, timeout, references, (*SOURCE_ISOS, PLAN_ISO))
+    create_disk(image, *isos, f"{BUILD / MEDIA_BUILD}:/b", *staged, production_root=root)
+    execute_kernel_plan(scratch, root, image, qemu, timeout, references, (*sources, PLAN_ISO))
+
+
+def check(scratch: Path, root: Path, qemu: str, timeout: float, temporary_objects: bool) -> None:
+    steps, inputs, references = source_plan(root, temporary_objects)
+    replay(scratch, root, qemu, timeout, steps, SOURCE_ISOS, inputs, references)
+
+
+def check_kernel_job(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
+    objects = production_objects(root)[:-1]
+    missing = [source for source in objects if not (root / source).is_file()]
+    if missing:
+        raise ValueError(f"checked pass-one objects are missing: {', '.join(missing)}")
+    aliases = tuple(f"/obj{index // 64}/i{index:03}.o" for index in range(len(objects)))
+    staged = tuple(f"{root / source}:{alias}" for source, alias in zip(objects, aliases, strict=True))
+    steps = (("kernel", b"kernel.job", job_contents(*(f"/disk{alias}" for alias in aliases))),)
+    print(f"Staging {len(objects)} checked pass-one objects for the guest kernel job.")
+    replay(scratch, root, qemu, timeout, steps, SOURCE_ISOS[:1],
+           ((root, iso_members(KERNEL_BUILD_FILES)),), {}, staged)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--production-root", type=Path, default=ROOT)
-    parser.add_argument("--temporary-objects", action="store_true",
-                        help="keep intermediate link objects in RAMFS")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--temporary-objects", action="store_true",
+                      help="keep intermediate link objects in RAMFS")
+    mode.add_argument("--link-only", action="store_true",
+                      help="stage checked pass-one objects and run the guest kernel job")
     parser.add_argument("--qemu", default="qemu-system-i386")
     parser.add_argument("--timeout", type=float, default=14400)
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="cupid-kernel-source-plan-") as temporary:
-        check(Path(temporary), args.production_root.resolve(), args.qemu, args.timeout,
-              args.temporary_objects)
+        root = args.production_root.resolve()
+        if args.link_only:
+            check_kernel_job(Path(temporary), root, args.qemu, args.timeout)
+        else:
+            check(Path(temporary), root, args.qemu, args.timeout, args.temporary_objects)

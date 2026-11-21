@@ -170,6 +170,23 @@ def check(scratch: Path) -> None:
     assert object_path.read_bytes() == reference_object.read_bytes()
     assert executable.read_bytes() == reference_executable.read_bytes()
     assert not plan.exists() and media_plan.read_bytes() == media_request
+
+    kernel_list = jobs / "kernel.job"
+    media_plan.write_bytes(b"kernel\n/plan/jobs/kernel.job\n")
+    plan.write_bytes(media_plan.read_bytes())
+    invoke(b"invalid request file: /home/cupidbuild.job")
+    for invalid in (b"", b"/disk/object.elf\n", b"/disk/../input.o\n",
+                    b"/disk/input.o\n/disk/input.o\n", b"/home/ksyms_data.o\n",
+                    b"".join(f"/disk/i{index}.o\n".encode("ascii") for index in range(512))):
+        kernel_list.write_bytes(invalid)
+        log = invoke(b"[cupidbuild-guest] invalid kernel object list", "--media")
+        assert b"[cupidraw-guest]" not in log and b"build complete" not in log
+        assert boot.read_bytes() == b"preceding bootloader"
+
+    kernel_list.write_bytes(b"/disk/input.o\n")
+    log = invoke(b"[cupidbuild-guest] kernel build stopped at bootloader", "--media")
+    assert b"[cupidld-guest]" not in log and b"build complete" not in log
+    assert boot.read_bytes() == b"preceding bootloader"
     print("Guest builds matched checked outputs from HomeFS and source-media plans.")
 
 

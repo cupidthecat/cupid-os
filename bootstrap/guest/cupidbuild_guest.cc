@@ -12,10 +12,8 @@
 #define BUILD_STEP_LIMIT 512u
 #define BUILD_JOB_BYTES (BUILD_STEP_LIMIT * (VFS_MAX_PATH + sizeof("assemble")) + 1u)
 
-typedef ctool_status_t (*build_operation_t)(cupid_syscall_table_t *sys, const char *job_path);
-
 typedef struct {
-    build_operation_t run;
+    cupid_guest_operation_t run;
     const char *job_path;
 } build_step_t;
 
@@ -24,10 +22,12 @@ typedef struct {
     build_step_t steps[BUILD_STEP_LIMIT];
 } build_plan_t;
 
-static build_operation_t find_operation(const char *name) {
+static cupid_guest_operation_t find_operation(const char *name, int media) {
+    if (media && strcmp(name, "kernel") == 0)
+        return cupid_guest_kernel_job;
     static const struct {
         const char *name;
-        build_operation_t run;
+        cupid_guest_operation_t run;
     } operations[] = {
         {"compile", cupid_guest_compile_job},
         {"link", cupid_guest_link_job},
@@ -67,7 +67,7 @@ static ctool_u32 read_plan(cupid_syscall_table_t *sys, const char *job_path,
         if (request_root && (path.text.size <= root_size || strncmp(name, request_root, root_size) != 0))
             return 0u;
 
-        build_operation_t run = find_operation(operation);
+        cupid_guest_operation_t run = find_operation(operation, request_root != NULL);
         if (!run)
             return 0u;
         plan->steps[count++] = (build_step_t){run, name};
@@ -86,7 +86,8 @@ static void execute_plan(cupid_syscall_table_t *sys, const char *job_path,
     }
     for (ctool_u32 index = 0; index < count; index++) {
         const build_step_t *step = &plan->steps[index];
-        if (step->run(sys, step->job_path) != CTOOL_OK) {
+        cupid_guest_request_t request = {.path = step->job_path};
+        if (step->run(sys, &request) != CTOOL_OK) {
             sys->serial_write_string("[cupidbuild-guest] stopped at ");
             sys->serial_write_string(step->job_path);
             sys->serial_write_string("\n");

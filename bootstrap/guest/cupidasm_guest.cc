@@ -54,16 +54,16 @@ static ctool_status_t assemble_object(ctool_invocation_t *invocation, void *cont
     return CTOOL_OK;
 }
 
-ctool_status_t cupid_guest_assemble_job(cupid_syscall_table_t *sys, const char *job_path) {
+ctool_status_t cupid_guest_assemble_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
         return CTOOL_ERR_INVALID_ARGUMENT;
     cupid_init(sys);
     char file[CUPID_GUEST_PATH_JOB_BYTES];
     ctool_invocation_request_t request;
-    if (!cupid_guest_read_path_job(sys, job_path, file, &request) ||
+    if (!cupid_guest_read_path_job(sys, job, file, &request) ||
         strcmp(request.output_path.data, ASM_PENDING) == 0) {
         sys->serial_write_string("[cupidasm-guest] invalid request file: ");
-        sys->serial_write_string(job_path);
+        sys->serial_write_string(job->path);
         sys->serial_write_string("\n");
         return CTOOL_ERR_INPUT;
     }
@@ -89,5 +89,5 @@ ctool_status_t cupid_guest_assemble_job(cupid_syscall_table_t *sys, const char *
 }
 
 void cupidasm_guest_run(cupid_syscall_table_t *sys) {
-    (void)cupid_guest_assemble_job(sys, ASM_JOB);
+    (void)cupid_guest_assemble_job(sys, &(cupid_guest_request_t){.path = ASM_JOB});
 }

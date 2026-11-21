@@ -8,8 +8,7 @@
 
 #define LINK_JOB "/home/cupidld.job"
 #define LINK_PENDING "/home/.cupidld-pending.elf"
-#define LINK_MAX_OBJECTS 512u
-#define LINK_JOB_BYTES ((LINK_MAX_OBJECTS + 3u) * VFS_MAX_PATH)
+#define LINK_JOB_BYTES ((CUPID_GUEST_LINK_INPUT_LIMIT + 3u) * VFS_MAX_PATH)
 #define LINK_EXTERNAL_BASE 0x01c00000u
 #define LINK_WORKER_BASE 0x01e00000u
 #define LINK_SCRIPT_SPAN (16u * 1024u * 1024u)
@@ -20,12 +19,12 @@ typedef struct {
     ctool_path_t script;
     ctool_ld_fixed_text_layout_t fixed_text;
     ctool_u32 maximum_span;
-    ctool_path_t inputs[LINK_MAX_OBJECTS];
+    ctool_path_t inputs[CUPID_GUEST_LINK_INPUT_LIMIT];
     ctool_u32 count;
 } guest_link_job_t;
 
-static int read_link_job(const char *path, char *file, guest_link_job_t *job) {
-    int bytes = __sys->vfs_read_text(path, file, LINK_JOB_BYTES);
+static int read_link_job(const cupid_guest_request_t *request, char *file, guest_link_job_t *job) {
+    int bytes = cupid_guest_read_request(__sys, request, file, LINK_JOB_BYTES);
     if (bytes <= 0 || (ctool_u32)bytes >= LINK_JOB_BYTES)
         return 0;
 
@@ -68,7 +67,7 @@ static int read_link_job(const char *path, char *file, guest_link_job_t *job) {
     job->count = 0;
     while (cursor < end) {
         char *path = cupid_guest_next_job_line(&cursor, end);
-        if (!path || job->count >= LINK_MAX_OBJECTS)
+        if (!path || job->count >= CUPID_GUEST_LINK_INPUT_LIMIT)
             return 0;
         ctool_path_t item = {ctool_string(path)};
         if (!ctool_path_is_canonical(&item) || item.text.size >= VFS_MAX_PATH)
@@ -93,7 +92,7 @@ static ctool_status_t link_image(cupid_syscall_table_t *sys, const guest_link_jo
         return status;
     }
 
-    ctool_source_t objects[LINK_MAX_OBJECTS];
+    ctool_source_t objects[CUPID_GUEST_LINK_INPUT_LIMIT];
     ctool_source_t script;
     ctool_buffer_t *buffer = NULL;
     ctool_ld_request_t request = {0};
@@ -128,13 +127,13 @@ static ctool_status_t link_image(cupid_syscall_table_t *sys, const guest_link_jo
     return status;
 }
 
-ctool_status_t cupid_guest_link_job(cupid_syscall_table_t *sys, const char *job_path) {
+ctool_status_t cupid_guest_link_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
         return CTOOL_ERR_INVALID_ARGUMENT;
     cupid_init(sys);
     char file[LINK_JOB_BYTES];
     guest_link_job_t link = {0};
-    if (!read_link_job(job_path, file, &link)) {
+    if (!read_link_job(job, file, &link)) {
         sys->serial_write_string("[cupidld-guest] invalid request\n");
         return CTOOL_ERR_INPUT;
     }
@@ -152,5 +151,5 @@ ctool_status_t cupid_guest_link_job(cupid_syscall_table_t *sys, const char *job_
 }
 
 void cupidld_guest_run(cupid_syscall_table_t *sys) {
-    cupid_guest_link_job(sys, LINK_JOB);
+    cupid_guest_link_job(sys, &(cupid_guest_request_t){.path = LINK_JOB});
 }

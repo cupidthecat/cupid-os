@@ -89,6 +89,12 @@ The media entry reads /plan/cupidbuild.job. Each job path must start with
 /plan/jobs/. The source replay reads headers and build inputs from source
 ISOs and starts with a fresh HomeFS for outputs.
 
+Use kernel followed by the job path to build the bootloader, both kernel
+ELFs and the disk prefix. The job lists up to 511 distinct pass-one .o
+paths in link order, one per line. CupidBuild reads boot/boot.asm and
+link.ld from /src, generates the symbol object between links, and saves
+the disk prefix as /home/disk-prefix.img.
+
 >h2 Assemble a relocatable object
 
   as -f elf32 -o /home/start.o /home/start.asm

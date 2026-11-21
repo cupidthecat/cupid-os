@@ -60,13 +60,8 @@ class GuestSourcePlanTests(unittest.TestCase):
             requests = {name: (operation, contents) for operation, name, contents in steps}
             link_order = [f"{directory}/i{index:03}.o" for index in range(len(self.objects) - 1)]
             self.assertEqual(
-                requests[b"pass1.job"],
-                ("link", guest_plan.job_contents("/home/pass1.elf", "script", "/src/link.ld", *link_order)),
-            )
-            self.assertEqual(
-                requests[b"final.job"],
-                ("link", guest_plan.job_contents(
-                    "/home/kernel.elf", "script", "/src/link.ld", *link_order, "/home/ksyms_data.o")),
+                requests[b"kernel.job"],
+                ("kernel", guest_plan.job_contents(*link_order)),
             )
             self.assertEqual(
                 requests[b"a0.job"],
@@ -100,7 +95,7 @@ class GuestSourcePlanTests(unittest.TestCase):
         self.assertEqual(manifest[install:install + 4], [
             b"install", request_root + b"i0.job", b"compile", request_root + b"install0.job",
         ])
-        self.assertEqual(manifest[-2:], [b"disk", request_root + b"disk.job"])
+        self.assertEqual(manifest[-2:], [b"kernel", request_root + b"kernel.job"])
         self.assertEqual(files[Path("jobs/00/i0.job")], b"/home/bin_programs_gen.cc\nbin\n")
         self.assertIn(b"include /src/kernel/fs\n", files[Path("jobs/00/install0.job")])
 
@@ -143,6 +138,28 @@ class GuestSourcePlanTests(unittest.TestCase):
         self.objects.remove("bin/readme.o")
         with self.assertRaisesRegex(ValueError, "unexpected source-plan object bin/readme[.]o"):
             guest_plan.source_plan(self.root, False)
+
+    def test_link_only_stages_checked_objects_and_one_kernel_request(self):
+        scratch = Path("scratch")
+        with patch.object(Path, "is_file", return_value=True), patch.object(guest_plan, "replay") as replay:
+            guest_plan.check_kernel_job(scratch, self.root, "qemu", 10)
+        _, _, _, _, steps, mounts, inputs, references, staged = replay.call_args.args
+        self.assertEqual(mounts, (("s.iso", "/src"),))
+        self.assertEqual(inputs, ((self.root, guest_plan.iso_members(guest_plan.KERNEL_BUILD_FILES)),))
+        self.assertEqual(references, {})
+        self.assertEqual(staged, tuple(
+            f"{self.root / obj}:/obj0/i{index:03}.o" for index, obj in enumerate(self.objects[:-1])
+        ))
+        self.assertEqual(steps, (("kernel", b"kernel.job", guest_plan.job_contents(
+            *(f"/disk/obj0/i{index:03}.o" for index in range(len(self.objects) - 1))
+        )),))
+
+    def test_link_only_rejects_missing_checked_objects_before_staging(self):
+        with patch.object(Path, "is_file", lambda path: path.name != "play.o"), \
+                patch.object(guest_plan, "replay") as replay:
+            with self.assertRaisesRegex(ValueError, "checked pass-one objects are missing: kernel/doom/play.o"):
+                guest_plan.check_kernel_job(Path("scratch"), self.root, "qemu", 10)
+        replay.assert_not_called()
 
 
 class GuestMountRetryTests(unittest.TestCase):
