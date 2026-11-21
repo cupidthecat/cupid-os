@@ -1,5 +1,13 @@
 # Bootstrapping log
 
+## 2026-11-21 — Restore the CupidC object frontier check
+
+The Windows and WSL contract runs reported the same six changed object
+profiles. Each profile emitted matching bytes on its two passes. The
+fixture now records the observed sizes and text fingerprints. Both hosts
+passed the repaired case. The Python split preserves all 118 unittest
+names and keeps the fixed-point assertions in the file the audit reads.
+
 ## 2026-11-21 — Freedoom timedemo repeat reaches the deadline
 
 The four-vCPU replay selected the staged Freedoom WAD and started `demo1`.

@@ -37,7 +37,7 @@ Compare emitted objects and checked seed outputs after moving code.
 | Compiler contracts | `toolchain/tests/cupidc_frontend_contract.cc`, `toolchain/tests/cupidc_ir_contract.cc`, `toolchain/tests/cupidc_object_contract.cc`, `toolchain/tests/cupidc_pp_contract.cc`, `toolchain/tests/cupidc_type_contract.cc` |
 | Assembler and format contracts | `toolchain/tests/cupidasm_contract.cc`, `toolchain/tests/cupidasm_kernel_elf_contract.cc`, `toolchain/tests/cupiddis_contract.cc`, `toolchain/tests/cupidld_contract.cc`, `toolchain/tests/cupidobj_contract.cc`, `toolchain/tests/x86_contract.cc` |
 | Manifest contracts | `toolchain/tests/toolchain_manifest_contract.cc` |
-| Python tests | `tests/test_build_graph_audit.py`, `tests/test_toolchain_cupidc_object.py` |
+| Python tests | `tests/test_build_graph_audit.py` |
 | Build and verification scripts | `tools/bootstrap_toolchain.py`, `tools/build_graph_audit.py`, `tools/cupidc_toolchain_contracts.py`, `tools/hostbuild.py` |
 
 Organize contract cases by behavior and keep the existing test commands.
@@ -216,3 +216,11 @@ cases passed across the focused run and a separate native stage preparation.
 `tools/cupidc_kernel_inputs.py` records each source's dependency list, and
 `tools/cupidc_i386_object.py` validates the emitted ELF objects. The three
 files stay under 1,900 lines. Make and the audit track both dependencies.
+
+## CupidC object tests
+
+The 6,059-line Python suite moved emission, assembly, hosted tool and
+compiler profile cases into separate files. The original module keeps the
+fixed-point test and all 118 unittest names. Every test body stayed the same.
+Windows and WSL each passed 117 cases on the first run. The remaining case
+passed on both after six stale object fingerprints were refreshed.

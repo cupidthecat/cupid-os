@@ -46468,7 +46468,7 @@
             },
             {
               "directive": "if",
-              "line": 28914,
+              "line": 28918,
               "path": "toolchain/tests/cupidc_object_contract.cc",
               "text": "#if defined(_WIN32)"
             }
@@ -63189,7 +63189,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "217dedca66bb9f17158ee6bec8f52a916380b848e85aff4c97d4570c15ded596",
+    "active_source_digest": "b2b0c2d3aa2b34cd9be77f9f275a55fd70fd16605320970f1c83913d7de11ccc",
     "control_files": [
       {
         "path": "Makefile",
@@ -92208,12 +92208,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 44605,
+      "lines": 44609,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_object_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "6cb6b3fa4c8be57150ccd0662fe11ee7e17d4d532775c05210cb96747ccd80b5"
+      "sha256": "5e9e72fc64c2feae6f1853d3f6d15efb543c2f5b2dd102824120e76e648169e0"
     },
     {
       "build_owners": [

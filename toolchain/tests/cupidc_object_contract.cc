@@ -1,3 +1,7 @@
+/**
+ * @file cupidc_object_contract.cc
+ * @brief Verify CupidC object emission, linking, and error recovery.
+ */
 #include "ctool.h"
 #include "ctool_host.h"
 #include "cupidasm.h"
@@ -28329,15 +28333,15 @@ static int validate_active_self_host_frontier_objects(const char *host_root, cto
         "/kernel/lang/as_elf.cc"};
     static const ctool_u32 expected_functions[] = {65u,  141u, 82u, 145u, 31u, 143u, 270u,
                                                    374u, 463u, 91u, 37u,  65u, 46u};
-    static const ctool_u32 expected_text_sizes[] = {38666u,  192529u, 107997u, 177416u, 39036u,
-                                                    176040u, 465485u, 560073u, 855894u, 147794u,
+    static const ctool_u32 expected_text_sizes[] = {38668u,  192529u, 107997u, 177416u, 39036u,
+                                                    176040u, 465335u, 560193u, 859029u, 148108u,
                                                     64216u,  80016u,  68406u};
-    static const ctool_u32 expected_object_sizes[] = {43268u,  223128u, 126964u, 215040u,  46308u,
-                                                      212404u, 504548u, 631440u, 1024260u, 169248u,
+    static const ctool_u32 expected_object_sizes[] = {43272u,  223128u, 126964u, 215040u,  46308u,
+                                                      212404u, 504396u, 631560u, 1027396u, 169608u,
                                                       73196u,  136108u, 75716u};
     static const ctool_u32 expected_text_fingerprints[] = {
-        0x48a54686u, 0xde4265c0u, 0x0a88da1au, 0x9ba89960u, 0x4183d364u, 0x66834032u, 0x482ce185u,
-        0xb66c1070u, 0x2fc9a273u, 0x0f198856u, 0x9414825au, 0xef1d6767u, 0x98038db6u};
+        0xce485b4eu, 0xde4265c0u, 0x0a88da1au, 0x9ba89960u, 0x4183d364u, 0x66834032u, 0x37aac542u,
+        0x3d70a5c4u, 0x9a461687u, 0x81f1ce57u, 0x9414825au, 0x52663bbbu, 0x98038db6u};
     ctool_u32 index;
     int all_matched = 1;
     if (first_index > past_last_index ||
