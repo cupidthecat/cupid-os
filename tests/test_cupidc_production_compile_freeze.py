@@ -5,7 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-from tests.test_cupidc_production import _valid_elf32_object
+from tests.cupidc_production_fixtures import _valid_elf32_object
 from tools import cupidc_production_compile as production_compile
 
 

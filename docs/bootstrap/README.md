@@ -136,6 +136,7 @@ complete OS can rebuild itself from inside the guest.
   counts, diagnostics, native compiler tests and Windows guest evidence.
 - [Implementation log](LOG.md): changes, test evidence and failed approaches.
 - [Migration matrix](MIGRATION-MATRIX.md): tool ownership by source cohort.
+- [Source layout](SOURCE-LAYOUT.md) tracks files over 2,000 lines.
 - [Active build audit](audits/active-build.json): machine-readable graph;
   regenerate it and its summary with `make bootstrap-audit`.
 - [Baseline procedure](BASELINE.md): reproducible optional host-oracle captures.
