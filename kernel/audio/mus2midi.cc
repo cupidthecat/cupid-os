@@ -1,13 +1,13 @@
-/* Vendored from https://github.com/chocolate-doom/chocolate-doom
+/** @file mus2midi.cc
+ * @brief Convert Doom MUS music data to MIDI.
+ * Vendored from https://github.com/chocolate-doom/chocolate-doom
  * (HEAD as of 2026-05-06)
  * License: GPL-2
- *
  * Local modifications:
- *  - Dropped <stdio.h> and <stdlib.h> (no stdio/malloc in kernel).
+ *  - Dropped <stdio.h> and <stdlib.h>.
  *  - Dropped #include "doomtype.h": boolean, byte, PACKED_STRUCT, SHORT
  *    are now defined in mus2midi.h using kernel/types.h primitives.
- *  - Dropped #include "i_swap.h": SHORT() defined locally as identity cast
- *    (x86 is always little-endian; MUS headers are LE).
+ *  - Replaced `i_swap.h` with a local no-op SHORT() for little-endian x86.
  *  - Removed #ifdef STANDALONE main() block (depends on M_ReadFile, Z_Init,
  *    fprintf, printf, exit - none available in kernel).
  *  - Added mus2midi_convert() wrapper at the bottom using kmalloc/kfree.

@@ -1,3 +1,5 @@
+/** @file ac97.cc
+ *  @brief Drive AC97 playback and maintain the DMA ring. */
 #include "ac97.h"
 #include "irq.h"
 #include "kernel.h"
@@ -42,11 +44,9 @@ static const uint16_t AC97_DEVICES[] = {0x2415u, 0x2425u, 0x2445u, 0x2485u,
 #define POCR_FEIE (1u << 3)
 #define POCR_IOCE (1u << 4)
 
-/* BDL configuration.
- *
- * Latency is `AC97_LOOKAHEAD * AC97_FRAMES_PER_BUF / 22050` worst-case.
- * 3 x 512 / 22050 ~= 70 ms - fine for game audio. The previous
- * configuration pre-queued all 32 buffers at startup (LVI=31), which
+/* BDL configuration. Worst-case latency is
+ * `AC97_LOOKAHEAD * AC97_FRAMES_PER_BUF / 22050`, about 70 ms at 3 x 512 frames.
+ * The previous configuration queued all 32 buffers at startup (LVI=31), which
  * meant freshly mixed audio sat behind ~31 buffers of stale data and
  * arrived 1.4 s late. Each IRQ now refills the buffer just past LVI
  * and bumps LVI by one, so only AC97_LOOKAHEAD buffers are queued

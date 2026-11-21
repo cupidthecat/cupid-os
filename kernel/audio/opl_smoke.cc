@@ -1,4 +1,6 @@
-/* opl_smoke - verify Nuked-OPL3 -> mixer -> AC97 path.
+/**
+ * @file opl_smoke.cc
+ * @brief Exercise playback through OPL3, the mixer and AC97.
  * Plays a single sustained FM note for ~2 seconds via slot 8
  * using a streaming-source pull callback that resamples
  * 49716 -> 22050 Hz with linear interpolation.

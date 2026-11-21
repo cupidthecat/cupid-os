@@ -1,3 +1,8 @@
+/**
+ * @file memio.h
+ * @brief Declare the memory-backed file interface for Doom music.
+ */
+
 /* Vendored from https://github.com/chocolate-doom/chocolate-doom
  * (HEAD as of 2026-05-06)
  * License: GPL-2

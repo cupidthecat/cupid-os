@@ -1,3 +1,8 @@
+/**
+ * @file ac97.h
+ * @brief Declare the kernel AC97 playback interface.
+ */
+
 #ifndef KERNEL_AUDIO_AC97_H
 #define KERNEL_AUDIO_AC97_H
 

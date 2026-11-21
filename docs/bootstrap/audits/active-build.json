@@ -43927,67 +43927,67 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 171,
+              "line": 176,
               "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
-              "line": 812,
+              "line": 817,
               "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
-              "line": 820,
+              "line": 825,
               "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
-              "line": 926,
+              "line": 931,
               "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
-              "line": 956,
+              "line": 961,
               "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
-              "line": 1099,
+              "line": 1104,
               "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
-              "line": 1111,
+              "line": 1116,
               "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
-              "line": 1134,
+              "line": 1139,
               "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
-              "line": 1201,
+              "line": 1206,
               "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
-              "line": 100,
+              "line": 105,
               "path": "kernel/audio/nuked_opl3.h",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
-              "line": 150,
+              "line": 155,
               "path": "kernel/audio/nuked_opl3.h",
               "text": "#if OPL_ENABLE_STEREOEXT"
             }
@@ -44005,7 +44005,7 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 61,
+              "line": 66,
               "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT && !defined OPL_SIN"
             }
@@ -44022,25 +44022,25 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 912,
+              "line": 917,
               "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_QUIRK_CHANNELSAMPLEDELAY"
             },
             {
               "directive": "if",
-              "line": 936,
+              "line": 941,
               "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_QUIRK_CHANNELSAMPLEDELAY"
             },
             {
               "directive": "if",
-              "line": 945,
+              "line": 950,
               "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_QUIRK_CHANNELSAMPLEDELAY"
             },
             {
               "directive": "if",
-              "line": 966,
+              "line": 971,
               "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_QUIRK_CHANNELSAMPLEDELAY"
             }
@@ -56714,12 +56714,12 @@
           "text": "#else"
         },
         {
-          "line": 914,
+          "line": 919,
           "path": "kernel/audio/nuked_opl3.cc",
           "text": "#else"
         },
         {
-          "line": 928,
+          "line": 933,
           "path": "kernel/audio/nuked_opl3.cc",
           "text": "#else"
         }
@@ -57280,17 +57280,17 @@
       "category": "preprocessor",
       "examples": [
         {
-          "line": 61,
+          "line": 66,
           "path": "kernel/audio/nuked_opl3.cc",
           "text": "#if OPL_ENABLE_STEREOEXT && !defined OPL_SIN"
         },
         {
-          "line": 171,
+          "line": 176,
           "path": "kernel/audio/nuked_opl3.cc",
           "text": "#if OPL_ENABLE_STEREOEXT"
         },
         {
-          "line": 812,
+          "line": 817,
           "path": "kernel/audio/nuked_opl3.cc",
           "text": "#if OPL_ENABLE_STEREOEXT"
         }
@@ -57359,7 +57359,7 @@
           "text": "#ifdef CHECK_MUS_HEADER"
         },
         {
-          "line": 45,
+          "line": 50,
           "path": "kernel/audio/nuked_opl3.h",
           "text": "#ifdef __cplusplus"
         }
@@ -61051,7 +61051,7 @@
           "text": "int mem_fseek(MEMFILE *stream, signed long position, mem_rel_t whence) {"
         },
         {
-          "line": 47,
+          "line": 52,
           "path": "kernel/audio/memio.h",
           "text": "int mem_fseek(MEMFILE *stream, signed long offset, mem_rel_t whence);"
         }
@@ -63522,7 +63522,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "1c26959e453626d69290b6137028c2f21d673b97ed479ac9bcb53ab029a5aa44",
+    "active_source_digest": "858f1d9dcf95afd5e4596efbf194b314a1c32a115ff0d6425180f64590dfba5f",
     "control_files": [
       {
         "path": "Makefile",
@@ -69928,7 +69928,7 @@
       "path": "kernel/audio/ac97.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "82c2e77669017150f2a168e9bef0ae5d9b3082c7e0d302f7c1b6f0db35d31e0e"
+      "sha256": "f2507c0218c450fdcc5a53a5535ac89432d834972c6ae7d800a78184f76ad805"
     },
     {
       "build_owners": [
@@ -69953,12 +69953,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 39,
+      "lines": 44,
       "origin": "tracked",
       "path": "kernel/audio/ac97.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9393807a14c8bb246344ce520ce29915bd82ad21ce2aa806017dc253ee8dad0c"
+      "sha256": "e0ad381c7a53b9578c3c14da40d50a81f5cf36ef226416ffcab053de114f7f2f"
     },
     {
       "build_owners": [
@@ -70004,7 +70004,7 @@
       "path": "kernel/audio/memio.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "6c08494be4ff828ba69a204cd3a6898c932862f1c6c76871d8407ea106d0781b"
+      "sha256": "d8fae45d062c4d3d90130540094c0ba3954c01401e0d0d7c3777b24439319e30"
     },
     {
       "build_owners": [
@@ -70034,12 +70034,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 49,
+      "lines": 54,
       "origin": "tracked",
       "path": "kernel/audio/memio.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b36fc93df7ad758c5f1c93ce569d952cc9c01d8ffd7caa7dbd35ad993827fb7a"
+      "sha256": "bbf6e4668265c9d10aa64d8e4a86f6a20a3057d7e5418ff2c828eb10e5252c0a"
     },
     {
       "build_owners": [
@@ -70082,12 +70082,12 @@
         "kernel/core/string.h"
       ],
       "language": "cupid_c",
-      "lines": 950,
+      "lines": 952,
       "origin": "tracked",
       "path": "kernel/audio/midiopl.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "4aa9e9f7d5f905d117cd29860c69bf2bf5ca3d352080b67c0bced6f563ae29c5"
+      "sha256": "17cd16fc09e0dcaa7668df5f051b8879056186aebf878c36f570e547be430924"
     },
     {
       "build_owners": [
@@ -70112,12 +70112,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 21,
+      "lines": 26,
       "origin": "tracked",
       "path": "kernel/audio/midiopl.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "aee4b712f2791a610b73fb34897fd4d9b91ed33a307adc0ffd5ac1b97fab3f06"
+      "sha256": "7940b89038d6ac1b6ec290329df4d8747e4f07004a2247c401162878838bbdae"
     },
     {
       "build_owners": [
@@ -70148,12 +70148,12 @@
         "kernel/audio/mixer.h"
       ],
       "language": "cupid_c",
-      "lines": 129,
+      "lines": 134,
       "origin": "tracked",
       "path": "kernel/audio/mixer.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "35a8e23b38bbc30678ab780d714bf710037097861fc433efde35e04795e23a9c"
+      "sha256": "61294e391d42f8d099c2a1ead73f4caa8c812147d412af8c430f306977e0fc81"
     },
     {
       "build_owners": [
@@ -70180,12 +70180,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 26,
+      "lines": 31,
       "origin": "tracked",
       "path": "kernel/audio/mixer.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "137ddf4f9e1c030f4b5e7a2bcb388eecc55285b064843ef12a415da3f4d286b5"
+      "sha256": "7e53401a3753117719117b8ae85410c5f5d108fbd675f6a3683788e47e851c3d"
     },
     {
       "build_owners": [
@@ -70237,7 +70237,7 @@
       "path": "kernel/audio/mus2midi.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ea8e36d6bf72ac2bf3301ef6bc1df1f66a14e5b74ac4d53abd862bf3bf77c711"
+      "sha256": "ebe4beb4fcca58c51fc3b63b79835ec6571930b65cb872e6f55061331e2e65bd"
     },
     {
       "build_owners": [
@@ -70270,12 +70270,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 56,
+      "lines": 61,
       "origin": "tracked",
       "path": "kernel/audio/mus2midi.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "8e2da8a113c66b8b0156fd63a1054fdee5df081944986d3dc3930f057b4dfefc"
+      "sha256": "7ca38d2bc4e2617748a942b12f440bb8dd73c24c5fb9b8e0e874f1a40bdeb772"
     },
     {
       "build_owners": [
@@ -70320,12 +70320,12 @@
         "kernel/core/string.h"
       ],
       "language": "cupid_c",
-      "lines": 1263,
+      "lines": 1268,
       "origin": "tracked",
       "path": "kernel/audio/nuked_opl3.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "09318434a8773f1074f32a4b89be1c7fdd41051c57d06748359b5de858fc3bb5"
+      "sha256": "4d2d6d525735898d24c4d44ad149dfd8cfcd8b959fde0c1ec43b202c2386bfca"
     },
     {
       "build_owners": [
@@ -70354,12 +70354,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 182,
+      "lines": 187,
       "origin": "tracked",
       "path": "kernel/audio/nuked_opl3.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "463a05de21a4c2086bb74432cf9715d58ebcd69af5ad95576752096524e6a314"
+      "sha256": "abfc04505ef94356846521fc75a92d40653ef1f3aa085c1659d44c81ea2276a3"
     },
     {
       "build_owners": [
@@ -70388,12 +70388,12 @@
         "kernel/core/types.h"
       ],
       "language": "cupid_c",
-      "lines": 100,
+      "lines": 102,
       "origin": "tracked",
       "path": "kernel/audio/opl_smoke.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "7a057b0a5c3964179e8fc9626a660ae48bdff43ee7dfd21367be3bce1ba5049a"
+      "sha256": "6b63c441fc666aa95b28b56f2f85c06aefe025339ea662c0532d0dc7dd85ea14"
     },
     {
       "build_owners": [
@@ -70413,12 +70413,12 @@
       ],
       "includes": [],
       "language": "c_header",
-      "lines": 6,
+      "lines": 11,
       "origin": "tracked",
       "path": "kernel/audio/opl_smoke.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "44578c4a4f7761b20f1cc7421a5f243247a9c259de5e440f85d0b5994040ca28"
+      "sha256": "02ff6387c9c434bde678f45fc9932a8b7fc694e8c7765b0ffb3ac54d5c9a9c4b"
     },
     {
       "build_owners": [

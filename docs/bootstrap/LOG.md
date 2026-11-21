@@ -1,5 +1,20 @@
 # Bootstrapping log
 
+## 2026-11-21 — Document the kernel audio files
+
+All fourteen audio sources and headers have Doxygen file comments.
+The first build shifted the diagnostic line numbers passed to
+`kmalloc_debug` in AC97, memory I/O and the MUS converter. The final
+comments keep those call sites on their original lines and preserve
+the vendored license notices. The MIDI renderer now names its Doom
+sound driver caller.
+
+Windows reproduced all seven audio objects. The WSL build matched
+all 430 pass-one objects, both kernel ELFs, the raw kernel, and the
+generated symbol source and object. The fast frontier test checks its pinned
+input fingerprint. The two x86 contract includes had already raised
+that inventory from 494 to 496 files.
+
 ## 2026-11-21 — Boot the kernel rebuilt from three source and plan ISOs
 
 One CupidBuild command ran the 19-request plan with 767 staged source

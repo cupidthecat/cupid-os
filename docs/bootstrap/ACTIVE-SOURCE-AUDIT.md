@@ -41,7 +41,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `generated_install_table` | 3 | 0 |
 | `generated_symbol_table` | 1 | 0 |
 | `kernel_assembly` | 3 | 536 |
-| `kernel_audio` | 14 | 4115 |
+| `kernel_audio` | 14 | 4164 |
 | `kernel_core` | 17 | 4352 |
 | `kernel_cpu` | 19 | 3230 |
 | `kernel_crypto` | 40 | 5431 |

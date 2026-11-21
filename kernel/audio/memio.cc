@@ -1,10 +1,10 @@
-/* Vendored from https://github.com/chocolate-doom/chocolate-doom
+/** @file memio.cc
+ * @brief Read, write and seek Doom music data in memory.
+ * Vendored from https://github.com/chocolate-doom/chocolate-doom
  * (HEAD as of 2026-05-06)
  * License: GPL-2
- *
  * Local modifications:
- *  - Dropped <stdio.h>, <stdlib.h>, <string.h> - replaced with kernel headers.
- *  - Dropped #include "z_zone.h" (chocolate-doom zone allocator).
+ *  - Replaced stdio, stdlib and string includes, and dropped z_zone.h.
  *  - Replaced Z_Malloc(..., PU_STATIC, 0) with kmalloc(size).
  *  - Replaced Z_Free(ptr) with kfree(ptr).
  *  - Removed printf() calls in error paths (no stdio in kernel); those

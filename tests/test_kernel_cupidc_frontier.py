@@ -29,6 +29,12 @@ from tests.kernel_cupidc_frontier_fixtures import (
 )
 
 
+FRONTIER_INPUT_FINGERPRINT = (
+    496,
+    "9fcb82d013fadadbc4adf57e6d54dc0e7d835f0341ab92252ed42916ecb52988",
+)
+
+
 class WslPrivateDirectoryTests(unittest.TestCase):
     def test_exact_frontier_directory_is_accepted(self):
         self.assertEqual(
@@ -60,6 +66,13 @@ class WslPrivateDirectoryTests(unittest.TestCase):
 
 
 class FrontierInputSnapshotTests(unittest.TestCase):
+    def test_checked_source_inventory_matches_its_fingerprint(self):
+        snapshot = frontier._capture_input_snapshot(REPO_ROOT)
+        self.assertEqual(
+            (len(snapshot), frontier._snapshot_sha256(snapshot)),
+            FRONTIER_INPUT_FINGERPRINT,
+        )
+
     def test_source_hash_canonicalizes_crlf(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -1922,7 +1935,6 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 },
                 source_driven_object_records,
             )
-            self.assertEqual(manifest["input_snapshot"]["count"], 494)
             self.assertIn(
                 "kernel/doom/dglibc_selftest.inc",
                 manifest["input_snapshot"]["files"],
@@ -1932,9 +1944,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 manifest["input_snapshot"]["files"],
             )
             self.assertEqual(
-                manifest["input_snapshot"]["sha256"],
-                "5189a10251a336950add73909b5f99dbc"
-                "dbf0862bec83d5c7a39ef3902ade214",
+                (manifest["input_snapshot"]["count"], manifest["input_snapshot"]["sha256"]),
+                FRONTIER_INPUT_FINGERPRINT,
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

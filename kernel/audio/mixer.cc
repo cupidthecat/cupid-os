@@ -1,3 +1,8 @@
+/**
+ * @file mixer.cc
+ * @brief Mix PCM playback slots into stereo output.
+ */
+
 #include "mixer.h"
 
 typedef struct {

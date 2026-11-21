@@ -1,3 +1,8 @@
+/**
+ * @file nuked_opl3.cc
+ * @brief Emulate the OPL3 chip for kernel audio.
+ */
+
 /* Vendored from https://github.com/nukeykt/Nuked-OPL3
  * Commit: cfedb09efc03f1d7b5fc1f04dd449d77d8c49d50 (HEAD as of 2026-05-06)
  * License: LGPL-2.1

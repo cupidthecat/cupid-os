@@ -1,4 +1,6 @@
-/* midiopl.cc - MIDI -> OPL3 synthesiser
+/**
+ * @file midiopl.cc
+ * @brief Render MIDI music with the OPL3 synthesizer.
  *
  * Parses a DOOM-format GENMIDI lump (175 patches x 36 bytes), maintains
  * a MIDI running-status parser, allocates 9 OPL3 melodic channels via
@@ -7,7 +9,7 @@
  * Internal OPL3 rate: 49716 Hz (Nuked-OPL3 native).  midiopl_render
  * generates at 49716 then linear-resamples to 22050.
  *
- * Not wired into the audio chain yet - Task 17 does that.
+ * The Doom sound driver pulls music samples from midiopl_render.
  */
 
 #include "midiopl.h"
