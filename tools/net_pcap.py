@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+## @file
+#  @brief Inspect QEMU packet captures for the network integration tests.
 """Validate Cupid OS network captures with the Python standard library.
 
 The checker reads classic Ethernet PCAP files written by QEMU and requires:

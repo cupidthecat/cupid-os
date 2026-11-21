@@ -1,3 +1,5 @@
+## @file
+#  @brief Transfer tracked wiki pages to a separate wiki checkout.
 """Copy tracked wiki files into a separate GitHub wiki checkout."""
 
 from __future__ import annotations

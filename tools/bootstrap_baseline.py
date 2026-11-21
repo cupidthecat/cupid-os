@@ -1,3 +1,5 @@
+## @file
+#  @brief Record artifact and recipe evidence from an optional host build.
 """Capture reproducible host-toolchain evidence for Cupid OS."""
 
 from __future__ import annotations

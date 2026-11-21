@@ -1,5 +1,12 @@
 # Bootstrapping log
 
+## 2026-11-21 — Document six host tool entry points
+
+The host package, baseline capture, CSS generator, network test and packet
+reader, and wiki sync tool now have Doxygen file headers. Their Python syntax
+trees match the originals. All 84 baseline, network, and wiki tests passed
+on Windows and WSL.
+
 ## 2026-11-21 — Separate the build audit's source scanner
 
 The scanner and its feature collector now live in `build_graph_features.py`.

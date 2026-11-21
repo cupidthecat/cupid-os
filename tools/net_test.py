@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+## @file
+#  @brief Exercise network drivers and socket commands in a QEMU guest.
 """Run the Cupid OS network integration gate.
 
 The harness boots headless QEMU, drives the shell through a local TCP serial
