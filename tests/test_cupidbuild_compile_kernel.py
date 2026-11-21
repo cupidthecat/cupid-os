@@ -214,7 +214,7 @@ int main(int argc, char **argv) {
                 self.assertEqual(output.stat().st_mtime_ns, before)
                 self.assert_clean()
 
-    def test_coordinator_sources_compile_identically_with_the_checked_seed(self):
+    def test_coordinator_sources_match_the_rebuilt_compiler(self):
         plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
         plan = _candidate_build_plan(plan)
         if os.name == "nt":
@@ -233,7 +233,8 @@ int main(int argc, char **argv) {
                     args += ["--gnu"]
                 checked_run([self.native_compiler, *args])
                 expected = output.read_bytes()
-                checked_run([SEED / ("cupidc" + SUFFIX), *args])
+                # The stage compiler owns peer source that needs newer language features.
+                checked_run([self.compiler, *args])
                 self.assertEqual(output.read_bytes(), expected)
 
         order = plan["links"]["cupidbuild"]

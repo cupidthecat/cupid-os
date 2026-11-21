@@ -36,6 +36,11 @@ profile had appended CreateThread. All six fresh links match their preceding
 image bytes, and a new real checked-assembler/linker test validates the exact
 profile. ADR 0480 records the dependency order.
 
+The Windows coordinator parity test now uses the rebuilt stage compiler for
+peer sources. A minimal flexible-array case reproduced the installed seed's
+IR rejection. The rebuilt compiler accepted it. The full coordinator parity
+test then passed, including the guarded compile and rollback checks.
+
 The eleven permanent owner methods pass with native and checked callers on
 both hosts. They cover argument and option-owner lifetime, present/missing
 inputs, external roots, constructor bounds, payload/metadata drift and
