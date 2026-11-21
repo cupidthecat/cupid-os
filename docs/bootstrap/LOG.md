@@ -1,5 +1,15 @@
 # Bootstrapping log
 
+## 2026-11-21 — Preserve the trust store on a failed refresh
+
+Both refresh scripts write a private candidate before replacing the generated
+source file. The Mozilla script rejects an empty selection and a bundle whose
+selected roots all fail to decode. The checked certificate data stayed the same.
+
+Four local WSL tests compare the published DER bytes and check that rejected
+refreshes preserve the previous file and its timestamp. The old scripts fail
+the regressions for an empty selection, invalid roots and a late download error.
+
 ## 2026-11-21 — Raise the RAMFS write limit for build objects
 
 RAMFS now accepts writes up to 1 MiB per file. The old 64 KiB limit stopped
