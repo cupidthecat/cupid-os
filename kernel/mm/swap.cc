@@ -1,4 +1,4 @@
-/* kernel/mm/swap.cc - Opt-in swap manager (Phase B core scaffolding). */
+/** @file swap.cc @brief Manage resident and swapped allocations by handle. */
 
 #include "swap.h"
 #include "memory.h"

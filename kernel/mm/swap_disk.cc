@@ -1,4 +1,4 @@
-/* kernel/mm/swap_disk.cc - Swap backing file I/O. */
+/** @file swap_disk.cc @brief Read and write swap slots through the VFS. */
 
 #include "swap_disk.h"
 #include "serial.h"

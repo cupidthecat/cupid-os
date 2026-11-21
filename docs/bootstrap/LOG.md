@@ -1,5 +1,12 @@
 # Bootstrapping log
 
+## 2026-11-21 — Document the kernel memory sources
+
+The seven page, heap and swap files now have Doxygen file headers. The
+headers keep the existing source line positions for allocation diagnostics.
+Checked CupidC reproduced all four memory objects byte for byte on Windows
+and WSL.
+
 ## 2026-11-21 — Preserve the trust store on a failed refresh
 
 Both refresh scripts write a private candidate before replacing the generated

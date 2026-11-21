@@ -1,6 +1,6 @@
+/** @file memory.h @brief Declare page, heap, and address-space interfaces. */
 #ifndef MEMORY_H
 #define MEMORY_H
-
 #include "types.h"
 
 #define CANARY_FRONT 0xDEADBEEF

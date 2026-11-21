@@ -1,3 +1,5 @@
+/** @file memory.cc
+ * @brief Manage physical pages, heap allocations, and memory diagnostics. */
 #include "memory.h"
 #include "bkl.h"
 #include "kernel.h"
@@ -6,8 +8,6 @@
 #include "string.h"
 #include "timer.h"
 
-/* Physical Memory Manager (PMM) - unchanged logic, cleaned up
- * and integrated with the heap allocator.*/
 #define BITMAP_SIZE (TOTAL_MEMORY_BYTES / PAGE_SIZE / 32)
 
 static uint32_t page_bitmap[BITMAP_SIZE];

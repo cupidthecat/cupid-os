@@ -63271,7 +63271,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "a90ea38ebe68175e1b536b15484f1a077b4eb91d25d79c6eca6ec46c52cf210a",
+    "active_source_digest": "cd81a77c9b375ebf03b19a0a2cf56df2ca34059d6cacfefcc43dfb593eeac340",
     "control_files": [
       {
         "path": "Makefile",
@@ -85277,7 +85277,7 @@
       "path": "kernel/mm/memory.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ab62743c795f0bfe7ea6b2e48645fe67c515c33a2ed0b2bb516edd8ba52c87e3"
+      "sha256": "8d38be1fc8de123d5b0791656a331ba094376f0ebc0ec896a8bb44b4d653e650"
     },
     {
       "build_owners": [
@@ -85313,7 +85313,7 @@
       "path": "kernel/mm/memory.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "50c165084464259ea37d776cb77ca22a532b651482895c6f6bdcdc5b801c0bff"
+      "sha256": "d7fe50efbadf524379a75e2f665623bfbeb45fc5ed19d840850792914a79e019"
     },
     {
       "build_owners": [
@@ -85347,7 +85347,7 @@
       "path": "kernel/mm/paging.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "7ccf5b096b97a55e167b863fb6eaecad93531bc75c484e6295c3d08275907625"
+      "sha256": "0c4f55a9211ce29393ae796994c03749e271b74ac9db5db3bcad2a1b71b66d81"
     },
     {
       "build_owners": [
@@ -85389,7 +85389,7 @@
       "path": "kernel/mm/swap.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "0f87e957afc125f97ff2077c4776924dc77a7339696da6f44e26cb5625e0b80d"
+      "sha256": "62c3baea6609492b626186c7d2d35e0e5612926a5ef7cf7dc89bf23ed00d73c1"
     },
     {
       "build_owners": [
@@ -85422,7 +85422,7 @@
       "path": "kernel/mm/swap.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "2096fb58ffe66478bf55814ca521204aab88eaef9adf15cb310e0d5999245502"
+      "sha256": "3ce0610b1642892192626f96600be6a893938b7682afd10f13c5fa446dc131de"
     },
     {
       "build_owners": [
@@ -85458,7 +85458,7 @@
       "path": "kernel/mm/swap_disk.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "8fb7d386953ff6d5cdf93e97a620b44757cec3130e32629866499b745ce26490"
+      "sha256": "6e812b9cd1b1a950a639358cd5a7fe244218bed6ec248863eb48478dd33151fa"
     },
     {
       "build_owners": [
@@ -85490,7 +85490,7 @@
       "path": "kernel/mm/swap_disk.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "8649869b43cccee10e708a83cab1a210d82e4d196dbbaae6ee70da881ee15585"
+      "sha256": "5aaeb637bd78f9549bed1aada2ae7427e8779ba833a6832369fdb0f113510aa9"
     },
     {
       "build_owners": [

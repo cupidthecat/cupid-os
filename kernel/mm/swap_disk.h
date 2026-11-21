@@ -1,10 +1,10 @@
-/* kernel/swap_disk.h - Backing-file I/O for the opt-in swap manager.
- * Fixed 16 MB layout: 4 MB per size class.
- *   Class 0 (1K slots): offset 0x000000
- *   Class 1 (4K slots): offset 0x400000
- *   Class 2 (16K slots): offset 0x800000
- *   Class 3 (64K slots): offset 0xC00000
-*/
+/** @file swap_disk.h
+ * @brief Describe the backing file used by the opt-in swap manager.
+ * The 16 MiB file has four 4 MiB regions in size-class order.
+ * The first two regions hold 1 KiB and 4 KiB slots.
+ * The last two hold 16 KiB and 64 KiB slots.
+ * The region offsets are exported in swap_disk_region_offset.
+ */
 #ifndef SWAP_DISK_H
 #define SWAP_DISK_H
 

@@ -1,4 +1,4 @@
-/* CupidC-owned paging implementation. */
+/** @file paging.cc @brief Build i386 page tables and switch address spaces. */
 #include "memory.h"
 #include "types.h"
 
