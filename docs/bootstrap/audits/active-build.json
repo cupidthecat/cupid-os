@@ -93324,21 +93324,21 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 30,
+      "lines": 35,
       "path": "bootstrap/guest/cupidc_engine.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "a2ee9b5b81aa856cb004fedd5723d400ae7041dfbb819e63c50b2af174333692"
+      "sha256": "a79007e9ccdcda65c146b6591b883b82e5fb9c9fc3c99c803a14f652eada1018"
     },
     {
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "c_header",
-      "lines": 22,
+      "lines": 27,
       "path": "bootstrap/guest/cupidc_engine.h",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "bc5df0220ad2882fc9609b4fe253f6e0f662f51a07aa3c871644bed934bdd73a"
+      "sha256": "40db3ce7f72a45ed2275284970461e64e7ee506b266dcd98885beaf224f10f5f"
     },
     {
       "classification": "not_reached",
@@ -93354,81 +93354,81 @@
       "classification": "host_fixture",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 188,
+      "lines": 193,
       "path": "bootstrap/guest/cupidc_guest_linux_contract.cc",
       "reason": "Linux syscall fixture for the opt-in toolchain workers",
       "relations": [],
-      "sha256": "25dca17d7409779f2d157db0b7b5bb13f04a94482a5bcd95ca38744b33b066aa"
+      "sha256": "f25c974f7133a931ccb21e04eefc1ca01c23d2a38b8ac7d1413a0fee37ec79c4"
     },
     {
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 56,
+      "lines": 61,
       "path": "bootstrap/guest/cupiddisk_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "2640e865d2b6ef472bab50937bcbd58189e1ffa1fd6431271532e45b97164f0d"
+      "sha256": "e5266e279837c0f05479c7cc85b053afa848f3fecabc6b819c2ea8a7bb8c72dc"
     },
     {
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 73,
+      "lines": 78,
       "path": "bootstrap/guest/cupidksyms_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "0fb7af7eafa445d3001d8ce2f6584154687fd90e5aef0251b3992ec53e0f6f12"
+      "sha256": "a3a3e8015f88c3992a502e4d218786a3a6256dcc388bd3bdf7e1dc3b8fa61594"
     },
     {
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 145,
+      "lines": 150,
       "path": "bootstrap/guest/cupidld_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "07a77c4c72ff39edc917665c6ac3333a79d64500f74ea35ffc8a4b67460f4429"
+      "sha256": "6edd60e880a41870f4c8ab31af8ef4882042d7b8e386d5f02bfb066cb097d944"
     },
     {
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 47,
+      "lines": 52,
       "path": "bootstrap/guest/cupidobj_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "3c0a19fd30528fdb7980f01aa6fda9186ec8b12ee5825c081a3cd436fdddcb21"
+      "sha256": "b00fa6d9adf26954570b49593ac7f5fd2360b1f22a7a2331d3bc7918b14da0e8"
     },
     {
       "classification": "host_fixture",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 72,
+      "lines": 77,
       "path": "bootstrap/guest/engine_image.cc",
       "reason": "external compiler image loader used by the Linux fixed-point test",
       "relations": [],
-      "sha256": "36bc3f5812f39a99b5d7051683a10f550b7fe82a86362349aa705320151d8313"
+      "sha256": "1da4355f222cfcb4051e3ef4aa181d422651cca27b610e3cc4474914625b31ad"
     },
     {
       "classification": "host_fixture",
       "duplicate_of": [],
       "language": "c_header",
-      "lines": 23,
+      "lines": 28,
       "path": "bootstrap/guest/engine_image.h",
       "reason": "image-plan interface used by the Linux fixed-point test",
       "relations": [],
-      "sha256": "4d102186904044a5d3ef393cfca70dcc735c9442822166e2f05ce154872c3b35"
+      "sha256": "e2723116c4cb1c9fceed802ae76815a49648c9639f861b4bc98a6eaa94c625a7"
     },
     {
       "classification": "host_fixture",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 188,
+      "lines": 193,
       "path": "bootstrap/guest/engine_linux_contract.cc",
       "reason": "Linux harness for the opt-in freestanding compiler fixed-point test",
       "relations": [],
-      "sha256": "7b7a1444c6f9602d917c0919ea641fd6adbe545c486349523d19725e8116ad6e"
+      "sha256": "afabe9e8b3710734c9c0a4bfe5d156aebb004fb70b70cfa7c512bf421ca674c7"
     },
     {
       "classification": "not_reached",

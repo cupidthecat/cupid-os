@@ -1,3 +1,8 @@
+/**
+ * @file cupidld_guest.cc
+ * @brief Link guest objects using the job's address or linker script.
+ */
+
 #include "cupidld.h"
 #include "guest_job.h"
 

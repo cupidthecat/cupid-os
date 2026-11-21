@@ -1,3 +1,8 @@
+/**
+ * @file engine_image.h
+ * @brief Declare the ELF image loader for the Linux compiler fixture.
+ */
+
 #ifndef CUPID_C_ENGINE_IMAGE_H
 #define CUPID_C_ENGINE_IMAGE_H
 

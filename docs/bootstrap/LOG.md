@@ -1,5 +1,12 @@
 # Bootstrapping log
 
+## 2026-11-20 — Document the guest toolchain sources
+
+Every C, header and Python source in `bootstrap/guest` has a Doxygen file
+header. The compiler engine and all five worker ELFs build byte for byte
+as before. The Linux loader, compiler, linker, symbol generation, flattening,
+disk and source ISO checks passed, along with the refreshed build audit.
+
 ## 2026-11-20 — Compile production sources in Cupid OS
 
 The standalone compiler reads production include roots, macro definitions,

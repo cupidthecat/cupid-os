@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+## @file
+#  @brief Rebuild and boot a kernel with the guest toolchain workers.
 """Run both production kernel links and ELF flattening inside Cupid OS."""
 
 import argparse

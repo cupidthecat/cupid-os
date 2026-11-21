@@ -1,3 +1,8 @@
+/**
+ * @file cupidobj_guest.cc
+ * @brief Flatten a linked ELF into a raw kernel image in HomeFS.
+ */
+
 #include "cupidobj.h"
 #include "guest_job.h"
 

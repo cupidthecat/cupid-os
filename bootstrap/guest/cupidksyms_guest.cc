@@ -1,3 +1,8 @@
+/**
+ * @file cupidksyms_guest.cc
+ * @brief Generate kernel symbol source from a linked ELF.
+ */
+
 #include "cupiddis.h"
 #include "cupidobj.h"
 #include "guest_job.h"

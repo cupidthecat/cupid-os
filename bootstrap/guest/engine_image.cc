@@ -1,3 +1,8 @@
+/**
+ * @file engine_image.cc
+ * @brief Plan and copy ELF segments for the Linux compiler fixture.
+ */
+
 #include "engine_image.h"
 
 #define ELF_PT_GNU_STACK 0x6474e551u

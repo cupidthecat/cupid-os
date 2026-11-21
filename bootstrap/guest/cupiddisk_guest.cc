@@ -1,3 +1,8 @@
+/**
+ * @file cupiddisk_guest.cc
+ * @brief Write a bootable disk template from a guest job.
+ */
+
 #include "cupidobj.h"
 #include "guest_job.h"
 

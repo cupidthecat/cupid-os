@@ -1,3 +1,8 @@
+/**
+ * @file engine_linux_contract.cc
+ * @brief Load and exercise the freestanding compiler engine on Linux.
+ */
+
 #include "ctool_host.h"
 #include "cupidc_engine.h"
 #include "engine_image.h"

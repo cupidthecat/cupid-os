@@ -1,3 +1,8 @@
+/**
+ * @file cupidc_engine.h
+ * @brief Define the request ABI of the freestanding CupidC engine.
+ */
+
 #ifndef CUPID_C_ENGINE_H
 #define CUPID_C_ENGINE_H
 

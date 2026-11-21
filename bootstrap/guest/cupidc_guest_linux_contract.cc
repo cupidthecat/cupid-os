@@ -1,3 +1,8 @@
+/**
+ * @file cupidc_guest_linux_contract.cc
+ * @brief Supply Linux syscall fixtures for the guest toolchain workers.
+ */
+
 #include "ctool_host.h"
 #include "guest_job.h"
 

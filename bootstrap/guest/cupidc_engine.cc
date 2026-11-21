@@ -1,3 +1,8 @@
+/**
+ * @file cupidc_engine.cc
+ * @brief Compile a translation unit through the freestanding CupidC pipeline.
+ */
+
 #include "cupidc_engine.h"
 
 static ctool_status_t compile_body(ctool_invocation_t *invocation, void *context) {
