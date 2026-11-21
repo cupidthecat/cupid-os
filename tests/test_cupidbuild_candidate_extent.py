@@ -174,11 +174,11 @@ class CupidBuildCandidateExtentTests(unittest.TestCase):
     def test_frozen_inputs_supply_the_same_range_from_prior_and_tool_output(self):
         size = len(BLOCK) + 7
         expected = BLOCK[-6:] + BLOCK[:7]
-        for mode in ('frozen-previous', 'frozen-tool'):
+        for mode in ('frozen-previous', 'frozen-tool', 'frozen-grow'):
             with self.subTest(mode=mode):
-                root = self.fixture(mode, existing=size if mode == 'frozen-previous' else b'prior')
+                root = self.fixture(mode, existing=b'prior' if mode == 'frozen-tool' else size)
                 output = root / 'nested/file.o'
-                self.call(mode, size, size, root)
+                self.call(mode, size, size, root, memory=mode == 'frozen-grow' and os.name != 'nt')
                 self.assertEqual(output.read_bytes(), expected)
                 self.assertEqual(list(output.parent.iterdir()), [output])
 

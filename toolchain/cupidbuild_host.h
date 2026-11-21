@@ -455,7 +455,8 @@ int cupidbuild_host_profile_transaction_open(
     cupidbuild_host_transaction_t **transaction_out);
 /* Acquire guarded output authority without implicitly reading a source.
  * Capacity is at most 2147483647 bytes. Invalid capacity clears the result
- * before touching the filesystem. Capture inputs through the regular APIs. */
+ * before touching the filesystem. Capture up to 4096 stage files and their
+ * checked tool inputs through the regular APIs. */
 int cupidbuild_host_publication_transaction_open_bounded(
     const char *root, const char *output, unsigned long long capacity,
     cupidbuild_host_transaction_t **transaction_out);
@@ -511,6 +512,8 @@ int cupidbuild_host_freeze_external_input(
 int cupidbuild_host_freeze_previous_output(
     cupidbuild_host_transaction_t *transaction, const char *private_name,
     const char **frozen_path_out, cupidbuild_host_snapshot_t *snapshot_out);
+/* Allocate input rows in advance. Frozen paths remain readable until close,
+ * including after a later operation increases the table capacity. */
 int cupidbuild_host_reserve_inputs(
     cupidbuild_host_transaction_t *transaction, size_t capacity);
 unsigned char *cupidbuild_host_read_frozen_input(
@@ -593,8 +596,7 @@ int cupidbuild_host_require_candidate(
     const cupidbuild_host_snapshot_t *expected);
 /* Transfer a successful checked tool's private output into the frozen input
  * table without copying the bytes. The transaction retains and closes it.
- * Reserve the input table before holding frozen paths. The private output
- * slot is closed to subsequent tool launches and writes. */
+ * The private output slot is closed to subsequent tool launches and writes. */
 int cupidbuild_host_freeze_tool_output(
     cupidbuild_host_transaction_t *transaction, const char **frozen_path_out,
     cupidbuild_host_snapshot_t *snapshot_out);

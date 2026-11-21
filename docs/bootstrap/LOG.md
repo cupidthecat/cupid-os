@@ -1,5 +1,27 @@
 # Bootstrapping log
 
+## 2026-11-21 — Retain paths for full disk stage lists
+
+Frozen input paths now use storage sized to each path. The transaction can
+grow its input table without invalidating paths it has already returned.
+Output-only transactions allow 4,112 inputs, enough for 4,096 stages and the
+files needed to verify the seed and compose the image. Ordinary transactions
+and tool runners keep their 528-input limit. An input that aliases the output
+is rejected before the private copy is written.
+
+Windows and WSL each captured 4,096 distinct files and published a candidate.
+The WSL run used a 32 MiB address-space limit. The native regression suite ran
+99 cases on each host, with seven Windows skips and two WSL skips. All eleven
+checked transaction tests passed on each host. The 122-input Windows producer
+rebuilt and reached a fixed point. The source snapshot SHA-256 is
+`3731c1695dfd4b82d7f3b895a89dea7d4a9b8d75d6f2c00090d20123bcd5f061`.
+
+A private image command consumed the explicit seed release and matched all
+3,200 blocks of the Python image on both hosts. The first trial omitted the
+release and the seed reader rejected it as expected. Native image publication
+has yet to take over the normal Make recipe. The proof scripts and logs are
+in `cupid-active-input-and-private-image-proof-20261121.tar.gz`.
+
 ## 2026-11-21 — Retain checked templates for disk composition
 
 CupidBuild can read ranges from pinned inputs and transfer a successful

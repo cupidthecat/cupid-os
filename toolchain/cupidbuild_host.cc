@@ -87,6 +87,7 @@ int cupid_linux_syscall5(int number, unsigned int first, unsigned int second, un
 #define CUPIDBUILD_HOST_PATH_BYTES 8192u
 #define CUPIDBUILD_HOST_ERROR_BYTES 512u
 #define CUPIDBUILD_HOST_INPUTS 528u
+#define CUPIDBUILD_HOST_DISK_INPUTS 4112u
 #if !defined(CUPIDBUILD_HOST_FILE_LIMIT)
 #define CUPIDBUILD_HOST_FILE_LIMIT 67108864u
 #endif
@@ -105,9 +106,9 @@ int cupid_linux_syscall5(int number, unsigned int first, unsigned int second, un
 #endif
 
 typedef struct {
-    char live_path[CUPIDBUILD_HOST_PATH_BYTES];
-    char frozen_path[CUPIDBUILD_HOST_PATH_BYTES];
-    char frozen_name[CUPIDBUILD_HOST_PATH_BYTES];
+    char *live_path;
+    char *frozen_path;
+    char *frozen_name;
     cupidbuild_host_snapshot_t snapshot;
     cupidbuild_host_snapshot_t frozen_snapshot;
     size_t limit;
@@ -185,6 +186,7 @@ struct cupidbuild_host_transaction {
     cupidbuild_host_discovery_directory_t *discovery_directories;
     unsigned int input_count;
     unsigned int input_capacity;
+    unsigned int input_limit;
     size_t discovery_directory_count;
     size_t discovery_directory_capacity;
     cupidbuild_host_snapshot_t output_parent_snapshot;
@@ -7880,6 +7882,16 @@ static int cupidbuild_host_register_input(cupidbuild_host_transaction_t *transac
                                           size_t limit) {
     cupidbuild_host_input_t *input;
     unsigned int index;
+    size_t live_size = strlen(live_path) + 1u;
+    size_t frozen_size = strlen(frozen_path) + 1u;
+    size_t name_size = strlen(frozen_name) + 1u;
+    char *paths;
+
+    if (live_size > CUPIDBUILD_HOST_PATH_BYTES || frozen_size > CUPIDBUILD_HOST_PATH_BYTES ||
+        name_size > CUPIDBUILD_HOST_PATH_BYTES) {
+        cupidbuild_host_set_error(transaction, "transaction input path is too long");
+        return 0;
+    }
     for (index = 0u; index < transaction->input_count; index++) {
         if (cupidbuild_host_snapshot_identity_equal(&transaction->inputs[index].snapshot,
                                                     snapshot)) {
@@ -7888,32 +7900,37 @@ static int cupidbuild_host_register_input(cupidbuild_host_transaction_t *transac
             return 0;
         }
     }
-    if (transaction->input_count >= CUPIDBUILD_HOST_INPUTS) {
+    if (transaction->input_count >= transaction->input_limit) {
         cupidbuild_host_set_error(transaction, "too many frozen transaction inputs");
         return 0;
     }
     if (transaction->input_count == transaction->input_capacity) {
         size_t capacity =
             transaction->input_capacity == 0u ? 16u : (size_t)transaction->input_capacity * 2u;
-        if (capacity > CUPIDBUILD_HOST_INPUTS) {
-            capacity = CUPIDBUILD_HOST_INPUTS;
+        if (capacity > transaction->input_limit) {
+            capacity = transaction->input_limit;
         }
         if (!cupidbuild_host_reserve_inputs(transaction, capacity)) {
             return 0;
         }
     }
+    paths = (char *)malloc(live_size + frozen_size + name_size);
+    if (!paths) {
+        cupidbuild_host_set_error(transaction, "transaction input paths cannot be allocated");
+        return 0;
+    }
     input = &transaction->inputs[transaction->input_count];
+    input->live_path = paths;
+    input->frozen_path = paths + live_size;
+    input->frozen_name = paths + live_size + frozen_size;
+    (void)memcpy(input->live_path, live_path, live_size);
+    (void)memcpy(input->frozen_path, frozen_path, frozen_size);
+    (void)memcpy(input->frozen_name, frozen_name, name_size);
 #if defined(_WIN32)
     input->frozen_handle = INVALID_HANDLE_VALUE;
 #else
     input->frozen_descriptor = -1;
 #endif
-    if (!cupidbuild_host_copy_text(input->live_path, sizeof(input->live_path), live_path) ||
-        !cupidbuild_host_copy_text(input->frozen_path, sizeof(input->frozen_path), frozen_path) ||
-        !cupidbuild_host_copy_text(input->frozen_name, sizeof(input->frozen_name), frozen_name)) {
-        cupidbuild_host_set_error(transaction, "transaction input path is too long");
-        return 0;
-    }
     input->snapshot = *snapshot;
     input->limit = limit;
     input->previous_output = 0;
@@ -7923,9 +7940,16 @@ static int cupidbuild_host_register_input(cupidbuild_host_transaction_t *transac
     return 1;
 }
 
+static void cupidbuild_host_release_input_paths(cupidbuild_host_transaction_t *transaction) {
+    unsigned int index;
+    for (index = 0u; index < transaction->input_count; index++)
+        free(transaction->inputs[index].live_path);
+    free(transaction->inputs);
+}
+
 int cupidbuild_host_reserve_inputs(cupidbuild_host_transaction_t *transaction, size_t capacity) {
     cupidbuild_host_input_t *grown;
-    if (transaction == (cupidbuild_host_transaction_t *)0 || capacity > CUPIDBUILD_HOST_INPUTS) {
+    if (transaction == (cupidbuild_host_transaction_t *)0 || capacity > transaction->input_limit) {
         if (transaction != (cupidbuild_host_transaction_t *)0) {
             cupidbuild_host_set_error(transaction, "too many frozen transaction inputs");
         }
@@ -8234,6 +8258,12 @@ static int cupidbuild_host_freeze_input_internal(cupidbuild_host_transaction_t *
         free(bytes);
         return 0;
     }
+    if (!previous_output && transaction->initial_output_snapshot.present &&
+        cupidbuild_host_snapshot_identity_equal(&transaction->initial_output_snapshot, &snapshot)) {
+        cupidbuild_host_set_error(transaction, "output may not replace an input");
+        free(bytes);
+        return 0;
+    }
     copied_size = streamed ? 0u : snapshot.size;
     if (transaction->runner_transaction != 0) {
 #if defined(_WIN32)
@@ -8402,31 +8432,6 @@ static int cupidbuild_host_freeze_input_internal(cupidbuild_host_transaction_t *
 #else
     transaction->inputs[transaction->input_count - 1u].frozen_descriptor = frozen_descriptor;
 #endif
-    if (previous_output == 0 && transaction->initial_output_snapshot.present != 0 &&
-        memcmp(transaction->initial_output_snapshot.identity, snapshot.identity,
-               sizeof(snapshot.identity)) == 0) {
-        cupidbuild_host_set_error(transaction, "output may not replace an input");
-#if !defined(_WIN32)
-        if (frozen_descriptor >= 0) {
-            if (transaction->runner_transaction != 0 || transaction->private_flat != 0) {
-                cupidbuild_host_close_directory(frozen_descriptor);
-                frozen_descriptor = -1;
-            } else {
-                (void)cupidbuild_host_cleanup_retained_regular_at(transaction->private_descriptor,
-                                                                  private_name, &frozen_snapshot,
-                                                                  &frozen_descriptor);
-            }
-        } else
-#else
-        if (frozen_handle != INVALID_HANDLE_VALUE) {
-            (void)cupidbuild_host_windows_dispose_read_retained_at(
-                transaction->private_handle, private_name, &frozen_snapshot, &frozen_handle);
-        } else
-#endif
-            cupidbuild_host_delete_file(frozen_path);
-        transaction->input_count--;
-        return 0;
-    }
     if (frozen_path_out != (const char **)0) {
         *frozen_path_out = transaction->inputs[transaction->input_count - 1u].frozen_path;
     }
@@ -8618,6 +8623,7 @@ static int cupidbuild_host_transaction_open_internal(
         return 0;
     }
     transaction->candidate_limit = candidate_limit;
+    transaction->input_limit = capture_source ? CUPIDBUILD_HOST_INPUTS : CUPIDBUILD_HOST_DISK_INPUTS;
     (void)memset(&created_private_snapshot, 0, sizeof(created_private_snapshot));
     (void)memset(&opened_private_snapshot, 0, sizeof(opened_private_snapshot));
     (void)memset(&live_private_snapshot, 0, sizeof(live_private_snapshot));
@@ -9079,6 +9085,7 @@ int cupidbuild_host_runner_open(const char *working_directory,
         return 0;
     }
     transaction->runner_transaction = 1;
+    transaction->input_limit = CUPIDBUILD_HOST_INPUTS;
 #if defined(_WIN32)
     transaction->repository_root_handle = INVALID_HANDLE_VALUE;
     transaction->output_parent_handle = INVALID_HANDLE_VALUE;
@@ -9567,7 +9574,7 @@ cupidbuild_host_abandon_interfered_transaction(cupidbuild_host_transaction_t *tr
     }
     cupidbuild_host_close_directory(transaction->repository_root_descriptor);
 #endif
-    free(transaction->inputs);
+    cupidbuild_host_release_input_paths(transaction);
     free(transaction);
     return 0;
 }
@@ -9627,7 +9634,7 @@ int cupidbuild_host_transaction_close(cupidbuild_host_transaction_t *transaction
             cleanup_succeeded = 0;
         }
 #endif
-        free(transaction->inputs);
+        cupidbuild_host_release_input_paths(transaction);
         free(transaction);
         return cleanup_succeeded;
     }
@@ -9835,7 +9842,7 @@ int cupidbuild_host_transaction_close(cupidbuild_host_transaction_t *transaction
             cleanup_succeeded = 0;
         }
 #endif
-        free(transaction->inputs);
+        cupidbuild_host_release_input_paths(transaction);
         free(transaction);
         return cleanup_succeeded;
     }

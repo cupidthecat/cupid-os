@@ -1418,9 +1418,9 @@ class DirectiveInventoryCases:
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 493)
+            self.assertEqual(contract["if_occurrences"], 492)
             self.assertEqual(contract["elif_occurrences"], 28)
-            self.assertEqual(contract["expression_occurrences"], 521)
+            self.assertEqual(contract["expression_occurrences"], 520)
             self.assertEqual(contract["unique_expressions"], 63)
             self.assertEqual(contract["directive_expression_pairs"], 66)
             executable_contract = CUPIDC_PP_CONTRACT.with_name(

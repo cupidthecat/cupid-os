@@ -232,6 +232,10 @@ static int frozen_input_case(const char *root, const char *mode, const char *siz
                                                        &snapshot)) {
         goto done;
     }
+    if (strcmp(mode, "frozen-grow") == 0 &&
+        (!cupidbuild_host_reserve_inputs(transaction, 4112u) ||
+         cupidbuild_host_reserve_inputs(transaction, 4113u)))
+        goto done;
     offset = size - sizeof(tail);
     if (!snapshot.present || snapshot.size != size ||
         !cupidbuild_host_read_frozen_input_range(transaction, frozen, offset, tail, sizeof(tail)) ||
