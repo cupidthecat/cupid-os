@@ -20,6 +20,21 @@ class HostBuildDiskCases:
     IMAGE_MB = 4
     FAT_START_LBA = 8
 
+    def test_image_cli_stages_wads_with_the_normal_fat_names(self):
+        with mock.patch.object(hostbuild, "create_or_update_image") as publish:
+            result = hostbuild.main([
+                "image", "--seed-manifest", str(SEED_MANIFEST),
+                "--image", "cupidos.img", "--bootloader", "boot.bin",
+                "--kernel", "kernel.bin", "--hdd-mb", "4", "--fat-start-lba", "8",
+                "--stage", "hello.iso:/hello.iso", "--wads", "freedoom1.wad", "custom.wad",
+            ])
+        self.assertEqual(result, 0)
+        self.assertEqual(publish.call_args.args[5], [
+            hostbuild.StageFile(Path("hello.iso"), "/hello.iso"),
+            hostbuild.StageFile(Path("freedoom1.wad"), "/wads/freedo~1.wad"),
+            hostbuild.StageFile(Path("custom.wad"), "/wads/wad2.wad"),
+        ])
+
     @property
     def image_bytes(self):
         return self.IMAGE_MB * 1024 * 1024
@@ -261,11 +276,11 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     side_effect=run_checked,
                 ),
                 mock.patch(
-                    "tools.hostbuild._write_mbr",
+                    "tools.hostbuild_disk._write_mbr",
                     side_effect=write_python_oracle,
                 ),
                 mock.patch(
@@ -331,7 +346,7 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     side_effect=runner,
                 ),
                 contextlib.redirect_stdout(io.StringIO()),
@@ -433,7 +448,7 @@ class HostBuildDiskCases:
                 )
                 with (
                     mock.patch(
-                        "tools.hostbuild.run_seed_tool",
+                        "tools.hostbuild_disk.run_seed_tool",
                         side_effect=runner,
                     ),
                     contextlib.redirect_stdout(io.StringIO()),
@@ -536,7 +551,7 @@ class HostBuildDiskCases:
 
                 with (
                     mock.patch(
-                        "tools.hostbuild.run_seed_tool",
+                        "tools.hostbuild_disk.run_seed_tool",
                         side_effect=runner,
                     ),
                     contextlib.redirect_stdout(output),
@@ -586,7 +601,7 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     side_effect=runner,
                 ),
                 contextlib.redirect_stdout(io.StringIO()),
@@ -657,7 +672,7 @@ class HostBuildDiskCases:
 
                     with (
                         mock.patch(
-                            "tools.hostbuild.run_seed_tool",
+                            "tools.hostbuild_disk.run_seed_tool",
                             side_effect=runner,
                         ),
                         contextlib.redirect_stdout(output),
@@ -707,7 +722,7 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     side_effect=runner,
                 ),
                 contextlib.redirect_stdout(output),
@@ -767,7 +782,7 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     side_effect=runner,
                 ),
                 contextlib.redirect_stdout(output),
@@ -820,7 +835,7 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 self.assertRaisesRegex(
@@ -863,7 +878,7 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     side_effect=runner,
                 ),
                 self.assertRaisesRegex(
@@ -932,11 +947,11 @@ class HostBuildDiskCases:
 
                 with (
                     mock.patch(
-                        "tools.hostbuild.run_seed_tool",
+                        "tools.hostbuild_disk.run_seed_tool",
                         side_effect=run_seed,
                     ),
                     mock.patch(
-                        "tools.hostbuild._write_mbr",
+                        "tools.hostbuild_disk._write_mbr",
                         side_effect=AssertionError(
                             "Python oracle must not inspect an unsafe "
                             "checked candidate"
@@ -996,11 +1011,11 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 mock.patch(
-                    "tools.hostbuild._write_mbr",
+                    "tools.hostbuild_disk._write_mbr",
                     side_effect=AssertionError(
                         "Python oracle must not inspect a linked candidate"
                     ),
@@ -1046,7 +1061,7 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     side_effect=runner,
                 ),
                 mock.patch.object(
@@ -1120,7 +1135,7 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     side_effect=runner,
                 ),
                 self.assertRaisesRegex(
@@ -1169,7 +1184,7 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     side_effect=runner,
                 ),
                 mock.patch(
@@ -1236,7 +1251,7 @@ class HostBuildDiskCases:
                 )
                 with (
                     mock.patch(
-                        "tools.hostbuild.run_seed_tool",
+                        "tools.hostbuild_disk.run_seed_tool",
                         side_effect=AssertionError(
                             "CupidObj must not run for a second publisher"
                         ),
@@ -1322,7 +1337,7 @@ class HostBuildDiskCases:
 
                 with (
                     mock.patch(
-                        "tools.hostbuild.run_seed_tool",
+                        "tools.hostbuild_disk.run_seed_tool",
                         side_effect=runner,
                     ),
                     self.assertRaisesRegex(
@@ -1376,7 +1391,7 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     side_effect=runner,
                 ),
                 self.assertRaisesRegex(
@@ -1430,7 +1445,7 @@ class HostBuildDiskCases:
 
                 with (
                     mock.patch(
-                        "tools.hostbuild.run_seed_tool",
+                        "tools.hostbuild_disk.run_seed_tool",
                         side_effect=AssertionError(
                             "CupidObj must not run for an aliased output"
                         ),
@@ -1471,7 +1486,7 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     side_effect=AssertionError(
                         "CupidObj must not run for a linked output"
                     ),
@@ -1518,7 +1533,7 @@ class HostBuildDiskCases:
 
                 with (
                     mock.patch(
-                        "tools.hostbuild.run_seed_tool",
+                        "tools.hostbuild_disk.run_seed_tool",
                         side_effect=AssertionError(
                             "CupidObj must not run with an invalid seed"
                         ),
@@ -1558,7 +1573,7 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     side_effect=AssertionError(
                         "CupidObj must not run with an invalid manifest"
                     ),
@@ -1606,7 +1621,7 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 self.assertRaisesRegex(
@@ -1667,7 +1682,7 @@ class HostBuildDiskCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_disk.run_seed_tool",
                     return_value=failure,
                 ),
                 contextlib.redirect_stderr(diagnostic),

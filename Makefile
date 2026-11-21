@@ -59,7 +59,7 @@ override CUPIDC_PRODUCTION_COMPILE_INPUTS := Makefile \
 	tools/bootstrap_toolchain.py \
 	$(PRODUCTION_SEED_INPUTS)
 CUPIDC_PRODUCTION_FRONTIER_INPUTS := \
-	tools/cupidc_production_frontier.py tools/hostbuild.py \
+	tools/cupidc_production_frontier.py tools/hostbuild.py tools/hostbuild_disk.py \
 	$(CUPIDC_PRODUCTION_COMPILE_INPUTS)
 CHECKED_SEED_INPUTS := Makefile tools/bootstrap_toolchain.py \
 	$(PRODUCTION_SEED_INPUTS)
@@ -1975,7 +1975,7 @@ $(KERNEL): kernel/kernel.elf $(CUPIDDIS_PRODUCTION_INPUTS) \
 
 # Create HDD image: MBR + Stage2 + kernel area + FAT16 partition (size via HDD_MB, default 200MB)
 $(OS_IMAGE): verify-artifact-sizes $(BOOTLOADER) $(KERNEL) \
-	test_iso/hello.iso tools/hostbuild.py \
+	test_iso/hello.iso tools/hostbuild.py tools/hostbuild_disk.py \
 	$(CHECKED_SEED_INPUTS)
 	$(PYTHON) tools/hostbuild.py image \
 		--seed-manifest $(PRODUCTION_SEED_MANIFEST) \

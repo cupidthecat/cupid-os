@@ -1,5 +1,16 @@
 # Bootstrapping log
 
+## 2026-11-21 — Move host disk publication into its own module
+
+The disk module contains the FAT16 image writer, retained source checks and
+publication code. The existing `hostbuild.py` commands still use it. Make
+and the production frontier track the new module as an input.
+
+The 30 moved definitions kept their syntax trees. The 122 build and image
+cases passed on Windows and WSL with five and one platform skips. Both hosts
+reproduced the existing 200 MiB disk byte for byte. That disk passed the
+four-CPU boot and shell check.
+
 ## 2026-11-21 — Document the kernel memory sources
 
 The seven page, heap and swap files now have Doxygen file headers. The
