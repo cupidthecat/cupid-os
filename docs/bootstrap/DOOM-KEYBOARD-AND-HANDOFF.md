@@ -1,7 +1,7 @@
 # Doom keyboard and input handoff
 
 Doom now receives the complete letter and digit map, base punctuation,
-Backspace and F1?F12. Space, Shift and Alt use the engine's actual Use, Run
+Backspace and F1–F12. Space, Shift and Alt use the engine's Use, Run
 and Strafe codes. Unmapped scancodes are rejected before they can fill the
 input ring. The existing ring capacity and overflow behavior are preserved.
 
@@ -63,10 +63,14 @@ at 7.14 fps, exited fullscreen and returned to the shell without an
 EHCI ownership failure. See the
 [EHCI halt decision](../adr/0491-allow-time-for-ehci-halt-proof.md).
 
-The November 21 four-vCPU replay selected the same Freedoom WAD and
-started `demo1`. It reached graphics initialization and hit the
-1,500-second deadline before reporting the result. The serial log showed
-no kernel panic.
+The November 21 replays selected the same Freedoom WAD and started
+`demo1`. Two four-vCPU runs and one single-vCPU run reached graphics
+initialization and hit the 1,500-second deadline without a result or
+kernel panic. Samples from the second four-vCPU run caught rendering and
+OPL3 synthesis. The idle thread often appeared in synchronous EHCI
+polling while other CPUs waited for the big kernel lock. The samples
+showed activity in those paths, and the cause of the slowdown remains
+open.
 
 ## Evidence and limits
 
