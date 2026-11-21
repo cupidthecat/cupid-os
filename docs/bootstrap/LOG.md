@@ -1,5 +1,16 @@
 # Bootstrapping log
 
+## 2026-11-21 — Document the PS/2 keyboard driver
+
+The Doxygen header replaces the existing title without shifting code lines.
+Checked CupidC reproduced the 11,652-byte object on Windows. All 17 keyboard
+tests passed on Windows and WSL. The 156 normal-build frontier objects still
+match all 51 pinned records and the 4,258,812-byte total.
+
+The 494-input fingerprint now includes the keyboard file comment and the Browser
+split's regenerated preprocessing inventory. Comparing the source snapshots
+identified the two changes since the previous fingerprint.
+
 ## 2026-11-21 — Read guest build plans from their own ISO
 
 The media entry reads `/plan/cupidbuild.job` and confines request files to
@@ -38,6 +49,10 @@ inputs. WSL reused the checked kernel files for image publication and
 passed all 16 exact size checks. Four-CPU guests passed `browser --selftest`
 on both hosts. The updated source-plan generator inventories 759 files
 for 441 steps, including the new Browser objects.
+
+The complete Windows `make all` rerun passed all 16 size checks and the
+four-CPU Browser smoke. Fresh Windows and WSL images matched at
+`22ccc3e43ca840bc625cf9d35f7477d7e5bdf16b3a596d9a2024e33a5dffaaac`.
 
 ## 2026-11-21 — Check all host modules used by disk publication
 

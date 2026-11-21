@@ -1,6 +1,6 @@
-/*
- * PS/2 Keyboard Driver
- *
+/**
+ * @file keyboard.cc
+ * @brief Decode PS/2 scancodes and publish keyboard events.
  * Implements a complete PS/2 keyboard interface with the following features:
  *
  * Input Handling:

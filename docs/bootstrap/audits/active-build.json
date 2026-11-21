@@ -63351,7 +63351,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "17e64fa98fdbfd48cb34a395f075d8a645e867c27f58f98e89ec6e96a43f7518",
+    "active_source_digest": "600934ad83f63ae9d2f8b161532bb95af264e727501408f08a43ddd24a92baf8",
     "control_files": [
       {
         "path": "Makefile",
@@ -69045,7 +69045,7 @@
       "path": "drivers/keyboard.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "41c0625c1b839bb2e589bf41a8e19c6bf9036de7066db762b40828a2ed45b8a9"
+      "sha256": "af1ae13859c408192d8a6c11e46105b6cf55405a3792c08d5251ef55ce6d5ea8"
     },
     {
       "build_owners": [
