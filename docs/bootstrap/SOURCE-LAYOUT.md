@@ -238,6 +238,13 @@ profiles, and fixed-point checks. Every file stays under 2,000 lines. All 143
 unittest names are unchanged. Windows and WSL passed the four reruns after
 the source counts and kernel-wrapper fixtures were refreshed.
 
+## Build graph source scanner
+
+`tools/build_graph_features.py` scans C and assembly, records feature counts,
+and keeps examples with their original line numbers. The audit driver records
+the scanner's hash with the other build controls. The 1,227-line module
+leaves the generated source and ownership inventories unchanged.
+
 ## Host build commands
 
 `hostbuild.py` keeps the command line, checked assembly and code validation.

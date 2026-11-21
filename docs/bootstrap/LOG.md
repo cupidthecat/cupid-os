@@ -1,5 +1,13 @@
 # Bootstrapping log
 
+## 2026-11-21 — Separate the build audit's source scanner
+
+The scanner and its feature collector now live in `build_graph_features.py`.
+The moved definitions have the same syntax trees after accounting for renamed
+module functions. The generated audit changes only its generator and scanner
+hashes. `make check-bootstrap-audit` passed on Windows, and the focused lexer
+tests passed on Windows and WSL.
+
 ## 2026-11-21 — Boot the kernel rebuilt through RAMFS
 
 The kernel plan finished all 439 steps with pass-one objects in RAMFS.

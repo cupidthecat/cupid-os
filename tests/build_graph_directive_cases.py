@@ -284,7 +284,7 @@ class DirectiveInventoryCases:
 
     def test_inventory_distinguishes_gnu_and_c11_alignof_operators(self):
         module = _load_audit_module()
-        collector = module.FeatureCollector()
+        collector = module.source_features.FeatureCollector()
         source = textwrap.dedent(
             """
             int gnu_plain = __alignof(int);
@@ -296,7 +296,7 @@ class DirectiveInventoryCases:
             """
         ).lstrip()
 
-        module._scan_c_features("alignof.c", source, "c", collector)
+        module.source_features.scan_c_features("alignof.c", source, "c", collector)
         features = {entry["id"]: entry for entry in collector.inventory()}
 
         self.assertEqual(features["c.extension.gnu_alignof"]["occurrences"], 2)
@@ -356,15 +356,16 @@ class DirectiveInventoryCases:
         lf = "#define JOIN( \\\n left) left\n"
         crlf = lf.replace("\n", "\r\n")
         self.assertEqual(
-            module._c_logical_lines(lf), module._c_logical_lines(crlf)
+            module.source_features.c_logical_lines(lf),
+            module.source_features.c_logical_lines(crlf)
         )
         self.assertEqual(
-            module._c_logical_lines("#define TRAILING value\\"),
+            module.source_features.c_logical_lines("#define TRAILING value\\"),
             [(1, "#define TRAILING value\\", "#define TRAILING value\\")],
         )
         controls = "#define ONLY 1\v#define NOT_SECOND 2\fstill_same"
         self.assertEqual(
-            module._c_logical_lines(controls),
+            module.source_features.c_logical_lines(controls),
             [(1, controls, controls)],
         )
 

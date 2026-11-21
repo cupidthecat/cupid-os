@@ -63316,11 +63316,15 @@
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
         "sha256": "e976dc500ad3f424ca388843d7c3f7d781ed27d96f9f31d8afaa1aba5b86058b"
+      },
+      {
+        "path": "tools/build_graph_features.py",
+        "sha256": "40039f72ee410d0b5f80894ca0f57fae1d43402d6587c0ebb603b3a9e0639a0a"
       }
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "006be3f550d780ea26063642a5cd4d380708823c0983cb8fc7db71676ad8936c"
+      "sha256": "74c8b8c459305c66d55a1cfa26ba0a876d0b728a09df99be13263e9dbde651cb"
     },
     "text_hash_policy": "canonical_lf"
   },
