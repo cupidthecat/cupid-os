@@ -203,11 +203,6 @@ int cupidbuild_host_observer_files_same(cupidbuild_host_observer_t *left,
 int cupidbuild_host_observer_roots_captured_same(cupidbuild_host_observer_t *left,
                                                 cupidbuild_host_observer_t *right,
                                                 int *same_out);
-int cupidbuild_host_observer_files_captured_same(cupidbuild_host_observer_t *left,
-                                                const char *left_logical,
-                                                cupidbuild_host_observer_t *right,
-                                                const char *right_logical,
-                                                int *same_out);
 /* Compare the captured parent-directory identities of two already retained
  * regular files. Like captured file/root comparisons, this observes nothing
  * and performs no revalidation. It grants no source authority. Full observer
@@ -541,6 +536,14 @@ int cupidbuild_host_freeze_input_bounded(
 int cupidbuild_host_freeze_external_input(
     cupidbuild_host_transaction_t *transaction, cupidbuild_host_observer_t *observer,
     const char *logical, const char *private_name, unsigned long long capacity,
+    const char **frozen_path_out, cupidbuild_host_snapshot_t *snapshot_out);
+/* Freeze a disk input whose original request is already bound to the transaction.
+ * A matching physical snapshot may use an existing private copy. The source
+ * is a logical path for a borrowed external observer and a repository path
+ * when the observer is null. */
+int cupidbuild_host_freeze_disk_input(
+    cupidbuild_host_transaction_t *transaction, cupidbuild_host_observer_t *external,
+    const char *source, const char *private_name, unsigned long long capacity,
     const char **frozen_path_out, cupidbuild_host_snapshot_t *snapshot_out);
 /* Return the captured initial output extent. Absent and empty outputs return
  * zero. Publication still revalidates the original output. */

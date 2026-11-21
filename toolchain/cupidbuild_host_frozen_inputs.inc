@@ -139,6 +139,7 @@ int cupidbuild_host_freeze_tool_output(cupidbuild_host_transaction_t *transactio
         !cupidbuild_host_capture_retained_private_output(transaction) ||
         !cupidbuild_host_snapshot_equal(&accepted, &transaction->private_output_snapshot) ||
         !cupidbuild_host_discard_unused_candidate(transaction) ||
+        cupidbuild_host_find_input_identity(transaction, &accepted) ||
         !cupidbuild_host_register_input(transaction, transaction->private_output,
                                         transaction->private_output, "candidate.map", &accepted,
                                         cupidbuild_host_private_output_read_limit(transaction))) {

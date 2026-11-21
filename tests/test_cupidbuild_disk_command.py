@@ -6,8 +6,10 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 
+from tests import test_cupidbuild_observer as observer_fixtures
 from tools.hostbuild_disk import StageFile, _wad_dest, create_or_update_image
 
 
@@ -23,6 +25,9 @@ def file_identity(path):
 
 
 class CupidBuildDiskCommandTests(unittest.TestCase):
+    make_source_junction = observer_fixtures.CupidBuildObserverTests.make_source_junction
+    remove_source_junction = observer_fixtures.CupidBuildObserverTests.remove_source_junction
+
     @classmethod
     def setUpClass(cls):
         if program := os.environ.get('CUPIDBUILD_IMAGE_COMMAND'):
@@ -34,6 +39,7 @@ class CupidBuildDiskCommandTests(unittest.TestCase):
         cls.program = directory / ('cupidbuild.exe' if os.name == 'nt' else 'cupidbuild')
         relative = directory.relative_to(TOOLCHAIN).as_posix()
         result = subprocess.run(['make', '-C', str(TOOLCHAIN), f'BUILD_DIR={relative}',
+                                 'CPPFLAGS=-DCUPIDBUILD_PUBLICATION_RACE_TEST',
                                  f'{relative}/{cls.program.name}'],
                                 capture_output=True, text=True, timeout=180)
         if result.returncode:
@@ -57,14 +63,18 @@ class CupidBuildDiskCommandTests(unittest.TestCase):
         self.boot.write_bytes(bytes(range(256)) * 12)
         self.kernel.write_bytes(b'kernel\x00' * 192)
 
-    def run_image(self, *options):
-        return subprocess.run([
+    def image_command(self, *options, kernel='../external/kernel.bin'):
+        return [
             self.program, 'image', '--root', self.project, '--seed-release', 'release.json',
             '--seed-manifest', '../external/checked/manifest.json',
             '--image', '../products/nested/image.img', '--bootloader', 'boot.bin',
-            '--kernel', '../external/kernel.bin', '--hdd-mb', '8', '--fat-start-lba', '32',
+            '--kernel', kernel, '--hdd-mb', '8', '--fat-start-lba', '32',
             *options,
-        ], cwd=self.project, capture_output=True, text=True, encoding='utf-8', timeout=180)
+        ]
+
+    def run_image(self, *options, kernel='../external/kernel.bin'):
+        return subprocess.run(self.image_command(*options, kernel=kernel), cwd=self.project,
+                              capture_output=True, text=True, encoding='utf-8', timeout=180)
 
     def test_external_seed_output_and_wad_stages_match_python(self):
         payload = self.external / 'payload.bin'
@@ -104,3 +114,68 @@ class CupidBuildDiskCommandTests(unittest.TestCase):
         self.assertIn('checked seed manifest is invalid', result.stderr)
         self.assertEqual(file_identity(self.output), before)
         self.assertFalse(list(self.output.parent.glob('*cupidbuild*')))
+
+    def test_image_inputs_and_stage_aliases_share_one_source(self):
+        alias = self.external / 'boot-copy.bin'
+        os.link(self.boot, alias)
+        expected = self.root / 'expected.img'
+        stages = [StageFile(alias, '/ALIAS.BIN'), StageFile(self.boot, '/BOOT.BIN')]
+        create_or_update_image(expected, self.boot, alias, 8, 32, stages, False,
+                               seed_manifest=SEED / 'manifest.json')
+        result = self.run_image('--stage', '../external/boot-copy.bin:/ALIAS.BIN',
+                                '--stage', 'boot.bin:/BOOT.BIN', kernel='../external/boot-copy.bin')
+        self.assertEqual(result.returncode, 0, (result.stdout, result.stderr))
+        self.assertEqual(file_identity(self.output)[2], file_identity(expected)[2])
+
+    def test_hardlinked_stage_cannot_replace_the_output(self):
+        self.output.parent.mkdir(parents=True)
+        self.output.write_bytes(b'prior image')
+        alias = self.external / 'output-alias.bin'
+        os.link(self.output, alias)
+        before = file_identity(self.output)
+        result = self.run_image('--stage', '../external/output-alias.bin:/ALIAS.BIN')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('output may not replace an input', result.stderr)
+        self.assertEqual(file_identity(self.output), before)
+        self.assertEqual(file_identity(alias), before)
+
+    @unittest.skipIf(os.environ.get('CUPIDBUILD_IMAGE_COMMAND'), 'requires native pause hooks')
+    def test_rebinding_a_shared_stage_preserves_previous_output(self):
+        self.output.parent.mkdir(parents=True)
+        self.output.write_bytes(b'prior image')
+        before = file_identity(self.output)
+        ready, resume = self.root / 'ready', self.root / 'resume'
+        substitute = self.root / 'substitute'
+        substitute.mkdir()
+        os.link(self.boot, self.external / 'boot-copy.bin')
+        (substitute / 'boot-copy.bin').write_bytes(self.boot.read_bytes())
+        command = self.image_command('--stage', '../alias/boot-copy.bin:/ALIAS.BIN')
+        for phase in ('before-mutation', 'after-install'):
+            with self.subTest(phase=phase):
+                self.make_source_junction(self.external)
+                environment = dict(os.environ, CUPIDBUILD_PUBLICATION_TEST_PHASE=phase,
+                                   CUPIDBUILD_PUBLICATION_TEST_READY=str(ready),
+                                   CUPIDBUILD_PUBLICATION_TEST_RESUME=str(resume))
+                with subprocess.Popen(command, cwd=self.project, env=environment,
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                      text=True, encoding='utf-8') as process:
+                    try:
+                        deadline = time.monotonic() + 30
+                        while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
+                            time.sleep(0.01)
+                        self.assertTrue(ready.exists(), 'publication checkpoint was not reached')
+                        self.remove_source_junction()
+                        self.make_source_junction(substitute)
+                        resume.touch()
+                        stdout, stderr = process.communicate(timeout=20)
+                        self.assertNotEqual(process.returncode, 0, (stdout, stderr))
+                        self.assertIn('original source path changed', stderr)
+                    finally:
+                        if process.poll() is None:
+                            process.kill()
+                            process.communicate(timeout=10)
+                self.assertEqual(file_identity(self.output), before)
+                self.assertFalse(list(self.output.parent.glob('*cupidbuild*')))
+                self.remove_source_junction()
+                ready.unlink()
+                resume.unlink()

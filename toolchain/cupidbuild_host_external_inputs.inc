@@ -162,11 +162,12 @@ static int cupidbuild_host_read_external_input(cupidbuild_host_observer_t *obser
     return 1;
 }
 
-int cupidbuild_host_freeze_external_input(cupidbuild_host_transaction_t *transaction,
-                                          cupidbuild_host_observer_t *observer, const char *logical,
-                                          const char *private_name, unsigned long long capacity,
-                                          const char **frozen_path_out,
-                                          cupidbuild_host_snapshot_t *snapshot_out) {
+static int cupidbuild_host_freeze_external(cupidbuild_host_transaction_t *transaction,
+                                            cupidbuild_host_observer_t *observer, const char *logical,
+                                            const char *private_name, unsigned long long capacity,
+                                            const char **frozen_path_out,
+                                            cupidbuild_host_snapshot_t *snapshot_out,
+                                            int share_input) {
     if (frozen_path_out)
         *frozen_path_out = NULL;
     if (snapshot_out)
@@ -175,14 +176,37 @@ int cupidbuild_host_freeze_external_input(cupidbuild_host_transaction_t *transac
         return 0;
     if (transaction->observer_publication_started || !observer || !logical || capacity == 0u ||
         capacity > 2147483647ULL || !cupidbuild_host_path_is_relative_safe(private_name) ||
+        (share_input && transaction->source_request_state != 1) ||
         !cupidbuild_host_external_observer_is_borrowed(transaction, observer) ||
         !cupidbuild_host_require_borrowed_observer(transaction))
         return cupidbuild_host_external_input_failure(
             transaction, "external input could not be captured through its retained observer");
     if (!cupidbuild_host_freeze_input_internal(transaction, logical, private_name, frozen_path_out,
-                                              snapshot_out, (size_t)capacity, 1, 0, observer)) {
+                                              snapshot_out, (size_t)capacity, 1, 0, observer,
+                                              share_input)) {
         transaction->external_binding_failed = 1;
         return 0;
     }
     return 1;
+}
+
+int cupidbuild_host_freeze_external_input(cupidbuild_host_transaction_t *transaction,
+                                          cupidbuild_host_observer_t *observer, const char *logical,
+                                          const char *private_name, unsigned long long capacity,
+                                          const char **frozen_path_out,
+                                          cupidbuild_host_snapshot_t *snapshot_out) {
+    return cupidbuild_host_freeze_external(transaction, observer, logical, private_name, capacity,
+                                          frozen_path_out, snapshot_out, 0);
+}
+
+int cupidbuild_host_freeze_disk_input(cupidbuild_host_transaction_t *transaction,
+                                      cupidbuild_host_observer_t *external, const char *source,
+                                      const char *private_name, unsigned long long capacity,
+                                      const char **frozen_path_out,
+                                      cupidbuild_host_snapshot_t *snapshot_out) {
+    if (external)
+        return cupidbuild_host_freeze_external(transaction, external, source, private_name, capacity,
+                                              frozen_path_out, snapshot_out, 1);
+    return cupidbuild_host_freeze_bounded_input(transaction, source, private_name, capacity,
+                                               frozen_path_out, snapshot_out, 1);
 }

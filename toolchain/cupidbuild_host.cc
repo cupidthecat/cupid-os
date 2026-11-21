@@ -7883,13 +7883,23 @@ static int cupidbuild_host_release_lock(cupidbuild_host_transaction_t *transacti
     return 1;
 }
 
+static const cupidbuild_host_input_t *cupidbuild_host_find_input_identity(
+    const cupidbuild_host_transaction_t *transaction, const cupidbuild_host_snapshot_t *snapshot) {
+    unsigned int index;
+    for (index = 0u; index < transaction->input_count; index++) {
+        const cupidbuild_host_input_t *input = &transaction->inputs[index];
+        if (cupidbuild_host_snapshot_identity_equal(&input->snapshot, snapshot))
+            return input;
+    }
+    return NULL;
+}
+
 static int cupidbuild_host_register_input(cupidbuild_host_transaction_t *transaction,
                                           const char *live_path, const char *frozen_path,
                                           const char *frozen_name,
                                           const cupidbuild_host_snapshot_t *snapshot,
                                           size_t limit) {
     cupidbuild_host_input_t *input;
-    unsigned int index;
     size_t live_size = strlen(live_path) + 1u;
     size_t frozen_size = strlen(frozen_path) + 1u;
     size_t name_size = strlen(frozen_name) + 1u;
@@ -7899,14 +7909,6 @@ static int cupidbuild_host_register_input(cupidbuild_host_transaction_t *transac
         name_size > CUPIDBUILD_HOST_PATH_BYTES) {
         cupidbuild_host_set_error(transaction, "transaction input path is too long");
         return 0;
-    }
-    for (index = 0u; index < transaction->input_count; index++) {
-        if (cupidbuild_host_snapshot_identity_equal(&transaction->inputs[index].snapshot,
-                                                    snapshot)) {
-            cupidbuild_host_set_error(transaction,
-                                      "transaction inputs may not share a file identity");
-            return 0;
-        }
     }
     if (transaction->input_count >= transaction->input_limit) {
         cupidbuild_host_set_error(transaction, "too many frozen transaction inputs");
@@ -8243,10 +8245,12 @@ static int cupidbuild_host_freeze_input_internal(cupidbuild_host_transaction_t *
                                                  cupidbuild_host_snapshot_t *snapshot_out,
                                                  size_t capacity, int streamed,
                                                  int previous_output,
-                                                 cupidbuild_host_observer_t *external) {
+                                                 cupidbuild_host_observer_t *external,
+                                                 int share_input) {
     char frozen_path[CUPIDBUILD_HOST_PATH_BYTES];
     cupidbuild_host_snapshot_t snapshot;
     cupidbuild_host_snapshot_t frozen_snapshot;
+    const cupidbuild_host_input_t *existing;
     unsigned char *bytes = (unsigned char *)0;
     size_t copied_size;
 #if defined(_WIN32)
@@ -8271,6 +8275,23 @@ static int cupidbuild_host_freeze_input_internal(cupidbuild_host_transaction_t *
         cupidbuild_host_set_error(transaction, "output may not replace an input");
         free(bytes);
         return 0;
+    }
+    existing = cupidbuild_host_find_input_identity(transaction, &snapshot);
+    if (existing) {
+        free(bytes);
+        if (!share_input) {
+            cupidbuild_host_set_error(transaction, "transaction inputs may not share a file identity");
+            return 0;
+        }
+        if (!cupidbuild_host_snapshot_equal(&existing->snapshot, &snapshot)) {
+            cupidbuild_host_set_error(transaction, "shared transaction input changed while being captured");
+            return 0;
+        }
+        if (frozen_path_out)
+            *frozen_path_out = existing->frozen_path;
+        if (snapshot_out)
+            *snapshot_out = snapshot;
+        return 1;
     }
     copied_size = streamed ? 0u : snapshot.size;
     if (transaction->runner_transaction != 0) {
@@ -8454,26 +8475,37 @@ int cupidbuild_host_freeze_input(cupidbuild_host_transaction_t *transaction, con
                                  cupidbuild_host_snapshot_t *snapshot_out) {
     return cupidbuild_host_freeze_input_internal(transaction, live_path, private_name,
                                                  frozen_path_out, snapshot_out,
-                                                 CUPIDBUILD_HOST_FILE_LIMIT, 0, 0, NULL);
+                                                 CUPIDBUILD_HOST_FILE_LIMIT, 0, 0, NULL, 0);
 }
 
-int cupidbuild_host_freeze_input_bounded(cupidbuild_host_transaction_t *transaction,
-                                         const char *live_path, const char *private_name,
-                                         unsigned long long capacity, const char **frozen_path_out,
-                                         cupidbuild_host_snapshot_t *snapshot_out) {
+static int cupidbuild_host_freeze_bounded_input(cupidbuild_host_transaction_t *transaction,
+                                                 const char *live_path, const char *private_name,
+                                                 unsigned long long capacity, const char **frozen_path_out,
+                                                 cupidbuild_host_snapshot_t *snapshot_out,
+                                                 int share_input) {
     if (frozen_path_out != (const char **)0)
         *frozen_path_out = (const char *)0;
     if (snapshot_out != (cupidbuild_host_snapshot_t *)0)
         (void)memset(snapshot_out, 0, sizeof(*snapshot_out));
     if (transaction == (cupidbuild_host_transaction_t *)0 || transaction->runner_transaction != 0 ||
-        capacity == 0u || capacity > 2147483647ULL) {
+        capacity == 0u || capacity > 2147483647ULL ||
+        (share_input && (transaction->source_request_state != 1 ||
+                         transaction->observer_publication_started))) {
         cupidbuild_host_set_error(transaction,
                                   "invalid streamed frozen input capacity or transaction");
         return 0;
     }
     return cupidbuild_host_freeze_input_internal(transaction, live_path, private_name,
                                                  frozen_path_out, snapshot_out, (size_t)capacity, 1,
-                                                 0, NULL);
+                                                 0, NULL, share_input);
+}
+
+int cupidbuild_host_freeze_input_bounded(cupidbuild_host_transaction_t *transaction,
+                                         const char *live_path, const char *private_name,
+                                         unsigned long long capacity, const char **frozen_path_out,
+                                         cupidbuild_host_snapshot_t *snapshot_out) {
+    return cupidbuild_host_freeze_bounded_input(transaction, live_path, private_name, capacity,
+                                               frozen_path_out, snapshot_out, 0);
 }
 
 unsigned long long cupidbuild_host_initial_output_extent(
@@ -8509,7 +8541,7 @@ int cupidbuild_host_freeze_previous_output(cupidbuild_host_transaction_t *transa
     }
     accepted = cupidbuild_host_freeze_input_internal(transaction, transaction->output_path,
                                                      private_name, frozen_path_out, snapshot_out,
-                                                     transaction->candidate_limit, 1, 1, NULL);
+                                                     transaction->candidate_limit, 1, 1, NULL, 0);
     transaction->previous_output_state = accepted ? 1 : -1;
     return accepted;
 }
@@ -12426,13 +12458,6 @@ int cupidbuild_host_observer_roots_captured_same(cupidbuild_host_observer_t *lef
                                                  cupidbuild_host_observer_t *right, int *same_out) {
     return cupidbuild_observer_compare(left, (const char *)0, right, (const char *)0, 1, 1,
                                        same_out);
-}
-
-int cupidbuild_host_observer_files_captured_same(cupidbuild_host_observer_t *left,
-                                                 const char *left_logical,
-                                                 cupidbuild_host_observer_t *right,
-                                                 const char *right_logical, int *same_out) {
-    return cupidbuild_observer_compare(left, left_logical, right, right_logical, 0, 1, same_out);
 }
 
 int cupidbuild_host_observer_file_bindings_captured_same(cupidbuild_host_observer_t *left,

@@ -1,5 +1,28 @@
 # Bootstrapping log
 
+## 2026-11-21 — Share frozen disk inputs by file identity
+
+The bootloader, kernel and FAT stage files can share a private copy when the
+retained file identity, metadata and digest match. Each original pathname
+still participates in the publication check. An input hardlink to the output
+is rejected. Other CupidBuild commands keep their existing duplicate checks.
+
+The Windows and WSL image tests matched Python when the same physical file
+supplied the bootloader, kernel and two FAT stages. A directory alias rebound
+before or after installation preserved the previous output's bytes, identity
+and timestamp. The first Windows race fixture tried to overwrite the open
+hardlink directly. Windows denied that operation. The corrected test changes
+the directory junction used by the original request.
+
+Both checked 200 MiB images with the ISO, Freedoom WAD and a staged hardlink to
+the real bootloader matched the Python image. The complete SHA-256 is
+`9bd533da90f2eda8ca4a370bc9bf2c1e4446e594ca751710fba2f49f3b31e212`.
+The WSL image passed the four-CPU e1000 boot, TLS checks and `ls` JIT smoke.
+The final 124-input Windows fixed point used source snapshot SHA-256
+`e3d6bf01ab5bc8fc83ff5aadb1570c0fb427a16ed27d58aaca086fc85f23dab1`.
+An earlier run detected a live host-adapter edit during bootstrap and rejected
+the capture. The fresh run used the final source and updated inventory lock.
+
 ## 2026-11-21 — Run the disk image command with CupidBuild
 
 `cupidbuild image` now captures the bootloader, kernel, stage files and

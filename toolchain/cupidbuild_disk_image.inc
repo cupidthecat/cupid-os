@@ -258,32 +258,39 @@ typedef struct {
 static int cupidbuild_disk_capture_file(cupidbuild_disk_capture_t *capture,
                                         const cupidbuild_source_file_view_t *selected,
                                         const char *name, unsigned long long limit,
-                                        cupidbuild_disk_file_t *file, cupidbuild_host_snapshot_t *snapshot_out) {
+                                        cupidbuild_disk_file_t *file, cupidbuild_host_snapshot_t *snapshot_out,
+                                        int share_file) {
     cupidbuild_host_snapshot_t snapshot;
+    cupidbuild_host_observer_t *external = NULL;
     const char *frozen = NULL;
     size_t index;
     int same = 0;
     int valid;
     if (!cupidbuild_host_observer_roots_captured_same(capture->primary, selected->observer, &same))
         return 0;
-    if (same) {
-        valid = cupidbuild_host_freeze_input_bounded(capture->transaction,
-            selected->physical_absolute, name, limit, &frozen, &snapshot);
-    } else {
+    if (!same) {
+        external = selected->observer;
         for (index = 0u; index < capture->external_count; index++) {
-            if (capture->external[index] == selected->observer)
+            if (capture->external[index] == external)
                 break;
         }
         if (index == capture->external_count) {
             if (index == CUPIDBUILD_DISK_CAPTURE_ROOTS ||
                 !cupidbuild_host_transaction_borrow_external_source_observer(capture->transaction,
-                                                                      selected->observer))
+                                                                              external))
                 return 0;
-            capture->external[capture->external_count++] = selected->observer;
+            capture->external[capture->external_count++] = external;
         }
-        valid = cupidbuild_host_freeze_external_input(capture->transaction, selected->observer,
-            selected->logical, name, limit, &frozen, &snapshot);
     }
+    if (share_file)
+        valid = cupidbuild_host_freeze_disk_input(capture->transaction, external,
+            external ? selected->logical : selected->physical_absolute, name, limit, &frozen, &snapshot);
+    else if (external)
+        valid = cupidbuild_host_freeze_external_input(capture->transaction, external,
+            selected->logical, name, limit, &frozen, &snapshot);
+    else
+        valid = cupidbuild_host_freeze_input_bounded(capture->transaction,
+            selected->physical_absolute, name, limit, &frozen, &snapshot);
     if (!valid || !snapshot.present)
         return 0;
     file->path = frozen;
@@ -320,7 +327,7 @@ static int cupidbuild_disk_seed_release(cupidbuild_disk_capture_t *capture,
     file.observer = view->primary_observer;
     file.logical = logical;
     file.physical_absolute = full;
-    if (!cupidbuild_disk_capture_file(capture, &file, "seed-release.json", 65536u, &frozen, NULL))
+    if (!cupidbuild_disk_capture_file(capture, &file, "seed-release.json", 65536u, &frozen, NULL, 0))
         return 0;
     *data_out = cupidbuild_host_read_frozen_input(capture->transaction, frozen.path, 65536u, size_out);
     return *data_out != NULL;
@@ -340,7 +347,7 @@ static int cupidbuild_disk_seed_capture(cupidbuild_disk_capture_t *capture,
     int valid;
 
     if (!cupidbuild_disk_capture_file(capture, manifest, "manifest.json",
-                                      CUPIDBUILD_MANIFEST_BYTES, &frozen, NULL))
+                                      CUPIDBUILD_MANIFEST_BYTES, &frozen, NULL, 0))
         return 0;
     seed->manifest = cupidbuild_host_read_frozen_input(
         capture->transaction, frozen.path, CUPIDBUILD_MANIFEST_BYTES, &seed->manifest_size);
@@ -379,7 +386,7 @@ static int cupidbuild_disk_seed_capture(cupidbuild_disk_capture_t *capture,
         tool.observer = manifest->observer;
         tool.physical_absolute = physical;
         if (!cupidbuild_disk_capture_file(capture, &tool, name, seed->artifacts[index].size,
-                                          &frozen, &seed->tool_snapshots[index]) ||
+                                          &frozen, &seed->tool_snapshots[index], 0) ||
             !cupidbuild_host_make_input_executable(capture->transaction, frozen.path) ||
             !cupidbuild_artifact_matches(&seed->tool_snapshots[index], &seed->artifacts[index]) ||
             !cupidbuild_validate_execution_profile(capture->transaction, frozen.path, index,
@@ -397,31 +404,15 @@ static int cupidbuild_disk_capture_stages(cupidbuild_disk_capture_t *capture,
     for (index = 0u; index < view->stage_count; index++) {
         const cupidbuild_disk_input_stage_view_t *source = &view->stages[index];
         char name[40];
-        size_t existing;
         stages[index].destination = source->destination;
         if (source->kind == CUPIDBUILD_ENTRY_NONE) {
             if (!strcmp(source->file.requested_absolute, view->image_requested_absolute))
                 return 0;
             continue;
         }
-        for (existing = 0u; existing < index; existing++) {
-            const cupidbuild_disk_input_stage_view_t *earlier = &view->stages[existing];
-            int same = 0;
-            if (earlier->kind != CUPIDBUILD_ENTRY_FILE)
-                continue;
-            if (!cupidbuild_host_observer_files_captured_same(source->file.observer,
-                    source->file.logical, earlier->file.observer, earlier->file.logical, &same))
-                return 0;
-            if (same)
-                break;
-        }
-        if (existing < index) {
-            stages[index].file = stages[existing].file;
-            continue;
-        }
         (void)snprintf(name, sizeof(name), "stage-%u.bin", (unsigned int)index);
         if (!cupidbuild_disk_capture_file(capture, &source->file, name,
-                                        CUPIDBUILD_DISK_FILE_CAPACITY, &stages[index].file, NULL))
+                                        CUPIDBUILD_DISK_FILE_CAPACITY, &stages[index].file, NULL, 1))
             return 0;
     }
     return 1;
@@ -542,10 +533,10 @@ int cupidbuild_publish_disk_image(const char *working_root, const char *seed_rel
     contents.stage_count = view.stage_count;
     if (!cupidbuild_disk_seed_capture(&capture, &view, seed_release, &seed) ||
         !cupidbuild_disk_capture_file(&capture, &view.bootloader, "image-boot.bin",
-                                     CUPIDBUILD_DISK_FILE_CAPACITY, &contents.bootloader, NULL) ||
+                                     CUPIDBUILD_DISK_FILE_CAPACITY, &contents.bootloader, NULL, 1) ||
         !cupidbuild_disk_capture_file(&capture, &view.kernel, "image-kernel.bin",
                                      (ctool_u64)contents.fat_start_lba * 512u - 2560u,
-                                     &contents.kernel, NULL) ||
+                                     &contents.kernel, NULL, 1) ||
         !cupidbuild_disk_capture_stages(&capture, &view, stages)) {
         error = "image inputs cannot be frozen";
         goto done;
