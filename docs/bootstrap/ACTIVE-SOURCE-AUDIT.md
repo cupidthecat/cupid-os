@@ -37,7 +37,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupidc` | 8 | 20012 |
 | `cupiddis` | 5 | 5949 |
 | `doom_port` | 7 | 3449 |
-| `driver` | 22 | 4118 |
+| `driver` | 22 | 4173 |
 | `generated_install_table` | 3 | 0 |
 | `generated_symbol_table` | 1 | 0 |
 | `kernel_assembly` | 3 | 536 |

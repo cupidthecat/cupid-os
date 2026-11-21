@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-21 — Document the hardware drivers
+
+The driver sources and public headers now describe their hardware and
+interfaces in Doxygen file comments. The keyboard modifier patch adds the
+keyboard implementation header.
+
+Adding full headers above the Ethernet includes shifted four compiled
+IRQ diagnostic line numbers. The file comments now occupy existing blank
+lines in those two drivers. Checked CupidC reproduced all twelve driver
+objects byte for byte on Windows and WSL.
+The kernel frontier fixture now records 494 inputs and the current
+4,258,812-byte object total.
+
 ## 2026-11-21 — Separate host asset generation from command dispatch
 
 Kernel symbol sources, installation tables and JPEG wrapping now live in

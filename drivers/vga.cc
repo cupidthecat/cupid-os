@@ -1,6 +1,6 @@
 /**
- * vga.cc - VBE 640x480 32bpp graphics driver for Cupid OS
- *
+ * @file vga.cc
+ * @brief Double-buffered 640 by 480 graphics through VBE.
  * Double-buffered rendering:
  *  - All drawing goes to a heap-allocated back buffer (cached RAM, fast)
  *  - vga_flip() memcpy's to the *hidden* LFB page, then swaps Y_OFFSET

@@ -1,3 +1,8 @@
+/**
+ * @file mouse.h
+ * @brief Mouse packets, button masks, and pointer state.
+ */
+
 #ifndef MOUSE_H
 #define MOUSE_H
 

@@ -1,6 +1,6 @@
 /**
- * rtc.cc - Real-Time Clock (RTC) Driver
- *
+ * @file rtc.cc
+ * @brief Read time and date from the CMOS real-time clock.
  * Reads time and date from the CMOS Real-Time Clock hardware via
  * I/O ports 0x70 (index) and 0x71 (data).
  *

@@ -1,6 +1,6 @@
-/*
- * Timer Driver Implementation
- *
+/**
+ * @file timer.cc
+ * @brief Drive kernel ticks and timers through the PIT.
  * This file implements a comprehensive timer system using the Intel 8253/8254
  * Programmable Interval Timer (PIT). The PIT provides essential timing services
  * for the operating system:

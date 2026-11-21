@@ -1,3 +1,8 @@
+/**
+ * @file pit.h
+ * @brief Programmable interval timer registers, modes, and channel controls.
+ */
+
 #ifndef PIT_H
 #define PIT_H
 

@@ -1,3 +1,8 @@
+/**
+ * @file ata.h
+ * @brief ATA disk commands, status bits, and block I/O.
+ */
+
 #ifndef ATA_H
 #define ATA_H
 

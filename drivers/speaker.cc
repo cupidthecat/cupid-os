@@ -1,6 +1,6 @@
-/*
- * PC Speaker Driver Implementation
- *
+/**
+ * @file speaker.cc
+ * @brief Play tones on the PC speaker through PIT channel two.
  * This file implements basic PC speaker functionality:
  * - Initializes PIT channel 2 for speaker control
  * - Provides functions to play tones at specific frequencies

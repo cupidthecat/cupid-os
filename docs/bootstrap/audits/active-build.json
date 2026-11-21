@@ -55039,12 +55039,12 @@
           "text": "int t5_first(int x, ...) {"
         },
         {
-          "line": 317,
+          "line": 322,
           "path": "drivers/serial.cc",
           "text": "void serial_printf(const char *fmt, ...) {"
         },
         {
-          "line": 429,
+          "line": 434,
           "path": "drivers/serial.cc",
           "text": "void klog(log_level_t level, const char *fmt, ...) {"
         }
@@ -55647,17 +55647,17 @@
       "category": "extension",
       "examples": [
         {
-          "line": 150,
+          "line": 155,
           "path": "drivers/serial.cc",
           "text": "const char *s = __builtin_va_arg(ap, const char *);"
         },
         {
-          "line": 155,
+          "line": 160,
           "path": "drivers/serial.cc",
           "text": "int v = __builtin_va_arg(ap, int);"
         },
         {
-          "line": 187,
+          "line": 192,
           "path": "drivers/serial.cc",
           "text": "uint32_t uv = __builtin_va_arg(ap, uint32_t);"
         }
@@ -55694,12 +55694,12 @@
       "category": "extension",
       "examples": [
         {
-          "line": 363,
+          "line": 368,
           "path": "drivers/serial.cc",
           "text": "__builtin_va_end(ap);"
         },
         {
-          "line": 677,
+          "line": 682,
           "path": "drivers/serial.cc",
           "text": "__builtin_va_end(ap);"
         },
@@ -55727,17 +55727,17 @@
       "category": "extension",
       "examples": [
         {
-          "line": 112,
+          "line": 117,
           "path": "drivers/serial.cc",
           "text": "static void vserial_printf(const char *fmt, __builtin_va_list ap) {"
         },
         {
-          "line": 360,
+          "line": 365,
           "path": "drivers/serial.cc",
           "text": "__builtin_va_list ap;"
         },
         {
-          "line": 496,
+          "line": 501,
           "path": "drivers/serial.cc",
           "text": "__builtin_va_list ap;"
         }
@@ -55760,12 +55760,12 @@
       "category": "extension",
       "examples": [
         {
-          "line": 361,
+          "line": 366,
           "path": "drivers/serial.cc",
           "text": "__builtin_va_start(ap, fmt);"
         },
         {
-          "line": 497,
+          "line": 502,
           "path": "drivers/serial.cc",
           "text": "__builtin_va_start(ap, fmt);"
         },
@@ -56940,7 +56940,7 @@
       "category": "preprocessor",
       "examples": [
         {
-          "line": 13,
+          "line": 18,
           "path": "drivers/mouse.h",
           "text": "#define CLAMP(v, lo, hi) ((v) < (lo) ? (lo) : ((v) > (hi) ? (hi) : (v)))"
         },
@@ -57014,17 +57014,17 @@
       "category": "preprocessor",
       "examples": [
         {
-          "line": 58,
+          "line": 63,
           "path": "drivers/serial.h",
           "text": "#define KDEBUG(fmt, ...) klog(LOG_DEBUG, \"[DEBUG] \" fmt, ##__VA_ARGS__)"
         },
         {
-          "line": 59,
+          "line": 64,
           "path": "drivers/serial.h",
           "text": "#define KINFO(fmt, ...)  klog(LOG_INFO,  \"[INFO]  \" fmt, ##__VA_ARGS__)"
         },
         {
-          "line": 60,
+          "line": 65,
           "path": "drivers/serial.h",
           "text": "#define KWARN(fmt, ...)  klog(LOG_WARN,  \"[WARN]  \" fmt, ##__VA_ARGS__)"
         }
@@ -58204,17 +58204,17 @@
       "category": "preprocessor",
       "examples": [
         {
-          "line": 58,
+          "line": 63,
           "path": "drivers/serial.h",
           "text": "#define KDEBUG(fmt, ...) klog(LOG_DEBUG, \"[DEBUG] \" fmt, ##__VA_ARGS__)"
         },
         {
-          "line": 59,
+          "line": 64,
           "path": "drivers/serial.h",
           "text": "#define KINFO(fmt, ...)  klog(LOG_INFO,  \"[INFO]  \" fmt, ##__VA_ARGS__)"
         },
         {
-          "line": 60,
+          "line": 65,
           "path": "drivers/serial.h",
           "text": "#define KWARN(fmt, ...)  klog(LOG_WARN,  \"[WARN]  \" fmt, ##__VA_ARGS__)"
         }
@@ -58281,17 +58281,17 @@
       "category": "preprocessor",
       "examples": [
         {
-          "line": 58,
+          "line": 63,
           "path": "drivers/serial.h",
           "text": "#define KDEBUG(fmt, ...) klog(LOG_DEBUG, \"[DEBUG] \" fmt, ##__VA_ARGS__)"
         },
         {
-          "line": 59,
+          "line": 64,
           "path": "drivers/serial.h",
           "text": "#define KINFO(fmt, ...)  klog(LOG_INFO,  \"[INFO]  \" fmt, ##__VA_ARGS__)"
         },
         {
-          "line": 60,
+          "line": 65,
           "path": "drivers/serial.h",
           "text": "#define KWARN(fmt, ...)  klog(LOG_WARN,  \"[WARN]  \" fmt, ##__VA_ARGS__)"
         }
@@ -58818,7 +58818,7 @@
           "text": "extern int unused_extern_var;"
         },
         {
-          "line": 24,
+          "line": 29,
           "path": "drivers/mouse.h",
           "text": "extern mouse_state_t mouse;"
         },
@@ -63275,7 +63275,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "acc1d8b9fe5e3a651300dedff1e962e5b4f2c415ddac9fb1da39b3ecda34cf63",
+    "active_source_digest": "dfcdb76882bf78c67a3a6f146f1e4dbc3808cf5bcd8de48393ebb597ca6bd3e1",
     "control_files": [
       {
         "path": "Makefile",
@@ -68768,7 +68768,7 @@
       "path": "drivers/ata.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "64567989d3267af411a0999e9cb587713f3ab1ef8a88a4445108d03ce96216bd"
+      "sha256": "0bc119afa14af15066b56b16145ea98bc96cd7f650c661e2c4ed2974eb7e7717"
     },
     {
       "build_owners": [
@@ -68796,12 +68796,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 50,
+      "lines": 55,
       "origin": "tracked",
       "path": "drivers/ata.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "030d77c7b3c3ab74f7ed4f7fd4290325c9386e062d33ce81eeb7851a9a951a2c"
+      "sha256": "87c44981ace0034103ad51769cf8e30ff892468fbedd592a1861d86293e8d0a2"
     },
     {
       "build_owners": [
@@ -68846,7 +68846,7 @@
       "path": "drivers/e1000.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "5d3eb8851ae4f913c62b6c4f6fbc56ce63aea45e8817d6c32b977ec3f367a920"
+      "sha256": "004367f2fec0d6709886ce0e41ca63a359f302e7548d66589bc62e71d3c52836"
     },
     {
       "build_owners": [
@@ -68926,12 +68926,12 @@
         "kernel/cpu/irq.h"
       ],
       "language": "c_header",
-      "lines": 63,
+      "lines": 68,
       "origin": "tracked",
       "path": "drivers/keyboard.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "50095919a2b251a574e06c3657dbd3bfa1baf63ddf631587d9cedd03a4dbce82"
+      "sha256": "57ee40993b09902af0e82a044a696af6ba60c2534780c7a63532e501f8b53dd6"
     },
     {
       "build_owners": [
@@ -68975,7 +68975,7 @@
       "path": "drivers/mouse.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c54020ec551e6126ec0b5cc874675c544a7203bafb93b847a5faa09f40a95782"
+      "sha256": "65b950bc54c4b032196a4bfa691464107084b08ca1cc1ec7f060623ddb3ada05"
     },
     {
       "build_owners": [
@@ -69003,12 +69003,12 @@
         "kernel/cpu/isr.h"
       ],
       "language": "c_header",
-      "lines": 50,
+      "lines": 55,
       "origin": "tracked",
       "path": "drivers/mouse.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "0547038b245cf8b9d3e38a46cab5d2354993b355aab6ff97ddab6b7322a27474"
+      "sha256": "cea4c0e96c0ff66c2d6683f9be7a6c4c3fb184e971098081d59d1b09c553b68a"
     },
     {
       "build_owners": [
@@ -69037,12 +69037,12 @@
         "kernel/core/ports.h"
       ],
       "language": "cupid_c",
-      "lines": 121,
+      "lines": 126,
       "origin": "tracked",
       "path": "drivers/pci.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c78e9d68cc0e6da3cf7370434d9394b5d33259f5f25202e7af9d060fbfdebe5a"
+      "sha256": "4fcefb8a069719992b055500b37e164245c7e054ec1b3c7de7694a315e6d6263"
     },
     {
       "build_owners": [
@@ -69068,12 +69068,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 41,
+      "lines": 46,
       "origin": "tracked",
       "path": "drivers/pci.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b305be70a60adba288cec01023288834848c28d935265bf364e89105a9e4318b"
+      "sha256": "8d106a59130db1b51531fca6e2665f151bb51d04465ab8e2a9c81c7c33056936"
     },
     {
       "build_owners": [
@@ -69104,7 +69104,7 @@
       "path": "drivers/pit.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "917175e69b5e0330cba5ed501b5c0f817a320e83a27e9ce847c5db7699640a81"
+      "sha256": "9dff3aff000ff23e08a7482fc2e955de27c52567f975b5540e3c65217363fcf2"
     },
     {
       "build_owners": [
@@ -69127,12 +69127,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 26,
+      "lines": 31,
       "origin": "tracked",
       "path": "drivers/pit.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "01ec2b014549d3241efc5473632b16ee501638cf7ec26a434bc9dd7cde0a4b84"
+      "sha256": "c5e78993fa192b0d21ff078eb688461e4dfcb8a5255bcf9fbde650eecb9e50bc"
     },
     {
       "build_owners": [
@@ -69173,7 +69173,7 @@
       "path": "drivers/rtc.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e2af102851deaf20318291bd4a3520cfb210aab80d6bfc8965c3a48ad17bc6b3"
+      "sha256": "9fc22cfcd530997c691b1f0e03df7704e884dcc7bdd067a811bc15c4372c7f40"
     },
     {
       "build_owners": [
@@ -69204,7 +69204,7 @@
       "path": "drivers/rtc.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "97dc2b62a79781a12e8a09dcd801f1a7a85dd8f9e62b1c882866897b15d62764"
+      "sha256": "26eae14b956e2efa84f21a76b85cec0846af76def02c9c0c4b6ff7e75f6fe311"
     },
     {
       "build_owners": [
@@ -69250,7 +69250,7 @@
       "path": "drivers/rtl8139.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "cbf6ec30899f0e53092af1e3cbd11f2f3d96ed37906fad7094fb3e3931cc5a81"
+      "sha256": "fe6b015c54ac717cb3d74a88aeb3673efd866b951b0b4701abff81db2ff401ac"
     },
     {
       "build_owners": [
@@ -69301,12 +69301,12 @@
         "kernel/smp/bkl.h"
       ],
       "language": "cupid_c",
-      "lines": 684,
+      "lines": 689,
       "origin": "tracked",
       "path": "drivers/serial.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "3e52dc45d92b24d1c15e5c1472b3fcff58cf87bbc520a8b7f5faef6c4118945c"
+      "sha256": "df706d257ef9f7aad131ccf26ccd94af9aae0467828a641697430a0341ea653e"
     },
     {
       "build_owners": [
@@ -69339,12 +69339,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 63,
+      "lines": 68,
       "origin": "tracked",
       "path": "drivers/serial.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "75cde4c5ae97c61d6306f2d7c3e4e20fabd0950dc304b485c61b0401426d126c"
+      "sha256": "79e06f9cea68c856dc1b23db4e9b2d5e63f10701e293af383f7e24f263df68d1"
     },
     {
       "build_owners": [
@@ -69375,7 +69375,7 @@
       "path": "drivers/speaker.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "bf158294188606e49cdb6d4c9d21df0b1dd024ab3f4fdc21e3d34053eee33a04"
+      "sha256": "60d742bda69d34567f16b1082788d4909a2663b6c77886fb25d1cd2d77a97572"
     },
     {
       "build_owners": [
@@ -69398,12 +69398,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 24,
+      "lines": 29,
       "origin": "tracked",
       "path": "drivers/speaker.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ba4401493c2b40dc6687aea45d1a1011d3760ab1f4d586bf37e1b2705cb4aceb"
+      "sha256": "c14157e73c6c745be7108278eaacb564f9d7322ae7b4094ac50cb4042b81abfc"
     },
     {
       "build_owners": [
@@ -69446,7 +69446,7 @@
       "path": "drivers/timer.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "79a04bd377acaf2284d9843ebd378e971c8e9fdc7f5e2451505c0006066c76b4"
+      "sha256": "932e556d3552f111275e64ffe32aed9509dee2724cca442edb76273f539cf63c"
     },
     {
       "build_owners": [
@@ -69474,12 +69474,12 @@
         "kernel/cpu/isr.h"
       ],
       "language": "c_header",
-      "lines": 31,
+      "lines": 36,
       "origin": "tracked",
       "path": "drivers/timer.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "d31574693fe6bdeffe090d25fe1cf51de2dbc295a63f3454846e10a0add68eb3"
+      "sha256": "8dd931e737c7254857fcaa54e6a6b336d35937233107777ebb8eb5ad22b60d5b"
     },
     {
       "build_owners": [
@@ -69518,7 +69518,7 @@
       "path": "drivers/vga.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "85f1c5ce2f88f43c63091d9753b2b3913fe9a328193cb21bf5e4254f16fda142"
+      "sha256": "e2d928f9f42f91e3341600b342f3bb94fc4887b2faf87a5836280c505fefa679"
     },
     {
       "build_owners": [
@@ -69542,12 +69542,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 61,
+      "lines": 66,
       "origin": "tracked",
       "path": "drivers/vga.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "737191585f248b28d13db361438e4d700e5e6d7d136592161d4fb37398e39a29"
+      "sha256": "95354806b0074abe36b9155289dac79f0e08803def8f67248c86191eac931372"
     },
     {
       "build_owners": [

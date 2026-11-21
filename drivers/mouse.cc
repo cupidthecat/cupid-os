@@ -1,6 +1,6 @@
 /**
- * mouse.cc - PS/2 mouse driver for Cupid OS
- *
+ * @file mouse.cc
+ * @brief Decode PS/2 mouse packets and render the cursor.
  * Implements:
  *  - PS/2 auxiliary device initialization
  *  - IRQ12 handler for 3-byte mouse packets

@@ -1593,7 +1593,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                4258428,
+                4258812,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -1922,7 +1922,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 },
                 source_driven_object_records,
             )
-            self.assertEqual(manifest["input_snapshot"]["count"], 488)
+            self.assertEqual(manifest["input_snapshot"]["count"], 494)
             self.assertIn(
                 "kernel/doom/dglibc_selftest.inc",
                 manifest["input_snapshot"]["files"],
@@ -1933,8 +1933,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             )
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "bcb9942f11c431bca4c743e28678c2d60"
-                "3d295d4f2c0ddb147757133da2dc08e",
+                "ae4f186832b49ab96b5a8d5d7324f10d"
+                "f9ea28c4de978193eac13fddaca938ad",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

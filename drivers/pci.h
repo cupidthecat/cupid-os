@@ -1,3 +1,8 @@
+/**
+ * @file pci.h
+ * @brief PCI configuration registers, devices, and enumeration.
+ */
+
 #ifndef PCI_H
 #define PCI_H
 

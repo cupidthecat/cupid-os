@@ -1,3 +1,8 @@
+/**
+ * @file serial.cc
+ * @brief Configure the COM1 UART and write serial diagnostics.
+ */
+
 #include "serial.h"
 #include "bkl.h"
 #include "kernel.h"

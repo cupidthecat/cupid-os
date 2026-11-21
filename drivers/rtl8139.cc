@@ -5,7 +5,7 @@
 #include "pci.h"
 #include "ports.h"
 #include "serial.h"
-
+/** @file rtl8139.cc @brief PCI Ethernet driver for Realtek RTL8139 controllers. */
 #define RTL_IDR0 0x00
 #define RTL_RBSTART 0x30
 #define RTL_CMD 0x37

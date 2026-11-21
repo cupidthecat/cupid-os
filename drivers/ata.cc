@@ -1,6 +1,6 @@
 /**
- * ATA/IDE Disk Driver
- *
+ * @file ata.cc
+ * @brief Read and write ATA disks through programmed I/O.
  * Implements PIO mode (Programmed I/O) for reading and writing sectors
  * from ATA hard disks. Supports primary master and slave drives using
  * 28-bit LBA addressing.

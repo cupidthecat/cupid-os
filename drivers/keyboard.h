@@ -1,3 +1,8 @@
+/**
+ * @file keyboard.h
+ * @brief Scancodes, keyboard state, and input queue operations.
+ */
+
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
 

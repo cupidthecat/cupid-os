@@ -4,7 +4,7 @@
 #include "net_if.h"
 #include "pci.h"
 #include "serial.h"
-
+/** @file e1000.cc @brief PCI Ethernet driver for Intel E1000 controllers. */
 #define E1000_CTRL 0x00000u
 #define E1000_STATUS 0x00008u
 #define E1000_EECD 0x00010u

@@ -1,3 +1,8 @@
+/**
+ * @file pci.cc
+ * @brief Enumerate PCI devices and access their configuration space.
+ */
+
 #include "pci.h"
 #include "ports.h"
 #include "serial.h"

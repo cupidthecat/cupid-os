@@ -1,3 +1,8 @@
+/**
+ * @file serial.h
+ * @brief Serial output, log levels, and redirection controls.
+ */
+
 #ifndef SERIAL_H
 #define SERIAL_H
 

@@ -1,6 +1,6 @@
-/*
- * Programmable Interval Timer (PIT) Driver Implementation
- *
+/**
+ * @file pit.cc
+ * @brief Configure the three programmable interval timer channels.
  * This file implements the Intel 8253/8254 PIT configuration and control:
  * - Supports all 3 PIT channels (0-2):
  *   - Channel 0: System timer (default 100Hz)
