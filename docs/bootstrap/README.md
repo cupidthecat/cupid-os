@@ -9,9 +9,9 @@ Cupid OS remains unfinished.
 
 - The normal graph has 452 transforms: 449 use CupidBuild and three retain
   Python coordination. GNU Make still schedules the build.
-- Cupid OS rebuilt and ran the full CupidC, CupidASM, CupidLD and CupidObj
-  workers. The assembler includes CupidDis. The kernel replay produced
-  all 429 linked objects inside Cupid OS, including Doom and the generated
+- Cupid OS rebuilt and ran the full CupidC, CupidASM, CupidLD, CupidObj
+  and CupidBuild workers. The assembler includes CupidDis. The kernel replay
+  produced all 429 linked objects inside Cupid OS, including Doom and the generated
   symbol table. It matched both kernel ELFs and saved the checked disk
   prefix. The disk booted with four CPUs and ran `ls`. A separate replay
   compiled, linked and ran `cat`, `hello` and `ls`.

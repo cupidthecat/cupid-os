@@ -317,12 +317,17 @@ make -C bootstrap/guest source-iso guest-build guest-assembler guest-linker gues
 python3 bootstrap/guest/check_guest_peer_self_host.py cupidasm --production-root /path/to/checked/build
 python3 bootstrap/guest/check_guest_peer_self_host.py cupidld --production-root /path/to/checked/build
 python3 bootstrap/guest/check_guest_peer_self_host.py cupidobj --production-root /path/to/checked/build
+python3 bootstrap/guest/check_guest_peer_self_host.py cupidbuild --production-root /path/to/checked/build --timeout 7200
 ```
 
 CupidASM rebuilt from seven objects, including CupidDis, and reproduced the
 checked ISR object. CupidLD rebuilt from five objects and linked the checked
 `hello` ELF. CupidObj rebuilt from five objects and wrapped the production
 JPEG into the checked object.
+
+CupidBuild rebuilt all 24 objects and linked the 3,293,380-byte driver.
+The rebuilt driver ran an assembly job and reproduced the checked ISR
+object inside the same guest.
 
 ## Run a build plan inside Cupid OS
 

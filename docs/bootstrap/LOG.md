@@ -1,5 +1,13 @@
 # Bootstrapping log
 
+## 2026-11-21 — Rebuild and run CupidBuild inside Cupid OS
+
+The guest built all 24 CupidBuild objects and linked the 3,293,380-byte
+driver. It ran the rebuilt executable in the same guest and matched the
+1,892-byte ISR object. Every object and the driver matched the checked
+build. The WSL fixed-point test also passed with the refreshed 115-input
+source fixture.
+
 ## 2026-11-21 — Separate kernel compilation inputs and ELF validation
 
 The Python wrapper keeps its command and publication path. The source

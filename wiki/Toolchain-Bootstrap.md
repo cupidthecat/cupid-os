@@ -103,10 +103,11 @@ Cupid OS rebuilt all thirteen standalone compiler objects and linked a new
 CupidC executable from them. The guest ELF matched the checked host build
 byte for byte. It ran in Cupid OS and reproduced `ctool.o` again.
 
-Cupid OS rebuilt and ran the complete CupidASM, CupidLD and CupidObj
-workers. The assembler includes CupidDis and reproduced the ISR object.
-The linker produced the checked `hello` ELF, and CupidObj produced the
-checked JPEG object. [Peer replay commands](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#rebuild-and-run-the-peer-workers)
+Cupid OS rebuilt and ran the complete CupidASM, CupidLD, CupidObj and
+CupidBuild workers. The assembler includes CupidDis. The linker produced
+the checked `hello` ELF, CupidObj wrapped the kernel JPEG, and the rebuilt
+driver ran a checked assembly job.
+[Peer replay commands](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#rebuild-and-run-the-peer-workers)
 
 The kernel replay uses all 428 guest-built pass-one objects, including
 Doom. The build plan assembles the bootloader, runs both kernel links,

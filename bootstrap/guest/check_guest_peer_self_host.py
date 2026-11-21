@@ -8,8 +8,10 @@ import re
 from pathlib import Path
 import tempfile
 
+from check_guest_compiler_self_host import COMPILER_SOURCES
 from check_guest_runtime import (
     BUILD,
+    BUILD_FAILURE_PATTERN,
     COMPILER_REAPED,
     ROOT,
     compare_homefs_files,
@@ -34,13 +36,22 @@ PEERS = {
         "toolchain/ctool.cc", "toolchain/elf32.cc", "toolchain/cupidobj.cc",
         "bootstrap/guest/guest_job.cc", "bootstrap/guest/cupidobj_guest.cc",
     ),
+    "cupidbuild": (
+        *COMPILER_SOURCES,
+        "toolchain/cupidld.cc", "bootstrap/guest/cupidld_guest.cc", "bootstrap/guest/cupidbuild_guest.cc",
+        "toolchain/cupidasm.cc", "toolchain/cupiddis.cc", "bootstrap/guest/cupidasm_guest.cc",
+        "bootstrap/guest/guest_raw_assembly.cc", "bootstrap/guest/cupidinstall_guest.cc",
+        "bootstrap/guest/cupidksyms_guest.cc", "bootstrap/guest/cupidobj_guest.cc",
+        "bootstrap/guest/cupiddisk_guest.cc",
+    ),
 }
 
 
 def fixture(root: Path, peer: str) -> tuple[tuple[bytes, bytes], str, tuple[str, Path]]:
-    if peer == "cupidasm":
+    if peer in ("cupidasm", "cupidbuild"):
         source = root / "kernel/cpu/isr.asm"
-        return (b"cupidasm.job", b"/disk/in.asm\n/home/check.o\n"), f"{source}:/in.asm", (
+        name = b"asm.job" if peer == "cupidbuild" else b"cupidasm.job"
+        return (name, b"/disk/in.asm\n/home/check.o\n"), f"{source}:/in.asm", (
             "check.o", source.with_suffix(".o"),
         )
     if peer == "cupidld":
@@ -69,6 +80,13 @@ def check(scratch: Path, root: Path, peer: str, qemu: str, timeout: float) -> No
     plan.extend(("link", "/home/link.job"))
     request, source_alias, (output, expected) = fixture(root, peer)
     references[output] = expected
+    success = rf"\[{peer}-guest\] wrote /home/{re.escape(output)}" + COMPILER_REAPED
+    setup = ()
+    if peer == "cupidbuild":
+        jobs.append((b"r", b"assemble\n/home/asm.job\n"))
+        setup = ("--setup-command", "cp /home/r /home/cupidbuild.job",
+                 "--setup-success-pattern", r"\[terminal\] command complete")
+        success = r"\[cupidasm-guest\] wrote /home/check[.]o.*?\[cupidbuild-guest\] build complete" + COMPILER_REAPED
     homefs = scratch / "homefs.sys"
     write_homefs(homefs, ((b"cupidbuild.job", ("\n".join(plan) + "\n").encode("ascii")),
                          (b"link.job", link), request, *jobs))
@@ -79,12 +97,13 @@ def check(scratch: Path, root: Path, peer: str, qemu: str, timeout: float) -> No
     run("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "1", "--cpu", "max",
         "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.75",
         "--image", str(image), "--log", str(BUILD / f"self-host-{peer}.log"),
-        "--require-command-completion", "--setup-command", "mount /disk/s.iso /src",
+        "--require-command-completion", "--failure-pattern", BUILD_FAILURE_PATTERN,
+        "--setup-command", "mount /disk/s.iso /src",
         "--setup-success-pattern", r"VFS: mounted 'iso9660' at '/src'",
         "--setup-command", "exec /disk/b",
-        "--setup-success-pattern", r"\[cupidbuild-guest\] build complete" + COMPILER_REAPED,
+        "--setup-success-pattern", r"\[cupidbuild-guest\] build complete" + COMPILER_REAPED, *setup,
         "--command", "exec /home/worker.elf",
-        "--success-pattern", rf"\[{peer}-guest\] wrote /home/{re.escape(output)}" + COMPILER_REAPED)
+        "--success-pattern", success)
     compare_homefs_files(read_homefs(image), references)
     print(f"All {len(PEERS[peer])} {peer} worker objects and the runtime output matched.")
 
