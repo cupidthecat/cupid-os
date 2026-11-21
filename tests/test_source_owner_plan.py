@@ -59,9 +59,10 @@ class SourceOwnerPlanTests(unittest.TestCase):
 
     def test_current_source_and_sdk_capture_agree_with_no_duplicate_codec(self):
         captured = b.capture_source_snapshot(ROOT, self.plan, **self.flags)
-        self.assertEqual(len(captured), 114)
+        self.assertEqual(len(captured), 119)
         self.assertIn(TABLE, captured)
         self.assertIn(BRIDGE, captured)
+        self.assertTrue(set(b.CUPIDBUILD_CORE_FRAGMENTS) <= captured.keys())
         with policy._PinnedRepository(ROOT) as reader:
             selected = sdk._bootstrap_input_logical_paths(reader, self.plan,
                 windows_long_paths=True, windows_user_link_aliases=True, windows_observer_workers=True)
@@ -88,6 +89,20 @@ class SourceOwnerPlanTests(unittest.TestCase):
             with self.assertRaisesRegex(b.BootstrapError, 'cannot resolve source input'):
                 b.freeze_source_inputs(live.root, self.plan, top / 'missing', **self.flags)
             self.assertFalse((top / 'missing').exists())
+
+    def test_missing_cupidbuild_fragments_reject_before_freeze(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            top = Path(temporary)
+            live = b.freeze_source_inputs(ROOT, self.plan, top / 'live', **self.flags)
+            for name in b.CUPIDBUILD_CORE_FRAGMENTS:
+                path = live.root / name
+                data = path.read_bytes()
+                path.unlink()
+                with self.subTest(name=name):
+                    with self.assertRaisesRegex(b.BootstrapError, 'cannot resolve source input'):
+                        b.freeze_source_inputs(live.root, self.plan, top / 'missing', **self.flags)
+                    self.assertFalse((top / 'missing').exists())
+                path.write_bytes(data)
 
     def test_integer_table_and_worker_selection_survive_both_closure_checks(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -713,7 +713,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                             )
                         )
         expected = _expected_report()
-        expected["bootstrap_source_input_count"] = 113 + int(aliases) + int(long_paths)
+        expected["bootstrap_source_input_count"] = 117 + int(aliases) + int(long_paths)
         expected["input_count"] = 125
         self.assertEqual(report, expected)
 

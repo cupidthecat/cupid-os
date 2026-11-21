@@ -26,6 +26,7 @@ try:
     from tools import artifact_size_policy, cupidc_toolchain_contracts
     from tools.bootstrap_toolchain import (
         BootstrapError,
+        CUPIDBUILD_CORE_FRAGMENTS,
         CANDIDATE_TOOL_NAMES,
         EXPECTED_WINDOWS_TARGET,
         PROMOTED_SEED_SCHEMA,
@@ -45,6 +46,7 @@ except ModuleNotFoundError:
     import cupidc_toolchain_contracts
     from bootstrap_toolchain import (
         BootstrapError,
+        CUPIDBUILD_CORE_FRAGMENTS,
         CANDIDATE_TOOL_NAMES,
         EXPECTED_WINDOWS_TARGET,
         PROMOTED_SEED_SCHEMA,
@@ -493,6 +495,8 @@ def _bootstrap_input_logical_paths(
                 source.lstrip("/"), "Toolchain bootstrap source path"
             )
         )
+        if source == "/toolchain/cupidbuild.cc":
+            paths.extend(CUPIDBUILD_CORE_FRAGMENTS)
         if source == "/toolchain/fat16_names.cc":
             paths.append("toolchain/fat16_name_profiles.inc")
         if source == "/toolchain/cupidbuild_disk_integer.cc":

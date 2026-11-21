@@ -259,7 +259,7 @@ class BootstrapSeedManifestCases:
             )
             self.assertIn("toolchain/hosted/i386-linux/include/cupid_runtime.h", snapshot)
             self.assertIn("toolchain/cupidbuild_jpeg.h", snapshot)
-            self.assertEqual(retargeted.manifest["provenance"]["source_input_count"], 108)
+            self.assertEqual(retargeted.manifest["provenance"]["source_input_count"], 112)
             self.assertEqual(retargeted.manifest["provenance"]["linux_candidate_build_plan_sha256"],
                              _build_plan_sha256(candidate_plan))
             self.assertEqual(retargeted.manifest["provenance"]["source_snapshot_sha256"],
@@ -758,7 +758,7 @@ class BootstrapSeedManifestCases:
         source_inventory = capture_source_snapshot(
             REPO_ROOT, candidate_plan, windows_utf8=True
         )
-        self.assertEqual(len(source_inventory), 112)
+        self.assertEqual(len(source_inventory), 116)
         for path in (
             "toolchain/hosted/i386-linux/include/cupid_runtime.h",
             "toolchain/cupidbuild.cc",
@@ -982,7 +982,7 @@ class BootstrapSeedManifestCases:
             self.assertIn(required, startup)
 
     def test_cupidbuild_source_locks_the_paired_import_profiles(self):
-        source = (REPO_ROOT / "toolchain" / "cupidbuild.cc").read_text(
+        source = (REPO_ROOT / "toolchain/cupidbuild_validation.inc").read_text(
             encoding="utf-8"
         )
         for required in (

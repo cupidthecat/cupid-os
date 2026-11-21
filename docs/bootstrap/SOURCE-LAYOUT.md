@@ -29,10 +29,15 @@ installed with the other `/bin` sources so the shell can compile `ssh`.
 | Compiler | `toolchain/cupidc_pp.cc`, `toolchain/cupidc_frontend.cc`, `toolchain/cupidc_ir.cc`, `toolchain/cupidc_emit.cc` |
 | Assembly and inspection | `toolchain/cupidasm.cc`, `toolchain/cupiddis.cc`, `toolchain/x86.cc` |
 | Linking and object production | `toolchain/cupidld.cc`, `toolchain/cupidobj.cc` |
-| Build commands | `toolchain/cupidbuild.cc`, `toolchain/cupidbuild_host.cc` |
+| Build commands | `toolchain/cupidbuild_host.cc` |
 
 Keep command parsing, format handling and publication in focused modules.
 Compare emitted objects and checked seed outputs after moving code.
+
+CupidBuild keeps its entry points in `cupidbuild.cc`. Four private includes
+hold compiler inputs, profile transactions, kernel image work and executable
+validation. The build audit tracks each include and bootstrap freezes it with
+the rest of the producer sources.
 
 ## Verification
 

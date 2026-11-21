@@ -268,6 +268,8 @@ class CupidCToolchainContractPlanTests(
             if name != 'path_encoding':
                 logical_inputs['toolchain/' + name + '.h'] = 'int ' + name + '_header;\n'
         logical_inputs['toolchain/cupidbuild_disk_integer_tables.inc'] = '/* captured digits */\n'
+        for name in bootstrap_toolchain.CUPIDBUILD_CORE_FRAGMENTS:
+            logical_inputs[name] = '/* checked CupidBuild implementation */\n'
         for logical_path, text in logical_inputs.items():
             path = root / logical_path
             path.parent.mkdir(parents=True, exist_ok=True)

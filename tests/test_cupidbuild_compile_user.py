@@ -176,7 +176,7 @@ class CupidBuildCompileUserTests(unittest.TestCase):
         self.assert_clean()
 
     def test_exact_user_closures_and_profile_match_the_wrapper(self):
-        text = (ROOT / 'toolchain/cupidbuild.cc').read_text()
+        text = (ROOT / 'toolchain/cupidbuild_compile_inputs.inc').read_text()
         left, right = c_block(text, 'cupidbuild_compile_user_closures[] =')
         block = ' '.join(token for token, _, _ in _c_spelling_tokens(text[left:right]))
         rows = re.findall(r'\{\s*"([^"]+)"\s*,\s*\{(.*?)\}\s*,\s*(\d+)u\s*\}', block, re.S)

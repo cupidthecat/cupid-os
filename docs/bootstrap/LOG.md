@@ -1,5 +1,20 @@
 # Bootstrapping log
 
+## 2026-11-21 — Separate CupidBuild's core implementation
+
+CupidBuild's main implementation is 1,232 lines after moving compiler input
+lists, validation, kernel image work and profile transactions into four
+private includes. The current producer snapshot captures all 119 files.
+Older publication profiles still pass. The current profile rejects
+missing or substituted includes.
+
+CupidC emitted identical before and after objects for both hosted targets.
+The Linux build also reproduced the installed CupidBuild ELF byte for byte.
+Native CLI checks passed on Windows and WSL, including kernel symbol
+generation and the profile publication checks.
+The checked Doom port and tree builds each reproduced a representative
+object with the larger include set. Paired build audits passed.
+
 ## 2026-11-21 — Document kernel filesystem headers
 
 All fourteen headers in `kernel/fs` now open with Doxygen file comments.

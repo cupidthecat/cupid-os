@@ -452,7 +452,7 @@ int main(int argc, char **argv) {
         self.assert_clean()
 
     def test_native_policy_matches_all_python_closures_and_profile(self):
-        source = (ROOT / "toolchain/cupidbuild.cc").read_text()
+        source = (ROOT / "toolchain/cupidbuild_compile_inputs.inc").read_text()
         block = source.split("cupidbuild_compile_closures[] = {", 1)[1].split("};", 1)[0]
         matches = re.findall(r'\{\s*"([^"]+)"\s*,\s*\{(.*?)\}\s*,\s*(\d+)u\s*\}', block, re.S)
         actual = {name: re.findall(r'"([^"]+)"', inputs) for name, inputs, _ in matches}

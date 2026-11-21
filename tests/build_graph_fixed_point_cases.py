@@ -32,7 +32,7 @@ class FixedPointGraphCases:
             "toolchain/x86.cc",
             module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
         )
-        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 177)
+        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 181)
         self.assertIn("toolchain/tests/cupidld_pe32_cases.inc", module.TOOLCHAIN_CONTRACT_LINUX_INPUTS)
         self.assertTrue(
             set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS).issubset(

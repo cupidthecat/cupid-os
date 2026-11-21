@@ -304,6 +304,12 @@ EXPECTED_INCLUDE_ARGUMENTS = (
     "/toolchain/hosted/i386-linux/include",
 )
 EXPECTED_STARTUP = "/toolchain/hosted/i386-linux/start.asm"
+CUPIDBUILD_CORE_FRAGMENTS = (
+    "toolchain/cupidbuild_compile_inputs.inc",
+    "toolchain/cupidbuild_compile_profile.inc",
+    "toolchain/cupidbuild_kernel_image.inc",
+    "toolchain/cupidbuild_validation.inc",
+)
 EXPECTED_SOURCES = (
     ("runtime", "/toolchain/hosted/i386-linux/runtime.cc", True),
     ("ctool", "/toolchain/ctool.cc", False),
@@ -884,6 +890,8 @@ def _source_input_paths(
         source = _require_object(raw_source, "build source")
         logical_path = str(source["path"])
         paths.append(source_root / logical_path.lstrip("/"))
+        if logical_path == "/toolchain/cupidbuild.cc":
+            paths.extend(source_root / fragment for fragment in CUPIDBUILD_CORE_FRAGMENTS)
         if logical_path == "/toolchain/fat16_names.cc":
             paths.append(source_root / "toolchain/fat16_name_profiles.inc")
         if logical_path == "/toolchain/cupidbuild_disk_integer.cc":

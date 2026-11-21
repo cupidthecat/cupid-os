@@ -83,7 +83,9 @@ static const char manifest_report_schema[] = "cupid.toolchain-manifest-verificat
 #define MANIFEST_DISK_MAX_BOOTSTRAP_FILE_COUNT 99u
 #define MANIFEST_OWNER_BOOTSTRAP_FILE_COUNT 112u
 #define MANIFEST_OWNER_MAX_BOOTSTRAP_FILE_COUNT 114u
-#define MANIFEST_MAX_BOOTSTRAP_FILE_COUNT 115u
+#define MANIFEST_JPEG_BOOTSTRAP_FILE_COUNT 115u
+#define MANIFEST_BUILD_SPLIT_BOOTSTRAP_FILE_COUNT 117u
+#define MANIFEST_MAX_BOOTSTRAP_FILE_COUNT 119u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
 #define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 29u
@@ -355,6 +357,10 @@ static const char *const manifest_expected_bootstrap_paths[MANIFEST_MAX_BOOTSTRA
     "toolchain/cupidbuild_disk_integer_tables.inc",
     "toolchain/hosted/i386-windows/observer_thread.asm",
     "toolchain/cupidbuild_jpeg.h",
+    "toolchain/cupidbuild_compile_inputs.inc",
+    "toolchain/cupidbuild_compile_profile.inc",
+    "toolchain/cupidbuild_kernel_image.inc",
+    "toolchain/cupidbuild_validation.inc",
 };
 
 static int manifest_bootstrap_count_valid(size_t count) {
@@ -370,7 +376,9 @@ static int manifest_bootstrap_count_valid(size_t count) {
            count == MANIFEST_OWNER_BOOTSTRAP_FILE_COUNT ||
            count == MANIFEST_OWNER_BOOTSTRAP_FILE_COUNT + 1u ||
            count == MANIFEST_OWNER_MAX_BOOTSTRAP_FILE_COUNT ||
-           count == MANIFEST_MAX_BOOTSTRAP_FILE_COUNT;
+           count == MANIFEST_JPEG_BOOTSTRAP_FILE_COUNT ||
+           (count >= MANIFEST_BUILD_SPLIT_BOOTSTRAP_FILE_COUNT &&
+            count <= MANIFEST_MAX_BOOTSTRAP_FILE_COUNT);
 }
 
 static int manifest_parse_string_literal(error_context_t *context, json_reader_t *reader,
@@ -660,8 +668,10 @@ static int manifest_expected_inventories_match(error_context_t *context,
     int owner = state->bootstrap_file_count >= MANIFEST_OWNER_BOOTSTRAP_FILE_COUNT;
     int source_spelling_inputs = state->input_count >= MANIFEST_SOURCE_SPELLING_RELEASE_INPUT_COUNT;
     int jpeg_inputs = state->input_count >= MANIFEST_JPEG_RELEASE_INPUT_COUNT;
-    size_t owner_source_count = jpeg_inputs ? MANIFEST_MAX_BOOTSTRAP_FILE_COUNT
-                                           : MANIFEST_OWNER_MAX_BOOTSTRAP_FILE_COUNT;
+    size_t owner_source_count = state->bootstrap_file_count >= MANIFEST_BUILD_SPLIT_BOOTSTRAP_FILE_COUNT
+                                    ? MANIFEST_MAX_BOOTSTRAP_FILE_COUNT
+                                : jpeg_inputs ? MANIFEST_JPEG_BOOTSTRAP_FILE_COUNT
+                                              : MANIFEST_OWNER_MAX_BOOTSTRAP_FILE_COUNT;
     int release_inputs = state->input_count == MANIFEST_RELEASE_INPUT_COUNT ||
                          state->input_count == MANIFEST_COMPLETE_RELEASE_INPUT_COUNT ||
                          state->input_count == MANIFEST_DISK_RELEASE_INPUT_COUNT ||

@@ -278,10 +278,10 @@ class ImagePublicationCases:
             self.assertEqual(output.read_bytes(), sentinel)
 
     def test_typed_kernel_flatten_keeps_an_independent_byte_parity_gate(self):
-        source = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
+        source = (TOOLCHAIN_ROOT / "cupidbuild_kernel_image.inc").read_text(encoding="utf-8")
         operation = source.split(
             "int cupidbuild_flatten_kernel(", 1
-        )[1].split("int cupidbuild_generate_profile_manifest(", 1)[0]
+        )[1]
 
         independent_render = operation.index("cupidbuild_render_flat_image(")
         object_transforms = _c_spelling_ranges(
@@ -309,7 +309,7 @@ class ImagePublicationCases:
         main = (TOOLCHAIN_ROOT / "cupidbuild_main.cc").read_text(
             encoding="utf-8"
         )
-        source = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
+        source = (TOOLCHAIN_ROOT / "cupidbuild_kernel_image.inc").read_text(encoding="utf-8")
 
         self.assertIn("const char *input_manifest;", header)
         self.assertNotIn(
@@ -510,10 +510,10 @@ class ImagePublicationCases:
             self.assertEqual(self._private_roots(), before)
 
     def test_typed_kernel_symbol_transaction_keeps_independent_parity(self):
-        source = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
+        source = (TOOLCHAIN_ROOT / "cupidbuild_kernel_image.inc").read_text(encoding="utf-8")
         operation = source.split(
             "int cupidbuild_generate_ksyms(", 1
-        )[1].split("int cupidbuild_run_checked_tool(", 1)[0]
+        )[1].split("int cupidbuild_flatten_kernel(", 1)[0]
 
         disassemble = operation.index(
             "cupidbuild_host_run_to_private_output("

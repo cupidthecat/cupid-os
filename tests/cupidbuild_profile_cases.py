@@ -1286,10 +1286,12 @@ class ProfilePublicationCases:
             self.assertEqual(self._private_roots(root), set())
 
     def test_typed_profile_manifest_runs_cupidobj_before_independent_parity(self):
-        source = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
+        source = (TOOLCHAIN_ROOT / "cupidbuild_compile_profile.inc").read_text(
+            encoding="utf-8"
+        )
         operation = source.split("int cupidbuild_generate_profile_manifest(", 1)[
             1
-        ].split("int cupidbuild_run_checked_tool(", 1)[0]
+        ].split("static void cupidbuild_compile_put_u32(", 1)[0]
 
         object_transform = operation.index("cupidbuild_host_run_in_private(")
         independent_render = operation.index("cupidbuild_profile_render_json(")
@@ -1304,11 +1306,13 @@ class ProfilePublicationCases:
         self.assertEqual(operation.count("cupidbuild_profile_render_json("), 1)
 
     def test_typed_profile_manifest_binds_directory_tokens_to_publication(self):
-        source = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
+        source = (TOOLCHAIN_ROOT / "cupidbuild_compile_profile.inc").read_text(
+            encoding="utf-8"
+        )
         host = (TOOLCHAIN_ROOT / "cupidbuild_host.cc").read_text(encoding="utf-8")
         operation = source.split("int cupidbuild_generate_profile_manifest(", 1)[
             1
-        ].split("int cupidbuild_run_checked_tool(", 1)[0]
+        ].split("static void cupidbuild_compile_put_u32(", 1)[0]
         equality_start = _c_spelling_ranges(
             host, "int cupidbuild_host_snapshot_equal("
         )[0][0]
@@ -1349,11 +1353,14 @@ class ProfilePublicationCases:
         self.assertIn("opened.changed[1] = after.change_low", host)
 
     def test_typed_profile_manifest_prepares_only_its_fixed_parent_chain(self):
-        source = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
+        source = (TOOLCHAIN_ROOT / "cupidbuild_compile_profile.inc").read_text(
+            encoding="utf-8"
+        )
+        entry = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
         host = (TOOLCHAIN_ROOT / "cupidbuild_host.cc").read_text(encoding="utf-8")
         operation = source.split("int cupidbuild_generate_profile_manifest(", 1)[
             1
-        ].split("int cupidbuild_run_checked_tool(", 1)[0]
+        ].split("static void cupidbuild_compile_put_u32(", 1)[0]
 
         preparation = operation.index("cupidbuild_host_profile_parent_prepare(")
         transaction = operation.index("cupidbuild_host_profile_transaction_open(")
@@ -1365,12 +1372,12 @@ class ProfilePublicationCases:
         self.assertIn(
             '#define CUPIDBUILD_PROFILE_OUTPUT '
             '"build/bootstrap/doom-cupidc-inputs.json"',
-            source,
+            entry,
         )
         self.assertLess(preparation, transaction)
         self.assertLess(publication, commit)
         self.assertLess(transaction_close, parent_close)
-        self.assertIn("cupidbuild_host_transaction_close(transaction)", source)
+        self.assertIn("cupidbuild_host_transaction_close(transaction)", entry)
         self.assertIn("CUPIDBUILD_WINDOWS_FILE_CREATE", host)
         self.assertIn("attributes.root_directory = parent", host)
         self.assertIn("CUPIDBUILD_LINUX_SYS_MKDIRAT", host)

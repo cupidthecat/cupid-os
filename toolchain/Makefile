@@ -194,6 +194,8 @@ CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/publication_runtime.cc
                                       hosted/i386-windows/tool_start.asm \
                                       tests/hosted_i386_windows_contract.cc \
                                       tests/hosted_i386_windows_runtime_contract.cc
+CUPIDBUILD_CORE_FRAGMENTS := cupidbuild_compile_inputs.inc cupidbuild_compile_profile.inc \
+                             cupidbuild_kernel_image.inc cupidbuild_validation.inc
 CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.cc artifact_size_policy.h contract_parse_internal.h \
                               path_encoding.h native_utf8.h \
                               contract_parse_internal.cc \
@@ -201,7 +203,7 @@ CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.cc artifact_size_policy.h con
                               seed_release.cc seed_release.h \
                               ctool.cc ctool.h ctool_host.cc ctool_host.h \
                               elf32.cc elf32.h pe32.h pe32_impl.h x86.cc x86.h \
-                              cupidbuild.cc cupidbuild.h cupidbuild_jpeg.h \
+                              cupidbuild.cc cupidbuild.h cupidbuild_jpeg.h $(CUPIDBUILD_CORE_FRAGMENTS) \
                               cupidbuild_artifacts.cc cupidbuild_artifacts.h \
                               cupidbuild_user_abi.cc cupidbuild_user_abi.h \
                               user_syscall_abi.cc user_syscall_abi.h \
@@ -601,6 +603,7 @@ $(BUILD_DIR)/seed_manifest.o: seed_manifest.cc seed_manifest.h seed_release.h \
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidbuild.o: cupidbuild.cc cupidbuild.h cupidbuild_host.h cupidbuild_jpeg.h seed_manifest.h \
+                          $(CUPIDBUILD_CORE_FRAGMENTS) \
                           ctool.h ctool_host.h elf32.h pe32.h pe32_impl.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
@@ -690,6 +693,7 @@ $(BUILD_DIR)/cupidc_ir_contract.o: tests/cupidc_ir_contract.cc \
 $(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.cc \
     tests/cupidc_source_spelling_fixture.h \
     cupidbuild.cc cupidbuild.h cupidbuild_host.cc cupidbuild_host.h cupidbuild_jpeg.h \
+    $(CUPIDBUILD_CORE_FRAGMENTS) \
     cupidbuild_main.cc seed_manifest.cc seed_manifest.h seed_release.cc seed_release.h \
     contract_parse_internal.cc contract_parse_internal.h \
     tests/cupidc_kernel_simd_fixture.h \

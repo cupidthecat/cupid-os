@@ -482,19 +482,20 @@ class CupidBuildCompileDoomTests(unittest.TestCase):
 
 class CupidBuildDoomPolicyTests(unittest.TestCase):
     def test_native_profiles_and_cohorts_match_the_python_contract(self):
-        source = (ROOT / "toolchain/cupidbuild.cc").read_text()
+        inputs = (ROOT / "toolchain/cupidbuild_compile_inputs.inc").read_text()
+        cohorts = (ROOT / "toolchain/cupidbuild.cc").read_text()
 
-        def strings(name):
+        def strings(source, name):
             block = source.split(name + "[] = {", 1)[1].split("};", 1)[0]
             return tuple(json.loads(value) for value in re.findall(r'"(?:\\.|[^"\\])*"', block))
 
-        compat = strings("cupidbuild_compile_doom_profile")
-        extra = strings("cupidbuild_compile_doom_tree_extra")
+        compat = strings(inputs, "cupidbuild_compile_doom_profile")
+        extra = strings(inputs, "cupidbuild_compile_doom_tree_extra")
         self.assertEqual(compat, DOOM_COMPAT_I386_ARGUMENTS)
         self.assertEqual(compat + extra, DOOM_TREE_I386_ARGUMENTS)
-        self.assertEqual(strings("cupidbuild_profile_compat_sources"),
+        self.assertEqual(strings(cohorts, "cupidbuild_profile_compat_sources"),
                          APPROVED_DOOM_COMPAT_SOURCES)
-        self.assertEqual(strings("cupidbuild_profile_tree_sources"),
+        self.assertEqual(strings(cohorts, "cupidbuild_profile_tree_sources"),
                          APPROVED_DOOM_TREE_SOURCES)
 
 

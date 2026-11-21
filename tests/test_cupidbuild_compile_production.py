@@ -118,7 +118,7 @@ class CupidBuildCompileProductionTests(unittest.TestCase):
         self.assert_clean()
 
     def test_exact_closures_match_python(self):
-        source = (ROOT / 'toolchain/cupidbuild.cc').read_text()
+        source = (ROOT / 'toolchain/cupidbuild_compile_inputs.inc').read_text()
         block = source.split('cupidbuild_compile_production_closures[] = {', 1)[1].split('};', 1)[0]
         matches = re.findall(r'\{\s*"([^"]+)"\s*,\s*\{(.*?)\}\s*,\s*(\d+)u\s*\}', block, re.S)
         actual = {name: tuple(re.findall(r'"([^"]+)"', inputs)) for name, inputs, _ in matches}
