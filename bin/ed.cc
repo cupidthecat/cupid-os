@@ -1,19 +1,19 @@
-//help: Ed line editor
-//help: Usage: ed [filename]
-//help: A POSIX-like ed(1) line editor for CupidOS.
-//help: Commands: a i c d p n l = q Q w r e f s m t j k u g v H h
-//help: Enter '.' on a line by itself to end input mode.
+// help: Ed line editor
+// help: Usage: ed [filename]
+// help: A POSIX-like ed(1) line editor for CupidOS.
+// help: Commands: a i c d p n l = q Q w r e f s m t j k u g v H h
+// help: Enter '.' on a line by itself to end input mode.
 
 // Constants
 enum {
-    MAX_LINES    = 1024,
+    MAX_LINES = 1024,
     MAX_LINE_LEN = 256,
-    CMD_BUF      = 512,
-    FNAME_LEN    = 64,
-    VFS_RDONLY   = 0,
-    VFS_WRONLY   = 1,
-    VFS_CREAT    = 256,
-    VFS_TRUNC    = 512
+    CMD_BUF = 512,
+    FNAME_LEN = 64,
+    VFS_RDONLY = 0,
+    VFS_WRONLY = 1,
+    VFS_CREAT = 256,
+    VFS_TRUNC = 512
 };
 
 // Global state
@@ -35,7 +35,8 @@ int ed_marks[26];
 
 // Utility
 int ed_isdigit(int c) {
-    if (c >= '0' && c <= '9') return 1;
+    if (c >= '0' && c <= '9')
+        return 1;
     return 0;
 }
 
@@ -55,7 +56,10 @@ void ed_int_to_str(int val, char *buf) {
         return;
     }
     int neg = 0;
-    if (val < 0) { neg = 1; val = 0 - val; }
+    if (val < 0) {
+        neg = 1;
+        val = 0 - val;
+    }
     char tmp[16];
     int ti = 0;
     while (val > 0) {
@@ -64,7 +68,10 @@ void ed_int_to_str(int val, char *buf) {
         val = val / 10;
     }
     int bi = 0;
-    if (neg) { buf[bi] = '-'; bi = bi + 1; }
+    if (neg) {
+        buf[bi] = '-';
+        bi = bi + 1;
+    }
     while (ti > 0) {
         ti = ti - 1;
         buf[bi] = tmp[ti];
@@ -75,8 +82,9 @@ void ed_int_to_str(int val, char *buf) {
 
 int ed_strdup(char *s) {
     int len = strlen(s);
-    char *d = (char*)kmalloc(len + 1);
-    if (d == 0) return 0;
+    char *d = (char *)kmalloc(len + 1);
+    if (d == 0)
+        return 0;
     strcpy(d, s);
     return (int)d;
 }
@@ -120,16 +128,19 @@ int ed_insert_line(int after, char *text) {
     ed_nlines = ed_nlines + 1;
     int m = 0;
     while (m < 26) {
-        if (ed_marks[m] > after) ed_marks[m] = ed_marks[m] + 1;
+        if (ed_marks[m] > after)
+            ed_marks[m] = ed_marks[m] + 1;
         m = m + 1;
     }
     return 1;
 }
 
 void ed_delete_line(int pos) {
-    if (pos < 1 || pos > ed_nlines) return;
+    if (pos < 1 || pos > ed_nlines)
+        return;
     int idx = pos - 1;
-    if (ed_lines[idx] != 0) kfree((void*)ed_lines[idx]);
+    if (ed_lines[idx] != 0)
+        kfree((void *)ed_lines[idx]);
     int i = idx;
     while (i < ed_nlines - 1) {
         ed_lines[i] = ed_lines[i + 1];
@@ -139,21 +150,25 @@ void ed_delete_line(int pos) {
     ed_nlines = ed_nlines - 1;
     int m = 0;
     while (m < 26) {
-        if (ed_marks[m] == pos) ed_marks[m] = 0;
-        else if (ed_marks[m] > pos) ed_marks[m] = ed_marks[m] - 1;
+        if (ed_marks[m] == pos)
+            ed_marks[m] = 0;
+        else if (ed_marks[m] > pos)
+            ed_marks[m] = ed_marks[m] - 1;
         m = m + 1;
     }
 }
 
 int ed_replace_line(int pos, char *text) {
-    if (pos < 1 || pos > ed_nlines) return 0;
+    if (pos < 1 || pos > ed_nlines)
+        return 0;
     int idx = pos - 1;
     int dup = ed_strdup(text);
     if (dup == 0) {
         ed_error("out of memory");
         return 0;
     }
-    if (ed_lines[idx] != 0) kfree((void*)ed_lines[idx]);
+    if (ed_lines[idx] != 0)
+        kfree((void *)ed_lines[idx]);
     ed_lines[idx] = dup;
     return 1;
 }
@@ -162,13 +177,14 @@ int ed_replace_line(int pos, char *text) {
 void ed_save_undo() {
     int i = 0;
     while (i < ed_undo_nlines) {
-        if (ed_undo_lines[i] != 0) kfree((void*)ed_undo_lines[i]);
+        if (ed_undo_lines[i] != 0)
+            kfree((void *)ed_undo_lines[i]);
         ed_undo_lines[i] = 0;
         i = i + 1;
     }
     i = 0;
     while (i < ed_nlines) {
-        char *src = (char*)ed_lines[i];
+        char *src = (char *)ed_lines[i];
         if (src != 0) {
             ed_undo_lines[i] = ed_strdup(src);
         } else {
@@ -191,8 +207,10 @@ void ed_restore_undo() {
     int tmp_c = ed_cur;
     int i = 0;
     int max = ed_nlines;
-    if (ed_undo_nlines > max) max = ed_undo_nlines;
-    if (MAX_LINES > max) max = MAX_LINES;
+    if (ed_undo_nlines > max)
+        max = ed_undo_nlines;
+    if (MAX_LINES > max)
+        max = MAX_LINES;
     // We need temp storage for swap
     int tmp_lines[1024];
     i = 0;
@@ -212,21 +230,26 @@ void ed_restore_undo() {
 // Merged match_here and match_star to avoid mutual recursion
 int ed_match_here(char *pat, char *text) {
     while (1) {
-        if (pat[0] == 0) return 1;
+        if (pat[0] == 0)
+            return 1;
         if (pat[1] == '*') {
             int c = pat[0];
             char *rest = pat + 2;
             char *t = text;
             while (1) {
-                if (ed_match_here(rest, t)) return 1;
-                if (*t == 0) break;
-                if (c != '.' && *t != (char)c) break;
+                if (ed_match_here(rest, t))
+                    return 1;
+                if (*t == 0)
+                    break;
+                if (c != '.' && *t != (char)c)
+                    break;
                 t = t + 1;
             }
             return 0;
         }
         if (pat[0] == '$' && pat[1] == 0) {
-            if (*text == 0) return 1;
+            if (*text == 0)
+                return 1;
             return 0;
         }
         if (*text != 0 && (pat[0] == '.' || pat[0] == *text)) {
@@ -241,13 +264,16 @@ int ed_match_here(char *pat, char *text) {
 // Search for pattern in text. Returns index of match start, or -1.
 int ed_regex_search(char *pat, char *text) {
     if (pat[0] == '^') {
-        if (ed_match_here(pat + 1, text)) return 0;
+        if (ed_match_here(pat + 1, text))
+            return 0;
         return -1;
     }
     int i = 0;
     while (1) {
-        if (ed_match_here(pat, text + i)) return i;
-        if (text[i] == 0) break;
+        if (ed_match_here(pat, text + i))
+            return i;
+        if (text[i] == 0)
+            break;
         i = i + 1;
     }
     return -1;
@@ -255,13 +281,15 @@ int ed_regex_search(char *pat, char *text) {
 
 // Find end of match for pattern at text position
 int ed_match_end(char *pat, char *text) {
-    if (pat[0] == '^') pat = pat + 1;
+    if (pat[0] == '^')
+        pat = pat + 1;
     char *t = text;
     while (*pat != 0) {
         if (pat[1] == '*') {
             int c = pat[0];
             char *start = t;
-            while (*t != 0 && (c == '.' || *t == (char)c)) t = t + 1;
+            while (*t != 0 && (c == '.' || *t == (char)c))
+                t = t + 1;
             // Greedy: try from rightmost
             while (t >= start) {
                 if (ed_match_here(pat + 2, t)) {
@@ -271,9 +299,12 @@ int ed_match_end(char *pat, char *text) {
             }
             return -1;
         }
-        if (pat[0] == '$' && pat[1] == 0) return (int)(t - text);
-        if (*t == 0) return -1;
-        if (pat[0] != '.' && pat[0] != *t) return -1;
+        if (pat[0] == '$' && pat[1] == 0)
+            return (int)(t - text);
+        if (*t == 0)
+            return -1;
+        if (pat[0] != '.' && pat[0] != *t)
+            return -1;
         pat = pat + 1;
         t = t + 1;
     }
@@ -337,12 +368,15 @@ int ed_input_mode(int after) {
     int count = 0;
     while (1) {
         ed_read_input_line(buf, MAX_LINE_LEN);
-        if (buf[0] == '.' && buf[1] == 0) break;
-        if (ed_insert_line(after + count, buf) == 0) break;
+        if (buf[0] == '.' && buf[1] == 0)
+            break;
+        if (ed_insert_line(after + count, buf) == 0)
+            break;
         count = count + 1;
         ed_cur = after + count;
     }
-    if (count > 0) ed_dirty = 1;
+    if (count > 0)
+        ed_dirty = 1;
     return after + count;
 }
 
@@ -356,7 +390,8 @@ int ed_load_text(char *data, int size, int after) {
     while (i < size) {
         if (data[i] == '\n' || data[i] == '\r') {
             line[lp] = 0;
-            if (ed_insert_line(after + count, line) == 0) break;
+            if (ed_insert_line(after + count, line) == 0)
+                break;
             count = count + 1;
             bytes = bytes + lp + 1;
             lp = 0;
@@ -378,7 +413,8 @@ int ed_load_text(char *data, int size, int after) {
             bytes = bytes + lp;
         }
     }
-    if (count > 0) ed_cur = after + count;
+    if (count > 0)
+        ed_cur = after + count;
     return bytes;
 }
 
@@ -387,7 +423,8 @@ int ed_read_file(char *fname) {
     char path[256];
     resolve_path(fname, path);
     int fd = vfs_open(path, VFS_RDONLY);
-    if (fd < 0) return -1;
+    if (fd < 0)
+        return -1;
     char bigbuf[4096];
     int total = 0;
     char rbuf[256];
@@ -414,12 +451,13 @@ int ed_write_file(char *fname, int from, int to) {
     int total = 0;
     int i = from;
     while (i <= to) {
-        char *line = (char*)ed_lines[i - 1];
-        if (line != 0) total = total + strlen(line);
+        char *line = (char *)ed_lines[i - 1];
+        if (line != 0)
+            total = total + strlen(line);
         total = total + 1; // newline
         i = i + 1;
     }
-    char *buf = (char*)kmalloc(total + 1);
+    char *buf = (char *)kmalloc(total + 1);
     if (buf == 0) {
         ed_error("out of memory");
         return -1;
@@ -427,7 +465,7 @@ int ed_write_file(char *fname, int from, int to) {
     int pos = 0;
     i = from;
     while (i <= to) {
-        char *line = (char*)ed_lines[i - 1];
+        char *line = (char *)ed_lines[i - 1];
         if (line != 0) {
             int len = strlen(line);
             memcpy(buf + pos, line, len);
@@ -453,7 +491,8 @@ int ed_write_file(char *fname, int from, int to) {
 // Returns address (1-based), -1 if no address, -2 on error.
 int ed_parse_addr(char *cmd, int *pos) {
     int addr = -1;
-    while (cmd[*pos] == ' ') *pos = *pos + 1;
+    while (cmd[*pos] == ' ')
+        *pos = *pos + 1;
 
     if (ed_isdigit(cmd[*pos])) {
         addr = ed_parse_int_at(cmd, pos);
@@ -489,7 +528,8 @@ int ed_parse_addr(char *cmd, int *pos) {
             *pos = *pos + 1;
         }
         pattern[pi] = 0;
-        if (cmd[*pos] == (char)delim) *pos = *pos + 1;
+        if (cmd[*pos] == (char)delim)
+            *pos = *pos + 1;
 
         // Use last pattern if empty
         if (pi == 0) {
@@ -509,7 +549,7 @@ int ed_parse_addr(char *cmd, int *pos) {
             int si = 0;
             while (si < ed_nlines) {
                 int ln = ((ed_cur + si) % ed_nlines) + 1;
-                char *ltext = (char*)ed_lines[ln - 1];
+                char *ltext = (char *)ed_lines[ln - 1];
                 if (ltext != 0 && ed_regex_search(pattern, ltext) >= 0) {
                     addr = ln;
                     found = 1;
@@ -522,8 +562,9 @@ int ed_parse_addr(char *cmd, int *pos) {
             int si = 0;
             while (si < ed_nlines) {
                 int ln = ed_cur - 1 - si;
-                while (ln < 1) ln = ln + ed_nlines;
-                char *ltext = (char*)ed_lines[ln - 1];
+                while (ln < 1)
+                    ln = ln + ed_nlines;
+                char *ltext = (char *)ed_lines[ln - 1];
                 if (ltext != 0 && ed_regex_search(pattern, ltext) >= 0) {
                     addr = ln;
                     found = 1;
@@ -538,7 +579,8 @@ int ed_parse_addr(char *cmd, int *pos) {
         }
     }
 
-    if (addr == -1) return -1;
+    if (addr == -1)
+        return -1;
 
     // Handle +/- offsets
     while (cmd[*pos] == '+' || cmd[*pos] == '-') {
@@ -548,8 +590,10 @@ int ed_parse_addr(char *cmd, int *pos) {
         if (ed_isdigit(cmd[*pos])) {
             offset = ed_parse_int_at(cmd, pos);
         }
-        if (op == '+') addr = addr + offset;
-        else addr = addr - offset;
+        if (op == '+')
+            addr = addr + offset;
+        else
+            addr = addr - offset;
     }
 
     return addr;
@@ -557,8 +601,9 @@ int ed_parse_addr(char *cmd, int *pos) {
 
 // Substitution on a single line
 int ed_sub_line(int linenum, char *pattern, char *repl, int gflag, int count_tgt) {
-    char *line = (char*)ed_lines[linenum - 1];
-    if (line == 0) return 0;
+    char *line = (char *)ed_lines[linenum - 1];
+    if (line == 0)
+        return 0;
     char result[256];
     int rp = 0;
     int subs = 0;
@@ -605,9 +650,11 @@ int ed_sub_line(int linenum, char *pattern, char *repl, int gflag, int count_tgt
         if (gflag) {
             do_rep = 1;
         } else if (count_tgt > 0) {
-            if (match_num == count_tgt) do_rep = 1;
+            if (match_num == count_tgt)
+                do_rep = 1;
         } else {
-            if (match_num == 1) do_rep = 1;
+            if (match_num == 1)
+                do_rep = 1;
         }
 
         if (do_rep) {
@@ -624,9 +671,16 @@ int ed_sub_line(int linenum, char *pattern, char *repl, int gflag, int count_tgt
                     }
                 } else if (repl[ri] == '\\' && repl[ri + 1] != 0) {
                     ri = ri + 1;
-                    if (repl[ri] == 'n') { result[rp] = '\n'; rp = rp + 1; }
-                    else if (repl[ri] == 't') { result[rp] = '\t'; rp = rp + 1; }
-                    else { result[rp] = repl[ri]; rp = rp + 1; }
+                    if (repl[ri] == 'n') {
+                        result[rp] = '\n';
+                        rp = rp + 1;
+                    } else if (repl[ri] == 't') {
+                        result[rp] = '\t';
+                        rp = rp + 1;
+                    } else {
+                        result[rp] = repl[ri];
+                        rp = rp + 1;
+                    }
                 } else {
                     result[rp] = repl[ri];
                     rp = rp + 1;
@@ -673,10 +727,12 @@ void ed_exec_cmd(char *cmdline) {
     int j;
     int n;
 
-    while (cmdline[pos] == ' ' || cmdline[pos] == '\t') pos = pos + 1;
+    while (cmdline[pos] == ' ' || cmdline[pos] == '\t')
+        pos = pos + 1;
 
     // Skip optional ':' prefix (vi/vim compatibility)
-    if (cmdline[pos] == ':') pos = pos + 1;
+    if (cmdline[pos] == ':')
+        pos = pos + 1;
 
     // Empty line: advance and print next line
     if (cmdline[pos] == 0) {
@@ -686,7 +742,7 @@ void ed_exec_cmd(char *cmdline) {
         }
         if (ed_cur < ed_nlines) {
             ed_cur = ed_cur + 1;
-            print((char*)ed_lines[ed_cur - 1]);
+            print((char *)ed_lines[ed_cur - 1]);
             print("\n");
         } else {
             ed_error("invalid address");
@@ -697,19 +753,20 @@ void ed_exec_cmd(char *cmdline) {
     // Peek ahead to find the command character for default addresses
     int peek_pos = pos;
     int pa = ed_parse_addr(cmdline, &peek_pos);
-    while (cmdline[peek_pos] == ' ') peek_pos = peek_pos + 1;
+    while (cmdline[peek_pos] == ' ')
+        peek_pos = peek_pos + 1;
     if (cmdline[peek_pos] == ',' || cmdline[peek_pos] == ';') {
         peek_pos = peek_pos + 1;
         int pa2 = ed_parse_addr(cmdline, &peek_pos);
     }
-    while (cmdline[peek_pos] == ' ') peek_pos = peek_pos + 1;
+    while (cmdline[peek_pos] == ' ')
+        peek_pos = peek_pos + 1;
     int upcoming = cmdline[peek_pos];
 
     // Set defaults based on command
     int def1 = ed_cur;
     int def2 = ed_cur;
-    if (upcoming == 'w' || upcoming == 'W' || upcoming == 'g' ||
-        upcoming == 'v') {
+    if (upcoming == 'w' || upcoming == 'W' || upcoming == 'g' || upcoming == 'v') {
         def1 = 1;
         def2 = ed_nlines;
     }
@@ -730,19 +787,23 @@ void ed_exec_cmd(char *cmdline) {
         has_range = 1;
     } else {
         int a1 = ed_parse_addr(cmdline, &pos);
-        if (a1 == -2) return; // error reported
+        if (a1 == -2)
+            return; // error reported
         if (a1 >= 0) {
             addr1 = a1;
             addr2 = a1;
             has_range = 1;
         }
-        while (cmdline[pos] == ' ') pos = pos + 1;
+        while (cmdline[pos] == ' ')
+            pos = pos + 1;
         if (cmdline[pos] == ',' || cmdline[pos] == ';') {
             int sep = cmdline[pos];
             pos = pos + 1;
-            if (sep == ';') ed_cur = addr1;
+            if (sep == ';')
+                ed_cur = addr1;
             int a2 = ed_parse_addr(cmdline, &pos);
-            if (a2 == -2) return;
+            if (a2 == -2)
+                return;
             if (a2 >= 0) {
                 addr2 = a2;
             } else {
@@ -751,14 +812,15 @@ void ed_exec_cmd(char *cmdline) {
         }
     }
 
-    while (cmdline[pos] == ' ') pos = pos + 1;
+    while (cmdline[pos] == ' ')
+        pos = pos + 1;
     int cmd = cmdline[pos];
 
     // Handle line-number-only input (bare address)
     if (cmd == 0 && has_range) {
         if (addr2 >= 1 && addr2 <= ed_nlines) {
             ed_cur = addr2;
-            print((char*)ed_lines[ed_cur - 1]);
+            print((char *)ed_lines[ed_cur - 1]);
             print("\n");
         } else {
             ed_error("invalid address");
@@ -769,8 +831,10 @@ void ed_exec_cmd(char *cmdline) {
     // Command dispatch
     if (cmd == 'a') {
         // Append
-        if (has_range == 0) addr1 = ed_cur;
-        if (ed_nlines == 0) addr1 = 0;
+        if (has_range == 0)
+            addr1 = ed_cur;
+        if (ed_nlines == 0)
+            addr1 = 0;
         else if (addr1 < 0 || addr1 > ed_nlines) {
             ed_error("invalid address");
             return;
@@ -780,9 +844,12 @@ void ed_exec_cmd(char *cmdline) {
         ed_input_mode(addr1);
     } else if (cmd == 'i') {
         // Insert
-        if (has_range == 0) addr1 = ed_cur;
-        if (ed_nlines == 0) addr1 = 0;
-        else if (addr1 < 1) addr1 = 1;
+        if (has_range == 0)
+            addr1 = ed_cur;
+        if (ed_nlines == 0)
+            addr1 = 0;
+        else if (addr1 < 1)
+            addr1 = 1;
         if (addr1 > ed_nlines && ed_nlines > 0) {
             ed_error("invalid address");
             return;
@@ -847,8 +914,9 @@ void ed_exec_cmd(char *cmdline) {
         }
         i = addr1;
         while (i <= addr2) {
-            char *line = (char*)ed_lines[i - 1];
-            if (line != 0) print(line);
+            char *line = (char *)ed_lines[i - 1];
+            if (line != 0)
+                print(line);
             print("\n");
             i = i + 1;
         }
@@ -863,8 +931,9 @@ void ed_exec_cmd(char *cmdline) {
         while (i <= addr2) {
             print_int(i);
             putchar('\t');
-            char *line = (char*)ed_lines[i - 1];
-            if (line != 0) print(line);
+            char *line = (char *)ed_lines[i - 1];
+            if (line != 0)
+                print(line);
             print("\n");
             i = i + 1;
         }
@@ -877,15 +946,19 @@ void ed_exec_cmd(char *cmdline) {
         }
         i = addr1;
         while (i <= addr2) {
-            char *line = (char*)ed_lines[i - 1];
+            char *line = (char *)ed_lines[i - 1];
             if (line != 0) {
                 j = 0;
                 while (line[j] != 0) {
                     int ch = line[j];
-                    if (ch == '\\') print("\\\\");
-                    else if (ch == '\t') print("\\t");
-                    else if (ch == '\b') print("\\b");
-                    else if (ch == '\r') print("\\r");
+                    if (ch == '\\')
+                        print("\\\\");
+                    else if (ch == '\t')
+                        print("\\t");
+                    else if (ch == '\b')
+                        print("\\b");
+                    else if (ch == '\r')
+                        print("\\r");
                     else if (ch < 32 || ch == 127) {
                         print("\\x");
                         print_hex_byte(ch);
@@ -901,7 +974,8 @@ void ed_exec_cmd(char *cmdline) {
         ed_cur = addr2;
     } else if (cmd == '=') {
         // Print line number
-        if (has_range == 0) addr2 = ed_nlines;
+        if (has_range == 0)
+            addr2 = ed_nlines;
         print_int(addr2);
         print("\n");
     } else if (cmd == 'q') {
@@ -924,7 +998,8 @@ void ed_exec_cmd(char *cmdline) {
             do_quit = 1;
             pos = pos + 1;
         }
-        while (cmdline[pos] == ' ') pos = pos + 1;
+        while (cmdline[pos] == ' ')
+            pos = pos + 1;
         if (cmdline[pos] != 0) {
             // New filename
             int fi = 0;
@@ -964,11 +1039,13 @@ void ed_exec_cmd(char *cmdline) {
                 ed_dirty = 0;
             }
         }
-        if (do_quit) ed_quit = 1;
+        if (do_quit)
+            ed_quit = 1;
     } else if (cmd == 'W') {
         // Write append
         pos = pos + 1;
-        while (cmdline[pos] == ' ') pos = pos + 1;
+        while (cmdline[pos] == ' ')
+            pos = pos + 1;
         if (cmdline[pos] != 0) {
             int fi = 0;
             while (cmdline[pos] != 0 && cmdline[pos] != ' ' && fi < FNAME_LEN - 1) {
@@ -994,7 +1071,7 @@ void ed_exec_cmd(char *cmdline) {
         int efd = vfs_open(path, VFS_RDONLY);
         if (efd >= 0) {
             // Read entire existing file
-            char *ebuf = (char*)kmalloc(8192);
+            char *ebuf = (char *)kmalloc(8192);
             if (ebuf != 0) {
                 char rtmp[256];
                 int er = vfs_read(efd, rtmp, 255);
@@ -1015,26 +1092,28 @@ void ed_exec_cmd(char *cmdline) {
         int new_bytes = 0;
         i = addr1;
         while (i <= addr2) {
-            char *line = (char*)ed_lines[i - 1];
-            if (line != 0) new_bytes = new_bytes + strlen(line);
+            char *line = (char *)ed_lines[i - 1];
+            if (line != 0)
+                new_bytes = new_bytes + strlen(line);
             new_bytes = new_bytes + 1;
             i = i + 1;
         }
         int total = existing_size + new_bytes;
-        char *combined = (char*)kmalloc(total + 1);
+        char *combined = (char *)kmalloc(total + 1);
         if (combined == 0) {
-            if (existing_ptr != 0) kfree((void*)existing_ptr);
+            if (existing_ptr != 0)
+                kfree((void *)existing_ptr);
             ed_error("out of memory");
             return;
         }
         if (existing_ptr != 0 && existing_size > 0) {
-            memcpy(combined, (void*)existing_ptr, existing_size);
-            kfree((void*)existing_ptr);
+            memcpy(combined, (void *)existing_ptr, existing_size);
+            kfree((void *)existing_ptr);
         }
         int wpos = existing_size;
         i = addr1;
         while (i <= addr2) {
-            char *line = (char*)ed_lines[i - 1];
+            char *line = (char *)ed_lines[i - 1];
             if (line != 0) {
                 int len = strlen(line);
                 memcpy(combined + wpos, line, len);
@@ -1058,7 +1137,8 @@ void ed_exec_cmd(char *cmdline) {
     } else if (cmd == 'r') {
         // Read file into buffer
         pos = pos + 1;
-        while (cmdline[pos] == ' ') pos = pos + 1;
+        while (cmdline[pos] == ' ')
+            pos = pos + 1;
         char rfname[64];
         int fi = 0;
         if (cmdline[pos] != 0) {
@@ -1098,7 +1178,8 @@ void ed_exec_cmd(char *cmdline) {
         vfs_close(rfd);
         bigbuf[rtotal] = 0;
         int insert_after = addr2;
-        if (has_range == 0) insert_after = ed_nlines;
+        if (has_range == 0)
+            insert_after = ed_nlines;
         int bytes = ed_load_text(bigbuf, rtotal, insert_after);
         print_int(bytes);
         print("\n");
@@ -1113,7 +1194,8 @@ void ed_exec_cmd(char *cmdline) {
         // Clear buffer
         i = 0;
         while (i < ed_nlines) {
-            if (ed_lines[i] != 0) kfree((void*)ed_lines[i]);
+            if (ed_lines[i] != 0)
+                kfree((void *)ed_lines[i]);
             ed_lines[i] = 0;
             i = i + 1;
         }
@@ -1121,7 +1203,8 @@ void ed_exec_cmd(char *cmdline) {
         ed_cur = 0;
         ed_dirty = 0;
         pos = pos + 1;
-        while (cmdline[pos] == ' ') pos = pos + 1;
+        while (cmdline[pos] == ' ')
+            pos = pos + 1;
         if (cmdline[pos] != 0) {
             int fi = 0;
             while (cmdline[pos] != 0 && cmdline[pos] != ' ' && fi < FNAME_LEN - 1) {
@@ -1146,7 +1229,8 @@ void ed_exec_cmd(char *cmdline) {
     } else if (cmd == 'f') {
         // Filename
         pos = pos + 1;
-        while (cmdline[pos] == ' ') pos = pos + 1;
+        while (cmdline[pos] == ' ')
+            pos = pos + 1;
         if (cmdline[pos] != 0) {
             int fi = 0;
             while (cmdline[pos] != 0 && cmdline[pos] != ' ' && fi < FNAME_LEN - 1) {
@@ -1179,8 +1263,10 @@ void ed_exec_cmd(char *cmdline) {
                 total = total + ed_sub_line(i, ed_lpat, ed_lrep, 0, 0);
                 i = i + 1;
             }
-            if (total == 0) ed_error("no match");
-            else ed_dirty = 1;
+            if (total == 0)
+                ed_error("no match");
+            else
+                ed_dirty = 1;
             return;
         }
         pos = pos + 1;
@@ -1189,36 +1275,53 @@ void ed_exec_cmd(char *cmdline) {
         int pi = 0;
         while (cmdline[pos] != 0 && cmdline[pos] != (char)delim && pi < 255) {
             if (cmdline[pos] == '\\' && cmdline[pos + 1] != 0) {
-                pattern[pi] = cmdline[pos]; pi = pi + 1; pos = pos + 1;
-                pattern[pi] = cmdline[pos]; pi = pi + 1; pos = pos + 1;
+                pattern[pi] = cmdline[pos];
+                pi = pi + 1;
+                pos = pos + 1;
+                pattern[pi] = cmdline[pos];
+                pi = pi + 1;
+                pos = pos + 1;
             } else {
-                pattern[pi] = cmdline[pos]; pi = pi + 1; pos = pos + 1;
+                pattern[pi] = cmdline[pos];
+                pi = pi + 1;
+                pos = pos + 1;
             }
         }
         pattern[pi] = 0;
-        if (cmdline[pos] == (char)delim) pos = pos + 1;
+        if (cmdline[pos] == (char)delim)
+            pos = pos + 1;
         // Parse replacement
         char repl[256];
         int ri = 0;
         while (cmdline[pos] != 0 && cmdline[pos] != (char)delim && ri < 255) {
             if (cmdline[pos] == '\\' && cmdline[pos + 1] != 0) {
-                repl[ri] = cmdline[pos]; ri = ri + 1; pos = pos + 1;
-                repl[ri] = cmdline[pos]; ri = ri + 1; pos = pos + 1;
+                repl[ri] = cmdline[pos];
+                ri = ri + 1;
+                pos = pos + 1;
+                repl[ri] = cmdline[pos];
+                ri = ri + 1;
+                pos = pos + 1;
             } else {
-                repl[ri] = cmdline[pos]; ri = ri + 1; pos = pos + 1;
+                repl[ri] = cmdline[pos];
+                ri = ri + 1;
+                pos = pos + 1;
             }
         }
         repl[ri] = 0;
-        if (cmdline[pos] == (char)delim) pos = pos + 1;
+        if (cmdline[pos] == (char)delim)
+            pos = pos + 1;
         // Parse flags
         int gflag = 0;
         int pflag = 0;
         int nflag = 0;
         int count_tgt = 0;
         while (cmdline[pos] != 0) {
-            if (cmdline[pos] == 'g') gflag = 1;
-            else if (cmdline[pos] == 'p') pflag = 1;
-            else if (cmdline[pos] == 'n') nflag = 1;
+            if (cmdline[pos] == 'g')
+                gflag = 1;
+            else if (cmdline[pos] == 'p')
+                pflag = 1;
+            else if (cmdline[pos] == 'n')
+                nflag = 1;
             else if (ed_isdigit(cmdline[pos])) {
                 count_tgt = count_tgt * 10 + cmdline[pos] - '0';
             }
@@ -1257,8 +1360,9 @@ void ed_exec_cmd(char *cmdline) {
                 print_int(ed_cur);
                 putchar('\t');
             }
-            char *line = (char*)ed_lines[ed_cur - 1];
-            if (line != 0) print(line);
+            char *line = (char *)ed_lines[ed_cur - 1];
+            if (line != 0)
+                print(line);
             print("\n");
         }
     } else if (cmd == 'm') {
@@ -1269,7 +1373,8 @@ void ed_exec_cmd(char *cmdline) {
         }
         pos = pos + 1;
         int dest = ed_parse_addr(cmdline, &pos);
-        if (dest < 0) dest = ed_cur;
+        if (dest < 0)
+            dest = ed_cur;
         if (dest >= addr1 && dest <= addr2) {
             ed_error("invalid destination");
             return;
@@ -1277,7 +1382,7 @@ void ed_exec_cmd(char *cmdline) {
         ed_save_undo();
         // Collect lines to move
         int count = addr2 - addr1 + 1;
-        int *tmp = (int*)kmalloc(count * 4);
+        int *tmp = (int *)kmalloc(count * 4);
         if (tmp == 0) {
             ed_error("out of memory");
             return;
@@ -1295,7 +1400,8 @@ void ed_exec_cmd(char *cmdline) {
         }
         ed_nlines = ed_nlines - count;
         // Adjust destination
-        if (dest > addr2) dest = dest - count;
+        if (dest > addr2)
+            dest = dest - count;
         // Insert at destination
         i = ed_nlines - 1;
         while (i >= dest) {
@@ -1319,13 +1425,15 @@ void ed_exec_cmd(char *cmdline) {
         }
         pos = pos + 1;
         int dest = ed_parse_addr(cmdline, &pos);
-        if (dest < 0) dest = ed_cur;
-        if (dest > ed_nlines) dest = ed_nlines;
+        if (dest < 0)
+            dest = ed_cur;
+        if (dest > ed_nlines)
+            dest = ed_nlines;
         ed_save_undo();
         int count = addr2 - addr1 + 1;
         i = 0;
         while (i < count) {
-            char *src = (char*)ed_lines[addr1 - 1 + i];
+            char *src = (char *)ed_lines[addr1 - 1 + i];
             if (src != 0) {
                 ed_insert_line(dest + i, src);
             }
@@ -1340,7 +1448,8 @@ void ed_exec_cmd(char *cmdline) {
             addr2 = ed_cur + 1;
         }
         if (addr1 < 1 || addr2 > ed_nlines || addr1 >= addr2) {
-            if (addr1 == addr2) return; // joining single line is no-op
+            if (addr1 == addr2)
+                return; // joining single line is no-op
             ed_error("invalid address");
             return;
         }
@@ -1349,12 +1458,14 @@ void ed_exec_cmd(char *cmdline) {
         int total_len = 0;
         i = addr1;
         while (i <= addr2) {
-            char *line = (char*)ed_lines[i - 1];
-            if (line != 0) total_len = total_len + strlen(line);
+            char *line = (char *)ed_lines[i - 1];
+            if (line != 0)
+                total_len = total_len + strlen(line);
             i = i + 1;
         }
-        if (total_len >= MAX_LINE_LEN - 1) total_len = MAX_LINE_LEN - 2;
-        char *joined = (char*)kmalloc(total_len + 1);
+        if (total_len >= MAX_LINE_LEN - 1)
+            total_len = MAX_LINE_LEN - 2;
+        char *joined = (char *)kmalloc(total_len + 1);
         if (joined == 0) {
             ed_error("out of memory");
             return;
@@ -1362,7 +1473,7 @@ void ed_exec_cmd(char *cmdline) {
         int jp = 0;
         i = addr1;
         while (i <= addr2) {
-            char *line = (char*)ed_lines[i - 1];
+            char *line = (char *)ed_lines[i - 1];
             if (line != 0) {
                 j = 0;
                 while (line[j] != 0 && jp < total_len) {
@@ -1392,7 +1503,8 @@ void ed_exec_cmd(char *cmdline) {
             ed_error("invalid mark");
             return;
         }
-        if (has_range == 0) addr2 = ed_cur;
+        if (has_range == 0)
+            addr2 = ed_cur;
         if (addr2 < 1 || addr2 > ed_nlines) {
             ed_error("invalid address");
             return;
@@ -1426,7 +1538,8 @@ void ed_exec_cmd(char *cmdline) {
             pos = pos + 1;
         }
         gpat[gpi] = 0;
-        if (cmdline[pos] == (char)gdelim) pos = pos + 1;
+        if (cmdline[pos] == (char)gdelim)
+            pos = pos + 1;
         if (gpi == 0) {
             if (ed_lpat[0] == 0) {
                 ed_error("no previous pattern");
@@ -1438,9 +1551,10 @@ void ed_exec_cmd(char *cmdline) {
         }
         // Get command to execute
         char *gcmd = cmdline + pos;
-        if (*gcmd == 0) gcmd = "p";
+        if (*gcmd == 0)
+            gcmd = "p";
         // Mark matching lines
-        char *marked = (char*)kmalloc(MAX_LINES);
+        char *marked = (char *)kmalloc(MAX_LINES);
         if (marked == 0) {
             ed_error("out of memory");
             return;
@@ -1448,7 +1562,7 @@ void ed_exec_cmd(char *cmdline) {
         memset(marked, 0, MAX_LINES);
         i = addr1;
         while (i <= addr2) {
-            char *line = (char*)ed_lines[i - 1];
+            char *line = (char *)ed_lines[i - 1];
             if (line != 0 && ed_regex_search(gpat, line) >= 0) {
                 marked[i - 1] = 1;
             }
@@ -1506,7 +1620,8 @@ void ed_exec_cmd(char *cmdline) {
             pos = pos + 1;
         }
         vpat[vpi] = 0;
-        if (cmdline[pos] == (char)vdelim) pos = pos + 1;
+        if (cmdline[pos] == (char)vdelim)
+            pos = pos + 1;
         if (vpi == 0) {
             if (ed_lpat[0] == 0) {
                 ed_error("no previous pattern");
@@ -1517,8 +1632,9 @@ void ed_exec_cmd(char *cmdline) {
             ed_strcopy(ed_lpat, vpat);
         }
         char *vcmd = cmdline + pos;
-        if (*vcmd == 0) vcmd = "p";
-        char *vmarked = (char*)kmalloc(MAX_LINES);
+        if (*vcmd == 0)
+            vcmd = "p";
+        char *vmarked = (char *)kmalloc(MAX_LINES);
         if (vmarked == 0) {
             ed_error("out of memory");
             return;
@@ -1526,7 +1642,7 @@ void ed_exec_cmd(char *cmdline) {
         memset(vmarked, 0, MAX_LINES);
         i = addr1;
         while (i <= addr2) {
-            char *line = (char*)ed_lines[i - 1];
+            char *line = (char *)ed_lines[i - 1];
             if (line == 0 || ed_regex_search(vpat, line) < 0) {
                 vmarked[i - 1] = 1;
             }
@@ -1560,8 +1676,10 @@ void ed_exec_cmd(char *cmdline) {
         kfree(vmarked);
     } else if (cmd == 'H') {
         // Toggle error messages
-        if (ed_show_errs == 0) ed_show_errs = 1;
-        else ed_show_errs = 0;
+        if (ed_show_errs == 0)
+            ed_show_errs = 1;
+        else
+            ed_show_errs = 0;
         if (ed_show_errs && ed_lerr[0] != 0) {
             print(ed_lerr);
             print("\n");
@@ -1578,27 +1696,29 @@ void ed_exec_cmd(char *cmdline) {
         // Forward navigation
         pos = pos + 1;
         int offset = 1;
-        if (ed_isdigit(cmdline[pos])) offset = ed_parse_int_at(cmdline, &pos);
+        if (ed_isdigit(cmdline[pos]))
+            offset = ed_parse_int_at(cmdline, &pos);
         int target = ed_cur + offset;
         if (target < 1 || target > ed_nlines) {
             ed_error("invalid address");
             return;
         }
         ed_cur = target;
-        print((char*)ed_lines[ed_cur - 1]);
+        print((char *)ed_lines[ed_cur - 1]);
         print("\n");
     } else if (cmd == '-') {
         // Backward navigation
         pos = pos + 1;
         int offset = 1;
-        if (ed_isdigit(cmdline[pos])) offset = ed_parse_int_at(cmdline, &pos);
+        if (ed_isdigit(cmdline[pos]))
+            offset = ed_parse_int_at(cmdline, &pos);
         int target = ed_cur - offset;
         if (target < 1 || target > ed_nlines) {
             ed_error("invalid address");
             return;
         }
         ed_cur = target;
-        print((char*)ed_lines[ed_cur - 1]);
+        print((char *)ed_lines[ed_cur - 1]);
         print("\n");
     } else {
         ed_error("unknown command");
@@ -1624,7 +1744,7 @@ void main() {
     memset(ed_undo_lines, 0, 4096);
 
     // Get filename from args
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
     if (args != 0 && strlen(args) > 0) {
         int fi = 0;
         while (args[fi] != 0 && args[fi] != ' ' && fi < FNAME_LEN - 1) {
@@ -1653,12 +1773,14 @@ void main() {
     // Clean up
     int i = 0;
     while (i < ed_nlines) {
-        if (ed_lines[i] != 0) kfree((void*)ed_lines[i]);
+        if (ed_lines[i] != 0)
+            kfree((void *)ed_lines[i]);
         i = i + 1;
     }
     i = 0;
     while (i < ed_undo_nlines) {
-        if (ed_undo_lines[i] != 0) kfree((void*)ed_undo_lines[i]);
+        if (ed_undo_lines[i] != 0)
+            kfree((void *)ed_undo_lines[i]);
         i = i + 1;
     }
 }

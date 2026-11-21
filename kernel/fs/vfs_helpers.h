@@ -1,3 +1,8 @@
+/**
+ * @file vfs_helpers.h
+ * @brief Read, write, and copy complete files through the virtual filesystem.
+ */
+
 #ifndef VFS_HELPERS_H
 #define VFS_HELPERS_H
 

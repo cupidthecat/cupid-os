@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide walks you through building cupid-os from source and running it in QEMU.
+This guide covers building Cupid OS from source and running it in QEMU.
 
 ---
 
@@ -8,13 +8,14 @@ This guide walks you through building cupid-os from source and running it in QEM
 
 | Tool | Purpose |
 |------|---------|
-| **NASM** | Assembler for bootloader and context switch |
-| **GCC** (32-bit support, Linux) | C compiler for kernel and drivers on Linux |
-| **LLVM** (Windows) | `clang`, `ld.lld`, `llvm-objcopy`, and `llvm-nm` for native Windows ELF builds |
+| **Checked Cupid toolchain** | The repository carries a verified static i386 Linux seed and a checked native PE32 Windows execution seed. CupidC, CupidASM, CupidObj, CupidLD, and CupidDis own the normal C, assembly, object, link, and inspection transforms |
 | **Python 3** | Portable host-side image and code-generation helpers |
 | **GNU Make** | Build system |
 | **QEMU** (`qemu-system-i386`) | x86 emulator for testing |
+| **WSL** (Windows only) | Runs the checked Linux seed for Linux fixed-point work and the remaining published Linux Toolchain contract cohort; native Windows fixed-point reconstruction, the user ABI gate, artifact-size verification, and Toolchain manifest verification do not use WSL |
 | **mtools** (optional) | Manual FAT16 inspection/copying from Linux hosts |
+| **GCC, Clang, and binutils** (optional) | Native development builds and comparison oracles; they do not produce normal OS artifacts |
+| **NASM** (optional) | Comparison oracle used by `make nasm-assembly-oracle` when installed |
 
 ---
 
@@ -22,30 +23,69 @@ This guide walks you through building cupid-os from source and running it in QEM
 
 ### Ubuntu / Debian
 ```bash
-sudo apt-get install nasm gcc gcc-multilib python3 make qemu-system-x86
+sudo apt-get install python3 make qemu-system-x86
+```
+
+Install native compiler and comparison tools only when you plan to run the
+optional oracle targets. The complete `make test` suite includes native
+compiler comparisons too:
+
+```bash
+sudo apt-get install gcc gcc-multilib clang binutils nasm
 ```
 
 ### Arch Linux
 ```bash
-sudo pacman -S nasm gcc python make qemu-full
+sudo pacman -S python make qemu-full
+```
+
+The optional native oracles also use GCC, binutils, or NASM:
+
+```bash
+sudo pacman -S gcc clang binutils nasm
 ```
 
 ### Native Windows
-Install GNU Make, Python 3, NASM, LLVM, and QEMU, and make sure they are on
-`PATH`.
+Install GNU Make, Python 3, and QEMU, make sure they are on `PATH`, then
+enable WSL with a Linux distribution.
 
 ```powershell
-choco install make python nasm llvm qemu
+choco install make python qemu
+wsl --install
 ```
 
-MinGW GCC/LD are not enough for the default native Windows build because the
-kernel is linked as ELF; the Makefile defaults to LLVM on Windows.
+Run `make` from PowerShell or another native Windows shell. Output-bearing
+recipes run the checked PE32 Cupid tools directly. The Makefile still uses WSL
+for the remaining Linux Toolchain contract cohort. Artifact-size policy keeps
+the Linux manifest as provenance, but its checker builds and runs as a native PE.
+The user ABI gate also builds and runs a checked PE directly. The current
+`bootstrap-windows` command pairs the PE execution seed with the verified
+Linux plan. The Windows seed supplies every stage-two producer, and native
+stages three and four then converge without WSL. A source-current proof passed
+with WSL unavailable: 23 C objects, three assembly objects, and all six tool
+images matched between the final two stages, with all 37 behavior cases
+passing. The final production build and a four-CPU GUI-terminal boot smoke also
+passed with the checked Windows seed. Run `make verify-windows-bootstrap-seed`,
+then
+`make bootstrap-windows-from-seed`; a successful proof publishes under
+`build/bootstrap/checked-windows-seed`. Python still coordinates this path,
+and the remaining Linux-seed contract work on Windows still uses WSL.
+Install LLVM only for the explicit native
+Toolchain contracts and native Windows comparison targets:
+
+```powershell
+choco install llvm
+```
+
 QEMU defaults to no host audio on Windows so booting does not depend on a
 working DirectSound device; use `make QEMU_AUDIODEV=dsound,id=speaker run` to
 enable DirectSound.
 
 ### WSL (Windows Subsystem for Linux)
-Same as Ubuntu/Debian. For display, ensure an X server (VcXsrv, WSLg) is available for QEMU's graphical output.
+When you build entirely inside WSL, install the Ubuntu or Debian requirements
+in that distribution. Native Windows builds normally start QEMU outside WSL,
+so they do not need an X server. Running QEMU inside WSL requires WSLg or an X
+server such as VcXsrv.
 
 ---
 
@@ -58,9 +98,10 @@ make
 ```
 
 This produces:
-- `boot/boot.bin` - 512-byte bootloader
-- `kernel/kernel.bin` - Flat binary kernel
-- `cupidos.img` - Bootable IDE HDD image (default 200MB) with embedded FAT16 partition
+
+- `boot/boot.bin`: 2,560-byte image with a 512-byte stage 1 and 2 KiB stage 2
+- `kernel/kernel.bin`: flat binary kernel
+- `cupidos.img`: bootable IDE HDD image, 200 MB by default, with an embedded FAT16 partition
 
 ### Choose HDD Size
 
@@ -87,7 +128,7 @@ Default is `HDD_MB=200`.
 | `make run-ssh` | Boot with RTL8139 networking and host port 2222 forwarded to guest port 22 |
 | `make test-net` | Run the headless networking integration harness |
 | `make stage-wads` | Copy Freedoom WAD files into `/disk/wads/` |
-| `make sync-demos` | Copy local `demos/*.asm` into `/home/demos` in `cupidos.img` |
+| `make sync-demos` | Stage local `demos/*.asm` into `/home/demos` in `cupidos.img` |
 
 ---
 
@@ -125,14 +166,15 @@ The default login is `root` / `cupid`; change it in the guest with
 
 ## HDD Image Notes
 
-`make` now creates a single HDD image (`cupidos.img`) that already contains:
+`make` creates one HDD image, `cupidos.img`, containing:
+
 - MBR boot sector + Stage 2 + kernel area
 - FAT16 partition mounted as `/disk`
 - persistent `/home` data stored in `HOMEFS.SYS` on FAT16
 
-By default, FAT starts at LBA 16384 (offset `8388608` bytes).
+By default, FAT starts at LBA 20480 (offset `10485760` bytes).
 
-You no longer need a separate `test-disk.img`.
+The build does not use a separate `test-disk.img`.
 
 ---
 
@@ -142,7 +184,7 @@ Use the portable host helper against the FAT partition inside `cupidos.img`:
 
 ```bash
 # Host file -> OS /disk/cupid.bmp
-python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 cupid.bmp:/cupid.bmp
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 cupid.bmp:/cupid.bmp
 ```
 
 On Windows, use `python` instead of `python3`.
@@ -150,10 +192,10 @@ On Windows, use `python` instead of `python3`.
 If you prefer `mtools`, use the FAT byte offset:
 
 ```bash
-mcopy -o -i cupidos.img@@8388608 cupid.bmp ::/cupid.bmp
+mcopy -o -i cupidos.img@@10485760 cupid.bmp ::/cupid.bmp
 
 # Verify the FAT root (visible in CupidOS as /disk)
-mdir -i cupidos.img@@8388608 ::/
+mdir -i cupidos.img@@10485760 ::/
 ```
 
 If `FAT_START_LBA` changes, recompute offset:
@@ -171,7 +213,7 @@ When cupid-os boots, you'll see:
 
 ### Live Docs
 
-CupidOS ships a TempleOS-inspired DolDoc-like manual set inside the OS.
+CupidOS includes a TempleOS-inspired set of DolDoc-like manuals in the OS.
 
 Open **Notepad**, browse to `/docs/00INDEX.ctxt`, and press `F2` to switch
 between raw source and rendered view.
@@ -209,6 +251,70 @@ telnet telehack.com
 ```
 
 ---
+
+## Source formatting
+
+Source-based tests compare C tokens while keeping identifiers, operators,
+literal contents and operation ordering exact. Mutation tests require a real,
+unique code target; a formatting change cannot turn a negative test into a
+silent no-op. Run their focused checks with:
+
+```bash
+python -B -m unittest tests.test_c_source_spelling tests.test_user_syscall_abi
+```
+
+Hosted fixture checks use the checked i386 Linux ABI headers. The kernel-header
+sweep keeps its own include profile and checks conflicting definitions.
+When changing formatting, compare the source and emitted objects before
+updating their byte locks.
+
+The current qualified tools pass ordinary and long-path SDK publication and
+cold OS/user builds on Linux and Windows. Both hosts produce identical objects
+and disk images, and private `ls` and ISO boots pass. This validation uses a
+private seed projection; complete repository acceptance and installed seed
+adoption remain open.
+
+The original kernel and Doom compiler checks also pass after their formatted
+source and object locks are verified. Doom gameplay, music quality and guest
+self-hosting still need separate runtime acceptance.
+
+Use the repository's `.clang-format` for Cupid C source:
+
+```sh
+clang-format -i path/to/file.cc
+clang-format --dry-run --Werror path/to/file.cc
+```
+
+## Editing the wiki
+
+Edit the Markdown pages, sidebar and images in `wiki/`. Pushing changes to
+`bootstrap/cupid-self-hosting` runs **Publish wiki**, which copies the tracked
+files into the GitHub wiki and commits any changes. Pages edited only on the
+website remain there unless the same path is tracked in `wiki/`.
+
+To remove or rename a tracked page, make that change in the repository. The
+workflow removes paths deleted by the push and publishes the current files.
+It leaves other wiki pages alone. Check the workflow run after pushing; a failed
+run can be rerun from the repository's Actions page.
+
+Publication checks required pages, filenames and local Markdown link targets
+before committing. Use full GitHub repository URLs for files outside the wiki.
+The workflow uses `GITHUB_TOKEN` with `contents: write`; it needs no extra secret.
+It records the published file list so a later run also removes pages left by
+a failed or skipped push. A validation or push failure leaves the published
+wiki at its preceding commit.
+
+For local validation, clone the published wiki beside the source repository,
+stage your wiki edits, then run:
+
+```sh
+python3 tools/sync_wiki.py --source . --destination ../cupid-os.wiki --check
+```
+
+The check reads the destination without changing it. To check removals before
+the first publication, add `--before` with the full commit hash from before
+those edits. After a failure, fix the reported files and push again, or rerun
+the failed Actions job once its cause is resolved.
 
 ## Next Steps
 

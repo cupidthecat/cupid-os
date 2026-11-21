@@ -1,7 +1,7 @@
-//help: DANGER: deliberately panics the kernel with SIMD #XF.
-//help: Unmasks divide-by-zero in MXCSR, then divides 1.0/0.0. Kernel reboots required.
-//help: Usage: fp_drill
-//help: Use this to verify the #XF handler dumps MXCSR correctly.
+// help: DANGER: deliberately panics the kernel with SIMD #XF.
+// help: Unmasks divide-by-zero in MXCSR, then divides 1.0/0.0. Kernel reboots required.
+// help: Usage: fp_drill
+// help: Use this to verify the #XF handler dumps MXCSR correctly.
 
 void main() {
     println("fp_drill: about to unmask #XF(DE) and divide by zero...");

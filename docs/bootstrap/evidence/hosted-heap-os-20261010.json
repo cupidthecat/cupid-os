@@ -1,0 +1,103 @@
+{
+  "artifact_gate_root": "normal root and frozen copy of current complete products",
+  "artifact_size_gates": 16,
+  "artifacts": {
+    "boot/boot.bin": {
+      "sha256": "46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3",
+      "size": 2560
+    },
+    "kernel/kernel.bin": {
+      "sha256": "491f52f8b3f621ba34bb2c4ff4a8c2e840dcecf355b5c0c407db2c4159d2a3ea",
+      "size": 9300840
+    },
+    "kernel/kernel.elf": {
+      "sha256": "e09ec725335c1949381590ffa2fd854c38a9afdccc4badbab3a16d14cc1bd1b9",
+      "size": 9527740
+    },
+    "kernel/kernel.elf.pass1": {
+      "sha256": "abb230c9522e368bddfeb02a3f41fefb3b0a22400a8112b938edb3cc086ebe6c",
+      "size": 9396668
+    }
+  },
+  "boots": {
+    "iso": {
+      "command_completion": true,
+      "cpu": "max",
+      "nic": "e1000",
+      "private_image": true,
+      "serial": {
+        "sha256": "53c49fc20ba66fa5d6a3befae59fa4fd7ed8cf6d8799c223492e5697df9bfb00",
+        "size": 34397
+      },
+      "smp": 4,
+      "status": "pass",
+      "timeout_seconds": 150
+    },
+    "ls": {
+      "command_completion": true,
+      "cpu": "max",
+      "nic": "e1000",
+      "private_image": true,
+      "serial": {
+        "sha256": "2d54f5247a7d42dbb1f7ae143d12aa38294fee46352e168837c56b736559e577",
+        "size": 34849
+      },
+      "smp": 4,
+      "status": "pass",
+      "timeout_seconds": 150
+    }
+  },
+  "changed_object_identities": [
+    "cupidos-txt/12HOLYC-CUPIDC.o"
+  ],
+  "date": "2026-10-10",
+  "embedded_manual": {
+    "sha256": "eb5dcd5e8104200b972042599d1b0c3a342d6c2e0cb0a87e126dfe1c09160e66",
+    "size": 71593
+  },
+  "fat_suffix_bytes_compared": 199229440,
+  "fat_suffix_equal_to_baseline": true,
+  "installed_seed_files_equal_to_parent_commit": 15,
+  "kernel_matches_private_image_at_lba": 5,
+  "manual_occurrences_per_kernel": 1,
+  "normal_all_rerun": "pass",
+  "normal_image": {
+    "sha256": "a2d9c3a5f55bd5d7fc089bb476e13fa16fb74b5bb386f42b1cfa741577b865b1",
+    "size": 209715200
+  },
+  "normal_image_equals_checked_private_image": true,
+  "normal_kernel_and_boot_build": "pass",
+  "normal_user_build": "pass",
+  "private_image": {
+    "sha256": "a2d9c3a5f55bd5d7fc089bb476e13fa16fb74b5bb386f42b1cfa741577b865b1",
+    "size": 209715200
+  },
+  "production_objects": 429,
+  "schema": "cupid.hosted-heap-os-source-evidence.v1",
+  "user_products": {
+    "cat": {
+      "sha256": "59d084e58ef40dc2a984c688f35849a7d57fe05d214e336440361388674422c8",
+      "size": 13992
+    },
+    "cat.o": {
+      "sha256": "4154ad63a0c74d76bb69c5bbe8c3d900260c29ce981d21eb6d3131238d9f20f4",
+      "size": 6004
+    },
+    "hello": {
+      "sha256": "c1cdd048a3b463b14861098b1c593869e1ac21650ac56d59bc17c3e147f330ad",
+      "size": 13992
+    },
+    "hello.o": {
+      "sha256": "0d5cdb375435d156f3639523c3524df63ad4b0e5b20f72d85519e5b7c7d3f84d",
+      "size": 5868
+    },
+    "ls": {
+      "sha256": "4c46d684f6d25f0ce16152af797a0a0b28de83886f4eb45eb51ad915fc921446",
+      "size": 14016
+    },
+    "ls.o": {
+      "sha256": "71460295fe4854359b4b4bd5c18ddd5f0e38d29f7ec5add8f0cba33aaee5c4c2",
+      "size": 6812
+    }
+  }
+}

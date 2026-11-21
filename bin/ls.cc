@@ -1,12 +1,12 @@
-//help: List files and directories
-//help: Usage: ls [path]
-//help: Lists files and directories in the given path, or the
-//help: current directory if no path is given. Directories are
-//help: marked with [DIR], devices with [DEV], and file sizes
-//help: are shown in bytes.
+// help: List files and directories
+// help: Usage: ls [path]
+// help: Lists files and directories in the given path, or the
+// help: current directory if no path is given. Directories are
+// help: marked with [DIR], devices with [DEV], and file sizes
+// help: are shown in bytes.
 
 void main() {
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
     char path[256];
     resolve_path(args, path);
 
@@ -17,7 +17,8 @@ void main() {
         return;
     }
 
-    // vfs_dirent_t: name[128], size(uint32_t at offset 128), type(uint8_t at offset 132), 3 pad = 136 bytes total
+    // vfs_dirent_t: name[128], size(uint32_t at offset 128), type(uint8_t at offset 132), 3 pad =
+    // 136 bytes total
     char ent[136];
     int count = 0;
     while (vfs_readdir(fd, ent) > 0) {

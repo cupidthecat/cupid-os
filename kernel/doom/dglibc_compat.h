@@ -84,17 +84,20 @@ typedef int32_t            off_t;
 #define SEEK_CUR 1
 #define SEEK_END 2
 
-/* errno stub - DOOM tests errno in some file-open error paths */
-/* Provide a per-TU static so multiple TUs don't conflict at link time */
-static int errno = 0;
+/* dglibc keeps one error value so file helpers can report across TUs. */
+extern int dg_errno;
+#define errno dg_errno
 #define ENOENT  2
 #define EACCES 13
+#define EBUSY  16
 #define EEXIST 17
+#define EXDEV  18
 #define EINVAL 22
 #define EISDIR 21
 #define EBADF   9
 #define ENOMEM 12
 #define ENOSPC 28
+#define ERANGE 34
 
 /* Heap */
 #define malloc(n)        dg_malloc((uint32_t)(n))
@@ -131,8 +134,9 @@ static int errno = 0;
 #define fgets     dg_fgets
 #define fgetc     dg_fgetc
 #define fputc     dg_fputc
-#define fputs(s,f)  dg_fputc('\0', (f))   /* stub: no fputs in dglibc yet */
-#define fflush(f)   0                      /* no-op */
+#define fputs       dg_fputs
+#define fflush      dg_fflush
+#define ferror      dg_ferror
 #define perror(s)   dg_printf("error: %s\n", (s))
 
 /* ctype */
@@ -207,7 +211,7 @@ extern double log(double x);
 #define abs(x) (((int)(x)) < 0 ? -((int)(x)) : ((int)(x)))
 #endif
 
-/* stdlib.h extras - implemented in doom_libc_stubs.c */
+/* stdlib.h extras - implemented in doom_libc_stubs.cc */
 extern int           atoi(const char *s);
 extern long          atol(const char *s);
 extern double        atof(const char *s);
@@ -242,7 +246,8 @@ extern int  mkdir(const char *path, unsigned int mode);
 #define O_RDONLY  0
 #define O_WRONLY  1
 #define O_RDWR    2
-#define O_CREAT   64
-#define O_TRUNC   512
+#define O_CREAT   0x0100
+#define O_TRUNC   0x0200
+#define O_APPEND  0x0400
 
 #endif /* DGLIBC_COMPAT_H */

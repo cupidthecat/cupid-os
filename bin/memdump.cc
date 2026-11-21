@@ -2,9 +2,12 @@
 // Usage: memdump ADDR [length]
 
 int parse_hex_char(int c) {
-    if (c >= 48 && c <= 57) return c - 48;
-    if (c >= 97 && c <= 102) return c - 97 + 10;
-    if (c >= 65 && c <= 70) return c - 65 + 10;
+    if (c >= 48 && c <= 57)
+        return c - 48;
+    if (c >= 97 && c <= 102)
+        return c - 97 + 10;
+    if (c >= 65 && c <= 70)
+        return c - 65 + 10;
     return -1;
 }
 
@@ -15,7 +18,8 @@ int parse_hex_str(char *s) {
     }
     while (*s) {
         int d = parse_hex_char(*s);
-        if (d < 0) return val;
+        if (d < 0)
+            return val;
         val = (val * 16) + d;
         s = s + 1;
     }
@@ -40,14 +44,17 @@ void main() {
 
     int addr = parse_hex_str(args);
 
-    while (*args && *args != 32) args = args + 1;
-    while (*args == 32) args = args + 1;
+    while (*args && *args != 32)
+        args = args + 1;
+    while (*args == 32)
+        args = args + 1;
 
     int len = 64;
     if (*args) {
         len = parse_dec_str(args);
     }
-    if (len > 512) len = 512;
+    if (len > 512)
+        len = 512;
 
     int i = 0;
     while (i < len) {

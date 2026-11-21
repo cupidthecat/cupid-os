@@ -1,154 +1,47 @@
-# cupid-os Wiki
+# Cupid OS wiki
 
-Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system written in C and x86 Assembly, combining clean design with nostalgic aesthetics. It runs entirely in ring 0 with no security boundaries - inspired by TempleOS and OsakaOS.
+Cupid OS is a 32-bit x86 operating system with a desktop, shell and live
+Cupid C and Cupid ASM development. Programs share the kernel address space
+and run in ring 0.
 
----
+## Start here
 
-## Pages
+- [Getting Started](Getting-Started): dependencies, building and running in QEMU.
+- [Real Hardware](Real-Hardware): BIOS/CSM boot and installation on physical disks.
+- [Architecture](Architecture): boot sequence, memory, processes and the toolchain.
 
-| Page | Description |
-|------|-------------|
-| [Getting Started](Getting-Started) | Build requirements, compiling, booting in QEMU |
-| [Real Hardware](Real-Hardware) | Flashing to USB/disk, BIOS/CSM setup, booting on physical PCs |
-| [Architecture](Architecture) | System overview, memory layout, boot sequence, component diagram |
-| [Shell Commands](Shell-Commands) | Full reference for built-ins and auto-discovered `/bin` / `/home/bin` commands |
-| [CupidScript](CupidScript) | Scripting language guide - variables, loops, functions, examples |
-| [CupidC Compiler](CupidC-Compiler) | HolyC-inspired C compiler - JIT/AOT, inline assembly, kernel bindings |
-| [CupidDoc CTXT](CupidDoc-CTXT) | TempleOS-inspired executable `.ctxt` documents in Notepad, including clickable code, links, trees, and sprite widgets |
-| [CupidASM Assembler](CupidASM-Assembler) | x86-32 assembler - Intel syntax, JIT/AOT, include files, kernel bindings |
-| [CupidC 2D Graphics Library](CupidC-2D-Graphics-Library) | Full API reference for the hardware-accelerated 2D graphics library |
-| [User Programs](User-Programs) | Writing and deploying CupidC programs in /bin/ and /home/bin/ |
-| [Ed Editor](Ed-Editor) | How to use the built-in ed(1) line editor |
-| [Desktop Environment](Desktop-Environment) | VBE 640x480 32bpp graphics, window manager, mouse, terminal app |
-| [Process Management](Process-Management) | Scheduler, context switching, process API |
-| [Filesystem](Filesystem) | VFS, RamFS, DevFS, FAT16, disk I/O, program loader |
-| [Disk Setup](Disk-Setup) | Creating and formatting FAT16 disk images for QEMU |
-| [ELF Programs](ELF-Programs) | Compiling, loading, and running ELF32 executables, syscall table API |
-| [Debugging](Debugging) | Serial console, memory safety, crash testing, assertions |
-| [USB](USB) | UHCI + EHCI host controllers, HID keyboard/mouse, hub class, mass storage (BBB + SCSI) |
-| [SMP](SMP) | SMP Tier 2: ACPI/MP discovery, per-CPU LAPIC timer, big kernel lock, IPI reschedule and cross-CPU call |
-| [Networking](Networking) | RTL8139 + E1000 drivers, TCP/UDP/ICMP/ARP/DHCP/DNS, BSD sockets, HTTP/HTTPS, SSH/Telnet |
+On Ubuntu or Debian:
 
----
-
-## System at a Glance
-
-```
-┌─────────────────────────────────────────────────────┐
-│                   cupid-os                          │
-├──────────┬──────────┬───────────┬───────────────────┤
-│  Desktop │ Terminal │  Notepad  │   User Scripts    │
-│  (GUI)   │  (Shell) │  (Editor) │   (.cup files)    │
-├──────────┴──────────┴───────────┴───────────────────┤
-│        Shell + Terminal + CupidScript + Tools       │
-│ 100+ cmds │ pipes │ redirects │ jobs │ SSH/Telnet    │
-│  completion │ ANSI/xterm │ browser │ source cmds     │
-├─────────────────────────────────────────────────────┤
-│              CupidC + CupidASM                      │
-│  C-like JIT/AOT │ x86 asm JIT/AOT │ kernel binds     │
-├─────────────────────────────────────────────────────┤
-│       Virtual File System (VFS)                     │
-│ RamFS (/) │ DevFS (/dev) │ FAT16 (/disk) │ homefs    │
-├─────────────────────────────────────────────────────┤
-│       Networking + TLS                              │
-│ RTL8139/E1000 │ TCP/UDP/DNS │ HTTPS │ sshd │ browser │
-├─────────────────────────────────────────────────────┤
-│              Process Scheduler                      │
-│   Round-robin │ 5ms ticks │ 32 kernel threads       │
-├─────────────────────────────────────────────────────┤
-│              Window Manager (GUI)                   │
-│   16 windows │ z-order │ drag │ focus │ taskbar     │
-├──────────┬──────────┬───────────┬───────────────────┤
-│ Keyboard │  Mouse   │   VBE     │    Serial         │
-│  (IRQ1)  │ (IRQ12)  │640x480    │   (COM1)          │
-├──────────┴──────────┴───────────┴───────────────────┤
-│       Storage + Media                               │
-│ FAT16 │ ISO9660 │ block cache │ USB MSC │ ATA PIO    │
-├─────────────────────────────────────────────────────┤
-│              Memory Management                      │
-│   PMM bitmap │ Paging │ Heap + canaries │ Tracking  │
-├─────────────────────────────────────────────────────┤
-│              IDT / IRQ / PIC / PIT                  │
-│   Interrupts │ Exceptions │ Timer (200Hz)           │
-├─────────────────────────────────────────────────────┤
-│              Bootloader (boot.asm)                  │
-│   Real mode -> Protected mode │ GDT │ Load kernel   │
-└─────────────────────────────────────────────────────┘
-```
-
----
-
-## Philosophy
-
-cupid-os embraces complete user empowerment:
-
-- **No security boundaries** - all code runs in ring 0
-- **Direct hardware access** - no abstraction hiding the metal
-- **Full memory visibility** - no virtual memory restrictions
-- **Transparency** - every byte of the system is inspectable
-
-This makes cupid-os ideal for learning how computers really work at the lowest level.
-
----
-
-## Quick Start
-
-```bash
-# Install dependencies (Ubuntu/Debian)
-sudo apt-get install nasm gcc gcc-multilib make qemu-system-x86 mtools
-
-# Build
+```sh
+sudo apt-get install python3 make qemu-system-x86
 make
-
-# Run (with serial output)
 make run
 ```
 
----
+Windows uses checked native Cupid tools with GNU Make and Python. WSL runs
+the Linux Toolchain contract cohort. See Getting Started for the complete
+Windows setup and optional comparison tools.
 
-## Project Structure
+## Develop programs
 
-```
-cupid-os/
-├── boot/
-│   └── boot.asm              # Bootloader (real -> protected mode)
-├── kernel/
-│   ├── core/                  # kmain, panic, process, scheduler, syscall
-│   ├── cpu/                   # IDT/IRQ/PIC, FPU/SSE, libm, ksyms
-│   ├── fs/                    # VFS, FAT16, ISO9660, ramfs, devfs, homefs
-│   ├── gfx/                   # gfx2d, BMP/PNG/JPEG, fontsys, TTF
-│   ├── gui/                   # window manager, desktop, terminal, ANSI
-│   ├── lang/                  # shell, CupidC, CupidASM, CupidScript, ssh_io
-│   ├── network/               # ARP/IP/ICMP/UDP/TCP/DHCP/DNS/sockets/sshd
-│   ├── tls/                   # TLS records, handshake, CA bundle
-│   ├── crypto/                # AES/ChaCha/RSA/P-256/X25519/X.509 helpers
-│   ├── audio/                 # AC97, mixer, OPL3, MIDI/MUS
-│   ├── doom/                  # doomgeneric port and platform shim
-│   ├── mm/                    # heap, paging, swap
-│   ├── smp/                   # AP bringup, LAPIC/IOAPIC, BKL
-│   └── usb/                   # UHCI/EHCI, HID, hubs, mass storage
-├── drivers/
-│   ├── keyboard.c/h           # PS/2 keyboard (IRQ1)
-│   ├── mouse.c/h              # PS/2 mouse (IRQ12)
-│   ├── vga.c/h                # VBE 640x480 32bpp
-│   ├── ata.c/h                # ATA/IDE disk
-│   ├── serial.c/h             # COM1 serial port
-│   ├── timer.c/h + pit.c/h    # PIT timer
-│   ├── rtl8139.c/h            # Realtek NIC
-│   ├── e1000.c/h              # Intel NIC
-│   └── speaker.c/h            # PC speaker
-├── bin/
-│   ├── browser.cc + browser/  # render-pipeline browser
-│   ├── ssh.cc, telnet.cc      # remote terminal clients
-│   └── *.cc                   # source-backed shell commands
-├── docs/plans/                # Design documents
-├── link.ld                    # Linker script
-├── Makefile                   # Build system
-└── LICENSE                    # GPLv3
-```
+| Guide | Use it for |
+| --- | --- |
+| [CupidC Compiler](CupidC-Compiler) | JIT/AOT commands and kernel bindings |
+| [Cupid C language reference](CupidC-Language-Reference) | Language features and examples |
+| [CupidASM Assembler](CupidASM-Assembler) | Assembly, includes and runtime demos |
+| [CupidBuild](CupidBuild) | Checked build commands and publication |
+| [Toolchain Bootstrap](Toolchain-Bootstrap) | Seeds, staged rebuilds and verification |
+| [User Programs](User-Programs) | Source programs and deployment |
+| [ELF Programs](ELF-Programs) | External executables and the syscall ABI |
 
----
+## Use the system
 
-## License
+- [Shell Commands](Shell-Commands), [CupidScript](CupidScript) and [Ed](Ed-Editor).
+- [Desktop Environment](Desktop-Environment) and [CupidDoc CTXT](CupidDoc-CTXT).
+- [2D graphics](CupidC-2D-Graphics-Library) and [floating point](Floating-Point).
+- [Filesystems](Filesystem), [disk setup](Disk-Setup), [ISO9660](ISO9660) and [USB](USB).
+- [Networking](Networking), [SMP](SMP), [processes](Process-Management) and [debugging](Debugging).
 
-cupid-os is released under the **GNU General Public License v3**.
+[Earlier bootstrap notes](Bootstrap-history) retain the preceding measurements
+and verification history. Cupid OS is released under GPLv3. TempleOS is
+reference material and is excluded from Cupid OS builds.

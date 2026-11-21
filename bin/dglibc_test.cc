@@ -1,5 +1,5 @@
-//help: dglibc smoke test - snprintf / malloc-free / setjmp round-trip
-//help: Usage: dglibc_test
+// help: dglibc smoke test - snprintf / malloc-free / setjmp round-trip
+// help: Usage: dglibc_test
 
 void main() {
     I32 rc;

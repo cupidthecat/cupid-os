@@ -1,7 +1,7 @@
-//help: Show command history
-//help: Usage: history
-//help: Displays recently executed commands, numbered from
-//help: oldest to newest.
+// help: Show command history
+// help: Usage: history
+// help: Displays recently executed commands, numbered from
+// help: oldest to newest.
 
 void main() {
     int count = get_history_count();
@@ -15,7 +15,7 @@ void main() {
     while (i >= 0) {
         print_int(count - i);
         print(": ");
-        char *entry = (char*)get_history_entry(start - i);
+        char *entry = (char *)get_history_entry(start - i);
         if (entry) {
             print(entry);
         }

@@ -1,3 +1,8 @@
+/**
+ * @file mixer.h
+ * @brief Declare PCM mixer slots and playback controls.
+ */
+
 #ifndef KERNEL_AUDIO_MIXER_H
 #define KERNEL_AUDIO_MIXER_H
 

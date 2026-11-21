@@ -1,3 +1,8 @@
+/**
+ * @file vga.h
+ * @brief VBE framebuffer dimensions, drawing, and presentation.
+ */
+
 #ifndef VGA_GFX_H
 #define VGA_GFX_H
 

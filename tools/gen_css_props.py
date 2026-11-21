@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+## @file
+#  @brief Generate the Browser's CSS tables from the Blink input files.
 """gen_css_props.py - Lift Blink CSS data tables into cupid-os headers.
 
 Reads Blink .in files (CSSProperties.in, CSSValueKeywords.in,

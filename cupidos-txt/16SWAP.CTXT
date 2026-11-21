@@ -15,9 +15,9 @@ Verified against source on: 2026-05-15
 
 >h2 Overview
 >tree open Overview
-CupidOS has a handle-based swap system for callers that want more
-logical memory than physical RAM holds. Swap is explicit — standard
-`kmalloc` stays untouched.
+CupidOS has a handle-based swap system for callers that need more logical
+memory than physical RAM holds. Callers opt in explicitly, and standard
+`kmalloc` remains unchanged.
 >endtree
 
 >h2 Quick Start
@@ -70,10 +70,10 @@ swap_free(h);
 
 >h2 Size Classes
 >tree open Size Classes
-  Class 0:  1 KB  — 4096 disk slots (4 MB region).
-  Class 1:  4 KB  — 1024 disk slots.
-  Class 2: 16 KB  —  256 disk slots.
-  Class 3: 64 KB  —   64 disk slots.
+  Class 0:  1 KB, 4096 disk slots (4 MB region).
+  Class 1:  4 KB, 1024 disk slots.
+  Class 2: 16 KB,  256 disk slots.
+  Class 3: 64 KB,   64 disk slots.
 >endtree
 
 >h2 Shell Commands
@@ -119,18 +119,16 @@ void main() {
 
 >h2 Why Opt-in?
 >tree open Why Opt-in?
-Classic page-fault swap is architecturally hostile on a ring-0
-identity-mapped kernel — every C dereference would need to be
-page-fault-safe, including IRQ handlers. Opt-in handles deliver the
-same user-facing capability (logical > physical memory) while leaving
-the rest of the kernel untouched.
+Page-fault swap on a ring-0, identity-mapped kernel would require every C
+dereference, including those in IRQ handlers, to tolerate a page fault.
+Explicit handles confine swap-aware access to participating callers and leave
+ordinary kernel memory access unchanged.
 >endtree
 
 >h2 Testing
 >tree open Testing
-`bin/feature18_swap.cc` — end-to-end smoke test covering per-class
-round-trip, disk-cap exhaustion, nested-pin refcount, invalid-handle
-benign ops.
+`bin/feature18_swap.cc` tests per-class round trips, disk-cap exhaustion,
+nested-pin reference counts, and harmless invalid-handle operations.
 
 swapinit
 feature18_swap

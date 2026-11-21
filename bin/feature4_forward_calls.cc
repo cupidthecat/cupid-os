@@ -1,6 +1,6 @@
-//help: CupidC Feature 4 demo - two-pass style function resolution
-//help: Usage: feature4_forward_calls
-//help: Verifies function calls work before definition, without prototypes.
+// help: CupidC Feature 4 demo - two-pass style function resolution
+// help: Usage: feature4_forward_calls
+// help: Verifies function calls work before definition, without prototypes.
 
 void main() {
     I32 v = AddNoProto(40, 2);

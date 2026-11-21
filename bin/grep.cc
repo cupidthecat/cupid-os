@@ -1,40 +1,57 @@
-//help: Search for text in files
-//help: Usage: grep <pattern> <path> [path] ...
-//help: Recursively searches files under directories and prints matches
-//help: as path:line:content
+// help: Search for text in files
+// help: Usage: grep <pattern> <path> [path] ...
+// help: Recursively searches files under directories and prints matches
+// help: as path:line:content
 
 int str_contains(char *s, char *needle) {
-    if (!needle || needle[0] == 0) return 1;
+    if (!needle || needle[0] == 0)
+        return 1;
 
     int i = 0;
     while (s[i]) {
         int j = 0;
-        while (needle[j] && s[i + j] && s[i + j] == needle[j]) j = j + 1;
-        if (needle[j] == 0) return 1;
+        while (needle[j] && s[i + j] && s[i + j] == needle[j])
+            j = j + 1;
+        if (needle[j] == 0)
+            return 1;
         i = i + 1;
     }
     return 0;
 }
 
 int is_dot_name(char *name) {
-    if (name[0] == '.' && name[1] == 0) return 1;
-    if (name[0] == '.' && name[1] == '.' && name[2] == 0) return 1;
+    if (name[0] == '.' && name[1] == 0)
+        return 1;
+    if (name[0] == '.' && name[1] == '.' && name[2] == 0)
+        return 1;
     return 0;
 }
 
 void join_path(char *out, char *a, char *b) {
     int i = 0;
     int ai = 0;
-    while (a[ai]) { out[i] = a[ai]; i = i + 1; ai = ai + 1; }
-    if (i > 1 && out[i - 1] != '/') { out[i] = '/'; i = i + 1; }
+    while (a[ai]) {
+        out[i] = a[ai];
+        i = i + 1;
+        ai = ai + 1;
+    }
+    if (i > 1 && out[i - 1] != '/') {
+        out[i] = '/';
+        i = i + 1;
+    }
     int bi = 0;
-    while (b[bi]) { out[i] = b[bi]; i = i + 1; bi = bi + 1; }
+    while (b[bi]) {
+        out[i] = b[bi];
+        i = i + 1;
+        bi = bi + 1;
+    }
     out[i] = 0;
 }
 
 void grep_file(char *path, char *pattern) {
     int fd = vfs_open(path, 0);
-    if (fd < 0) return;
+    if (fd < 0)
+        return;
 
     char buf[256];
     char line[256];
@@ -48,7 +65,8 @@ void grep_file(char *path, char *pattern) {
             char c = buf[i];
             i = i + 1;
 
-            if (c == '\r') continue;
+            if (c == '\r')
+                continue;
 
             if (c == '\n') {
                 line[li] = 0;
@@ -89,7 +107,8 @@ void grep_file(char *path, char *pattern) {
 
 void grep_walk(char *path, char *pattern) {
     char st[8];
-    if (vfs_stat(path, st) < 0) return;
+    if (vfs_stat(path, st) < 0)
+        return;
 
     if (st[4] != 1) {
         grep_file(path, pattern);
@@ -97,17 +116,22 @@ void grep_walk(char *path, char *pattern) {
     }
 
     int fd = vfs_open(path, 0);
-    if (fd < 0) return;
+    if (fd < 0)
+        return;
 
     // vfs_dirent_t: name[128], size@128, type@132. 136 bytes total.
     char ent[136];
     while (vfs_readdir(fd, ent) > 0) {
         char name[128];
         int ni = 0;
-        while (ent[ni] && ni < 127) { name[ni] = ent[ni]; ni = ni + 1; }
+        while (ent[ni] && ni < 127) {
+            name[ni] = ent[ni];
+            ni = ni + 1;
+        }
         name[ni] = 0;
 
-        if (is_dot_name(name)) continue;
+        if (is_dot_name(name))
+            continue;
 
         char child[256];
         join_path(child, path, name);
@@ -124,8 +148,12 @@ void grep_walk(char *path, char *pattern) {
 
 int parse_token(char *str, int start, char *out, int maxlen) {
     int i = start;
-    while (str[i] == ' ' || str[i] == '\t') i = i + 1;
-    if (str[i] == 0) { out[0] = 0; return 0; }
+    while (str[i] == ' ' || str[i] == '\t')
+        i = i + 1;
+    if (str[i] == 0) {
+        out[0] = 0;
+        return 0;
+    }
 
     int j = 0;
     while (str[i] != 0 && str[i] != ' ' && str[i] != '\t' && j < maxlen - 1) {
@@ -138,7 +166,7 @@ int parse_token(char *str, int start, char *out, int maxlen) {
 }
 
 void main() {
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
     char pattern[128];
     int pos = 0;
 
@@ -153,7 +181,8 @@ void main() {
     while (1) {
         char path_arg[256];
         int l = parse_token(args, pos, path_arg, 256);
-        if (l == 0) break;
+        if (l == 0)
+            break;
         pos = pos + l;
 
         char path[256];

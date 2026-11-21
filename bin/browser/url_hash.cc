@@ -20,7 +20,8 @@ unsigned int url_hash32(char *url) {
 }
 
 static int u_hex_nibble(int v) {
-    if (v < 10) return '0' + v;
+    if (v < 10)
+        return '0' + v;
     return 'a' + (v - 10);
 }
 
@@ -42,10 +43,22 @@ void url_cache_path(char *url, char *suffix, char *out, int max) {
     int p = 0;
     char *prefix = "/cache/fonts/";
     int i = 0;
-    while (prefix[i] && p < max - 1) { out[p] = prefix[i]; p = p + 1; i = i + 1; }
+    while (prefix[i] && p < max - 1) {
+        out[p] = prefix[i];
+        p = p + 1;
+        i = i + 1;
+    }
     i = 0;
-    while (hex[i] && p < max - 1) { out[p] = hex[i]; p = p + 1; i = i + 1; }
+    while (hex[i] && p < max - 1) {
+        out[p] = hex[i];
+        p = p + 1;
+        i = i + 1;
+    }
     i = 0;
-    while (suffix[i] && p < max - 1) { out[p] = suffix[i]; p = p + 1; i = i + 1; }
+    while (suffix[i] && p < max - 1) {
+        out[p] = suffix[i];
+        p = p + 1;
+        i = i + 1;
+    }
     out[p] = 0;
 }

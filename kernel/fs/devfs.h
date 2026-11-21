@@ -1,9 +1,9 @@
 /**
- * devfs.h - Device filesystem interface for CupidOS
+ * @file devfs.h
+ * @brief Expose kernel devices as files under /dev.
  *
- * Exposes kernel devices as files under /dev.
  * Built-in devices: null, zero, random, serial.
-*/
+ */
 
 #ifndef DEVFS_H
 #define DEVFS_H

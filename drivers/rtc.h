@@ -1,6 +1,6 @@
 /**
- * rtc.h - Real-Time Clock (RTC) Driver Interface
- *
+ * @file rtc.h
+ * @brief CMOS real-time clock registers and time queries.
  * Provides access to the CMOS Real-Time Clock hardware for reading
  * the current time and date. The RTC is accessed through CMOS ports
  * 0x70 (index) and 0x71 (data).

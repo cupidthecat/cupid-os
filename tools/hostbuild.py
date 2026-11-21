@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+## @file
+#  @brief Run host build and verification commands.
 """Portable host-side build helpers for CupidOS.
 
 This module replaces shell-only build steps with Python so the same Makefile
@@ -8,828 +10,1444 @@ can run under Linux shells and native Windows GNU Make.
 from __future__ import annotations
 
 import argparse
-import math
+import hashlib
+import json
 import os
+import re
 import shutil
+import stat
 import struct
 import subprocess
 import sys
+import tempfile
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from typing import Iterator
 
-
-SECTOR_SIZE = 512
-FAT16_TYPES = {0x04, 0x06, 0x0E}
-FAT16_EOC = 0xFFFF
-FAT16_EOC_MIN = 0xFFF8
-
-
-@dataclass(frozen=True)
-class StageFile:
-    source: Path
-    dest: str
-
-
-@dataclass(frozen=True)
-class FatLayout:
-    partition_sectors: int
-    sectors_per_cluster: int
-    reserved_sectors: int
-    num_fats: int
-    root_entries: int
-    root_dir_sectors: int
-    sectors_per_fat: int
-    data_sectors: int
-    cluster_count: int
-
-
-def _ceil_div(a: int, b: int) -> int:
-    return (a + b - 1) // b
-
-
-def _path_for_symbol(path: str | Path) -> str:
-    return "".join(ch if ch.isalnum() else "_" for ch in str(path).replace("\\", "/"))
-
-
-def _objcopy_binary(objcopy: str, src: Path, out: Path) -> None:
-    subprocess.run(
-        [objcopy, "-I", "binary", "-O", "elf32-i386", "-B", "i386", str(src), str(out)],
-        check=True,
+try:
+    from tools.bootstrap_toolchain import (
+        BootstrapError,
+        freeze_seed_inputs,
+        run_seed_tool,
+        verify_seed_inputs,
+    )
+except ModuleNotFoundError:
+    from bootstrap_toolchain import (
+        BootstrapError,
+        freeze_seed_inputs,
+        run_seed_tool,
+        verify_seed_inputs,
     )
 
 
-def _parse_stage(value: str) -> StageFile:
-    if ":" not in value:
-        raise argparse.ArgumentTypeError("stage entries must be SRC:/guest/path")
-    src, dest = value.split(":", 1)
-    if not dest.startswith("/"):
-        raise argparse.ArgumentTypeError("stage destination must start with /")
-    return StageFile(Path(src), dest)
-
-
-def _choose_layout(partition_sectors: int) -> FatLayout:
-    reserved = 1
-    num_fats = 2
-    root_entries = 512
-    root_dir_sectors = _ceil_div(root_entries * 32, SECTOR_SIZE)
-
-    for spc in (1, 2, 4, 8, 16, 32, 64):
-        sectors_per_fat = 1
-        while True:
-            data_sectors = partition_sectors - reserved - root_dir_sectors - num_fats * sectors_per_fat
-            if data_sectors <= 0:
-                break
-            clusters = data_sectors // spc
-            needed_fat = _ceil_div((clusters + 2) * 2, SECTOR_SIZE)
-            if needed_fat == sectors_per_fat:
-                if 4085 <= clusters < 65525:
-                    return FatLayout(
-                        partition_sectors=partition_sectors,
-                        sectors_per_cluster=spc,
-                        reserved_sectors=reserved,
-                        num_fats=num_fats,
-                        root_entries=root_entries,
-                        root_dir_sectors=root_dir_sectors,
-                        sectors_per_fat=sectors_per_fat,
-                        data_sectors=data_sectors,
-                        cluster_count=clusters,
-                    )
-                break
-            sectors_per_fat = needed_fat
-
-    raise ValueError(f"cannot make FAT16 layout for {partition_sectors} sectors")
-
-
-def _partition_info(image: Path) -> tuple[int, int, int] | None:
-    if not image.exists() or image.stat().st_size < SECTOR_SIZE:
-        return None
-    with image.open("rb") as f:
-        mbr = f.read(SECTOR_SIZE)
-    if len(mbr) != SECTOR_SIZE or mbr[510:512] != b"\x55\xaa":
-        return None
-    ptype = mbr[450]
-    start = struct.unpack_from("<I", mbr, 454)[0]
-    sectors = struct.unpack_from("<I", mbr, 458)[0]
-    return ptype, start, sectors
-
-
-def _valid_existing_image(image: Path, hdd_mb: int, fat_start_lba: int) -> bool:
-    expected_size = hdd_mb * 1024 * 1024
-    if not image.exists() or image.stat().st_size != expected_size:
-        return False
-    info = _partition_info(image)
-    if not info:
-        return False
-    ptype, start, sectors = info
-    if ptype not in FAT16_TYPES or start != fat_start_lba or sectors == 0:
-        return False
-    with image.open("rb") as f:
-        f.seek(fat_start_lba * SECTOR_SIZE)
-        bpb = f.read(SECTOR_SIZE)
-    return (
-        len(bpb) == SECTOR_SIZE
-        and bpb[510:512] == b"\x55\xaa"
-        and struct.unpack_from("<H", bpb, 11)[0] == SECTOR_SIZE
-        and bpb[16] in (1, 2)
-        and struct.unpack_from("<H", bpb, 22)[0] > 0
-    )
-
-
-def _write_mbr(f, bootloader: bytes, fat_start_lba: int, partition_sectors: int) -> None:
-    mbr = bytearray(SECTOR_SIZE)
-    mbr[: min(446, len(bootloader))] = bootloader[:446]
-    off = 446
-    mbr[off] = 0x80
-    mbr[off + 1 : off + 4] = b"\xfe\xff\xff"
-    mbr[off + 4] = 0x06
-    mbr[off + 5 : off + 8] = b"\xfe\xff\xff"
-    struct.pack_into("<I", mbr, off + 8, fat_start_lba)
-    struct.pack_into("<I", mbr, off + 12, partition_sectors)
-    mbr[510:512] = b"\x55\xaa"
-    f.seek(0)
-    f.write(mbr)
-
-
-def _write_fat16_filesystem(f, fat_start_lba: int, layout: FatLayout) -> None:
-    part = fat_start_lba * SECTOR_SIZE
-    total16 = layout.partition_sectors if layout.partition_sectors < 65536 else 0
-    total32 = 0 if total16 else layout.partition_sectors
-
-    bpb = bytearray(SECTOR_SIZE)
-    bpb[0:3] = b"\xeb\x3c\x90"
-    bpb[3:11] = b"CUPIDOS "
-    struct.pack_into("<H", bpb, 11, SECTOR_SIZE)
-    bpb[13] = layout.sectors_per_cluster
-    struct.pack_into("<H", bpb, 14, layout.reserved_sectors)
-    bpb[16] = layout.num_fats
-    struct.pack_into("<H", bpb, 17, layout.root_entries)
-    struct.pack_into("<H", bpb, 19, total16)
-    bpb[21] = 0xF8
-    struct.pack_into("<H", bpb, 22, layout.sectors_per_fat)
-    struct.pack_into("<H", bpb, 24, 63)
-    struct.pack_into("<H", bpb, 26, 255)
-    struct.pack_into("<I", bpb, 28, fat_start_lba)
-    struct.pack_into("<I", bpb, 32, total32)
-    bpb[36] = 0x80
-    bpb[38] = 0x29
-    struct.pack_into("<I", bpb, 39, 0xC001D05)
-    bpb[43:54] = b"CUPIDOS    "
-    bpb[54:62] = b"FAT16   "
-    bpb[510:512] = b"\x55\xaa"
-
-    f.seek(part)
-    f.write(bpb)
-
-    zero = b"\x00" * SECTOR_SIZE
-    for fat_idx in range(layout.num_fats):
-        fat_base = part + (layout.reserved_sectors + fat_idx * layout.sectors_per_fat) * SECTOR_SIZE
-        f.seek(fat_base)
-        first = bytearray(SECTOR_SIZE)
-        first[0:4] = b"\xf8\xff\xff\xff"
-        f.write(first)
-        for _ in range(1, layout.sectors_per_fat):
-            f.write(zero)
-
-    root_base = part + (
-        layout.reserved_sectors + layout.num_fats * layout.sectors_per_fat
-    ) * SECTOR_SIZE
-    f.seek(root_base)
-    for _ in range(layout.root_dir_sectors):
-        f.write(zero)
-
-
-class Fat16Image:
-    def __init__(self, image: Path, fat_start_lba: int):
-        self.image = image
-        self.fat_start_lba = fat_start_lba
-        self.f = image.open("r+b")
-        self._read_bpb()
-
-    def close(self) -> None:
-        self.f.close()
-
-    def __enter__(self) -> "Fat16Image":
-        return self
-
-    def __exit__(self, exc_type, exc, tb) -> None:
-        self.close()
-
-    def _read_bpb(self) -> None:
-        self.part = self.fat_start_lba * SECTOR_SIZE
-        self.f.seek(self.part)
-        b = self.f.read(SECTOR_SIZE)
-        if len(b) != SECTOR_SIZE or b[510:512] != b"\x55\xaa":
-            raise ValueError("invalid FAT16 boot sector")
-        self.bytes_per_sector = struct.unpack_from("<H", b, 11)[0]
-        self.sectors_per_cluster = b[13]
-        self.reserved_sectors = struct.unpack_from("<H", b, 14)[0]
-        self.num_fats = b[16]
-        self.root_entries = struct.unpack_from("<H", b, 17)[0]
-        self.total_sectors = struct.unpack_from("<H", b, 19)[0] or struct.unpack_from("<I", b, 32)[0]
-        self.sectors_per_fat = struct.unpack_from("<H", b, 22)[0]
-        if self.bytes_per_sector != SECTOR_SIZE:
-            raise ValueError("only 512-byte FAT16 sectors are supported")
-
-        self.root_dir_sectors = _ceil_div(self.root_entries * 32, SECTOR_SIZE)
-        self.fat_start = self.reserved_sectors
-        self.root_start = self.reserved_sectors + self.num_fats * self.sectors_per_fat
-        self.data_start = self.root_start + self.root_dir_sectors
-        self.cluster_count = (
-            self.total_sectors - self.data_start
-        ) // self.sectors_per_cluster
-
-    def _fat_offset(self, cluster: int, fat_idx: int = 0) -> int:
-        return self.part + (
-            self.fat_start + fat_idx * self.sectors_per_fat
-        ) * SECTOR_SIZE + cluster * 2
-
-    def _read_fat(self, cluster: int) -> int:
-        self.f.seek(self._fat_offset(cluster))
-        return struct.unpack("<H", self.f.read(2))[0]
-
-    def _write_fat(self, cluster: int, value: int) -> None:
-        for fat_idx in range(self.num_fats):
-            self.f.seek(self._fat_offset(cluster, fat_idx))
-            self.f.write(struct.pack("<H", value))
-
-    def _cluster_offset(self, cluster: int) -> int:
-        if cluster < 2:
-            raise ValueError("cluster numbers start at 2")
-        rel_sector = self.data_start + (cluster - 2) * self.sectors_per_cluster
-        return self.part + rel_sector * SECTOR_SIZE
-
-    def _read_dir_entries(self, dir_cluster: int | None) -> tuple[bytearray, int]:
-        if dir_cluster is None:
-            off = self.part + self.root_start * SECTOR_SIZE
-            size = self.root_dir_sectors * SECTOR_SIZE
-        else:
-            off = self._cluster_offset(dir_cluster)
-            size = self.sectors_per_cluster * SECTOR_SIZE
-        self.f.seek(off)
-        return bytearray(self.f.read(size)), off
-
-    def _write_dir_entries(self, dir_cluster: int | None, data: bytes) -> None:
-        if dir_cluster is None:
-            off = self.part + self.root_start * SECTOR_SIZE
-        else:
-            off = self._cluster_offset(dir_cluster)
-        self.f.seek(off)
-        self.f.write(data)
-
-    def _alloc_cluster(self) -> int:
-        for c in range(2, self.cluster_count + 2):
-            if self._read_fat(c) == 0:
-                self._write_fat(c, FAT16_EOC)
-                self.f.seek(self._cluster_offset(c))
-                self.f.write(b"\x00" * (self.sectors_per_cluster * SECTOR_SIZE))
-                return c
-        raise OSError("FAT16 partition is full")
-
-    def _free_chain(self, cluster: int) -> None:
-        while 2 <= cluster < FAT16_EOC_MIN:
-            nxt = self._read_fat(cluster)
-            self._write_fat(cluster, 0)
-            cluster = nxt
-
-    @staticmethod
-    def _short_name(component: str) -> bytes:
-        component = component.replace("\\", "/").split("/")[-1]
-        if component in ("", ".", ".."):
-            raise ValueError(f"invalid FAT name: {component!r}")
-        if "." in component:
-            stem, ext = component.rsplit(".", 1)
-        else:
-            stem, ext = component, ""
-        clean_stem = "".join(ch for ch in stem.upper() if ch.isalnum() or ch in "$%'-_@~`!(){}^#&")
-        clean_ext = "".join(ch for ch in ext.upper() if ch.isalnum() or ch in "$%'-_@~`!(){}^#&")
-        if not clean_stem:
-            raise ValueError(f"invalid FAT name: {component!r}")
-        if len(clean_stem) > 8:
-            clean_stem = clean_stem[:6] + "~1"
-        if len(clean_ext) > 3:
-            clean_ext = clean_ext[:3]
-        return clean_stem[:8].ljust(8).encode("ascii") + clean_ext[:3].ljust(3).encode("ascii")
-
-    @staticmethod
-    def _entry_name(entry: bytes) -> bytes:
-        return bytes(entry[:11])
-
-    def _find_entry(self, dir_cluster: int | None, name83: bytes) -> tuple[int, bytearray, int] | None:
-        data, off = self._read_dir_entries(dir_cluster)
-        for idx in range(0, len(data), 32):
-            first = data[idx]
-            if first == 0x00:
-                return None
-            if first == 0xE5:
-                continue
-            if data[idx + 11] == 0x0F:
-                continue
-            if self._entry_name(data[idx : idx + 32]) == name83:
-                return idx, data, off
-        return None
-
-    def _find_free_entry(self, dir_cluster: int | None) -> tuple[int, bytearray]:
-        data, _ = self._read_dir_entries(dir_cluster)
-        for idx in range(0, len(data), 32):
-            if data[idx] in (0x00, 0xE5):
-                return idx, data
-        raise OSError("directory is full")
-
-    def _put_entry(
-        self,
-        data: bytearray,
-        idx: int,
-        name83: bytes,
-        attr: int,
-        first_cluster: int,
-        size: int,
-    ) -> None:
-        entry = bytearray(32)
-        entry[0:11] = name83
-        entry[11] = attr
-        struct.pack_into("<H", entry, 26, first_cluster)
-        struct.pack_into("<I", entry, 28, size)
-        data[idx : idx + 32] = entry
-
-    def mkdir(self, path: str) -> int:
-        parent, name = self._walk_parent(path)
-        name83 = self._short_name(name)
-        found = self._find_entry(parent, name83)
-        if found:
-            idx, data, _ = found
-            if not (data[idx + 11] & 0x10):
-                raise ValueError(f"{path} exists and is not a directory")
-            return struct.unpack_from("<H", data, idx + 26)[0]
-
-        cluster = self._alloc_cluster()
-        child = bytearray(self.sectors_per_cluster * SECTOR_SIZE)
-        self._put_entry(child, 0, b".          ", 0x10, cluster, 0)
-        self._put_entry(child, 32, b"..         ", 0x10, parent or 0, 0)
-        self._write_dir_entries(cluster, child)
-
-        idx, data = self._find_free_entry(parent)
-        self._put_entry(data, idx, name83, 0x10, cluster, 0)
-        self._write_dir_entries(parent, data)
-        return cluster
-
-    def _walk_parent(self, path: str) -> tuple[int | None, str]:
-        parts = [p for p in path.replace("\\", "/").strip("/").split("/") if p]
-        if not parts:
-            raise ValueError("path must name a file or directory")
-        parent: int | None = None
-        for part in parts[:-1]:
-            name83 = self._short_name(part)
-            found = self._find_entry(parent, name83)
-            if not found:
-                parent = self.mkdir("/".join(parts[: parts.index(part) + 1]))
-                continue
-            idx, data, _ = found
-            if not (data[idx + 11] & 0x10):
-                raise ValueError(f"{part} exists and is not a directory")
-            parent = struct.unpack_from("<H", data, idx + 26)[0]
-        return parent, parts[-1]
-
-    def _ensure_parent_dirs(self, path: str) -> int | None:
-        parts = [p for p in path.replace("\\", "/").strip("/").split("/") if p]
-        parent: int | None = None
-        current: list[str] = []
-        for part in parts[:-1]:
-            current.append(part)
-            name83 = self._short_name(part)
-            found = self._find_entry(parent, name83)
-            if found:
-                idx, data, _ = found
-                if not (data[idx + 11] & 0x10):
-                    raise ValueError(f"{part} exists and is not a directory")
-                parent = struct.unpack_from("<H", data, idx + 26)[0]
-            else:
-                parent = self.mkdir("/".join(current))
-        return parent
-
-    def write_file(self, dest: str, payload: bytes) -> None:
-        parent = self._ensure_parent_dirs(dest)
-        name = dest.replace("\\", "/").strip("/").split("/")[-1]
-        name83 = self._short_name(name)
-
-        found = self._find_entry(parent, name83)
-        if found:
-            idx, data, _ = found
-            old_cluster = struct.unpack_from("<H", data, idx + 26)[0]
-            if old_cluster >= 2:
-                self._free_chain(old_cluster)
-        else:
-            idx, data = self._find_free_entry(parent)
-
-        cluster_size = self.sectors_per_cluster * SECTOR_SIZE
-        clusters_needed = _ceil_div(len(payload), cluster_size) if payload else 0
-        first_cluster = 0
-        previous = 0
-        for _ in range(clusters_needed):
-            cluster = self._alloc_cluster()
-            if first_cluster == 0:
-                first_cluster = cluster
-            if previous:
-                self._write_fat(previous, cluster)
-            previous = cluster
-        if previous:
-            self._write_fat(previous, FAT16_EOC)
-
-        cursor = 0
-        cluster = first_cluster
-        while cluster and cursor < len(payload):
-            to_write = payload[cursor : cursor + cluster_size]
-            self.f.seek(self._cluster_offset(cluster))
-            self.f.write(to_write)
-            if len(to_write) < cluster_size:
-                self.f.write(b"\x00" * (cluster_size - len(to_write)))
-            cursor += len(to_write)
-            nxt = self._read_fat(cluster)
-            cluster = 0 if nxt >= FAT16_EOC_MIN else nxt
-
-        self._put_entry(data, idx, name83, 0x20, first_cluster, len(payload))
-        self._write_dir_entries(parent, data)
-        self.f.flush()
-
-
-def create_or_update_image(
-    image: Path,
-    bootloader: Path,
-    kernel: Path,
-    hdd_mb: int,
-    fat_start_lba: int,
-    stage_files: list[StageFile],
-    force_format: bool,
-) -> None:
-    image_sectors = hdd_mb * 1024 * 1024 // SECTOR_SIZE
-    if fat_start_lba <= 5:
-        raise ValueError("FAT partition must start after bootloader and kernel area")
-    if fat_start_lba >= image_sectors:
-        raise ValueError("FAT partition start is beyond image size")
-
-    boot = bootloader.read_bytes()
-    if len(boot) < 5 * SECTOR_SIZE:
-        raise ValueError(f"{bootloader} is too small; expected at least 5 sectors")
-    kernel_size = kernel.stat().st_size
-    kernel_end = 5 * SECTOR_SIZE + kernel_size
-    fat_start_bytes = fat_start_lba * SECTOR_SIZE
-    if kernel_end > fat_start_bytes:
-        raise ValueError(
-            f"{kernel} ({kernel_size} bytes) overlaps FAT partition at LBA {fat_start_lba}"
-        )
-
-    partition_sectors = image_sectors - fat_start_lba
-    layout = _choose_layout(partition_sectors)
-    recreate = force_format or not _valid_existing_image(image, hdd_mb, fat_start_lba)
-
-    if recreate:
-        if image.exists():
-            image.unlink()
-        with image.open("wb") as f:
-            f.truncate(image_sectors * SECTOR_SIZE)
-            _write_mbr(f, boot, fat_start_lba, partition_sectors)
-            _write_fat16_filesystem(f, fat_start_lba, layout)
-        print(f"[hostbuild] Created {image} ({hdd_mb}MB FAT16 at LBA {fat_start_lba})")
-    else:
-        print(f"[hostbuild] Reusing existing image {image} (preserving FAT data)")
-
-    with image.open("r+b") as f:
-        _write_mbr(f, boot, fat_start_lba, partition_sectors)
-        f.seek(SECTOR_SIZE)
-        f.write(boot[SECTOR_SIZE : 5 * SECTOR_SIZE])
-        f.seek(5 * SECTOR_SIZE)
-        f.write(b"\x00" * (fat_start_bytes - 5 * SECTOR_SIZE))
-        f.seek(5 * SECTOR_SIZE)
-        with kernel.open("rb") as kf:
-            shutil.copyfileobj(kf, f)
-
-    if stage_files:
-        with Fat16Image(image, fat_start_lba) as fat:
-            for sf in stage_files:
-                if sf.source.exists():
-                    fat.write_file(sf.dest, sf.source.read_bytes())
-                    print(f"[hostbuild] Staged {sf.source} -> {image}:{sf.dest}")
-                else:
-                    print(f"[hostbuild] Skipping missing stage file {sf.source}")
-
-
-def _wad_dest(path: Path, index: int) -> str:
-    name = path.name.lower()
-    if "freedoom1" in name:
-        return "/wads/freedo~1.wad"
-    if "freedoom2" in name:
-        return "/wads/freedo~2.wad"
-    if "doom2" in name:
-        return "/wads/doom2.wad"
-    if "doom1" in name or name == "doom.wad":
-        return "/wads/doom.wad"
-    return f"/wads/wad{index}.wad"
-
-
-def stage_files(image: Path, fat_start_lba: int, stages: list[StageFile]) -> None:
-    with Fat16Image(image, fat_start_lba) as fat:
-        for stage in stages:
-            fat.write_file(stage.dest, stage.source.read_bytes())
-            print(f"[hostbuild] Staged {stage.source} -> {image}:{stage.dest}")
-
-
-def stage_wads(image: Path, fat_start_lba: int, wads: list[Path]) -> None:
-    if not wads:
-        print("[hostbuild] Skipping WAD staging (no WAD files found)")
-        return
-    stages = [StageFile(path, _wad_dest(path, i + 1)) for i, path in enumerate(wads)]
-    stage_files(image, fat_start_lba, stages)
-
-
-def build_ksyms_blob(symbols: list[tuple[int, str]]) -> bytes:
-    filtered = [(addr, name) for addr, name in symbols if name and not name.startswith(".L")]
-    filtered.sort(key=lambda item: item[0])
-
-    seen: set[int] = set()
-    unique: list[tuple[int, str]] = []
-    for addr, name in filtered:
-        if addr in seen:
-            continue
-        seen.add(addr)
-        unique.append((addr, name))
-
-    strtab = bytearray()
-    offsets: list[int] = []
-    for _, name in unique:
-        offsets.append(len(strtab))
-        strtab.extend(name.encode("utf-8") + b"\0")
-
-    count = len(unique)
-    string_off = 16 + count * 8
-    total_size = string_off + len(strtab)
-    blob = bytearray(struct.pack("<IIII", 0x4D59534B, count, string_off, total_size))
-    for (addr, _), name_off in zip(unique, offsets):
-        blob.extend(struct.pack("<II", addr, name_off))
-    blob.extend(strtab)
-    return bytes(blob)
-
-
-def _symbols_from_nm(nm: str, elf: Path) -> list[tuple[int, str]]:
-    proc = subprocess.run([nm, "-n", str(elf)], check=True, text=True, capture_output=True)
-    symbols: list[tuple[int, str]] = []
-    for line in proc.stdout.splitlines():
-        parts = line.split()
-        if len(parts) < 3:
-            continue
-        addr_s, typ, name = parts[0], parts[1], parts[2]
-        if typ not in {"t", "T", "w", "W"} or name.startswith(".L"):
-            continue
-        try:
-            symbols.append((int(addr_s, 16), name))
-        except ValueError:
-            continue
-    return symbols
-
-
-def write_ksyms_source(nm: str, elf: Path, out: Path) -> None:
-    blob = build_ksyms_blob(_symbols_from_nm(nm, elf))
-    with out.open("w", newline="\n") as f:
-        f.write("/* Auto-generated by tools/hostbuild.py -- do not edit. */\n")
-        f.write('#include "ksyms.h"\n\n')
-        f.write("const unsigned char\n")
-        f.write('__attribute__((section(".ksyms"), used, aligned(4)))\n')
-        f.write("ksym_blob[] = {\n")
-        for i in range(0, len(blob), 16):
-            chunk = blob[i : i + 16]
-            f.write("  " + " ".join(f"0x{b:02x}," for b in chunk) + "\n")
-        f.write("};\n\n")
-        f.write("const unsigned int ksym_blob_size = sizeof(ksym_blob);\n")
-    print(f"[hostbuild] mksyms: {out} ({len(blob)} bytes)")
-
-
-def embed_jpeg(objcopy: str, src: Path, out: Path) -> None:
-    tmp = Path(str(out) + ".baseline.jpg")
-    converted = False
+if __package__:
+    from . import hostbuild_assets, hostbuild_code_paths, hostbuild_disk, hostbuild_iso
+else:
+    import hostbuild_assets
+    import hostbuild_code_paths
+    import hostbuild_disk
+    import hostbuild_iso
+
+
+SECTOR_SIZE = hostbuild_disk.SECTOR_SIZE
+FAT16_TYPES = hostbuild_disk.FAT16_TYPES
+FAT16_EOC = hostbuild_disk.FAT16_EOC
+FAT16_EOC_MIN = hostbuild_disk.FAT16_EOC_MIN
+DiskImageError = hostbuild_disk.DiskImageError
+Fat16Image = hostbuild_disk.Fat16Image
+FatLayout = hostbuild_disk.FatLayout
+StageFile = hostbuild_disk.StageFile
+_acquire_disk_publication_lock = hostbuild_disk._acquire_disk_publication_lock
+_ceil_div = hostbuild_disk._ceil_div
+_choose_layout = hostbuild_disk._choose_layout
+_copy_disk_prefix = hostbuild_disk._copy_disk_prefix
+_parse_stage = hostbuild_disk._parse_stage
+_partition_info = hostbuild_disk._partition_info
+_release_disk_publication_lock = hostbuild_disk._release_disk_publication_lock
+_valid_existing_image = hostbuild_disk._valid_existing_image
+_write_fat16_filesystem = hostbuild_disk._write_fat16_filesystem
+_write_mbr = hostbuild_disk._write_mbr
+_write_pristine_disk_template = hostbuild_disk._write_pristine_disk_template
+create_or_update_image = hostbuild_disk.create_or_update_image
+create_usb_image = hostbuild_disk.create_usb_image
+stage_files = hostbuild_disk.stage_files
+stage_wads = hostbuild_disk.stage_wads
+ISO_BLOCK_SIZE = hostbuild_iso.ISO_BLOCK_SIZE
+ISO_VOLUME_ID = hostbuild_iso.ISO_VOLUME_ID
+IsoAuthoringError = hostbuild_iso.IsoAuthoringError
+_IsoSource = hostbuild_iso._IsoSource
+_acquire_iso_publication_lock = hostbuild_iso._acquire_iso_publication_lock
+_read_iso_manifest = hostbuild_iso._read_iso_manifest
+_render_iso_image = hostbuild_iso._render_iso_image
+_snapshot_iso_tree = hostbuild_iso._snapshot_iso_tree
+_validate_iso_manifest = hostbuild_iso._validate_iso_manifest
+build_iso = hostbuild_iso.build_iso
+gen_big = hostbuild_iso.gen_big
+EmbedJpegCopyError = hostbuild_assets.EmbedJpegCopyError
+EmbedJpegError = hostbuild_assets.EmbedJpegError
+InstallSourceGenerationError = hostbuild_assets.InstallSourceGenerationError
+KsymsGenerationError = hostbuild_assets.KsymsGenerationError
+_pack_ksyms_words = hostbuild_assets._pack_ksyms_words
+_parse_nm_symbols = hostbuild_assets._parse_nm_symbols
+_prepare_baseline_jpeg = hostbuild_assets._prepare_baseline_jpeg
+_render_ksyms_source = hostbuild_assets._render_ksyms_source
+_symbols_from_nm = hostbuild_assets._symbols_from_nm
+build_ksyms_blob = hostbuild_assets.build_ksyms_blob
+embed_jpeg = hostbuild_assets.embed_jpeg
+gen_bin_programs = hostbuild_assets.gen_bin_programs
+gen_demos_programs = hostbuild_assets.gen_demos_programs
+gen_docs_programs = hostbuild_assets.gen_docs_programs
+write_ksyms_source = hostbuild_assets.write_ksyms_source
+CodeValidationError = hostbuild_code_paths.CodeValidationError
+_capture_code_input = hostbuild_code_paths._capture_code_input
+_code_logical_path = hostbuild_code_paths._code_logical_path
+_code_output_entry = hostbuild_code_paths._code_output_entry
+_pin_code_output = hostbuild_code_paths._pin_code_output
+_rename_windows_code_output = hostbuild_code_paths._rename_windows_code_output
+_require_code_output_parent_unchanged = hostbuild_code_paths._require_code_output_parent_unchanged
+
+
+def _code_inputs_from_manifest(path: Path) -> list[str]:
     try:
-        jpegtran = shutil.which("jpegtran")
-        if jpegtran:
-            result = subprocess.run(
-                [jpegtran, "-copy", "none", "-optimize", "-outfile", str(tmp), str(src)],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            converted = result.returncode == 0 and tmp.exists()
-        if not converted and shutil.which("djpeg") and shutil.which("cjpeg"):
-            with tmp.open("wb") as f:
-                p1 = subprocess.Popen(
-                    [shutil.which("djpeg") or "djpeg", "-rgb", str(src)],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.DEVNULL,
-                )
-                p2 = subprocess.run(
-                    [shutil.which("cjpeg") or "cjpeg", "-quality", "90", "-baseline", "-optimize"],
-                    stdin=p1.stdout,
-                    stdout=f,
-                    stderr=subprocess.DEVNULL,
-                )
-                if p1.stdout:
-                    p1.stdout.close()
-                converted = p1.wait() == 0 and p2.returncode == 0
-        if not converted and shutil.which("ffmpeg"):
-            result = subprocess.run(
-                [
-                    shutil.which("ffmpeg") or "ffmpeg",
-                    "-y",
-                    "-hide_banner",
-                    "-loglevel",
-                    "error",
-                    "-i",
-                    str(src),
-                    "-frames:v",
-                    "1",
-                    "-q:v",
-                    "2",
-                    str(tmp),
-                ]
-            )
-            converted = result.returncode == 0 and tmp.exists()
-        if not converted:
-            shutil.copyfile(src, tmp)
-            print(f"[hostbuild] JPEG raw embed {src}")
-        else:
-            print(f"[hostbuild] JPEG baseline embed {src}")
+        payload = path.read_bytes()
+    except OSError as error:
+        raise CodeValidationError(
+            f"frozen code input manifest cannot be read: {error}"
+        ) from error
+    if not payload:
+        raise CodeValidationError("code input manifest may not be empty")
+    if not payload.endswith(b"\n"):
+        raise CodeValidationError("code input manifest must end with a newline")
+    if b"\r" in payload:
+        raise CodeValidationError("code input manifest must use LF newlines")
+    try:
+        text = payload.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise CodeValidationError(
+            "code input manifest must contain valid UTF-8"
+        ) from error
 
-        _objcopy_binary(objcopy, tmp, out)
-        old = _path_for_symbol(tmp)
-        new = _path_for_symbol(src)
-        subprocess.run(
-            [
-                objcopy,
-                f"--redefine-sym=_binary_{old}_start=_binary_{new}_start",
-                f"--redefine-sym=_binary_{old}_end=_binary_{new}_end",
-                f"--redefine-sym=_binary_{old}_size=_binary_{new}_size",
-                str(out),
-            ],
-            check=True,
+    logical_paths: list[str] = []
+    seen: set[str] = set()
+    for line_number, line in enumerate(text[:-1].split("\n"), start=1):
+        if not line:
+            raise CodeValidationError(
+                f"code input manifest line {line_number} is blank"
+            )
+        if line.startswith("#"):
+            raise CodeValidationError(
+                f"code input manifest line {line_number} may not be a comment"
+            )
+        if "\\" in line:
+            raise CodeValidationError(
+                f"code input manifest line {line_number} must use forward slashes"
+            )
+        if any(character.isspace() for character in line):
+            raise CodeValidationError(
+                f"code input manifest line {line_number} may not contain whitespace"
+            )
+        has_control = any(
+            ord(character) < 32 or ord(character) == 127 for character in line
         )
-    finally:
-        if tmp.exists():
-            tmp.unlink()
+        if has_control:
+            raise CodeValidationError(
+                f"code input manifest line {line_number} may not contain "
+                "control characters"
+            )
+        logical = _code_logical_path(Path(line))
+        if logical != line:
+            raise CodeValidationError(
+                f"code input manifest line {line_number} is not a "
+                "canonical repository path"
+            )
+        key = logical.casefold()
+        if key in seen:
+            raise CodeValidationError(f"code input is listed more than once: {logical}")
+        seen.add(key)
+        logical_paths.append(logical)
+    return logical_paths
 
 
-def _name_no_ext(path: str | Path) -> str:
-    return Path(path).stem
+def _seed_manifest_logical_path(root: Path, manifest: Path) -> str:
+    if not manifest.is_absolute() and not PureWindowsPath(str(manifest)).is_absolute():
+        return _code_logical_path(manifest, subject="checked seed manifest")
+    absolute = Path(os.path.abspath(manifest))
+    try:
+        relative = absolute.relative_to(root)
+    except ValueError as error:
+        raise CodeValidationError(
+            "checked seed manifest must be inside the repository root"
+        ) from error
+    return _code_logical_path(relative, subject="checked seed manifest")
 
 
-def _c_symbol_part(name: str) -> str:
-    return name.replace("-", "_")
+def _seed_artifact_logical_paths(manifest: Path, manifest_logical: str) -> list[str]:
+    try:
+        payload = json.loads(manifest.read_text(encoding="utf-8"))
+        artifacts = payload["artifacts"]
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError) as error:
+        raise CodeValidationError(
+            f"checked seed manifest cannot be read: {error}"
+        ) from error
+    if not isinstance(artifacts, list):
+        raise CodeValidationError("checked seed manifest artifacts must be a list")
+    parent = PurePosixPath(manifest_logical).parent
+    logical_paths: list[str] = []
+    seen: set[str] = set()
+    for index, artifact in enumerate(artifacts):
+        if not isinstance(artifact, dict) or not isinstance(artifact.get("file"), str):
+            raise CodeValidationError(
+                f"checked seed manifest artifact {index} has no file name"
+            )
+        file_name = artifact["file"]
+        if PurePosixPath(file_name).name != file_name or "\\" in file_name:
+            raise CodeValidationError(
+                f"checked seed manifest artifact {index} has an unsafe file name"
+            )
+        logical = _code_logical_path(
+            Path((parent / file_name).as_posix()),
+            subject="checked seed artifact",
+        )
+        key = logical.casefold() if os.name == "nt" else logical
+        if key in seen:
+            raise CodeValidationError(
+                f"checked seed artifact is listed more than once: {file_name}"
+            )
+        seen.add(key)
+        logical_paths.append(logical)
+    return logical_paths
 
 
-def gen_bin_programs(out: Path, bins: list[str], headers: list[str], browser: list[str]) -> None:
-    bin_names = [_name_no_ext(p) for p in bins]
-    hdr_names = [_name_no_ext(p) for p in headers]
-    browser_names = [_name_no_ext(p) for p in browser]
-    lines = [
-        "/* Auto-generated -- do not edit. */",
-        "/* Lists all embedded CupidC programs from bin/ directory */",
-        '#include "ramfs.h"',
-        '#include "types.h"',
-        '#include "../drivers/serial.h"',
+def _freeze_code_seed_inputs(
+    root: Path,
+    seed_manifest: Path,
+    private_root: Path,
+) -> tuple[object, Path, list[_CodeValidationInput]]:
+    manifest_logical = _seed_manifest_logical_path(root, seed_manifest)
+    live_manifest = root.joinpath(*PurePosixPath(manifest_logical).parts)
+    seed_source = private_root / ".checked-seed-source"
+    frozen_manifest = seed_source.joinpath(*PurePosixPath(manifest_logical).parts)
+    snapshots = [
+        _capture_code_input(
+            root,
+            manifest_logical,
+            frozen=frozen_manifest,
+            subject="checked seed manifest",
+        )
     ]
-    lines += [f"extern const char _binary_bin_{n}_cc_start[];" for n in bin_names]
-    lines += [f"extern const char _binary_bin_{n}_h_start[];" for n in hdr_names]
-    lines += [f"extern const char _binary_bin_{n}_cc_end[];" for n in bin_names]
-    lines += [f"extern const char _binary_bin_{n}_h_end[];" for n in hdr_names]
-    lines += [f"extern const char _binary_bin_browser_{n}_cc_start[];" for n in browser_names]
-    lines += [f"extern const char _binary_bin_browser_{n}_cc_end[];" for n in browser_names]
-    lines += ["void install_bin_programs(void *fs_private);", "void install_bin_programs(void *fs_private) {"]
-    lines += [
-        f'    {{ uint32_t sz = (uint32_t)(_binary_bin_{n}_cc_end - _binary_bin_{n}_cc_start); ramfs_add_file(fs_private, "bin/{n}.cc", _binary_bin_{n}_cc_start, sz); serial_printf("[kernel] Installed /bin/{n}.cc (%u bytes)\\n", sz); }}'
-        for n in bin_names
-    ]
-    lines += [
-        f'    {{ uint32_t sz = (uint32_t)(_binary_bin_{n}_h_end - _binary_bin_{n}_h_start); ramfs_add_file(fs_private, "bin/{n}.h", _binary_bin_{n}_h_start, sz); serial_printf("[kernel] Installed /bin/{n}.h (%u bytes)\\n", sz); }}'
-        for n in hdr_names
-    ]
-    lines += [
-        f'    {{ uint32_t sz = (uint32_t)(_binary_bin_browser_{n}_cc_end - _binary_bin_browser_{n}_cc_start); ramfs_add_file(fs_private, "bin/browser/{n}.cc", _binary_bin_browser_{n}_cc_start, sz); serial_printf("[kernel] Installed /bin/browser/{n}.cc (%u bytes)\\n", sz); }}'
-        for n in browser_names
-    ]
-    lines.append("}")
-    out.write_text("\n".join(lines) + "\n", newline="\n")
+    for logical in _seed_artifact_logical_paths(frozen_manifest, manifest_logical):
+        snapshots.append(
+            _capture_code_input(
+                root,
+                logical,
+                frozen=seed_source.joinpath(*PurePosixPath(logical).parts),
+                subject="checked seed artifact",
+            )
+        )
+    try:
+        frozen_seed = freeze_seed_inputs(
+            frozen_manifest,
+            private_root / ".checked-seed",
+        )
+    except (BootstrapError, OSError) as error:
+        raise CodeValidationError(f"checked seed could not be frozen: {error}") from error
+    return frozen_seed, live_manifest, snapshots
 
 
-def gen_docs_programs(out: Path, ctxt: list[str], doc_assets: list[str], home_assets: list[str]) -> None:
-    ctxt_names = [_name_no_ext(p) for p in ctxt]
-    doc_bmps = [_name_no_ext(p) for p in doc_assets if Path(p).suffix.lower() == ".bmp"]
-    home_bmps = [_name_no_ext(p) for p in home_assets if Path(p).suffix.lower() == ".bmp"]
-    home_pngs = [_name_no_ext(p) for p in home_assets if Path(p).suffix.lower() == ".png"]
-    home_jpgs = [_name_no_ext(p) for p in home_assets if Path(p).suffix.lower() == ".jpg"]
-    home_jpegs = [_name_no_ext(p) for p in home_assets if Path(p).suffix.lower() == ".jpeg"]
-    lines = [
-        "/* Auto-generated -- do not edit. */",
-        "/* Lists all embedded CupidDoc files from cupidos-txt/ directory */",
-        '#include "homefs.h"',
-        '#include "ramfs.h"',
-        '#include "types.h"',
-        '#include "vfs.h"',
-        '#include "../drivers/serial.h"',
-    ]
-    lines += [f"extern const char _binary_cupidos_txt_{_c_symbol_part(n)}_CTXT_start[];" for n in ctxt_names]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_bmp_start[];" for n in doc_bmps]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_bmp_start[];" for n in home_bmps]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_png_start[];" for n in home_pngs]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_jpg_start[];" for n in home_jpgs]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_jpeg_start[];" for n in home_jpegs]
-    lines += [f"extern const char _binary_cupidos_txt_{_c_symbol_part(n)}_CTXT_end[];" for n in ctxt_names]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_bmp_end[];" for n in doc_bmps]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_bmp_end[];" for n in home_bmps]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_png_end[];" for n in home_pngs]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_jpg_end[];" for n in home_jpgs]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_jpeg_end[];" for n in home_jpegs]
-    lines += [
-        "static void install_home_asset(const char *path, const char *data, uint32_t size) {",
-        "    int fd = vfs_open(path, O_WRONLY | O_CREAT | O_TRUNC);",
-        '    if (fd < 0) { serial_printf("[kernel] Failed to open %s (%d)\\n", path, fd); return; }',
-        "    uint32_t off = 0;",
-        "    while (off < size) {",
-        "        int n = vfs_write(fd, data + off, size - off);",
-        "        if (n <= 0) break;",
-        "        off += (uint32_t)n;",
-        "    }",
-        "    vfs_close(fd);",
-        '    serial_printf("[kernel] Installed %s (%u bytes)\\n", path, off);',
-        "}",
-        "void install_docs_programs(void *fs_private);",
-        "void install_docs_programs(void *fs_private) {",
-    ]
-    lines += [
-        f'    {{ uint32_t sz = (uint32_t)(_binary_cupidos_txt_{_c_symbol_part(n)}_CTXT_end - _binary_cupidos_txt_{_c_symbol_part(n)}_CTXT_start); ramfs_add_file(fs_private, "docs/{n}.ctxt", _binary_cupidos_txt_{_c_symbol_part(n)}_CTXT_start, sz); serial_printf("[kernel] Installed /docs/{n}.ctxt (%u bytes)\\n", sz); }}'
-        for n in ctxt_names
-    ]
-    lines += [
-        f'    {{ uint32_t sz = (uint32_t)(_binary_{_c_symbol_part(n)}_bmp_end - _binary_{_c_symbol_part(n)}_bmp_start); ramfs_add_file(fs_private, "docs/{n}.bmp", _binary_{_c_symbol_part(n)}_bmp_start, sz); serial_printf("[kernel] Installed /docs/{n}.bmp (%u bytes)\\n", sz); }}'
-        for n in doc_bmps
-    ]
-    lines.append("    homefs_seed_begin();")
-    for names, ext in ((home_bmps, "bmp"), (home_pngs, "png"), (home_jpgs, "jpg"), (home_jpegs, "jpeg")):
-        lines += [
-            f'    {{ uint32_t sz = (uint32_t)(_binary_{_c_symbol_part(n)}_{ext}_end - _binary_{_c_symbol_part(n)}_{ext}_start); install_home_asset("/home/{n}.{ext}", _binary_{_c_symbol_part(n)}_{ext}_start, sz); }}'
-            for n in names
-        ]
-    lines += ["    homefs_seed_end();", "}"]
-    out.write_text("\n".join(lines) + "\n", newline="\n")
+def _require_code_output_not_an_input(
+    output: _CodeOutput,
+    output_snapshot: _CodeValidationInput | None,
+    inputs: list[_CodeValidationInput],
+) -> None:
+    output_key = output.logical.casefold() if os.name == "nt" else output.logical
+    for input_snapshot in inputs:
+        input_key = (
+            input_snapshot.logical.casefold()
+            if os.name == "nt"
+            else input_snapshot.logical
+        )
+        if output_key == input_key:
+            raise CodeValidationError("code output may not replace an input")
+        if output_snapshot is not None and (
+            output_snapshot.device,
+            output_snapshot.inode,
+        ) == (input_snapshot.device, input_snapshot.inode):
+            raise CodeValidationError("code output may not replace an input")
 
 
-def gen_demos_programs(out: Path, demos: list[str]) -> None:
-    names = [_name_no_ext(p) for p in demos]
-    lines = [
-        "/* Auto-generated -- do not edit. */",
-        "/* Lists all embedded CupidASM demos from demos/ directory */",
-        '#include "ramfs.h"',
-        '#include "types.h"',
-        '#include "../drivers/serial.h"',
-    ]
-    lines += [f"extern const char _binary_demos_{n}_asm_start[];" for n in names]
-    lines += [f"extern const char _binary_demos_{n}_asm_end[];" for n in names]
-    lines += ["void install_demo_programs(void *fs_private);", "void install_demo_programs(void *fs_private) {"]
-    lines += [
-        f'    {{ uint32_t sz = (uint32_t)(_binary_demos_{n}_asm_end - _binary_demos_{n}_asm_start); ramfs_add_file(fs_private, "demos/{n}.asm", _binary_demos_{n}_asm_start, sz); serial_printf("[kernel] Installed /demos/{n}.asm (%u bytes)\\n", sz); ramfs_add_file(fs_private, "docs/demos/{n}.asm", _binary_demos_{n}_asm_start, sz); serial_printf("[kernel] Installed /docs/demos/{n}.asm (%u bytes)\\n", sz); }}'
-        for n in names
-    ]
-    lines.append("}")
-    out.write_text("\n".join(lines) + "\n", newline="\n")
+def _require_code_inputs_unchanged(
+    root: Path,
+    manifest_snapshot: _CodeValidationInput | None,
+    snapshots: list[_CodeValidationInput],
+    *,
+    activity: str,
+    tool_stderr: str,
+) -> None:
+    if manifest_snapshot is not None:
+        try:
+            current_manifest = _capture_code_input(
+                root,
+                manifest_snapshot.logical,
+                subject="code input manifest",
+            )
+        except CodeValidationError as error:
+            raise CodeValidationError(
+                f"code input manifest changed while {activity} ran: "
+                f"{manifest_snapshot.logical}",
+                tool_stderr=tool_stderr,
+            ) from error
+        if (
+            current_manifest.size != manifest_snapshot.size
+            or current_manifest.sha256 != manifest_snapshot.sha256
+        ):
+            raise CodeValidationError(
+                f"code input manifest changed while {activity} ran: "
+                f"{manifest_snapshot.logical}",
+                tool_stderr=tool_stderr,
+            )
+    for snapshot in snapshots:
+        try:
+            current = _capture_code_input(root, snapshot.logical)
+        except CodeValidationError as error:
+            raise CodeValidationError(
+                f"code input changed while {activity} ran: {snapshot.logical}",
+                tool_stderr=tool_stderr,
+            ) from error
+        if current.size != snapshot.size or current.sha256 != snapshot.sha256:
+            raise CodeValidationError(
+                f"code input changed while {activity} ran: {snapshot.logical}",
+                tool_stderr=tool_stderr,
+            )
 
 
-def gen_big(out: Path) -> None:
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_bytes(bytes(i & 0xFF for i in range(4096)))
-    print(f"[hostbuild] Generated {out} (4096 bytes)")
+def _require_code_seed_inputs_unchanged(
+    root: Path,
+    snapshots: list[_CodeValidationInput],
+    *,
+    tool_stderr: str,
+) -> None:
+    for index, snapshot in enumerate(snapshots):
+        subject = "checked seed manifest" if index == 0 else "checked seed artifact"
+        try:
+            current = _capture_code_input(root, snapshot.logical, subject=subject)
+        except CodeValidationError as error:
+            raise CodeValidationError(
+                f"checked seed inputs changed while checked tools ran: "
+                f"{snapshot.logical}",
+                tool_stderr=tool_stderr,
+            ) from error
+        if current.size != snapshot.size or current.sha256 != snapshot.sha256:
+            raise CodeValidationError(
+                f"checked seed inputs changed while checked tools ran: "
+                f"{snapshot.logical}",
+                tool_stderr=tool_stderr,
+            )
 
 
-def build_iso(fixtures: Path, out: Path) -> None:
-    gen_big(fixtures / "big.bin")
-    tool = shutil.which("mkisofs") or shutil.which("genisoimage") or shutil.which("xorrisofs")
-    if not tool:
-        raise SystemExit("ERROR: need mkisofs, genisoimage, or xorrisofs to build test ISO")
-    out.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run([tool, "-R", "-quiet", "-o", str(out), str(fixtures)], check=True)
+def _require_code_output_unchanged(
+    output: _CodeOutput,
+    initial: _CodeValidationInput | None,
+) -> None:
+    current = _code_output_entry(output)
+    if current is None:
+        if initial is not None:
+            raise CodeValidationError("code output changed while checked tools ran")
+        return
+    if initial is None:
+        raise CodeValidationError("code output appeared while checked tools ran")
+    if current.size != initial.size or current.sha256 != initial.sha256:
+        raise CodeValidationError("code output changed while checked tools ran")
 
 
-def create_usb_image(out: Path, size_mb: int = 32, partition_lba: int = 2048) -> None:
-    sectors = size_mb * 1024 * 1024 // SECTOR_SIZE
-    if partition_lba >= sectors:
-        raise ValueError("USB partition start is beyond image size")
-    layout = _choose_layout(sectors - partition_lba)
-    with out.open("wb") as f:
-        f.truncate(sectors * SECTOR_SIZE)
-        mbr = bytearray(SECTOR_SIZE)
-        off = 446
-        mbr[off] = 0x80
-        mbr[off + 1 : off + 4] = b"\x00\x01\x00"
-        mbr[off + 4] = 0x06
-        mbr[off + 5 : off + 8] = b"\xfe\xff\xff"
-        struct.pack_into("<I", mbr, off + 8, partition_lba)
-        struct.pack_into("<I", mbr, off + 12, sectors - partition_lba)
-        mbr[510:512] = b"\x55\xaa"
-        f.seek(0)
-        f.write(mbr)
-        _write_fat16_filesystem(f, partition_lba, layout)
-    print(f"[hostbuild] Built {out} ({size_mb}MB FAT16 USB image)")
+def _publish_code_output(candidate: _CodeOutput, output: _CodeOutput) -> None:
+    candidate_name = PurePosixPath(candidate.logical).name
+    output_name = PurePosixPath(output.logical).name
+    if candidate.parent_fd is not None and output.parent_fd is not None:
+        os.replace(
+            candidate_name,
+            output_name,
+            src_dir_fd=candidate.parent_fd,
+            dst_dir_fd=output.parent_fd,
+        )
+        return
+    if candidate.parent_handle is not None and output.parent_handle is not None:
+        _rename_windows_code_output(candidate, output)
+        return
+    raise CodeValidationError("code output parent was not pinned")
+
+
+@dataclass(frozen=True)
+class _CheckedAssemblyTransaction:
+    _repository_root: Path
+    _private_root: Path
+    _stack: ExitStack
+    _source_snapshot: _CodeValidationInput
+    _frozen_seed: object
+    _live_seed_manifest: Path
+    _seed_snapshots: list[_CodeValidationInput]
+    _pinned_output: _CodeOutput
+    _initial_output: _CodeValidationInput | None
+    candidate_logical: str
+    _candidate_output: _CodeOutput
+
+    def pin_private_output(self, logical: str) -> _CodeOutput:
+        return _pin_code_output(self._private_root, Path(logical), self._stack)
+
+    def run_tool(
+        self,
+        tool_name: str,
+        arguments: tuple[str, ...],
+    ) -> subprocess.CompletedProcess[str]:
+        return run_seed_tool(
+            self._live_seed_manifest,
+            self._private_root,
+            tool_name,
+            arguments,
+            timeout=60,
+            frozen_seed=self._frozen_seed,
+        )
+
+    def candidate_snapshot(self) -> _CodeValidationInput | None:
+        return _code_output_entry(self._candidate_output)
+
+    def candidate_bytes(
+        self,
+        expected: _CodeValidationInput,
+        *,
+        activity: str,
+        tool_stderr: str,
+    ) -> bytes:
+        try:
+            payload = self._candidate_output.path.read_bytes()
+        except OSError as error:
+            raise CodeValidationError(
+                "checked CupidASM output cannot be read: "
+                f"{self._candidate_output.logical}: {error}",
+                tool_stderr=tool_stderr,
+            ) from error
+        if (
+            len(payload) != expected.size
+            or hashlib.sha256(payload).hexdigest() != expected.sha256
+        ):
+            raise CodeValidationError(
+                f"checked CupidASM output changed while {activity} ran",
+                tool_stderr=tool_stderr,
+            )
+        return payload
+
+    def require_inputs_unchanged(
+        self,
+        *,
+        activity: str,
+        tool_stderr: str,
+    ) -> None:
+        _require_code_inputs_unchanged(
+            self._repository_root,
+            None,
+            [self._source_snapshot],
+            activity=activity,
+            tool_stderr=tool_stderr,
+        )
+        _require_code_seed_inputs_unchanged(
+            self._repository_root,
+            self._seed_snapshots,
+            tool_stderr=tool_stderr,
+        )
+
+    def require_private_output_unchanged(
+        self,
+        output: _CodeOutput,
+        expected: _CodeValidationInput,
+        *,
+        description: str,
+        activity: str = "CupidDis",
+        tool_stderr: str,
+    ) -> None:
+        current = _code_output_entry(output)
+        if (
+            current is None
+            or current.size != expected.size
+            or current.sha256 != expected.sha256
+        ):
+            raise CodeValidationError(
+                f"{description} changed while {activity} ran",
+                tool_stderr=tool_stderr,
+            )
+
+    def require_candidate_unchanged(
+        self,
+        expected: _CodeValidationInput,
+        *,
+        activity: str = "CupidDis",
+        tool_stderr: str,
+    ) -> None:
+        self.require_private_output_unchanged(
+            self._candidate_output,
+            expected,
+            description="checked CupidASM output",
+            activity=activity,
+            tool_stderr=tool_stderr,
+        )
+
+    def require_publication_boundary_unchanged(self, tool_stderr: str) -> None:
+        try:
+            _require_code_output_parent_unchanged(self._pinned_output)
+            _require_code_output_unchanged(
+                self._pinned_output,
+                self._initial_output,
+            )
+        except CodeValidationError as error:
+            raise CodeValidationError(
+                str(error),
+                tool_stderr=tool_stderr,
+            ) from error
+
+    def publish(self) -> None:
+        _publish_code_output(self._candidate_output, self._pinned_output)
+
+
+@contextmanager
+def _checked_assembly_transaction(
+    seed_manifest: Path,
+    repository_root: Path,
+    source_logical: str,
+    output: Path,
+    *,
+    source_subject: str,
+    temporary_prefix: str,
+) -> Iterator[_CheckedAssemblyTransaction]:
+    with ExitStack() as stack:
+        pinned_output = _pin_code_output(repository_root, output, stack)
+        try:
+            publication_lock = _acquire_disk_publication_lock(
+                pinned_output.path
+            )
+        except DiskImageError as error:
+            raise CodeValidationError(str(error)) from error
+        stack.callback(_release_disk_publication_lock, publication_lock)
+        temporary = stack.enter_context(
+            tempfile.TemporaryDirectory(
+                prefix=temporary_prefix,
+                dir=repository_root,
+            )
+        )
+        private_root = Path(temporary)
+        source_snapshot = _capture_code_input(
+            repository_root,
+            source_logical,
+            frozen=private_root.joinpath(*PurePosixPath(source_logical).parts),
+            subject=source_subject,
+        )
+        initial_output = _code_output_entry(pinned_output)
+        _require_code_output_not_an_input(
+            pinned_output,
+            initial_output,
+            [source_snapshot],
+        )
+        frozen_seed, live_seed_manifest, seed_snapshots = (
+            _freeze_code_seed_inputs(
+                repository_root,
+                seed_manifest,
+                private_root,
+            )
+        )
+        _require_code_output_not_an_input(
+            pinned_output,
+            initial_output,
+            seed_snapshots,
+        )
+        candidate_logical = (
+            ".cupid-output/" + PurePosixPath(pinned_output.logical).name
+        )
+        candidate_path = private_root.joinpath(
+            *PurePosixPath(candidate_logical).parts
+        )
+        candidate_path.parent.mkdir()
+        candidate_output = _pin_code_output(
+            private_root,
+            Path(candidate_logical),
+            stack,
+        )
+        yield _CheckedAssemblyTransaction(
+            _repository_root=repository_root,
+            _private_root=private_root,
+            _stack=stack,
+            _source_snapshot=source_snapshot,
+            _frozen_seed=frozen_seed,
+            _live_seed_manifest=live_seed_manifest,
+            _seed_snapshots=seed_snapshots,
+            _pinned_output=pinned_output,
+            _initial_output=initial_output,
+            candidate_logical=candidate_logical,
+            _candidate_output=candidate_output,
+        )
+
+
+def validate_code(
+    seed_manifest: Path,
+    root: Path,
+    inputs: list[Path] | None = None,
+    *,
+    input_manifest: Path | None = None,
+    output: Path | None = None,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        repository_root = root.resolve(strict=True)
+    except OSError as error:
+        raise CodeValidationError(
+            f"repository root cannot be resolved: {root}: {error}"
+        ) from error
+    if not repository_root.is_dir():
+        raise CodeValidationError(
+            f"repository root is not a directory: {repository_root}"
+        )
+    seed_manifest_logical = _seed_manifest_logical_path(
+        repository_root,
+        seed_manifest,
+    )
+    live_seed_manifest = repository_root.joinpath(
+        *PurePosixPath(seed_manifest_logical).parts
+    )
+    selected_inputs = list(inputs or [])
+    if input_manifest is None and not selected_inputs:
+        raise CodeValidationError("select code inputs or one code input manifest")
+    if input_manifest is not None and selected_inputs:
+        raise CodeValidationError(
+            "code inputs and --input-manifest may not be combined"
+        )
+
+    try:
+        with ExitStack() as stack:
+            pinned_output = None
+            temporary_parent = None
+            if output is not None:
+                pinned_output = _pin_code_output(repository_root, output, stack)
+                try:
+                    publication_lock = _acquire_disk_publication_lock(
+                        pinned_output.path
+                    )
+                except DiskImageError as error:
+                    raise CodeValidationError(str(error)) from error
+                stack.callback(_release_disk_publication_lock, publication_lock)
+                temporary_parent = pinned_output.path.parent
+            temporary = stack.enter_context(
+                tempfile.TemporaryDirectory(
+                    prefix=".cupid-code-validation-",
+                    dir=temporary_parent,
+                )
+            )
+            private_root = Path(temporary)
+            manifest_snapshot = None
+            if input_manifest is None:
+                logical_paths = []
+                seen: set[str] = set()
+                for path in selected_inputs:
+                    logical = _code_logical_path(path)
+                    key = logical.casefold() if os.name == "nt" else logical
+                    if key in seen:
+                        raise CodeValidationError(
+                            f"code input is listed more than once: {logical}"
+                        )
+                    seen.add(key)
+                    logical_paths.append(logical)
+            else:
+                manifest_logical = _code_logical_path(
+                    input_manifest, subject="code input manifest"
+                )
+                frozen_manifest = private_root.joinpath(
+                    *PurePosixPath(manifest_logical).parts
+                )
+                manifest_snapshot = _capture_code_input(
+                    repository_root,
+                    manifest_logical,
+                    frozen=frozen_manifest,
+                    subject="code input manifest",
+                )
+                logical_paths = _code_inputs_from_manifest(frozen_manifest)
+            snapshots = [
+                _capture_code_input(
+                    repository_root,
+                    logical,
+                    frozen=private_root.joinpath(*PurePosixPath(logical).parts),
+                )
+                for logical in logical_paths
+            ]
+            initial_output = None
+            frozen_seed = None
+            seed_snapshots: list[_CodeValidationInput] = []
+            candidate_output = None
+            if pinned_output is not None:
+                linked_kernel_inputs = (
+                    "kernel/kernel.elf.pass1",
+                    "kernel/kernel.elf",
+                )
+                missing_linked_inputs = [
+                    logical
+                    for logical in linked_kernel_inputs
+                    if logical not in logical_paths
+                ]
+                if missing_linked_inputs:
+                    raise CodeValidationError(
+                        "code publication requires the linked kernel inputs "
+                        "in the validated input cohort: "
+                        + ", ".join(missing_linked_inputs)
+                    )
+                initial_output = _code_output_entry(pinned_output)
+                protected_inputs = list(snapshots)
+                if manifest_snapshot is not None:
+                    protected_inputs.append(manifest_snapshot)
+                _require_code_output_not_an_input(
+                    pinned_output,
+                    initial_output,
+                    protected_inputs,
+                )
+                (
+                    frozen_seed,
+                    live_seed_manifest,
+                    seed_snapshots,
+                ) = _freeze_code_seed_inputs(
+                    repository_root,
+                    seed_manifest,
+                    private_root,
+                )
+                _require_code_output_not_an_input(
+                    pinned_output,
+                    initial_output,
+                    seed_snapshots,
+                )
+                candidate_logical = (
+                    ".cupid-output/"
+                    + PurePosixPath(pinned_output.logical).name
+                )
+                candidate_path = private_root.joinpath(
+                    *PurePosixPath(candidate_logical).parts
+                )
+                candidate_path.parent.mkdir()
+                candidate_output = _pin_code_output(
+                    private_root,
+                    Path(candidate_logical),
+                    stack,
+                )
+            try:
+                result = run_seed_tool(
+                    live_seed_manifest,
+                    private_root,
+                    "cupiddis",
+                    ("--require-known", *logical_paths),
+                    timeout=300,
+                    **({"frozen_seed": frozen_seed} if frozen_seed is not None else {}),
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    f"checked CupidDis could not run: {error}"
+                ) from error
+
+            tool_stderr = result.stderr or ""
+            if result.stdout or result.returncode != 0 or output is None:
+                _require_code_inputs_unchanged(
+                    repository_root,
+                    manifest_snapshot,
+                    snapshots,
+                    activity="CupidDis",
+                    tool_stderr=tool_stderr,
+                )
+                if result.stdout:
+                    raise CodeValidationError(
+                        "checked CupidDis wrote unexpected standard output",
+                        tool_stderr=tool_stderr,
+                    )
+                return result
+
+            assert candidate_output is not None
+            assert frozen_seed is not None
+            try:
+                linked_validation = run_seed_tool(
+                    live_seed_manifest,
+                    private_root,
+                    "cupiddis",
+                    (
+                        "--require-known",
+                        "--require-local-targets",
+                        "--require-code-anchors",
+                        "kernel/kernel.elf.pass1",
+                        "kernel/kernel.elf",
+                    ),
+                    timeout=600,
+                    frozen_seed=frozen_seed,
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    "checked CupidDis linked-code validation could not run: "
+                    f"{error}",
+                    tool_stderr=tool_stderr,
+                ) from error
+            linked_stderr = tool_stderr + (linked_validation.stderr or "")
+            _require_code_inputs_unchanged(
+                repository_root,
+                manifest_snapshot,
+                snapshots,
+                activity="CupidDis linked-code validation",
+                tool_stderr=linked_stderr,
+            )
+            _require_code_seed_inputs_unchanged(
+                repository_root,
+                seed_snapshots,
+                tool_stderr=linked_stderr,
+            )
+            if linked_validation.stdout:
+                raise CodeValidationError(
+                    "checked CupidDis linked-code validation wrote unexpected "
+                    "standard output",
+                    tool_stderr=linked_stderr,
+                )
+            if linked_validation.returncode != 0:
+                return subprocess.CompletedProcess(
+                    linked_validation.args,
+                    linked_validation.returncode,
+                    "",
+                    linked_stderr,
+                )
+            try:
+                flattened = run_seed_tool(
+                    live_seed_manifest,
+                    private_root,
+                    "cupidobj",
+                    (
+                        "flat",
+                        "kernel/kernel.elf",
+                        "-o",
+                        candidate_output.logical,
+                    ),
+                    timeout=300,
+                    frozen_seed=frozen_seed,
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    f"checked CupidObj could not run: {error}",
+                    tool_stderr=linked_stderr,
+                ) from error
+            combined_stderr = linked_stderr + (flattened.stderr or "")
+            _require_code_inputs_unchanged(
+                repository_root,
+                manifest_snapshot,
+                snapshots,
+                activity="checked tools",
+                tool_stderr=combined_stderr,
+            )
+            _require_code_seed_inputs_unchanged(
+                repository_root,
+                seed_snapshots,
+                tool_stderr=combined_stderr,
+            )
+            if flattened.stdout:
+                raise CodeValidationError(
+                    "checked CupidObj wrote unexpected standard output",
+                    tool_stderr=combined_stderr,
+                )
+            if flattened.returncode != 0:
+                return subprocess.CompletedProcess(
+                    flattened.args,
+                    flattened.returncode,
+                    "",
+                    combined_stderr,
+                )
+            candidate_snapshot = _code_output_entry(candidate_output)
+            if candidate_snapshot is None:
+                raise CodeValidationError(
+                    "checked CupidObj output does not exist: "
+                    f"{candidate_output.logical}",
+                    tool_stderr=combined_stderr,
+                )
+            assert pinned_output is not None
+            try:
+                _require_code_output_parent_unchanged(pinned_output)
+                _require_code_output_unchanged(pinned_output, initial_output)
+            except CodeValidationError as error:
+                raise CodeValidationError(
+                    str(error), tool_stderr=combined_stderr
+                ) from error
+            try:
+                _publish_code_output(candidate_output, pinned_output)
+            except OSError as error:
+                raise CodeValidationError(
+                    f"validated kernel could not be published: {error}",
+                    tool_stderr=combined_stderr,
+                ) from error
+            return subprocess.CompletedProcess(
+                flattened.args,
+                0,
+                "",
+                combined_stderr,
+            )
+    except CodeValidationError:
+        raise
+    except OSError as error:
+        raise CodeValidationError(
+            f"private code snapshot could not be created: {error}"
+        ) from error
+
+
+def assemble_cupidasm_object(
+    seed_manifest: Path,
+    root: Path,
+    source: Path,
+    output: Path,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        try:
+            from tools.cupidc_kernel_compile import (
+                KernelCompileError,
+                validate_i386_relocatable_bytes,
+            )
+        except ModuleNotFoundError:
+            from cupidc_kernel_compile import (
+                KernelCompileError,
+                validate_i386_relocatable_bytes,
+            )
+    except (ImportError, SyntaxError) as error:
+        raise CodeValidationError(
+            f"CupidASM object validator could not be loaded: {error}"
+        ) from error
+
+    try:
+        repository_root = root.resolve(strict=True)
+    except OSError as error:
+        raise CodeValidationError(
+            f"repository root cannot be resolved: {root}: {error}"
+        ) from error
+    if not repository_root.is_dir():
+        raise CodeValidationError(
+            f"repository root is not a directory: {repository_root}"
+        )
+    source_logical = _code_logical_path(
+        source,
+        subject="CupidASM object source",
+    )
+
+    try:
+        with _checked_assembly_transaction(
+            seed_manifest,
+            repository_root,
+            source_logical,
+            output,
+            source_subject="CupidASM object source",
+            temporary_prefix=".cupidasm-object-",
+        ) as transaction:
+            candidate_logical = transaction.candidate_logical
+            try:
+                assembled = transaction.run_tool(
+                    "cupidasm",
+                    (
+                        "-f",
+                        "elf32",
+                        "-o",
+                        candidate_logical,
+                        source_logical,
+                    ),
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    f"checked CupidASM could not run: {error}"
+                ) from error
+            tool_stderr = assembled.stderr or ""
+            transaction.require_inputs_unchanged(
+                activity="CupidASM",
+                tool_stderr=tool_stderr,
+            )
+            if assembled.returncode != 0:
+                return subprocess.CompletedProcess(
+                    assembled.args,
+                    assembled.returncode,
+                    "",
+                    tool_stderr,
+                )
+            if assembled.stdout:
+                raise CodeValidationError(
+                    "checked CupidASM wrote unexpected standard output",
+                    tool_stderr=tool_stderr,
+                )
+            if tool_stderr:
+                raise CodeValidationError(
+                    "checked CupidASM wrote unexpected standard error",
+                    tool_stderr=tool_stderr,
+                )
+            candidate_snapshot = transaction.candidate_snapshot()
+            if candidate_snapshot is None:
+                raise CodeValidationError(
+                    "checked CupidASM output does not exist: "
+                    f"{candidate_logical}",
+                    tool_stderr=tool_stderr,
+                )
+
+            candidate_bytes = transaction.candidate_bytes(
+                candidate_snapshot,
+                activity="structural validation",
+                tool_stderr=tool_stderr,
+            )
+            try:
+                validate_i386_relocatable_bytes(
+                    candidate_bytes,
+                    require_executable=True,
+                )
+            except KernelCompileError as error:
+                raise CodeValidationError(
+                    "checked CupidASM relocatable object validation failed: "
+                    f"{error}",
+                    tool_stderr=tool_stderr,
+                ) from error
+            transaction.require_candidate_unchanged(
+                candidate_snapshot,
+                activity="structural validation",
+                tool_stderr=tool_stderr,
+            )
+
+            try:
+                disassembled = transaction.run_tool(
+                    "cupiddis",
+                    (
+                        "--require-known",
+                        "--require-local-targets",
+                        "--require-code-anchors",
+                        candidate_logical,
+                    ),
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    f"checked CupidDis could not run: {error}",
+                    tool_stderr=tool_stderr,
+                ) from error
+            combined_stderr = tool_stderr + (disassembled.stderr or "")
+            transaction.require_inputs_unchanged(
+                activity="checked tools",
+                tool_stderr=combined_stderr,
+            )
+            transaction.require_candidate_unchanged(
+                candidate_snapshot,
+                tool_stderr=combined_stderr,
+            )
+            transaction.require_publication_boundary_unchanged(combined_stderr)
+            if disassembled.returncode != 0:
+                return subprocess.CompletedProcess(
+                    disassembled.args,
+                    disassembled.returncode,
+                    "",
+                    combined_stderr,
+                )
+            if disassembled.stdout:
+                raise CodeValidationError(
+                    "checked CupidDis wrote unexpected standard output",
+                    tool_stderr=combined_stderr,
+                )
+            if disassembled.stderr:
+                raise CodeValidationError(
+                    "checked CupidDis wrote unexpected standard error",
+                    tool_stderr=combined_stderr,
+                )
+            try:
+                transaction.publish()
+            except OSError as error:
+                raise CodeValidationError(
+                    "validated CupidASM object could not be published: "
+                    f"{error}",
+                    tool_stderr=combined_stderr,
+                ) from error
+            return subprocess.CompletedProcess(
+                disassembled.args,
+                0,
+                "",
+                combined_stderr,
+            )
+    except CodeValidationError:
+        raise
+    except OSError as error:
+        raise CodeValidationError(
+            f"private CupidASM object snapshot could not be created: {error}"
+        ) from error
+
+
+_SMP_TRAMPOLINE_RAW_MAP = (
+    b"cupid.raw-map.v2\n"
+    b"size 4096\n"
+    b"base 0x00008000\n"
+    b"edges 6\n"
+    b"range 0x00000000 code16\n"
+    b"range 0x0000001f data\n"
+    b"range 0x00000210 code32\n"
+    b"range 0x00000254 data\n"
+    b"edge 0x00000017 far local 0x00000210 0x00008210 32 0x00000008\n"
+    b"edge 0x0000022f relative local 0x0000023a 0x0000823a 32 0x00000000\n"
+    b"edge 0x00000235 relative local 0x00000229 0x00008229 32 0x00000000\n"
+    b"edge 0x00000238 relative local 0x00000237 0x00008237 32 0x00000000\n"
+    b"edge 0x00000250 indirect unprovable - - unknown -\n"
+    b"edge 0x00000252 relative local 0x00000237 0x00008237 32 0x00000000\n"
+)
+
+
+def assemble_smp_trampoline(
+    seed_manifest: Path,
+    root: Path,
+    source: Path,
+    output: Path,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        repository_root = root.resolve(strict=True)
+    except OSError as error:
+        raise CodeValidationError(
+            f"repository root cannot be resolved: {root}: {error}"
+        ) from error
+    if not repository_root.is_dir():
+        raise CodeValidationError(
+            f"repository root is not a directory: {repository_root}"
+        )
+    source_logical = _code_logical_path(
+        source,
+        subject="SMP trampoline source",
+    )
+
+    try:
+        with _checked_assembly_transaction(
+            seed_manifest,
+            repository_root,
+            source_logical,
+            output,
+            source_subject="SMP trampoline source",
+            temporary_prefix=".smp-trampoline-",
+        ) as transaction:
+            candidate_logical = transaction.candidate_logical
+            map_logical = candidate_logical + ".cupidmap"
+            map_output = transaction.pin_private_output(map_logical)
+
+            try:
+                assembled = transaction.run_tool(
+                    "cupidasm",
+                    (
+                        "-f",
+                        "bin",
+                        "--map",
+                        map_logical,
+                        "-o",
+                        candidate_logical,
+                        source_logical,
+                    ),
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    f"checked CupidASM could not run: {error}"
+                ) from error
+            tool_stderr = assembled.stderr or ""
+            transaction.require_inputs_unchanged(
+                activity="CupidASM",
+                tool_stderr=tool_stderr,
+            )
+            if assembled.returncode != 0:
+                return subprocess.CompletedProcess(
+                    assembled.args,
+                    assembled.returncode,
+                    "",
+                    tool_stderr,
+                )
+            if assembled.stdout:
+                raise CodeValidationError(
+                    "checked CupidASM wrote unexpected standard output",
+                    tool_stderr=tool_stderr,
+                )
+            if tool_stderr:
+                raise CodeValidationError(
+                    "checked CupidASM wrote unexpected standard error",
+                    tool_stderr=tool_stderr,
+                )
+            candidate_snapshot = transaction.candidate_snapshot()
+            if candidate_snapshot is None:
+                raise CodeValidationError(
+                    "checked CupidASM output does not exist: "
+                    f"{candidate_logical}",
+                    tool_stderr=tool_stderr,
+                )
+            if candidate_snapshot.size != 4096:
+                raise CodeValidationError(
+                    "checked CupidASM trampoline output must be exactly "
+                    f"4096 bytes, got {candidate_snapshot.size}",
+                    tool_stderr=tool_stderr,
+                )
+            map_snapshot = _code_output_entry(map_output)
+            if map_snapshot is None:
+                raise CodeValidationError(
+                    "checked CupidASM SMP trampoline range map does not exist: "
+                    f"{map_output.logical}",
+                    tool_stderr=tool_stderr,
+                )
+            if map_snapshot.size == 0:
+                raise CodeValidationError(
+                    "checked CupidASM SMP trampoline range map may not be empty",
+                    tool_stderr=tool_stderr,
+                )
+            try:
+                map_payload = map_output.path.read_bytes()
+            except OSError as error:
+                raise CodeValidationError(
+                    "checked CupidASM SMP trampoline range map cannot be read: "
+                    f"{map_output.logical}: {error}",
+                    tool_stderr=tool_stderr,
+                ) from error
+            if (
+                len(map_payload) != map_snapshot.size
+                or hashlib.sha256(map_payload).hexdigest()
+                != map_snapshot.sha256
+            ):
+                raise CodeValidationError(
+                    "checked CupidASM SMP trampoline range map changed while "
+                    "layout policy validation ran",
+                    tool_stderr=tool_stderr,
+                )
+            if map_payload != _SMP_TRAMPOLINE_RAW_MAP:
+                raise CodeValidationError(
+                    "checked CupidASM SMP trampoline range map does not match "
+                    "the required layout policy",
+                    tool_stderr=tool_stderr,
+                )
+
+            try:
+                disassembled = transaction.run_tool(
+                    "cupiddis",
+                    (
+                        "--raw",
+                        "--range-map",
+                        map_logical,
+                        "--require-known",
+                        "--require-local-targets",
+                        "--require-source-edges",
+                        candidate_logical,
+                    ),
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    f"checked CupidDis could not run: {error}",
+                    tool_stderr=tool_stderr,
+                ) from error
+            combined_stderr = tool_stderr + (disassembled.stderr or "")
+            transaction.require_inputs_unchanged(
+                activity="checked tools",
+                tool_stderr=combined_stderr,
+            )
+            transaction.require_candidate_unchanged(
+                candidate_snapshot,
+                tool_stderr=combined_stderr,
+            )
+            transaction.require_private_output_unchanged(
+                map_output,
+                map_snapshot,
+                description="checked CupidASM SMP trampoline range map",
+                tool_stderr=combined_stderr,
+            )
+            transaction.require_publication_boundary_unchanged(combined_stderr)
+            if disassembled.returncode != 0:
+                return subprocess.CompletedProcess(
+                    disassembled.args,
+                    disassembled.returncode,
+                    "",
+                    combined_stderr,
+                )
+            if disassembled.stdout:
+                raise CodeValidationError(
+                    "checked CupidDis wrote unexpected standard output",
+                    tool_stderr=combined_stderr,
+                )
+            if disassembled.stderr:
+                raise CodeValidationError(
+                    "checked CupidDis wrote unexpected standard error",
+                    tool_stderr=combined_stderr,
+                )
+            try:
+                transaction.publish()
+            except OSError as error:
+                raise CodeValidationError(
+                    f"validated SMP trampoline could not be published: {error}",
+                    tool_stderr=combined_stderr,
+                ) from error
+            return subprocess.CompletedProcess(
+                disassembled.args,
+                0,
+                "",
+                combined_stderr,
+            )
+    except CodeValidationError:
+        raise
+    except OSError as error:
+        raise CodeValidationError(
+            f"private SMP trampoline snapshot could not be created: {error}"
+        ) from error
+
+
+def assemble_bootloader(
+    seed_manifest: Path,
+    root: Path,
+    source: Path,
+    output: Path,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        repository_root = root.resolve(strict=True)
+    except OSError as error:
+        raise CodeValidationError(
+            f"repository root cannot be resolved: {root}: {error}"
+        ) from error
+    if not repository_root.is_dir():
+        raise CodeValidationError(
+            f"repository root is not a directory: {repository_root}"
+        )
+    source_logical = _code_logical_path(
+        source,
+        subject="bootloader source",
+    )
+
+    try:
+        with _checked_assembly_transaction(
+            seed_manifest,
+            repository_root,
+            source_logical,
+            output,
+            source_subject="bootloader source",
+            temporary_prefix=".bootloader-",
+        ) as transaction:
+            candidate_logical = transaction.candidate_logical
+            map_logical = candidate_logical + ".cupidmap"
+            map_output = transaction.pin_private_output(map_logical)
+
+            try:
+                assembled = transaction.run_tool(
+                    "cupidasm",
+                    (
+                        "-f",
+                        "bin",
+                        "--map",
+                        map_logical,
+                        "-o",
+                        candidate_logical,
+                        source_logical,
+                    ),
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    f"checked CupidASM could not run: {error}"
+                ) from error
+            tool_stderr = assembled.stderr or ""
+            transaction.require_inputs_unchanged(
+                activity="CupidASM",
+                tool_stderr=tool_stderr,
+            )
+            if assembled.returncode != 0:
+                return subprocess.CompletedProcess(
+                    assembled.args,
+                    assembled.returncode,
+                    "",
+                    tool_stderr,
+                )
+            if assembled.stdout:
+                raise CodeValidationError(
+                    "checked CupidASM wrote unexpected standard output",
+                    tool_stderr=tool_stderr,
+                )
+            if tool_stderr:
+                raise CodeValidationError(
+                    "checked CupidASM wrote unexpected standard error",
+                    tool_stderr=tool_stderr,
+                )
+            candidate_snapshot = transaction.candidate_snapshot()
+            if candidate_snapshot is None:
+                raise CodeValidationError(
+                    "checked CupidASM output does not exist: "
+                    f"{candidate_logical}",
+                    tool_stderr=tool_stderr,
+                )
+            if candidate_snapshot.size != 2560:
+                raise CodeValidationError(
+                    "checked CupidASM bootloader output must be exactly "
+                    f"2560 bytes, got {candidate_snapshot.size}",
+                    tool_stderr=tool_stderr,
+                )
+            map_snapshot = _code_output_entry(map_output)
+            if map_snapshot is None:
+                raise CodeValidationError(
+                    "checked CupidASM range map does not exist: "
+                    f"{map_output.logical}",
+                    tool_stderr=tool_stderr,
+                )
+            if map_snapshot.size == 0:
+                raise CodeValidationError(
+                    "checked CupidASM range map may not be empty",
+                    tool_stderr=tool_stderr,
+                )
+
+            try:
+                disassembled = transaction.run_tool(
+                    "cupiddis",
+                    (
+                        "--require-known",
+                        "--require-local-targets",
+                        "--require-source-edges",
+                        "--raw",
+                        "--range-map",
+                        map_logical,
+                        candidate_logical,
+                    ),
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    f"checked CupidDis could not run: {error}",
+                    tool_stderr=tool_stderr,
+                ) from error
+            combined_stderr = tool_stderr + (disassembled.stderr or "")
+            transaction.require_inputs_unchanged(
+                activity="checked tools",
+                tool_stderr=combined_stderr,
+            )
+            transaction.require_candidate_unchanged(
+                candidate_snapshot,
+                tool_stderr=combined_stderr,
+            )
+            transaction.require_private_output_unchanged(
+                map_output,
+                map_snapshot,
+                description="checked CupidASM range map",
+                tool_stderr=combined_stderr,
+            )
+            transaction.require_publication_boundary_unchanged(combined_stderr)
+            if disassembled.returncode != 0:
+                return subprocess.CompletedProcess(
+                    disassembled.args,
+                    disassembled.returncode,
+                    "",
+                    combined_stderr,
+                )
+            if disassembled.stdout:
+                raise CodeValidationError(
+                    "checked CupidDis wrote unexpected standard output",
+                    tool_stderr=combined_stderr,
+                )
+            if disassembled.stderr:
+                raise CodeValidationError(
+                    "checked CupidDis wrote unexpected standard error",
+                    tool_stderr=combined_stderr,
+                )
+            try:
+                transaction.publish()
+            except OSError as error:
+                raise CodeValidationError(
+                    f"validated bootloader could not be published: {error}",
+                    tool_stderr=combined_stderr,
+                ) from error
+            return subprocess.CompletedProcess(
+                disassembled.args,
+                0,
+                "",
+                combined_stderr,
+            )
+    except CodeValidationError:
+        raise
+    except OSError as error:
+        raise CodeValidationError(
+            f"private bootloader snapshot could not be created: {error}"
+        ) from error
 
 
 def clean_paths(patterns: list[str]) -> None:
@@ -849,6 +1467,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("image")
+    p.add_argument("--seed-manifest", type=Path, required=True)
     p.add_argument("--image", type=Path, required=True)
     p.add_argument("--bootloader", type=Path, required=True)
     p.add_argument("--kernel", type=Path, required=True)
@@ -869,12 +1488,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("wads", nargs="*", type=Path)
 
     p = sub.add_parser("mksyms")
-    p.add_argument("--nm", default="nm")
+    readers = p.add_mutually_exclusive_group()
+    readers.add_argument("--nm")
+    readers.add_argument("--seed-manifest", type=Path)
     p.add_argument("elf", type=Path)
     p.add_argument("out", type=Path)
 
     p = sub.add_parser("embed-jpeg")
-    p.add_argument("--objcopy", default="objcopy")
+    writers = p.add_mutually_exclusive_group()
+    writers.add_argument("--object-tool")
+    writers.add_argument("--seed-manifest", type=Path)
     p.add_argument("src", type=Path)
     p.add_argument("out", type=Path)
 
@@ -895,10 +1518,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--demos", nargs="*", default=[])
 
     p = sub.add_parser("gen-big")
+    p.add_argument("--seed-manifest", type=Path)
+    p.add_argument("--source", type=Path)
     p.add_argument("out", type=Path)
 
     p = sub.add_parser("build-iso")
+    p.add_argument("--seed-manifest", type=Path, required=True)
     p.add_argument("--fixtures", type=Path, required=True)
+    p.add_argument("--manifest", type=Path, required=True)
     p.add_argument("--out", type=Path, required=True)
 
     p = sub.add_parser("usb-image")
@@ -906,42 +1533,216 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--size-mb", type=int, default=32)
     p.add_argument("--partition-lba", type=int, default=2048)
 
+    p = sub.add_parser("validate-code")
+    p.add_argument("--seed-manifest", type=Path, required=True)
+    p.add_argument("--root", type=Path, default=Path("."))
+    p.add_argument("--input-manifest", type=Path)
+    p.add_argument("--output", type=Path)
+    p.add_argument("inputs", nargs="*", type=Path)
+
+    p = sub.add_parser("assemble-smp-trampoline")
+    p.add_argument("--seed-manifest", type=Path, required=True)
+    p.add_argument("--root", type=Path, default=Path("."))
+    p.add_argument("--source", type=Path, required=True)
+    p.add_argument("--output", type=Path, required=True)
+
+    p = sub.add_parser("assemble-cupidasm-object")
+    p.add_argument("--seed-manifest", type=Path, required=True)
+    p.add_argument("--root", type=Path, default=Path("."))
+    p.add_argument("--source", type=Path, required=True)
+    p.add_argument("--output", type=Path, required=True)
+
+    p = sub.add_parser("assemble-bootloader")
+    p.add_argument("--seed-manifest", type=Path, required=True)
+    p.add_argument("--root", type=Path, default=Path("."))
+    p.add_argument("--source", type=Path, required=True)
+    p.add_argument("--output", type=Path, required=True)
+
     p = sub.add_parser("clean")
     p.add_argument("patterns", nargs="+")
 
     args = ap.parse_args(argv)
     if args.cmd == "image":
         stages = list(args.stage)
-        stages += [StageFile(path, _wad_dest(path, i + 1)) for i, path in enumerate(args.wads or [])]
-        create_or_update_image(
-            args.image,
-            args.bootloader,
-            args.kernel,
-            args.hdd_mb,
-            args.fat_start_lba,
-            stages,
-            args.force_format,
-        )
+        stages += [
+            StageFile(path, hostbuild_disk._wad_dest(path, i + 1))
+            for i, path in enumerate(args.wads or [])
+        ]
+        try:
+            create_or_update_image(
+                args.image,
+                args.bootloader,
+                args.kernel,
+                args.hdd_mb,
+                args.fat_start_lba,
+                stages,
+                args.force_format,
+                seed_manifest=args.seed_manifest,
+            )
+        except DiskImageError as error:
+            print(f"[hostbuild] image failed: {error}", file=sys.stderr)
+            return 1
     elif args.cmd == "stage":
         stage_files(args.image, args.fat_start_lba, args.stage)
     elif args.cmd == "stage-wads":
         stage_wads(args.image, args.fat_start_lba, args.wads)
     elif args.cmd == "mksyms":
-        write_ksyms_source(args.nm, args.elf, args.out)
+        try:
+            nm = args.nm
+            if nm is None and args.seed_manifest is None:
+                nm = "nm"
+            write_ksyms_source(
+                nm,
+                args.elf,
+                args.out,
+                seed_manifest=args.seed_manifest,
+            )
+        except KsymsGenerationError as error:
+            print(f"[hostbuild] mksyms failed: {error}", file=sys.stderr)
+            return 1
     elif args.cmd == "embed-jpeg":
-        embed_jpeg(args.objcopy, args.src, args.out)
+        object_tool = args.object_tool
+        if object_tool is None and args.seed_manifest is None:
+            object_tool = "cupidobj"
+        try:
+            embed_jpeg(
+                object_tool,
+                args.src,
+                args.out,
+                seed_manifest=args.seed_manifest,
+            )
+        except EmbedJpegError as error:
+            print(
+                f"[hostbuild] embed-jpeg failed: {error}",
+                file=sys.stderr,
+            )
+            return 1
     elif args.cmd == "gen-bin-programs":
-        gen_bin_programs(args.out, args.bin, args.headers, args.browser)
+        try:
+            gen_bin_programs(args.out, args.bin, args.headers, args.browser)
+        except InstallSourceGenerationError as error:
+            print(f"[hostbuild] install source failed: {error}", file=sys.stderr)
+            return 1
     elif args.cmd == "gen-docs-programs":
-        gen_docs_programs(args.out, args.ctxt, args.doc_assets, args.home_assets)
+        try:
+            gen_docs_programs(
+                args.out, args.ctxt, args.doc_assets, args.home_assets
+            )
+        except InstallSourceGenerationError as error:
+            print(f"[hostbuild] install source failed: {error}", file=sys.stderr)
+            return 1
     elif args.cmd == "gen-demos-programs":
-        gen_demos_programs(args.out, args.demos)
+        try:
+            gen_demos_programs(args.out, args.demos)
+        except InstallSourceGenerationError as error:
+            print(f"[hostbuild] install source failed: {error}", file=sys.stderr)
+            return 1
     elif args.cmd == "gen-big":
-        gen_big(args.out)
+        try:
+            gen_big(
+                args.out,
+                seed_manifest=args.seed_manifest,
+                source=args.source,
+            )
+        except IsoAuthoringError as error:
+            print(
+                f"[hostbuild] gen-big failed: {error}",
+                file=sys.stderr,
+            )
+            return 1
     elif args.cmd == "build-iso":
-        build_iso(args.fixtures, args.out)
+        try:
+            build_iso(
+                args.fixtures,
+                args.out,
+                args.manifest,
+                seed_manifest=args.seed_manifest,
+            )
+        except IsoAuthoringError as error:
+            print(
+                f"[hostbuild] build-iso failed: {error}",
+                file=sys.stderr,
+            )
+            return 1
     elif args.cmd == "usb-image":
         create_usb_image(args.out, args.size_mb, args.partition_lba)
+    elif args.cmd == "validate-code":
+        try:
+            result = validate_code(
+                args.seed_manifest,
+                args.root,
+                args.inputs,
+                input_manifest=args.input_manifest,
+                output=args.output,
+            )
+        except CodeValidationError as error:
+            if error.tool_stderr:
+                sys.stderr.write(error.tool_stderr)
+            print(
+                f"[hostbuild] validate-code failed: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        if result.stderr:
+            sys.stderr.write(result.stderr)
+        return result.returncode
+    elif args.cmd == "assemble-smp-trampoline":
+        try:
+            result = assemble_smp_trampoline(
+                args.seed_manifest,
+                args.root,
+                args.source,
+                args.output,
+            )
+        except CodeValidationError as error:
+            if error.tool_stderr:
+                sys.stderr.write(error.tool_stderr)
+            print(
+                f"[hostbuild] assemble-smp-trampoline failed: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        if result.stderr:
+            sys.stderr.write(result.stderr)
+        return result.returncode
+    elif args.cmd == "assemble-cupidasm-object":
+        try:
+            result = assemble_cupidasm_object(
+                args.seed_manifest,
+                args.root,
+                args.source,
+                args.output,
+            )
+        except CodeValidationError as error:
+            if error.tool_stderr:
+                sys.stderr.write(error.tool_stderr)
+            print(
+                f"[hostbuild] assemble-cupidasm-object failed: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        if result.stderr:
+            sys.stderr.write(result.stderr)
+        return result.returncode
+    elif args.cmd == "assemble-bootloader":
+        try:
+            result = assemble_bootloader(
+                args.seed_manifest,
+                args.root,
+                args.source,
+                args.output,
+            )
+        except CodeValidationError as error:
+            if error.tool_stderr:
+                sys.stderr.write(error.tool_stderr)
+            print(
+                f"[hostbuild] assemble-bootloader failed: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        if result.stderr:
+            sys.stderr.write(result.stderr)
+        return result.returncode
     elif args.cmd == "clean":
         clean_paths(args.patterns)
     return 0

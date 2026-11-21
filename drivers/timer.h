@@ -1,3 +1,8 @@
+/**
+ * @file timer.h
+ * @brief Kernel ticks, delays, and timer callbacks.
+ */
+
 #ifndef TIMER_H
 #define TIMER_H
 

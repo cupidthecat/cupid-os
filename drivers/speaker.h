@@ -1,3 +1,8 @@
+/**
+ * @file speaker.h
+ * @brief PC speaker port definitions and tone controls.
+ */
+
 #ifndef SPEAKER_H
 #define SPEAKER_H
 

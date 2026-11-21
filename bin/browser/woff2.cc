@@ -17,7 +17,7 @@
  * Reference:
  *   https://www.w3.org/TR/WOFF2/
  *   google/woff2 (upstream reference c/dec/woff2_dec.cc)
-*/
+ */
 
 char *woff2_unwrap(char *src, int src_len, int *out_len) {
     (void)src;
@@ -25,5 +25,5 @@ char *woff2_unwrap(char *src, int src_len, int *out_len) {
     (void)out_len;
     /* Brotli not yet linked into the kernel; let the caller fall over to
      * the next URL in the @font-face src list.*/
-    return (char*)0;
+    return (char *)0;
 }

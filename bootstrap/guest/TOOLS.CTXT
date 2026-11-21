@@ -1,0 +1,237 @@
+>h1 Cupid toolchain workers
+
+Mount the compiler source ISO at /src. Run the staged worker ELF with exec.
+
+>h2 Compile a source
+
+Place two LF-terminated lines in /home/cupidc.job. The first names the
+source relative to the ISO root. The second names the output under /home.
+An input under /home is read from HomeFS. Put local quoted headers next
+to that source.
+
+  /toolchain/ctool.cc
+  /home/ctool.o
+
+Add option lines after the output path to select a source's build profile.
+Use include for quoted and angle headers, angle for angle headers alone,
+define NAME=VALUE for macros, and force for an absolute header path.
+Use doom on its own line for the existing Doom compatibility rules.
+When a job has options, list all include roots in search order.
+The compiler reads all source and header paths from the same filesystem.
+Use up to 64 search roots, 16 forced headers and 64 definitions.
+
+To compile several sources with the same profile, use a list path first,
+a /home output ending in .iso second and bundle third. Put any profile
+options below bundle. Each list entry is a source path under the /src mount
+followed by a root-level ISO member path ending in .o. Use one path per line.
+
+>h2 Link objects
+
+Place the output, text base, entry symbol and object paths in
+/home/cupidld.job. Put one field or path on each line. Object order
+matches the link order.
+
+  /home/hello.elf
+  0x01c00000
+  _start
+  /home/hello.o
+
+Use 0x01c00000 for an ordinary executable and 0x01e00000 for a compiler
+worker. The standalone compiler uses cupidc_guest_run as its entry.
+Each worker returns to the shell after reporting its result.
+Wait for its lease to be released before starting another worker.
+Both workers release cached work buffers before publishing output and
+again when the job ends.
+
+For a script layout, write script on the second line and the absolute
+script path on the third line. List objects in link order below it.
+
+  /home/kernel.elf
+  script
+  /disk/link.ld
+  /disk/obj0/i000.o
+
+>h2 Generate kernel symbols
+
+In /home/cupidksyms.job, put the pass-one ELF path and the output source
+path on separate lines.
+
+  /home/pass1.elf
+  /home/ksyms_data.cc
+
+Stage the symbol worker as /cupks and run exec /disk/cupks. Compile the
+generated source with CupidC and append its object to the second link.
+Increasing initializer indices need one duplicate check per validation stage.
+
+>h2 Run a build plan
+
+Stage cupidbuild-guest.elf as /b. Use cd to enter your project directory,
+then run exec /disk/b. Write each operation and its path on separate
+lines in the project's cupidbuild.job.
+
+  mkdir
+  build
+  compile
+  jobs/hello.cj
+  link
+  jobs/hello.lj
+
+Job paths in the project plan may also be absolute. If the directory has
+no plan, CupidBuild uses /home/cupidbuild.job with absolute job paths.
+Use mkdir in a project plan to create a directory such as build. Its path
+is relative to the project. If the directory exists, the plan continues.
+List parent directories first when creating nested directories.
+
+Tool steps use the format of their standalone jobs. Use raw for checked boot
+assembly, symbols for kernel symbols, object for wrapping or flattening,
+assemble for an ELF object, install for generated kernel source, and disk
+for a bootable disk prefix. The driver validates up to 512 steps first
+and stops at the first failed step. Tool outputs publish atomically.
+Use /tmp for intermediate files and /home for outputs that need to survive
+a reboot.
+
+>h2 Compile or wrap several objects
+
+A compile-list job starts with the usual compiler options, then a line
+containing sources. Write one source path and one output .o path per
+pair. CupidBuild uses the same options for every source.
+An optional first line such as root /home/project selects the source
+directory. A local project plan can use root . for the project itself
+or root inputs for a directory within it. Source and include paths keep
+their names within the selected source directory.
+
+An asset-list job starts with wrap, wrap-text or wrap-jpeg, followed by
+the absolute asset directory. Each source path is relative to that
+directory and starts with a slash. The worker uses it to name the ELF
+symbols. The next line names the output .o file.
+
+Each list accepts up to 256 pairs and requires distinct output paths.
+If a worker fails, earlier published products remain available.
+
+>h2 Run a plan from a read-only ISO
+
+Build cupidbuild-media.elf with make -C bootstrap/guest guest-media-build.
+Stage it as /b, mount the plan ISO at /plan, and run exec /disk/b.
+The media entry reads /plan/cupidbuild.job. Each job path must start with
+/plan/jobs/. The source replay reads headers and build inputs from source
+ISOs and starts with a fresh HomeFS for outputs.
+The production plan ISO also carries assets under /plan/assets.
+
+Use kernel followed by the job path to build the bootloader, both kernel
+ELFs and the disk prefix. The job lists up to 511 distinct pass-one .o
+paths in link order, one per line. CupidBuild reads boot/boot.asm and
+link.ld from /src, generates the symbol object between links, and saves
+the disk prefix as /home/disk-prefix.img.
+For a local project plan, use root . on the first line to read boot/boot.asm,
+link.ld and headers from the project. Use output build after root and before
+the object list to save all seven products in the project's build directory.
+Run mkdir before the kernel job. Without an output line, the job writes to
+/home.
+
+>h2 Assemble a relocatable object
+
+  as -f elf32 -o /home/start.o /home/start.asm
+
+The assembler gives .rodata four-byte default alignment. CupidLD places
+the bytes in a read-only ELF segment and resolves references to its labels.
+
+For a production kernel object, run the standalone assembler worker. Put
+the assembly source and the /home object path in /home/cupidasm.job.
+
+  /disk/isr.asm
+  /home/isr.o
+
+The worker keeps symbols case-sensitive and uses the source's own names.
+CupidDis checks instruction bytes, local jumps and function starts before
+the worker replaces the saved object.
+
+>h2 Compile peer tool sources
+
+Use the same compiler job format with /toolchain/cupidasm.cc,
+/toolchain/cupiddis.cc or /toolchain/cupidobj.cc. The ISO includes their
+headers. Keep the resulting objects under /home.
+
+>h2 Build an example user program
+
+When the source ISO includes /user/examples and /user/cupid.h, compile
+/user/examples/hello.cc to /home/hello.o with include /user. Link it at
+0x01c00000 with entry _start. Run the result with exec /home/hello.elf.
+
+>h2 Flatten an ELF image
+
+The CupidObj worker reads /home/cupidobj.job. Put the input ELF path on the
+first line and a /home output path on the second line.
+
+  /disk/kern.elf
+  /home/kernel.bin
+
+Stage the worker as /cupobj on the disk and run exec /disk/cupobj.
+HomeFS saves the worker output through a replacement file. FAT16 syncs its
+data chain before publishing the updated directory entry.
+
+>h2 Wrap a kernel asset
+
+Use the same request file. After the input and output paths, add wrap for
+binary data or wrap-text for source text, then the path from the repository
+root. That last path supplies the ELF symbol names.
+
+  /disk/text.src
+  /home/text.o
+  wrap-text
+  /bin/ls.cc
+
+For read-only data, use wrap-readonly and put the ELF symbol stem on the
+last line. Use smp_trampoline for the AP startup image.
+
+Use wrap-jpeg for sequential JPEG images. The worker checks the stream
+and verifies the object payload and identity symbols before publication.
+
+Use wrap-bundle on the third line to wrap several assets into one ISO.
+The first line then names a list file and the second names the output ISO.
+Each list entry gives the asset path, the ISO member path, the wrapping
+mode and the repository path or symbol stem. Use one field per line.
+
+>h2 Generate kernel installation source
+
+In /home/cupidinstall.job, put the output source path, the installation
+kind and the input groups. Use one repository path per line.
+
+  /home/demos_programs_gen.cc
+  demos
+  --demos
+  /demos/hello.asm
+
+For bin, use --bin, --headers and --browser in that order. For docs, use
+--ctxt, --doc-assets and --home-assets. Keep the heading for an empty group.
+Stage the installation worker as /cupinst and run exec /disk/cupinst.
+
+>h2 Assemble a checked boot image
+
+Stage the raw assembly worker as /cupraw. In /home/cupidraw.job, put the
+source path, output path and bootloader or smp-trampoline on separate lines.
+
+  /disk/boot.asm
+  /home/boot.bin
+  bootloader
+
+Run exec /disk/cupraw. CupidDis checks the instructions and branch targets
+before the worker publishes the raw image. The trampoline also has to match
+the kernel's startup layout.
+
+>h2 Build a disk template
+
+Assemble the bootloader and check its saved range map.
+
+  as -f bin --map /home/boot.map -o /home/boot.bin /disk/boot.asm
+  dis --raw --range-map /home/boot.map --require-known /home/boot.bin
+
+In /home/cupiddisk.job, put the five-sector bootloader path, raw kernel
+path and output path on separate lines.
+
+  /home/boot.bin
+  /home/kernel.bin
+  /home/disk-prefix.img
+
+Stage the worker as /cupdisk and run exec /disk/cupdisk. The result ends
+after the empty FAT16 root directory. It describes the standard 200 MiB
+image with its partition starting at sector 20480.
