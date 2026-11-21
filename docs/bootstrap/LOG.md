@@ -1,5 +1,21 @@
 # Bootstrapping log
 
+## 2026-11-21 — Run the kernel source plan in one guest boot
+
+The checker reads the two production link recipes and stages 757 source and
+asset files on three ISOs. CupidBuild runs 439 steps in one guest command.
+The initial four-CPU run missed a source mount. The replay now builds with
+one CPU and retries a missed mount once. It boots the resulting disk with
+four CPUs for the final check.
+
+The HomeFS run matched 439 saved files, including all 428 pass-one objects,
+both kernel ELFs and the 10,697,216-byte disk prefix. The new disk booted
+and ran `ls`. The RAMFS mode keeps the pass-one objects under `/tmp` and
+compares the saved outputs. The first RAMFS attempt stopped at a large asset
+under the old file-size limit. The build host still prepares the input media.
+All 90 source-plan and terminal checks passed on Windows and WSL. The
+Windows build graph audit passed.
+
 ## 2026-11-21 — Document the hardware drivers
 
 The driver sources and public headers now describe their hardware and

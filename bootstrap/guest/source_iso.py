@@ -56,11 +56,12 @@ def stage_seed_pair(root, scratch):
             shutil.copy2(source / target / name, target_dir / name)
 
 
-def publish_source_iso(publisher, root, engine, output, members):
+def publish_source_iso(publisher, root, engine, output, members, *, source_directory=None):
     with tempfile.TemporaryDirectory(dir=output.parent, prefix="iso-inputs-") as temporary:
         scratch = Path(temporary)
         write_manifest(scratch / "manifest", members)
-        stage_inputs(root, engine, members, scratch / "fixtures")
+        stage_inputs(root if source_directory is None else source_directory,
+                     engine, members, scratch / "fixtures")
         stage_seed_pair(root, scratch)
         result = subprocess.run(publish_command(publisher, scratch, "candidate.iso"), timeout=180)
         if result.returncode:

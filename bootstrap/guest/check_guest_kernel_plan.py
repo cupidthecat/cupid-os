@@ -5,11 +5,13 @@
 
 import argparse
 from pathlib import Path
+import subprocess
 import tempfile
 
 from check_guest_disk_runtime import boot_prefix, write_reference_prefix
 from check_guest_runtime import (
     BUILD,
+    BUILD_FAILURE_PATTERN,
     COMPILER_REAPED,
     ROOT,
     compare_homefs_files,
@@ -18,6 +20,7 @@ from check_guest_runtime import (
     run,
     write_homefs,
 )
+from tools.gui_terminal_smoke import PANIC_RE
 
 
 def link_request(output: str, objects: list[str]) -> bytes:
@@ -25,10 +28,8 @@ def link_request(output: str, objects: list[str]) -> bytes:
     return ("\n".join(lines) + "\n").encode("ascii")
 
 
-def run_kernel_plan(scratch: Path, root: Path, objects: list[Path], qemu: str, timeout: float) -> None:
-    aliases = [f"/obj{index // 64}/i{index:03}.o" for index in range(len(objects))]
-    link_inputs = ["/disk" + path for path in aliases]
-    steps = (
+def kernel_steps(link_inputs: list[str]) -> tuple[tuple[str, bytes, bytes], ...]:
+    return (
         ("raw", b"boot.job", b"/disk/boot.asm\n/home/boot.bin\nbootloader\n"),
         ("link", b"pass1.job", link_request("pass1.elf", link_inputs)),
         ("symbols", b"symbols.job", b"/home/pass1.elf\n/home/ksyms_data.cc\n"),
@@ -37,24 +38,46 @@ def run_kernel_plan(scratch: Path, root: Path, objects: list[Path], qemu: str, t
         ("object", b"flatten.job", b"/home/kernel.elf\n/home/kernel.bin\n"),
         ("disk", b"disk.job", b"/home/boot.bin\n/home/kernel.bin\n/home/disk-prefix.img\n"),
     )
+
+
+def write_kernel_plan(homefs: Path, root: Path, steps: tuple[tuple[str, bytes, bytes], ...],
+                      inputs: tuple[tuple[bytes, bytes], ...] = ()) -> None:
     plan = b"".join(operation.encode("ascii") + b"\n/home/" + name + b"\n"
                     for operation, name, _ in steps)
-    homefs = scratch / "homefs.sys"
     write_homefs(homefs, ((b"cupidbuild.job", plan),
                          (b"ksyms.h", (root / "kernel/cpu/ksyms.h").read_bytes()),
                          (b"types.h", (root / "kernel/core/types.h").read_bytes()),
-                         *((name, contents) for _, name, contents in steps)))
-    image = scratch / "build.img"
-    create_disk(image, f"{homefs}:/homefs.sys", f"{root / 'link.ld'}:/link.ld",
-                f"{root / 'boot/boot.asm'}:/boot.asm", f"{BUILD / 'cupidbuild-guest.elf'}:/b",
-                *(f"{source}:{alias}" for source, alias in zip(objects, aliases)),
-                production_root=root)
-    smoke = ("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "4", "--cpu", "max",
+                         *((name, contents) for _, name, contents in steps), *inputs))
+
+
+def execute_kernel_plan(scratch: Path, root: Path, image: Path, qemu: str, timeout: float,
+                        extra_references: dict[str, Path],
+                        mounts: tuple[tuple[str, str], ...] = ()) -> None:
+    smoke = ("tools/gui_terminal_smoke.py", "--qemu", qemu, "--cpu", "max",
              "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.75",
              "--require-command-completion")
-    run(*smoke, "--image", str(image), "--log", str(BUILD / "kernel-plan-runtime.log"),
-        "--command", "exec /disk/b",
-        "--success-pattern", r"\[cupidbuild-guest\] build complete" + COMPILER_REAPED)
+    setup = ["--setup-timeout", "75"]
+    markers = []
+    for iso, mount in mounts:
+        marker = f"VFS: mounted 'iso9660' at '{mount}'"
+        markers.append(marker)
+        setup.extend(("--setup-command", f"mount /disk/{iso} {mount}",
+                      "--setup-success-pattern", marker))
+    log = "kernel-source-plan" if mounts else "kernel-plan"
+    runtime_log = BUILD / f"{log}-runtime.log"
+    command = (*smoke, "--smp", "1" if mounts else "4", *setup,
+               "--image", str(image), "--log", str(runtime_log),
+               "--command", "exec /disk/b", "--failure-pattern", BUILD_FAILURE_PATTERN,
+               "--success-pattern", r"\[cupidbuild-guest\] build complete" + COMPILER_REAPED)
+    try:
+        run(*command)
+    except subprocess.CalledProcessError:
+        transcript = runtime_log.read_text(encoding="utf-8", errors="replace") if runtime_log.is_file() else ""
+        if (all(marker in transcript for marker in markers) or
+                "[terminal] command complete" not in transcript or PANIC_RE.search(transcript)):
+            raise
+        print("Retrying the guest build after a source mount was missed.")
+        run(*command)
 
     expected_prefix = scratch / "expected-prefix.img"
     write_reference_prefix(expected_prefix, root / "boot/boot.bin", root / "kernel/kernel.bin")
@@ -66,9 +89,23 @@ def run_kernel_plan(scratch: Path, root: Path, objects: list[Path], qemu: str, t
         "kernel.elf": root / "kernel/kernel.elf",
         "kernel.bin": root / "kernel/kernel.bin",
         "disk-prefix.img": expected_prefix,
+        **extra_references,
     })
-    boot_prefix(scratch / "sealed.img", matched["disk-prefix.img"], smoke,
-                BUILD / "kernel-plan-boot.log")
+    boot_prefix(scratch / "sealed.img", matched["disk-prefix.img"], (*smoke, "--smp", "4"),
+                BUILD / f"{log}-boot.log")
+
+
+def run_kernel_plan(scratch: Path, root: Path, objects: list[Path], qemu: str, timeout: float) -> None:
+    aliases = [f"/obj{index // 64}/i{index:03}.o" for index in range(len(objects))]
+    steps = kernel_steps(["/disk" + path for path in aliases])
+    homefs = scratch / "homefs.sys"
+    write_kernel_plan(homefs, root, steps)
+    image = scratch / "build.img"
+    create_disk(image, f"{homefs}:/homefs.sys", f"{root / 'link.ld'}:/link.ld",
+                f"{root / 'boot/boot.asm'}:/boot.asm", f"{BUILD / 'cupidbuild-guest.elf'}:/b",
+                *(f"{source}:{alias}" for source, alias in zip(objects, aliases)),
+                production_root=root)
+    execute_kernel_plan(scratch, root, image, qemu, timeout, {})
 
 
 if __name__ == "__main__":

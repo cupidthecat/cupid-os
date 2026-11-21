@@ -633,6 +633,39 @@ kernel. The test zero-extends the saved prefix
 and boots it with four virtual CPUs. It checks SMP, TLS, e1000 and DHCP,
 then runs the shell's `ls` through CupidC.
 
+## Build a bootable kernel from source in one guest plan
+
+Start from a checked Linux or WSL build with its ordinary artifacts.
+
+```sh
+make -C bootstrap/guest all guest-build
+python3 bootstrap/guest/check_guest_source_plan.py --production-root /path/to/checked/build
+```
+
+The script reads the Make recipes, writes a CupidBuild job file, and
+stages 757 source files on three read-only ISOs mounted at `/src`,
+`/src/kernel/doom`, and `/assets`. The small ISOs fit the current
+directory inventory limit. The replay uses one virtual CPU and retries
+once if a source mount command completes without its success marker.
+One `exec /disk/b` runs all 439 steps in Cupid OS.
+It compiles and assembles the kernel and Doom, wraps assets, generates the
+installation tables, links both kernels, generates and compiles the kernel
+symbol table, flattens the kernel, and writes a fresh disk prefix.
+
+The default mode keeps every object in HomeFS. The checker read back all
+428 pass-one objects, the generated symbol object, three installation
+sources, the trampoline, and the final boot and kernel products. Every
+file matched the checked build. The 10,697,216-byte prefix had SHA-256
+`7611f033ac4caa9f10852461ec2f0d1321e17d10cbcde40383679f27870d3d6f`
+in that run.
+The host extends that prefix with zeroes to 200 MiB. A fresh four-CPU
+boot passed the SMP, TLS, e1000 and DHCP checks and ran `ls`.
+
+Use `--temporary-objects` to keep the pass-one objects in RAMFS. The
+checker compares the saved installation sources, trampoline and final
+products in this mode. The intermediate objects disappear at shutdown.
+Preparing the source media and build plan still uses Linux or WSL.
+
 ## Retained proof
 
 The module SHA-256 is

@@ -10,18 +10,19 @@ Cupid OS remains unfinished.
 - The normal graph has 452 transforms: 449 use CupidBuild and three retain
   Python coordination. GNU Make still schedules the build.
 - Cupid OS rebuilt and ran the full CupidC, CupidASM, CupidLD, CupidObj
-  and CupidBuild workers. The assembler includes CupidDis. The kernel replay
-  produced all 429 linked objects inside Cupid OS, including Doom and the generated
-  symbol table. It matched both kernel ELFs and saved the checked disk
-  prefix. The disk booted with four CPUs and ran `ls`. A separate replay
-  compiled, linked and ran `cat`, `hello` and `ls`.
+  and CupidBuild workers. The assembler includes CupidDis. One guest build
+  plan rebuilt all 429 linked objects from source, including Doom and the
+  generated symbol table. Both kernel ELFs and the disk prefix matched the
+  checked build. The resulting disk booted with four CPUs and ran `ls`.
+  A separate replay compiled, linked and ran `cat`, `hello` and `ls`.
   See the [guest build record](FREESTANDING-COMPILER-ENGINE.md).
 - Source-owner modules are in current producer plans, and paired named
   preparations reach a fixed point. The C reader now recognizes their exact
   behavior profiles. The installed seeds come from the same 114-file snapshot.
   Cold OS and user builds agree across Windows and WSL, including the full disk
-  image. Guest source staging, the normal image-command handoff and native
-  developer build coordination remain open.
+  image. Linux or WSL still prepares the guest's source media and job file.
+  The normal image-command handoff and native developer build coordination
+  remain open.
 - The private in-OS compiler supports halfword storage, integer array lists
   and typed native calls. Its remaining language gaps and guest acceptance
   are separate from hosted compiler fixed points. The shell can inspect
