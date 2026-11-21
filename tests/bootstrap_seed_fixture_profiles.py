@@ -1,3 +1,5 @@
+## @file
+#  @brief Reconstruct the producer inventories used by historical seed fixtures.
 """Separate historical fixture shapes from the current producer closure."""
 import copy
 
@@ -27,7 +29,8 @@ def historical_disk_manifest(document):
 def historical_disk_snapshot(snapshot):
     later = {"toolchain/" + name + ".h" for name in OWNER_SOURCE_NAMES
              if name != "path_encoding"}
-    later.add("toolchain/hosted/i386-linux/include/cupid_runtime.h")
+    later.update(("toolchain/cupidbuild_jpeg.h",
+                  "toolchain/hosted/i386-linux/include/cupid_runtime.h"))
     return {name: row for name, row in snapshot.items() if name not in later}
 
 

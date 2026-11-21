@@ -33,6 +33,7 @@ Cupid OS remains unfinished.
 See the [ownership audit](ACTIVE-SOURCE-AUDIT.md),
 [capability matrix](CAPABILITY-MATRIX.md) and
 [host dependencies](HOST-DEPENDENCIES.md) for measured scope and limitations.
+The [source layout inventory](SOURCE-LAYOUT.md) tracks files over 2,000 lines.
 The [checkpoint history](HISTORY.md) preserves earlier results and failures;
 its dated counts describe those checkpoints.
 

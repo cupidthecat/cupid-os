@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-21 — Separate seed tests and refresh their input fixtures
+
+The seed suite keeps its 156 unittest names. Its shared fixtures and case
+files each stay below 1,900 lines. The current source snapshot contains
+115 inputs after the JPEG validator moved into a shared header. Historical
+profile fixtures keep their original input counts. The Doom fixture now
+checks both private libc files and the original object bytes.
+
+The focused suites ran 191 cases on WSL with 17 platform skips. On Windows,
+190 cases passed in the first run. The named stage preparation passed in
+its own checkout after a shared-root run failed. It checked all 54 objects
+and six tools in each stage and exact stage-three and stage-four agreement.
+
 ## 2026-11-21 — Stop terminal checks on a worker rejection
 
 Terminal checks can now match a failure reported by the current command.

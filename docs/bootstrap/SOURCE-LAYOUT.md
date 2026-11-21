@@ -1,25 +1,58 @@
 # Source files over 2,000 lines
 
-The November 20 inventory found 25 tracked sources over 2,000 lines in the
-active build audit. It also found 26 test sources and nine other tracked
-sources over the limit. The count includes blank lines and comments. It
-excludes generated outputs and the TempleOS reference tree.
+This inventory covers tracked C, CupidC, assembly and Python source files
+and their headers as of November 21, 2026. It excludes TempleOS. The
+[active-source audit](ACTIVE-SOURCE-AUDIT.md) records build ownership.
 
-| Area | Active sources |
+## OS and installed programs
+
+| Area | Files |
 | --- | --- |
-| Browser and user programs | `bin/browser/js_interp.cc`, `bin/browser/style.cc`, `bin/notepad.cc`, `bin/ssh.cc` |
-| Doom | `kernel/doom/dglibc.cc`, `kernel/doom/src/info.cc`, `kernel/doom/src/m_config.cc` |
-| Graphics and desktop | `kernel/gfx/gfx2d.cc`, `kernel/gui/desktop.cc` |
-| Embedded languages and shell | `kernel/lang/as.cc`, `kernel/lang/cupidc.cc`, `kernel/lang/cupidc_parse.cc`, `kernel/lang/shell.cc` |
-| Trust data | `kernel/tls/tls_ca_bundle_data.cc` |
-| Shared compiler | `toolchain/cupidc_emit.cc`, `toolchain/cupidc_frontend.cc`, `toolchain/cupidc_ir.cc`, `toolchain/cupidc_pp.cc` |
-| Shared peers and build runner | `toolchain/cupidasm.cc`, `toolchain/cupidbuild.cc`, `toolchain/cupidbuild_host.cc`, `toolchain/cupiddis.cc`, `toolchain/cupidld.cc`, `toolchain/cupidobj.cc`, `toolchain/x86.cc` |
+| Browser | `bin/browser/js_interp.cc`, `bin/browser/style.cc` |
+| Installed programs | `bin/notepad.cc`, `bin/ssh.cc` |
+| Graphics and window management | `kernel/gfx/gfx2d.cc`, `kernel/gui/desktop.cc` |
+| Language and shell | `kernel/lang/as.cc`, `kernel/lang/cupidc.cc`, `kernel/lang/cupidc_parse.cc`, `kernel/lang/shell.cc` |
+| Generated TLS data | `kernel/tls/tls_ca_bundle_data.cc` |
 
-Split code where responsibilities already meet. For example, the Doom libc
-shim has a self-test suite that can move apart from its runtime adapters.
-For data tables, keep their indexing and byte order when moving the data.
-For toolchain code, verify the producer plans and staged fixed point with
-any change to the translation units.
+Separate parser logic from runtime bindings, and graphics primitives from
+surface and window management. Update the TLS generator if the generated
+certificate data moves into several files.
+
+## Toolchain
+
+| Area | Files |
+| --- | --- |
+| Compiler | `toolchain/cupidc_pp.cc`, `toolchain/cupidc_frontend.cc`, `toolchain/cupidc_ir.cc`, `toolchain/cupidc_emit.cc` |
+| Assembly and inspection | `toolchain/cupidasm.cc`, `toolchain/cupiddis.cc`, `toolchain/x86.cc` |
+| Linking and object production | `toolchain/cupidld.cc`, `toolchain/cupidobj.cc` |
+| Build commands | `toolchain/cupidbuild.cc`, `toolchain/cupidbuild_host.cc` |
+
+Keep command parsing, format handling and publication in focused modules.
+Compare emitted objects and checked seed outputs after moving code.
+
+## Verification
+
+| Area | Files |
+| --- | --- |
+| Compiler contracts | `toolchain/tests/cupidc_frontend_contract.cc`, `toolchain/tests/cupidc_ir_contract.cc`, `toolchain/tests/cupidc_object_contract.cc`, `toolchain/tests/cupidc_pp_contract.cc`, `toolchain/tests/cupidc_type_contract.cc` |
+| Assembler and format contracts | `toolchain/tests/cupidasm_contract.cc`, `toolchain/tests/cupidasm_kernel_elf_contract.cc`, `toolchain/tests/cupiddis_contract.cc`, `toolchain/tests/cupidld_contract.cc`, `toolchain/tests/cupidobj_contract.cc`, `toolchain/tests/x86_contract.cc` |
+| Manifest contracts | `toolchain/tests/toolchain_manifest_contract.cc` |
+| Python tests | `tests/test_build_graph_audit.py`, `tests/test_toolchain_cupidc_object.py` |
+| Build and verification scripts | `tools/bootstrap_toolchain.py`, `tools/build_graph_audit.py`, `tools/cupidc_kernel_compile.py`, `tools/cupidc_toolchain_contracts.py`, `tools/hostbuild.py` |
+
+Organize contract cases by behavior and keep the existing test commands.
+The seed suite now keeps all 156 test IDs under the original module while
+moving fixtures and cases into focused files. The Hostbuild and CupidBuild
+command-line suites have smaller case files too. The Doom libc shim,
+configuration code and map-object tables have been split with matching
+object bytes.
+
+## Retained sources
+
+The audit classifies `bin/cupidc_parse.c` as historical, `bin/old_cc2_single.cc`
+as excluded and `kernel/gui/notepad.c` as superseded. All active C
+translation units use `.cc`. The remaining `.c` files are historical
+sources or hosted test inputs. Check their references before moving them.
 
 ## Production compiler and linker tests
 
@@ -166,3 +199,13 @@ CupidC compiled the split source inside Cupid OS and matched the same bytes.
 Sixteen test files now describe their purpose in Doxygen file headers.
 Their Python syntax trees match the originals. The Windows run passed all
 157 cases with three platform skips.
+
+## Checked seed and fixed-point tests
+
+The 12,165-line seed suite moved its cases and shared fixtures into files
+under 1,900 lines. The original unittest module still exposes all 156 tests.
+The current source fixtures include the shared JPEG validator. Historical
+stage fixtures keep their original inventories. The Doom checks pin all
+parts of the split libc shim and still expect the same emitted object.
+The focused WSL run covered 191 tests with 17 platform skips. The Windows
+cases passed across the focused run and a separate native stage preparation.
