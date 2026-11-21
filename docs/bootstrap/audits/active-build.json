@@ -63395,12 +63395,16 @@
       },
       {
         "path": "tools/build_graph_features.py",
-        "sha256": "40039f72ee410d0b5f80894ca0f57fae1d43402d6587c0ebb603b3a9e0639a0a"
+        "sha256": "f2711ed8d55a5221aed57ec9d858de93251006041a9df0678bbc0040b400283c"
+      },
+      {
+        "path": "tools/build_graph_preprocessor.py",
+        "sha256": "096dce8f3b7f43a9a39f177adad85121b590472212684f8a83367e16b25e91f5"
       }
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "203fe21a76f4f39653afe4f902b20a5f2fa10aed5b3812f999d9e4c64db7782b"
+      "sha256": "0e829e90e2e8bd778afd9a0a98ef2494515dd774435de7f2780988095fa2ac76"
     },
     "text_hash_policy": "canonical_lf"
   },

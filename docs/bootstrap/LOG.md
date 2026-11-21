@@ -1,5 +1,12 @@
 # Bootstrapping log
 
+## 2026-11-21 — Separate the preprocessing checks from the audit driver
+
+The include parser and five directive checks now live in
+`build_graph_preprocessor.py`. The source scanner and audit also share one
+source-suffix lookup. `make check-bootstrap-audit` and all seven focused
+inventory and rejection tests passed on Windows.
+
 ## 2026-11-21 — Split Browser style parsing, properties, and cascade
 
 The three Browser style files have 1,201, 1,224, and 889 lines. The original

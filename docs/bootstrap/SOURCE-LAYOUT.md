@@ -245,6 +245,11 @@ and keeps examples with their original line numbers. The audit driver records
 the scanner's hash with the other build controls. The 1,227-line module
 leaves the generated source and ownership inventories unchanged.
 
+`tools/build_graph_preprocessor.py` checks include operands, line directives,
+conditionals, pragmas, and `#exe` blocks. The audit uses the same include
+parser for these checks and for the source closure. It records the directive
+module's hash with the other build controls.
+
 ## Host build commands
 
 `hostbuild.py` keeps the command line, checked assembly and code validation.

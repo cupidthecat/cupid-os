@@ -65,6 +65,19 @@ class FeatureCollector:
         ]
 
 
+SOURCE_SUFFIXES = {
+    ".c": "c",
+    ".cc": "cupid_c",
+    ".cup": "cupid_script",
+    ".h": "c_header",
+    ".asm": "assembly",
+    ".s": "assembly",
+}
+
+def source_language(path: str) -> str | None:
+    return SOURCE_SUFFIXES.get(Path(path).suffix.lower())
+
+
 C_KEYWORD_FEATURES = {
     "_Alignas": "c.type.alignment_specifier",
     "_Alignof": "c.expression.alignof",
