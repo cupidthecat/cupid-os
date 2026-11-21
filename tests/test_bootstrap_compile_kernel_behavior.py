@@ -1,3 +1,5 @@
+## @file
+#  @brief Compare kernel compile success, rejection, and recovery across generations.
 import ast
 import os
 import struct

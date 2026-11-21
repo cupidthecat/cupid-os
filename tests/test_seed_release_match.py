@@ -1,3 +1,5 @@
+## @file
+#  @brief Check the installed tool pair against its release record.
 import concurrent.futures
 import copy
 import ctypes

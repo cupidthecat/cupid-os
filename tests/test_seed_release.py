@@ -1,3 +1,5 @@
+## @file
+#  @brief Check the seed release record and its pinned fields.
 import concurrent.futures
 import copy
 import ctypes

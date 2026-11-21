@@ -1,3 +1,5 @@
+## @file
+#  @brief Check reuse of reviewed behavior across current producer plans.
 """Explicit reviewed context for byte-identical fixed-point behavior tools."""
 from dataclasses import replace
 import contextlib

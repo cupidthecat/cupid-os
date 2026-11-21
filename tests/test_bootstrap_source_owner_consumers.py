@@ -1,3 +1,5 @@
+## @file
+#  @brief Check the source-owner producer plans and their consumers.
 """Keep source-owner consumer shapes separate from installed seed authority."""
 import copy
 import json

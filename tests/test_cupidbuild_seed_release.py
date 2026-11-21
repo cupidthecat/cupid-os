@@ -1,3 +1,5 @@
+## @file
+#  @brief Check the CupidBuild runner's seed-release guards.
 """Explicit release authority for the real retained checked-tool runner."""
 import copy
 import hashlib

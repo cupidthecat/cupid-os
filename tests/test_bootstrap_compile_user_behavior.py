@@ -1,3 +1,5 @@
+## @file
+#  @brief Compare user-program compilation and failure recovery across generations.
 import ast
 import os
 import subprocess

@@ -1,3 +1,5 @@
+## @file
+#  @brief Check how rebuilt stages reuse a reviewed seed release.
 """Reuse reviewed tool bytes without replacing the SDK's producer observations."""
 
 import copy

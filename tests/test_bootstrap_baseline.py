@@ -1,3 +1,5 @@
+## @file
+#  @brief Check artifact inventories, comparisons, and baseline reports.
 import json
 import os
 import struct

@@ -1,3 +1,5 @@
+## @file
+#  @brief Check compiler certification before rebuilding the peer tools.
 """A validated source compiler precedes compilation of its peer tools."""
 from pathlib import Path
 import tempfile

@@ -160,3 +160,9 @@ private headers. The table stays in enum order and uses one translation
 unit. The four files each stay below 1,600 lines. The fixed production
 recipe on Windows and WSL reproduced all 51,200 bytes of `info.o`.
 CupidC compiled the split source inside Cupid OS and matched the same bytes.
+
+## Bootstrap test file headers
+
+Sixteen test files now describe their purpose in Doxygen file headers.
+Their Python syntax trees match the originals. The Windows run passed all
+157 cases with three platform skips.

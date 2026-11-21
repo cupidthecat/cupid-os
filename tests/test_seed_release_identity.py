@@ -1,3 +1,5 @@
+## @file
+#  @brief Check the canonical identity of a seed release.
 import copy
 import hashlib
 import json

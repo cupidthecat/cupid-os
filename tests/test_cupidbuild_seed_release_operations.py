@@ -1,3 +1,5 @@
+## @file
+#  @brief Check typed operations under the reviewed seed release.
 """Caller-authorized releases across the real typed seeded transactions."""
 
 import copy

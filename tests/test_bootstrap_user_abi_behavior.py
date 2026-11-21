@@ -1,3 +1,5 @@
+## @file
+#  @brief Check user syscall ABI proof and retained bootstrap inputs.
 import ast
 import json
 import os

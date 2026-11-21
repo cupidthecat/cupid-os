@@ -1,3 +1,5 @@
+## @file
+#  @brief Compare both tool generations across the Doom compiler profiles.
 import ast
 import os
 import subprocess

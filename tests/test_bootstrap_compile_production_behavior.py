@@ -1,3 +1,5 @@
+## @file
+#  @brief Compare generated-source compilation across tool generations.
 import ast
 import os
 import subprocess
