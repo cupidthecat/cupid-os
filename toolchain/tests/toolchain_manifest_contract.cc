@@ -70,7 +70,8 @@ static const char manifest_report_schema[] = "cupid.toolchain-manifest-verificat
 #define MANIFEST_OWNER_RELEASE_INPUT_COUNT 112u
 #define MANIFEST_SOURCE_SPELLING_RELEASE_INPUT_COUNT 113u
 #define MANIFEST_JPEG_RELEASE_INPUT_COUNT 114u
-#define MANIFEST_MAX_INPUT_COUNT 115u
+#define MANIFEST_PE32_RELEASE_INPUT_COUNT 115u
+#define MANIFEST_MAX_INPUT_COUNT 117u
 #define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 80u
 #define MANIFEST_LONG_PATH_BOOTSTRAP_FILE_COUNT 81u
 #define MANIFEST_ALIAS_LONG_PATH_BOOTSTRAP_FILE_COUNT 82u
@@ -224,6 +225,8 @@ static const char *const manifest_expected_input_paths[MANIFEST_MAX_INPUT_COUNT]
     "toolchain/tests/cupidc_source_spelling_fixture.h",
     "toolchain/cupidbuild_jpeg.h",
     "toolchain/tests/cupidld_pe32_cases.inc",
+    "toolchain/tests/x86_integer_contract.inc",
+    "toolchain/tests/x86_operand_contract.inc",
 };
 
 static const char *const manifest_expected_bootstrap_paths[MANIFEST_MAX_BOOTSTRAP_FILE_COUNT] = {
@@ -633,7 +636,8 @@ static int manifest_input_count_valid(size_t count) {
            count == MANIFEST_DISK_RELEASE_INPUT_COUNT || count == MANIFEST_OWNER_INPUT_COUNT ||
            count == MANIFEST_OWNER_RELEASE_INPUT_COUNT ||
            count == MANIFEST_SOURCE_SPELLING_RELEASE_INPUT_COUNT ||
-           count == MANIFEST_JPEG_RELEASE_INPUT_COUNT || count == MANIFEST_MAX_INPUT_COUNT;
+           count == MANIFEST_JPEG_RELEASE_INPUT_COUNT || count == MANIFEST_PE32_RELEASE_INPUT_COUNT ||
+           count == MANIFEST_MAX_INPUT_COUNT;
 }
 
 static int manifest_expected_inventories_match(error_context_t *context,

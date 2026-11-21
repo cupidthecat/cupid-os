@@ -659,7 +659,7 @@ class CupidCToolchainContractPlanTests(
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 115)
+        self.assertEqual(len(inputs), 117)
         self.assertIn("toolchain/cupidbuild_jpeg.h", inputs)
         self.assertIn("toolchain/tests/cupidld_pe32_cases.inc", inputs)
         self.assertTrue(
@@ -678,6 +678,8 @@ class CupidCToolchainContractPlanTests(
             "toolchain/tests/x86_catalogue_contract.inc", inputs
         )
         self.assertIn("toolchain/tests/x86_inline_cases.inc", inputs)
+        self.assertIn("toolchain/tests/x86_integer_contract.inc", inputs)
+        self.assertIn("toolchain/tests/x86_operand_contract.inc", inputs)
         self.assertIn("toolchain/x86.cc", inputs)
 
     def test_kernel_bridge_sources_alone_receive_the_kernel_include_root(self):

@@ -5383,7 +5383,7 @@ static int validate_active_manifest(const char *mode) {
             (ctool_u32)(sizeof(active_expected_profiles) / sizeof(active_expected_profiles[0])) ||
         kind_counts[ACTIVE_ROW_PROFILE] != 16u || kind_counts[ACTIVE_ROW_CASE] != 428u ||
         kind_counts[ACTIVE_ROW_GENERATED_CASE] != 4u ||
-        kind_counts[ACTIVE_ROW_INCLUDE_ONLY] != 22u || kind_counts[ACTIVE_ROW_NON_ROOT] != 2u ||
+        kind_counts[ACTIVE_ROW_INCLUDE_ONLY] != 24u || kind_counts[ACTIVE_ROW_NON_ROOT] != 2u ||
         kind_counts[ACTIVE_ROW_DEFERRED_HOSTED] != 0u) {
         (void)fprintf(stderr,
                       "%s: manifest counts differ "

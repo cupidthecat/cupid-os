@@ -714,7 +714,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                         )
         expected = _expected_report()
         expected["bootstrap_source_input_count"] = 113 + int(aliases) + int(long_paths)
-        expected["input_count"] = 115
+        expected["input_count"] = 117
         self.assertEqual(report, expected)
 
     def test_checked_seed_build_runs_the_manifest_contract(self):

@@ -3513,6 +3513,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "Makefile",
@@ -6977,6 +6979,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -7342,6 +7346,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -7707,6 +7713,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -8072,6 +8080,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -8437,6 +8447,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -8802,6 +8814,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -9167,6 +9181,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -9532,6 +9548,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -9897,6 +9915,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -10262,6 +10282,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -10627,6 +10649,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -10992,6 +11016,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -11357,6 +11383,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -11722,6 +11750,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -12087,6 +12117,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -12452,6 +12484,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -12817,6 +12851,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -13182,6 +13218,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -13547,6 +13585,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -13912,6 +13952,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -14277,6 +14319,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -14642,6 +14686,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -15007,6 +15053,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -15372,6 +15420,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -15737,6 +15787,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -16102,6 +16154,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -16467,6 +16521,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -16832,6 +16888,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -17197,6 +17255,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -17562,6 +17622,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -17927,6 +17989,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -18292,6 +18356,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -18657,6 +18723,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -19022,6 +19090,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -19387,6 +19457,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -19752,6 +19824,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -20117,6 +20191,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -20482,6 +20558,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -20847,6 +20925,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -21212,6 +21292,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -21577,6 +21659,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -21942,6 +22026,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -22307,6 +22393,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -22672,6 +22760,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -23037,6 +23127,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -23402,6 +23494,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -23767,6 +23861,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -24132,6 +24228,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -24497,6 +24595,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -24862,6 +24962,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -25227,6 +25329,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -25592,6 +25696,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -25957,6 +26063,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -26322,6 +26430,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -26687,6 +26797,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -27052,6 +27164,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -27417,6 +27531,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -27782,6 +27898,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -28147,6 +28265,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -28512,6 +28632,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -28877,6 +28999,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -29242,6 +29366,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -29607,6 +29733,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -29972,6 +30100,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -30337,6 +30467,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -30702,6 +30834,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -31067,6 +31201,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -31432,6 +31568,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -31797,6 +31935,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -32162,6 +32302,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -32527,6 +32669,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -32892,6 +33036,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -33257,6 +33403,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -33622,6 +33770,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -33987,6 +34137,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -34352,6 +34504,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -34717,6 +34871,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -35082,6 +35238,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -35447,6 +35605,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -35812,6 +35972,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -36177,6 +36339,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -36542,6 +36706,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -36907,6 +37073,8 @@
           "toolchain/tests/x86_active_cases.inc",
           "toolchain/tests/x86_catalogue_contract.inc",
           "toolchain/tests/x86_inline_cases.inc",
+          "toolchain/tests/x86_integer_contract.inc",
+          "toolchain/tests/x86_operand_contract.inc",
           "toolchain/user_syscall_abi.h",
           "toolchain/x86.h",
           "build/bootstrap/doom-cupidc-inputs.json",
@@ -46837,10 +47005,10 @@
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
       "direct_angle_occurrences": 346,
-      "direct_quoted_occurrences": 2313,
-      "include_occurrences": 2659,
+      "direct_quoted_occurrences": 2315,
+      "include_occurrences": 2661,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2659,
+      "ordinary_marker_occurrences": 2661,
       "pp_token_operand_occurrences": 0,
       "source_files": 766,
       "status": "pass"
@@ -48181,7 +48349,7 @@
       "compared_startup_objects": 1,
       "compared_tool_images": 6,
       "compiler_c_sources": 11,
-      "contract_manifest_inputs": 115,
+      "contract_manifest_inputs": 117,
       "executed_tools": [
         "cupidasm",
         "cupiddis",
@@ -53169,13 +53337,12 @@
         "toolchain/tests/elf32_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
         "toolchain/tests/toolchain_manifest_contract.cc",
-        "toolchain/tests/x86_contract.cc",
         "toolchain/user_syscall_abi.cc",
         "toolchain/x86.cc",
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5811
+      "occurrences": 5799
     },
     {
       "category": "control",
@@ -53480,7 +53647,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 5095
+      "occurrences": 5070
     },
     {
       "category": "control",
@@ -53979,7 +54146,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 45953
+      "occurrences": 45773
     },
     {
       "category": "control",
@@ -54383,7 +54550,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28523
+      "occurrences": 28345
     },
     {
       "category": "control",
@@ -55101,7 +55268,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 3093
+      "occurrences": 3007
     },
     {
       "category": "declarator",
@@ -55402,7 +55569,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 7211
+      "occurrences": 7039
     },
     {
       "category": "extension",
@@ -55995,11 +56162,10 @@
         "toolchain/cupidc_ir.cc",
         "toolchain/tests/cupidasm_kernel_elf_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
-        "toolchain/tests/cupidc_object_contract.cc",
-        "toolchain/tests/x86_contract.cc"
+        "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.initializer.designated",
-      "occurrences": 656
+      "occurrences": 654
     },
     {
       "category": "preprocessor",
@@ -56507,7 +56673,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3502
+      "occurrences": 3503
     },
     {
       "category": "preprocessor",
@@ -58174,7 +58340,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2659
+      "occurrences": 2661
     },
     {
       "category": "preprocessor",
@@ -58799,7 +58965,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 19101
+      "occurrences": 18998
     },
     {
       "category": "qualifier",
@@ -59371,7 +59537,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10987
+      "occurrences": 10889
     },
     {
       "category": "type",
@@ -59868,7 +60034,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 12646
+      "occurrences": 12635
     },
     {
       "category": "type",
@@ -60700,7 +60866,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 26315
+      "occurrences": 26303
     },
     {
       "category": "type",
@@ -61220,7 +61386,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 1173
+      "occurrences": 1166
     },
     {
       "category": "type",
@@ -61539,7 +61705,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 1233
+      "occurrences": 1230
     },
     {
       "category": "type",
@@ -62425,7 +62591,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 16373
+      "occurrences": 16330
     },
     {
       "category": "declaration",
@@ -63033,7 +63199,7 @@
         "toolchain/x86.cc"
       ],
       "id": "cupid_c.storage.reg",
-      "occurrences": 486
+      "occurrences": 350
     },
     {
       "category": "type",
@@ -63356,7 +63522,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "600934ad83f63ae9d2f8b161532bb95af264e727501408f08a43ddd24a92baf8",
+    "active_source_digest": "49b6b7d6a9a3df3d34f60c538accf5e9ec492e0e0d326cbd4360cc1ad00e1762",
     "control_files": [
       {
         "path": "Makefile",
@@ -63368,7 +63534,7 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "cd8e907ba9e23d6d31e622eccb152298ee7ac6a9846a23be78ccf5178dc468eb"
+        "sha256": "c5bd47dca7c9525f9cc97746eebf54c90a8ab48c56e65af2b1d29a13641180a5"
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
@@ -63417,7 +63583,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "c0c50af641066a288780d3815c39c9b65654daf1891d3223fc1c2e1dd67b5866"
+      "sha256": "662c9195e31b305ab66f2d49259a1eb04de8423ca5f6201022222d87a14529dc"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -92507,7 +92673,7 @@
       "path": "toolchain/tests/cupidc_pp_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "4f68bc8cc10b07f05828db9de1de69a750196cd6693e20306e53a7ea7087beea"
+      "sha256": "ed352f779081f07293dddf806ac6e8f5f4cf9c7bcfbd44808fb7bf6c038b9b24"
     },
     {
       "build_owners": [
@@ -93006,12 +93172,12 @@
         "toolchain/contract_parse_internal.h"
       ],
       "language": "cupid_c",
-      "lines": 3154,
+      "lines": 3158,
       "origin": "tracked",
       "path": "toolchain/tests/toolchain_manifest_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "cce48cc118d09977874e1cc04e898d869341e6268739a1774415f20cf65b6531"
+      "sha256": "aae03dc6b4cbb74c8a3c8453a5f11b5aee61a7ddb23953b34e2cdf5fdcf5add1"
     },
     {
       "build_owners": [
@@ -93065,7 +93231,6 @@
       "cohort": "toolchain_contract",
       "features": [
         "c.control.case",
-        "c.control.else",
         "c.control.for",
         "c.control.if",
         "c.control.return",
@@ -93073,7 +93238,6 @@
         "c.declarator.unsized_array",
         "c.declarator.variadic",
         "c.expression.sizeof",
-        "c.initializer.designated",
         "c.preprocessor.define",
         "c.preprocessor.function_macro",
         "c.preprocessor.include",
@@ -93095,12 +93259,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 3828,
+      "lines": 1352,
       "origin": "tracked",
       "path": "toolchain/tests/x86_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "11aa39e8d2dae85c670a612571bbeb964564fec44642b585a946a110fce0c3bf"
+      "sha256": "5ffc9d697c4f11396a29285547d337aad5bcf350257ffd1a79f580d68bfc3152"
     },
     {
       "build_owners": [
@@ -93694,6 +93858,8 @@
             "toolchain/tests/x86_active_cases.inc",
             "toolchain/tests/x86_catalogue_contract.inc",
             "toolchain/tests/x86_inline_cases.inc",
+            "toolchain/tests/x86_integer_contract.inc",
+            "toolchain/tests/x86_operand_contract.inc",
             "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
             "toolchain/tests/cupidc_kernel_simd_fixture.h",
             "toolchain/tests/cupidc_source_spelling_fixture.h",
@@ -93856,6 +94022,8 @@
             "toolchain/tests/x86_active_cases.inc",
             "toolchain/tests/x86_catalogue_contract.inc",
             "toolchain/tests/x86_inline_cases.inc",
+            "toolchain/tests/x86_integer_contract.inc",
+            "toolchain/tests/x86_operand_contract.inc",
             "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
             "toolchain/tests/cupidc_kernel_simd_fixture.h",
             "toolchain/tests/cupidc_source_spelling_fixture.h",

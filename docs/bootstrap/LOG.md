@@ -1,5 +1,24 @@
 # Bootstrapping log
 
+## 2026-11-21 — Split the x86 instruction tests
+
+The x86 runner has 1,352 lines. Integer and operand cases live in two
+private includes of 1,932 and 556 lines. Checked CupidC produced the
+same 432,972-byte object on Windows and WSL before and after the split.
+The checked ELF also matched. All 16 modes passed on the checked ELF
+and the two native oracles.
+
+The manifest reader now requires both includes for current builds and
+still accepts the 115-input linker profile. Tests reject a missing or
+substituted include. The build audit records the two new include
+operands. Its lexical feature counts cover the scanned source suffixes
+and omit the moved `.inc` bodies.
+
+The first contract run found an older error from the Browser split. The
+preprocessor corpus had 24 include-only files, and its runtime guard
+still expected 22. The guard now checks all 24. The 162 focused tests
+passed on Windows and WSL.
+
 ## 2026-11-21 — Boot the kernel linked from the read-only plan
 
 The seven-step media plan consumed 430 checked pass-one objects. Both

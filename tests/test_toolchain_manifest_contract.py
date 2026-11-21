@@ -346,6 +346,36 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 1, result.stderr)
                     self.assertEqual(result.stdout, '')
 
+    def test_split_x86_inventory_requires_both_includes(self):
+        manifest, *_ = _owner_context_fixture(source_spelling=True)
+        jpeg = "toolchain/cupidbuild_jpeg.h"
+        x86_paths = ("toolchain/tests/x86_integer_contract.inc",
+                     "toolchain/tests/x86_operand_contract.inc")
+        for name in (jpeg, "toolchain/tests/cupidld_pe32_cases.inc", *x86_paths):
+            data = (REPO_ROOT / name).read_bytes()
+            manifest["inputs"][name] = {"size": len(data), "sha256": _digest(data)}
+        manifest["input_count"] = len(manifest["inputs"])
+        sources = manifest["bootstrap"]["source_inputs"]
+        sources["files"][jpeg] = manifest["inputs"][jpeg].copy()
+        sources["count"] = len(sources["files"])
+        sources["sha256"] = _digest(_json_bytes(sources["files"]))
+        for mode in ("author", "check"):
+            run = self.run_author_request if mode == "author" else self.run_request
+            good = run(_owner_context_request(mode, manifest=manifest))
+            self.assertEqual(good.returncode, 0, good.stderr)
+            for name in x86_paths:
+                with self.subTest(mode=mode, path=name):
+                    changed = copy.deepcopy(manifest)
+                    changed["inputs"]["toolchain/tests/unreviewed.inc"] = changed["inputs"].pop(name)
+                    bad = run(_owner_context_request(mode, manifest=changed))
+                    self.assertEqual(bad.returncode, 1, bad.stderr)
+                    self.assertEqual(bad.stdout, "")
+                    del changed["inputs"]["toolchain/tests/unreviewed.inc"]
+                    changed["input_count"] -= 1
+                    bad = run(_owner_context_request(mode, manifest=changed))
+                    self.assertEqual(bad.returncode, 1, bad.stderr)
+                    self.assertEqual(bad.stdout, "")
+
     def test_historical_owner_rejects_a_spelling_header_in_place_of_an_old_member(self):
         original, *_ = _owner_context_fixture()
         path = 'toolchain/tests/cupidc_source_spelling_fixture.h'
@@ -1670,10 +1700,12 @@ class ToolchainManifestContractTests(unittest.TestCase):
                           *OWNER_HEADERS, *OWNER_SHARED_INPUTS,
                           "toolchain/cupidbuild_jpeg.h",
                           "toolchain/tests/cupidld_pe32_cases.inc",
+                          "toolchain/tests/x86_integer_contract.inc",
+                          "toolchain/tests/x86_operand_contract.inc",
                           "toolchain/tests/cupidc_source_spelling_fixture.h",
                           "tools/__init__.py", "tools/bootstrap_user_abi.py",
                           "tools/bootstrap_stage_release.py", "tools/seed_release_identity.py"}, actual)
-        self.assertEqual(len(actual), 115)
+        self.assertEqual(len(actual), 117)
 
     def _complete_release_inventory_fixture(self, **profile):
         manifest, observations, seed_bytes, seed_observations = _complete_context_fixture(**profile)

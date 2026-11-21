@@ -35,7 +35,7 @@ Compare emitted objects and checked seed outputs after moving code.
 | Area | Files |
 | --- | --- |
 | Compiler contracts | `toolchain/tests/cupidc_frontend_contract.cc`, `toolchain/tests/cupidc_ir_contract.cc`, `toolchain/tests/cupidc_object_contract.cc`, `toolchain/tests/cupidc_pp_contract.cc`, `toolchain/tests/cupidc_type_contract.cc` |
-| Assembler and format contracts | `toolchain/tests/cupidasm_contract.cc`, `toolchain/tests/cupidasm_kernel_elf_contract.cc`, `toolchain/tests/cupiddis_contract.cc`, `toolchain/tests/cupidobj_contract.cc`, `toolchain/tests/x86_contract.cc` |
+| Assembler and format contracts | `toolchain/tests/cupidasm_contract.cc`, `toolchain/tests/cupidasm_kernel_elf_contract.cc`, `toolchain/tests/cupiddis_contract.cc`, `toolchain/tests/cupidobj_contract.cc` |
 | Manifest contracts | `toolchain/tests/toolchain_manifest_contract.cc` |
 | Build and verification scripts | `tools/bootstrap_toolchain.py`, `tools/build_graph_audit.py`, `tools/cupidc_toolchain_contracts.py` |
 
@@ -278,3 +278,11 @@ validation and artifact cases passed on Windows and WSL with platform skips.
 applies declarations to the computed style. `style_cascade.cc` matches
 selectors and resolves priority and inheritance. The Browser includes
 all three in order, and each file has fewer than 1,300 lines.
+
+## x86 format tests
+
+The x86 runner shares its fixtures across two private includes. One
+covers integer forms, padding and condition codes. The other covers
+addressing, relocations, system instructions and SIMD. All three files
+stay under 2,000 lines. The contract manifest requires both includes
+when building from current source.

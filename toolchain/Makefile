@@ -158,7 +158,8 @@ NATIVE_CUPIDBUILD_HOST_RUNNER_CONTRACT := \
 CUPIDC := $(BUILD_DIR)/cupidc$(EXE)
 CUPIDC_PP_ACTIVE_CASES := tests/cupidc_pp_active_cases.inc
 X86_CONTRACT_SUPPORT := tests/x86_active_cases.inc \
-	tests/x86_catalogue_contract.inc tests/x86_inline_cases.inc
+	tests/x86_catalogue_contract.inc tests/x86_inline_cases.inc \
+	tests/x86_integer_contract.inc tests/x86_operand_contract.inc
 CUPIDC_PP_GENERATED_SOURCES := ../kernel/cpu/ksyms_data.cc \
                               ../kernel/util/bin_programs_gen.cc \
                               ../kernel/util/demos_programs_gen.cc \

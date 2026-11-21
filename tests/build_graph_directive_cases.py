@@ -1582,6 +1582,8 @@ class DirectiveInventoryCases:
         )
         self.assertIsNotNone(support)
         self.assertIn("tests/x86_catalogue_contract.inc", support.group(1))
+        self.assertIn("tests/x86_integer_contract.inc", support.group(1))
+        self.assertIn("tests/x86_operand_contract.inc", support.group(1))
 
         object_rule = re.search(
             r"\$\(BUILD_DIR\)/x86_contract\.o:(.*?)\n\t",

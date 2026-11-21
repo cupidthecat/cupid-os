@@ -247,7 +247,7 @@ class CupidCContractABICases:
             expected = cupidc_toolchain_contracts.check_syscall_abi(root)
             before = (output / "manifest.json").read_bytes()
             publication = cupidc_toolchain_contracts.verify_publication(output)
-            self.assertEqual(publication["input_count"], 115)
+            self.assertEqual(publication["input_count"], 117)
             self.assertEqual(publication["bootstrap"]["source_inputs"]["count"], 115)
             completed = subprocess.CompletedProcess(
                 ["user-syscall-abi-contract.elf"], 0,
