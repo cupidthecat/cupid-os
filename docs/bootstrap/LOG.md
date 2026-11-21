@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-21 — Separate kernel compilation inputs and ELF validation
+
+The Python wrapper keeps its command and publication path. The source
+closures and i386 ELF validator live in their own modules. All 67
+functions, types and data declarations match the earlier syntax trees.
+Make tracks both files, and the build audit checks their dependency
+entries.
+
+The kernel compilation and handoff suites ran 70 cases on Windows and
+WSL with one Windows skip. Twelve focused graph checks passed on each
+host. The normal Windows recipe reproduced all three generated
+installation objects.
+
 ## 2026-11-21 — Reuse cleared VFS mount slots
 
 On the old kernel, 28 source mount and unmount cycles filled the remaining

@@ -1,3 +1,5 @@
+## @file
+#  @brief Check the production compiler rules for generated kernel sources.
 import copy
 import subprocess
 import unittest
@@ -12,9 +14,10 @@ SOURCES = audit._CUPIDBUILD_GENERATED_SOURCES
 class CupidBuildGeneratedProductionTests(unittest.TestCase):
     def test_exact_three_delivery_and_kernel_profile(self):
         inputs = ["Makefile", "tools/cupidc_production_compile.py",
-                  "tools/cupidc_kernel_compile.py", "tools/native_user_toolchain.py",
-                  "tools/bootstrap_toolchain.py", "seed/manifest.json"]
-        inputs += [f"seed/{tool}.elf" for tool in
+                  "tools/cupidc_kernel_compile.py", "tools/cupidc_kernel_inputs.py",
+                  "tools/cupidc_i386_object.py", "tools/native_user_toolchain.py",
+                  "tools/bootstrap_toolchain.py"]
+        seed_inputs = ["seed/manifest.json"] + [f"seed/{tool}.elf" for tool in
                    ("cupidc", "cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidbuild")]
         self.assertEqual(len(SOURCES), 3)
         for source in SOURCES:
@@ -22,11 +25,11 @@ class CupidBuildGeneratedProductionTests(unittest.TestCase):
             value = {"output": Path(source).with_suffix(".o").as_posix(),
                      "operation": "compile_c_to_elf32_object",
                      "tools": ["cupid_builder", "cupid_c_compiler"],
-                     "inputs": [source, *headers, *inputs],
+                     "inputs": [source, *headers, *inputs, *seed_inputs],
                      "recipe": audit._cupidbuild_generated_compile_recipe(source),
                      "order_only_inputs": ["build/bootstrap/doom-cupidc-inputs.json"]}
             def check(item):
-                audit._validate_cupidbuild_generated_compile_delivery([item], seed_inputs=inputs[5:])
+                audit._validate_cupidbuild_generated_compile_delivery([item], seed_inputs=seed_inputs)
             with self.subTest(source=source):
                 check(value)
                 self.assertEqual(audit._c_preprocessor_profile_for_c_transform(".", value), "KERNEL_I386")

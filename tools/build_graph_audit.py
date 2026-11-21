@@ -1,3 +1,5 @@
+## @file
+#  @brief Record build ownership, input closures, and language requirements.
 """Produce a deterministic inventory of Cupid OS build and language inputs."""
 
 from __future__ import annotations
@@ -760,6 +762,8 @@ USER_SYSCALL_ABI_AUDIT_INPUTS = tuple(
 )
 CUPIDC_KERNEL_CONTROL_FILES = (
     "tools/cupidc_kernel_compile.py",
+    "tools/cupidc_kernel_inputs.py",
+    "tools/cupidc_i386_object.py",
     "tools/kernel_cupidc_frontier.py",
     "tools/bootstrap_toolchain.py",
     "bootstrap/seeds/i386-windows/manifest.json",
@@ -4052,6 +4056,7 @@ def _validate_cupidbuild_generated_compile_delivery(
         expected = {source, "drivers/serial.h", "kernel/core/types.h",
                     "kernel/fs/homefs.h", "kernel/fs/ramfs.h", "kernel/fs/vfs.h", "Makefile",
                     "tools/cupidc_production_compile.py", "tools/cupidc_kernel_compile.py",
+                    "tools/cupidc_kernel_inputs.py", "tools/cupidc_i386_object.py",
                     "tools/native_user_toolchain.py", "tools/bootstrap_toolchain.py",
                     *seed_inputs}
         inputs = transform.get("inputs", [])

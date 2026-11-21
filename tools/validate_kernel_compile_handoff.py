@@ -1,3 +1,5 @@
+## @file
+#  @brief Verify native kernel compilation against retained build artifacts.
 """Replay a guarded compiler cohort through Make and compare retained bytes."""
 import argparse
 import collections
@@ -179,6 +181,7 @@ def cohort_controls(root, cohort, values, profile_capture=None):
         controls.update(selected_cohort(cohort)[0])
         controls.update(GENERATED_INCLUDE_CLOSURE)
         controls.update(("tools/cupidc_production_compile.py", "tools/cupidc_kernel_compile.py",
+                         "tools/cupidc_kernel_inputs.py", "tools/cupidc_i386_object.py",
                          "tools/native_user_toolchain.py", "tools/bootstrap_toolchain.py"))
     if cohort == "doom":
         sources, _ = selected_cohort(cohort)

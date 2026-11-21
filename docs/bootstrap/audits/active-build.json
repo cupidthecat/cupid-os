@@ -42255,6 +42255,8 @@
           "Makefile",
           "tools/cupidc_production_compile.py",
           "tools/cupidc_kernel_compile.py",
+          "tools/cupidc_kernel_inputs.py",
+          "tools/cupidc_i386_object.py",
           "tools/native_user_toolchain.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
@@ -42374,6 +42376,8 @@
           "Makefile",
           "tools/cupidc_production_compile.py",
           "tools/cupidc_kernel_compile.py",
+          "tools/cupidc_kernel_inputs.py",
+          "tools/cupidc_i386_object.py",
           "tools/native_user_toolchain.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
@@ -42460,6 +42464,8 @@
           "Makefile",
           "tools/cupidc_production_compile.py",
           "tools/cupidc_kernel_compile.py",
+          "tools/cupidc_kernel_inputs.py",
+          "tools/cupidc_i386_object.py",
           "tools/native_user_toolchain.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
@@ -63187,7 +63193,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "1e1fce5f49a3ea4959a875769bc225147ad74005bca184f3b789b0067c6ddbc4"
+        "sha256": "f2ef07b09aa5952edcc28f7dddc21493b7417ed45cbb142c0f38c861eaa3c4e6"
       },
       {
         "path": "user/Makefile",
@@ -63203,7 +63209,15 @@
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
-        "sha256": "330b1bc96c8eb43373a6261a9a8f49e47b1827d92dafd74f9318f778e4c10dda"
+        "sha256": "5c257f509c180ace23da0c1b35941fc7de0024d69f574d9a695566beff3fa911"
+      },
+      {
+        "path": "tools/cupidc_kernel_inputs.py",
+        "sha256": "b967fff80e90455cb0df242c11b320967214a257b3008e04d6f25f492cec002e"
+      },
+      {
+        "path": "tools/cupidc_i386_object.py",
+        "sha256": "889f22284afb5b313e675e100837f603db3a6dee97d9a7263a5abcd36065d743"
       },
       {
         "path": "tools/kernel_cupidc_frontier.py",
@@ -63220,7 +63234,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "c994bc35fbfd4a2c09a8f7330f4eb82538ca80c9cd9ccc526202d58e5b52179a"
+      "sha256": "4f05bd4bdf415f03aef0bc6b1b1a8d398981323fb19d6b3a997582344ae8af42"
     },
     "text_hash_policy": "canonical_lf"
   },

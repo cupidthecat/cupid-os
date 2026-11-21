@@ -38,7 +38,7 @@ Compare emitted objects and checked seed outputs after moving code.
 | Assembler and format contracts | `toolchain/tests/cupidasm_contract.cc`, `toolchain/tests/cupidasm_kernel_elf_contract.cc`, `toolchain/tests/cupiddis_contract.cc`, `toolchain/tests/cupidld_contract.cc`, `toolchain/tests/cupidobj_contract.cc`, `toolchain/tests/x86_contract.cc` |
 | Manifest contracts | `toolchain/tests/toolchain_manifest_contract.cc` |
 | Python tests | `tests/test_build_graph_audit.py`, `tests/test_toolchain_cupidc_object.py` |
-| Build and verification scripts | `tools/bootstrap_toolchain.py`, `tools/build_graph_audit.py`, `tools/cupidc_kernel_compile.py`, `tools/cupidc_toolchain_contracts.py`, `tools/hostbuild.py` |
+| Build and verification scripts | `tools/bootstrap_toolchain.py`, `tools/build_graph_audit.py`, `tools/cupidc_toolchain_contracts.py`, `tools/hostbuild.py` |
 
 Organize contract cases by behavior and keep the existing test commands.
 The seed suite now keeps all 156 test IDs under the original module while
@@ -209,3 +209,10 @@ stage fixtures keep their original inventories. The Doom checks pin all
 parts of the split libc shim and still expect the same emitted object.
 The focused WSL run covered 191 tests with 17 platform skips. The Windows
 cases passed across the focused run and a separate native stage preparation.
+
+## Kernel compiler wrapper
+
+`tools/cupidc_kernel_compile.py` keeps the command and publication path.
+`tools/cupidc_kernel_inputs.py` records each source's dependency list, and
+`tools/cupidc_i386_object.py` validates the emitted ELF objects. The three
+files stay under 1,900 lines. Make and the audit track both dependencies.

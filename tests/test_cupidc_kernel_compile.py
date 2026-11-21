@@ -330,6 +330,8 @@ class KernelCompileMakefileTests(unittest.TestCase):
         expected_compile_inputs = {
             "Makefile",
             "tools/cupidc_kernel_compile.py",
+            "tools/cupidc_kernel_inputs.py",
+            "tools/cupidc_i386_object.py",
             "tools/kernel_cupidc_frontier.py",
             "tools/bootstrap_toolchain.py",
             "$(PRODUCTION_SEED_INPUTS)",

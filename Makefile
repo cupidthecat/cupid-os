@@ -45,6 +45,7 @@ override PRODUCTION_SEED_INPUTS := \
 CUPIDC_KERNEL_COMPILE := $(PYTHON) tools/cupidc_kernel_compile.py --root . \
 	--manifest $(PRODUCTION_SEED_MANIFEST)
 CUPIDC_KERNEL_COMPILE_INPUTS := Makefile tools/cupidc_kernel_compile.py \
+	tools/cupidc_kernel_inputs.py tools/cupidc_i386_object.py \
 	tools/kernel_cupidc_frontier.py tools/bootstrap_toolchain.py \
 	$(PRODUCTION_SEED_INPUTS)
 CUPIDC_PRODUCTION_COMPILE := $(PYTHON) \
@@ -53,6 +54,7 @@ CUPIDC_PRODUCTION_COMPILE := $(PYTHON) \
 override CUPIDC_PRODUCTION_COMPILE_INPUTS := Makefile \
 	tools/cupidc_production_compile.py \
 	tools/cupidc_kernel_compile.py \
+	tools/cupidc_kernel_inputs.py tools/cupidc_i386_object.py \
 	tools/native_user_toolchain.py \
 	tools/bootstrap_toolchain.py \
 	$(PRODUCTION_SEED_INPUTS)
