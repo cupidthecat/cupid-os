@@ -192,7 +192,7 @@ The RAM filesystem (`kernel/fs/ramfs.cc/h`) provides an in-memory directory tree
 ### Features
 
 - Full directory tree with parent/children pointers
-- Dynamic file content allocation (up to 64KB per file)
+- Writes grow files up to 1 MiB. RAMFS releases their memory when files are removed.
 - Create, read, write, delete files and directories
 - Auto-creates parent directories via `ramfs_mkdirs()`
 - Pre-populated at boot with built-in files (LICENSE.txt, MOTD.txt)

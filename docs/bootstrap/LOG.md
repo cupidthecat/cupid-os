@@ -1,5 +1,21 @@
 # Bootstrapping log
 
+## 2026-11-21 — Raise the RAMFS write limit for build objects
+
+RAMFS now accepts writes up to 1 MiB per file. The old 64 KiB limit stopped
+the source build at the 73,396-byte `notepad.o`. All 183 assets wrapped in
+RAMFS on the revised kernel. The largest object is 800,860 bytes.
+
+The new filesystem probe failed on the old kernel and passed on the new
+four-CPU guest. It writes the last byte at the limit, rejects a write and
+seek beyond it, and reads back the stored byte and zero-filled gap. The
+same QEMU run passed the existing ISO mount and VFS binding checks.
+
+The paired Windows and WSL build artifacts matched, including the
+9,509,672-byte raw kernel and full 200 MiB image. Both passed all 16 exact
+size checks. The first WSL build caught the old size lock before image
+publication. The revised lock accounts for the 964 added bytes.
+
 ## 2026-11-21 — Track the linker fixture and JPEG header in manifest checks
 
 The CupidLD contract now keeps fixed PE32 layout and import cases in one

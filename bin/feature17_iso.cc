@@ -225,6 +225,32 @@ int check_glyph_raster() {
     return 1;
 }
 
+int check_ramfs_write_limit() {
+    const char *path = "/tmp/feature17-limit";
+    int limit = 1024 * 1024;
+    int fd = vfs_open(path, 770); /* O_RDWR | O_CREAT | O_TRUNC */
+    if (fd < 0)
+        return 0;
+
+    char byte = 42;
+    int ok = vfs_seek(fd, limit - 1, 0) == limit - 1 &&
+             vfs_write(fd, &byte, 1) == 1 &&
+             vfs_write(fd, &byte, 1) == -28 && /* VFS_ENOSPC */
+             vfs_seek(fd, 1, 1) == -28 &&
+             vfs_seek(fd, 0, 1) == limit &&
+             vfs_seek(fd, -2, 2) == limit - 2;
+    char tail[2];
+    if (ok)
+        ok = vfs_read(fd, tail, 2) == 2 && tail[0] == 0 && tail[1] == byte &&
+             vfs_read(fd, tail, 1) == 0;
+    vfs_close(fd);
+    if (vfs_unlink(path) != 0)
+        ok = 0;
+    if (ok)
+        serial_printf("PASS feature17_ramfs limit=%d\n", limit);
+    return ok;
+}
+
 int check_vfs_binding_conversions() {
     const char *old_path = "/feature17-binding/file";
     const char *new_path = "/feature17-binding/renamed";
@@ -415,6 +441,11 @@ void main() {
             break;
         }
         cycle = cycle + 1;
+    }
+
+    if (!check_ramfs_write_limit()) {
+        serial_printf("[feature17] FAIL RAMFS write limit\n");
+        ok = 0;
     }
 
     if (!check_vfs_binding_conversions()) {

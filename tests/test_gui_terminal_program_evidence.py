@@ -1398,7 +1398,7 @@ class FrontierProgramEvidenceTests(unittest.TestCase):
                     stale_count = sample.replace("calls=9 bytes=8", "calls=8 bytes=8")
                     self.assertIsNone(re.search(expected, stale_count, re.S | re.M))
 
-    def test_iso_command_requires_the_jpeg_and_glyph_markers(self):
+    def test_iso_command_requires_jpeg_glyph_and_ramfs_markers(self):
         expected = _frontier_command(
             "/bin/feature17_iso.cc"
         ).expected_pattern
@@ -1408,6 +1408,7 @@ class FrontierProgramEvidenceTests(unittest.TestCase):
                 "PASS glyph_rasterize Liberation Mono Q size37 "
                 "width=22 cache=22\n"
             ),
+            "PASS feature17_ramfs limit=1048576\n",
         ):
             with self.subTest(marker=marker):
                 output = _frontier_command_output(

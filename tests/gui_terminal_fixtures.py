@@ -208,6 +208,7 @@ def _frontier_command_outputs():
             "PASS jpeg_decode_mem baseline 8x8 gray128\n"
             "PASS glyph_rasterize Liberation Mono Q size37 "
             "width=22 cache=22\n"
+            "PASS feature17_ramfs limit=1048576\n"
             "PASS feature17_binding calls=9 bytes=8\n"
             "PASS feature17_iso\n"
             "[cupidc] JIT execution complete\n"

@@ -350,9 +350,8 @@ validates up to 512 plan entries before starting, stops at the first
 failure and saves each successful output atomically.
 
 Use `/tmp` for intermediate files. The workers write and rename temporary
-products in RAMFS. The kernel at this checkpoint limits RAMFS writes to
-64 KiB per file. Use `/home` for larger files and files the next boot should
-retain.
+products in RAMFS. RAMFS allows writes up to 1 MiB per file. Use `/home`
+for larger files and files the next boot should retain.
 
 ```sh
 make -C bootstrap/guest check-guest-build
