@@ -194,25 +194,25 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bin/old_cc2_single.cc` | `cupid_c` | `explicitly_excluded` | 8238 | listed in a Make filter-out expression |
 | `bin/terminal_app.c` | `c` | `historical_copy` | 318 | historical_copy_of: `kernel/gui/terminal_app.cc` |
 | `bootstrap/guest/cupidasm_guest.cc` | `cupid_c` | `not_reached` | 84 | not reachable from the supported Make target or include closure |
-| `bootstrap/guest/cupidbuild_guest.cc` | `cupid_c` | `not_reached` | 67 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupidbuild_guest.cc` | `cupid_c` | `not_reached` | 85 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_bundle.cc` | `cupid_c` | `not_reached` | 108 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_bundle.h` | `c_header` | `not_reached` | 16 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_engine.cc` | `cupid_c` | `not_reached` | 35 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_engine.h` | `c_header` | `not_reached` | 27 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_guest.cc` | `cupid_c` | `not_reached` | 183 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_guest_linux_contract.cc` | `cupid_c` | `host_fixture` | 216 | Linux syscall fixture for the opt-in toolchain workers |
-| `bootstrap/guest/cupiddisk_guest.cc` | `cupid_c` | `not_reached` | 61 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupiddisk_guest.cc` | `cupid_c` | `not_reached` | 68 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidinstall_guest.cc` | `cupid_c` | `not_reached` | 140 | not reachable from the supported Make target or include closure |
-| `bootstrap/guest/cupidksyms_guest.cc` | `cupid_c` | `not_reached` | 78 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupidksyms_guest.cc` | `cupid_c` | `not_reached` | 85 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidld_guest.cc` | `cupid_c` | `not_reached` | 155 | not reachable from the supported Make target or include closure |
-| `bootstrap/guest/cupidobj_guest.cc` | `cupid_c` | `not_reached` | 274 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupidobj_guest.cc` | `cupid_c` | `not_reached` | 283 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/engine_image.cc` | `cupid_c` | `host_fixture` | 77 | external compiler image loader used by the Linux fixed-point test |
 | `bootstrap/guest/engine_image.h` | `c_header` | `host_fixture` | 28 | image-plan interface used by the Linux fixed-point test |
 | `bootstrap/guest/engine_linux_contract.cc` | `cupid_c` | `host_fixture` | 193 | Linux harness for the opt-in freestanding compiler fixed-point test |
-| `bootstrap/guest/guest_build.h` | `c_header` | `not_reached` | 14 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/guest_build.h` | `c_header` | `not_reached` | 19 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/guest_job.cc` | `cupid_c` | `not_reached` | 227 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/guest_job.h` | `c_header` | `not_reached` | 47 | not reachable from the supported Make target or include closure |
-| `bootstrap/guest/guest_raw_assembly.cc` | `cupid_c` | `not_reached` | 191 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/guest_raw_assembly.cc` | `cupid_c` | `not_reached` | 200 | not reachable from the supported Make target or include closure |
 | `demos/paint.cc` | `cupid_c` | `superseded` | 629 | superseded_by: `bin/paint.cc` |
 | `kernel/core/scheduler.c` | `c` | `superseded` | 154 | superseded_by: `kernel/core/process.cc` |
 | `kernel/gui/notepad.c` | `c` | `superseded` | 5683 | superseded_by: `bin/notepad.cc` |

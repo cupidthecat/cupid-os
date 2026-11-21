@@ -5,7 +5,7 @@
 
 #include "cupidasm.h"
 #include "cupiddis.h"
-#include "guest_job.h"
+#include "guest_build.h"
 
 #define RAW_JOB "/home/cupidraw.job"
 #define RAW_PENDING "/home/.cupidraw-pending.bin"
@@ -16,9 +16,9 @@ typedef enum {
     GUEST_RAW_SMP_TRAMPOLINE
 } guest_raw_kind_t;
 
-static int read_raw_job(cupid_syscall_table_t *sys, char *file, ctool_invocation_request_t *request,
+static int read_raw_job(cupid_syscall_table_t *sys, const char *path, char *file, ctool_invocation_request_t *request,
                         guest_raw_kind_t *kind) {
-    int size = sys->vfs_read_text(RAW_JOB, file, RAW_JOB_BYTES);
+    int size = sys->vfs_read_text(path, file, RAW_JOB_BYTES);
     if (size < 1 || (ctool_u32)size >= RAW_JOB_BYTES)
         return 0;
     char *cursor = file;
@@ -163,16 +163,18 @@ static ctool_status_t assemble_raw_image(ctool_invocation_t *invocation, void *c
     return check_raw_image(invocation->job, invocation->input, &image, *(guest_raw_kind_t *)context);
 }
 
-void cupidraw_guest_run(cupid_syscall_table_t *sys) {
+ctool_status_t cupid_guest_raw_job(cupid_syscall_table_t *sys, const char *job_path) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
-        return;
+        return CTOOL_ERR_INVALID_ARGUMENT;
     cupid_init(sys);
     char file[RAW_JOB_BYTES];
     ctool_invocation_request_t request;
     guest_raw_kind_t kind;
-    if (!read_raw_job(sys, file, &request, &kind)) {
-        sys->serial_write_string("[cupidraw-guest] invalid request file: " RAW_JOB "\n");
-        return;
+    if (!read_raw_job(sys, job_path, file, &request, &kind)) {
+        sys->serial_write_string("[cupidraw-guest] invalid request file: ");
+        sys->serial_write_string(job_path);
+        sys->serial_write_string("\n");
+        return CTOOL_ERR_INPUT;
     }
 
     cupid_guest_io_t io = {.sys = sys, .pending_path = RAW_PENDING};
@@ -180,7 +182,9 @@ void cupidraw_guest_run(cupid_syscall_table_t *sys) {
     ctool_invocation_result_t result = {0};
     ctool_status_t status = ctool_invoke(&config, &request, assemble_raw_image, &kind, &result);
     cupid_guest_job_drain_cache(&io);
-    if (status == CTOOL_OK && result.output_committed) {
+    if (status == CTOOL_OK && !result.output_committed)
+        status = CTOOL_ERR_IO;
+    if (status == CTOOL_OK) {
         sys->serial_write_string("[cupidraw-guest] wrote ");
         sys->serial_write_string(request.output_path.data);
     } else {
@@ -188,4 +192,9 @@ void cupidraw_guest_run(cupid_syscall_table_t *sys) {
         sys->serial_write_string(ctool_status_name(status));
     }
     sys->serial_write_string("\n");
+    return status;
+}
+
+void cupidraw_guest_run(cupid_syscall_table_t *sys) {
+    cupid_guest_raw_job(sys, RAW_JOB);
 }

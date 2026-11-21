@@ -73,7 +73,21 @@ def check(scratch: Path) -> None:
     log = invoke(b"[cupidbuild-guest] stopped at /home/hello.lj")
     assert b"wrote /home/hello.o" in log and b"build complete" not in log
     assert executable.read_bytes() == sentinel
-    print("Guest build matched the checked object and executable and stopped on six rejected plans or steps.")
+    raw = home / "kernel.bin"
+    raw.write_bytes(b"preceding raw kernel")
+    (home / "flatten.job").write_bytes(b"/home/hello.elf\n/home/kernel.bin\n")
+    (home / "disk.job").write_bytes(b"/home/boot.bin\n/home/kernel.bin\n/home/disk.img\n")
+    plan.write_bytes(b"object\n/home/flatten.job\ndisk\n/home/disk.job\n")
+    log = invoke(b"[cupidbuild-guest] stopped at /home/flatten.job")
+    assert b"[cupiddisk-guest]" not in log and raw.read_bytes() == b"preceding raw kernel"
+
+    boot = home / "boot.bin"
+    boot.write_bytes(b"preceding bootloader")
+    (home / "boot.job").write_bytes(b"/missing.asm\n/home/boot.bin\nbootloader\n")
+    plan.write_bytes(b"raw\n/home/boot.job\n" + PLAN)
+    log = invoke(b"[cupidbuild-guest] stopped at /home/boot.job")
+    assert b"[cupidc-guest]" not in log and boot.read_bytes() == b"preceding bootloader"
+    print("Guest build matched the checked object and executable and stopped on eight rejected plans or steps.")
 
 
 if __name__ == "__main__":

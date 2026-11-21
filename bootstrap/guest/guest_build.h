@@ -11,4 +11,9 @@
 ctool_status_t cupid_guest_compile_job(cupid_syscall_table_t *sys, const char *job_path);
 ctool_status_t cupid_guest_link_job(cupid_syscall_table_t *sys, const char *job_path);
 
+ctool_status_t cupid_guest_symbols_job(cupid_syscall_table_t *sys, const char *job_path);
+ctool_status_t cupid_guest_object_job(cupid_syscall_table_t *sys, const char *job_path);
+ctool_status_t cupid_guest_raw_job(cupid_syscall_table_t *sys, const char *job_path);
+ctool_status_t cupid_guest_disk_job(cupid_syscall_table_t *sys, const char *job_path);
+
 #endif

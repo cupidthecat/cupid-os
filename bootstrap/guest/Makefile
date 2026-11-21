@@ -65,7 +65,8 @@ GUEST_ASSEMBLER_OBJECTS := $(GUEST_ASSEMBLER_CORE) $(BUILD)/cupidasm_guest.o
 GUEST_RAW := $(BUILD)/cupidraw-guest.elf
 GUEST_RAW_OBJECTS := $(GUEST_ASSEMBLER_CORE) $(BUILD)/guest_raw_assembly.o
 GUEST_BUILD := $(BUILD)/cupidbuild-guest.elf
-GUEST_BUILD_OBJECTS := $(GUEST_COMPILER_OBJECTS) $(addprefix $(BUILD)/,cupidld.o cupidld_guest.o cupidbuild_guest.o)
+GUEST_BUILD_OBJECTS := $(GUEST_COMPILER_OBJECTS) $(addprefix $(BUILD)/,cupidld.o cupidld_guest.o cupidbuild_guest.o \
+    cupidasm.o cupiddis.o guest_raw_assembly.o cupidksyms_guest.o cupidobj_guest.o cupiddisk_guest.o)
 GUEST_LINKER := $(BUILD)/cupidld-guest.elf
 GUEST_LINKER_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/cupidld.o \
     $(GUEST_SUPPORT) $(BUILD)/cupidld_guest.o
@@ -121,7 +122,7 @@ $(GUEST_ASSEMBLER): $(GUEST_ASSEMBLER_OBJECTS) Makefile $(SEED_INPUTS)
 	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry cupidasm_guest_run \
 		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
 
-$(BUILD)/guest_raw_assembly.o: guest_raw_assembly.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupidasm.h $(TOOLCHAIN)/cupiddis.h $(TOOLCHAIN)/elf32.h $(TOOLCHAIN)/x86.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
+$(BUILD)/guest_raw_assembly.o: guest_raw_assembly.cc guest_build.h guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupidasm.h $(TOOLCHAIN)/cupiddis.h $(TOOLCHAIN)/elf32.h $(TOOLCHAIN)/x86.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/guest_raw_assembly.cc -o $(PUBLISH)/guest_raw_assembly.o
 
 $(GUEST_RAW): $(GUEST_RAW_OBJECTS) Makefile $(SEED_INPUTS)
@@ -138,7 +139,7 @@ $(GUEST_LINKER): $(GUEST_LINKER_OBJECTS) Makefile $(SEED_INPUTS)
 	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry cupidld_guest_run \
 		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
 
-$(BUILD)/cupidobj_guest.o: cupidobj_guest.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupidbuild_jpeg.h $(TOOLCHAIN)/cupidobj.h $(TOOLCHAIN)/elf32.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
+$(BUILD)/cupidobj_guest.o: cupidobj_guest.cc guest_build.h guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupidbuild_jpeg.h $(TOOLCHAIN)/cupidobj.h $(TOOLCHAIN)/elf32.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/cupidobj_guest.cc -o $(PUBLISH)/cupidobj_guest.o
 
 $(GUEST_OBJECT): $(GUEST_OBJECTS) Makefile $(SEED_INPUTS)
@@ -152,14 +153,14 @@ $(GUEST_INSTALL): $(GUEST_INSTALL_OBJECTS) Makefile $(SEED_INPUTS)
 	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry cupidinstall_guest_run \
 		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
 
-$(BUILD)/cupidksyms_guest.o: cupidksyms_guest.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupiddis.h $(TOOLCHAIN)/cupidobj.h $(TOOLCHAIN)/elf32.h $(TOOLCHAIN)/pe32.h $(TOOLCHAIN)/x86.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
+$(BUILD)/cupidksyms_guest.o: cupidksyms_guest.cc guest_build.h guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupiddis.h $(TOOLCHAIN)/cupidobj.h $(TOOLCHAIN)/elf32.h $(TOOLCHAIN)/pe32.h $(TOOLCHAIN)/x86.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/cupidksyms_guest.cc -o $(PUBLISH)/cupidksyms_guest.o
 
 $(GUEST_KSYMS): $(GUEST_KSYMS_OBJECTS) Makefile $(SEED_INPUTS)
 	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry cupidksyms_guest_run \
 		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
 
-$(BUILD)/cupiddisk_guest.o: cupiddisk_guest.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupidobj.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
+$(BUILD)/cupiddisk_guest.o: cupiddisk_guest.cc guest_build.h guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupidobj.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/cupiddisk_guest.cc -o $(PUBLISH)/cupiddisk_guest.o
 
 $(GUEST_DISK): $(GUEST_DISK_OBJECTS) Makefile $(SEED_INPUTS)

@@ -4,7 +4,7 @@
  */
 
 #include "cupidobj.h"
-#include "guest_job.h"
+#include "guest_build.h"
 
 #define CUPIDBUILD_JPEG_GUEST
 #include "cupidbuild_jpeg.h"
@@ -65,8 +65,8 @@ static int read_asset(const char *mode, const char *logical, guest_object_job_t 
     return 1;
 }
 
-static int read_object_job(cupid_syscall_table_t *sys, char *file, guest_object_job_t *job) {
-    int size = sys->vfs_read_text(OBJECT_JOB, file, OBJECT_JOB_BYTES);
+static int read_object_job(cupid_syscall_table_t *sys, const char *path, char *file, guest_object_job_t *job) {
+    int size = sys->vfs_read_text(path, file, OBJECT_JOB_BYTES);
     if (size < 1 || (ctool_u32)size >= OBJECT_JOB_BYTES)
         return 0;
 
@@ -239,15 +239,17 @@ static ctool_status_t build_object(ctool_invocation_t *invocation, void *context
     return ctool_obj_transform(invocation->job, &request, invocation->output, &result);
 }
 
-void cupidobj_guest_run(cupid_syscall_table_t *sys) {
+ctool_status_t cupid_guest_object_job(cupid_syscall_table_t *sys, const char *job_path) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
-        return;
+        return CTOOL_ERR_INVALID_ARGUMENT;
     cupid_init(sys);
     char file[OBJECT_JOB_BYTES];
     guest_object_job_t job = {0};
-    if (!read_object_job(sys, file, &job)) {
-        sys->serial_write_string("[cupidobj-guest] invalid request file: " OBJECT_JOB "\n");
-        return;
+    if (!read_object_job(sys, job_path, file, &job)) {
+        sys->serial_write_string("[cupidobj-guest] invalid request file: ");
+        sys->serial_write_string(job_path);
+        sys->serial_write_string("\n");
+        return CTOOL_ERR_INPUT;
     }
 
     cupid_guest_io_t io = {
@@ -259,7 +261,9 @@ void cupidobj_guest_run(cupid_syscall_table_t *sys) {
     ctool_invocation_result_t result = {0};
     ctool_status_t status = ctool_invoke(&config, &job.invocation, build_object, &job, &result);
     cupid_guest_job_drain_cache(&io);
-    if (status == CTOOL_OK && result.output_committed) {
+    if (status == CTOOL_OK && !result.output_committed)
+        status = CTOOL_ERR_IO;
+    if (status == CTOOL_OK) {
         sys->serial_write_string("[cupidobj-guest] wrote ");
         sys->serial_write_string(job.invocation.output_path.data);
     } else {
@@ -271,4 +275,9 @@ void cupidobj_guest_run(cupid_syscall_table_t *sys) {
         sys->serial_write_string(ctool_status_name(status));
     }
     sys->serial_write_string("\n");
+    return status;
+}
+
+void cupidobj_guest_run(cupid_syscall_table_t *sys) {
+    cupid_guest_object_job(sys, OBJECT_JOB);
 }

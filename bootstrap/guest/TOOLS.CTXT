@@ -73,9 +73,10 @@ and its job path on separate lines in /home/cupidbuild.job.
   link
   /home/hello.lj
 
-The two job files use the compiler and linker formats above. The driver
-validates the plan first and stops at the first failed step. Each step
-publishes its own output atomically.
+Each step uses the format of its standalone job. Use raw for checked boot
+assembly, symbols for kernel symbols, object for wrapping or flattening,
+and disk for a bootable disk prefix. The driver validates the plan first
+and stops at the first failed step. Each step publishes output atomically.
 
 >h2 Assemble a relocatable object
 

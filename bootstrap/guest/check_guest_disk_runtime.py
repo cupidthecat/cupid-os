@@ -22,8 +22,7 @@ from check_guest_runtime import (
 )
 
 
-def check(scratch: Path, root: Path, boot: Path, kernel: Path, qemu: str, timeout: float) -> None:
-    reference = scratch / "host-prefix.img"
+def write_reference_prefix(reference: Path, boot: Path, kernel: Path) -> None:
     subprocess.run([
         ROOT / "bootstrap/seeds/i386-linux/cupidbuild.elf", "run", "--root", ROOT,
         "--seed-manifest", ROOT / SEED_MANIFEST,
@@ -31,6 +30,10 @@ def check(scratch: Path, root: Path, boot: Path, kernel: Path, qemu: str, timeou
         "--tool", "cupidobj", "--", "disk-template", boot, "--kernel", kernel,
         "--image-sectors", "409600", "--fat-start-lba", str(FAT_START_LBA), "-o", reference,
     ], check=True, timeout=180)
+
+def check(scratch: Path, root: Path, boot: Path, kernel: Path, qemu: str, timeout: float) -> None:
+    reference = scratch / "host-prefix.img"
+    write_reference_prefix(reference, boot, kernel)
     homefs = scratch / "homefs.sys"
     write_homefs(homefs, (
         (b"cupiddisk.job", b"/disk/boot.bin\n/disk/kern.bin\n/home/disk-prefix.img\n"),
@@ -46,11 +49,15 @@ def check(scratch: Path, root: Path, boot: Path, kernel: Path, qemu: str, timeou
         "--success-pattern", r"\[cupiddisk-guest\] wrote /home/disk-prefix[.]img" + COMPILER_REAPED)
 
     matched = compare_homefs_files(read_homefs(image), {"disk-prefix.img": reference})
-    media = scratch / "guest.img"
+    boot_prefix(scratch / "guest.img", matched["disk-prefix.img"], smoke,
+                BUILD / "disk-template-boot.log")
+
+
+def boot_prefix(media: Path, contents: bytes, smoke: tuple[str, ...], log: Path) -> None:
     with media.open("xb") as disk:
-        disk.write(matched["disk-prefix.img"])
+        disk.write(contents)
         disk.truncate(200 * 1024 * 1024)
-    run(*smoke, "--image", str(media), "--log", str(BUILD / "disk-template-boot.log"),
+    run(*smoke, "--image", str(media), "--log", str(log),
         "--verify-smp-runtime", "--command", "ls",
         "--success-pattern", r"\[cupidc\] JIT compile: /bin/ls[.]cc.*?\[cupidc\] JIT execution complete")
 

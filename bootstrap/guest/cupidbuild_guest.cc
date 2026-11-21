@@ -9,10 +9,31 @@
 #define BUILD_STEP_LIMIT 64u
 #define BUILD_JOB_BYTES (BUILD_STEP_LIMIT * (VFS_MAX_PATH + sizeof("compile\n")))
 
+typedef ctool_status_t (*build_operation_t)(cupid_syscall_table_t *sys, const char *job_path);
+
 typedef struct {
-    ctool_status_t (*run)(cupid_syscall_table_t *sys, const char *job_path);
+    build_operation_t run;
     const char *job_path;
 } build_step_t;
+
+static build_operation_t find_operation(const char *name) {
+    static const struct {
+        const char *name;
+        build_operation_t run;
+    } operations[] = {
+        {"compile", cupid_guest_compile_job},
+        {"link", cupid_guest_link_job},
+        {"symbols", cupid_guest_symbols_job},
+        {"object", cupid_guest_object_job},
+        {"raw", cupid_guest_raw_job},
+        {"disk", cupid_guest_disk_job},
+    };
+    for (ctool_u32 index = 0; index < sizeof(operations) / sizeof(operations[0]); index++) {
+        if (strcmp(name, operations[index].name) == 0)
+            return operations[index].run;
+    }
+    return NULL;
+}
 
 static ctool_u32 read_plan(cupid_syscall_table_t *sys, char *text, build_step_t *steps) {
     int size = sys->vfs_read_text(BUILD_JOB, text, BUILD_JOB_BYTES);
@@ -32,13 +53,10 @@ static ctool_u32 read_plan(cupid_syscall_table_t *sys, char *text, build_step_t 
         if (path.text.size <= 1u || path.text.size >= VFS_MAX_PATH || !ctool_path_is_canonical(&path))
             return 0u;
 
-        if (strcmp(operation, "compile") == 0) {
-            steps[count++] = (build_step_t){cupid_guest_compile_job, name};
-        } else if (strcmp(operation, "link") == 0) {
-            steps[count++] = (build_step_t){cupid_guest_link_job, name};
-        } else {
+        build_operation_t run = find_operation(operation);
+        if (!run)
             return 0u;
-        }
+        steps[count++] = (build_step_t){run, name};
     }
     return cursor == end ? count : 0u;
 }

@@ -1,5 +1,19 @@
 # Bootstrapping log
 
+## 2026-11-21 — Run the kernel and disk plan in one guest command
+
+The plan assembles the bootloader, links the staged inputs, generates and
+compiles kernel symbols, links again, flattens the ELF, and saves the disk
+prefix. All seven files matched the checked build. The saved prefix booted
+as a 200 MiB disk with four CPUs, TLS, e1000 and DHCP, then ran `ls`.
+
+CupidC emitted an inline publication helper in the standalone compiler
+adapter during the first build. Each added worker now checks its own
+publication status, and the compiler adapter matches its prior object.
+Windows and Linux built the same 3,274,020-byte driver. The Linux plan
+tests preserved the raw kernel and bootloader after rejected steps and
+verified that each failure stopped the plan.
+
 ## 2026-11-21 — Run compile and link steps in one guest command
 
 The guest build driver validates the ordered plan and calls the existing

@@ -16,9 +16,9 @@ Cupid OS remains unfinished.
   both production kernel assembly objects. The guest wrapped all 183 kernel
   assets, including JPEG, and generated and compiled all three installation
   sources. It ran the `cat`, `hello` and `ls` examples. A native build plan
-  compiled and linked `hello` from one command. The kernel replay used
-  guest-built inputs in both kernel links and flattened the final ELF. The guest's
-  bootloader and raw kernel produced a disk that boots.
+  compiled and linked `hello` from one command. Another plan assembled the
+  bootloader, linked the kernel from staged objects, and saved the prefix
+  for a disk that boots.
   See the [guest build record](FREESTANDING-COMPILER-ENGINE.md).
 - Source-owner modules are in current producer plans, and paired named
   preparations reach a fixed point. The C reader now recognizes their exact

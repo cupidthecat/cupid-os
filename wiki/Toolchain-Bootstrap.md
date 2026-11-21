@@ -107,9 +107,9 @@ The rebuilt compiler produced the linker objects. The guest linker then
 rebuilt itself from all five guest objects and linked a guest-assembled
 hello program. Cupid OS ran the resulting program.
 
-The guest build driver runs compile and link steps in one command from
-`/home/cupidbuild.job`. The `hello` build matched both checked outputs and
-ran inside Cupid OS. See the [build plan format](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#run-a-build-plan-inside-cupid-os).
+The guest build driver reads `/home/cupidbuild.job`. One command assembled
+the bootloader, ran both kernel links, and saved the disk prefix. The disk
+booted and ran `ls`. See the [build plan format](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#run-a-build-plan-inside-cupid-os).
 
 The source ISO also carries the shared CupidASM, CupidDis and CupidObj
 sources and headers. `make -C bootstrap/guest peer-objects` builds the checked

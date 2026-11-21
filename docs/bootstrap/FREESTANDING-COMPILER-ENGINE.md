@@ -310,9 +310,9 @@ Cupid OS. That program ran and released its external image lease.
 
 ## Run a build plan inside Cupid OS
 
-`make -C bootstrap/guest guest-build` links the compiler and linker into
-one worker. Stage `cupidbuild-guest.elf` as `/b` on the FAT disk. Mount the
-compiler source ISO at `/src` and run `exec /disk/b`.
+`make -C bootstrap/guest guest-build` links the build operations into one
+worker. Stage `cupidbuild-guest.elf` as `/b` on the FAT disk and run
+`exec /disk/b`. Mount source at `/src` when the compiler needs it.
 
 In `/home/cupidbuild.job`, put each operation and job path on a separate
 line. This plan compiles an object and then links it.
@@ -336,6 +336,18 @@ python3 bootstrap/guest/check_guest_build_runtime.py --production-root /path/to/
 The QEMU replay compiled, linked and ran `hello`. Both saved outputs
 matched the checked build. The Linux test covered a failed compile with
 an existing object and executable, a failed link and four malformed plans.
+
+The driver also accepts `raw`, `symbols`, `object` and `disk`. The kernel
+plan assembles the bootloader, runs both links, generates and compiles
+kernel symbols, flattens the final ELF, and saves the disk prefix.
+
+```sh
+python3 bootstrap/guest/check_guest_kernel_plan.py --production-root /path/to/checked/build
+```
+
+The replay stages the linker script and pass-one objects from the checked
+build. It compares all seven outputs, extends the saved prefix to a
+200 MiB disk, and boots it with four CPUs, TLS, e1000 and DHCP.
 
 ## Rebuild and run the user examples
 
