@@ -1,5 +1,13 @@
 # Bootstrapping log
 
+## 2026-11-21 — Document the ELF user API and examples
+
+The user syscall header and the `cat`, `hello` and `ls` sources have
+Doxygen file headers. Each header fits in the existing comment and keeps
+source line numbers. Normal user builds passed the ABI check on Windows
+and WSL. All three objects and all three executables matched their
+pre-change bytes on both hosts.
+
 ## 2026-11-21 — Split the x86 instruction tests
 
 The x86 runner has 1,352 lines. Integer and operand cases live in two

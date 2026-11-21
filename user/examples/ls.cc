@@ -1,6 +1,6 @@
 /**
- * ls.cc - Cupid OS ELF directory listing program.
- *
+ * @file ls.cc
+ * @brief List the current directory with file sizes.
  * user/Makefile compiles and links this source with the checked CupidC and
  * CupidLD seeds.
  */

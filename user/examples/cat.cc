@@ -1,6 +1,6 @@
 /**
- * cat.cc - Cupid OS ELF file display program.
- *
+ * @file cat.cc
+ * @brief Print the default HomeFS readme.
  * The kernel does not pass command-line arguments yet, so this example reads
  * the default HomeFS readme.
  * user/Makefile compiles and links it with the checked CupidC and CupidLD

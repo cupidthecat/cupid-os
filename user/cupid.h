@@ -1,6 +1,6 @@
 /**
- * cupid.h - CupidOS User-Space API Header
- *
+ * @file cupid.h
+ * @brief Expose the Cupid OS syscall table to ELF programs.
  * Include this header in ELF programs compiled for CupidOS.
  * It provides access to all kernel services through the syscall
  * table that the kernel passes to your _start() function.

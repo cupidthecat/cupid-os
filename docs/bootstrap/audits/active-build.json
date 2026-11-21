@@ -63522,7 +63522,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "49b6b7d6a9a3df3d34f60c538accf5e9ec492e0e0d326cbd4360cc1ad00e1762",
+    "active_source_digest": "1c26959e453626d69290b6137028c2f21d673b97ed479ac9bcb53ab029a5aa44",
     "control_files": [
       {
         "path": "Makefile",
@@ -93466,7 +93466,7 @@
       "path": "user/cupid.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9a51d3ef17bb6b4c5cfeeb45c31eceb0074fa7f482558db44b0e29dc73f7a511"
+      "sha256": "12581e4feb771272d0c1f348d22fff63a895a8d6095a54c64955ce079e36b4a7"
     },
     {
       "build_owners": [
@@ -93497,7 +93497,7 @@
       "path": "user/examples/cat.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "2e7ebf950a383058ecd88311a98174db5df76315f5a04c7a3a67a604e13a214a"
+      "sha256": "baa084f993ad449e9050699bf5778d540b2ca2161d94f2542c501e119fe5c76a"
     },
     {
       "build_owners": [
@@ -93522,7 +93522,7 @@
       "path": "user/examples/hello.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "75eac8857b6da016a82fd12d449ec09477af1a08ab8cee8e882a9f2f1beb53e2"
+      "sha256": "9bf026baa04b296ce3c8d1f62378175eca85387a6026760c8b33e8f183d94dd8"
     },
     {
       "build_owners": [
@@ -93554,7 +93554,7 @@
       "path": "user/examples/ls.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "be8feb38a8f31d650a0bcfce0e2997ec0e61b1c8ce7cce47d5f0fc7648cdaef5"
+      "sha256": "be6eedf813d8634b2db8ac5c8f1449cacbb74a3999f386bc624ed8a577b09ab3"
     }
   ],
   "summary": {

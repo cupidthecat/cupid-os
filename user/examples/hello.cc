@@ -1,6 +1,6 @@
 /**
- * hello.cc - Small Cupid OS ELF program.
- *
+ * @file hello.cc
+ * @brief Print a greeting and the process ID, uptime, and working directory.
  * user/Makefile compiles and links this source with the checked CupidC and
  * CupidLD seeds.
  */
