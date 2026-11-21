@@ -1,5 +1,25 @@
 # Bootstrapping log
 
+## 2026-11-21 — Wrap and check the kernel JPEG in Cupid OS
+
+The guest uses CupidObj's typed JPEG operation and the independent
+CupidBuild stream and ELF checks before publishing an object. The Linux
+worker matched the 800,860-byte object and preserved it after rejecting
+progressive, truncated and trailing-byte inputs. The standalone JPEG
+contracts passed on both hosts.
+
+The asset replay now reads the continued `embed-jpeg` recipe from Make.
+The guest's 5,208,064-byte ISO and all 183 extracted objects matched the
+checked build. Both kernel links used this bundle and reproduced both
+ELFs, the symbol files and the 9,507,960-byte raw kernel. The disk prefix
+matched all 10,697,216 bytes. The final disk booted and ran `ls` with four
+CPUs, TLS and e1000 with DHCP.
+
+Moving the hosted checks kept their compile order. Linux and Windows
+each matched the checked CupidBuild producer object after using the
+definitions from their respective producer plans. The source ISO readback
+and active-source audit passed.
+
 ## 2026-11-21 — Compile a source group in one guest job
 
 The compiler accepts a list of sources and publishes their objects in one

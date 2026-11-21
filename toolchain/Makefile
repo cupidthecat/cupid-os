@@ -200,7 +200,7 @@ CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.cc artifact_size_policy.h con
                               seed_release.cc seed_release.h \
                               ctool.cc ctool.h ctool_host.cc ctool_host.h \
                               elf32.cc elf32.h pe32.h pe32_impl.h x86.cc x86.h \
-                              cupidbuild.cc cupidbuild.h \
+                              cupidbuild.cc cupidbuild.h cupidbuild_jpeg.h \
                               cupidbuild_artifacts.cc cupidbuild_artifacts.h \
                               cupidbuild_user_abi.cc cupidbuild_user_abi.h \
                               user_syscall_abi.cc user_syscall_abi.h \
@@ -255,7 +255,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS := \
 	artifact_size_policy.h \
 	path_encoding.h native_utf8.h \
 	seed_manifest.h seed_release.h \
-	ctool.h ctool_host.h cupidasm.h cupidbuild.h cupidbuild_host.h \
+	ctool.h ctool_host.h cupidasm.h cupidbuild.h cupidbuild_host.h cupidbuild_jpeg.h \
 	cupidbuild_source_path.h cupidbuild_source_file.h cupidbuild_source_stage.h \
 	cupidbuild_disk_integer.h cupidbuild_disk_options.h cupidbuild_disk_input_discovery.h \
 	cupidbuild_artifacts.h cupidbuild_user_abi.h user_syscall_abi.h \
@@ -599,7 +599,7 @@ $(BUILD_DIR)/seed_manifest.o: seed_manifest.cc seed_manifest.h seed_release.h \
     contract_parse_internal.h cupidbuild_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidbuild.o: cupidbuild.cc cupidbuild.h cupidbuild_host.h seed_manifest.h \
+$(BUILD_DIR)/cupidbuild.o: cupidbuild.cc cupidbuild.h cupidbuild_host.h cupidbuild_jpeg.h seed_manifest.h \
                           ctool.h ctool_host.h elf32.h pe32.h pe32_impl.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
@@ -683,7 +683,7 @@ $(BUILD_DIR)/cupidc_ir_contract.o: tests/cupidc_ir_contract.cc \
 
 $(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.cc \
     tests/cupidc_source_spelling_fixture.h \
-    cupidbuild.cc cupidbuild.h cupidbuild_host.cc cupidbuild_host.h \
+    cupidbuild.cc cupidbuild.h cupidbuild_host.cc cupidbuild_host.h cupidbuild_jpeg.h \
     cupidbuild_main.cc seed_manifest.cc seed_manifest.h seed_release.cc seed_release.h \
     contract_parse_internal.cc contract_parse_internal.h \
     tests/cupidc_kernel_simd_fixture.h \

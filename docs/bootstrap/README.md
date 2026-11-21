@@ -13,10 +13,10 @@ Cupid OS remains unfinished.
   inside Cupid OS. The rebuilt compiler reproduced the CupidASM, CupidDis
   and CupidObj core objects. It also reproduced selected kernel and Doom
   objects with their production profiles. The assembler worker reproduced
-  both production kernel assembly objects. The guest wrapped all 182 ordinary
-  kernel assets and generated and compiled all three installation sources. It ran
-  the `cat`, `hello` and `ls` examples. The replay used 189 guest-built
-  inputs in both kernel links and flattened the final ELF. The guest's
+  both production kernel assembly objects. The guest wrapped all 183 kernel
+  assets, including JPEG, and generated and compiled all three installation
+  sources. It ran the `cat`, `hello` and `ls` examples. The replay used
+  guest-built inputs in both kernel links and flattened the final ELF. The guest's
   bootloader and raw kernel produced a disk that boots.
   See the [guest build record](FREESTANDING-COMPILER-ENGINE.md).
 - Source-owner modules are in current producer plans, and paired named

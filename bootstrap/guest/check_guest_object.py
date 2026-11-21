@@ -133,6 +133,23 @@ def check(root: Path, scratch: Path) -> None:
         assert bundle.read_bytes() == expected_iso.read_bytes() and not pending.exists()
     print("Guest CupidObj matched the checked asset ISO and preserved it after four rejections.")
 
+    identity = "file_example_JPG_1MB.jpg"
+    jpeg = (root / identity).read_bytes()
+    asset.write_bytes(jpeg)
+    jpeg_request = b"/asset\n/home/asset.o\nwrap-jpeg\n/" + identity.encode("ascii") + b"\n"
+    subprocess.run([*command, "cupidobj", "--", "wrap-jpeg", asset,
+                    "--identity", identity, "-o", expected], check=True, timeout=120)
+    invoke(jpeg_request, b"[cupidobj-guest] wrote /home/asset.o")
+    assert wrapped.read_bytes() == expected.read_bytes() and not pending.exists()
+
+    frame = jpeg.index(b"\xff\xc0")
+    progressive = jpeg[:frame + 1] + b"\xc2" + jpeg[frame + 2:]
+    for invalid_jpeg in (progressive, jpeg[:-1], jpeg + b"trailing"):
+        asset.write_bytes(invalid_jpeg)
+        invoke(jpeg_request, b"[cupidobj-guest] wrap failed: ")
+        assert wrapped.read_bytes() == expected.read_bytes() and not pending.exists()
+    print("Guest CupidObj matched the checked JPEG object and preserved it after three rejections.")
+
 
 if __name__ == "__main__":
     root = Path(sys.argv[1]).resolve()

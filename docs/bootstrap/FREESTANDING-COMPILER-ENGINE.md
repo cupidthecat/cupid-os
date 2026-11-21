@@ -451,6 +451,10 @@ Use `wrap-readonly` to put raw bytes in `.rodata`. The fourth line is the
 explicit ELF symbol stem. The kernel uses `smp_trampoline` for the AP
 startup image.
 
+Use `wrap-jpeg` for sequential JPEG. CupidObj checks the stream. An
+independent verifier checks the stream again and matches the ELF payload
+and identity symbols against the input before HomeFS publishes it.
+
 With a completed checked build, run the asset check on Linux or WSL.
 
 ```sh
@@ -459,8 +463,8 @@ python3 bootstrap/guest/check_guest_asset_runtime.py --production-root /path/to/
 
 The saved `bin/ls.o` and `image.bmp.o` matched the checked objects. A request
 with a parent path component left the existing `ls` object intact.
-Use `check_guest_kernel_link.py --rebuild-assets` to feed all 182 ordinary
-asset objects into both kernel links. With `--rebuild-disk`, the replay boots
+Use `check_guest_kernel_link.py --rebuild-assets` to feed all 183 asset
+objects into both kernel links. With `--rebuild-disk`, the replay boots
 the disk saved by the guest and runs the embedded `ls`.
 
 ### Bundle wrapped assets
@@ -478,7 +482,7 @@ wrap-text
 
 CupidObj builds the entries and publishes the ISO after the whole list
 passes. The Linux or WSL replay derives the list from the production Make
-recipes. It matched the complete ISO and all 182 ordinary asset objects.
+recipes. It matched the complete ISO and all 183 objects, including the JPEG.
 
 ```sh
 python3 bootstrap/guest/check_guest_asset_bundle.py --production-root /path/to/checked/build

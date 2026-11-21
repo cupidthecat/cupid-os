@@ -125,7 +125,8 @@ To wrap an asset, put its input and output paths first. Add `wrap` or
 `wrap-text` on the third line and the path from the repository root on the
 fourth. CupidObj uses the fourth line to name the data symbols.
 Use `wrap-readonly` followed by an explicit symbol stem for `.rodata`.
-Use `wrap-bundle` to build and save an ISO of wrapped objects in one job.
+Use `wrap-jpeg` for sequential JPEG, with a separate stream and ELF check
+before publication. `wrap-bundle` built all 183 kernel assets in one job.
 
 The installation worker reads the production file lists and generates the
 `bin`, `docs` and `demos` sources in HomeFS for CupidC to compile. See the

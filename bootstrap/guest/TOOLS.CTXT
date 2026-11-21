@@ -118,6 +118,9 @@ root. That last path supplies the ELF symbol names.
 For read-only data, use wrap-readonly and put the ELF symbol stem on the
 last line. Use smp_trampoline for the AP startup image.
 
+Use wrap-jpeg for sequential JPEG images. The worker checks the stream
+and verifies the object payload and identity symbols before publication.
+
 Use wrap-bundle on the third line to wrap several assets into one ISO.
 The first line then names a list file and the second names the output ISO.
 Each list entry gives the asset path, the ISO member path, the wrapping

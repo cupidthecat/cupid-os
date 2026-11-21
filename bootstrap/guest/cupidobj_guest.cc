@@ -6,6 +6,10 @@
 #include "cupidobj.h"
 #include "guest_job.h"
 
+#define CUPIDBUILD_JPEG_GUEST
+#include "cupidbuild_jpeg.h"
+#undef CUPIDBUILD_JPEG_GUEST
+
 #define OBJECT_JOB "/home/cupidobj.job"
 #define OBJECT_PENDING "/home/.cupidobj-pending.bin"
 #define OBJECT_SOURCE_BYTES (16u * 1024u * 1024u)
@@ -48,6 +52,8 @@ static int read_asset(const char *mode, const char *logical, guest_object_job_t 
         job->operation = CTOOL_OBJ_WRAP_BINARY;
     else if (strcmp(mode, "wrap-text") == 0)
         job->operation = CTOOL_OBJ_WRAP_TEXT;
+    else if (strcmp(mode, "wrap-jpeg") == 0)
+        job->operation = CTOOL_OBJ_WRAP_JPEG;
     else
         return 0;
 
@@ -118,7 +124,24 @@ static ctool_status_t wrap_asset(ctool_job_t *ctool, const ctool_source_t *input
         .size_symbol = asset_symbol(size, job, "_size")
     };
     ctool_obj_result_t result = {0};
-    return ctool_obj_transform(ctool, &request, output, &result);
+    ctool_status_t status = ctool_obj_transform(ctool, &request, output, &result);
+    if (status != CTOOL_OK || job->operation != CTOOL_OBJ_WRAP_JPEG)
+        return status;
+
+    char reason[160];
+    if (!cupidbuild_jpeg_validate_object(ctool, ctool_buffer_view(output), input->contents, job->identity)) {
+        const ctool_diagnostic_t diagnostic = {CTOOL_DIAG_ERROR, CTOOL_OBJ_DIAG_INVALID_INPUT,
+            input->path.text, 0u, 0u, ctool_string("JPEG object does not match the source payload and symbols")};
+        ctool_job_emit(ctool, &diagnostic);
+        return CTOOL_ERR_INPUT;
+    }
+    if (!cupidbuild_jpeg_validate_stream(input->contents.data, input->contents.size, reason, sizeof(reason))) {
+        const ctool_diagnostic_t diagnostic = {CTOOL_DIAG_ERROR, CTOOL_OBJ_DIAG_INVALID_INPUT,
+            input->path.text, 0u, 0u, ctool_string(reason)};
+        ctool_job_emit(ctool, &diagnostic);
+        return CTOOL_ERR_INPUT;
+    }
+    return CTOOL_OK;
 }
 
 static int read_bundle_member(char **cursor, char *end, ctool_path_t *input,

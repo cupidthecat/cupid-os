@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 ## @file
-#  @brief Rebuild the ordinary production asset objects in a single guest job.
-"""Rebuild every ordinary kernel asset object and read it back from an ISO."""
+#  @brief Rebuild the production asset objects in a single guest job.
+"""Rebuild the kernel asset bundle and read back each object from an ISO."""
 
 import argparse
 from pathlib import Path
@@ -29,19 +29,28 @@ def production_assets(root: Path) -> dict[str, tuple[str, str]]:
     recipe = subprocess.run(["make", "--no-print-directory", "-n", "-W", seed, "kernel/kernel.elf"],
                             cwd=root, check=True, capture_output=True, text=True, timeout=180)
     assets = {}
-    for line in recipe.stdout.splitlines():
+    for line in recipe.stdout.replace("\\\n", "").splitlines():
         _, marker, arguments = line.partition("--tool cupidobj -- ")
-        if not marker:
+        if marker:
+            command = shlex.split(arguments)
+            if not command or command[0] not in ("wrap", "wrap-text"):
+                continue
+            if command == ["wrap", "kernel/smp_trampoline.bin", "--stem", "smp_trampoline",
+                           "--section", ".rodata", "--readonly", "-o", "kernel/smp/smp_trampoline.o"]:
+                continue
+            if len(command) != 4 or command[2] != "-o":
+                raise ValueError(f"unexpected asset recipe {arguments}")
+            mode, source, _, obj = command
+        elif " embed-jpeg " in line:
+            arguments = line.partition(" embed-jpeg ")[2]
+            command = shlex.split(arguments)
+            if len(command) != 10 or command[::2] != [
+                "--seed-manifest", "--root", "--seed-release", "--source", "--output"
+            ]:
+                raise ValueError(f"unexpected JPEG recipe {arguments}")
+            mode, source, obj = "wrap-jpeg", command[7], command[9]
+        else:
             continue
-        command = shlex.split(arguments)
-        if not command or command[0] not in ("wrap", "wrap-text"):
-            continue
-        if command == ["wrap", "kernel/smp_trampoline.bin", "--stem", "smp_trampoline",
-                       "--section", ".rodata", "--readonly", "-o", "kernel/smp/smp_trampoline.o"]:
-            continue
-        if len(command) != 4 or command[2] != "-o":
-            raise ValueError(f"unexpected asset recipe {arguments}")
-        mode, source, _, obj = command
         for path in (source, obj):
             if Path(path).is_absolute() or not (root / path).resolve().is_relative_to(root):
                 raise ValueError(f"asset recipe path leaves the build root: {path}")
@@ -49,7 +58,7 @@ def production_assets(root: Path) -> dict[str, tuple[str, str]]:
             raise ValueError(f"unexpected asset output {obj}")
         assets[obj] = (source, mode)
     if not assets:
-        raise ValueError("no ordinary kernel asset recipes were found")
+        raise ValueError("no kernel asset recipes were found")
     return assets
 
 
