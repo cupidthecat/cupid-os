@@ -48,6 +48,9 @@ class CupidBuildObserverBindingRaceTests(unittest.TestCase):
 
     prepare_binding = observer.CupidBuildObserverTests.prepare_binding
     binding = observer.CupidBuildObserverTests.binding
+    prepare_source_requests = observer.CupidBuildObserverTests.prepare_source_requests
+    make_source_junction = observer.CupidBuildObserverTests.make_source_junction
+    remove_source_junction = observer.CupidBuildObserverTests.remove_source_junction
 
     def race(self, phase):
         base = self.root
@@ -108,3 +111,69 @@ class CupidBuildObserverBindingRaceTests(unittest.TestCase):
 
     def test_observer_drift_after_install_rolls_back_and_recovers(self):
         self.race("after-install")
+
+    def test_original_source_request_changes_roll_back_and_recover(self):
+        base = self.root
+        for phase in ('before-mutation', 'after-install'):
+            for mutation in ('missing', 'alias'):
+                for existing in (False, True):
+                    with self.subTest(phase=phase, mutation=mutation, existing=existing):
+                        self.root = base / f'{phase}-{mutation}-{existing}'
+                        self.parent = self.root / 'nested'
+                        self.parent.mkdir(parents=True)
+                        self.prepare_source_requests()
+                        self.source_request_race(phase, mutation, existing)
+
+    def source_request_race(self, phase, mutation, existing):
+        output = self.parent / 'file.o'
+        if existing:
+            output.write_bytes(b'old')
+            before = output.stat()
+        missing = self.root / 'data/optional.bin'
+        ready, resume = self.root / 'ready', self.root / 'resume'
+        environment = dict(os.environ)
+        environment.update(CUPIDBUILD_PUBLICATION_TEST_PHASE=phase,
+                           CUPIDBUILD_PUBLICATION_TEST_READY=str(ready),
+                           CUPIDBUILD_PUBLICATION_TEST_RESUME=str(resume))
+        command = [str(self.program), str(self.root).encode('utf-8').hex(),
+                   'source-requests-publish', '']
+        with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              text=True, encoding='utf-8', env=environment) as process:
+            try:
+                deadline = time.monotonic() + 20
+                while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                if process.poll() is not None:
+                    self.fail(f'publisher exited before checkpoint: {process.communicate()}')
+                self.assertTrue(ready.exists(), 'publication checkpoint was not reached')
+                if mutation == 'missing':
+                    missing.write_bytes(b'late')
+                    diagnostic = 'missing source appeared'
+                else:
+                    self.remove_source_junction()
+                    self.make_source_junction(self.root / 'substitute')
+                    diagnostic = 'original source path changed'
+                resume.touch()
+                stdout, stderr = process.communicate(timeout=20)
+                self.assertEqual(process.returncode, 3, (stdout, stderr))
+                self.assertIn(diagnostic, stderr)
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.communicate(timeout=10)
+        if existing:
+            self.assertEqual(output.read_bytes(), b'old')
+            after = output.stat()
+            self.assertEqual((after.st_ino, after.st_mtime_ns), (before.st_ino, before.st_mtime_ns))
+        else:
+            self.assertFalse(output.exists())
+        self.assertFalse(list(self.parent.glob('*cupidbuild*')))
+        if mutation == 'missing':
+            missing.unlink()
+        else:
+            self.remove_source_junction()
+            self.make_source_junction(self.root / 'data')
+        result = subprocess.run(command, capture_output=True, text=True, timeout=20)
+        self.assertEqual(result.returncode, 0, (result.stdout, result.stderr))
+        self.assertEqual(output.read_bytes(), b'new')
+        self.assertFalse(list(self.parent.glob('*cupidbuild*')))

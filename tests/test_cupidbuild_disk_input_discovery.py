@@ -134,6 +134,24 @@ class CupidBuildDiskInputDiscoveryTests(unittest.TestCase):
         self.run_case('hold', source='missing.bin', kind=0, expected=1,
                       mutate=lambda: (self.root / 'missing.bin').write_bytes(b'appeared'))
 
+    def test_publication_uses_the_discovered_requests(self):
+        external = self.top / 'external'
+        external.mkdir()
+        stage = external / 'payload.bin'
+        stage.write_bytes(b'outside the publication root')
+        output = self.root / 'bound.bin'
+        self.run_case('publish', source=stage, roots=1)
+        self.assertEqual(output.read_bytes(), b'new')
+        missing = self.root / 'missing.bin'
+        output.write_bytes(b'old')
+        before = output.stat()
+        self.run_case('publish-hold', source=missing, kind=0, expected=1,
+                      mutate=lambda: missing.write_bytes(b'appeared'))
+        self.assertEqual(output.read_bytes(), b'old')
+        after = output.stat()
+        self.assertEqual((after.st_ino, after.st_mtime_ns), (before.st_ino, before.st_mtime_ns))
+        self.assertFalse(list(self.root.glob('*cupidbuild*')))
+
     def test_streamed_same_size_edit_with_restored_timestamp_is_rejected(self):
         path = self.root / 'payload.bin'
         original = path.stat()

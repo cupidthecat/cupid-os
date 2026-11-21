@@ -321,6 +321,74 @@ done:
   if (!cupidbuild_host_observer_close(primary)) result = 93;
   return result;
 }
+static int source_request_case(const char *root, const char *mode) {
+    cupidbuild_host_transaction_t *transaction = NULL;
+    cupidbuild_host_observer_t *observer = NULL;
+    cupidbuild_host_entry_kind_t kind;
+    cupidbuild_host_file_request_t request;
+    cupidbuild_host_file_request_group_t group;
+    cupidbuild_host_source_request_set_t set;
+    cupidbuild_host_snapshot_t candidate;
+    const char *physical_root;
+    const char *missing[1];
+    char physical[8192], requested[8192], missing_path[8192];
+    int status = 1;
+    if (snprintf(requested, sizeof(requested), "%s/alias/source.bin", root) < 0 ||
+        snprintf(missing_path, sizeof(missing_path), "%s/data/optional.bin", root) < 0)
+        return 2;
+    if (!cupidbuild_host_observer_resolve_source_root_quota(root, 64u, &observer,
+                                                           &physical_root) ||
+        !cupidbuild_host_observer_path_kind(observer, "data/source.bin", &kind) ||
+        kind != CUPIDBUILD_ENTRY_FILE ||
+        !cupidbuild_host_publication_transaction_open_bounded(physical_root, "nested/file.o",
+                                                              4096u, &transaction))
+        goto done;
+    if (snprintf(physical, sizeof(physical), "%s/data/source.bin", physical_root) < 0)
+        goto done;
+    for (char *cursor = physical; *cursor; cursor++) {
+        if (*cursor == '\\')
+            *cursor = '/';
+    }
+    for (char *cursor = requested; *cursor; cursor++) {
+        if (*cursor == '\\')
+            *cursor = '/';
+    }
+    request.logical = "data/source.bin";
+    request.requested_absolute = requested;
+    request.physical_absolute = physical;
+    request.parent_identity_only = 1;
+    group.observer = observer;
+    group.requests = &request;
+    group.count = 1u;
+    missing[0] = missing_path;
+    set.groups = &group;
+    set.group_count = 1u;
+    set.missing = missing;
+    set.missing_count = 1u;
+    if (!cupidbuild_host_transaction_bind_source_requests(transaction, &set))
+        goto done;
+    if (!strcmp(mode, "source-requests-repeat") &&
+        cupidbuild_host_transaction_bind_source_requests(transaction, &set))
+        goto done;
+    if (!cupidbuild_host_candidate_store_open(transaction, 3u) ||
+        !cupidbuild_host_candidate_store_write(transaction, 0u,
+                                               (const unsigned char *)"new", 3u) ||
+        !cupidbuild_host_candidate_store_finish(transaction, &candidate))
+        goto done;
+    if (!cupidbuild_host_publish(transaction)) {
+        status = 3;
+        goto done;
+    }
+    status = 0;
+done:
+    if (status)
+        fprintf(stderr, "%s\n", cupidbuild_host_error(transaction));
+    if (!cupidbuild_host_transaction_close(transaction) ||
+        !cupidbuild_host_observer_close(observer))
+        return 4;
+    return status;
+}
+
 int main(int argc, char **argv) {
   cupidbuild_host_observer_t *observer = NULL;
   unsigned char *bytes = NULL;
@@ -353,6 +421,8 @@ int main(int argc, char **argv) {
 #endif
   }
   if (argc != 4 || !decode(argv[1]) || !decode(argv[3])) return 90;
+  if (strncmp(argv[2], "source-requests-", 16) == 0)
+    return source_request_case(argv[1], argv[2]);
   if (strncmp(argv[2], "capacity-", 9) == 0) return capacity_case(argv[1], argv[2]);
   if (strncmp(argv[2], "binding-", 8) == 0) return binding_case(argv[1], argv[2]);
   if (strncmp(argv[2], "external-", 9) == 0) return external_case(argv[1], argv[2], argv[3]);
@@ -859,6 +929,37 @@ class CupidBuildObserverTests(unittest.TestCase):
         (self.parent / 'file.o').write_bytes(b'old')
         (self.root / 'observed/empty').mkdir(parents=True)
         (self.root / 'observed/payload.dat').write_bytes(b'seed')
+
+    def make_source_junction(self, target):
+        alias = self.root / 'alias'
+        if os.name == 'nt':
+            result = subprocess.run(['cmd', '/c', 'mklink', '/J', str(alias), str(target)],
+                                    capture_output=True, text=True, timeout=10)
+            if result.returncode:
+                self.skipTest('cannot create a directory junction: ' + result.stderr)
+        else:
+            alias.symlink_to(target, target_is_directory=True)
+
+    def remove_source_junction(self):
+        alias = self.root / 'alias'
+        if os.name == 'nt':
+            alias.rmdir()
+        else:
+            alias.unlink()
+
+    def prepare_source_requests(self):
+        for name in ('data', 'substitute'):
+            (self.root / name).mkdir()
+            (self.root / name / 'source.bin').write_bytes(b'original')
+        self.make_source_junction(self.root / 'data')
+
+    def test_source_request_binding_publishes_and_rejects_repeated_binding(self):
+        self.prepare_source_requests()
+        output = self.parent / 'file.o'
+        output.write_bytes(b'old')
+        self.binding('source-requests-publish')
+        self.assertIn('invalid publication source requests',
+                      self.binding('source-requests-repeat', expected=3))
 
     def binding(self, mode='binding-publish', mutate=None, expected=0, external_root=None):
         output = self.parent / 'file.o'

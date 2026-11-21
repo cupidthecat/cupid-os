@@ -98,6 +98,30 @@ static int parent_contract(int argc, char **argv) {
     return valid ? 0 : 91;
 }
 
+static int publish_contract(cupidbuild_disk_input_discovery_t *owner,
+                            const char *root, int hold) {
+    cupidbuild_host_transaction_t *transaction = NULL;
+    cupidbuild_host_snapshot_t snapshot;
+    int result = 93;
+    if (cupidbuild_host_publication_transaction_open_bounded(root, "bound.bin", 4096u,
+                                                             &transaction) &&
+        cupidbuild_disk_input_discovery_bind_requests(owner, transaction) &&
+        cupidbuild_host_candidate_store_open(transaction, 3u) &&
+        cupidbuild_host_candidate_store_write(transaction, 0u,
+                                               (const unsigned char *)"new", 3u) &&
+        cupidbuild_host_candidate_store_finish(transaction, &snapshot)) {
+        if (hold) {
+            puts("ready");
+            (void)fflush(stdout);
+        }
+        if (!hold || wait_line())
+            result = cupidbuild_host_publish(transaction) ? 0 : 1;
+    }
+    if (!cupidbuild_host_transaction_close(transaction))
+        result = 93;
+    return result;
+}
+
 int main(int argc, char **argv) {
     char *root, *manifest, *boot, *kernel, *source, *image, *stage_argument;
     const char *arguments[14];
@@ -217,6 +241,14 @@ int main(int argc, char **argv) {
                 view.kernel.observer == view.primary_observer &&
                 (expected_kind == CUPIDBUILD_ENTRY_NONE ||
                  view.stages[0].file.observer == view.primary_observer);
+    if (valid && strncmp(mode, "publish", 7u) == 0) {
+        int result = publish_contract(owner, view.working_root_physical,
+                                      strcmp(mode, "publish-hold") == 0);
+        if (!cupidbuild_disk_input_discovery_close(owner))
+            result = 93;
+        puts(result == 0 ? "accept" : "reject");
+        return result;
+    }
     hold = strncmp(mode, "hold", 4u) == 0;
     streaming = strcmp(mode, "hold-stream") == 0;
     null_view = strcmp(mode, "null-view") == 0;

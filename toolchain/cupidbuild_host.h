@@ -248,6 +248,27 @@ typedef struct {
   const char *physical_absolute;
   int parent_identity_only;
 } cupidbuild_host_file_request_t;
+/* Borrow grouped original file requests and full-path absence checks until
+ * transaction close. Keep every array, observer and pathname stable. The
+ * transaction checks them at each publication boundary. A failed or repeated
+ * binding forbids publication. Rollback can still restore the prior output. */
+typedef struct {
+  cupidbuild_host_observer_t *observer;
+  const cupidbuild_host_file_request_t *requests;
+  size_t count;
+} cupidbuild_host_file_request_group_t;
+typedef struct {
+  const cupidbuild_host_file_request_group_t *groups;
+  size_t group_count;
+  const char *const *missing;
+  size_t missing_count;
+} cupidbuild_host_source_request_set_t;
+/* Return NULL when the original requests and observations are current. On
+ * failure return a diagnostic with static lifetime. */
+const char *cupidbuild_host_source_requests_error(
+    const cupidbuild_host_source_request_set_t *set);
+int cupidbuild_host_transaction_bind_source_requests(
+    cupidbuild_host_transaction_t *transaction, const cupidbuild_host_source_request_set_t *set);
 typedef int (*cupidbuild_host_file_request_sink_t)(void *context, size_t index,
     const cupidbuild_host_file_request_t *request);
 int cupidbuild_host_observer_require_file_request_bindings(

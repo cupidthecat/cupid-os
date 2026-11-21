@@ -1,7 +1,9 @@
 /**
  * @file cupidbuild_host_external_inputs.inc
- * @brief Retain and copy transaction inputs from external observed roots.
+ * @brief Retain observed roots and original source requests for publication.
  */
+
+#define CUPIDBUILD_HOST_SOURCE_REQUEST_GROUPS 68u
 
 static int cupidbuild_host_external_input_failure(cupidbuild_host_transaction_t *transaction,
                                                   const char *message) {
@@ -20,6 +22,69 @@ static int cupidbuild_host_require_external_observers(cupidbuild_host_transactio
                 transaction, "borrowed external observer changed or capture is active");
     }
     return 1;
+}
+
+static int cupidbuild_host_source_request_failure(cupidbuild_host_transaction_t *transaction,
+                                                   const char *message) {
+    transaction->source_request_state = -1;
+    cupidbuild_host_set_error(transaction, message);
+    return 0;
+}
+
+const char *cupidbuild_host_source_requests_error(const cupidbuild_host_source_request_set_t *set) {
+    size_t index;
+    size_t total;
+    if (!set || set->group_count > CUPIDBUILD_HOST_SOURCE_REQUEST_GROUPS ||
+        (!set->groups && set->group_count) || (!set->missing && set->missing_count) ||
+        set->missing_count > CUPIDBUILD_HOST_DISK_INPUTS)
+        return "invalid publication source requests";
+    total = set->missing_count;
+    for (index = 0u; index < set->group_count; index++) {
+        const cupidbuild_host_file_request_group_t *group = &set->groups[index];
+        if (!group->observer || group->observer->selection_only ||
+            (!group->requests && group->count) || group->count > CUPIDBUILD_HOST_DISK_INPUTS - total)
+            return "invalid publication source request group";
+        total += group->count;
+        if (!cupidbuild_host_observer_require_source_unchanged(group->observer))
+            return "source observation changed";
+    }
+    for (index = 0u; index < set->group_count; index++) {
+        const cupidbuild_host_file_request_group_t *group = &set->groups[index];
+        if (!cupidbuild_host_observer_require_file_request_bindings(
+                group->observer, group->requests, group->count, NULL, NULL))
+            return "original source path changed";
+    }
+    for (index = 0u; index < set->missing_count; index++) {
+        if (!cupidbuild_host_source_missing(set->missing[index]))
+            return "missing source appeared";
+    }
+    for (index = 0u; index < set->group_count; index++) {
+        const cupidbuild_host_file_request_group_t *group = &set->groups[index];
+        if (!cupidbuild_host_observer_require_source_unchanged(group->observer))
+            return "source observation changed";
+    }
+    return NULL;
+}
+
+static int cupidbuild_host_require_source_requests(cupidbuild_host_transaction_t *transaction) {
+    const char *error;
+    if (transaction->source_request_state <= 0)
+        return transaction->source_request_state == 0;
+    error = cupidbuild_host_source_requests_error(transaction->source_requests);
+    return error ? cupidbuild_host_source_request_failure(transaction, error) : 1;
+}
+
+int cupidbuild_host_transaction_bind_source_requests(
+    cupidbuild_host_transaction_t *transaction, const cupidbuild_host_source_request_set_t *set) {
+    if (!transaction)
+        return 0;
+    if (transaction->source_request_state || transaction->runner_transaction ||
+        transaction->observer_publication_started)
+        return cupidbuild_host_source_request_failure(transaction,
+                                                      "invalid publication source requests");
+    transaction->source_requests = set;
+    transaction->source_request_state = 1;
+    return cupidbuild_host_require_source_requests(transaction);
 }
 
 int cupidbuild_host_transaction_borrow_external_observer(cupidbuild_host_transaction_t *transaction,

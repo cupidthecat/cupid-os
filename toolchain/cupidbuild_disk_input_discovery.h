@@ -50,6 +50,10 @@ int cupidbuild_disk_input_discovery_open_quota(const char *working_root,
  * consuming the view and after use; close borrowing transactions first. */
 int cupidbuild_disk_input_discovery_view(cupidbuild_disk_input_discovery_t *owner,
     cupidbuild_disk_input_discovery_view_t *view_out);
+/* Bind the original requests to the transaction's publication checks. Keep
+ * the discovery owner alive until the transaction closes. */
+int cupidbuild_disk_input_discovery_bind_requests(cupidbuild_disk_input_discovery_t *owner,
+    cupidbuild_host_transaction_t *transaction);
 int cupidbuild_disk_input_discovery_close(cupidbuild_disk_input_discovery_t *owner);
 
 #endif

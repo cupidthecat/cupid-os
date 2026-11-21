@@ -1,5 +1,24 @@
 # Bootstrapping log
 
+## 2026-11-21 — Check the original disk requests during publication
+
+Disk discovery keeps the original file requests grouped by their retained
+observer, together with paths for missing optional stages. A transaction
+borrows that one set and checks it through the final rename. The previous
+output can still be restored if a source check fails after installation.
+
+Both hosts passed 15 native discovery and publication-race tests. Eight cases
+per host covered alias rebinding and missing-stage appearance immediately
+before and after installation, with and without a previous file. Windows and
+WSL also passed the checked original-request contract, including rejection of
+a repeated binding. The first private Windows fixture supplied unnormalized
+paths. Using the retained physical spelling fixed the fixture.
+
+The Windows producer rebuilt and reached a fixed point with 122 inputs,
+source snapshot SHA-256
+`62e927b0c6dad6a9484dcedbc90426b1cb0ac32ff1a823f75340bf43c3828991`.
+The build audit passed on Windows and WSL.
+
 ## 2026-11-21 — Retain paths for full disk stage lists
 
 Frozen input paths now use storage sized to each path. The transaction can

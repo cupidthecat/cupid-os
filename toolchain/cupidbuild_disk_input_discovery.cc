@@ -31,6 +31,10 @@ struct cupidbuild_disk_input_discovery {
     cupidbuild_source_file_view_t required[3];
     cupidbuild_disk_input_stage_view_t *stages;
     input_root_t roots[INPUT_ROOT_LIMIT + 1u];
+    cupidbuild_host_file_request_group_t request_groups[INPUT_ROOT_LIMIT + 1u];
+    cupidbuild_host_file_request_t *file_requests;
+    const char **missing_requests;
+    cupidbuild_host_source_request_set_t requests;
     size_t root_count;
     size_t stage_count;
     size_t quota;
@@ -514,73 +518,64 @@ static int input_close_pending(input_pending_t *pending, size_t count) {
     return valid;
 }
 
-static int input_validate_requests(cupidbuild_disk_input_discovery_t *owner) {
-    size_t capacity = owner->stage_count + 3u;
-    cupidbuild_host_file_request_t *requests =
-        (cupidbuild_host_file_request_t *)calloc(capacity, sizeof(*requests));
-    size_t root, index, count;
-    int valid = requests != (cupidbuild_host_file_request_t *)0;
-    for (root = 0u; valid && root < owner->root_count; root++) {
-        count = 0u;
+static void input_record_request(cupidbuild_host_file_request_t *request,
+                                 const cupidbuild_source_file_view_t *file,
+                                 int parent_identity_only) {
+    request->logical = file->logical;
+    request->requested_absolute = file->requested_absolute;
+    request->physical_absolute = file->physical_absolute;
+    request->parent_identity_only = parent_identity_only;
+}
+
+static int input_prepare_requests(cupidbuild_disk_input_discovery_t *owner) {
+    size_t root, index, start;
+    size_t count = 0u;
+    owner->file_requests = (cupidbuild_host_file_request_t *)calloc(
+        owner->stage_count + 3u, sizeof(*owner->file_requests));
+    if (owner->stage_count)
+        owner->missing_requests = (const char **)calloc(owner->stage_count,
+                                                       sizeof(*owner->missing_requests));
+    if (!owner->file_requests || (owner->stage_count && !owner->missing_requests))
+        return 0;
+    for (index = 0u; index < owner->stage_count; index++) {
+        const cupidbuild_disk_input_stage_view_t *stage = &owner->stages[index];
+        if (stage->kind == CUPIDBUILD_ENTRY_NONE)
+            owner->missing_requests[owner->requests.missing_count++] = stage->file.requested_absolute;
+        else if (stage->kind != CUPIDBUILD_ENTRY_FILE)
+            return 0;
+    }
+    for (root = 0u; root < owner->root_count; root++) {
+        cupidbuild_host_file_request_group_t *group = &owner->request_groups[root];
+        group->observer = owner->roots[root].observer;
+        start = count;
         for (index = 0u; index < 3u; index++) {
             const cupidbuild_source_file_view_t *file = &owner->required[index];
-            if (file->observer == owner->roots[root].observer) {
-                requests[count].logical = file->logical;
-                requests[count].requested_absolute = file->requested_absolute;
-                requests[count].physical_absolute = file->physical_absolute;
-                requests[count++].parent_identity_only = 0;
-            }
+            if (file->observer == group->observer)
+                input_record_request(&owner->file_requests[count++], file, 0);
         }
         for (index = 0u; index < owner->stage_count; index++) {
             const cupidbuild_disk_input_stage_view_t *stage = &owner->stages[index];
-            if (stage->kind != CUPIDBUILD_ENTRY_NONE && stage->kind != CUPIDBUILD_ENTRY_FILE) {
-                valid = 0;
-                break;
-            }
             if (stage->kind == CUPIDBUILD_ENTRY_FILE &&
-                stage->file.observer == owner->roots[root].observer) {
-                requests[count].logical = stage->file.logical;
-                requests[count].requested_absolute = stage->file.requested_absolute;
-                requests[count].physical_absolute = stage->file.physical_absolute;
-                requests[count++].parent_identity_only = 1;
-            }
+                stage->file.observer == group->observer)
+                input_record_request(&owner->file_requests[count++], &stage->file, 1);
         }
-        if (valid)
-            valid = cupidbuild_host_observer_require_file_request_bindings(
-                owner->roots[root].observer, requests, count,
-                (cupidbuild_host_file_request_sink_t)0, (void *)0);
+        group->requests = owner->file_requests + start;
+        group->count = count - start;
     }
-    free(requests);
-    return valid;
-}
-
-static int input_validate_roots(cupidbuild_disk_input_discovery_t *owner) {
-    size_t index;
-    for (index = 0u; index < owner->root_count; index++) {
-        if (!cupidbuild_host_observer_require_source_unchanged(owner->roots[index].observer))
-            return 0;
-    }
-    return 1;
+    owner->requests.groups = owner->request_groups;
+    owner->requests.group_count = owner->root_count;
+    owner->requests.missing = owner->missing_requests;
+    return count + owner->requests.missing_count == owner->stage_count + 3u;
 }
 
 static int input_validate(cupidbuild_disk_input_discovery_t *owner) {
-    size_t index;
-    int valid;
     if (!owner || owner->failed)
         return 0;
-    valid = input_validate_roots(owner);
-    if (valid)
-        valid = input_validate_requests(owner);
-    for (index = 0u; valid && index < owner->stage_count; index++) {
-        const cupidbuild_disk_input_stage_view_t *stage = &owner->stages[index];
-        if (stage->kind == CUPIDBUILD_ENTRY_NONE)
-            valid = cupidbuild_host_source_missing(stage->file.requested_absolute);
-    }
-    if (valid)
-        valid = input_validate_roots(owner);
-    if (!valid)
+    if (cupidbuild_host_source_requests_error(&owner->requests)) {
         owner->failed = 1;
-    return valid;
+        return 0;
+    }
+    return 1;
 }
 
 int cupidbuild_disk_input_discovery_open_quota(const char *working_root,
@@ -693,7 +688,7 @@ int cupidbuild_disk_input_discovery_open_quota(const char *working_root,
                                selection_group_count))
         valid = 0;
     if (valid)
-        valid = input_validate(owner);
+        valid = input_prepare_requests(owner) && input_validate(owner);
     if (!valid) {
         (void)cupidbuild_disk_input_discovery_close(owner);
         return 0;
@@ -729,6 +724,12 @@ int cupidbuild_disk_input_discovery_view(cupidbuild_disk_input_discovery_t *owne
     return 1;
 }
 
+int cupidbuild_disk_input_discovery_bind_requests(cupidbuild_disk_input_discovery_t *owner,
+                                                 cupidbuild_host_transaction_t *transaction) {
+    return cupidbuild_host_transaction_bind_source_requests(
+        transaction, owner && !owner->failed ? &owner->requests : NULL);
+}
+
 int cupidbuild_disk_input_discovery_close(cupidbuild_disk_input_discovery_t *owner) {
     size_t index;
     int valid = 1;
@@ -749,6 +750,8 @@ int cupidbuild_disk_input_discovery_close(cupidbuild_disk_input_discovery_t *own
         free(string);
     }
     free(owner->stages);
+    free(owner->missing_requests);
+    free(owner->file_requests);
     free(owner->image);
     free(owner->working);
     free(owner);

@@ -57,7 +57,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_util` | 2 | 692 |
 | `project_source` | 1 | 5 |
 | `toolchain_contract` | 25 | 137747 |
-| `toolchain_core` | 109 | 117592 |
+| `toolchain_core` | 109 | 117691 |
 | `toolchain_host_adapter` | 2 | 255 |
 | `toolchain_kernel_adapter` | 2 | 579 |
 | `user_program` | 3 | 139 |
@@ -100,16 +100,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1533 |
 | `asm.relocation` | 1 | 95 |
-| `c.control` | 12 | 96805 |
+| `c.control` | 12 | 96832 |
 | `c.declaration` | 1 | 33 |
 | `c.declarator` | 4 | 3874 |
-| `c.expression` | 2 | 6699 |
+| `c.expression` | 2 | 6700 |
 | `c.extension` | 20 | 426 |
 | `c.initializer` | 1 | 654 |
-| `c.preprocessor` | 18 | 8807 |
-| `c.qualifier` | 2 | 18949 |
-| `c.storage` | 4 | 11417 |
-| `c.type` | 15 | 64285 |
+| `c.preprocessor` | 18 | 8808 |
+| `c.qualifier` | 2 | 18968 |
+| `c.storage` | 4 | 11420 |
+| `c.type` | 15 | 64302 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 135 |
 | `cupid_c.directive` | 1 | 1 |
@@ -234,7 +234,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `toolchain/tests/cupidbuild_artifact_allocation_contract.cc` | `cupid_c` | `not_reached` | 134 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_artifact_race_contract.cc` | `cupid_c` | `not_reached` | 63 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_candidate_extent_contract.cc` | `cupid_c` | `not_reached` | 464 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_disk_input_discovery_contract.cc` | `cupid_c` | `not_reached` | 267 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_disk_input_discovery_contract.cc` | `cupid_c` | `not_reached` | 299 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_frozen_stream_contract.cc` | `cupid_c` | `not_reached` | 182 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_hash_workload.cc` | `cupid_c` | `not_reached` | 17 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_host_runner_contract.cc` | `cupid_c` | `not_reached` | 1297 | not reachable from the supported Make target or include closure |

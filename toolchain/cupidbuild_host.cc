@@ -160,6 +160,8 @@ struct cupidbuild_host_transaction {
     cupidbuild_host_observer_t *external_observers[CUPIDBUILD_HOST_INPUTS];
     size_t external_observer_count;
     int external_binding_failed;
+    const cupidbuild_host_source_request_set_t *source_requests;
+    int source_request_state;
     char repository_root[CUPIDBUILD_HOST_PATH_BYTES];
     char source_path[CUPIDBUILD_HOST_PATH_BYTES];
     char frozen_source[CUPIDBUILD_HOST_PATH_BYTES];
@@ -273,6 +275,7 @@ cupidbuild_host_candidate_ready_for_publication(cupidbuild_host_transaction_t *t
 static int cupidbuild_host_published_candidate_matches(cupidbuild_host_transaction_t *transaction);
 static int cupidbuild_host_require_borrowed_observer(cupidbuild_host_transaction_t *transaction);
 static int cupidbuild_host_require_external_observers(cupidbuild_host_transaction_t *transaction);
+static int cupidbuild_host_require_source_requests(cupidbuild_host_transaction_t *transaction);
 static int cupidbuild_host_read_external_input(cupidbuild_host_observer_t *observer,
                                               const char *logical, size_t capacity,
                                               cupidbuild_host_snapshot_t *snapshot);
@@ -11190,6 +11193,9 @@ static int cupidbuild_host_require_public_binding(cupidbuild_host_transaction_t 
         return 0;
     }
     if (require_discovery != 0 && !cupidbuild_host_require_borrowed_observer(transaction)) {
+        return 0;
+    }
+    if (require_discovery != 0 && !cupidbuild_host_require_source_requests(transaction)) {
         return 0;
     }
     if (!cupidbuild_host_read_output(transaction, 1, &output, (unsigned char **)0) ||
