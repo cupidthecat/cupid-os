@@ -1,3 +1,5 @@
+## @file
+#  @brief Verify the checked compiler against the kernel source and input manifest.
 import hashlib
 import json
 import os
@@ -1986,7 +1988,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                4257988,
+                4257520,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -2055,8 +2057,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 object_records["toolchain/x86.cc"],
                 (
                     136108,
-                    "c791b14905e4f609fb833395a3a64989"
-                    "479f08608d6944df0e2ffc0dbb17c5d2",
+                    "0535e2150e21c2b8976bff460f0f6d8"
+                    "6a2f8e8224e631e09f4f6e490e6850cf9",
                 ),
             )
             self.assertEqual(
@@ -2128,7 +2130,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                                         ),
                 "kernel/usb/ehci.cc": (
                                           21084,
-                                          '1e2b168893878672f33f7562be69e4c8afbbe91f8fb26d808e8f38c0e336a496',
+                                          '42c01de78d8d90ebb9131171f3d7fc234363c57680d0acc6b6d5ccb92cea88ff',
                                       ),
                 "kernel/usb/uhci.cc": (
                                           17452,
@@ -2212,8 +2214,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                                           "e0bbd53fc378e086a849da3495870378",
                                       ),
                 "kernel/fs/fat16.cc": (
-                                          62120,
-                                          '035f058e3f9254945f895a65bf2374abfab953b11e33312a80d103e54cd8fcf5',
+                                          61712,
+                                          '1459d35b42b974c53dbc6eb987a9c82eb5b5afacad12e10f7e9361af401ffa97',
                                       ),
                 "kernel/fs/iso9660.cc": (
                                             12284,
@@ -2314,14 +2316,18 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 },
                 source_driven_object_records,
             )
-            self.assertEqual(manifest["input_snapshot"]["count"], 487)
+            self.assertEqual(manifest["input_snapshot"]["count"], 488)
+            self.assertIn(
+                "kernel/doom/dglibc_selftest.inc",
+                manifest["input_snapshot"]["files"],
+            )
             self.assertIn(
                 "toolchain/tests/cupidc_source_spelling_fixture.h",
                 manifest["input_snapshot"]["files"],
             )
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                'aa5b1d57ba9cd3547da2a578749c19633158dbedef52b713b81bfb59914f2e24',
+                'c303c7aa92e5160fb5e3f93ff48ea88c9d6da4900d11ad66264b9cfaa8978b7a',
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

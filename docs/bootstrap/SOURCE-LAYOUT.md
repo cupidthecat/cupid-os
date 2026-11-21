@@ -61,3 +61,9 @@ the file header's line count restored the exact 88,972-byte object on WSL
 and Windows. The two Doom suites passed 46 tests on WSL with one skip.
 The four-vCPU guest passed the installed `dglibc_test`, including its
 HomeFS batch check.
+
+The include also enters the kernel frontier's 488-file input snapshot.
+The fresh WSL build supplied all 156 production objects for the frontier
+fixture. Its FAT16, x86 and EHCI object bytes exposed stale locks from earlier
+changes. Every frontier assertion passed against the measured objects and
+snapshot from this build.
