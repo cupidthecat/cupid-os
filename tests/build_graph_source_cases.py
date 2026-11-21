@@ -1272,9 +1272,9 @@ class SourceInventoryCases:
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 764)
-            self.assertEqual(contract["include_occurrences"], 2657)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2311)
+            self.assertEqual(contract["source_files"], 766)
+            self.assertEqual(contract["include_occurrences"], 2659)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2313)
             self.assertEqual(contract["direct_angle_occurrences"], 346)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 

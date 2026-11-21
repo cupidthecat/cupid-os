@@ -835,10 +835,10 @@ class CompilerProfileCases:
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 806,
+                    "active_sources": 808,
                     "features": 257,
-                    "transforms": 452,
-                    "unreachable_sources": 105,
+                    "transforms": 454,
+                    "unreachable_sources": 106,
                 },
             )
             features = {
@@ -1436,8 +1436,8 @@ class CompilerProfileCases:
                 {
                     "cupid_c_compiler": 248,
                     "cupid_assembler": 7,
-                    "cupid_builder": 449,
-                    "cupid_object": 192,
+                    "cupid_builder": 451,
+                    "cupid_object": 194,
                     "cupid_linker": 7,
                     "cupid_disassembler": 10,
                     "cupid_c_contract": 2,

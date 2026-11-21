@@ -238,6 +238,11 @@ profiles, and fixed-point checks. Every file stays under 2,000 lines. All 143
 unittest names are unchanged. Windows and WSL passed the four reruns after
 the source counts and kernel-wrapper fixtures were refreshed.
 
+The November 21 Windows run caught three stale checks after the Browser
+split and guest kernel worker addition. The refreshed cases cover 766
+preprocessor source files, 2,659 include operands, and 454 transforms.
+All three passed on Windows and WSL.
+
 ## Build graph source scanner
 
 `tools/build_graph_features.py` scans C and assembly, records feature counts,
