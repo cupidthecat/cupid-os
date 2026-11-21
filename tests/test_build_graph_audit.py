@@ -6837,7 +6837,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["tool_c_sources"], 44)
         self.assertEqual(contract["compared_c_objects"], 44)
-        self.assertEqual(contract["contract_manifest_inputs"], 113)
+        self.assertEqual(contract["contract_manifest_inputs"], 115)
         names = (
             "tests/test_toolchain_cupidc_object.py", "toolchain/cupidc_main.cc",
             "toolchain/cupidld.h", "toolchain/cupidld_main.cc", "toolchain/cupidld.cc",
@@ -6924,13 +6924,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["windows_help_cases"], 7)
         self.assertEqual(contract["windows_success_behavior_cases"], 60)
         self.assertEqual(contract["windows_failure_behavior_cases"], 54)
-        self.assertEqual(contract["contract_manifest_inputs"], 113)
-        self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 113)
+        self.assertEqual(contract["contract_manifest_inputs"], 115)
+        self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 115)
         self.assertIn(
             "toolchain/x86.cc",
             module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
         )
-        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 165)
+        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 167)
+        self.assertIn("toolchain/tests/cupidld_pe32_cases.inc", module.TOOLCHAIN_CONTRACT_LINUX_INPUTS)
         self.assertTrue(
             set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS).issubset(
                 module.TOOLCHAIN_CONTRACT_LINUX_INPUTS

@@ -317,6 +317,35 @@ class ToolchainManifestContractTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 1, result.stderr)
                 self.assertEqual(result.stdout, '')
 
+    def test_current_release_requires_the_jpeg_and_pe32_headers(self):
+        manifest, *_ = _owner_context_fixture(source_spelling=True)
+        jpeg = 'toolchain/cupidbuild_jpeg.h'
+        pe32 = 'toolchain/tests/cupidld_pe32_cases.inc'
+        for path in (jpeg, pe32):
+            data = (REPO_ROOT / path).read_bytes()
+            manifest['inputs'][path] = {'size': len(data), 'sha256': _digest(data)}
+        manifest['input_count'] = 115
+        sources = manifest['bootstrap']['source_inputs']
+        sources['files'][jpeg] = manifest['inputs'][jpeg].copy()
+        sources['count'] = len(sources['files'])
+        sources['sha256'] = _digest(_json_bytes(sources['files']))
+        missing_jpeg = copy.deepcopy(manifest)
+        missing_sources = missing_jpeg['bootstrap']['source_inputs']
+        del missing_sources['files'][jpeg]
+        missing_sources['count'] -= 1
+        missing_sources['sha256'] = _digest(_json_bytes(missing_sources['files']))
+        replaced_pe32 = copy.deepcopy(manifest)
+        replaced_pe32['inputs']['toolchain/tests/unknown.inc'] = replaced_pe32['inputs'].pop(pe32)
+        for mode in ('author', 'check'):
+            run = self.run_author_request if mode == 'author' else self.run_request
+            good = run(_owner_context_request(mode, manifest=manifest))
+            self.assertEqual(good.returncode, 0, good.stderr)
+            for mutation, changed in (('missing JPEG', missing_jpeg), ('replaced PE32', replaced_pe32)):
+                with self.subTest(mode=mode, mutation=mutation):
+                    result = run(_owner_context_request(mode, manifest=changed))
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertEqual(result.stdout, '')
+
     def test_historical_owner_rejects_a_spelling_header_in_place_of_an_old_member(self):
         original, *_ = _owner_context_fixture()
         path = 'toolchain/tests/cupidc_source_spelling_fixture.h'
@@ -1639,10 +1668,12 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual({*INPUT_PATHS, *["toolchain/" + name + ".h" for name in COMPLETE_ISO_OBJECTS],
                           *["toolchain/" + name + ".h" for name in DISK_FOUNDATION_OBJECTS],
                           *OWNER_HEADERS, *OWNER_SHARED_INPUTS,
+                          "toolchain/cupidbuild_jpeg.h",
+                          "toolchain/tests/cupidld_pe32_cases.inc",
                           "toolchain/tests/cupidc_source_spelling_fixture.h",
                           "tools/__init__.py", "tools/bootstrap_user_abi.py",
                           "tools/bootstrap_stage_release.py", "tools/seed_release_identity.py"}, actual)
-        self.assertEqual(len(actual), 113)
+        self.assertEqual(len(actual), 115)
 
     def _complete_release_inventory_fixture(self, **profile):
         manifest, observations, seed_bytes, seed_observations = _complete_context_fixture(**profile)

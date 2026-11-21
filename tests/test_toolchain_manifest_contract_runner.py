@@ -713,8 +713,8 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                             )
                         )
         expected = _expected_report()
-        expected["bootstrap_source_input_count"] = 112 + int(aliases) + int(long_paths)
-        expected["input_count"] = 113
+        expected["bootstrap_source_input_count"] = 113 + int(aliases) + int(long_paths)
+        expected["input_count"] = 115
         self.assertEqual(report, expected)
 
     def test_checked_seed_build_runs_the_manifest_contract(self):
@@ -1122,7 +1122,7 @@ class ToolchainManifestLiveCandidateTests(unittest.TestCase):
                     reader, REPO_ROOT, manifest
                 )
                 self.assertEqual({row[0] for row in bootstrap}, set(expected))
-                self.assertEqual(len(bootstrap), 112)
+                self.assertEqual(len(bootstrap), 113)
                 REAL_REQUIRE_LIVE_MEMBERSHIP(reader, inputs, bootstrap, seed_bytes)
                 for omitted in (
                     "toolchain/cupidbuild_artifacts.cc",
@@ -1133,6 +1133,7 @@ class ToolchainManifestLiveCandidateTests(unittest.TestCase):
                     "toolchain/fat16_names.cc",
                     "toolchain/disk_image.cc",
                     "toolchain/fat16_name_profiles.inc",
+                    "toolchain/cupidbuild_jpeg.h",
                 ):
                     with self.subTest(omitted=omitted):
                         with self.assertRaisesRegex(

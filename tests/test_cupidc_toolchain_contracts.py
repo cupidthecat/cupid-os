@@ -659,7 +659,9 @@ class CupidCToolchainContractPlanTests(
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 113)
+        self.assertEqual(len(inputs), 115)
+        self.assertIn("toolchain/cupidbuild_jpeg.h", inputs)
+        self.assertIn("toolchain/tests/cupidld_pe32_cases.inc", inputs)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)

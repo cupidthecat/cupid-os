@@ -35,7 +35,7 @@ Compare emitted objects and checked seed outputs after moving code.
 | Area | Files |
 | --- | --- |
 | Compiler contracts | `toolchain/tests/cupidc_frontend_contract.cc`, `toolchain/tests/cupidc_ir_contract.cc`, `toolchain/tests/cupidc_object_contract.cc`, `toolchain/tests/cupidc_pp_contract.cc`, `toolchain/tests/cupidc_type_contract.cc` |
-| Assembler and format contracts | `toolchain/tests/cupidasm_contract.cc`, `toolchain/tests/cupidasm_kernel_elf_contract.cc`, `toolchain/tests/cupiddis_contract.cc`, `toolchain/tests/cupidld_contract.cc`, `toolchain/tests/cupidobj_contract.cc`, `toolchain/tests/x86_contract.cc` |
+| Assembler and format contracts | `toolchain/tests/cupidasm_contract.cc`, `toolchain/tests/cupidasm_kernel_elf_contract.cc`, `toolchain/tests/cupiddis_contract.cc`, `toolchain/tests/cupidobj_contract.cc`, `toolchain/tests/x86_contract.cc` |
 | Manifest contracts | `toolchain/tests/toolchain_manifest_contract.cc` |
 | Python tests | `tests/test_build_graph_audit.py` |
 | Build and verification scripts | `tools/bootstrap_toolchain.py`, `tools/build_graph_audit.py`, `tools/cupidc_toolchain_contracts.py`, `tools/hostbuild.py` |
@@ -224,3 +224,10 @@ compiler profile cases into separate files. The original module keeps the
 fixed-point test and all 118 unittest names. Every test body stayed the same.
 Windows and WSL each passed 117 cases on the first run. The remaining case
 passed on both after six stale object fingerprints were refreshed.
+
+## CupidLD format tests
+
+The linker test keeps its ELF and common fixtures in `cupidld_contract.cc`.
+The fixed-layout and import tests live in `cupidld_pe32_cases.inc`. Both
+files stay under 1,800 lines. On Windows and WSL all eight linker cases
+passed, and checked CupidC still emitted the same 125,088-byte object.

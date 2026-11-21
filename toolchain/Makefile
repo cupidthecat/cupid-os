@@ -739,7 +739,8 @@ $(BUILD_DIR)/cupidasm_kernel_elf_contract.o: tests/cupidasm_kernel_elf_contract.
 $(BUILD_DIR)/cupidobj_contract.o: tests/cupidobj_contract.cc cupidobj.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidld_contract.o: tests/cupidld_contract.cc cupidld.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
+$(BUILD_DIR)/cupidld_contract.o: tests/cupidld_contract.cc tests/cupidld_pe32_cases.inc \
+                                cupidld.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidbuild_jpeg_contract.o: \

@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-21 — Track the linker fixture and JPEG header in manifest checks
+
+The CupidLD contract now keeps fixed PE32 layout and import cases in one
+private include. Its checked object stayed byte-for-byte identical on
+Windows and WSL. All eight linker cases passed on both hosts.
+
+The manifest reader accepts the current inventory with the JPEG header
+and linker include. Historical fixtures keep their accepted inventories.
+The new checks reject a missing JPEG source and a substituted PE32
+include. The paired contract suites each passed after rerunning one case
+that hit the root-change guard when the hosts shared a checkout.
+
 ## 2026-11-21 — Restore the CupidC object frontier check
 
 The Windows and WSL contract runs reported the same six changed object
