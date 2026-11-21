@@ -246,7 +246,7 @@ done:
 #define CUPIDBUILD_DISK_STAGE_COUNT 4096u
 #define CUPIDBUILD_DISK_EXTERNAL_ROOTS 64u
 #define CUPIDBUILD_DISK_CAPTURE_ROOTS (CUPIDBUILD_DISK_EXTERNAL_ROOTS + 1u)
-#define CUPIDBUILD_DISK_FILE_CAPACITY 2147483647ull
+#define CUPIDBUILD_DISK_INPUT_CAPACITY 2147483647ull
 
 typedef struct {
     cupidbuild_host_transaction_t *transaction;
@@ -308,6 +308,7 @@ static int cupidbuild_disk_seed_release(cupidbuild_disk_capture_t *capture,
     cupidbuild_host_entry_kind_t kind;
     cupidbuild_disk_file_t frozen;
     char full[CUPIDBUILD_PATH_BYTES];
+    char *separator;
     const char *logical;
     *data_out = NULL;
     *size_out = 0u;
@@ -318,10 +319,16 @@ static int cupidbuild_disk_seed_release(cupidbuild_disk_capture_t *capture,
                                        full, sizeof(full)) ||
         !cupidbuild_repository_prefix(full, view->working_root_physical))
         return 0;
+    if (cupidbuild_host_execution_format() == 2u) {
+        for (separator = full; *separator; separator++) {
+            if (*separator == '\\')
+                *separator = '/';
+        }
+    }
     logical = full + strlen(view->working_root_physical);
     while (*logical == '/')
         logical++;
-    if (!cupidbuild_host_observer_path_kind(view->primary_observer, logical, &kind) ||
+    if (!cupidbuild_host_observer_source_path_kind(view->primary_observer, logical, &kind) ||
         kind != CUPIDBUILD_ENTRY_FILE)
         return 0;
     file.observer = view->primary_observer;
@@ -380,7 +387,7 @@ static int cupidbuild_disk_seed_capture(cupidbuild_disk_capture_t *capture,
             tool.logical = relative;
         }
         if (!cupidbuild_join(physical, sizeof(physical), manifest->physical_root, tool.logical) ||
-            !cupidbuild_host_observer_path_kind(manifest->observer, tool.logical, &kind) ||
+            !cupidbuild_host_observer_source_path_kind(manifest->observer, tool.logical, &kind) ||
             kind != CUPIDBUILD_ENTRY_FILE)
             return 0;
         tool.observer = manifest->observer;
@@ -412,7 +419,7 @@ static int cupidbuild_disk_capture_stages(cupidbuild_disk_capture_t *capture,
         }
         (void)snprintf(name, sizeof(name), "stage-%u.bin", (unsigned int)index);
         if (!cupidbuild_disk_capture_file(capture, &source->file, name,
-                                        CUPIDBUILD_DISK_FILE_CAPACITY, &stages[index].file, NULL, 1))
+                                        CUPIDBUILD_DISK_INPUT_CAPACITY, &stages[index].file, NULL, 1))
             return 0;
     }
     return 1;
@@ -488,7 +495,7 @@ int cupidbuild_publish_disk_image(const char *working_root, const char *seed_rel
         goto done;
     }
     extent = (ctool_u64)option_view.hdd_mb.magnitude * 1048576ull;
-    if (extent > CUPIDBUILD_DISK_FILE_CAPACITY ||
+    if (extent / 512u > 0xffffffffull ||
         option_view.fat_start_lba.magnitude >= extent / 512u) {
         error = "image geometry exceeds the bounded store";
         goto done;
@@ -510,7 +517,7 @@ int cupidbuild_publish_disk_image(const char *working_root, const char *seed_rel
         goto done;
     }
     if (!cupidbuild_host_publication_transaction_open_bounded(output_root, output_leaf,
-             CUPIDBUILD_DISK_FILE_CAPACITY, &capture.transaction) ||
+             CUPIDBUILD_HOST_MAX_EXTENT, &capture.transaction) ||
         !cupidbuild_host_reserve_inputs(capture.transaction, view.stage_count + 12u) ||
         !cupidbuild_host_transaction_borrow_observer(capture.transaction, output_observer) ||
         !cupidbuild_disk_input_discovery_bind_requests(discovery, capture.transaction)) {
@@ -533,7 +540,7 @@ int cupidbuild_publish_disk_image(const char *working_root, const char *seed_rel
     contents.stage_count = view.stage_count;
     if (!cupidbuild_disk_seed_capture(&capture, &view, seed_release, &seed) ||
         !cupidbuild_disk_capture_file(&capture, &view.bootloader, "image-boot.bin",
-                                     CUPIDBUILD_DISK_FILE_CAPACITY, &contents.bootloader, NULL, 1) ||
+                                     CUPIDBUILD_DISK_INPUT_CAPACITY, &contents.bootloader, NULL, 1) ||
         !cupidbuild_disk_capture_file(&capture, &view.kernel, "image-kernel.bin",
                                      (ctool_u64)contents.fat_start_lba * 512u - 2560u,
                                      &contents.kernel, NULL, 1) ||

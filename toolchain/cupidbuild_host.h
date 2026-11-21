@@ -294,6 +294,9 @@ int cupidbuild_host_observer_kind(cupidbuild_host_observer_t *observer,
  * verdict. Invalid input clears kind_out and poisons the supplied observer. */
 int cupidbuild_host_observer_path_kind(cupidbuild_host_observer_t *observer,
     const char *logical, cupidbuild_host_entry_kind_t *kind_out);
+/* Retain a source path while allowing changes to its root directory metadata. */
+int cupidbuild_host_observer_source_path_kind(cupidbuild_host_observer_t *observer,
+    const char *logical, cupidbuild_host_entry_kind_t *kind_out);
 typedef int (*cupidbuild_host_path_observation_sink_t)(void *context,
     size_t index, const char *logical, cupidbuild_host_entry_kind_t kind);
 /* Observe normalized logical paths with complete validation before and after

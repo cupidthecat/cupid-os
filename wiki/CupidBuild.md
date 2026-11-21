@@ -62,8 +62,8 @@ the checkout with the seed manifest for your host, `--seed-release`, the
 bootloader and kernel paths, and the output geometry. `cupidbuild image --help`
 lists the arguments. The command stages optional files and WADs, preserves
 files in a reusable FAT volume, and keeps the existing output when its bytes
-match. The current limit is 2 GiB minus one byte. The installed seed and
-normal Make recipe still use the Python image path.
+match. Choose geometry that fits the MBR sector count, the FAT16 volume and
+the checked CupidObj template. The normal Make recipe still uses Python.
 
 ## When a command fails
 

@@ -1,5 +1,33 @@
 # Bootstrapping log
 
+## 2026-11-21 — Publish images inside the build directory
+
+The disk command can use a seed manifest under the working directory and
+publish the image beside its inputs or in a subdirectory. Seed membership
+now attaches to the directory that already retains the manifest. The first
+in-tree runs created another observation of that directory and could no
+longer find the manifest through its original parent. The build-root path
+checks now allow the transaction's own directory entries while retaining
+the original paths, file identities and exact executable membership.
+Windows release paths also normalize separators before lookup. The first
+real in-tree Windows run exposed the issue with a backslash-spelled path.
+
+Both native commands matched the Python image for fresh in-tree outputs and
+kept their previous outputs when the seed directory gained an executable.
+A native 2,050 MiB build with the standard FAT start matched every byte on
+Windows and WSL. The SHA-256 is
+`9ed9b86abbeed415d0e244d84ce4afdc81c43161ae322999a3b206aa957f8786`.
+The command checks the MBR's 32-bit sector count before creating output
+directories. FAT16 geometry and the checked template still constrain the
+usable image layout.
+
+The checked 200 MiB builds matched all 3,200 blocks with the real ISO and
+Freedoom WAD under the build root. The WSL image passed the four-CPU e1000
+boot and ran `ls` with CupidC. The final checked command tests covered the
+Windows release spelling and passed on both hosts. Both preparations reached
+a fixed point with 124 inputs, SHA-256
+`696bf8c92232ba20a0056c3b5dccd4af49ccefbbd4b09e01472dd32621921f9b`.
+
 ## 2026-11-21 — Keep full file extents in disk publication
 
 Output-only transactions retain 64-bit file sizes and offsets through

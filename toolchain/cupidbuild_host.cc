@@ -12182,7 +12182,8 @@ int cupidbuild_host_observer_file_stream(cupidbuild_host_observer_t *observer, c
 }
 
 static cupidbuild_observer_entry_t *
-cupidbuild_observer_retained_file(cupidbuild_host_observer_t *observer, const char *logical) {
+cupidbuild_observer_retained_path(cupidbuild_host_observer_t *observer, const char *logical,
+                                  int last_is_directory) {
     cupidbuild_observer_entry_t *parent;
     const char *cursor = logical;
     char name[CUPIDBUILD_OBSERVER_NAME];
@@ -12203,7 +12204,7 @@ cupidbuild_observer_retained_file(cupidbuild_host_observer_t *observer, const ch
         name[length] = 0;
         if (!cupidbuild_observer_input_name_valid(observer, name))
             return (cupidbuild_observer_entry_t *)0;
-        directory = *cursor != 0;
+        directory = *cursor != 0 || last_is_directory;
         entry = cupidbuild_observer_lookup(observer, parent, name, directory, 0);
         if (entry == (cupidbuild_observer_entry_t *)0)
             return entry;
@@ -12212,6 +12213,11 @@ cupidbuild_observer_retained_file(cupidbuild_host_observer_t *observer, const ch
             return (cupidbuild_observer_entry_t *)0;
     }
     return parent;
+}
+
+static cupidbuild_observer_entry_t *
+cupidbuild_observer_retained_file(cupidbuild_host_observer_t *observer, const char *logical) {
+    return cupidbuild_observer_retained_path(observer, logical, 0);
 }
 
 static int cupidbuild_observer_retained_bindings(cupidbuild_host_observer_t *observer,
@@ -12380,6 +12386,17 @@ int cupidbuild_host_observer_path_kind(cupidbuild_host_observer_t *observer, con
         return cupidbuild_observer_fail(observer, "retained capture is still active");
     }
     return cupidbuild_observer_path_kind_profile(observer, logical, kind_out, 0);
+}
+
+int cupidbuild_host_observer_source_path_kind(cupidbuild_host_observer_t *observer,
+                                              const char *logical,
+                                              cupidbuild_host_entry_kind_t *kind_out) {
+    if (observer && observer->stream_group_active) {
+        if (kind_out)
+            *kind_out = CUPIDBUILD_ENTRY_NONE;
+        return cupidbuild_observer_fail(observer, "retained capture is still active");
+    }
+    return cupidbuild_observer_path_kind_profile(observer, logical, kind_out, 2);
 }
 
 int cupidbuild_host_observer_file_stream_retained(
@@ -12824,8 +12841,10 @@ int cupidbuild_host_observer_seed_directory(
                 return cupidbuild_observer_fail(observer, "duplicate seed executable name");
         }
     }
-    entry = *logical ? cupidbuild_observer_walk(observer, observer->root, logical, 1, 0)
-                     : observer->root;
+    /* Reuse the directory that already retains the manifest and its siblings. */
+    entry = *logical ? cupidbuild_observer_retained_path(observer, logical, 1) : observer->root;
+    if (!entry && *logical)
+        entry = cupidbuild_observer_walk(observer, observer->root, logical, 1, 0);
     if (!entry || entry->seed_members)
         return cupidbuild_observer_fail(observer, "seed directory cannot be observed again");
     entry->seed_members = (cupidbuild_observer_seed_members_t *)calloc(1u, sizeof(*entry->seed_members));

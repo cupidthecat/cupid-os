@@ -115,6 +115,42 @@ class CupidBuildDiskCommandTests(unittest.TestCase):
         self.assertEqual(file_identity(self.output), before)
         self.assertFalse(list(self.output.parent.glob('*cupidbuild*')))
 
+    def test_seed_and_outputs_under_build_root_keep_the_retained_manifest(self):
+        seed = self.project / 'bootstrap' / self.seed.name
+        shutil.copytree(self.seed, seed)
+        release = Path('bootstrap') / 'release.json'
+        shutil.copyfile(self.release, self.project / release)
+        kernel = self.project / 'kernel.bin'
+        shutil.copyfile(self.kernel, kernel)
+        stage = self.project / 'stage.bin'
+        stage.write_bytes(b'staged from the build root')
+        expected = self.root / 'expected.img'
+        create_or_update_image(expected, self.boot, kernel, 8, 32,
+                               [StageFile(stage, '/DATA.BIN')], False,
+                               seed_manifest=seed / 'manifest.json')
+        for name in ('direct.img', 'products/nested.img'):
+            with self.subTest(image=name):
+                command = [self.program, 'image', '--root', self.project,
+                           '--seed-release', str(release),
+                           '--seed-manifest', 'bootstrap/checked/manifest.json',
+                           '--image', name, '--bootloader', 'boot.bin', '--kernel', 'kernel.bin',
+                           '--hdd-mb', '8', '--fat-start-lba', '32', '--stage', 'stage.bin:/DATA.BIN']
+                result = subprocess.run(command, cwd=self.project, capture_output=True,
+                                        text=True, encoding='utf-8', timeout=180)
+                self.assertEqual(result.returncode, 0, (result.stdout, result.stderr))
+                output = self.project / name
+                before = file_identity(output)
+                self.assertEqual(before[2], file_identity(expected)[2])
+                extra = seed / ('extra.EXE' if os.name == 'nt' else 'extra.ELF')
+                extra.write_bytes(b'unlisted executable')
+                try:
+                    result = subprocess.run(command, cwd=self.project, capture_output=True,
+                                            text=True, encoding='utf-8', timeout=180)
+                    self.assertNotEqual(result.returncode, 0, (result.stdout, result.stderr))
+                    self.assertEqual(file_identity(output), before)
+                finally:
+                    extra.unlink()
+
     def test_image_inputs_and_stage_aliases_share_one_source(self):
         alias = self.external / 'boot-copy.bin'
         os.link(self.boot, alias)
@@ -138,6 +174,15 @@ class CupidBuildDiskCommandTests(unittest.TestCase):
         self.assertIn('output may not replace an input', result.stderr)
         self.assertEqual(file_identity(self.output), before)
         self.assertEqual(file_identity(alias), before)
+
+    def test_rejects_image_larger_than_the_mbr_sector_count(self):
+        command = self.image_command()
+        command[command.index('--hdd-mb') + 1] = '2097152'
+        result = subprocess.run(command, cwd=self.project, capture_output=True,
+                                text=True, encoding='utf-8', timeout=180)
+        self.assertNotEqual(result.returncode, 0, (result.stdout, result.stderr))
+        self.assertIn('image geometry exceeds the bounded store', result.stderr)
+        self.assertFalse(self.output.parent.exists())
 
     @unittest.skipIf(os.environ.get('CUPIDBUILD_IMAGE_COMMAND'), 'requires native pause hooks')
     def test_rebinding_a_shared_stage_preserves_previous_output(self):
