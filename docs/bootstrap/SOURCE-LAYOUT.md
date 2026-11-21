@@ -146,3 +146,11 @@ The profile manifest includes the new file on both hosts. The checked builds
 each reproduced the preceding 42,408-byte object exactly. The 44 Doom build
 and manifest cases passed on Windows and WSL with their platform skips.
 The guest compiler rebuilt the split source and matched the same object.
+
+## Doom map object tables
+
+`kernel/doom/src/info.cc` now keeps actors, pickups and scenery in three
+private headers. The table stays in enum order and uses one translation
+unit. The four files each stay below 1,600 lines. The fixed production
+recipe on Windows and WSL reproduced all 51,200 bytes of `info.o`.
+CupidC compiled the split source inside Cupid OS and matched the same bytes.
