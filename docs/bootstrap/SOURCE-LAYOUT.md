@@ -126,3 +126,15 @@ output assertions with matching stage pairs. That run still held the old
 EHCI expectation. Independent readback matched 311 saved objects against
 the checked kernel build. The replay's temporary directory closed before
 readback retained the second x86 object.
+
+## Doom configuration
+
+The 2,540-line configuration source now keeps the default and extended
+variable tables in `kernel/doom/src/m_config_defaults.h`. The original file
+keeps loading, saving and binding. The two files have 1,097 and 1,475 lines.
+The first split used an `.inc` file, which Make tracked but the source
+line count omitted. The private header keeps the tables in that count.
+The profile manifest includes the new file on both hosts. The checked builds
+each reproduced the preceding 42,408-byte object exactly. The 44 Doom build
+and manifest cases passed on Windows and WSL with their platform skips.
+The guest compiler rebuilt the split source and matched the same object.
