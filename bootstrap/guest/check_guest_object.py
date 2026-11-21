@@ -1,3 +1,5 @@
+## @file
+#  @brief Verify guest ELF flattening and output preservation on failure.
 """Compare the guest CupidObj worker with the checked hosted flattener."""
 
 from pathlib import Path

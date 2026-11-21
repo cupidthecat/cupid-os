@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+## @file
+#  @brief Run the guest compiler and compare objects saved on its disk.
 """Rebuild CupidC objects inside Cupid OS and compare persisted bytes."""
 
 import argparse

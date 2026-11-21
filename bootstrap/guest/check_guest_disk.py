@@ -1,3 +1,5 @@
+## @file
+#  @brief Check disk-template output and failed requests through the Linux fixture.
 """Compare a guest disk template with the checked hosted CupidObj output."""
 
 from pathlib import Path

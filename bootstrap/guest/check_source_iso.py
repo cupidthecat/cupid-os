@@ -1,3 +1,5 @@
+## @file
+#  @brief Verify source ISO membership and safe replacement of the preceding image.
 """Read back every source ISO file and check failed publication."""
 
 import subprocess

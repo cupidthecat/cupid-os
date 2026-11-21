@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## 2026-11-20 — Compile production sources in Cupid OS
+
+The standalone compiler reads production include roots, macro definitions,
+forced headers and Doom compatibility flags from its job file. Plain two-line
+requests still work. The Linux syscall fixture compares the profile output with
+checked CupidC and verifies that rejected jobs preserve the preceding object.
+A wide request initially exceeded the job buffer. The corrected buffer accepts
+64 wide definitions and rejects the 65th.
+
+The first boot used a saved kernel from before the compiler arena was added.
+Its loader rejected the worker. A fresh WSL `make -j8 all` passed all 16
+artifact size checks. The separate user build also passed.
+
+Four fresh four-vCPU guests rebuilt `ehci.o`, `doom_libc_stubs.o`, `sha1.o`
+and `d_main.o` across the three production profiles. The objects saved to
+HomeFS matched every byte of the checked host files. A separate replay of
+the 491,708-byte `cupidc_parse.o` also matched.
+
 ## 2026-11-18 — Qualify the optimized CupidC seed on both hosts
 
 Fresh WSL and native Windows builds qualified the ordered-initializer

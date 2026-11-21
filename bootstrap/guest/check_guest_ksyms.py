@@ -1,3 +1,5 @@
+## @file
+#  @brief Compare guest-generated kernel symbol source with the checked build.
 """Compare the guest kernel symbol worker with the checked hosted generator."""
 
 from pathlib import Path

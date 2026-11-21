@@ -12,6 +12,14 @@ to that source.
   /toolchain/ctool.cc
   /home/ctool.o
 
+Add option lines after the output path to select a source's build profile.
+Use include for quoted and angle headers, angle for angle headers alone,
+define NAME=VALUE for macros, and force for an absolute header path.
+Use doom on its own line for the existing Doom compatibility rules.
+When a job has options, list all include roots in search order.
+The compiler reads all source and header paths from the same filesystem.
+Use up to 64 search roots, 16 forced headers and 64 definitions.
+
 >h2 Link objects
 
 Place the output, text base, entry symbol and object paths in

@@ -1,3 +1,5 @@
+## @file
+#  @brief Rebuild the compiler engine and compare each stage with the checked inputs.
 """Verify the compiler engine load and its byte-identical rebuild."""
 
 from pathlib import Path

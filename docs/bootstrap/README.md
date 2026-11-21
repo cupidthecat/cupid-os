@@ -11,7 +11,8 @@ Cupid OS remains unfinished.
   Python coordination. GNU Make still schedules the build.
 - CupidC and CupidLD have rebuilt and run their own standalone executables
   inside Cupid OS. The rebuilt compiler reproduced the CupidASM, CupidDis
-  and CupidObj core objects. The guest build ran both production kernel
+  and CupidObj core objects. It also reproduced selected kernel and Doom
+  objects with their production profiles. The guest build ran both kernel
   links, generated and compiled the symbol table, and flattened the final
   ELF with byte-for-byte matches. CupidObj also authored a fresh disk
   prefix in the guest. It booted after zero extension.

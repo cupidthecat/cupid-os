@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+## @file
+#  @brief Build a disk prefix in Cupid OS, compare its bytes, and boot it.
 """Build a FAT16 disk prefix in Cupid OS and boot the resulting image."""
 
 import argparse

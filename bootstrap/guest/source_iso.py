@@ -1,3 +1,5 @@
+## @file
+#  @brief Stage compiler sources and publish a checked source ISO.
 """Stage the engine build inputs for checked CupidBuild ISO publication."""
 
 import shutil

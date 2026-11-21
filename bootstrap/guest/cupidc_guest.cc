@@ -1,3 +1,8 @@
+/**
+ * @file cupidc_guest.cc
+ * @brief Compile a source using a job file and publish its object to HomeFS.
+ */
+
 #include "cupidc_engine.h"
 #include "guest_job.h"
 
@@ -5,22 +10,114 @@
 #define JOB_PATH "/home/cupidc.job"
 #define PENDING_PATH "/home/.cupidc-pending.o"
 #define JOB_ARENA_BYTES (192u * 1024u * 1024u)
+#define INCLUDE_ROOT_LIMIT 64u
+#define FORCED_INCLUDE_LIMIT 16u
+#define MACRO_LIMIT 64u
+/* Allow both the name and replacement of every definition to reach their limit. */
+#define JOB_BYTES (CUPID_GUEST_PATH_JOB_BYTES + sizeof("doom\n") - 1u + \
+                   (INCLUDE_ROOT_LIMIT + FORCED_INCLUDE_LIMIT) * (VFS_MAX_PATH + 8u) + \
+                   MACRO_LIMIT * (2u * VFS_MAX_PATH + 8u))
 
-static int read_request(char *file, ctool_invocation_request_t *invocation) {
-    if (!cupid_guest_read_path_job(__sys, JOB_PATH, file, invocation))
+typedef struct {
+    ctool_c_pp_include_root_t roots[INCLUDE_ROOT_LIMIT];
+    ctool_path_t forced[FORCED_INCLUDE_LIMIT];
+    ctool_c_pp_macro_action_t macros[MACRO_LIMIT];
+} guest_compile_options_t;
+
+static int read_option(char *line, ctool_c_engine_request_t *request,
+                       guest_compile_options_t *options) {
+    ctool_c_pp_request_t *pp = &request->preprocessor;
+    if (strcmp(line, "doom") == 0) {
+        if (request->parser.implicit_function_declarations)
+            return 0;
+        request->parser.implicit_function_declarations = CTOOL_TRUE;
+        request->parser.compatibility_pointer_conversions = CTOOL_TRUE;
+        return 1;
+    }
+
+    char *argument = line;
+    while (*argument && *argument != ' ')
+        argument++;
+    if (*argument == '\0' || argument[1] == '\0')
         return 0;
-    ctool_string_t output = invocation->output_path;
-    return output.size >= 8u && strcmp(output.data + output.size - 2u, ".o") == 0 &&
-           strcmp(output.data, PENDING_PATH) != 0;
+    *argument++ = '\0';
+    if (strcmp(line, "define") == 0) {
+        if (pp->macro_action_count == MACRO_LIMIT)
+            return 0;
+        char *value = argument;
+        while (*value && *value != '=')
+            value++;
+        ctool_string_t replacement = ctool_string("1");
+        if (*value) {
+            *value++ = '\0';
+            replacement = ctool_string(value);
+        }
+        if (*argument == '\0' || strlen(argument) >= VFS_MAX_PATH ||
+            replacement.size >= VFS_MAX_PATH)
+            return 0;
+        ctool_c_pp_macro_action_t macro = {CTOOL_C_PP_MACRO_DEFINE, ctool_string(argument), replacement};
+        options->macros[pp->macro_action_count++] = macro;
+        return 1;
+    }
+
+    ctool_path_t path = {ctool_string(argument)};
+    if (path.text.size >= VFS_MAX_PATH || !ctool_path_is_canonical(&path))
+        return 0;
+    if (strcmp(line, "force") == 0) {
+        if (pp->forced_include_count == FORCED_INCLUDE_LIMIT)
+            return 0;
+        options->forced[pp->forced_include_count++] = path;
+        return 1;
+    }
+    ctool_u32 forms = CTOOL_C_PP_INCLUDE_ANGLE;
+    if (strcmp(line, "include") == 0)
+        forms |= CTOOL_C_PP_INCLUDE_QUOTED;
+    else if (strcmp(line, "angle") != 0)
+        return 0;
+    if (pp->include_root_count == INCLUDE_ROOT_LIMIT)
+        return 0;
+    ctool_c_pp_include_root_t root = {path, forms};
+    options->roots[pp->include_root_count++] = root;
+    return 1;
+}
+
+static int read_request(char *file, ctool_c_engine_request_t *request,
+                        guest_compile_options_t *options) {
+    int size = __sys->vfs_read_text(JOB_PATH, file, JOB_BYTES);
+    if (size < 1 || (ctool_u32)size >= JOB_BYTES)
+        return 0;
+    char *cursor = file;
+    char *end = file + size;
+    ctool_path_t paths[2];
+    if (!cupid_guest_read_path_lines(__sys, &cursor, end, paths, 2u))
+        return 0;
+    ctool_string_t output = paths[1].text;
+    if (output.size < 8u || strcmp(output.data + output.size - 2u, ".o") != 0 ||
+        strcmp(output.data, PENDING_PATH) == 0)
+        return 0;
+    request->invocation.input_path = paths[0].text;
+    request->invocation.output_path = output;
+    if (cursor < end) {
+        request->preprocessor.include_roots = options->roots;
+        request->preprocessor.forced_includes = options->forced;
+        request->preprocessor.macro_actions = options->macros;
+    }
+    while (cursor < end) {
+        char *line = cupid_guest_next_job_line(&cursor, end);
+        if (!line || !read_option(line, request, options))
+            return 0;
+    }
+    return 1;
 }
 
 void cupidc_guest_run(cupid_syscall_table_t *sys) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
         return;
     cupid_init(sys);
-    char file[CUPID_GUEST_PATH_JOB_BYTES];
+    char file[JOB_BYTES];
     ctool_c_engine_request_t request = {0};
-    if (!read_request(file, &request.invocation)) {
+    guest_compile_options_t options;
+    if (!read_request(file, &request, &options)) {
         sys->serial_write_string("[cupidc-guest] invalid request file: " JOB_PATH "\n");
         return;
     }
@@ -41,8 +138,10 @@ void cupidc_guest_run(cupid_syscall_table_t *sys) {
     request.config.limits.arena_bytes = JOB_ARENA_BYTES;
     request.preprocessor.mode = CTOOL_C_PP_MODE_C11;
     request.preprocessor.gnu_extensions = CTOOL_TRUE;
-    request.preprocessor.include_roots = roots;
-    request.preprocessor.include_root_count = sizeof(roots) / sizeof(roots[0]);
+    if (!request.preprocessor.include_roots) {
+        request.preprocessor.include_roots = roots;
+        request.preprocessor.include_root_count = sizeof(roots) / sizeof(roots[0]);
+    }
     request.parser.mode = request.preprocessor.mode;
     request.parser.gnu_extensions = request.preprocessor.gnu_extensions;
 

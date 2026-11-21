@@ -1,3 +1,8 @@
+/**
+ * @file guest_job.cc
+ * @brief Read worker requests and adapt Cupid OS files and memory to toolchain jobs.
+ */
+
 #include "guest_job.h"
 
 #define GUEST_ENOENT (-2)
@@ -20,15 +25,12 @@ char *cupid_guest_next_job_line(char **cursor, char *end) {
     return line;
 }
 
-int cupid_guest_read_paths(cupid_syscall_table_t *sys, const char *job_path,
-                          char *file, ctool_u32 capacity, ctool_path_t *paths, ctool_u32 count) {
-    int size = sys->vfs_read_text(job_path, file, capacity);
-    if (size < 1 || (ctool_u32)size >= capacity || count == 0u)
+int cupid_guest_read_path_lines(cupid_syscall_table_t *sys, char **cursor, char *end,
+                               ctool_path_t *paths, ctool_u32 count) {
+    if (count == 0u)
         return 0;
-    char *cursor = file;
-    char *end = file + size;
     for (ctool_u32 i = 0; i < count; i++) {
-        char *line = cupid_guest_next_job_line(&cursor, end);
+        char *line = cupid_guest_next_job_line(cursor, end);
         if (!line)
             return 0;
         ctool_path_t path = {ctool_string(line)};
@@ -37,7 +39,17 @@ int cupid_guest_read_paths(cupid_syscall_table_t *sys, const char *job_path,
         paths[i] = path;
     }
     ctool_string_t output = paths[count - 1u].text;
-    return cursor == end && output.size >= 7u && sys->strncmp(output.data, "/home/", 6u) == 0;
+    return output.size >= 7u && sys->strncmp(output.data, "/home/", 6u) == 0;
+}
+
+int cupid_guest_read_paths(cupid_syscall_table_t *sys, const char *job_path,
+                          char *file, ctool_u32 capacity, ctool_path_t *paths, ctool_u32 count) {
+    int size = sys->vfs_read_text(job_path, file, capacity);
+    if (size < 1 || (ctool_u32)size >= capacity)
+        return 0;
+    char *cursor = file;
+    char *end = file + size;
+    return cupid_guest_read_path_lines(sys, &cursor, end, paths, count) && cursor == end;
 }
 
 int cupid_guest_read_path_job(cupid_syscall_table_t *sys, const char *job_path,

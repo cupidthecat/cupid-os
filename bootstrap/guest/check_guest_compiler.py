@@ -1,4 +1,5 @@
-"""Exercise the compiler executable through its Cupid OS syscall adapter."""
+## @file
+#  @brief Verify the guest compiler through its Linux syscall fixture.
 
 from pathlib import Path
 import shutil
@@ -100,3 +101,55 @@ with tempfile.TemporaryDirectory(dir=build, prefix="guest-driver-") as temporary
     check(designators, b"overriding initialized subobjects")
     assert (home / "unordered.o").read_bytes() == result and not pending.exists()
     print("Ordered and out-of-order initializers passed; a duplicate preserved the preceding object.")
+
+    src = jail / "src"
+    (src / "include").mkdir()
+    (src / "angle").mkdir()
+    (src / "include/quoted.h").write_text("#define QUOTED 3\n", encoding="ascii")
+    (src / "angle/angle.h").write_text("#define ANGLE 4\n", encoding="ascii")
+    (src / "forced.h").write_text("#define EXTRA (VALUE + 8)\n", encoding="ascii")
+    (src / "profile.cc").write_text(
+        '#include "quoted.h"\n#include <angle.h>\n'
+        "int value(void) { return legacy_call() + ACTIVE + QUOTED + ANGLE + EXTRA; }\n",
+        encoding="ascii",
+    )
+    subprocess.run([seed / "cupidbuild.elf", "run", "--root", root,
+                    "--seed-manifest", seed / "manifest.json", "--seed-release",
+                    root / "bootstrap/seeds/release.json", "--tool", "cupidc", "--",
+                    "--root", src, "--gnu", "--doom-compat", "--freestanding",
+                    "-D", "VALUE=7", "-D", "ACTIVE", "-I", "/include",
+                    "--include-angle", "/angle", "-include", "/forced.h",
+                    "-c", "/profile.cc", "-o", "/reference.o"], check=True, timeout=180)
+    profile = (b"/profile.cc\n/home/profile.o\ndoom\ndefine VALUE=7\ndefine ACTIVE\n"
+               b"include /include\nangle /angle\nforce /forced.h\n")
+    check(profile, b"wrote /home/profile.o")
+    selected = home / "profile.o"
+    expected = (src / "reference.o").read_bytes()
+    assert selected.read_bytes() == expected and not pending.exists()
+    for request, marker in (
+        (profile.replace(b"doom\n", b""), b"compilation failed"),
+        (profile + b"doom\n", b"invalid request"),
+        (profile.replace(b"include /include", b"include /../include"), b"invalid request"),
+        (profile.replace(b"force /forced.h", b"force /missing.h"), b"compilation failed"),
+        (profile + b"define =0\n", b"invalid request"),
+        (profile + b"define EXTRA_FLAG\n" * 65, b"invalid request"),
+    ):
+        check(request, marker)
+        assert selected.read_bytes() == expected and not pending.exists()
+    print("Guest compiler matched the checked profile and preserved output on six rejections.")
+
+    definitions = b"".join(
+        f"define FLAG_{index:02}{'A' * 503}={'B' * 511}\n".encode("ascii")
+        for index in range(64)
+    )
+    include_roots = (b"include /" + b"r" * 510 + b"\n") * 32
+    (home / "limits.cc").write_bytes(b"int wide_profile(void) { return 42; }\n")
+    limits = b"/home/limits.cc\n/home/limits.o\n"
+    check(limits, b"wrote /home/limits.o")
+    limited = home / "limits.o"
+    limits_reference = limited.read_bytes()
+    check(limits + definitions + include_roots, b"wrote /home/limits.o")
+    assert limited.read_bytes() == limits_reference and not pending.exists()
+    check(limits + definitions + include_roots + b"define ONE_MORE\n", b"invalid request")
+    assert limited.read_bytes() == limits_reference and not pending.exists()
+    print("Guest compiler accepted wide macro definitions and rejected a 65th definition.")

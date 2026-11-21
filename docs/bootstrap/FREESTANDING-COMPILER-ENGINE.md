@@ -189,6 +189,32 @@ matched the checked host bytes with SHA-256
 Earlier runs expired at 900 and 1,800 seconds. The automated HomeFS replay
 completed with both saved objects matching their checked references.
 
+## Compile with production options
+
+Add options after the source and output lines in `/home/cupidc.job`.
+With options present, list all include roots in the intended search order.
+
+| Job line | Effect |
+| --- | --- |
+| `include /kernel/core` | Search for quoted and angle headers |
+| `angle /toolchain/hosted/i386-linux/include` | Search for angle headers |
+| `define DEBUG=1` | Define a macro |
+| `force /kernel/doom/dglibc_compat.h` | Process a header before the source |
+| `doom` | Enable the hosted Doom compatibility rules |
+
+The replay uses the checked kernel, Doom shim and vendored Doom profiles.
+Each profile gets a source ISO with the original paths. The replay compares
+each object saved by a fresh guest with the complete checked host object.
+
+```sh
+make -C bootstrap/guest guest-compiler
+python3 bootstrap/guest/check_guest_profile_runtime.py
+```
+
+Use `--production-root` to select a separate completed checked build.
+Repeat `--source` to select other repository-relative sources from the
+checked production profiles.
+
 ## Link objects inside Cupid OS
 
 `make -C bootstrap/guest guest-linker` builds

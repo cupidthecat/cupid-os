@@ -1,3 +1,8 @@
+/**
+ * @file guest_job.h
+ * @brief Declare the shared file and memory adapter for guest toolchain workers.
+ */
+
 #ifndef CUPID_BOOTSTRAP_GUEST_JOB_H
 #define CUPID_BOOTSTRAP_GUEST_JOB_H
 
@@ -32,6 +37,8 @@ int cupid_guest_read_path_job(cupid_syscall_table_t *sys, const char *job_path,
 /* Each field occupies one line. The last path is an output under /home. */
 int cupid_guest_read_paths(cupid_syscall_table_t *sys, const char *job_path,
                           char *file, ctool_u32 capacity, ctool_path_t *paths, ctool_u32 count);
+int cupid_guest_read_path_lines(cupid_syscall_table_t *sys, char **cursor, char *end,
+                               ctool_path_t *paths, ctool_u32 count);
 char *cupid_guest_next_job_line(char **cursor, char *end);
 
 /* Return cached, released blocks. Live allocations still belong to the job. */

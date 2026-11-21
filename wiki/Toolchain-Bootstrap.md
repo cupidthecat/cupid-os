@@ -55,6 +55,10 @@ source ISO from HomeFS and rebuilt the complete CupidC frontend. The object
 read back from the guest disk matched all 1,024,260 checked host bytes.
 [Engine build and evidence](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md)
 
+Compiler jobs can set the include search order, macro definitions, forced
+headers and Doom compatibility. The production compiler replay uses the
+checked kernel and Doom profiles.
+
 ## Guest linker
 
 `make -C bootstrap/guest guest-linker` builds the CupidLD worker. Set up

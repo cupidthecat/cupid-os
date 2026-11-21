@@ -1,3 +1,5 @@
+## @file
+#  @brief Check the guest linker's ELF output and publication failures.
 """Check the Cupid OS linker adapter against the checked hosted linker."""
 
 from pathlib import Path
