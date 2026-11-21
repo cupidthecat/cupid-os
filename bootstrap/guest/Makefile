@@ -57,6 +57,9 @@ $(ENGINE): $(OBJECTS) Makefile $(SEED_INPUTS)
 GUEST_COMPILER := $(BUILD)/cupidc-guest.elf
 GUEST_ENTRY := cupidc_guest_run
 GUEST_SUPPORT := $(BUILD)/guest_job.o
+GUEST_ASSEMBLER := $(BUILD)/cupidasm-guest.elf
+GUEST_ASSEMBLER_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/x86.o \
+    $(BUILD)/cupidasm.o $(BUILD)/cupiddis.o $(GUEST_SUPPORT) $(BUILD)/cupidasm_guest.o
 GUEST_LINKER := $(BUILD)/cupidld-guest.elf
 GUEST_LINKER_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/cupidld.o \
     $(GUEST_SUPPORT) $(BUILD)/cupidld_guest.o
@@ -71,8 +74,9 @@ GUEST_DISK := $(BUILD)/cupiddisk-guest.elf
 GUEST_DISK_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/cupidobj.o \
     $(GUEST_SUPPORT) $(BUILD)/cupiddisk_guest.o
 
-.PHONY: guest-compiler guest-linker guest-object guest-ksyms guest-disk
+.PHONY: guest-compiler guest-assembler guest-linker guest-object guest-ksyms guest-disk
 guest-compiler: $(GUEST_COMPILER)
+guest-assembler: $(GUEST_ASSEMBLER)
 guest-linker: $(GUEST_LINKER)
 guest-object: $(GUEST_OBJECT)
 guest-ksyms: $(GUEST_KSYMS)
@@ -87,6 +91,13 @@ $(GUEST_COMPILER): $(OBJECTS) $(GUEST_SUPPORT) $(BUILD)/cupidc_guest.o Makefile 
 
 $(BUILD)/guest_job.o: guest_job.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/guest_job.cc -o $(PUBLISH)/guest_job.o
+
+$(BUILD)/cupidasm_guest.o: cupidasm_guest.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupidasm.h $(TOOLCHAIN)/cupiddis.h $(TOOLCHAIN)/elf32.h $(TOOLCHAIN)/x86.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
+	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/cupidasm_guest.cc -o $(PUBLISH)/cupidasm_guest.o
+
+$(GUEST_ASSEMBLER): $(GUEST_ASSEMBLER_OBJECTS) Makefile $(SEED_INPUTS)
+	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry cupidasm_guest_run \
+		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
 
 $(BUILD)/cupidld.o: $(TOOLCHAIN)/cupidld.cc $(TOOLCHAIN)/cupidld.h $(TOOLCHAIN)/elf32.h $(TOOLCHAIN)/ctool.h $(HOST_HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(CFLAGS) -c /toolchain/cupidld.cc -o $(PUBLISH)/cupidld.o
@@ -129,7 +140,7 @@ ISO_PEER_SOURCES := $(addprefix toolchain/,$(addsuffix .cc,$(PEERS)) \
 ISO_SOURCES := $(addprefix toolchain/,$(addsuffix .cc,$(CORE))) \
 	bootstrap/guest/cupidc_engine.cc bootstrap/guest/cupidc_engine.h \
 	bootstrap/guest/cupidc_guest.cc bootstrap/guest/guest_job.cc bootstrap/guest/guest_job.h \
-	bootstrap/guest/cupidld_guest.cc bootstrap/guest/cupidobj_guest.cc \
+	bootstrap/guest/cupidasm_guest.cc bootstrap/guest/cupidld_guest.cc bootstrap/guest/cupidobj_guest.cc \
 	bootstrap/guest/cupidksyms_guest.cc bootstrap/guest/cupiddisk_guest.cc bootstrap/guest/TOOLS.CTXT \
 	toolchain/cupidld.cc toolchain/cupidld.h user/cupid.h $(ISO_PEER_SOURCES) \
 	$(patsubst ../../%,%,$(filter-out cupidc_engine.h,$(HEADERS)))

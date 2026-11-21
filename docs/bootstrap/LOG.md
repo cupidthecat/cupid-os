@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## 2026-11-20 — Assemble the production kernel objects in Cupid OS
+
+The shell assembler added kernel bindings to the ISR object. The standalone
+worker uses the production symbol policy and checks its output with CupidDis
+before saving it. The guest reproduced all 1,892 ISR bytes and 696 context
+switch bytes. CupidDis rejected a truncated instruction, and the earlier
+ISR object kept its bytes. A retry used a shorter worker alias after the
+first terminal command lost a keystroke.
+
+The kernel replay fed both guest assembly objects and the guest-compiled
+PIC and IDT objects into both links. Both ELFs, the symbol source and object,
+and the raw kernel matched the checked WSL build. The rebuilt kernel booted
+and ran `ls`.
+
+Windows and WSL produced identical assembler-worker ELFs. Source ISO
+readback matched 50 files and seven directories. Rejected and repeated ISO
+publications preserved the original bytes. The refreshed build audit passed.
+
 ## 2026-11-20 — Boot media rebuilt in Cupid OS
 
 The kernel replay compiled `kernel/core/kernel.cc` in Cupid OS and matched

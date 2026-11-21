@@ -9,6 +9,7 @@ import shlex
 import subprocess
 import tempfile
 
+from check_guest_assembly_runtime import ASSEMBLY_SOURCES, assemble_production_objects
 from check_guest_disk_runtime import check as check_disk
 from check_guest_profile_runtime import SOURCE_PROFILES, compile_production_objects
 from check_guest_runtime import (
@@ -50,13 +51,16 @@ def production_objects(root: Path) -> list[str]:
 
 
 def check(scratch: Path, root: Path, qemu: str, timeout: float,
-          rebuild_sources: list[str], rebuild_disk: bool) -> None:
+          rebuild_sources: list[str], rebuild_disk: bool, rebuild_assembly: bool) -> None:
     objects = production_objects(root)[:-1]
-    for source in rebuild_sources:
+    sources = [*rebuild_sources, *ASSEMBLY_SOURCES.values()] if rebuild_assembly else rebuild_sources
+    for source in sources:
         if Path(source).with_suffix(".o").as_posix() not in objects:
             raise ValueError(f"no pass-one kernel object for {source}")
     rebuilt = compile_production_objects(scratch / "compile", root, rebuild_sources,
                                          qemu, timeout)
+    if rebuild_assembly:
+        rebuilt.update(assemble_production_objects(scratch / "assemble", root, qemu, timeout))
     # Keep each FAT staging directory within a single directory cluster.
     inputs = [f"/obj{index // 64}/i{index:03}.o" for index in range(len(objects))]
     stage_objects = [
@@ -148,6 +152,8 @@ def main() -> None:
                         help="compile a production source inside Cupid OS before linking (repeatable)")
     parser.add_argument("--rebuild-disk", action="store_true",
                         help="assemble the bootloader and build the final disk prefix in Cupid OS")
+    parser.add_argument("--rebuild-assembly", action="store_true",
+                        help="assemble the ISR and context-switch objects before linking")
     parser.add_argument("--qemu", default="qemu-system-i386")
     parser.add_argument("--timeout", type=float, default=1800)
     args = parser.parse_args()
@@ -157,7 +163,7 @@ def main() -> None:
         parser.error("production sources must be distinct")
     with tempfile.TemporaryDirectory(prefix="cupid-kernel-link-") as temporary:
         check(Path(temporary), args.production_root.resolve(), args.qemu, args.timeout,
-              args.rebuild_source, args.rebuild_disk)
+              args.rebuild_source, args.rebuild_disk, args.rebuild_assembly)
 
 
 if __name__ == "__main__":

@@ -65,6 +65,16 @@ Increasing initializer indices need one duplicate check per validation stage.
 The assembler gives .rodata four-byte default alignment. CupidLD places
 the bytes in a read-only ELF segment and resolves references to its labels.
 
+For a production kernel object, run the standalone assembler worker. Put
+the assembly source and the /home object path in /home/cupidasm.job.
+
+  /disk/isr.asm
+  /home/isr.o
+
+The worker keeps symbols case-sensitive and uses the source's own names.
+CupidDis checks instruction bytes, local jumps and function starts before
+the worker replaces the saved object.
+
 >h2 Compile peer tool sources
 
 Use the same compiler job format with /toolchain/cupidasm.cc,

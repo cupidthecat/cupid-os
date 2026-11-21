@@ -354,6 +354,24 @@ dis --raw --range-map /home/boot.map --require-known /home/boot.bin
 All 2,560 guest-produced bytes matched the checked bootloader. A rejected
 assembly preserved the saved image and its map remained usable by CupidDis.
 
+## Rebuild the kernel assembly objects
+
+```sh
+make -C bootstrap/guest guest-assembler
+python3 bootstrap/guest/check_guest_assembly_runtime.py
+```
+
+The standalone CupidASM worker reads an input path and a `/home` output
+path from `/home/cupidasm.job`. It uses case-sensitive symbols and the
+source's declarations. The shell command keeps its kernel call bindings.
+CupidDis checks the object before the worker saves it.
+
+The guest reproduced `kernel/cpu/isr.o` and
+`kernel/core/context_switch.o` byte for byte. A truncated instruction
+failed inspection, and the saved ISR object kept its original bytes.
+Add `--rebuild-assembly` to the kernel replay to use both guest objects
+in both production links.
+
 ## Compile peer tool objects
 
 `make -C bootstrap/guest peer-objects source-iso` builds checked host
