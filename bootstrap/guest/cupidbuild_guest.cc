@@ -22,9 +22,7 @@ typedef struct {
     build_step_t steps[BUILD_STEP_LIMIT];
 } build_plan_t;
 
-static cupid_guest_operation_t find_operation(const char *name, int media) {
-    if (media && strcmp(name, "kernel") == 0)
-        return cupid_guest_kernel_job;
+static cupid_guest_operation_t find_operation(const char *name) {
     static const struct {
         const char *name;
         cupid_guest_operation_t run;
@@ -39,6 +37,7 @@ static cupid_guest_operation_t find_operation(const char *name, int media) {
         {"assemble", cupid_guest_assemble_job},
         {"install", cupid_guest_install_job},
         {"disk", cupid_guest_disk_job},
+        {"kernel", cupid_guest_kernel_job},
     };
     for (ctool_u32 index = 0; index < sizeof(operations) / sizeof(operations[0]); index++) {
         if (strcmp(name, operations[index].name) == 0)
@@ -69,7 +68,7 @@ static ctool_u32 read_plan(cupid_syscall_table_t *sys, const char *job_path,
         if (request_root && (path.text.size <= root_size || strncmp(name, request_root, root_size) != 0))
             return 0u;
 
-        cupid_guest_operation_t run = find_operation(operation, request_root != NULL);
+        cupid_guest_operation_t run = find_operation(operation);
         if (!run)
             return 0u;
         plan->steps[count++] = (build_step_t){run, name};

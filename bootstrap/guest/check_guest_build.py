@@ -97,6 +97,21 @@ def check_object_lists(scratch, command, reference_object, invoke):
     assert log.index(b"wrote /home/asset.o") < log.index(b"wrote /tmp/asset.o")
     assert all(path.read_bytes() == data for path, data in expected.items())
 
+    project = scratch / "home/project"
+    project.mkdir()
+    (scratch / "src/user").rename(project / "user")
+    (scratch / "home/cupidbuild.job").write_bytes(b"compile-list\n/home/project/sources.job\n")
+    local = project / "sources.job"
+    prior = b"previous output"
+    outputs[0].write_bytes(prior)
+    for root in (b"/home/project/../project", b"/" + b"a" * 510):
+        local.write_bytes(b"root " + root + b"\n" + head + first + second)
+        invoke(b"[cupidc-guest] invalid compile list")
+        assert outputs[0].read_bytes() == prior
+    local.write_bytes(b"root /home/project\n" + head + first + second)
+    invoke(b"[cupidbuild-guest] build complete")
+    assert all(path.read_bytes() == reference_object.read_bytes() for path in outputs)
+
 
 def check(scratch: Path) -> None:
     sources = scratch / "src"
@@ -255,10 +270,10 @@ def check(scratch: Path) -> None:
 
     kernel_list = jobs / "kernel.job"
     media_plan.write_bytes(b"kernel\n/plan/jobs/kernel.job\n")
-    plan.write_bytes(media_plan.read_bytes())
-    invoke(b"invalid request file: /home/cupidbuild.job")
     for invalid in (b"", b"/disk/object.elf\n", b"/disk/../input.o\n",
                     b"/disk/input.o\n/disk/input.o\n", b"/home/ksyms_data.o\n",
+                    b"root /home/../src\n/disk/input.o\n",
+                    b"root /" + b"a" * 510 + b"\n/disk/input.o\n",
                     b"".join(f"/disk/i{index}.o\n".encode("ascii") for index in range(512))):
         kernel_list.write_bytes(invalid)
         log = invoke(b"[cupidbuild-guest] invalid kernel object list", "--media")
@@ -268,6 +283,10 @@ def check(scratch: Path) -> None:
     kernel_list.write_bytes(b"/disk/input.o\n")
     log = invoke(b"[cupidbuild-guest] kernel build stopped at bootloader", "--media")
     assert b"[cupidld-guest]" not in log and b"build complete" not in log
+    assert boot.read_bytes() == b"preceding bootloader"
+    plan.write_bytes(b"kernel\n/home/kernel.job\n")
+    (home / "kernel.job").write_bytes(b"root /home/project\n/disk/input.o\n")
+    invoke(b"[cupidbuild-guest] kernel build stopped at bootloader")
     assert boot.read_bytes() == b"preceding bootloader"
     scratch_pending.unlink()
     check_object_lists(scratch, command, reference_object, invoke)

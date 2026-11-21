@@ -8,6 +8,7 @@ from collections.abc import Callable, Collection, Iterable
 from itertools import groupby, islice
 from pathlib import Path
 import re
+import subprocess
 import tempfile
 
 from check_guest_assembly_runtime import ASSEMBLY_SOURCES
@@ -17,7 +18,7 @@ from check_guest_kernel_link import production_objects
 from check_guest_kernel_plan import execute_kernel_plan
 from check_guest_profile_runtime import SOURCE_PROFILES, profile_options
 from check_guest_raw_assembly_runtime import RAW_PRODUCTS, TRAMPOLINE_OBJECT
-from check_guest_runtime import BUILD, ROOT, build_plan_manifest, create_disk
+from check_guest_runtime import BUILD, ROOT, SEED_MANIFEST, build_plan_manifest, create_disk, write_homefs
 from source_iso import publish_source_iso
 from tools.cupidc_kernel_compile import _kernel_input_paths
 
@@ -29,6 +30,7 @@ REQUEST_DIRECTORY = Path("jobs")
 ASSET_DIRECTORY = "assets"
 ASSET_ROOT = f"{PLAN_ISO[1]}/{ASSET_DIRECTORY}"
 MEDIA_BUILD = "cupidbuild-media.elf"
+INSTALLED_ROOT = "/home/project"
 OBJECT_LIST_LIMIT = 256
 INSTALL_INCLUDE_OPTIONS = ("include /src/kernel", "include /src/kernel/core", "include /src/kernel/fs")
 KERNEL_BUILD_FILES = frozenset(map(Path, (
@@ -50,13 +52,14 @@ def iso_members(files: Collection[Path]) -> tuple[str, ...]:
     return tuple(path.as_posix() for path in members)
 
 
-def media_plan_files(steps: tuple[tuple[str, bytes, bytes], ...]) -> dict[Path, bytes]:
+def media_plan_files(steps: tuple[tuple[str, bytes, bytes], ...], *,
+                     request_root: bytes = b"/plan/jobs/") -> dict[Path, bytes]:
     for _, name, _ in steps:
         if not re.fullmatch(rb"[A-Za-z0-9][A-Za-z0-9._-]*", name):
             raise ValueError(f"invalid media job name {name!r}")
     jobs = tuple((operation, f"{index // 64:02}/".encode("ascii") + name, contents)
                  for index, (operation, name, contents) in enumerate(steps))
-    plan = build_plan_manifest(jobs, request_root=b"/plan/jobs/")
+    plan = build_plan_manifest(jobs, request_root=request_root)
     files = {REQUEST_DIRECTORY / name.decode("ascii"): contents for _, name, contents in jobs}
     if len(files) != len(jobs):
         raise ValueError("the guest plan repeats a job path")
@@ -92,7 +95,7 @@ def publish_plan_iso(publisher: Path, root: Path, output: Path,
                                   source_directory=staging, source_overrides=asset_paths)
 
 
-def source_plan(root: Path, temporary_objects: bool):
+def source_plan(root: Path, temporary_objects: bool, *, installed_tree: bool = False):
     objects = production_objects(root)[:-1]
     if len(set(objects)) != len(objects):
         raise ValueError("the kernel link repeats a pass-one object")
@@ -103,6 +106,8 @@ def source_plan(root: Path, temporary_objects: bool):
     assets = set()
     references = {}
     built = set()
+    source_root = INSTALLED_ROOT if installed_tree else "/src"
+    source_option = (f"root {source_root}",) if installed_tree else ()
 
     def add(operation: str, name: str, contents: bytes) -> None:
         steps.append((operation, name.encode("ascii"), contents))
@@ -129,11 +134,11 @@ def source_plan(root: Path, temporary_objects: bool):
     for index, source in enumerate(ASSEMBLY_SOURCES.values()):
         files.add(Path(source))
         add("assemble", f"a{index}.job",
-            job_contents(f"/src/{source}", output(object_name(source))))
+            job_contents(f"{source_root}/{source}", output(object_name(source))))
 
     trampoline, raw = RAW_PRODUCTS["smp-trampoline"]
     files.add(Path(trampoline))
-    add("raw", "smp.job", job_contents(f"/src/{trampoline}", "/home/smp.bin", "smp-trampoline"))
+    add("raw", "smp.job", job_contents(f"{source_root}/{trampoline}", "/home/smp.bin", "smp-trampoline"))
     add("object", "wrap-smp.job",
         job_contents("/home/smp.bin", output(TRAMPOLINE_OBJECT), "wrap-readonly", "smp_trampoline"))
     references["smp.bin"] = root / raw
@@ -142,7 +147,8 @@ def source_plan(root: Path, temporary_objects: bool):
         destination, job = installation_request(source, contents)
         add("install", f"i{index}.job", job)
         add("compile", f"install{index}.job", job_contents(
-            f"/home/{destination}", output(object_name(source)), *INSTALL_INCLUDE_OPTIONS,
+            f"/home/{destination}", output(object_name(source)),
+            *(option.replace("/src", source_root, 1) for option in INSTALL_INCLUDE_OPTIONS),
         ))
         references[destination] = root / source
 
@@ -150,7 +156,8 @@ def source_plan(root: Path, temporary_objects: bool):
     for obj, (source, mode) in production_assets(root).items():
         assets.add(Path(source))
         asset_objects.append((mode, f"/{source}", output(obj)))
-    add_lists("asset-list", "asset", asset_objects, lambda mode: (mode, ASSET_ROOT))
+    add_lists("asset-list", "asset", asset_objects,
+              lambda mode: (mode, source_root if installed_tree else ASSET_ROOT))
 
     compiled_objects = []
     for source, profile in SOURCE_PROFILES.items():
@@ -160,11 +167,11 @@ def source_plan(root: Path, temporary_objects: bool):
         files.update(path.relative_to(root) for path in _kernel_input_paths(root, source, profile))
         compiled_objects.append((profile, f"/{source}", output(obj)))
     add_lists("compile-list", "source", compiled_objects,
-              lambda profile: (*profile_options(profile), "sources"))
+              lambda profile: (*source_option, *profile_options(profile), "sources"))
 
     if missing := aliases.keys() - built:
         raise ValueError(f"no guest source job for {', '.join(sorted(missing))}")
-    steps.append(("kernel", b"kernel.job", job_contents(*aliases.values())))
+    steps.append(("kernel", b"kernel.job", job_contents(*source_option, *aliases.values())))
     if len(steps) > 512:
         raise ValueError(f"{len(steps)} steps exceed the guest plan limit")
     doom = {path for path in files if path.is_relative_to(DOOM)}
@@ -174,6 +181,20 @@ def source_plan(root: Path, temporary_objects: bool):
     print(f"Staging {len(files | assets)} source files for {len(steps)} guest steps "
           f"and {len(built)} pass-one objects.")
     return tuple(steps), inputs, references
+
+
+def stage_installed_tree(scratch: Path, root: Path, image: Path,
+                         steps: tuple[tuple[str, bytes, bytes], ...],
+                         sources: Collection[Path], *staged: str) -> None:
+    plan = media_plan_files(steps, request_root=b"/home/jobs/")
+    files = [(path.as_posix().encode("ascii"), contents) for path, contents in plan.items()]
+    project = INSTALLED_ROOT.removeprefix("/home/")
+    files.extend((f"{project}/{source.as_posix()}".encode("ascii"), (root / source).read_bytes())
+                 for source in sorted(sources))
+    homefs = scratch / "homefs.sys"
+    write_homefs(homefs, tuple(files))
+    create_disk(image, f"{homefs}:/homefs.sys", f"{BUILD / 'cupidbuild-guest.elf'}:/b",
+                *staged, production_root=root)
 
 
 def replay(scratch: Path, root: Path, qemu: str, timeout: float,
@@ -206,15 +227,47 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float, temporary_object
            asset_input=assets)
 
 
-def check_kernel_job(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
+def check_installed(scratch: Path, root: Path, qemu: str, timeout: float, temporary_objects: bool) -> None:
+    steps, inputs, references = source_plan(root, temporary_objects, installed_tree=True)
+    sources = {(base / member).relative_to(root) for base, members in inputs for member in members
+               if not (base / member).is_dir()}
+    image = scratch / "build.img"
+    stage_installed_tree(scratch, root, image, steps, sources)
+    execute_kernel_plan(scratch, root, image, qemu, timeout, references, installed_tree=True)
+
+
+def verify_pass_one(scratch: Path, root: Path, objects: list[str]) -> None:
+    checked = root / "kernel/kernel.elf.pass1"
+    replayed = scratch / "checked-pass-one.elf"
+    subprocess.run([
+        ROOT / "bootstrap/seeds/i386-linux/cupidbuild.elf", "run", "--root", ROOT,
+        "--seed-manifest", ROOT / SEED_MANIFEST,
+        "--seed-release", ROOT / "bootstrap/seeds/release.json",
+        "--tool", "cupidld", "--", "-m", "elf_i386", "-T", root / "link.ld",
+        "-o", replayed, *(root / path for path in objects),
+    ], check=True, timeout=180)
+    if replayed.read_bytes() != checked.read_bytes():
+        raise ValueError("staged objects differ from the checked pass-one link. Rebuild the reference kernel.")
+
+
+def check_kernel_job(scratch: Path, root: Path, qemu: str, timeout: float, *,
+                     installed_tree: bool = False) -> None:
     objects = production_objects(root)[:-1]
     missing = [source for source in objects if not (root / source).is_file()]
     if missing:
         raise ValueError(f"checked pass-one objects are missing: {', '.join(missing)}")
+    verify_pass_one(scratch, root, objects)
     aliases = tuple(f"/obj{index // 64}/i{index:03}.o" for index in range(len(objects)))
     staged = tuple(f"{root / source}:{alias}" for source, alias in zip(objects, aliases, strict=True))
-    steps = (("kernel", b"kernel.job", job_contents(*(f"/disk{alias}" for alias in aliases))),)
+    source_option = (f"root {INSTALLED_ROOT}",) if installed_tree else ()
+    steps = (("kernel", b"kernel.job",
+              job_contents(*source_option, *(f"/disk{alias}" for alias in aliases))),)
     print(f"Staging {len(objects)} checked pass-one objects for the guest kernel job.")
+    if installed_tree:
+        image = scratch / "build.img"
+        stage_installed_tree(scratch, root, image, steps, KERNEL_BUILD_FILES, *staged)
+        execute_kernel_plan(scratch, root, image, qemu, timeout, {}, installed_tree=True)
+        return
     replay(scratch, root, qemu, timeout, steps, SOURCE_ISOS[:1],
            ((root, iso_members(KERNEL_BUILD_FILES)),), {}, staged)
 
@@ -227,12 +280,16 @@ if __name__ == "__main__":
                       help="keep intermediate link objects in RAMFS")
     mode.add_argument("--link-only", action="store_true",
                       help="stage checked pass-one objects and run the guest kernel job")
+    parser.add_argument("--installed-tree", action="store_true",
+                        help="put the project and build plan in HomeFS")
     parser.add_argument("--qemu", default="qemu-system-i386")
     parser.add_argument("--timeout", type=float, default=14400)
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="cupid-kernel-source-plan-") as temporary:
         root = args.production_root.resolve()
         if args.link_only:
-            check_kernel_job(Path(temporary), root, args.qemu, args.timeout)
+            check_kernel_job(Path(temporary), root, args.qemu, args.timeout, installed_tree=args.installed_tree)
+        elif args.installed_tree:
+            check_installed(Path(temporary), root, args.qemu, args.timeout, args.temporary_objects)
         else:
             check(Path(temporary), root, args.qemu, args.timeout, args.temporary_objects)

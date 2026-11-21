@@ -43,7 +43,7 @@ An accepted build entry point whose reachable inputs and outputs are part of Cup
 _Avoid_: every build target, only the default target
 
 **Guest kernel job**:
-The source-media CupidBuild operation that accepts the ordered pass-one
+The CupidBuild operation that accepts the ordered pass-one
 object paths, then assembles the bootloader, links both kernels, generates
 the symbol object, flattens the final ELF, and writes the disk prefix.
 
@@ -51,6 +51,11 @@ the symbol object, flattens the final ELF, and writes the disk prefix.
 An ordered group of source and output pairs that shares a compiler profile
 or asset wrapping mode. CupidBuild validates the list, then publishes each
 object as its worker finishes.
+
+**Guest project root**:
+The VFS directory that holds a source tree. The compile list uses it to
+locate sources and headers while retaining their logical project paths.
+The kernel job also uses it to find the bootloader and linker script.
 
 **Source cohort**:
 A related group of active sources migrated and verified under one tool-ownership and behavior gate.

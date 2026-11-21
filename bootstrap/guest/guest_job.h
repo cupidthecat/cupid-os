@@ -55,6 +55,8 @@ int cupid_guest_read_paths(cupid_syscall_table_t *sys, const cupid_guest_request
 int cupid_guest_read_path_lines(cupid_syscall_table_t *sys, char **cursor, char *end,
                                ctool_path_t *paths, ctool_u32 count);
 char *cupid_guest_next_job_line(char **cursor, char *end);
+int cupid_guest_read_root(cupid_syscall_table_t *sys, char **cursor, char *end,
+                          const char *fallback, const char **root);
 
 /* Read all source and object pairs before any output can be published. */
 ctool_u32 cupid_guest_read_object_list(cupid_syscall_table_t *sys, char *cursor, char *end,

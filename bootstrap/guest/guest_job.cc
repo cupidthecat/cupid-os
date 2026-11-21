@@ -27,6 +27,21 @@ char *cupid_guest_next_job_line(char **cursor, char *end) {
     return line;
 }
 
+int cupid_guest_read_root(cupid_syscall_table_t *sys, char **cursor, char *end,
+                          const char *fallback, const char **root) {
+    *root = fallback;
+    if (end - *cursor < 5 || sys->strncmp(*cursor, "root ", 5u) != 0)
+        return 1;
+    char *line = cupid_guest_next_job_line(cursor, end);
+    if (!line)
+        return 0;
+    ctool_path_t path = {ctool_string(line + 5)};
+    if (path.text.size >= VFS_MAX_PATH || !ctool_path_is_canonical(&path))
+        return 0;
+    *root = path.text.size == 1u ? "" : path.text.data;
+    return 1;
+}
+
 ctool_u32 cupid_guest_output_prefix(cupid_syscall_table_t *sys, ctool_string_t path) {
     if (path.size > sizeof(HOME_PREFIX) - 1u &&
         sys->strncmp(path.data, HOME_PREFIX, sizeof(HOME_PREFIX) - 1u) == 0)

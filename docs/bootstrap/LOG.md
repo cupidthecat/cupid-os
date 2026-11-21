@@ -1,5 +1,31 @@
 # Bootstrapping log
 
+## 2026-11-21 — Build from an editable guest source tree
+
+CupidBuild reads the plan and project files from HomeFS. Compile lists
+preserve the source names that CupidC uses for includes and output. The
+kernel job reads the bootloader, linker script and symbol headers from
+the same project root.
+
+The guest ran `hello` and matched all eight outputs, including the
+generated installation files and three wrapped assets. The Linux worker
+contracts rejected malformed roots and preserved the preceding outputs.
+All 167 focused guest and terminal tests passed on Windows and WSL.
+The build graph audit passed on Windows.
+
+The first link-only replay started with stale objects. Its disk prefix
+differed from the checked image. The checker now replays the pass-one
+link before boot. It rejected the stale objects, then accepted the 430
+objects from a fresh checked build. All seven guest outputs matched,
+and the resulting disk booted with four CPUs and passed TLS, e1000,
+DHCP and `ls`. The full source replay from HomeFS is still running.
+
+## 2026-11-21 — Run the compiler rebuilt from the read-only plan
+
+CupidBuild compiled all thirteen CupidC worker objects. Both the objects
+and the 2,729,140-byte worker ELF matched the checked build. The rebuilt
+worker ran in the same guest and matched all 41,804 bytes of `ctool.o`.
+
 ## 2026-11-21 — Document the ELF user API and examples
 
 The user syscall header and the `cat`, `hello` and `ls` sources have

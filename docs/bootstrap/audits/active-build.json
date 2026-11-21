@@ -94378,21 +94378,21 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 121,
+      "lines": 120,
       "path": "bootstrap/guest/cupidbuild_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "e758a31bd3f601b293e52835b4de6f30b652464345bd0f5d228e772d636eb7f1"
+      "sha256": "8a745944d5f0a93f07ac8d249d46d799695c8aafbb40c6ce61d87d0a0a0f5f68"
     },
     {
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 115,
+      "lines": 132,
       "path": "bootstrap/guest/cupidbuild_kernel.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "340a36b7dc3ed5229166d03258e7bcf01cd93d2d87d09808e7a5d9fb8155c3ab"
+      "sha256": "5d69eb00878b90a2fa35b1f591e84b8a288187415d941fe6e612d895f4b0280a"
     },
     {
       "classification": "not_reached",
@@ -94438,11 +94438,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 229,
+      "lines": 242,
       "path": "bootstrap/guest/cupidc_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "d39a6e877aa87ec34376227a8d509c7445e6c53fceac56da58cc02adee1ba421"
+      "sha256": "162519a9e1e9b84a5c9fc03c3ac75acfb9b38b68113085c0da5b0cbab6fe9a36"
     },
     {
       "classification": "host_fixture",
@@ -94548,21 +94548,21 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 289,
+      "lines": 304,
       "path": "bootstrap/guest/guest_job.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "03c6059c14da21c9699ec7567c1e407559ecbad8f2760ac2d69afdfafd1a66e1"
+      "sha256": "f29588149b81ca83ecba045e22602830b7a098bd708cf05a5db456da2064047d"
     },
     {
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "c_header",
-      "lines": 66,
+      "lines": 68,
       "path": "bootstrap/guest/guest_job.h",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "045d506f11ec758afacd4d1cfe8d4122899b0c57e1d42bf2a5ea8e50a9d5235d"
+      "sha256": "9a52d71cb42f43da8a7ab4a12f195b106bf9ec419cb38e7dd81fd382cba47caa"
     },
     {
       "classification": "not_reached",

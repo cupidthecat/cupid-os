@@ -117,6 +117,8 @@ four CPUs and ran `ls`.
 The source-media worker reads jobs and assets from `/plan` and headers
 from `/src`. Source lists share compiler options. Asset lists share a
 wrapping mode. The production replay uses three read-only mounts.
+The installed-tree mode runs the editable HomeFS plan against
+`/home/project`. The compile lists keep the project's logical paths.
 Its `kernel` job takes the pass-one object list and runs both links,
 symbol generation, and disk-prefix publication. HomeFS starts fresh for
 outputs. Linux or WSL still prepares the ISOs.

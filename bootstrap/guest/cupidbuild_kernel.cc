@@ -12,11 +12,12 @@
 #define KERNEL_ELF "/home/kernel.elf"
 #define KERNEL_BIN "/home/kernel.bin"
 #define DISK_PREFIX "/home/disk-prefix.img"
-#define LINK_SCRIPT "\nscript\n/src/link.ld\n"
+#define BOOT_SOURCE "/boot/boot.asm"
 #define PASS_ONE_LIMIT (CUPID_GUEST_LINK_INPUT_LIMIT - 1u)
 
 typedef struct {
-    char list[CUPID_GUEST_PATH_BYTES(PASS_ONE_LIMIT)];
+    char list[CUPID_GUEST_PATH_BYTES(PASS_ONE_LIMIT + 1u) + sizeof("root ")];
+    const char *root;
     ctool_string_t objects[PASS_ONE_LIMIT];
     ctool_u32 count;
     char link[CUPID_GUEST_PATH_BYTES(CUPID_GUEST_LINK_INPUT_LIMIT + 3u)];
@@ -28,6 +29,9 @@ static int read_objects(cupid_syscall_table_t *sys, const cupid_guest_request_t 
         return 0;
     char *cursor = inputs->list;
     char *end = cursor + size;
+    if (!cupid_guest_read_root(sys, &cursor, end, "/src", &inputs->root) ||
+        strlen(inputs->root) + sizeof(BOOT_SOURCE) > VFS_MAX_PATH)
+        return 0;
     inputs->count = 0;
     while (cursor < end && inputs->count < PASS_ONE_LIMIT) {
         char *line = cupid_guest_next_job_line(&cursor, end);
@@ -47,34 +51,47 @@ static int read_objects(cupid_syscall_table_t *sys, const cupid_guest_request_t 
     return cursor == end && inputs->count != 0u;
 }
 
+static char *append_text(char *out, const char *text) {
+    size_t size = strlen(text);
+    memcpy(out, text, size + 1u);
+    return out + size;
+}
+
 static ctool_string_t link_request(kernel_inputs_t *inputs, int final_link) {
-    const char *header = final_link ? KERNEL_ELF LINK_SCRIPT : PASS_ONE LINK_SCRIPT;
-    size_t size = strlen(header);
-    memcpy(inputs->link, header, size);
+    char *end = append_text(inputs->link, final_link ? KERNEL_ELF : PASS_ONE);
+    end = append_text(end, "\nscript\n");
+    end = append_text(end, inputs->root);
+    end = append_text(end, "/link.ld\n");
     for (ctool_u32 i = 0; i < inputs->count; i++) {
         const ctool_string_t *path = &inputs->objects[i];
-        memcpy(inputs->link + size, path->data, path->size);
-        size += path->size;
-        inputs->link[size++] = '\n';
+        memcpy(end, path->data, path->size);
+        end += path->size;
+        *end++ = '\n';
     }
-    if (final_link) {
-        memcpy(inputs->link + size, SYMBOL_OBJECT "\n", sizeof(SYMBOL_OBJECT));
-        size += sizeof(SYMBOL_OBJECT);
-    }
-    return (ctool_string_t){inputs->link, size};
+    if (final_link)
+        end = append_text(end, SYMBOL_OBJECT "\n");
+    return (ctool_string_t){inputs->link, (size_t)(end - inputs->link)};
 }
 
 static ctool_status_t build_kernel(cupid_syscall_table_t *sys, const char *path, kernel_inputs_t *inputs) {
-    static const struct {
+    char boot[VFS_MAX_PATH + sizeof("\n" BOOT_BIN "\nbootloader\n")];
+    char symbols[2u * VFS_MAX_PATH + sizeof(SYMBOL_SOURCE "\n" SYMBOL_OBJECT "\ninclude \ninclude \n")];
+    char *end = append_text(boot, inputs->root);
+    append_text(end, BOOT_SOURCE "\n" BOOT_BIN "\nbootloader\n");
+    end = append_text(symbols, SYMBOL_SOURCE "\n" SYMBOL_OBJECT "\ninclude ");
+    end = append_text(end, inputs->root);
+    end = append_text(end, "/kernel/cpu\ninclude ");
+    end = append_text(end, inputs->root);
+    append_text(end, "/kernel/core\n");
+    const struct {
         const char *name;
         cupid_guest_operation_t run;
         const char *text;
     } steps[] = {
-        {"bootloader", cupid_guest_raw_job, "/src/boot/boot.asm\n" BOOT_BIN "\nbootloader\n"},
+        {"bootloader", cupid_guest_raw_job, boot},
         {"pass-one link", cupid_guest_link_job, NULL},
         {"symbol source", cupid_guest_symbols_job, PASS_ONE "\n" SYMBOL_SOURCE "\n"},
-        {"symbol object", cupid_guest_compile_job, SYMBOL_SOURCE "\n" SYMBOL_OBJECT
-         "\ninclude /src/kernel/cpu\ninclude /src/kernel/core\n"},
+        {"symbol object", cupid_guest_compile_job, symbols},
         {"final link", cupid_guest_link_job, NULL},
         {"raw kernel", cupid_guest_object_job, KERNEL_ELF "\n" KERNEL_BIN "\n"},
         {"disk prefix", cupid_guest_disk_job, BOOT_BIN "\n" KERNEL_BIN "\n" DISK_PREFIX "\n"},

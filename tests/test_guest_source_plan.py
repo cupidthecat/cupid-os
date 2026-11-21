@@ -90,6 +90,42 @@ class GuestSourcePlanTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "no guest source job for kernel/missing[.]o"):
             guest_plan.source_plan(self.root, False)
 
+    def test_installed_tree_keeps_logical_source_names_and_link_order(self):
+        steps, inputs, references = guest_plan.source_plan(self.root, True, installed_tree=True)
+        _, media_inputs, media_references = guest_plan.source_plan(self.root, True)
+        self.assertEqual((inputs, references), (media_inputs, media_references))
+        requests = {name: data for _, name, data in steps}
+        self.assertEqual(requests[b"source1.job"], guest_plan.job_contents(
+            "root /home/project", "define doom", "sources", "/kernel/doom/play.cc", "/tmp/i000.o",
+        ))
+        self.assertEqual(requests[b"asset0.job"], guest_plan.job_contents(
+            "wrap", "/home/project", "/bin/readme.txt", "/tmp/i001.o",
+        ))
+        self.assertIn(b"include /home/project/kernel/fs\n", requests[b"install0.job"])
+        self.assertTrue(requests[b"a0.job"].startswith(b"/home/project/kernel/core/isr.asm\n"))
+        self.assertEqual(requests[b"kernel.job"], guest_plan.job_contents(
+            "root /home/project", *(f"/tmp/i{index:03}.o" for index in range(len(self.objects) - 1)),
+        ))
+
+    def test_installed_tree_stages_editable_plan_and_source_in_homefs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            scratch = Path(temporary)
+            source = Path("kernel/main.cc")
+            (scratch / source.parent).mkdir()
+            (scratch / source).write_bytes(b"int main(void) { return 0; }\n")
+            steps = (("compile-list", b"sources.job", b"root /home/project\nsources\n"),)
+            with patch.multiple(guest_plan, write_homefs=DEFAULT, create_disk=DEFAULT) as calls:
+                image = scratch / "build.img"
+                guest_plan.stage_installed_tree(scratch, scratch, image, steps, {source})
+            _, entries = calls["write_homefs"].call_args.args
+            self.assertEqual(dict(entries), {
+                b"cupidbuild.job": b"compile-list\n/home/jobs/00/sources.job\n",
+                b"jobs/00/sources.job": steps[0][2],
+                b"project/kernel/main.cc": (scratch / source).read_bytes(),
+            })
+            self.assertEqual(calls["create_disk"].call_args.args[-1],
+                             f"{guest_plan.BUILD / 'cupidbuild-guest.elf'}:/b")
+
     def test_source_lists_preserve_member_order_and_split_at_the_limit(self):
         extra = ["bin/link.o", "bin/logo.o", "bin/title.o", "kernel/core/helpers.o"]
         self.objects[6:6] = extra
@@ -201,9 +237,11 @@ class GuestSourcePlanTests(unittest.TestCase):
 
     def test_link_only_stages_checked_objects_and_one_kernel_request(self):
         scratch = Path("scratch")
-        with patch.object(Path, "is_file", return_value=True), patch.object(guest_plan, "replay") as replay:
+        with patch.object(Path, "is_file", return_value=True), \
+                patch.multiple(guest_plan, verify_pass_one=DEFAULT, replay=DEFAULT) as calls:
             guest_plan.check_kernel_job(scratch, self.root, "qemu", 10)
-        _, _, _, _, steps, mounts, inputs, references, staged = replay.call_args.args
+        calls["verify_pass_one"].assert_called_once_with(scratch, self.root, self.objects[:-1])
+        _, _, _, _, steps, mounts, inputs, references, staged = calls["replay"].call_args.args
         self.assertEqual(mounts, (("s.iso", "/src"),))
         self.assertEqual(inputs, ((self.root, guest_plan.iso_members(guest_plan.KERNEL_BUILD_FILES)),))
         self.assertEqual(references, {})
@@ -219,6 +257,20 @@ class GuestSourcePlanTests(unittest.TestCase):
                 patch.object(guest_plan, "replay") as replay:
             with self.assertRaisesRegex(ValueError, "checked pass-one objects are missing: kernel/doom/play.o"):
                 guest_plan.check_kernel_job(Path("scratch"), self.root, "qemu", 10)
+        replay.assert_not_called()
+
+    def test_link_only_rejects_stale_objects_before_staging(self):
+        def read_binary(path):
+            return b"stale" if path.name == "checked-pass-one.elf" else b"expected"
+
+        with patch.object(Path, "is_file", return_value=True), \
+                patch.object(Path, "read_bytes", read_binary), \
+                patch.object(guest_plan.subprocess, "run") as link, \
+                patch.object(guest_plan, "replay") as replay:
+            with self.assertRaisesRegex(ValueError, "staged objects differ from the checked pass-one link"):
+                guest_plan.check_kernel_job(Path("scratch"), self.root, "qemu", 10)
+        expected_objects = [self.root / name for name in self.objects[:-1]]
+        self.assertEqual(link.call_args.args[0][-len(expected_objects):], expected_objects)
         replay.assert_not_called()
 
 

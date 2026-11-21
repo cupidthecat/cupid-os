@@ -314,7 +314,8 @@ test request from FAT16 and runs the rebuilt executable. The replay
 compares every object, the executable, and its output with the checked build.
 
 ```sh
-make -C bootstrap/guest source-iso guest-media-build guest-build +  guest-compiler guest-assembler guest-linker guest-object
+make -C bootstrap/guest source-iso guest-media-build guest-build \
+  guest-compiler guest-assembler guest-linker guest-object
 python3 bootstrap/guest/check_guest_peer_self_host.py cupidc --production-root /path/to/checked/build
 python3 bootstrap/guest/check_guest_peer_self_host.py cupidasm --production-root /path/to/checked/build
 python3 bootstrap/guest/check_guest_peer_self_host.py cupidld --production-root /path/to/checked/build
@@ -334,6 +335,10 @@ object inside the same guest.
 The read-only CupidLD replay matched all five worker objects, the
 260,400-byte linker ELF, and the `hello` ELF it produced. The compiler
 source ISO readback matched 58 files and seven directories.
+
+The read-only CupidC replay matched all thirteen objects and the
+2,729,140-byte compiler ELF. The rebuilt compiler ran in the same guest
+and matched the 41,804-byte `ctool.o`.
 
 ## Run a build plan inside Cupid OS
 
@@ -655,6 +660,19 @@ are on `/src`. Doom has its own mount at `/src/kernel/doom`. The plan ISO
 contains requests under `/plan/jobs` and assets under `/plan/assets`.
 HomeFS starts fresh and holds outputs created by the guest.
 
+Build the HomeFS worker to try an editable project:
+
+```sh
+make -C bootstrap/guest guest-build
+python3 bootstrap/guest/check_guest_source_plan.py --production-root /path/to/checked/build --installed-tree --temporary-objects
+```
+
+The checker stages the project at `/home/project` and the plan at
+`/home/cupidbuild.job`. The guest reads both from HomeFS. The compile
+list keeps its logical source and include paths, and the kernel job
+finds the bootloader, script and symbol headers under the project root.
+See [ADR 0504](../adr/0504-build-from-an-installed-guest-source-tree.md).
+
 CupidBuild runs the source and asset lists in order. Each list shares
 compiler options or an asset wrapping mode. The 430-object plan now uses
 19 requests, so the assets fit on the plan ISO. See
@@ -673,8 +691,9 @@ generation, then writes the raw kernel and disk prefix. The host supplies
 the object order once. See [ADR 0502](../adr/0502-run-the-kernel-build-sequence-in-guest-cupidbuild.md).
 
 Add `--link-only` to stage checked objects and test the kernel job without
-recompiling them. The checker compares the seven resulting files and
-boots the new disk with four CPUs.
+recompiling them. The checker first replays the pass-one link on the host
+to catch stale objects before boot. It then compares the seven guest
+outputs and boots the new disk with four CPUs.
 
 The first Linux contract caught an uninitialized syscall table in the kernel
 job module. Each worker now initializes its own table before using it. The

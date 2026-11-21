@@ -86,6 +86,8 @@ a reboot.
 A compile-list job starts with the usual compiler options, then a line
 containing sources. Write one source path and one output .o path per
 pair. CupidBuild uses the same options for every source.
+An optional first line such as root /home/project selects the source
+directory. Source and include paths keep their names within the project.
 
 An asset-list job starts with wrap, wrap-text or wrap-jpeg, followed by
 the absolute asset directory. Each source path is relative to that
@@ -109,6 +111,8 @@ ELFs and the disk prefix. The job lists up to 511 distinct pass-one .o
 paths in link order, one per line. CupidBuild reads boot/boot.asm and
 link.ld from /src, generates the symbol object between links, and saves
 the disk prefix as /home/disk-prefix.img.
+The editable plan can also run this job. Add root /home/project on its
+first line to read boot/boot.asm, link.ld and headers from that tree.
 
 >h2 Assemble a relocatable object
 
