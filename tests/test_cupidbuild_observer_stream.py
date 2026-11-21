@@ -1,3 +1,6 @@
+## @file
+#  @brief Test streamed reads through native source observers.
+
 """Bounded retained file capture, whole-file digests and live drift checks."""
 import hashlib
 import json

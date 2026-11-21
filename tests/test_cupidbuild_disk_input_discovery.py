@@ -1,3 +1,6 @@
+## @file
+#  @brief Check native disk-image input discovery and retained paths.
+
 """Exercise owned image inputs through native or supplied checked callers."""
 import os
 from pathlib import Path

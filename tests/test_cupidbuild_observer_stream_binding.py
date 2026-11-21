@@ -1,3 +1,6 @@
+## @file
+#  @brief Check retained source bindings during streamed reads.
+
 """Streamed payload observations at the existing guarded transaction boundary."""
 import os
 from pathlib import Path

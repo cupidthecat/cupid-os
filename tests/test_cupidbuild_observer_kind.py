@@ -1,3 +1,6 @@
+## @file
+#  @brief Check how source observers classify files and directories.
+
 """Retained kind discovery with native or supplied Cupid-built callers."""
 import os
 from pathlib import Path

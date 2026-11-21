@@ -1,3 +1,6 @@
+## @file
+#  @brief Check block reads and limits for retained input snapshots.
+
 """Exercise bounded snapshot checks through the public transaction interface."""
 import hashlib
 import json

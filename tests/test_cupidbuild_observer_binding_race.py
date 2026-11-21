@@ -1,3 +1,6 @@
+## @file
+#  @brief Check source bindings when observed paths change.
+
 """Actual borrowed-observer drift at the transaction's rename boundaries."""
 import os
 from pathlib import Path

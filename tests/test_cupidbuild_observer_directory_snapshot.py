@@ -1,3 +1,6 @@
+## @file
+#  @brief Check directory snapshots and membership drift.
+
 """Retained directory discovery through native or supplied checked callers.
 
 Set CUPIDBUILD_OBSERVER_DIRECTORY_SNAPSHOT_PROGRAM to use a supplied ordinary

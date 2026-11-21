@@ -1,3 +1,6 @@
+## @file
+#  @brief Test batch capture through native source observers.
+
 """Retained batch behavior, using native or supplied checked callers."""
 import os
 from pathlib import Path

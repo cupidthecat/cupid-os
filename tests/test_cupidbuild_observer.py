@@ -1,3 +1,6 @@
+## @file
+#  @brief Test the native source observer and its filesystem checks.
+
 """Real-filesystem contract for retained, read-only native observations."""
 import os
 import json

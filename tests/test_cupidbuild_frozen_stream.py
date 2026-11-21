@@ -1,3 +1,6 @@
+## @file
+#  @brief Test frozen input streams and their publication checks.
+
 """Check complete bounded frozen copies through the public transaction API."""
 import hashlib
 import json
