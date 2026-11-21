@@ -1,3 +1,8 @@
+/**
+ * @file cupidbuild_main.cc
+ * @brief Parse CupidBuild command-line requests.
+ */
+
 #include "cupidbuild.h"
 #include "cupidbuild_artifacts.h"
 #include "cupidbuild_host.h"
@@ -48,6 +53,10 @@ static void cupidbuild_usage(FILE *stream) {
                           "       cupidbuild publish-iso-fixture --root ROOT --manifest MANIFEST "
                           "--fixtures DIRECTORY --output OUTPUT --linux-manifest MANIFEST "
                           "--windows-manifest MANIFEST --seed-release RELEASE\n"
+                          "       cupidbuild image [--root ROOT] [--seed-release RELEASE] "
+                          "--seed-manifest MANIFEST --image OUTPUT --bootloader BOOT --kernel KERNEL "
+                          "--hdd-mb MB --fat-start-lba LBA [--force-format] "
+                          "[--stage SOURCE:DEST] [--wads WAD ...]\n"
                           "usage: cupidbuild run --seed-manifest MANIFEST "
                           "--root ROOT --tool {cupidc|cupidobj|cupidld} [--timeout SECONDS] "
                           "[--seed-release RELEASE] -- "
@@ -71,6 +80,32 @@ static int cupidbuild_take_value(int argc, char **argv, int *index, const char *
     *index = *index + 1;
     *value_out = argv[*index];
     return 1;
+}
+
+static int cupidbuild_disk_command(int argc, char **argv) {
+    const char *root = NULL;
+    const char *release = NULL;
+    char working_directory[8192];
+    int index = 2;
+    while (index < argc) {
+        int found = cupidbuild_take_value(argc, argv, &index, "--root", &root);
+        if (!found)
+            found = cupidbuild_take_value(argc, argv, &index, "--seed-release", &release);
+        if (found < 0) {
+            cupidbuild_usage(stderr);
+            return 2;
+        }
+        if (!found)
+            break;
+        index++;
+    }
+    if (!cupidbuild_host_absolute_root(root ? root : ".", working_directory,
+                                       sizeof(working_directory))) {
+        (void)fprintf(stderr, "cupidbuild: cannot resolve the image working directory\n");
+        return 1;
+    }
+    return cupidbuild_publish_disk_image(working_directory, release, (size_t)(argc - index),
+                                         (const char *const *)(argv + index));
 }
 
 static int cupidbuild_iso_command(int argc, char **argv) {
@@ -265,6 +300,8 @@ int main(int argc, char **argv) {
         return cupidbuild_user_abi_command(argc, argv);
     if (argc >= 2 && strcmp(argv[1], "publish-iso-fixture") == 0)
         return cupidbuild_iso_command(argc, argv);
+    if (argc >= 2 && strcmp(argv[1], "image") == 0)
+        return cupidbuild_disk_command(argc, argv);
     (void)memset(&request, 0, sizeof(request));
     (void)memset(&kernel_request, 0, sizeof(kernel_request));
     (void)memset(&profile_request, 0, sizeof(profile_request));

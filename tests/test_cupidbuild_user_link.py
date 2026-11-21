@@ -11,6 +11,7 @@ import time
 import unittest
 
 from tests.artifact_release_fixtures import replace_fixture_tool
+from tests.cupidbuild_cli_fixtures import CUPIDBUILD_DISK_MODULES
 from tests.test_cupidbuild_compile_kernel import ROOT, SEED, SUFFIX, checked_run
 from tools import bootstrap_toolchain as bootstrap
 from tools.cupidc_production_compile import USER_I386_ARGUMENTS, USER_SOURCES
@@ -73,7 +74,9 @@ class CupidBuildUserLinkTests(unittest.TestCase):
             cls.build_checked_tool(directory, 'cupidbuild', cls.program, 'target', caller)
         else:
             names = ('seed_manifest', 'seed_release', 'contract_parse_internal',
-                     'ctool', 'ctool_host', 'elf32', 'cupidbuild_host', 'cupidbuild', 'path_encoding') + getattr(cls, 'native_modules_extra', ())
+                     'ctool', 'ctool_host', 'elf32', 'cupidbuild_host', 'cupidbuild',
+                     'path_encoding', *CUPIDBUILD_DISK_MODULES,
+                     *getattr(cls, 'native_modules_extra', ()))
             command = [shutil.which('clang') or 'clang', '-std=c11', '-O2',
                        '-Wall', '-Wextra', '-Werror', '-D_CRT_SECURE_NO_WARNINGS',
                        '-DCUPIDBUILD_PUBLICATION_RACE_TEST', '-I', ROOT / 'toolchain',

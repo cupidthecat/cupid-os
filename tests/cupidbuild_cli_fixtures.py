@@ -16,6 +16,11 @@ from tools.cupidc_kernel_compile import _profile_input_manifest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
+CUPIDBUILD_DISK_MODULES = (
+    'cupidbuild_source_path', 'cupidbuild_source_file', 'cupidbuild_source_stage',
+    'cupidbuild_disk_integer', 'cupidbuild_disk_options', 'cupidbuild_disk_input_discovery',
+    'fat16_names', 'fat16_stage', 'disk_image',
+)
 BASELINE_JPEG = (
     b"\xff\xd8"
     b"\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00"

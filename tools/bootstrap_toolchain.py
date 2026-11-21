@@ -307,6 +307,7 @@ EXPECTED_STARTUP = "/toolchain/hosted/i386-linux/start.asm"
 CUPIDBUILD_CORE_FRAGMENTS = (
     "toolchain/cupidbuild_compile_inputs.inc",
     "toolchain/cupidbuild_compile_profile.inc",
+    "toolchain/cupidbuild_disk_image.inc",
     "toolchain/cupidbuild_kernel_image.inc",
     "toolchain/cupidbuild_validation.inc",
 )

@@ -1038,7 +1038,7 @@ class CupidBuildObserverTests(unittest.TestCase):
 
         def run(path):
             return subprocess.run([str(self.program), '', 'image-output',
-                                   path.as_posix().encode('utf-8').hex()],
+                                   str(path).encode('utf-8').hex()],
                                   cwd=self.parent, capture_output=True, timeout=20)
 
         path = alias / 'new' / 'deep' / 'image.bin'

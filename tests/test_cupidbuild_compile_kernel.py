@@ -14,6 +14,7 @@ import unittest
 from pathlib import Path
 
 from tests.artifact_release_fixtures import released_behavior_fixture, replace_fixture_tool
+from tests.cupidbuild_cli_fixtures import CUPIDBUILD_DISK_MODULES
 
 from tools.bootstrap_toolchain import (
     _candidate_build_plan,
@@ -116,12 +117,12 @@ int main(int argc, char **argv) {
 ''')
         cls.validator = directory / ("validate" + suffix)
         adapters = (("ctool_host_utf8", "cupidbuild_host_utf8", "path_encoding", "native_utf8")
-                    if os.name == "nt" else ("ctool_host", "cupidbuild_host"))
+                    if os.name == "nt" else ("ctool_host", "cupidbuild_host", "path_encoding"))
         checked_run(["clang" if os.name == "nt" else "cc", "-I", ROOT / "toolchain",
                      "-x", "c", harness, "-x", "none",
                      *[directory / (name + ".o") for name in
                        ("ctool", "elf32", "cupidbuild", "seed_manifest", "seed_release",
-                        "contract_parse_internal", *adapters)],
+                        "contract_parse_internal", *adapters, *CUPIDBUILD_DISK_MODULES)],
                      *(["-lntdll"] if os.name == "nt" else []), "-o", cls.validator])
 
     def setUp(self):

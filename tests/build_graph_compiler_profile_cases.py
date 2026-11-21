@@ -835,7 +835,7 @@ class CompilerProfileCases:
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 817,
+                    "active_sources": 818,
                     "features": 257,
                     "transforms": 455,
                     "unreachable_sources": 106,
@@ -867,7 +867,7 @@ class CompilerProfileCases:
                 self.assertEqual(unreachable[fixture], "host_fixture")
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (33, 8),
-                "c.expression.sizeof": (6673, 206),
+                "c.expression.sizeof": (6690, 207),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -1465,7 +1465,7 @@ class CompilerProfileCases:
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 159)
+            self.assertEqual(toolchain_cohort["source_count"], 160)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]

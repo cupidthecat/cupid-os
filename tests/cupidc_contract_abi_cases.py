@@ -254,7 +254,7 @@ class CupidCContractABICases:
             publication = cupidc_toolchain_contracts.verify_publication(output)
             self.assertEqual(publication["input_count"], 125)
             sources = publication["bootstrap"]["source_inputs"]
-            self.assertEqual(sources["count"], 123)
+            self.assertEqual(sources["count"], 124)
             self.assertTrue(set((*CUPIDBUILD_CORE_FRAGMENTS, *CUPIDBUILD_HOST_FRAGMENTS))
                             <= sources["files"].keys())
             completed = subprocess.CompletedProcess(

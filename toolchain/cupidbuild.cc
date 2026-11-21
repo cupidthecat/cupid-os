@@ -509,11 +509,9 @@ static int cupidbuild_seed_manifest_path(const char *working_directory, const ch
     return cupidbuild_join(resolved, capacity, working_directory, requested);
 }
 
-static int cupidbuild_seed_freeze(cupidbuild_host_transaction_t *transaction,
-                                  const char *working_directory, const char *requested_manifest,
-                                  int require_inside, int require_promoted,
-                                  const char *requested_release, cupidbuild_seed_capture_t *seed) {
-    const char *frozen_manifest = (const char *)0;
+static int cupidbuild_seed_validate_capture(cupidbuild_seed_capture_t *seed,
+                                             const unsigned char *release, size_t release_size,
+                                             int require_promoted) {
     char manifest_reason[128];
     cupid_seed_manifest_result_t parsed_manifest;
 #if defined(_WIN32)
@@ -521,8 +519,41 @@ static int cupidbuild_seed_freeze(cupidbuild_host_transaction_t *transaction,
 #else
     unsigned int manifest_format = 1u;
 #endif
-    size_t index;
     int manifest_valid;
+    if (release) {
+        manifest_valid = cupid_seed_manifest_validate_release(
+            release, release_size, seed->manifest, seed->manifest_size, manifest_format,
+            &parsed_manifest, manifest_reason, sizeof(manifest_reason));
+    } else {
+        manifest_valid = cupid_seed_manifest_validate(seed->manifest, seed->manifest_size,
+                                                      manifest_format, &parsed_manifest,
+                                                      manifest_reason, sizeof(manifest_reason));
+    }
+    if (!manifest_valid) {
+        (void)fprintf(stderr, "cupidbuild: checked seed manifest is invalid: %s\n",
+                      manifest_reason);
+        return 0;
+    }
+    memcpy(seed->artifacts, parsed_manifest.artifacts, sizeof(seed->artifacts));
+    seed->artifact_count = parsed_manifest.artifact_count;
+    seed->current_windows_plan = (int)parsed_manifest.current_windows_plan;
+    if (require_promoted != 0 && seed->artifact_count != CUPIDBUILD_SEED_ARTIFACTS) {
+        (void)fprintf(stderr, "cupidbuild: checked tool runner requires a promoted "
+                              "six-tool seed\n");
+        return 0;
+    }
+    return 1;
+}
+
+static int cupidbuild_seed_freeze(cupidbuild_host_transaction_t *transaction,
+                                  const char *working_directory, const char *requested_manifest,
+                                  int require_inside, int require_promoted,
+                                  const char *requested_release, cupidbuild_seed_capture_t *seed) {
+    const char *frozen_manifest = (const char *)0;
+    unsigned char *release = NULL;
+    size_t release_size = 0u;
+    size_t index;
+    int accepted;
     (void)memset(seed, 0, sizeof(*seed));
     if (!cupidbuild_seed_manifest_path(working_directory, requested_manifest, require_inside,
                                        seed->manifest_path, sizeof(seed->manifest_path))) {
@@ -544,8 +575,6 @@ static int cupidbuild_seed_freeze(cupidbuild_host_transaction_t *transaction,
     if (requested_release != (const char *)0) {
         char release_path[CUPIDBUILD_PATH_BYTES];
         const char *frozen_release = (const char *)0;
-        unsigned char *release;
-        size_t release_size = 0u;
         if (!cupidbuild_path_safe(requested_release, 0) ||
             !cupidbuild_seed_manifest_path(working_directory, requested_release, require_inside,
                                            release_path, sizeof(release_path))) {
@@ -563,28 +592,11 @@ static int cupidbuild_seed_freeze(cupidbuild_host_transaction_t *transaction,
             (void)fprintf(stderr, "cupidbuild: checked seed release is unreadable\n");
             return 0;
         }
-        manifest_valid = cupid_seed_manifest_validate_release(
-            release, release_size, seed->manifest, seed->manifest_size, manifest_format,
-            &parsed_manifest, manifest_reason, sizeof(manifest_reason));
-        free(release);
-    } else {
-        manifest_valid = cupid_seed_manifest_validate(seed->manifest, seed->manifest_size,
-                                                      manifest_format, &parsed_manifest,
-                                                      manifest_reason, sizeof(manifest_reason));
     }
-    if (!manifest_valid) {
-        (void)fprintf(stderr, "cupidbuild: checked seed manifest is invalid: %s\n",
-                      manifest_reason);
+    accepted = cupidbuild_seed_validate_capture(seed, release, release_size, require_promoted);
+    free(release);
+    if (!accepted)
         return 0;
-    }
-    memcpy(seed->artifacts, parsed_manifest.artifacts, sizeof(seed->artifacts));
-    seed->artifact_count = parsed_manifest.artifact_count;
-    seed->current_windows_plan = (int)parsed_manifest.current_windows_plan;
-    if (require_promoted != 0 && seed->artifact_count != CUPIDBUILD_SEED_ARTIFACTS) {
-        (void)fprintf(stderr, "cupidbuild: checked tool runner requires a promoted "
-                              "six-tool seed\n");
-        return 0;
-    }
     if (!cupidbuild_manifest_directory(seed->manifest_path, seed->directory,
                                        sizeof(seed->directory))) {
         (void)fprintf(stderr, "cupidbuild: checked seed manifest is invalid: artifact "
@@ -1230,3 +1242,5 @@ done:
 int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request) {
     return cupidbuild_run_checked_tool_with_release(request, (const char *)0);
 }
+
+#include "cupidbuild_disk_image.inc"

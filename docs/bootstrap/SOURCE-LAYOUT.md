@@ -34,10 +34,10 @@ installed with the other `/bin` sources so the shell can compile `ssh`.
 Keep command parsing, format handling and publication in focused modules.
 Compare emitted objects and checked seed outputs after moving code.
 
-CupidBuild keeps its entry points in `cupidbuild.cc`. Four private includes
-hold compiler inputs, profile transactions, kernel image work and executable
-validation. The build audit tracks each include and bootstrap freezes it with
-the rest of the producer sources.
+CupidBuild keeps its entry points in `cupidbuild.cc`. Five private includes
+hold compiler inputs, profile transactions, kernel image work, FAT16 image
+publication and executable validation. The build audit tracks each include
+and bootstrap freezes it with the rest of the producer sources.
 
 Hosted output preparation and source path checks live in
 `toolchain/cupidbuild_host_source_paths.inc`. The remaining host adapter

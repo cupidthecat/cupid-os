@@ -758,7 +758,7 @@ class BootstrapSeedManifestCases:
         source_inventory = capture_source_snapshot(
             REPO_ROOT, candidate_plan, windows_utf8=True
         )
-        self.assertEqual(len(source_inventory), 120)
+        self.assertEqual(len(source_inventory), 121)
         for path in (
             "toolchain/hosted/i386-linux/include/cupid_runtime.h",
             "toolchain/cupidbuild.cc",
@@ -767,6 +767,7 @@ class BootstrapSeedManifestCases:
             "toolchain/cupidbuild_host_external_inputs.inc",
             "toolchain/cupidbuild_host_frozen_inputs.inc",
             "toolchain/cupidbuild_host_source_paths.inc",
+            "toolchain/cupidbuild_disk_image.inc",
             "toolchain/cupidbuild_jpeg.h",
             "toolchain/cupidbuild_main.cc",
         ):

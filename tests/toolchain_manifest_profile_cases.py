@@ -280,7 +280,8 @@ class ManifestProfileCases:
                         self.assertEqual(bad.returncode, 1, bad.stderr)
                         self.assertEqual(bad.stdout, "")
 
-        core = CUPIDBUILD_CORE_FRAGMENTS
+        core = tuple(name for name in CUPIDBUILD_CORE_FRAGMENTS
+                     if name != "toolchain/cupidbuild_disk_image.inc")
         for name in core:
             data = (REPO_ROOT / name).read_bytes()
             sources["files"][name] = {"size": len(data), "sha256": _digest(data)}
@@ -316,14 +317,14 @@ class ManifestProfileCases:
             data = (REPO_ROOT / name).read_bytes()
             sources["files"][name] = {"size": len(data), "sha256": _digest(data)}
         sources["count"] = len(sources["files"])
-        self.assertEqual(sources["count"], 123)
+        self.assertEqual(sources["count"], 124)
         sources["sha256"] = _digest(_json_bytes(sources["files"]))
         for mode in ("author", "check"):
             with self.subTest(mode=mode):
                 run = self.run_author_request if mode == "author" else self.run_request
                 good = run(_owner_context_request(mode, manifest=manifest, **profile))
                 self.assertEqual(good.returncode, 0, good.stderr)
-                for name in CUPIDBUILD_HOST_FRAGMENTS:
+                for name in (*CUPIDBUILD_HOST_FRAGMENTS, "toolchain/cupidbuild_disk_image.inc"):
                     with self.subTest(source=name):
                         changed = copy.deepcopy(manifest)
                         snapshot = changed["bootstrap"]["source_inputs"]

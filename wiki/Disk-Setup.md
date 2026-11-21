@@ -29,25 +29,16 @@ The normal build and host-copy flow uses `tools/hostbuild.py` and works on
 Linux and native Windows with Python 3. `mtools` is optional for manual FAT16
 inspection/copying.
 
-The normal `make` image target runs checked-seed CupidObj `disk-template` on
-private bootloader and kernel copies. CupidObj writes the pristine prefix from
-the MBR through the empty FAT16 root directory. Python separately renders a
-layout oracle and stops if its bytes differ from CupidObj's candidate.
+The normal `make` image target uses checked-seed CupidObj to write the layout
+from the MBR through the empty FAT16 root directory. Python verifies the layout,
+copies the boot files and stages the requested files. It reuses a valid FAT
+volume so its existing files survive, then checks the inputs and publishes
+the result atomically.
 
-For a fresh, invalid, or force-formatted image, Python extends the complete
-template to the requested disk size. When it reuses a valid image, it replaces
-only the bytes before the FAT partition, so existing FAT files survive. Python
-then stages frozen inputs, checks for live input or output changes, and
-publishes the finished image with an atomic replacement. [ADR 0238](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/adr/0238-publish-normal-disk-images-from-cupidobj-templates.md)
-records this split between template authorship and persistent disk handling.
-The guarded recipe built a fresh 209,715,200-byte image with SHA-256
-`8ad90a91103bf48d1e8d1e20b1b3dee48122ed1e4059b3f94cce7d750c262f16`.
-A private four-CPU `/bin/ls.cc` JIT boot passed from that image in 61.9 seconds.
-At a later handoff checkpoint, a rebuild preserved the existing FAT data. Its
-image had
-SHA-256
-`d1bfab4aed1f2116768ceed3e301fb14ffe2a36418eb4d4ebdf1108097cb2b05`,
-and a private four-CPU JIT boot passed from it in 66.8 seconds.
+A [CupidBuild rebuilt from the current source](CupidBuild) also exposes the
+complete `image` command. The Windows and Linux builds produced the same
+200 MiB image as the normal recipe with the test ISO and Freedoom WAD. The Linux
+image booted with four CPUs and ran `ls` from the desktop terminal.
 
 The alternate loop-mount method is Linux/WSL-only and needs root/sudo access:
 

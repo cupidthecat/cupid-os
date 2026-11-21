@@ -8476,6 +8476,12 @@ int cupidbuild_host_freeze_input_bounded(cupidbuild_host_transaction_t *transact
                                                  0, NULL);
 }
 
+unsigned long long cupidbuild_host_initial_output_extent(
+    const cupidbuild_host_transaction_t *transaction) {
+    return transaction && transaction->initial_output_snapshot.present
+               ? transaction->initial_output_snapshot.size : 0u;
+}
+
 int cupidbuild_host_freeze_previous_output(cupidbuild_host_transaction_t *transaction,
                                            const char *private_name, const char **frozen_path_out,
                                            cupidbuild_host_snapshot_t *snapshot_out) {

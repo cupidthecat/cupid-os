@@ -86,7 +86,7 @@ static const char manifest_report_schema[] = "cupid.toolchain-manifest-verificat
 #define MANIFEST_JPEG_BOOTSTRAP_FILE_COUNT 115u
 #define MANIFEST_BUILD_SPLIT_BOOTSTRAP_FILE_COUNT 117u
 #define MANIFEST_BUILD_SPLIT_MAX_BOOTSTRAP_FILE_COUNT 119u
-#define MANIFEST_MAX_BOOTSTRAP_FILE_COUNT 123u
+#define MANIFEST_MAX_BOOTSTRAP_FILE_COUNT 124u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
 #define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 29u
@@ -366,6 +366,7 @@ static const char *const manifest_expected_bootstrap_paths[MANIFEST_MAX_BOOTSTRA
     "toolchain/cupidbuild_host_candidate_store.inc",
     "toolchain/cupidbuild_host_frozen_inputs.inc",
     "toolchain/cupidbuild_host_source_paths.inc",
+    "toolchain/cupidbuild_disk_image.inc",
 };
 
 static int manifest_bootstrap_count_valid(size_t count) {

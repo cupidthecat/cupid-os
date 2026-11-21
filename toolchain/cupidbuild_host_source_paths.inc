@@ -1125,10 +1125,20 @@ int cupidbuild_host_image_output_prepare(const char *absolute,
     }
     valid = cupidbuild_observer_close_handle(handle);
     if (valid && strcmp(parent, ancestor) != 0) {
+        int windows = cupidbuild_host_execution_format() == 2u;
+        char *unit;
         relative = absolute + strlen(ancestor);
-        while (*relative == '/')
+        while (*relative == '/' || (windows && *relative == '\\'))
             relative++;
-        valid = cupidbuild_host_output_parent_prepare(physical, relative, &preparation);
+        valid = cupidbuild_host_copy_text(next, sizeof(next), relative);
+        if (valid && windows) {
+            for (unit = next; *unit; unit++) {
+                if (*unit == '\\')
+                    *unit = '/';
+            }
+        }
+        if (valid)
+            valid = cupidbuild_host_output_parent_prepare(physical, next, &preparation);
     }
     if (valid)
         valid = cupidbuild_host_observer_resolve_source_root_quota(

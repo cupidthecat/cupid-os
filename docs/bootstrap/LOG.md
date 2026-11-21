@@ -1,5 +1,38 @@
 # Bootstrapping log
 
+## 2026-11-21 — Run the disk image command with CupidBuild
+
+`cupidbuild image` now captures the bootloader, kernel, stage files and
+authorized seed inputs, composes the FAT16 image in ranges and publishes it
+through the guarded output transaction. It can create missing output parents
+and use inputs outside the checkout. A match keeps the existing file and its
+timestamp. The command accepts images up to 2 GiB minus one byte. The normal
+Make recipe still uses Python.
+
+Both native and Cupid-built commands passed the image tests on Windows and
+WSL. The tests cover Unicode paths, missing optional inputs, WAD staging,
+unchanged images and rejection of an invalid release or extra executable.
+The first Windows external-path probe could not create a nested output when
+given backslashes. The path helper now normalizes the suffix it passes to
+directory creation.
+
+The checked commands each produced a 200 MiB image with the real ISO and
+Freedoom WAD. Both matched all 3,200 blocks of the Python image. The complete
+SHA-256 is `8f4726f75d1d2319b9a0f999656c4f6bdb0db134562981d06bf898a01c50e78a`.
+The WSL image passed the four-CPU e1000 boot, TLS checks and `ls` JIT smoke.
+The image hash stayed the same after the private boot. The 124-input Windows
+producer reached a fixed point from source snapshot SHA-256
+`2da61ade02c05452c1fc645560264c12fbd03e142291ce338e257d2e600f9e0c`.
+The paired preparations used the same snapshot. Linux retained 45 objects
+and six tools per stage. Windows retained 54 objects and six tools. All
+stage-three and stage-four products matched on each host. The completed image
+and boot logs are archived in `cupid-native-image-command-proofs-20261121.tar.gz`.
+
+The first seed regression run found an old fixture that treated the image
+include as part of a historical profile. It also found native fixture links
+that needed the disk objects. The fixtures now keep the historical inventory
+and link the same disk objects as the command.
+
 ## 2026-11-21 — Retain the seed executable set during publication
 
 An observer can retain the exact executable names in a seed directory. The

@@ -3481,6 +3481,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -6963,6 +6964,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -7346,6 +7348,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -7729,6 +7732,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -8112,6 +8116,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -8495,6 +8500,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -8878,6 +8884,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -9261,6 +9268,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -9644,6 +9652,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -10027,6 +10036,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -10410,6 +10420,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -10793,6 +10804,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -11176,6 +11188,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -11559,6 +11572,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -11942,6 +11956,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -12325,6 +12340,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -12708,6 +12724,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -13091,6 +13108,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -13474,6 +13492,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -13857,6 +13876,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -14240,6 +14260,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -14623,6 +14644,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -15006,6 +15028,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -15389,6 +15412,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -15772,6 +15796,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -16155,6 +16180,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -16538,6 +16564,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -16921,6 +16948,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -17304,6 +17332,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -17687,6 +17716,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -18070,6 +18100,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -18453,6 +18484,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -18836,6 +18868,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -19219,6 +19252,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -19602,6 +19636,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -19985,6 +20020,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -20368,6 +20404,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -20751,6 +20788,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -21134,6 +21172,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -21517,6 +21556,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -21900,6 +21940,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -22283,6 +22324,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -22666,6 +22708,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -23049,6 +23092,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -23432,6 +23476,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -23815,6 +23860,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -24198,6 +24244,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -24581,6 +24628,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -24964,6 +25012,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -25347,6 +25396,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -25730,6 +25780,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -26113,6 +26164,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -26496,6 +26548,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -26879,6 +26932,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -27262,6 +27316,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -27645,6 +27700,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -28028,6 +28084,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -28411,6 +28468,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -28794,6 +28852,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -29177,6 +29236,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -29560,6 +29620,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -29943,6 +30004,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -30326,6 +30388,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -30709,6 +30772,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -31092,6 +31156,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -31475,6 +31540,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -31858,6 +31924,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -32241,6 +32308,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -32624,6 +32692,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -33007,6 +33076,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -33390,6 +33460,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -33773,6 +33844,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -34156,6 +34228,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -34539,6 +34612,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -34922,6 +34996,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -35305,6 +35380,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -35688,6 +35764,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -36071,6 +36148,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -36454,6 +36532,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -36837,6 +36916,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -37220,6 +37300,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -37603,6 +37684,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -37986,6 +38068,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -38369,6 +38452,7 @@
           "toolchain/cupidbuild_artifacts.h",
           "toolchain/cupidbuild_compile_inputs.inc",
           "toolchain/cupidbuild_compile_profile.inc",
+          "toolchain/cupidbuild_disk_image.inc",
           "toolchain/cupidbuild_disk_input_discovery.h",
           "toolchain/cupidbuild_disk_integer.h",
           "toolchain/cupidbuild_disk_integer_tables.inc",
@@ -44730,7 +44814,7 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 4,
+              "line": 9,
               "path": "toolchain/cupidbuild.h",
               "text": "#if !defined(CUPID_HOSTED_SIZE_T_DEFINED)"
             },
@@ -44935,73 +45019,73 @@
             },
             {
               "directive": "if",
-              "line": 8587,
+              "line": 8593,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8999,
+              "line": 9005,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9129,
+              "line": 9135,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9707,
+              "line": 9713,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9714,
+              "line": 9720,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9970,
+              "line": 9976,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10045,
+              "line": 10051,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10187,
+              "line": 10193,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10372,
+              "line": 10378,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10548,
+              "line": 10554,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10570,
+              "line": 10576,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11008,
+              "line": 11014,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
             }
@@ -45846,121 +45930,121 @@
             },
             {
               "directive": "if",
-              "line": 8589,
+              "line": 8595,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 8699,
+              "line": 8705,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 8796,
+              "line": 8802,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 9367,
+              "line": 9373,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 9452,
+              "line": 9458,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 9494,
+              "line": 9500,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 10469,
+              "line": 10475,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 10574,
+              "line": 10580,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 11435,
+              "line": 11441,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 11462,
+              "line": 11468,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 11579,
+              "line": 11585,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 11627,
+              "line": 11633,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 11669,
+              "line": 11675,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12003,
+              "line": 12009,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12023,
+              "line": 12029,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12064,
+              "line": 12070,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12082,
+              "line": 12088,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 12660,
+              "line": 12666,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "elif",
-              "line": 13730,
+              "line": 13736,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#elif defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 13844,
+              "line": 13850,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
@@ -46015,13 +46099,13 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 12872,
+              "line": 12878,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_DIRECTORY_SNAPSHOT_TEST)"
             },
             {
               "directive": "if",
-              "line": 12879,
+              "line": 12885,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_DIRECTORY_SNAPSHOT_TEST)"
             }
@@ -46061,7 +46145,7 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 676,
+              "line": 680,
               "path": "toolchain/cupidbuild_host.h",
               "text": "#if defined(CUPIDBUILD_HOST_CLOSE_FAILURE_TEST) && !defined(_WIN32)"
             }
@@ -46317,7 +46401,7 @@
             },
             {
               "directive": "if",
-              "line": 10129,
+              "line": 10135,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST)"
             }
@@ -46346,19 +46430,19 @@
             },
             {
               "directive": "if",
-              "line": 10661,
+              "line": 10667,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST) && !defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 10702,
+              "line": 10708,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST) && !defined(CUPIDBUILD_CUSTOM_LINUX)"
             },
             {
               "directive": "if",
-              "line": 10803,
+              "line": 10809,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST) && !defined(CUPIDBUILD_CUSTOM_LINUX)"
             }
@@ -46473,19 +46557,19 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 11945,
+              "line": 11951,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPID_HOSTED_I386_WINDOWS_H)"
             },
             {
               "directive": "if",
-              "line": 13092,
+              "line": 13098,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPID_HOSTED_I386_WINDOWS_H)"
             },
             {
               "directive": "if",
-              "line": 13313,
+              "line": 13319,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPID_HOSTED_I386_WINDOWS_H)"
             },
@@ -46924,19 +47008,19 @@
             },
             {
               "directive": "if",
-              "line": 519,
+              "line": 517,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 598,
+              "line": 610,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 636,
+              "line": 648,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -47404,163 +47488,157 @@
             },
             {
               "directive": "if",
-              "line": 8527,
+              "line": 8533,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8638,
+              "line": 8644,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8682,
+              "line": 8688,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8756,
+              "line": 8762,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8835,
+              "line": 8841,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8918,
+              "line": 8924,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 8967,
+              "line": 8973,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9079,
+              "line": 9085,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9097,
+              "line": 9103,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9156,
+              "line": 9162,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9190,
+              "line": 9196,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9199,
+              "line": 9205,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9211,
+              "line": 9217,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9228,
+              "line": 9234,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9299,
+              "line": 9305,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9352,
+              "line": 9358,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9387,
+              "line": 9393,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9488,
+              "line": 9494,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9524,
+              "line": 9530,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9607,
+              "line": 9613,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9659,
+              "line": 9665,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9751,
+              "line": 9757,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9773,
+              "line": 9779,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9810,
+              "line": 9816,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9899,
+              "line": 9905,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 9919,
-              "path": "toolchain/cupidbuild_host.cc",
-              "text": "#if defined(_WIN32)"
-            },
-            {
-              "directive": "if",
-              "line": 9933,
+              "line": 9925,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -47578,31 +47656,31 @@
             },
             {
               "directive": "if",
-              "line": 9957,
+              "line": 9951,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10004,
+              "line": 9963,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10078,
+              "line": 10010,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10159,
+              "line": 10084,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10175,
+              "line": 10165,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -47614,43 +47692,43 @@
             },
             {
               "directive": "if",
-              "line": 10193,
+              "line": 10187,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10201,
+              "line": 10199,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10211,
+              "line": 10207,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10230,
+              "line": 10217,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10238,
+              "line": 10236,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10283,
+              "line": 10244,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10340,
+              "line": 10289,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -47662,247 +47740,253 @@
             },
             {
               "directive": "if",
-              "line": 10351,
+              "line": 10352,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10363,
+              "line": 10357,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10385,
+              "line": 10369,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10400,
+              "line": 10391,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10409,
+              "line": 10406,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10458,
+              "line": 10415,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10511,
+              "line": 10464,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10913,
+              "line": 10517,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 10959,
+              "line": 10919,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11028,
+              "line": 10965,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11094,
+              "line": 11034,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11112,
+              "line": 11100,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11161,
+              "line": 11118,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11175,
+              "line": 11167,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11282,
+              "line": 11181,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11414,
+              "line": 11288,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11433,
+              "line": 11420,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11448,
+              "line": 11439,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11527,
+              "line": 11454,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11617,
+              "line": 11533,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11644,
+              "line": 11623,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11882,
+              "line": 11650,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 11892,
+              "line": 11888,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12000,
+              "line": 11898,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12018,
+              "line": 12006,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12061,
+              "line": 12024,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12077,
+              "line": 12067,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 12588,
+              "line": 12083,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13082,
+              "line": 12594,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13220,
+              "line": 13088,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13286,
+              "line": 13226,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13648,
+              "line": 13292,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13706,
+              "line": 13654,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13724,
+              "line": 13712,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13757,
+              "line": 13730,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13773,
+              "line": 13763,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13781,
+              "line": 13779,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13799,
+              "line": 13787,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13807,
+              "line": 13805,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13836,
+              "line": 13813,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 13868,
+              "line": 13842,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 13874,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -48329,7 +48413,7 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 10081,
+              "line": 10087,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(_WIN32) && !defined(CUPID_HOSTED_I386_WINDOWS_H)"
             }
@@ -48531,12 +48615,12 @@
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
       "direct_angle_occurrences": 348,
-      "direct_quoted_occurrences": 2331,
-      "include_occurrences": 2679,
+      "direct_quoted_occurrences": 2336,
+      "include_occurrences": 2684,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2679,
+      "ordinary_marker_occurrences": 2684,
       "pp_token_operand_occurrences": 0,
-      "source_files": 775,
+      "source_files": 776,
       "status": "pass"
     },
     "c_preprocessor_line_directives": {
@@ -48549,7 +48633,7 @@
       "numeric_marker_occurrences": 0,
       "ordinary_marker_occurrences": 0,
       "pp_token_line_occurrences": 0,
-      "source_files": 775,
+      "source_files": 776,
       "status": "pass"
     },
     "c_preprocessor_pragmas": {
@@ -54055,6 +54139,7 @@
         "toolchain/cupidasm_main.cc",
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_compile_profile.inc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host_frozen_inputs.inc",
@@ -54092,7 +54177,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 2245
+      "occurrences": 2249
     },
     {
       "category": "control",
@@ -54342,6 +54427,7 @@
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm_main.cc",
         "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_integer.cc",
         "toolchain/cupidbuild_disk_options.cc",
@@ -54380,7 +54466,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.continue",
-      "occurrences": 1350
+      "occurrences": 1353
     },
     {
       "category": "control",
@@ -54824,6 +54910,7 @@
         "toolchain/cupidbuild.cc",
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_compile_profile.inc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_integer.cc",
         "toolchain/cupidbuild_disk_options.cc",
@@ -54884,7 +54971,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5805
+      "occurrences": 5807
     },
     {
       "category": "control",
@@ -55132,6 +55219,7 @@
         "toolchain/cupidbuild.cc",
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_compile_profile.inc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_integer.cc",
         "toolchain/cupidbuild_disk_options.cc",
@@ -55195,7 +55283,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4963
+      "occurrences": 4971
     },
     {
       "category": "control",
@@ -55236,6 +55324,7 @@
         "toolchain/cupidbuild.cc",
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_compile_profile.inc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_options.cc",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host_source_paths.inc",
@@ -55264,7 +55353,7 @@
         "toolchain/user_syscall_abi.cc"
       ],
       "id": "c.control.goto",
-      "occurrences": 3500
+      "occurrences": 3515
     },
     {
       "category": "control",
@@ -55633,6 +55722,7 @@
         "toolchain/cupidbuild.h",
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_compile_profile.inc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_integer.cc",
         "toolchain/cupidbuild_disk_options.cc",
@@ -55705,7 +55795,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 45483
+      "occurrences": 45556
     },
     {
       "category": "control",
@@ -56047,6 +56137,7 @@
         "toolchain/cupidbuild.cc",
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_compile_profile.inc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_integer.cc",
         "toolchain/cupidbuild_disk_options.cc",
@@ -56117,7 +56208,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28055
+      "occurrences": 28103
     },
     {
       "category": "control",
@@ -56483,6 +56574,7 @@
         "toolchain/cupidbuild.cc",
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_compile_profile.inc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_integer.cc",
         "toolchain/cupidbuild_disk_options.cc",
@@ -56540,7 +56632,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3172
+      "occurrences": 3175
     },
     {
       "category": "declaration",
@@ -57088,6 +57180,7 @@
         "toolchain/cupidbuild.cc",
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_compile_profile.inc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_integer.cc",
         "toolchain/cupidbuild_disk_options.cc",
@@ -57152,7 +57245,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 6673
+      "occurrences": 6690
     },
     {
       "category": "extension",
@@ -58162,6 +58255,7 @@
         "toolchain/cupidbuild.h",
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_artifacts.h",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_input_discovery.h",
         "toolchain/cupidbuild_disk_integer.h",
@@ -58257,7 +58351,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3512
+      "occurrences": 3518
     },
     {
       "category": "preprocessor",
@@ -59836,6 +59930,7 @@
         "toolchain/cupidbuild.h",
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_artifacts.h",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_input_discovery.h",
         "toolchain/cupidbuild_disk_integer.cc",
@@ -59946,7 +60041,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2679
+      "occurrences": 2684
     },
     {
       "category": "preprocessor",
@@ -60467,6 +60562,7 @@
         "toolchain/cupidbuild_artifacts.h",
         "toolchain/cupidbuild_compile_inputs.inc",
         "toolchain/cupidbuild_compile_profile.inc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_input_discovery.h",
         "toolchain/cupidbuild_disk_integer.cc",
@@ -60579,7 +60675,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 18723
+      "occurrences": 18764
     },
     {
       "category": "qualifier",
@@ -61085,6 +61181,7 @@
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_compile_inputs.inc",
         "toolchain/cupidbuild_compile_profile.inc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_integer.cc",
         "toolchain/cupidbuild_disk_options.cc",
@@ -61160,7 +61257,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10584
+      "occurrences": 10601
     },
     {
       "category": "type",
@@ -61566,6 +61663,7 @@
         "toolchain/cupidbuild_artifacts.h",
         "toolchain/cupidbuild_compile_inputs.inc",
         "toolchain/cupidbuild_compile_profile.inc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_input_discovery.h",
         "toolchain/cupidbuild_disk_integer.cc",
@@ -61666,7 +61764,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 12467
+      "occurrences": 12503
     },
     {
       "category": "type",
@@ -62421,6 +62519,7 @@
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_artifacts.h",
         "toolchain/cupidbuild_compile_profile.inc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_input_discovery.h",
         "toolchain/cupidbuild_disk_integer.cc",
@@ -62509,7 +62608,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 26327
+      "occurrences": 26349
     },
     {
       "category": "type",
@@ -62551,6 +62650,7 @@
         "toolchain/ctool.h",
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
         "toolchain/cupidbuild_host_candidate_store.inc",
@@ -62576,7 +62676,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.long",
-      "occurrences": 764
+      "occurrences": 770
     },
     {
       "category": "type",
@@ -62604,6 +62704,7 @@
         "kernel/doom/doom_libc_stubs.cc",
         "toolchain/ctool.cc",
         "toolchain/ctool.h",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
         "toolchain/cupidbuild_host_candidate_store.inc",
@@ -62622,7 +62723,7 @@
         "toolchain/tests/toolchain_manifest_contract.cc"
       ],
       "id": "c.type.long_long",
-      "occurrences": 218
+      "occurrences": 221
     },
     {
       "category": "type",
@@ -62957,6 +63058,7 @@
         "toolchain/cupidbuild.h",
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_artifacts.h",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_input_discovery.h",
         "toolchain/cupidbuild_disk_integer.cc",
@@ -63037,7 +63139,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 1168
+      "occurrences": 1174
     },
     {
       "category": "type",
@@ -63275,6 +63377,7 @@
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_artifacts.h",
         "toolchain/cupidbuild_compile_inputs.inc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_input_discovery.h",
         "toolchain/cupidbuild_disk_integer.cc",
@@ -63357,7 +63460,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 1233
+      "occurrences": 1239
     },
     {
       "category": "type",
@@ -63541,6 +63644,7 @@
         "toolchain/cupidbuild.h",
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_compile_profile.inc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_input_discovery.h",
         "toolchain/cupidbuild_disk_integer.cc",
@@ -63604,7 +63708,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 4724
+      "occurrences": 4731
     },
     {
       "category": "type",
@@ -64172,6 +64276,7 @@
         "toolchain/cupidbuild.cc",
         "toolchain/cupidbuild_artifacts.cc",
         "toolchain/cupidbuild_compile_profile.inc",
+        "toolchain/cupidbuild_disk_image.inc",
         "toolchain/cupidbuild_disk_input_discovery.cc",
         "toolchain/cupidbuild_disk_options.cc",
         "toolchain/cupidbuild_disk_options.h",
@@ -64257,7 +64362,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 15783
+      "occurrences": 15807
     },
     {
       "category": "declaration",
@@ -65194,7 +65299,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "0d7dce3573e3acb75c4339d0a2f5b92f0dc2c6c336610cc4b8ef04318dc8afc8",
+    "active_source_digest": "7afeba8b8d781b609344ee80102f7299a75c23deca0d2d1e081bba5397a786dc",
     "control_files": [
       {
         "path": "Makefile",
@@ -65206,7 +65311,7 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "5591376df781e4ff64391786e54d9e799d966948e40e88b090d3a2e09b2ce491"
+        "sha256": "85eb129b1369a837bfd7e15f5425d2025bd2ad35a783620a14c37e884ae58f09"
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
@@ -65230,7 +65335,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "51ecf4a3d9626d03d9ddba08db8f51ee70aecea2b56c74fd39019d02ecfee139"
+        "sha256": "fd08ee1a7f018c860727988e41d29c65c90d904546dffc957cd02388da384377"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
@@ -65238,7 +65343,7 @@
       },
       {
         "path": "tools/build_graph_features.py",
-        "sha256": "8d7cb52ff42d3b45f96d2a0bb21c90bd554b488107f5910e4d616b3c563843de"
+        "sha256": "805ba19b6714e3b12d1d18c6055484ffa0ccf9356867f65f6d880ec34d6637f5"
       },
       {
         "path": "tools/build_graph_preprocessor.py",
@@ -65255,7 +65360,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "107cb5b165da82782801113694a253902061d5e27038b8aa81333aa72c4dbdc5"
+      "sha256": "f2af699f8cc7c89080616fcbd599e9858c1e9a990d109dcab84f2d3ec5d3de4e"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -65289,7 +65394,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 159,
+        "source_count": 160,
         "title": "Establish a host-runnable shared Cupid Toolchain core"
       },
       {
@@ -65652,7 +65757,7 @@
           "bin/godspeak.cc",
           "bin/notepad.cc"
         ],
-        "source_count": 627,
+        "source_count": 628,
         "title": "Implement the active C and Cupid C preprocessing contract"
       },
       {
@@ -65698,7 +65803,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 737,
+        "source_count": 738,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -65841,7 +65946,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 159
+        "source_count": 160
       },
       {
         "cohorts": [
@@ -90360,12 +90465,12 @@
         "toolchain/seed_manifest.h"
       ],
       "language": "cupid_c",
-      "lines": 1232,
+      "lines": 1246,
       "origin": "tracked",
       "path": "toolchain/cupidbuild.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ef4875f9faec1b48507f57dffc39757a9cdbf597a336176adff9d9db3957518c"
+      "sha256": "e8392057d603c1f56092b81ea94543feed8ee66e5f88954b3885223f4ae34aab"
     },
     {
       "build_owners": [
@@ -90397,12 +90502,12 @@
         "kernel/doom/src/include_stubs/stddef.h"
       ],
       "language": "c_header",
-      "lines": 168,
+      "lines": 178,
       "origin": "tracked",
       "path": "toolchain/cupidbuild.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c8faca7e7fa796ad7777f3045f44fde3b91e279fab8961015429692325e8d035"
+      "sha256": "334cd864bf0c8368a262dda95a45126277fcec3947da3e4a4c050002d61a68eb"
     },
     {
       "build_owners": [
@@ -90543,6 +90648,53 @@
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
       "sha256": "cc826af390c7f0a056070e0c48582ed255b8bf54b98631ec41ddd2000bc288c0"
+    },
+    {
+      "build_owners": [
+        "cupid_builder",
+        "cupid_c_compiler",
+        "cupid_object"
+      ],
+      "builds": [
+        "."
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.control.break",
+        "c.control.continue",
+        "c.control.else",
+        "c.control.for",
+        "c.control.goto",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.expression.sizeof",
+        "c.preprocessor.define",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.int",
+        "c.type.long",
+        "c.type.long_long",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.unsigned",
+        "c.type.void"
+      ],
+      "includes": [
+        "toolchain/cupidbuild_disk_input_discovery.h",
+        "toolchain/cupidbuild_source_path.h",
+        "toolchain/disk_image.h",
+        "toolchain/fat16_names.h"
+      ],
+      "language": "c_header",
+      "lines": 583,
+      "origin": "tracked",
+      "path": "toolchain/cupidbuild_disk_image.inc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "d66dbb78d7f9079d8f173c7538dbb017b5445e5faf773cf73d0f2befd554a8e1"
     },
     {
       "build_owners": [
@@ -90822,12 +90974,12 @@
         "toolchain/path_encoding.h"
       ],
       "language": "cupid_c",
-      "lines": 13884,
+      "lines": 13890,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_host.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "19ec0404cf8d4f907ca9ccc256beb63715bdc25559d937d4a9a426e4355b736e"
+      "sha256": "b2ee2ee5855b0efe8c70062a96e093bf2bde62fd833c36a63dc098aef0e1e2ba"
     },
     {
       "build_owners": [
@@ -90864,12 +91016,12 @@
         "kernel/doom/src/include_stubs/stdint.h"
       ],
       "language": "c_header",
-      "lines": 680,
+      "lines": 684,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_host.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "a4f191bf400c843f88a45b5c2c5f9d959ba752709fcb1165f5826b272de8dcb1"
+      "sha256": "f3a6f5c5145f08fd707bbf7e0630ab7649400d1eba86c2538ef9bf17cc25b571"
     },
     {
       "build_owners": [
@@ -91023,12 +91175,12 @@
       ],
       "includes": [],
       "language": "c_header",
-      "lines": 1152,
+      "lines": 1162,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_host_source_paths.inc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "3d08769a111bc1c74327a48eef2b1870d5358ef0d81581378bd14f07ea9cb11f"
+      "sha256": "a4cd9ec152261d779c352bf2256f2589c1ab207649b5bfaed9b1185316b1e75b"
     },
     {
       "build_owners": [
@@ -91447,12 +91599,12 @@
         "toolchain/native_utf8.h"
       ],
       "language": "cupid_c",
-      "lines": 446,
+      "lines": 483,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_main.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "989c5993a6fa9285a8432b0f0d103c5d5052679a4db0545dbeba77c7992d0599"
+      "sha256": "3c02317b5e6e57f39d76b83fd2298daa5902696923c6a156eb04b88bdd8035e1"
     },
     {
       "build_owners": [
@@ -94117,12 +94269,12 @@
         "toolchain/seed_release.h"
       ],
       "language": "cupid_c",
-      "lines": 1734,
+      "lines": 1745,
       "origin": "tracked",
       "path": "toolchain/seed_manifest.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "4c58e2deb81d9ee7f4e16e6115fc147d5a66bdb671aaf7a1800db9c93ec7a727"
+      "sha256": "1cd50b2b3e2ab2d0dd4f91d222bbb4703d6c72a7cc7558e3c6914e62802afbfd"
     },
     {
       "build_owners": [
@@ -95176,12 +95328,12 @@
         "toolchain/contract_parse_internal.h"
       ],
       "language": "cupid_c",
-      "lines": 3201,
+      "lines": 3202,
       "origin": "tracked",
       "path": "toolchain/tests/toolchain_manifest_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "96eee3d680f3b0e008eee9a1d69ea685c13c6a6b01bd87a2dddcc921b3d90590"
+      "sha256": "89e7c9fa3c39daa15af3ffe0745f04c1a37476e8fc9953c5611c572c64b14d20"
     },
     {
       "build_owners": [
@@ -95562,7 +95714,7 @@
     }
   ],
   "summary": {
-    "active_sources": 817,
+    "active_sources": 818,
     "features": 257,
     "transforms": 455,
     "unreachable_sources": 106
@@ -95957,6 +96109,7 @@
             "toolchain/cupidbuild.cc",
             "toolchain/cupidbuild_compile_inputs.inc",
             "toolchain/cupidbuild_compile_profile.inc",
+            "toolchain/cupidbuild_disk_image.inc",
             "toolchain/cupidbuild_kernel_image.inc",
             "toolchain/cupidbuild_validation.inc",
             "toolchain/cupidbuild_artifacts.cc",
@@ -96156,6 +96309,7 @@
             "toolchain/cupidbuild.cc",
             "toolchain/cupidbuild_compile_inputs.inc",
             "toolchain/cupidbuild_compile_profile.inc",
+            "toolchain/cupidbuild_disk_image.inc",
             "toolchain/cupidbuild_kernel_image.inc",
             "toolchain/cupidbuild_validation.inc",
             "toolchain/cupidbuild_artifacts.cc",

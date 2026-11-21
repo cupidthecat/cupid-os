@@ -8,6 +8,8 @@ import subprocess
 import tempfile
 import unittest
 
+from tests.cupidbuild_cli_fixtures import CUPIDBUILD_DISK_MODULES
+
 ROOT = Path(__file__).resolve().parents[1]
 ROLES = ('cupidasm', 'cupidc', 'cupiddis', 'cupidld', 'cupidobj', 'cupidbuild')
 CALLER = r'''
@@ -107,7 +109,8 @@ class SeedImageProfileTests(unittest.TestCase):
                    '-D_CRT_SECURE_NO_WARNINGS', '-I', str(ROOT / 'toolchain'), '-x', 'c',
                    str(caller), *[str(ROOT / 'toolchain' / (name + '.cc')) for name in
                     ('ctool', 'ctool_host', 'elf32', 'cupidbuild_host', 'cupidbuild',
-                     'seed_manifest', 'seed_release', 'contract_parse_internal', 'path_encoding')],
+                     'seed_manifest', 'seed_release', 'contract_parse_internal', 'path_encoding',
+                     *CUPIDBUILD_DISK_MODULES)],
                    *(['-lntdll'] if os.name == 'nt' else []), '-o', str(cls.program)]
         result = subprocess.run(command, capture_output=True, text=True, timeout=180)
         if result.returncode:

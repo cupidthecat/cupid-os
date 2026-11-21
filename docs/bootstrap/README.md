@@ -30,6 +30,8 @@ Cupid OS remains unfinished.
   outputs there. A full rebuild from editable sources matched all eleven
   saved products and booted with four CPUs.
   Hosted transactions can freeze observed inputs outside the output root.
+  The hosted `cupidbuild image` command can compose and stage a FAT16 image
+  using a checked seed and a retained output directory.
   Linux or WSL still generates the replay plans and publishes the media.
   The normal image-command handoff and native developer build coordination
   remain open.

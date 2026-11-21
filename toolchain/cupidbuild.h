@@ -1,3 +1,8 @@
+/**
+ * @file cupidbuild.h
+ * @brief Declare the hosted build commands and their requests.
+ */
+
 #ifndef CUPID_TOOLCHAIN_BUILD_H
 #define CUPID_TOOLCHAIN_BUILD_H
 
@@ -37,6 +42,11 @@ typedef struct {
   const char *const *arguments;
   unsigned int timeout_seconds;
 } cupidbuild_run_request_t;
+
+/* Interpret the disk arguments against an absolute working directory.
+ * Returns the command's exit status. Publication follows seed validation. */
+int cupidbuild_publish_disk_image(const char *working_directory, const char *seed_release,
+    size_t argument_count, const char *const *arguments);
 
 int cupidbuild_assemble_object(const cupidbuild_assembly_request_t *request);
 int cupidbuild_assemble_bootloader(

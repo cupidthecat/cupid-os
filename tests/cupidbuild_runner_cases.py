@@ -11,7 +11,7 @@ import time
 import unittest
 from pathlib import Path
 
-from tests.cupidbuild_cli_fixtures import REPO_ROOT, TOOLCHAIN_ROOT
+from tests.cupidbuild_cli_fixtures import CUPIDBUILD_DISK_MODULES, REPO_ROOT, TOOLCHAIN_ROOT
 
 
 class CheckedRunnerCases:
@@ -652,7 +652,8 @@ int main(int argc, char **argv) {
                 self.race_cli_path.parent / f"{name}.o"
                 for name in (
                     "ctool", "ctool_host", "elf32", "cupidbuild_host", "cupidbuild",
-                    "seed_manifest", "seed_release", "contract_parse_internal"
+                    "seed_manifest", "seed_release", "contract_parse_internal",
+                    "path_encoding", *CUPIDBUILD_DISK_MODULES,
                 )
             ]
             built = subprocess.run(

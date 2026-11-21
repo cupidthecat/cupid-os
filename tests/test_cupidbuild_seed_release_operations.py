@@ -18,6 +18,7 @@ import unittest
 from tests import test_cupidbuild_seed_release as _release
 from tests import test_toolchain_cupidbuild as _build
 from tests import test_cupidbuild_user_link as _user_link
+from tests.cupidbuild_cli_fixtures import CUPIDBUILD_DISK_MODULES
 from tests.test_cupidc_source_bundle import active_input_bytes
 from tools.cupidc_kernel_compile import (
     FROZEN_KERNEL_INPUT_CLOSURES, _profile_input_manifest,
@@ -47,7 +48,8 @@ class CupidBuildSeedReleaseOperationsTests(unittest.TestCase):
         caller.write_text(PHYSICAL_CALLER, encoding='ascii')
         cls.physical = directory / ('physical-release.exe' if os.name == 'nt' else 'physical-release')
         modules = ('seed_manifest', 'seed_release', 'contract_parse_internal', 'ctool',
-                   'ctool_host', 'elf32', 'cupidbuild_host', 'cupidbuild', 'path_encoding')
+                   'ctool_host', 'elf32', 'cupidbuild_host', 'cupidbuild', 'path_encoding',
+                   *CUPIDBUILD_DISK_MODULES)
         command = [shutil.which('clang') or 'clang', '-std=c11', '-O2', '-Wall', '-Wextra',
                    '-Werror', '-D_CRT_SECURE_NO_WARNINGS', '-I', str(ROOT / 'toolchain'),
                    '-x', 'c', str(caller), *[str(ROOT / ('toolchain/' + name + '.cc')) for name in modules]]

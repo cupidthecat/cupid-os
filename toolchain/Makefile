@@ -195,7 +195,8 @@ CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/publication_runtime.cc
                                       tests/hosted_i386_windows_contract.cc \
                                       tests/hosted_i386_windows_runtime_contract.cc
 CUPIDBUILD_CORE_FRAGMENTS := cupidbuild_compile_inputs.inc cupidbuild_compile_profile.inc \
-                             cupidbuild_kernel_image.inc cupidbuild_validation.inc
+                             cupidbuild_disk_image.inc cupidbuild_kernel_image.inc \
+                             cupidbuild_validation.inc
 CUPIDBUILD_HOST_FRAGMENTS := cupidbuild_host_candidate_store.inc \
                              cupidbuild_host_external_inputs.inc \
                              cupidbuild_host_frozen_inputs.inc \
@@ -411,7 +412,9 @@ CUPIDBUILD_SOURCE_OWNER_NAMES := cupidbuild_source_path cupidbuild_source_file c
                                 cupidbuild_disk_integer cupidbuild_disk_options cupidbuild_disk_input_discovery
 CUPIDBUILD_SOURCE_OWNER_HEADERS := $(addsuffix .h,$(CUPIDBUILD_SOURCE_OWNER_NAMES))
 CUPIDBUILD_SOURCE_OWNER_OBJECTS := $(addprefix $(BUILD_DIR)/,$(addsuffix .o,$(CUPIDBUILD_SOURCE_OWNER_NAMES)))
-CUPIDBUILD_OBJECTS := $(CUPIDBUILD_SOURCE_OWNER_OBJECTS) \
+CUPIDBUILD_DISK_OBJECTS := $(CUPIDBUILD_SOURCE_OWNER_OBJECTS) \
+                          $(BUILD_DIR)/fat16_stage.o $(BUILD_DIR)/fat16_names.o $(BUILD_DIR)/disk_image.o
+CUPIDBUILD_OBJECTS := $(CUPIDBUILD_DISK_OBJECTS) \
                       $(BUILD_DIR)/cupidbuild_artifacts.o $(BUILD_DIR)/artifact_size_policy.o \
                       $(BUILD_DIR)/user_syscall_abi.o $(BUILD_DIR)/cupidbuild_user_abi.o \
                       $(SEED_MANIFEST_OBJECTS) $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
@@ -420,15 +423,14 @@ CUPIDBUILD_OBJECTS := $(CUPIDBUILD_SOURCE_OWNER_OBJECTS) \
                       $(BUILD_DIR)/iso_fixture_bundle.o $(BUILD_DIR)/cupidbuild_iso.o \
                       $(BUILD_DIR)/cupidbuild_iso_capture.o $(BUILD_DIR)/cupidbuild_iso_image.o \
                       $(BUILD_DIR)/cupidbuild_iso_publication.o \
-                      $(BUILD_DIR)/fat16_stage.o $(BUILD_DIR)/fat16_names.o $(BUILD_DIR)/disk_image.o \
                       $(BUILD_DIR)/cupidbuild_main.o
 CUPIDBUILD_JPEG_CONTRACT_OBJECTS := $(SEED_MANIFEST_OBJECTS) \
 	$(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o $(BUILD_DIR)/elf32.o \
-	$(BUILD_DIR)/cupidbuild_host.o $(BUILD_DIR)/cupidbuild.o \
+	$(BUILD_DIR)/cupidbuild_host.o $(BUILD_DIR)/cupidbuild.o $(CUPIDBUILD_DISK_OBJECTS) \
 	$(BUILD_DIR)/cupidbuild_jpeg_contract.o
 CUPIDBUILD_USER_ELF_CONTRACT_OBJECTS := $(SEED_MANIFEST_OBJECTS) \
 	$(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o $(BUILD_DIR)/elf32.o \
-	$(BUILD_DIR)/cupidbuild_host.o $(BUILD_DIR)/cupidbuild.o \
+	$(BUILD_DIR)/cupidbuild_host.o $(BUILD_DIR)/cupidbuild.o $(CUPIDBUILD_DISK_OBJECTS) \
 	$(BUILD_DIR)/cupidbuild_user_elf_contract.o
 CUPIDBUILD_HOST_RUNNER_CONTRACT_FLAGS := \
 	-DCUPIDBUILD_HOST_STREAM_LIMIT=4096
@@ -461,12 +463,12 @@ CUPIDLD_OBJECTS := $(call native_utf8_objects,$(CUPIDLD_OBJECTS),cupidld)
 CUPIDBUILD_OBJECTS := $(call native_utf8_objects,$(CUPIDBUILD_OBJECTS),cupidbuild)
 CUPIDBUILD_OBJECTS := $(filter-out $(BUILD_DIR)/cupidbuild_host.o,$(CUPIDBUILD_OBJECTS)) \
                       $(BUILD_DIR)/cupidbuild_host_utf8.o
-CUPIDBUILD_JPEG_CONTRACT_OBJECTS += $(BUILD_DIR)/path_encoding.o
-CUPIDBUILD_USER_ELF_CONTRACT_OBJECTS += $(BUILD_DIR)/path_encoding.o
 CUPIDBUILD_HOST_RUNNER_CONTRACT_OBJECTS += $(BUILD_DIR)/path_encoding.o
 else
 CUPIDBUILD_OBJECTS += $(BUILD_DIR)/path_encoding.o
 endif
+CUPIDBUILD_JPEG_CONTRACT_OBJECTS += $(BUILD_DIR)/path_encoding.o
+CUPIDBUILD_USER_ELF_CONTRACT_OBJECTS += $(BUILD_DIR)/path_encoding.o
 NATIVE_ORACLE_ARTIFACTS := $(NATIVE_CONTRACT) \
 	$(NATIVE_CUPIDC_PP_CONTRACT) $(NATIVE_CUPIDC_TYPE_CONTRACT) \
 	$(NATIVE_CUPIDC_FRONTEND_CONTRACT) $(NATIVE_CUPIDC_IR_CONTRACT) \
@@ -607,7 +609,8 @@ $(BUILD_DIR)/seed_manifest.o: seed_manifest.cc seed_manifest.h seed_release.h \
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidbuild.o: cupidbuild.cc cupidbuild.h cupidbuild_host.h cupidbuild_jpeg.h seed_manifest.h \
-                          $(CUPIDBUILD_CORE_FRAGMENTS) \
+                          $(CUPIDBUILD_CORE_FRAGMENTS) $(CUPIDBUILD_SOURCE_OWNER_HEADERS) \
+                          disk_image.h fat16_names.h fat16_stage.h \
                           ctool.h ctool_host.h elf32.h pe32.h pe32_impl.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 

@@ -11,6 +11,7 @@ import unittest
 
 from . import test_iso_fixture_bundle as bundle
 from . import test_cupidbuild_private_output_bounds as bounds
+from .cupidbuild_cli_fixtures import CUPIDBUILD_DISK_MODULES
 from tools import bootstrap_toolchain as bootstrap
 
 
@@ -18,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCES = ("ctool", "ctool_host", "elf32", "seed_manifest", "seed_release",
            "contract_parse_internal", "path_encoding", "cupidbuild_host", "cupidbuild",
            "cupidbuild_iso", "cupidbuild_iso_capture", "cupidbuild_iso_image",
-           "iso_fixture_bundle", "cupidbuild_iso_publication")
+           "iso_fixture_bundle", "cupidbuild_iso_publication", *CUPIDBUILD_DISK_MODULES)
 BAD_AUTHOR = r'''
 #include <stdio.h>
 #include <string.h>

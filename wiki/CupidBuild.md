@@ -55,6 +55,16 @@ build profiles. `run` also requires an operation-specific argument shape.
 The Makefiles contain the complete argument and input lists. Use CupidBuild's
 own `--help` to inspect the command inventory.
 
+## Build a disk image with CupidBuild
+
+A CupidBuild rebuilt from current source also provides `image`. Run it from
+the checkout with the seed manifest for your host, `--seed-release`, the
+bootloader and kernel paths, and the output geometry. `cupidbuild image --help`
+lists the arguments. The command stages optional files and WADs, preserves
+files in a reusable FAT volume, and keeps the existing output when its bytes
+match. The current limit is 2 GiB minus one byte. The installed seed and
+normal Make recipe still use the Python image path.
+
 ## When a command fails
 
 Read the diagnostic before replacing files. A manifest or release mismatch

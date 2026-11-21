@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 import unittest
 
+from tests.cupidbuild_cli_fixtures import CUPIDBUILD_DISK_MODULES
 from tools import artifact_size_policy as oracle
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,7 +19,7 @@ SOURCES = ("cupidbuild_artifacts", "artifact_size_policy", "contract_parse_inter
            "seed_manifest", "seed_release", "cupidbuild", "cupidbuild_host",
            "ctool", "ctool_host", "elf32", "path_encoding",
            "cupidbuild_iso", "cupidbuild_iso_capture", "cupidbuild_iso_image",
-           "cupidbuild_iso_publication", "iso_fixture_bundle")
+           "cupidbuild_iso_publication", "iso_fixture_bundle", *CUPIDBUILD_DISK_MODULES)
 
 class Request(ctypes.Structure):
     _fields_ = [(name, ctypes.c_char_p) for name in ("root", "policy", "manifest")]
