@@ -322,6 +322,12 @@ make -C bootstrap/guest guest-compiler guest-linker guest-ksyms guest-object
 python3 bootstrap/guest/check_guest_kernel_link.py
 ```
 
+Repeat `--rebuild-source PATH` to compile selected inputs in Cupid OS
+before linking. The replay checks each saved object against the host build
+and uses the guest copy for both links. Paths are relative to the repository.
+The replay with `--rebuild-source kernel/core/kernel.cc` matched both ELFs,
+the symbol source and object, and the raw kernel. The resulting disk booted.
+
 The replay gets the ordered inputs from the normal Make recipes. It stages
 the checked pass-one objects and runs both links inside Cupid OS. Between
 them, the guest generates and compiles the kernel symbol table. It flattens

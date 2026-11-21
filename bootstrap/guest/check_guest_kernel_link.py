@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 ## @file
 #  @brief Rebuild and boot a kernel with the guest toolchain workers.
-"""Run both production kernel links and ELF flattening inside Cupid OS."""
+"""Replay production compilation, kernel links and ELF flattening inside Cupid OS."""
 
 import argparse
 from pathlib import Path
@@ -9,6 +9,7 @@ import shlex
 import subprocess
 import tempfile
 
+from check_guest_profile_runtime import SOURCE_PROFILES, compile_production_objects
 from check_guest_runtime import (
     BUILD,
     COMPILER_REAPED,
@@ -47,11 +48,19 @@ def production_objects(root: Path) -> list[str]:
     return final
 
 
-def check(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
+def check(scratch: Path, root: Path, qemu: str, timeout: float,
+          rebuild_sources: list[str]) -> None:
     objects = production_objects(root)[:-1]
+    for source in rebuild_sources:
+        if Path(source).with_suffix(".o").as_posix() not in objects:
+            raise ValueError(f"no pass-one kernel object for {source}")
+    rebuilt = compile_production_objects(scratch / "compile", root, rebuild_sources,
+                                         qemu, timeout)
     # Keep each FAT staging directory within a single directory cluster.
     inputs = [f"/obj{index // 64}/i{index:03}.o" for index in range(len(objects))]
-    stage_objects = [f"{root / path}:{alias}" for path, alias in zip(objects, inputs)]
+    stage_objects = [
+        f"{rebuilt.get(path, root / path)}:{alias}" for path, alias in zip(objects, inputs)
+    ]
     disk_objects = [f"/disk{alias}" for alias in inputs]
 
     def link_request(destination: str, cohort: list[str]) -> bytes:
@@ -112,11 +121,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--production-root", type=Path, default=ROOT,
                         help="completed checked OS build with both kernel ELF files")
+    parser.add_argument("--rebuild-source", action="append", default=[], metavar="PATH",
+                        help="compile a production source inside Cupid OS before linking (repeatable)")
     parser.add_argument("--qemu", default="qemu-system-i386")
     parser.add_argument("--timeout", type=float, default=1800)
     args = parser.parse_args()
+    if unknown := set(args.rebuild_source) - SOURCE_PROFILES.keys():
+        parser.error(f"no checked production profile for {', '.join(sorted(unknown))}")
+    if len(set(args.rebuild_source)) != len(args.rebuild_source):
+        parser.error("production sources must be distinct")
     with tempfile.TemporaryDirectory(prefix="cupid-kernel-link-") as temporary:
-        check(Path(temporary), args.production_root.resolve(), args.qemu, args.timeout)
+        check(Path(temporary), args.production_root.resolve(), args.qemu, args.timeout,
+              args.rebuild_source)
 
 
 if __name__ == "__main__":

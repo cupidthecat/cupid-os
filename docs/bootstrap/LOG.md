@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-20 — Link a kernel with an object compiled in Cupid OS
+
+The replay compiled `kernel/core/kernel.cc` in Cupid OS and fed the
+25,968-byte guest object into both kernel links. CupidDis and CupidObj
+generated the symbol source, CupidC compiled it, and CupidObj flattened
+the final ELF. All five products matched the checked WSL build byte
+for byte. A new image using the 9,507,640-byte guest kernel booted and
+completed a shell command.
+
+The replay rejects the generated symbol source as a pass-one input.
+The first link must run before the symbol source can be generated.
+
 ## 2026-11-20 — Rebuild the example user programs in Cupid OS
 
 The guest compiler built `cat`, `hello` and `ls` from their original

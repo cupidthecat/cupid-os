@@ -69,7 +69,13 @@ def publish_profile_iso(iso: Path, root: Path, sources: list[str], profile: str)
         raise RuntimeError(f"{profile} ISO publication failed with status {result}")
 
 
-def check(scratch: Path, root: Path, sources: list[str], qemu: str, timeout: float) -> None:
+def compile_production_objects(
+    scratch: Path, root: Path, sources: list[str], qemu: str, timeout: float,
+) -> dict[str, Path]:
+    if not sources:
+        return {}
+    scratch.mkdir()
+
     # Keep the source trees within the checked ISO publisher's entry limit.
     groups: dict[str, list[str]] = {}
     for source in sources:
@@ -80,9 +86,11 @@ def check(scratch: Path, root: Path, sources: list[str], qemu: str, timeout: flo
         publish_profile_iso(iso, root, members, profile)
         images[profile] = iso
 
+    objects = {}
     for index, source in enumerate(sources):
         profile = SOURCE_PROFILES[source]
-        reference = root / Path(source).with_suffix(".o")
+        logical_object = Path(source).with_suffix(".o")
+        reference = root / logical_object
         output = reference.name
         homefs = scratch / "homefs.sys"
         write_homefs(homefs, ((b"cupidc.job", compile_job(source, profile, output)),))
@@ -97,8 +105,13 @@ def check(scratch: Path, root: Path, sources: list[str], qemu: str, timeout: flo
             "--setup-command", "mount /disk/profile.iso /src",
             "--setup-success-pattern", r"VFS: mounted 'iso9660' at '/src'",
             "--command", "exec /disk/cupcc", "--success-pattern", pattern)
-        compare_homefs_files(read_homefs(disk), {output: reference})
+        matched = compare_homefs_files(read_homefs(disk), {output: reference})
+        destination = scratch / "objects" / logical_object
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(matched[output])
+        objects[logical_object.as_posix()] = destination
         disk.unlink()
+    return objects
 
 
 def main() -> None:
@@ -115,7 +128,8 @@ def main() -> None:
     if len(set(sources)) != len(sources):
         parser.error("production sources must be distinct")
     with tempfile.TemporaryDirectory(prefix="cupid-profile-") as temporary:
-        check(Path(temporary), args.production_root.resolve(), sources, args.qemu, args.timeout)
+        compile_production_objects(Path(temporary) / "compile", args.production_root.resolve(),
+                                   sources, args.qemu, args.timeout)
 
 
 if __name__ == "__main__":
