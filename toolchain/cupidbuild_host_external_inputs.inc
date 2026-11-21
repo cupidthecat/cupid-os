@@ -16,8 +16,10 @@ static int cupidbuild_host_require_external_observers(cupidbuild_host_transactio
     if (transaction->external_binding_failed)
         return 0;
     for (size_t index = 0u; index < transaction->external_observer_count; index++) {
-        cupidbuild_host_observer_t *observer = transaction->external_observers[index];
-        if (observer->stream_group_active || !cupidbuild_observer_require_current(observer, 0))
+        const cupidbuild_host_external_observer_t *binding = &transaction->external_observers[index];
+        cupidbuild_host_observer_t *observer = binding->observer;
+        if (observer->stream_group_active ||
+            !cupidbuild_observer_require_current(observer, binding->root_identity_only))
             return cupidbuild_host_external_input_failure(
                 transaction, "borrowed external observer changed or capture is active");
     }
@@ -87,8 +89,10 @@ int cupidbuild_host_transaction_bind_source_requests(
     return cupidbuild_host_require_source_requests(transaction);
 }
 
-int cupidbuild_host_transaction_borrow_external_observer(cupidbuild_host_transaction_t *transaction,
-                                                         cupidbuild_host_observer_t *observer) {
+static int cupidbuild_host_borrow_external(cupidbuild_host_transaction_t *transaction,
+                                            cupidbuild_host_observer_t *observer,
+                                            int root_identity_only) {
+    cupidbuild_host_external_observer_t *binding;
     if (!transaction || transaction->external_binding_failed)
         return 0;
     if (transaction->runner_transaction || transaction->observer_binding_state != 1 ||
@@ -96,7 +100,7 @@ int cupidbuild_host_transaction_borrow_external_observer(cupidbuild_host_transac
         observer->stream_group_active || !observer->root ||
         transaction->external_observer_count >= CUPIDBUILD_HOST_INPUTS ||
         !cupidbuild_host_require_borrowed_observer(transaction) ||
-        !cupidbuild_observer_require_current(observer, 0))
+        !cupidbuild_observer_require_current(observer, root_identity_only))
         return cupidbuild_host_external_input_failure(
             transaction, "external observer requires a valid primary and retained root");
 
@@ -105,19 +109,31 @@ int cupidbuild_host_transaction_borrow_external_observer(cupidbuild_host_transac
         return cupidbuild_host_external_input_failure(transaction,
                                                     "external observer repeats the primary root");
     for (size_t index = 0u; index < transaction->external_observer_count; index++) {
-        cupidbuild_host_observer_t *existing = transaction->external_observers[index];
+        cupidbuild_host_observer_t *existing = transaction->external_observers[index].observer;
         if (cupidbuild_observer_same(&observer->root->captured, &existing->root->captured, 1))
             return cupidbuild_host_external_input_failure(
                 transaction, "external observer root may only be borrowed once");
     }
-    transaction->external_observers[transaction->external_observer_count++] = observer;
+    binding = &transaction->external_observers[transaction->external_observer_count++];
+    binding->observer = observer;
+    binding->root_identity_only = root_identity_only;
     return 1;
+}
+
+int cupidbuild_host_transaction_borrow_external_observer(cupidbuild_host_transaction_t *transaction,
+                                                         cupidbuild_host_observer_t *observer) {
+    return cupidbuild_host_borrow_external(transaction, observer, 0);
+}
+
+int cupidbuild_host_transaction_borrow_external_source_observer(
+    cupidbuild_host_transaction_t *transaction, cupidbuild_host_observer_t *observer) {
+    return cupidbuild_host_borrow_external(transaction, observer, 1);
 }
 
 static int cupidbuild_host_external_observer_is_borrowed(const cupidbuild_host_transaction_t *tx,
                                                          const cupidbuild_host_observer_t *observer) {
     for (size_t index = 0u; index < tx->external_observer_count; index++) {
-        if (tx->external_observers[index] == observer)
+        if (tx->external_observers[index].observer == observer)
             return 1;
     }
     return 0;

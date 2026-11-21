@@ -408,6 +408,38 @@ static int image_output_case(const char *absolute) {
     return 4;
   return result;
 }
+static int seed_directory_case(const char *root, const char *mode) {
+  cupidbuild_host_observer_t *primary = NULL, *seed = NULL;
+  cupidbuild_host_transaction_t *transaction = NULL;
+  cupidbuild_host_snapshot_t candidate;
+  const char *expected[2];
+  const char *physical, *seed_physical;
+  char seed_root[8192];
+  int result = 2;
+  expected[0] = cupidbuild_host_execution_format() == 2u ? "one.exe" : "one.elf";
+  expected[1] = cupidbuild_host_execution_format() == 2u ? "two.exe" : "two.elf";
+  if (strcmp(mode, "seed-directory-duplicate") == 0)
+    expected[1] = expected[0];
+  snprintf(seed_root, sizeof(seed_root), "%s/seed", root);
+  if (cupidbuild_host_observer_resolve_source_root_quota(root, 256u, &primary, &physical) &&
+      cupidbuild_host_observer_resolve_source_root_quota(seed_root, 256u, &seed, &seed_physical) &&
+      cupidbuild_host_observer_seed_directory(seed, "", expected, 2u) &&
+      cupidbuild_host_publication_transaction_open_bounded(physical, "nested/file.o", 4096u,
+                                                            &transaction) &&
+      cupidbuild_host_transaction_borrow_observer(transaction, primary) &&
+      cupidbuild_host_transaction_borrow_external_source_observer(transaction, seed) &&
+      cupidbuild_host_candidate_store_open(transaction, 3u) &&
+      cupidbuild_host_candidate_store_write(transaction, 0u, (const unsigned char *)"new", 3u) &&
+      cupidbuild_host_candidate_store_finish(transaction, &candidate))
+    result = cupidbuild_host_publish(transaction) ? 0 : 3;
+  if (result)
+    fprintf(stderr, "%s / %s\n", cupidbuild_host_observer_error(seed),
+            cupidbuild_host_error(transaction));
+  if (!cupidbuild_host_transaction_close(transaction)) result = 4;
+  if (!cupidbuild_host_observer_close(seed)) result = 4;
+  if (!cupidbuild_host_observer_close(primary)) result = 4;
+  return result;
+}
 int main(int argc, char **argv) {
   cupidbuild_host_observer_t *observer = NULL;
   unsigned char *bytes = NULL;
@@ -440,6 +472,7 @@ int main(int argc, char **argv) {
 #endif
   }
   if (argc != 4 || !decode(argv[1]) || !decode(argv[3])) return 90;
+  if (strncmp(argv[2], "seed-directory-", 15) == 0) return seed_directory_case(argv[1], argv[2]);
   if (strcmp(argv[2], "image-output") == 0) return image_output_case(argv[3]);
   if (strncmp(argv[2], "source-requests-", 16) == 0)
     return source_request_case(argv[1], argv[2]);
@@ -972,6 +1005,30 @@ class CupidBuildObserverTests(unittest.TestCase):
             (self.root / name).mkdir()
             (self.root / name / 'source.bin').write_bytes(b'original')
         self.make_source_junction(self.root / 'data')
+
+    def prepare_seed_directory(self):
+        directory = self.root / 'seed'
+        directory.mkdir()
+        suffix = '.exe' if os.name == 'nt' else '.elf'
+        for name in ('one', 'two'):
+            (directory / (name + suffix)).write_bytes(b'seed fixture')
+        (self.parent / 'file.o').write_bytes(b'old')
+        return directory, suffix
+
+    def test_seed_directory_checks_only_the_expected_executables(self):
+        directory, suffix = self.prepare_seed_directory()
+        (directory / 'notes.txt').write_bytes(b'unrelated')
+        self.binding('seed-directory-publish')
+        self.assertIn('duplicate seed executable name',
+                      self.binding('seed-directory-duplicate', expected=2))
+        extra = directory / ('extra' + suffix.upper())
+        extra.write_bytes(b'unlisted')
+        self.assertIn('seed executable membership differs',
+                      self.binding('seed-directory-publish', expected=2))
+        extra.unlink()
+        (directory / ('two' + suffix)).unlink()
+        self.assertIn('seed executable membership differs',
+                      self.binding('seed-directory-publish', expected=2))
 
     def test_image_output_creates_nested_directories_and_rejects_a_linked_leaf(self):
         external = self.root / 'external'

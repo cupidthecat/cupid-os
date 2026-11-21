@@ -152,12 +152,17 @@ typedef enum {
     CUPIDBUILD_CANDIDATE_STORE_FINISHED
 } cupidbuild_candidate_store_state_t;
 
+typedef struct {
+    cupidbuild_host_observer_t *observer;
+    int root_identity_only;
+} cupidbuild_host_external_observer_t;
+
 struct cupidbuild_host_transaction {
     cupidbuild_host_output_parent_t *prepared_output_parent;
     cupidbuild_host_observer_t *borrowed_observer;
     int observer_binding_state;
     int observer_publication_started;
-    cupidbuild_host_observer_t *external_observers[CUPIDBUILD_HOST_INPUTS];
+    cupidbuild_host_external_observer_t external_observers[CUPIDBUILD_HOST_INPUTS];
     size_t external_observer_count;
     int external_binding_failed;
     const cupidbuild_host_source_request_set_t *source_requests;
@@ -11283,6 +11288,7 @@ typedef HANDLE cupidbuild_observer_handle_t;
 #endif
 #define CUPIDBUILD_OBSERVER_ENTRIES 4096u
 #define CUPIDBUILD_OBSERVER_NAME 1024u
+#define CUPIDBUILD_OBSERVER_SEED_TOOLS 6u
 
 typedef struct {
     uint64_t device;
@@ -11293,6 +11299,11 @@ typedef struct {
     unsigned int nanoseconds;
 } cupidbuild_observer_stat_t;
 
+typedef struct {
+    char *names[CUPIDBUILD_OBSERVER_SEED_TOOLS];
+    unsigned int count;
+} cupidbuild_observer_seed_members_t;
+
 typedef struct cupidbuild_observer_entry {
     struct cupidbuild_observer_entry *next;
     struct cupidbuild_observer_entry *lookup_next;
@@ -11301,6 +11312,7 @@ typedef struct cupidbuild_observer_entry {
     cupidbuild_observer_stat_t captured;
     char *name;
     char **members;
+    cupidbuild_observer_seed_members_t *seed_members;
     size_t member_count;
     int directory;
     int membership;
@@ -12711,6 +12723,84 @@ static int cupidbuild_observer_enumerate(cupidbuild_observer_entry_t *entry,
     return valid;
 }
 
+typedef struct {
+    const cupidbuild_observer_seed_members_t *members;
+    const char *suffix;
+    unsigned int seen;
+} cupidbuild_observer_seed_scan_t;
+
+static int cupidbuild_observer_seed_member(void *context, const char *name) {
+    cupidbuild_observer_seed_scan_t *scan = (cupidbuild_observer_seed_scan_t *)context;
+    unsigned int index;
+    if (!cupidbuild_host_name_has_suffix(name, scan->suffix))
+        return 1;
+    for (index = 0u; index < scan->members->count; index++) {
+        unsigned int bit = 1u << index;
+        if (!strcmp(name, scan->members->names[index])) {
+            if (scan->seen & bit)
+                return 0;
+            scan->seen |= bit;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static const char *cupidbuild_observer_seed_suffix(void) {
+    return cupidbuild_host_execution_format() == 2u ? ".exe" : ".elf";
+}
+
+static int cupidbuild_observer_seed_members_current(cupidbuild_observer_entry_t *entry) {
+    cupidbuild_observer_seed_scan_t scan;
+    if (!entry->seed_members)
+        return 1;
+    scan.members = entry->seed_members;
+    scan.suffix = cupidbuild_observer_seed_suffix();
+    scan.seen = 0u;
+    return cupidbuild_observer_enumerate(entry, cupidbuild_observer_seed_member, &scan) &&
+           scan.seen == (1u << scan.members->count) - 1u;
+}
+
+int cupidbuild_host_observer_seed_directory(
+    cupidbuild_host_observer_t *observer, const char *logical, const char *const *expected,
+    size_t count) {
+    cupidbuild_observer_entry_t *entry;
+    const char *suffix = cupidbuild_observer_seed_suffix();
+    size_t index, other;
+    if (!observer || observer->error[0])
+        return 0;
+    if (observer->selection_only || observer->stream_group_active || !logical || !expected ||
+        !count || count > CUPIDBUILD_OBSERVER_SEED_TOOLS)
+        return cupidbuild_observer_fail(observer, "invalid seed directory observation");
+    for (index = 0u; index < count; index++) {
+        if (!cupidbuild_observer_input_name_valid(observer, expected[index]) ||
+            !cupidbuild_host_name_has_suffix(expected[index], suffix))
+            return cupidbuild_observer_fail(observer, "invalid seed executable name");
+        for (other = 0u; other < index; other++) {
+            if (!strcmp(expected[index], expected[other]))
+                return cupidbuild_observer_fail(observer, "duplicate seed executable name");
+        }
+    }
+    entry = *logical ? cupidbuild_observer_walk(observer, observer->root, logical, 1, 0)
+                     : observer->root;
+    if (!entry || entry->seed_members)
+        return cupidbuild_observer_fail(observer, "seed directory cannot be observed again");
+    entry->seed_members = (cupidbuild_observer_seed_members_t *)calloc(1u, sizeof(*entry->seed_members));
+    if (!entry->seed_members)
+        return cupidbuild_observer_fail(observer, "seed directory observation allocation failed");
+    entry->seed_members->count = (unsigned int)count;
+    for (index = 0u; index < count; index++) {
+        size_t size = strlen(expected[index]) + 1u;
+        entry->seed_members->names[index] = (char *)malloc(size);
+        if (!entry->seed_members->names[index])
+            return cupidbuild_observer_fail(observer, "seed executable name allocation failed");
+        (void)memcpy(entry->seed_members->names[index], expected[index], size);
+    }
+    if (!cupidbuild_observer_seed_members_current(entry))
+        return cupidbuild_observer_fail(observer, "seed executable membership differs from expected set");
+    return 1;
+}
+
 static int cupidbuild_observer_members(cupidbuild_host_observer_t *observer,
                                        cupidbuild_observer_entry_t *entry) {
     cupidbuild_observer_members_context_t members;
@@ -13080,6 +13170,8 @@ static const char *cupidbuild_observer_validate_entry(cupidbuild_host_observer_t
         if (memcmp(digest, entry->digest, sizeof(digest)) != 0)
             return "captured payload changed";
     }
+    if (!cupidbuild_observer_seed_members_current(entry))
+        return "observed seed executable membership changed";
     if (entry->membership && !cupidbuild_observer_members(observer, entry))
         return "observed directory membership changed";
     return (const char *)0;
@@ -13105,7 +13197,8 @@ typedef struct {
 static int cupidbuild_observer_parallel_entry(cupidbuild_host_observer_t *observer,
                                               cupidbuild_observer_entry_t *entry) {
     return entry != observer->root && entry->parent != (cupidbuild_observer_entry_t *)0 &&
-           entry->membership == 0 && (entry->payload == 0 || entry->payload == 2);
+           entry->membership == 0 && !entry->seed_members &&
+           (entry->payload == 0 || entry->payload == 2);
 }
 
 static DWORD cupidbuild_observer_validate_worker(void *opaque) {
@@ -13180,6 +13273,8 @@ static int cupidbuild_observer_require_current_serial(cupidbuild_host_observer_t
             if (memcmp(digest, entry->digest, sizeof(digest)) != 0)
                 return cupidbuild_observer_fail(observer, "captured payload changed");
         }
+        if (!cupidbuild_observer_seed_members_current(entry))
+            return cupidbuild_observer_fail(observer, "observed seed executable membership changed");
         if (entry->membership && !cupidbuild_observer_members(observer, entry))
             return cupidbuild_observer_fail(observer, "observed directory membership changed");
     }
@@ -13323,6 +13418,8 @@ static int cupidbuild_observer_require_current(cupidbuild_host_observer_t *obser
                     if (memcmp(digest, entry->digest, sizeof(digest)) != 0)
                         return cupidbuild_observer_fail(observer, "captured payload changed");
                 }
+                if (!cupidbuild_observer_seed_members_current(entry))
+                    return cupidbuild_observer_fail(observer, "observed seed executable membership changed");
                 if (entry->membership && !cupidbuild_observer_members(observer, entry))
                     return cupidbuild_observer_fail(observer,
                                                     "observed directory membership changed");
@@ -13589,6 +13686,11 @@ int cupidbuild_host_observer_close(cupidbuild_host_observer_t *observer) {
             for (index = 0u; index < entry->member_count; index++)
                 free(entry->members[index]);
             free(entry->members);
+            if (entry->seed_members) {
+                for (index = 0u; index < entry->seed_members->count; index++)
+                    free(entry->seed_members->names[index]);
+                free(entry->seed_members);
+            }
             free(entry->name);
             free(entry);
             entry = next;

@@ -363,6 +363,12 @@ int cupidbuild_host_observer_directory(cupidbuild_host_observer_t *observer,
                                       const char *logical,
                                       const char *const *expected,
                                       size_t expected_count);
+/* Retain the seed directory's exact platform executable names. The observer
+ * copies up to six names and checks them during later revalidation. Other
+ * extensions are ignored. Individual file observations still own file contents. */
+int cupidbuild_host_observer_seed_directory(
+    cupidbuild_host_observer_t *observer, const char *logical, const char *const *expected,
+    size_t expected_count);
 typedef struct cupidbuild_host_directory_snapshot
     cupidbuild_host_directory_snapshot_t;
 /* Discover every directory name through its retained handle. Empty logical
@@ -443,6 +449,12 @@ int cupidbuild_host_transaction_borrow_observer(
  * external root at every publication boundary. Bind the primary observer
  * first. The caller keeps both observers alive until transaction close. */
 int cupidbuild_host_transaction_borrow_external_observer(
+    cupidbuild_host_transaction_t *transaction,
+    cupidbuild_host_observer_t *observer);
+/* Use source-observer validation for a distinct root. Unobserved root entries
+ * may change while the original directory identity and observed closure stay
+ * guarded. Other authority and lifetime rules match the binding above. */
+int cupidbuild_host_transaction_borrow_external_source_observer(
     cupidbuild_host_transaction_t *transaction,
     cupidbuild_host_observer_t *observer);
 

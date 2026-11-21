@@ -51,6 +51,7 @@ class CupidBuildObserverBindingRaceTests(unittest.TestCase):
     prepare_source_requests = observer.CupidBuildObserverTests.prepare_source_requests
     make_source_junction = observer.CupidBuildObserverTests.make_source_junction
     remove_source_junction = observer.CupidBuildObserverTests.remove_source_junction
+    prepare_seed_directory = observer.CupidBuildObserverTests.prepare_seed_directory
 
     def race(self, phase):
         base = self.root
@@ -134,6 +135,55 @@ class CupidBuildObserverBindingRaceTests(unittest.TestCase):
                 (self.root / 'substitute').mkdir()
                 self.make_source_junction(self.parent)
                 self.source_request_race(phase, 'output-alias', existing=True)
+
+    def test_seed_directory_rechecks_executables_through_installation(self):
+        base = self.root
+        for phase in ('before-mutation', 'after-install'):
+            for extra_tool in (False, True):
+                with self.subTest(phase=phase, extra_tool=extra_tool):
+                    self.root = base / f'{phase}-{extra_tool}'
+                    self.parent = self.root / 'nested'
+                    self.parent.mkdir(parents=True)
+                    directory, suffix = self.prepare_seed_directory()
+                    extra = directory / ('extra' + (suffix.upper() if extra_tool else '.txt'))
+                    self.seed_directory_race(phase, extra, extra_tool)
+
+    def seed_directory_race(self, phase, extra, extra_tool):
+        output = self.parent / 'file.o'
+        before = output.stat()
+        ready, resume = self.root / 'ready', self.root / 'resume'
+        environment = dict(os.environ, CUPIDBUILD_PUBLICATION_TEST_PHASE=phase,
+                           CUPIDBUILD_PUBLICATION_TEST_READY=str(ready),
+                           CUPIDBUILD_PUBLICATION_TEST_RESUME=str(resume))
+        command = [str(self.program), str(self.root).encode('utf-8').hex(),
+                   'seed-directory-publish', '']
+        with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              text=True, encoding='utf-8', env=environment) as process:
+            try:
+                deadline = time.monotonic() + 20
+                while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                if process.poll() is not None:
+                    self.fail(f'publisher exited before checkpoint: {process.communicate()}')
+                self.assertTrue(ready.exists(), 'publication checkpoint was not reached')
+                extra.write_bytes(b'late directory member')
+                resume.touch()
+                stdout, stderr = process.communicate(timeout=20)
+                self.assertEqual(process.returncode, 3 if extra_tool else 0, (stdout, stderr))
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.communicate(timeout=10)
+        if extra_tool:
+            self.assertIn('observed seed executable membership changed', stderr)
+            self.assertEqual(output.read_bytes(), b'old')
+            after = output.stat()
+            self.assertEqual((after.st_ino, after.st_mtime_ns), (before.st_ino, before.st_mtime_ns))
+        else:
+            self.assertEqual(output.read_bytes(), b'new')
+        self.assertFalse(list(self.parent.glob('*cupidbuild*')))
+        extra.unlink()
+        self.binding('seed-directory-publish')
 
     def source_request_race(self, phase, mutation, existing):
         output = self.parent / 'file.o'

@@ -867,7 +867,7 @@ class CompilerProfileCases:
                 self.assertEqual(unreachable[fixture], "host_fixture")
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (33, 8),
-                "c.expression.sizeof": (6672, 206),
+                "c.expression.sizeof": (6673, 206),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }

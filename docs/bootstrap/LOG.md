@@ -1,5 +1,21 @@
 # Bootstrapping log
 
+## 2026-11-21 — Retain the seed executable set during publication
+
+An observer can retain the exact executable names in a seed directory. The
+publication check rejects missing or unlisted executables, including an
+unlisted name with an uppercase extension. Other files in the directory can
+change. The observer's file checks still verify the selected tool bytes.
+
+The native and checked callers passed on Windows and WSL. Adding a tool at
+either rename checkpoint preserved the prior output. Adding a text file let
+publication finish. The original external-input tests passed on both hosts.
+The first private Linux test exposed a missing check in the POSIX validation
+loop. The active change checks seed membership on both platforms.
+
+The 123-input Windows producer reached a fixed point. Its source snapshot
+SHA-256 is `ebebd10e1f9c1f65df6d173496cf2565e0ac412d8543f6dcba87bdc9064834f7`.
+
 ## 2026-11-21 — Compose disk images in ranges
 
 The disk composer can send consecutive sector-aligned ranges up to 64 KiB.
