@@ -4040,13 +4040,7 @@
           "boot/boot.bin",
           "kernel/kernel.bin",
           "test_iso/hello.iso",
-          "tools/hostbuild.py",
-          "tools/hostbuild_disk.py",
-          "tools/hostbuild_iso.py",
-          "tools/hostbuild_code_paths.py",
-          "tools/hostbuild_assets.py",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/release.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
@@ -4059,15 +4053,15 @@
         "operation": "package_disk_image",
         "output": "cupidos.img",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py image \\",
-          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) \\",
-          "--image $(OS_IMAGE) --bootloader $(BOOTLOADER) --kernel $(KERNEL) \\",
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) image --root \"$(CURDIR)\" \\",
+          "--seed-release $(PRODUCTION_SEED_RELEASE) --seed-manifest $(PRODUCTION_SEED_MANIFEST) \\",
+          "--image \"$(OS_IMAGE)\" --bootloader \"$(BOOTLOADER)\" --kernel \"$(KERNEL)\" \\",
           "--hdd-mb $(HDD_MB) --fat-start-lba $(FAT_START_LBA) \\",
           "--stage test_iso/hello.iso:/hello.iso --wads $(WAD_SRCS)"
         ],
         "tools": [
-          "cupid_object",
-          "host_python"
+          "cupid_builder",
+          "cupid_object"
         ]
       },
       {
@@ -67102,7 +67096,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "02550d1ad7f105077d0a85237c1f86fdca7a002af310dffda8040fb2148f5887"
+        "sha256": "19e0813128a19f7eb387fc26a68378beb59274309ca356e2db68e65d607f118a"
       },
       {
         "path": "user/Makefile",
@@ -67134,11 +67128,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "f7e6f1330aaa0e6b04dddbbf741508f2df07f50ba54787b59b77b990e81421ac"
+        "sha256": "a1f63e3a2f6606c5d603b8aa7b9fb5215145e2f870acddb1dc79a5abf89ad49c"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
-        "sha256": "e976dc500ad3f424ca388843d7c3f7d781ed27d96f9f31d8afaa1aba5b86058b"
+        "sha256": "4b48dfa6349366af05114241641de9accd5f3e54dc9e4ba9b094348f5876bba2"
       },
       {
         "path": "tools/build_graph_features.py",
@@ -67159,7 +67153,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "c09981bfaffd37876cea9ab68e904b7d911a446982a7b36c43ace359a3bd5d42"
+      "sha256": "1418e0bbeabbfb2ced89abf4e04e922d424ca4c17c5edbd7e443579190433a40"
     },
     "text_hash_policy": "canonical_lf"
   },

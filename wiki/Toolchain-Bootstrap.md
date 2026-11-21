@@ -3,17 +3,17 @@
 ## Current production checkpoint
 
 The normal OS and user builds use checked CupidC, CupidASM, CupidLD, CupidObj,
-CupidDis and CupidBuild seeds. GNU Make schedules the build. Python still
-coordinates final disk images and parts of toolchain verification. See
+CupidDis and CupidBuild seeds. GNU Make schedules the build, CupidBuild
+publishes the disk image, and Python coordinates SDK contracts. See
 [CupidBuild](CupidBuild) for normal build commands and
 [Getting Started](Getting-Started) for host setup.
 
 Hosted toolchain rebuilds have reached a fixed point on Linux and Windows.
 A fixed point means two consecutive stages produce identical checked objects
-and tools. The installed seeds come from the same 114-file source snapshot.
+and tools. The installed seeds come from the same 124-file source snapshot.
 Cold builds on Windows and WSL produced the same disk image and example
 programs. The [bootstrap records](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/README.md)
-track the remaining image publication and guest work.
+track the remaining work on building inside Cupid OS.
 
 ## Rebuild from checked seeds
 

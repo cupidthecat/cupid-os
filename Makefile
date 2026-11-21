@@ -1978,12 +1978,10 @@ $(KERNEL): kernel/kernel.elf $(CUPIDDIS_PRODUCTION_INPUTS) \
 
 # Create HDD image: MBR + Stage2 + kernel area + FAT16 partition (size via HDD_MB, default 200MB)
 $(OS_IMAGE): verify-artifact-sizes $(BOOTLOADER) $(KERNEL) \
-	test_iso/hello.iso tools/hostbuild.py tools/hostbuild_disk.py tools/hostbuild_iso.py \
-	tools/hostbuild_code_paths.py tools/hostbuild_assets.py \
-	$(CHECKED_SEED_INPUTS)
-	$(PYTHON) tools/hostbuild.py image \
-		--seed-manifest $(PRODUCTION_SEED_MANIFEST) \
-		--image $(OS_IMAGE) --bootloader $(BOOTLOADER) --kernel $(KERNEL) \
+    test_iso/hello.iso Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) image --root "$(CURDIR)" \
+		--seed-release $(PRODUCTION_SEED_RELEASE) --seed-manifest $(PRODUCTION_SEED_MANIFEST) \
+		--image "$(OS_IMAGE)" --bootloader "$(BOOTLOADER)" --kernel "$(KERNEL)" \
 		--hdd-mb $(HDD_MB) --fat-start-lba $(FAT_START_LBA) \
 		--stage test_iso/hello.iso:/hello.iso --wads $(WAD_SRCS)
 

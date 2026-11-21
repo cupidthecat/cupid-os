@@ -968,9 +968,15 @@ class CompilerProfileCases:
                 system_image_transform["operation"],
                 "package_disk_image",
             )
-            self.assertIn(
-                "test_iso/hello.iso",
-                system_image_transform["inputs"],
+            self.assertEqual(
+                system_image_transform["tools"], ["cupid_builder", "cupid_object"],
+            )
+            self.assertEqual(
+                set(system_image_transform["inputs"]),
+                {
+                    "verify-artifact-sizes", "boot/boot.bin", "kernel/kernel.bin",
+                    "test_iso/hello.iso", "Makefile", *WINDOWS_PRODUCTION_SEED_INPUTS,
+                },
             )
             checked_cupidc_roots = []
             native_cupidc_roots = []
@@ -1436,13 +1442,13 @@ class CompilerProfileCases:
                 {
                     "cupid_c_compiler": 248,
                     "cupid_assembler": 7,
-                    "cupid_builder": 452,
+                    "cupid_builder": 453,
                     "cupid_object": 195,
                     "cupid_linker": 7,
                     "cupid_disassembler": 10,
                     "cupid_c_contract": 2,
                     "host_c_compiler": 0,
-                    "host_python": 3,
+                    "host_python": 2,
                 },
             )
             self.assertFalse(

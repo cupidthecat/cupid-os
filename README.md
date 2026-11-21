@@ -12,10 +12,9 @@ for current evidence and limitations.
 
 ## Build and run
 
-Install Python 3, GNU Make, and QEMU (`qemu-system-i386`). Windows also uses
-WSL for the remaining Linux contract paths. The
-[getting started guide](wiki/Getting-Started.md) covers platform setup,
-optional compiler oracles, disk images, and troubleshooting.
+Install GNU Make and QEMU (`qemu-system-i386`) to build and boot the disk image.
+Python is used for bootstrap checks, SDK contracts, and optional host helpers.
+See the [getting started guide](wiki/Getting-Started.md) for platform setup.
 
 ```sh
 make -j2 all

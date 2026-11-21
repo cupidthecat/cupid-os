@@ -612,7 +612,7 @@ class BuildPublicationCases:
         )
         self.assertEqual(
             system_image_transform["tools"],
-            ["cupid_object", "host_python"],
+            ["cupid_builder", "cupid_object"],
         )
         self.assertEqual(
             system_image_transform["operation"],
@@ -626,12 +626,6 @@ class BuildPublicationCases:
                 *WINDOWS_PRODUCTION_SEED_INPUTS,
                 "kernel/kernel.bin",
                 "test_iso/hello.iso",
-                "tools/bootstrap_toolchain.py",
-                "tools/hostbuild.py",
-                "tools/hostbuild_assets.py",
-                "tools/hostbuild_code_paths.py",
-                "tools/hostbuild_disk.py",
-                "tools/hostbuild_iso.py",
                 "verify-artifact-sizes",
             },
         )
@@ -650,7 +644,7 @@ class BuildPublicationCases:
         )
         expected_counts = {
             "cupid_assembler": 5,
-            "cupid_builder": 445,
+            "cupid_builder": 446,
             "cupid_object": 195,
             "cupid_linker": 2,
             "cupid_disassembler": 7,

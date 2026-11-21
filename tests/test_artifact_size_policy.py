@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from tools import artifact_size_policy
+from tools.hostbuild_disk import StageFile, create_or_update_image
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -647,12 +648,12 @@ class NativeArtifactMakeTests(unittest.TestCase):
         self.previous_image = self.image.read_bytes()
         self.previous_time = self.image.stat().st_mtime_ns
 
-    def run_make(self, target="verify-artifact-sizes", execution=None):
+    def run_make(self, target="verify-artifact-sizes", execution=None, *, variables=(), timeout=120):
         # Freeze prerequisite publications, but execute the unmodified verifier
         # recipe. Full OS acceptance separately exercises their production builds.
         old = [*self.artifacts, "Makefile", "bootstrap/seeds/release.json",
                "bootstrap/artifact-size-policy.json", "test_iso/hello.iso",
-               "tools/hostbuild.py", "bootstrap/seeds/i386-linux/manifest.json",
+               "bootstrap/seeds/i386-linux/manifest.json",
                "bootstrap/seeds/i386-windows/manifest.json"]
         if execution:
             old.extend(path.relative_to(self.root).as_posix()
@@ -662,7 +663,8 @@ class NativeArtifactMakeTests(unittest.TestCase):
         command.extend(arg for name in old for arg in ("-o", name))
         if execution:
             command.append("PRODUCTION_SEED_MANIFEST=" + execution)
-        return subprocess.run(command, cwd=self.root, capture_output=True, timeout=120)
+        command.extend(variables)
+        return subprocess.run(command, cwd=self.root, capture_output=True, timeout=timeout)
 
     def assert_image_preserved(self):
         self.assertEqual(self.image.read_bytes(), self.previous_image)
@@ -676,12 +678,36 @@ class NativeArtifactMakeTests(unittest.TestCase):
         self.assertIn(b"--execution-manifest", result.stdout)
         self.assert_image_preserved()
 
+    def test_installed_image_recipe_publishes_with_no_python(self):
+        iso = self.root / "test_iso/hello.iso"
+        iso.parent.mkdir()
+        iso.write_bytes(b"sample ISO stage")
+        wad = self.root / "freedoom1.wad"
+        wad.write_bytes(b"sample WAD stage")
+
+        result = self.run_make(
+            "cupidos.img", variables=("HDD_MB=24", "WAD_SRCS=freedoom1.wad"), timeout=240,
+        )
+        self.assertEqual(result.returncode, 0, (result.stdout, result.stderr))
+        self.assertIn(b" image --root ", result.stdout)
+
+        reference = self.root / "reference.img"
+        manifest = WINDOWS_SEED_MANIFEST if os.name == "nt" else SEED_MANIFEST
+        create_or_update_image(
+            reference, self.root / "boot/boot.bin", self.root / "kernel/kernel.bin",
+            24, 20480, [StageFile(iso, "/hello.iso"), StageFile(wad, "/wads/freedo~1.wad")],
+            False, seed_manifest=manifest,
+        )
+        with self.image.open("rb") as actual, reference.open("rb") as expected:
+            self.assertEqual(hashlib.file_digest(actual, "sha256").digest(),
+                             hashlib.file_digest(expected, "sha256").digest())
+
     def test_size_failure_stops_image_publication(self):
         (self.root / "kernel/kernel.bin").write_bytes(b"incorrect size")
         result = self.run_make("cupidos.img")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(b"kernel/kernel.bin", result.stderr)
-        self.assertNotIn(b"tools/hostbuild.py image", result.stdout)
+        self.assertNotIn(b" image --root ", result.stdout)
         self.assertNotIn(b"Cupid artifact sizes: ok", result.stdout)
         self.assert_image_preserved()
 
@@ -702,7 +728,7 @@ class NativeArtifactMakeTests(unittest.TestCase):
             result = self.run_make("cupidos.img", "alternate/manifest.json")
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(b"execution seed image differs", result.stderr)
-            self.assertNotIn(b"tools/hostbuild.py image", result.stdout)
+            self.assertNotIn(b" image --root ", result.stdout)
             payload.write_bytes(original)
             self.assertEqual(self.run_make(execution="alternate/manifest.json").returncode, 0)
         self.assert_image_preserved()

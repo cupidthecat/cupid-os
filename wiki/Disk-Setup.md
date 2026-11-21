@@ -6,14 +6,14 @@ This guide explains the current disk model and how to work with the FAT16 partit
 
 ## Quick Setup (Copy-Paste)
 
-The shortest setup uses the portable host helper:
+Run these commands from the checkout.
 
 ```bash
 # Build (or reuse) cupidos.img
 make HDD_MB=200
 
 # Copy host file into FAT root (visible as /disk in CupidOS)
-python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 cupid.bmp:/cupid.bmp
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 image.bmp:/image.bmp
 
 # Boot
 make run
@@ -25,20 +25,14 @@ The sections below explain the image layout and the manual alternatives.
 
 ## Requirements
 
-The normal build and host-copy flow uses `tools/hostbuild.py` and works on
-Linux and native Windows with Python 3. `mtools` is optional for manual FAT16
-inspection/copying.
+The normal Make target uses checked CupidBuild and CupidObj to compose the
+disk image on Linux and native Windows. When the FAT16 volume can be reused,
+its existing files are preserved. CupidBuild checks the inputs before it
+publishes the image.
 
-The normal `make` image target uses checked-seed CupidObj to write the layout
-from the MBR through the empty FAT16 root directory. Python verifies the layout,
-copies the boot files and stages the requested files. It reuses a valid FAT
-volume so its existing files survive, then checks the inputs and publishes
-the result atomically.
-
-A [CupidBuild rebuilt from the current source](CupidBuild) also exposes the
-complete `image` command. The Windows and Linux builds produced the same
-200 MiB image as the normal recipe with the test ISO and Freedoom WAD. The Linux
-image booted with four CPUs and ran `ls` from the desktop terminal.
+Use Python 3 for the optional host-copy commands below. On Linux, you can
+also use `mtools` to inspect or copy files. See [CupidBuild](CupidBuild)
+for direct image commands.
 
 The alternate loop-mount method is Linux/WSL-only and needs root/sudo access:
 
@@ -84,7 +78,7 @@ Default is `HDD_MB=200`.
 Copy files into FAT root with the Python helper:
 
 ```bash
-python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 cupid.bmp:/cupid.bmp
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 image.bmp:/image.bmp
 ```
 
 On Windows, use `python` instead of `python3`.
@@ -97,13 +91,13 @@ If you prefer `mtools`, install it and use the FAT byte offset:
 ```bash
 sudo apt-get update
 sudo apt-get install -y mtools
-mcopy -o -i cupidos.img@@10485760 cupid.bmp ::/cupid.bmp
+mcopy -o -i cupidos.img@@10485760 image.bmp ::/image.bmp
 mdir -i cupidos.img@@10485760 ::/
 ```
 
 Mapping:
 - FAT `::/` corresponds to CupidOS `/disk`
-- `::/cupid.bmp` becomes `/disk/cupid.bmp` in CupidOS
+- `::/image.bmp` becomes `/disk/image.bmp` in CupidOS
 - On first boot without `HOMEFS.SYS`, homefs imports existing FAT files into `/home`
 
 If `FAT_START_LBA` is customized, use offset:

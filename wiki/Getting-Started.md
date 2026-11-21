@@ -8,8 +8,8 @@ This guide covers building Cupid OS from source and running it in QEMU.
 
 | Tool | Purpose |
 |------|---------|
-| **Checked Cupid toolchain** | The repository carries a verified static i386 Linux seed and a checked native PE32 Windows execution seed. CupidC, CupidASM, CupidObj, CupidLD, and CupidDis own the normal C, assembly, object, link, and inspection transforms |
-| **Python 3** | Portable host-side image and code-generation helpers |
+| **Checked Cupid toolchain** | The repository carries a verified static i386 Linux seed and a checked native PE32 Windows execution seed. CupidC, CupidASM, CupidObj, CupidLD and CupidDis build and check the binaries. CupidBuild publishes the disk image |
+| **Python 3** | Bootstrap checks, SDK contracts and optional host helpers |
 | **GNU Make** | Build system |
 | **QEMU** (`qemu-system-i386`) | x86 emulator for testing |
 | **WSL** (Windows only) | Runs the checked Linux seed for Linux fixed-point work and the remaining published Linux Toolchain contract cohort; native Windows fixed-point reconstruction, the user ABI gate, artifact-size verification, and Toolchain manifest verification do not use WSL |
@@ -46,8 +46,8 @@ sudo pacman -S gcc clang binutils nasm
 ```
 
 ### Native Windows
-Install GNU Make, Python 3, and QEMU, make sure they are on `PATH`, then
-enable WSL with a Linux distribution.
+Install GNU Make and QEMU for the normal build. The SDK and bootstrap
+checks also use Python. Enable WSL to run the Linux contract cohort.
 
 ```powershell
 choco install make python qemu
@@ -92,7 +92,7 @@ server such as VcXsrv.
 ## Building
 
 ```bash
-git clone https://github.com/your-username/cupid-os.git
+git clone --branch bootstrap/cupid-self-hosting https://github.com/cupidthecat/cupid-os.git
 cd cupid-os
 make
 ```
@@ -183,8 +183,8 @@ The build does not use a separate `test-disk.img`.
 Use the portable host helper against the FAT partition inside `cupidos.img`:
 
 ```bash
-# Host file -> OS /disk/cupid.bmp
-python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 cupid.bmp:/cupid.bmp
+# Copy the sample bitmap to /disk/image.bmp
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 image.bmp:/image.bmp
 ```
 
 On Windows, use `python` instead of `python3`.
@@ -192,7 +192,7 @@ On Windows, use `python` instead of `python3`.
 If you prefer `mtools`, use the FAT byte offset:
 
 ```bash
-mcopy -o -i cupidos.img@@10485760 cupid.bmp ::/cupid.bmp
+mcopy -o -i cupidos.img@@10485760 image.bmp ::/image.bmp
 
 # Verify the FAT root (visible in CupidOS as /disk)
 mdir -i cupidos.img@@10485760 ::/

@@ -7,41 +7,28 @@ Cupid OS remains unfinished.
 
 ## Current boundaries
 
-- The normal graph has 455 transforms. CupidBuild owns 452 and three retain
-  Python coordination. GNU Make still schedules the build.
-- Cupid OS rebuilt and ran the full CupidC, CupidASM, CupidLD, CupidObj
-  and CupidBuild workers. The assembler includes CupidDis. The 19-request
-  plan rebuilt all 431 linked objects from three read-only ISOs, including Doom
-  and the generated symbol table. All eleven saved products matched the checked
-  build. The resulting disk booted with four CPUs and ran `ls`.
-  A second guest plan compiled and linked `cat`, `hello` and `ls` in one
-  command, then each program ran from HomeFS.
-  See the [guest build record](FREESTANDING-COMPILER-ENGINE.md).
-- Source-owner modules are in current producer plans, and paired named
-  preparations reach a fixed point. The C reader now recognizes their exact
-  behavior profiles. The installed seeds come from the same 114-file snapshot.
-  Cold OS and user builds agree across Windows and WSL, including the full disk
-  image. The read-only replay starts with a fresh HomeFS. It reads the plan
-  and assets from the same ISO and compiles and wraps objects in lists.
-  A single kernel job takes the ordered objects and runs both
-  links, symbol generation, and disk-prefix publication inside Cupid OS.
-  An editable HomeFS project can keep `cupidbuild.job` and its job files
-  together. The plan can create its own build directory and save its
-  outputs there. A full rebuild from editable sources matched all eleven
-  saved products and booted with four CPUs.
-  Hosted transactions can freeze observed inputs outside the output root.
-  The hosted `cupidbuild image` command can compose and stage a FAT16 image
-  using a checked seed and a retained output directory.
-  Linux or WSL still generates the replay plans and publishes the media.
-  The normal image-command handoff and native developer build coordination
-  remain open.
-- The private in-OS compiler supports halfword storage, integer array lists
-  and typed native calls. Its remaining language gaps and guest acceptance
-  are separate from hosted compiler fixed points. The shell can inspect
-  saved raw files through the shared disassembler.
-- Doom keyboard, save-name and exact-image reboot passed. A four-vCPU
-  Freedoom timedemo passed on November 18. The November 21 replay timed
-  out after graphics startup. Gameplay and audio acceptance remain open.
+- The normal OS and user builds run through Cupid tools. GNU Make schedules
+  the work, and CupidBuild publishes the disk image. The supported graph
+  has 455 transforms, of which 453 use CupidBuild. The other two publish and
+  verify the hosted SDK contracts through Python.
+- Both installed seeds come from the same 124-file source snapshot. Cold
+  builds on Windows and WSL produced matching disk images and user programs.
+- Cupid OS rebuilt and ran CupidC, CupidASM with CupidDis, CupidLD, CupidObj,
+  and CupidBuild inside the guest. A 19-request plan rebuilt all 431 linked
+  kernel objects, including Doom and the generated symbol table. It ran
+  both links and wrote a disk prefix. The read-only ISO replay and the
+  editable HomeFS replay each produced eleven matching outputs. Their
+  rebuilt disks booted with four CPUs and ran `ls`.
+- A separate guest plan built `cat`, `hello` and `ls` in one command. Each
+  program ran from HomeFS. Linux or WSL still prepares the plans and
+  media for these checks. The [guest build record](FREESTANDING-COMPILER-ENGINE.md)
+  has the replay commands.
+- The shell compiler supports halfword storage, integer array lists, and
+  typed native calls. The shell can inspect saved raw files with CupidDis.
+  The [capability matrix](CAPABILITY-MATRIX.md) lists remaining language gaps.
+- Doom passed the keyboard, save-name, and reboot checks. Freedoom completed
+  a four-CPU timedemo on November 18. The November 21 replay timed out after
+  graphics startup. Gameplay and audio acceptance remain open.
 - TempleOS is read-only reference material and is excluded from build counts.
 
 See the [ownership audit](ACTIVE-SOURCE-AUDIT.md),

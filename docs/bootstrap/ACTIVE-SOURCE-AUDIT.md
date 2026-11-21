@@ -77,13 +77,13 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 7 |
-| `cupid_builder` | 452 |
+| `cupid_builder` | 453 |
 | `cupid_c_compiler` | 248 |
 | `cupid_c_contract` | 2 |
 | `cupid_disassembler` | 10 |
 | `cupid_linker` | 7 |
 | `cupid_object` | 195 |
-| `host_python` | 3 |
+| `host_python` | 2 |
 
 ## Feature inventory
 

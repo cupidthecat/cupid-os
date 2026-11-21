@@ -19,6 +19,40 @@ from tests.build_graph_audit_fixtures import (
 
 
 class SeedDeliveryCases:
+    def test_disk_image_delivery_rejects_recipe_and_input_drift(self):
+        module = _load_audit_module()
+        audit = json.loads(ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8"))
+        image = next(step for step in audit["build"]["transforms"]
+                     if step["output"] == "cupidos.img")
+        seeds = list(WINDOWS_PRODUCTION_SEED_INPUTS)
+        module._validate_disk_image_delivery([image], seed_inputs=seeds)
+
+        inputs = image["inputs"]
+        recipe = image["recipe"]
+        cases = {
+            "ISO must be a content input": {
+                "inputs": [path for path in inputs if path != "test_iso/hello.iso"],
+                "order_only_inputs": ["test_iso/hello.iso"],
+            },
+            "release must be a content input": {
+                "inputs": [path for path in inputs if path != "bootstrap/seeds/release.json"],
+            },
+            "WAD stage must remain in the recipe": {
+                "recipe": [*recipe[:-1], recipe[-1].replace(" --wads $(WAD_SRCS)", "")],
+            },
+            "root image must use CupidBuild": {
+                "recipe": ["$(PYTHON) tools/hostbuild.py image --image $(OS_IMAGE)"],
+                "tools": ["cupid_object", "host_python"],
+            },
+        }
+        for change, updates in cases.items():
+            with self.subTest(change=change), self.assertRaisesRegex(
+                module.AuditError, "Disk image delivery differs"
+            ):
+                module._validate_disk_image_delivery(
+                    [dict(image, **updates)], seed_inputs=seeds,
+                )
+
     def test_checked_cupidc_active_manifest_has_exact_source_cohorts(self):
         lines = ACTIVE_CASE_MANIFEST.read_text(encoding="utf-8").splitlines()
         profile_pattern = re.compile(

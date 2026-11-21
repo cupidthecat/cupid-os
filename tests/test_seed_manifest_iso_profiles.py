@@ -1,6 +1,7 @@
 """Bind current bundle plans, source counts and installed parents in the C reader."""
 import copy
 import ctypes
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -71,36 +72,46 @@ class IsoSeedProfileTests(unittest.TestCase):
         if not cls.publication:
             cls.plan = bundle_only_plan(cls.plan)
         cls.fixtures = []
-        for utf8, long_paths, aliases, expected_count, profile in cls.profiles:
-            snapshot = bootstrap.capture_source_snapshot(ROOT, cls.plan, windows_utf8=utf8,
-                windows_long_paths=long_paths, windows_user_link_aliases=aliases,
-                windows_observer_workers=cls.source_owner)
-            if not cls.source_owner:
-                owner_headers = {'toolchain/' + row[0] + '.h' for row in bootstrap.SOURCE_OWNER_SOURCES if row[0] != 'path_encoding'}
-                owner_headers.add('toolchain/hosted/i386-linux/include/cupid_runtime.h')
-                snapshot = {name: row for name, row in snapshot.items() if name not in owner_headers}
-            if not cls.disk_foundation:
-                snapshot = {name: row for name, row in snapshot.items()
-                            if name not in {'toolchain/' + object_name + '.h' for object_name in DISK_OBJECTS}}
-            if not cls.publication:
-                snapshot = {name: row for name, row in snapshot.items()
-                            if name != 'toolchain/cupidbuild_iso_publication.h'}
-            if len(snapshot) != expected_count:
-                raise AssertionError((profile, len(snapshot), expected_count))
-            native = bootstrap._windows_build_plan(cls.plan, utf8=utf8, long_paths=long_paths,
-                user_link_aliases=aliases, observer_workers=cls.source_owner)
-            windows = bootstrap._retarget_native_windows_behavior_seed(cls.windows,
-                bootstrap._build_plan_sha256(native), cls.plan, snapshot,
-                utf8=utf8, long_paths=long_paths, user_link_aliases=aliases,
-                observer_workers=cls.source_owner, parent_plan_seed=cls.linux)
-            linux = copy.deepcopy(cls.linux.manifest)
-            linux['build_plan'] = copy.deepcopy(cls.plan)
-            linux['build_plan_sha256'] = bootstrap._build_plan_sha256(cls.plan)
-            linux['provenance'].update(source_input_count=len(snapshot),
-                source_snapshot_sha256=bootstrap._source_snapshot_sha256(snapshot),
-                parent_seed_manifest_sha256=cls.linux.manifest_sha256,
-                parent_seed_source_revision=cls.linux.manifest['provenance']['source_revision'])
-            cls.fixtures.append((linux, json.loads(windows.manifest_bytes), profile))
+        for utf8, long_paths, aliases, count, profile in cls.profiles:
+            linux, windows = cls.profile_documents(
+                cls.plan, utf8, long_paths, aliases, count,
+            )
+            cls.fixtures.append((linux, windows, profile))
+
+    @classmethod
+    def profile_documents(cls, plan, utf8, long_paths, aliases, count):
+        native = bootstrap._windows_build_plan(
+            plan, utf8=utf8, long_paths=long_paths, user_link_aliases=aliases,
+            observer_workers=cls.source_owner,
+        )
+        linux_digest = bootstrap._build_plan_sha256(plan)
+        windows_digest = bootstrap._build_plan_sha256(native)
+        # These fixtures exercise historical reader profiles. The live compiler
+        # source closure is covered by test_explicit_release_accepts_current_observer_worker_profiles.
+        snapshot = hashlib.sha256(f"fixture:{windows_digest}:{count}".encode("ascii")).hexdigest()
+        linux = copy.deepcopy(cls.linux.manifest)
+        windows = copy.deepcopy(cls.windows.manifest)
+        linux.update(build_plan=copy.deepcopy(plan), build_plan_sha256=linux_digest)
+        for document in (linux, windows):
+            document["provenance"].update(
+                source_input_count=count, source_snapshot_sha256=snapshot,
+            )
+        linux["provenance"].update(
+            parent_seed_manifest_sha256=cls.linux.manifest_sha256,
+            parent_seed_source_revision=cls.linux.manifest["provenance"]["source_revision"],
+        )
+        if long_paths or aliases or cls.source_owner:
+            windows["provenance"].update(
+                parent_execution_seed_manifest_sha256=cls.windows.manifest_sha256,
+                parent_execution_seed_source_revision=cls.windows.manifest["provenance"]["source_revision"],
+                parent_plan_seed_manifest_sha256=cls.linux.manifest_sha256,
+                parent_plan_seed_source_revision=cls.linux.manifest["provenance"]["source_revision"],
+            )
+        windows["provenance"].update(
+            native_build_plan_sha256=windows_digest,
+            linux_candidate_build_plan_sha256=linux_digest,
+        )
+        return linux, windows
 
     def release(self, value, fmt):
         provenance = value['provenance']
@@ -287,7 +298,7 @@ class IsoSeedProfileTests(unittest.TestCase):
                     changed = copy.deepcopy(original)
                     target = changed['provenance'] if key != 'build_plan_sha256' else changed
                     old = target[key]
-                    target[key] = old + 10 if isinstance(old, int) else '0' * 64
+                    target[key] = 999 if isinstance(old, int) else '0' * 64
                     self.check(changed, fmt, profile, False, record=self.release(changed, fmt))
 
 
@@ -366,21 +377,9 @@ class DiskFoundationSeedProfileTests(IsoSeedProfileTests):
         historical_plan['sources'] = [row for row in historical_plan['sources']
                                       if row['name'] not in DISK_OBJECTS]
         historical_plan['links']['cupidbuild'] = list(bootstrap.ISO_PUBLICATION_CUPIDBUILD_LINK)
-        snapshot = bootstrap.capture_source_snapshot(ROOT, historical_plan, windows_utf8=True,
-            windows_long_paths=True, windows_user_link_aliases=True)
-        snapshot = {name: value for name, value in snapshot.items()
-                    if name not in {'toolchain/' + object_name + '.h' for object_name in DISK_OBJECTS}}
-        removed = {'toolchain/' + row[0] + '.h' for row in bootstrap.SOURCE_OWNER_SOURCES if row[0] != 'path_encoding'}
-        removed.add('toolchain/hosted/i386-linux/include/cupid_runtime.h')
-        snapshot = {name: row for name, row in snapshot.items() if name not in removed}
-        native = bootstrap._windows_build_plan(historical_plan, utf8=True, long_paths=True,
-                                               user_link_aliases=True)
-        digest = bootstrap._build_plan_sha256(native)
-        self.assertEqual(digest, '0dfd1982dc1cd7c9d625c4c0546fc20f13fe3c9ae4dc8cbcf8835ff2e6b4e12d')
-        previous = bootstrap._retarget_native_windows_behavior_seed(self.windows, digest,
-            historical_plan, snapshot, utf8=True, long_paths=True, user_link_aliases=True,
-            parent_plan_seed=self.linux)
-        installed = json.loads(previous.manifest_bytes)
+        _, installed = self.profile_documents(historical_plan, True, True, True, 92)
+        self.assertEqual(installed["provenance"]["native_build_plan_sha256"],
+                         "0dfd1982dc1cd7c9d625c4c0546fc20f13fe3c9ae4dc8cbcf8835ff2e6b4e12d")
         self.check(installed, 2, 5, record=self.release(installed, 2))
         self.check(disk, 2, 1, record=self.release(disk, 2))
         self.assertEqual(disk['provenance']['source_input_count'], installed['provenance']['source_input_count'])

@@ -3,83 +3,83 @@
     {
       "format": "elf32",
       "name": "cupidasm",
-      "sha256": "bd0ac6505f28a09ab2261ff70fa45ef52dbc759145a7fafab1d41d35848e50db",
-      "size": 489576
+      "sha256": "5e4e0eddd22e4de8fff53f7b3315eec976834e7283e89137c0917534a3cc3ae7",
+      "size": 489664
     },
     {
       "format": "elf32",
       "name": "cupiddis",
-      "sha256": "1f466d8ef7c17c30daf79ea67b289ce6af6391ced67857314ad1f544a7a02cf1",
-      "size": 518880
+      "sha256": "63a4c44c6c2df86bf7f10fba3ea8238fc1d3cddfcfc70bb498bb6aa778aae5bc",
+      "size": 518968
     },
     {
       "format": "elf32",
       "name": "cupidld",
-      "sha256": "6a4e2f2abb459a2c71a3af67928b3b02ddbe270af6fe96620745378552bf2f15",
-      "size": 297316
+      "sha256": "54e768fcf371b4a23d522ae889405ed7639256f8f30401171708d02650cb8cb4",
+      "size": 297404
     },
     {
       "format": "elf32",
       "name": "cupidobj",
-      "sha256": "f259762bd13d38666319975e380eff8869bd9f3b15fe32fea5e636e6ad0f382c",
-      "size": 398196
+      "sha256": "400b98b20bcee9b670e23bb77e670bdf4727d976aa471693e62ba71a39b36fce",
+      "size": 398284
     },
     {
       "format": "elf32",
       "name": "cupidc",
-      "sha256": "6c16ec720b0106e7819b8f5355246df0e688e3aa44dcdd0884bcdb774659f3c4",
-      "size": 2557872
+      "sha256": "b828f7c70f0acd3c1f54e9f567ee180073fed2b42446cb737b851b2e7b5ff747",
+      "size": 2557960
     },
     {
       "format": "elf32",
       "name": "cupidbuild",
-      "sha256": "362f249da815fb1543ee91e03259904e272dc7b42fcb4fc5fba7a5877daaef1c",
-      "size": 1262760
+      "sha256": "93dea0ad5f72f9e715a6bdea3ce563a287b5872d0c6c916e90b52bf591a615a4",
+      "size": 1331656
     },
     {
       "format": "pe32",
       "name": "cupidasm",
-      "sha256": "327510fe062fc4dd172f473b62262a75188522a7cb4c52232961a35170f651d3",
+      "sha256": "856079ed600a456d34f8395e992b98f8f90c73e20f14ae6efc3a8d2191e7b9a5",
       "size": 484352
     },
     {
       "format": "pe32",
       "name": "cupiddis",
-      "sha256": "858bdf2b642f17101ad51e21b8ba5fdd83218b945889288a706c5ccb05eb3c1a",
-      "size": 513024
+      "sha256": "81835db09d39ac2d19f07c806535b790d954ebdd30e99b82014cc694dfd8b972",
+      "size": 513536
     },
     {
       "format": "pe32",
       "name": "cupidld",
-      "sha256": "342a3b527efd9df386aecc02a28b0ac8687775a596a4d2c151419af4bf190872",
-      "size": 300032
+      "sha256": "0c07b2a8d4b206211d06369a7849dadefd9116d36688117bf5464de91bfaa9ff",
+      "size": 300544
     },
     {
       "format": "pe32",
       "name": "cupidobj",
-      "sha256": "4b47e767c640b3d325c75954bd0a926c2c9e05eb516dfc4acc2f26eec04039ec",
+      "sha256": "525806f63ab2b2767330d1619eb63843d4e19ce601c9583527791a9d64361703",
       "size": 394240
     },
     {
       "format": "pe32",
       "name": "cupidc",
-      "sha256": "9de4101da403fd8f1a8fb18ce84905f35492cfcc3fc9e8985b2f4eacb9bb4cd9",
-      "size": 2499072
+      "sha256": "8b2bc7ce73ea2e70350cdcd5a5c69e179982fb0247d55b89f364387426b0d5d2",
+      "size": 2499584
     },
     {
       "format": "pe32",
       "name": "cupidbuild",
-      "sha256": "a9c1daae9808c40dcb2434560fa1aaf75d8e3d50da84b320fa1d590cef30c524",
-      "size": 1246208
+      "sha256": "c073970653bb22169864d72fc56862046e281b28c20e168414597564f95e6f85",
+      "size": 1316864
     }
   ],
   "linux_plan_sha256": "e58a047f92d21a9ffbae6cc19726477f95ca3a872f1238d9cbab58dae950faaa",
-  "parent_linux_manifest_sha256": "0051b250be16f91f50d96d7931331d38ecd1b7b5a79231a47917d68f7ecc36b7",
-  "parent_source_revision": "4cb7bc80ba613ff2e34794c828dc3db8ae4131cd",
-  "parent_windows_manifest_sha256": "0371d1bab51c29fe96d2df2491956f2878b6e499b5ed5337965d44448a5e1717",
+  "parent_linux_manifest_sha256": "0ab797ccb0e769a493d510df6795612e3338e3a1d21be4bb333b0ffe97bdf801",
+  "parent_source_revision": "5f8bbf8176ecc12fc9348a3c6495db68768f5f7e",
+  "parent_windows_manifest_sha256": "e976dc500ad3f424ca388843d7c3f7d781ed27d96f9f31d8afaa1aba5b86058b",
   "schema": "cupid.seed-release.v1",
-  "source_input_count": 114,
-  "source_revision": "5f8bbf8176ecc12fc9348a3c6495db68768f5f7e",
-  "source_snapshot_sha256": "72c800bbb2519721a2f4d1f7f2c60ab27767442a345103a983d243187facee7e",
+  "source_input_count": 124,
+  "source_revision": "2d3fb86fb5aa9241d927f87d538799e6876ee80f",
+  "source_snapshot_sha256": "696bf8c92232ba20a0056c3b5dccd4af49ccefbbd4b09e01472dd32621921f9b",
   "windows_plan_sha256": "edf91edb181c104e9762ac7f68c4636b5da153ac43e24f1d4dc941424f96e63c"
 }

@@ -14,10 +14,9 @@ make
 make -C user
 ```
 
-GNU Make schedules the build graph. CupidBuild owns 452 of its 455 transforms
-across the OS, user and Toolchain roots. Python still coordinates final disk
-images and Toolchain verification/publication. GCC, Clang and NASM serve
-optional development builds and comparison tests.
+GNU Make schedules the build graph. CupidBuild owns 453 of its 455 transforms,
+including the final disk image. Python coordinates SDK contract publication.
+GCC, Clang and NASM are optional tools for development builds and comparisons.
 
 See [Getting Started](Getting-Started) for host requirements and
 [Toolchain Bootstrap](Toolchain-Bootstrap) for staged rebuilds and releases.
@@ -57,13 +56,13 @@ own `--help` to inspect the command inventory.
 
 ## Build a disk image with CupidBuild
 
-A CupidBuild rebuilt from current source also provides `image`. Run it from
-the checkout with the seed manifest for your host, `--seed-release`, the
-bootloader and kernel paths, and the output geometry. `cupidbuild image --help`
-lists the arguments. The command stages optional files and WADs, preserves
-files in a reusable FAT volume, and keeps the existing output when its bytes
-match. Choose geometry that fits the MBR sector count, the FAT16 volume and
-the checked CupidObj template. The normal Make recipe still uses Python.
+Run `cupidbuild image` from the checkout. Pass the host seed manifest, the
+release file under the build root, the bootloader and kernel, and the image
+geometry. Use `cupidbuild image --help` for the argument list.
+
+The command stages files and WADs, preserves files in a reusable FAT volume,
+and keeps the existing image when its bytes match. The geometry must fit the
+MBR sector count, the FAT16 volume, and the checked CupidObj template.
 
 ## When a command fails
 

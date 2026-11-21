@@ -1,5 +1,38 @@
 # Bootstrapping log
 
+## 2026-11-21 — Publish the normal disk image with CupidBuild
+
+Installed the paired Linux and Windows seeds qualified from the 124-input
+snapshot at `2d3fb86f`. The release record has SHA-256
+`d9e3850d6dbf0bb1a240fab91d5b3d5733efd7254b9403a0e932b72f1fe2bc2b`.
+Windows passed 60 success, 54 rejection and seven help cases. WSL passed
+73 success, 66 rejection and seven help cases. Both stage-four tool sets
+matched their stage-three tools and the release record.
+
+The root Make recipe runs the checked `cupidbuild image` command. The audit
+requires the seed, bootloader, kernel, ISO and WAD staging arguments. CupidBuild
+now owns 453 of the 455 build transforms. Python publishes and checks the two
+SDK contracts. A Make regression runs the image recipe with Python, CC and LD
+pointing to missing commands. It compares the complete 24 MiB ISO-and-WAD
+image with the Python reference. A size mismatch stops Make before the disk
+command starts and preserves the previous image.
+
+The focused Windows suite ran 93 tests with two skips. The WSL suite ran 74
+with one skip. Both passed. Historical manifest
+fixtures now use the source counts for their own plans. The live reader tests
+still capture the current source tree, and the SDK test checks the new input
+inventory. The retained Windows preparation matched all 124 Git source blobs
+and both final stages. Both installed seed manifests and their twelve binaries
+matched the release record.
+
+Cold Windows and WSL builds passed all 16 artifact size checks. The bootloader,
+both kernel ELFs, raw kernel, test ISO, and the `hello`, `cat` and `ls` user
+programs matched byte for byte. Both builds used an external Freedoom WAD and
+produced the same 200 MiB image, SHA-256
+`b35374998406319e4fe2167c1b63d32852147614ea927e3421497ef66292f8f2`.
+The WSL image booted with four CPUs, passed the e1000 and TLS checks, and ran
+`ls` in the desktop terminal.
+
 ## 2026-11-21 — Split the CupidBuild host adapter
 
 The 13,946-line host adapter now keeps its shared types and helpers in a

@@ -460,6 +460,7 @@ TOOL_MARKERS = (
         "cupid_builder",
     ),
     ("publish-iso-fixture --root", "cupid_object"),
+    ("cupidbuild.$(PRODUCTION_SEED_SUFFIX) image --root", "cupid_object"),
     ("compile-kernel --seed-manifest", "cupid_c_compiler"),
     ("compile-doom --seed-manifest", "cupid_c_compiler"),
     ("compile-production --seed-manifest", "cupid_c_compiler"),
@@ -1894,6 +1895,7 @@ def _validate_cupidbuild_root_release_context(
             "generate-ksyms", "flatten-kernel", "generate-profile-manifest",
             "compile-kernel", "compile-doom", "compile-production", "compile-user",
             "link-user", "validate-code", "verify-artifact-sizes", "publish-iso-fixture",
+            "image",
         }
         inferred_builder = "cupid_builder" in transform.get("tools", [])
         literal_dispatcher = bool(tokens) and re.search(
@@ -2490,7 +2492,9 @@ def _operation_for_recipe(
         return "package_iso9660_image"
     if "publish-iso-fixture" in tokens and tools == ["cupid_builder", "cupid_object"]:
         return "package_iso9660_image"
-    if "hostbuild.py image " in joined:
+    if "hostbuild.py image " in joined or (
+        "image" in tokens and tools == ["cupid_builder", "cupid_object"]
+    ):
         return "package_disk_image"
     if (
         "flatten-kernel" in tokens
@@ -5340,6 +5344,7 @@ def build_audit(
     models = [root_model, *supplemental_models]
     if production_root:
         _validate_cupidbuild_root_release_context(root_model.transforms, seed_inputs=root_seed_inputs)
+        _validate_disk_image_delivery(root_model.transforms, seed_inputs=root_seed_inputs)
         _validate_kernel_flatten_delivery(
             root,
             make,
@@ -14489,6 +14494,45 @@ def _validate_iso_pattern_delivery(
             "ISO pattern delivery differs from its checked operation, tools, "
             "recipe, content inputs, or independent scheduling contract"
         )
+
+
+_DISK_IMAGE_RECIPE = [
+    "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+    '$(PRODUCTION_SEED_SUFFIX) image --root "$(CURDIR)" \\',
+    "--seed-release $(PRODUCTION_SEED_RELEASE) --seed-manifest $(PRODUCTION_SEED_MANIFEST) \\",
+    '--image "$(OS_IMAGE)" --bootloader "$(BOOTLOADER)" --kernel "$(KERNEL)" \\',
+    "--hdd-mb $(HDD_MB) --fat-start-lba $(FAT_START_LBA) \\",
+    "--stage test_iso/hello.iso:/hello.iso --wads $(WAD_SRCS)",
+]
+
+
+def _validate_disk_image_delivery(
+    transforms: list[dict[str, object]], *, seed_inputs: list[str],
+) -> None:
+    deliveries = [
+        transform for transform in transforms if transform.get("output") == "cupidos.img"
+    ]
+    if len(deliveries) != 1:
+        raise AuditError("Disk image delivery must appear exactly once")
+    delivery = deliveries[0]
+    inputs = delivery.get("inputs")
+    recipe = delivery.get("recipe")
+    expected_inputs = {
+        "verify-artifact-sizes", "boot/boot.bin", "kernel/kernel.bin", "test_iso/hello.iso",
+        "Makefile", *seed_inputs,
+    }
+    if (
+        delivery.get("operation") != "package_disk_image"
+        or delivery.get("tools") != ["cupid_builder", "cupid_object"]
+        or not isinstance(recipe, list)
+        or any(not isinstance(row, str) for row in recipe)
+        or _recipe_tokens(recipe) != _recipe_tokens(_DISK_IMAGE_RECIPE)
+        or not isinstance(inputs, list)
+        or len(inputs) != len(expected_inputs)
+        or set(inputs) != expected_inputs
+        or delivery.get("order_only_inputs")
+    ):
+        raise AuditError("Disk image delivery differs from its checked command or content inputs")
 
 
 _ISO_IMAGE_RECIPE = [
