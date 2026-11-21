@@ -14,6 +14,7 @@ from check_guest_runtime import (
     BUILD_FAILURE_PATTERN,
     COMPILER_REAPED,
     ROOT,
+    build_plan_manifest,
     compare_homefs_files,
     create_disk,
     read_homefs,
@@ -42,9 +43,7 @@ def kernel_steps(link_inputs: list[str]) -> tuple[tuple[str, bytes, bytes], ...]
 
 def write_kernel_plan(homefs: Path, root: Path, steps: tuple[tuple[str, bytes, bytes], ...],
                       inputs: tuple[tuple[bytes, bytes], ...] = ()) -> None:
-    plan = b"".join(operation.encode("ascii") + b"\n/home/" + name + b"\n"
-                    for operation, name, _ in steps)
-    write_homefs(homefs, ((b"cupidbuild.job", plan),
+    write_homefs(homefs, ((b"cupidbuild.job", build_plan_manifest(steps)),
                          (b"ksyms.h", (root / "kernel/cpu/ksyms.h").read_bytes()),
                          (b"types.h", (root / "kernel/core/types.h").read_bytes()),
                          *((name, contents) for _, name, contents in steps), *inputs))

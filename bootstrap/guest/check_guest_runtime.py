@@ -140,6 +140,11 @@ def write_homefs(path: Path, files: tuple[tuple[bytes, bytes], ...]) -> None:
             output.write(contents)
 
 
+def build_plan_manifest(steps: tuple[tuple[str, bytes, bytes], ...]) -> bytes:
+    return b"".join(operation.encode("ascii") + b"\n/home/" + name + b"\n"
+                    for operation, name, _ in steps)
+
+
 def create_disk(disk: Path, *staged: str, production_root: Path = ROOT,
                 kernel_image: Path | None = None) -> None:
     stage_args = [argument for item in staged for argument in ("--stage", item)]

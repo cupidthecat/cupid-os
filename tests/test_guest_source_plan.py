@@ -13,6 +13,7 @@ GUEST_TOOLS = Path(__file__).resolve().parents[1] / "bootstrap" / "guest"
 with patch.object(sys, "path", [str(GUEST_TOOLS), *sys.path]):
     import check_guest_kernel_plan as kernel_plan
     import check_guest_source_plan as guest_plan
+    from check_guest_runtime import build_plan_manifest
 
 
 class GuestSourcePlanTests(unittest.TestCase):
@@ -85,6 +86,16 @@ class GuestSourcePlanTests(unittest.TestCase):
         self.objects.insert(0, "kernel/missing.o")
         with self.assertRaisesRegex(ValueError, "no guest source job for kernel/missing[.]o"):
             guest_plan.source_plan(self.root, False)
+
+    def test_guest_manifest_keeps_step_order_and_nested_request_paths(self):
+        steps, _, _ = guest_plan.source_plan(self.root, True)
+        manifest = build_plan_manifest(steps).splitlines()
+        self.assertEqual(manifest[:2], [b"assemble", b"/home/a0.job"])
+        install = manifest.index(b"install")
+        self.assertEqual(manifest[install:install + 4], [
+            b"install", b"/home/kernel/util/i0.job", b"compile", b"/home/install0.job",
+        ])
+        self.assertEqual(manifest[-2:], [b"disk", b"/home/disk.job"])
 
     def test_duplicate_link_input_fails_before_creating_media(self):
         self.objects.insert(0, self.objects[0])

@@ -10,8 +10,10 @@ import tempfile
 
 from check_guest_runtime import (
     BUILD,
+    BUILD_FAILURE_PATTERN,
     COMPILER_REAPED,
     ROOT,
+    build_plan_manifest,
     compare_homefs_files,
     create_disk,
     read_homefs,
@@ -40,38 +42,25 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
     if result:
         raise RuntimeError(f"user source ISO publication failed with status {result}")
 
-    jobs = [(b"readme.txt", READ_ME)]
+    steps = []
     references = {}
-    commands = [("mount /disk/user.iso /src", r"VFS: mounted 'iso9660' at '/src'")]
-    completed = r"\[terminal\] command complete"
-    for index, source in enumerate(USER_SOURCES):
+    commands = [
+        ("mount /disk/user.iso /src", r"VFS: mounted 'iso9660' at '/src'"),
+        ("exec /disk/b", r"\[cupidbuild-guest\] build complete" + COMPILER_REAPED),
+    ]
+    for source in USER_SOURCES:
         name = Path(source).stem
         obj = f"{name}.o"
         elf = f"{name}.elf"
-        compile_job = "cupidc.job" if index == 0 else f"cc{index}.job"
-        link_job = "cupidld.job" if index == 0 else f"ld{index}.job"
-        jobs.extend((
-            (compile_job.encode("ascii"), f"/{source}\n/home/{obj}\ninclude /user\n".encode("ascii")),
-            (link_job.encode("ascii"), f"/home/{elf}\n0x01c00000\n_start\n/home/{obj}\n".encode("ascii")),
+        steps.extend((
+            ("compile", f"{name}-cc.job".encode("ascii"),
+             f"/{source}\n/home/{obj}\ninclude /user\n".encode("ascii")),
+            ("link", f"{name}-ld.job".encode("ascii"),
+             f"/home/{elf}\n0x01c00000\n_start\n/home/{obj}\n".encode("ascii")),
         ))
         references[obj] = root / "user/build" / obj
         references[elf] = root / "user/build" / name
-        if index:
-            commands.append((f"cp /home/{compile_job} /home/cupidc.job", completed))
-        commands.append((
-            "exec /disk/cupcc",
-            r"\[cupidc-guest\] wrote /home/" + re.escape(obj) + COMPILER_REAPED,
-        ))
-        if index:
-            commands.append((f"cp /home/{link_job} /home/cupidld.job", completed))
-        commands.append((
-            "exec /disk/cupld",
-            r"\[cupidld-guest\] wrote /home/" + re.escape(elf) + COMPILER_REAPED,
-        ))
-
-    for source in USER_SOURCES:
-        name = Path(source).stem
-        path = f"/home/{name}.elf"
+        path = f"/home/{elf}"
         commands.append((
             f"exec {path}",
             rf"\[elf\] Loaded {re.escape(path)} as PID (?P<pid>[1-9][0-9]*).*?"
@@ -81,11 +70,12 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
         ))
 
     homefs = scratch / "homefs.sys"
-    write_homefs(homefs, tuple(jobs))
+    write_homefs(homefs, ((b"cupidbuild.job", build_plan_manifest(tuple(steps))),
+                         (b"readme.txt", READ_ME),
+                         *((name, contents) for _, name, contents in steps)))
     image = scratch / "user.img"
     create_disk(image, f"{homefs}:/homefs.sys", f"{iso}:/user.iso",
-                f"{BUILD / 'cupidc-guest.elf'}:/cupcc",
-                f"{BUILD / 'cupidld-guest.elf'}:/cupld", production_root=root)
+                f"{BUILD / 'cupidbuild-guest.elf'}:/b", production_root=root)
     arguments = []
     for command, pattern in commands[:-1]:
         arguments.extend(("--setup-command", command, "--setup-success-pattern", pattern))
@@ -93,6 +83,7 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
     run("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "4",
         "--cpu", "max", "--nic", "e1000", "--timeout", str(timeout), "--image", str(image),
         "--log", str(BUILD / "user-build-runtime.log"), "--require-command-completion",
+        "--failure-pattern", BUILD_FAILURE_PATTERN,
         *arguments, "--command", command, "--success-pattern", pattern)
     compare_homefs_files(read_homefs(image), references)
 

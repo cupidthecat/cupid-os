@@ -1,5 +1,15 @@
 # Bootstrapping log
 
+## 2026-11-21 — Build the user examples in one guest command
+
+The user replay now sends the six compile and link jobs to CupidBuild as
+one plan. It uses the same plan writer as the kernel replay. The terminal
+runs the three resulting ELFs and checks each process's output and exit.
+
+A four-CPU WSL guest ran `cat`, `hello` and `ls`. All three objects and all
+three ELFs matched the checked hosted build. The 91 source-plan and terminal
+checks passed on Windows and WSL.
+
 ## 2026-11-21 — Run the kernel source plan in one guest boot
 
 The checker reads the two production link recipes and stages 757 source and

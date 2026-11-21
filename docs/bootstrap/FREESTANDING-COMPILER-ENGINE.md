@@ -378,18 +378,19 @@ build. It compares all seven outputs, extends the saved prefix to a
 
 ## Rebuild and run the user examples
 
-On Linux or WSL, build the checked host references and the guest workers.
+On Linux or WSL, build the checked host references and the guest CupidBuild worker.
 Use a completed OS build for the replay.
 
 ```sh
 make -C user all
-make -C bootstrap/guest guest-compiler guest-linker
+make -C bootstrap/guest guest-build
 python3 bootstrap/guest/check_guest_user_runtime.py
 ```
 
-The replay mounts the example sources, compiles and links `cat`, `hello`
-and `ls` in Cupid OS, and runs each from HomeFS. It checks program output
-and exit against the loaded PID and compares all six objects and ELFs.
+The replay mounts the example sources. One CupidBuild command compiles and
+links `cat`, `hello` and `ls`. Each ELF then runs from HomeFS. The checker
+matches output and exit against the loaded PID and compares all six build
+products with the hosted copies.
 Use `--production-root` to select a separate checked OS and user build.
 
 ## Relink the production kernel

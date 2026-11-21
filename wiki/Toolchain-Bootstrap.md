@@ -115,6 +115,11 @@ prefix. The returned disk boots with four CPUs and runs `ls`. Linux or
 WSL prepares the source ISOs and job file.
 [Source-only replay](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#build-a-bootable-kernel-from-source-in-one-guest-plan)
 
+One CupidBuild command also compiles and links `cat`, `hello` and `ls`
+from a source ISO. All six files match the hosted build, and each program
+runs from HomeFS.
+[User example replay](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#rebuild-and-run-the-user-examples)
+
 The source ISO also carries the shared CupidASM, CupidDis and CupidObj
 sources and headers. `make -C bootstrap/guest peer-objects` builds the checked
 reference objects for comparisons with guest output.

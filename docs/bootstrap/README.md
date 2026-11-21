@@ -14,7 +14,8 @@ Cupid OS remains unfinished.
   plan rebuilt all 429 linked objects from source, including Doom and the
   generated symbol table. Both kernel ELFs and the disk prefix matched the
   checked build. The resulting disk booted with four CPUs and ran `ls`.
-  A separate replay compiled, linked and ran `cat`, `hello` and `ls`.
+  A second guest plan compiled and linked `cat`, `hello` and `ls` in one
+  command, then each program ran from HomeFS.
   See the [guest build record](FREESTANDING-COMPILER-ENGINE.md).
 - Source-owner modules are in current producer plans, and paired named
   preparations reach a fixed point. The C reader now recognizes their exact
