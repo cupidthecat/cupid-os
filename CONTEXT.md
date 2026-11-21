@@ -57,6 +57,10 @@ The VFS directory that holds a source tree. The compile list uses it to
 locate sources and headers while retaining their logical project paths.
 The kernel job also uses it to find the bootloader and linker script.
 
+**Project build plan**:
+The `cupidbuild.job` in the shell's current directory. CupidBuild resolves
+relative job paths against that directory before running the plan.
+
 **Source cohort**:
 A related group of active sources migrated and verified under one tool-ownership and behavior gate.
 _Avoid_: directory (a cohort may cross directories), individual file count

@@ -346,15 +346,19 @@ and matched the 41,804-byte `ctool.o`.
 worker. Stage `cupidbuild-guest.elf` as `/b` on the FAT disk and run
 `exec /disk/b`. Mount source at `/src` when the compiler needs it.
 
-In `/home/cupidbuild.job`, put each operation and job path on a separate
-line. This plan compiles an object and then links it.
+From your project directory, `exec /disk/b` opens `cupidbuild.job` there.
+Put each operation and job path on a separate line. This plan compiles
+an object and then links it.
 
 ```text
 compile
-/home/hello.cj
+jobs/hello.cj
 link
-/home/hello.lj
+jobs/hello.lj
 ```
+
+The project plan accepts absolute paths too. If there is no local plan,
+CupidBuild reads `/home/cupidbuild.job`, which takes absolute job paths.
 
 Each step uses the same format as its standalone worker. The driver
 validates up to 512 plan entries before starting, stops at the first
@@ -667,10 +671,10 @@ make -C bootstrap/guest guest-build
 python3 bootstrap/guest/check_guest_source_plan.py --production-root /path/to/checked/build --installed-tree --temporary-objects
 ```
 
-The checker stages the project at `/home/project` and the plan at
-`/home/cupidbuild.job`. The guest reads both from HomeFS. The compile
-list keeps its logical source and include paths, and the kernel job
-finds the bootloader, script and symbol headers under the project root.
+The checker stages the project, plan and jobs in `/home/project`. It
+enters that directory and runs the worker. The compile list keeps its
+logical source and include paths. The kernel job finds the bootloader,
+script and symbol headers under the project root.
 See [ADR 0504](../adr/0504-build-from-an-installed-guest-source-tree.md).
 
 CupidBuild runs the source and asset lists in order. Each list shares

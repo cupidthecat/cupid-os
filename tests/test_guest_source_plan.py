@@ -119,8 +119,8 @@ class GuestSourcePlanTests(unittest.TestCase):
                 guest_plan.stage_installed_tree(scratch, scratch, image, steps, {source})
             _, entries = calls["write_homefs"].call_args.args
             self.assertEqual(dict(entries), {
-                b"cupidbuild.job": b"compile-list\n/home/jobs/00/sources.job\n",
-                b"jobs/00/sources.job": steps[0][2],
+                b"project/cupidbuild.job": b"compile-list\njobs/00/sources.job\n",
+                b"project/jobs/00/sources.job": steps[0][2],
                 b"project/kernel/main.cc": (scratch / source).read_bytes(),
             })
             self.assertEqual(calls["create_disk"].call_args.args[-1],
@@ -313,3 +313,13 @@ class GuestMountRetryTests(unittest.TestCase):
             self.execute(transcript)
         run.assert_called_once()
         self.runners["boot_prefix"].assert_not_called()
+
+    def test_installed_tree_enters_project_before_running_worker(self):
+        kernel_plan.execute_kernel_plan(
+            self.scratch, self.scratch, self.scratch / "build.img", "qemu", 10, {},
+            project_directory="/home/project",
+        )
+        arguments = self.runners["run"].call_args.args
+        self.assertEqual(arguments[arguments.index("--setup-command") + 1], "cd /home/project")
+        self.assertEqual(arguments[arguments.index("--command") + 1], "exec /disk/b")
+        self.runners["boot_prefix"].assert_called_once()

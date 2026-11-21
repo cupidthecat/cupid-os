@@ -134,7 +134,8 @@ def check(scratch: Path) -> None:
     subprocess.run([*command, "cupidobj", "--", "install-source", "demos", "--demos",
                     "demos/hello.asm", "-o", reference_install], cwd=ROOT, check=True, timeout=120)
     assembly = scratch / "input.asm"
-    assembly.write_bytes(b"[BITS 32]\nsection .text\nglobal sample\nsample: ret\n")
+    assembly_source = b"[BITS 32]\nsection .text\nglobal sample\nsample: ret\n"
+    assembly.write_bytes(assembly_source)
     reference_assembly = scratch / "reference.o"
     subprocess.run([sys.executable, ROOT / "tools/bootstrap_toolchain.py", "run",
                     "--manifest", manifest, "--root", ROOT, "--tool", "cupidasm",
@@ -210,6 +211,7 @@ def check(scratch: Path) -> None:
     log = invoke(b"[cupidbuild-guest] stopped at /home/assemble.job")
     assert b"object code check failed" in log and b"[cupidinstall-guest]" not in log
     assert (home / "assembled.o").read_bytes() == reference_assembly.read_bytes()
+    assembly.write_bytes(assembly_source)
     install_job.write_bytes(b"/home/installed.cc\ndemos\n--demos\n/demos/hello.cc\n")
     plan.write_bytes(install + PLAN)
     log = invoke(b"[cupidbuild-guest] stopped at /home/install.job")
@@ -290,6 +292,29 @@ def check(scratch: Path) -> None:
     assert boot.read_bytes() == b"preceding bootloader"
     scratch_pending.unlink()
     check_object_lists(scratch, command, reference_object, invoke)
+    project = home / "project"
+    project_jobs = project / "jobs"
+    project_jobs.mkdir()
+    local_plan = project / "cupidbuild.job"
+    local_object = home / "local.o"
+    (project_jobs / "assemble.job").write_bytes(b"/input.asm\n/home/local.o\n")
+    local_request = b"assemble\njobs/assemble.job\n"
+    plan.write_bytes(assemble)
+    (home / "assembled.o").write_bytes(b"previous HomeFS output")
+    for name in (b"../assemble.job", b"jobs/../assemble.job", b"a" * 512):
+        local_plan.write_bytes(local_request + b"assemble\n" + name + b"\n")
+        invoke(b"invalid request file: /home/project/cupidbuild.job")
+        assert not local_object.exists()
+        assert (home / "assembled.o").read_bytes() == b"previous HomeFS output"
+    local_plan.write_bytes(b"assemble\njobs/missing.job\n")
+    invoke(b"stopped at /home/project/jobs/missing.job")
+    local_plan.write_bytes(local_request)
+    media_plan.unlink()
+    invoke(b"invalid request file: /plan/cupidbuild.job", "--media")
+    assert not local_object.exists()
+    invoke(b"[cupidbuild-guest] build complete")
+    assert local_object.read_bytes() == reference_assembly.read_bytes()
+    assert (home / "assembled.o").read_bytes() == b"previous HomeFS output"
     print("Guest builds matched checked outputs from HomeFS and source-media plans.")
 
 

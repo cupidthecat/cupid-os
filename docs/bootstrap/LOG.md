@@ -1,5 +1,21 @@
 # Bootstrapping log
 
+## 2026-11-21 — Run CupidBuild from the project directory
+
+An editable project keeps its plan and requests under one directory.
+CupidBuild resolves relative job paths before it runs any step. The
+Linux worker checks cover invalid and missing requests, the HomeFS
+fallback, and the separate media entry. The first fixture run reused
+intentionally invalid assembly from an earlier check. Restoring its
+original input made the project assembly match.
+
+The installed-tree QEMU run entered the project, built and ran `hello`,
+and matched all eight saved artifacts. The kernel replay entered the
+same project and matched seven outputs from 430 checked objects. Its
+disk booted with four CPUs and passed TLS, e1000, DHCP and `ls`.
+All 168 focused guest and terminal tests passed on Windows and WSL.
+The build graph audit passed on both hosts.
+
 ## 2026-11-21 — Build from an editable guest source tree
 
 CupidBuild reads the plan and project files from HomeFS. Compile lists

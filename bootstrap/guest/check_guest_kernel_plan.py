@@ -53,7 +53,7 @@ def write_kernel_plan(homefs: Path, root: Path, steps: tuple[tuple[str, bytes, b
 def execute_kernel_plan(scratch: Path, root: Path, image: Path, qemu: str, timeout: float,
                         extra_references: dict[str, Path],
                         mounts: tuple[tuple[str, str], ...] = (), *,
-                        installed_tree: bool = False) -> None:
+                        project_directory: str | None = None) -> None:
     smoke = ("tools/gui_terminal_smoke.py", "--qemu", qemu, "--cpu", "max",
              "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.75",
              "--require-command-completion")
@@ -64,9 +64,12 @@ def execute_kernel_plan(scratch: Path, root: Path, image: Path, qemu: str, timeo
         markers.append(marker)
         setup.extend(("--setup-command", f"mount /disk/{iso} {mount}",
                       "--setup-success-pattern", marker))
-    log = "kernel-installed-tree" if installed_tree else "kernel-source-plan" if mounts else "kernel-plan"
+    if project_directory:
+        setup.extend(("--setup-command", f"cd {project_directory}",
+                      "--setup-success-pattern", r"\[terminal\] command complete"))
+    log = "kernel-installed-tree" if project_directory else "kernel-source-plan" if mounts else "kernel-plan"
     runtime_log = BUILD / f"{log}-runtime.log"
-    command = (*smoke, "--smp", "1" if mounts or installed_tree else "4", *setup,
+    command = (*smoke, "--smp", "1" if mounts or project_directory else "4", *setup,
                "--image", str(image), "--log", str(runtime_log),
                "--command", "exec /disk/b", "--failure-pattern", BUILD_FAILURE_PATTERN,
                "--success-pattern", r"\[cupidbuild-guest\] build complete" + COMPILER_REAPED)

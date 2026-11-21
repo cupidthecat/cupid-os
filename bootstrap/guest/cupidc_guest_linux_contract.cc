@@ -153,6 +153,12 @@ static void host_serial_char(char c) {
     cupid_linux_syscall3(4, 1u, (unsigned int)&c, 1u);
 }
 
+#ifdef CUPID_TEST_GUEST_MEDIA_ENTRY
+static const char *host_shell_cwd(void) {
+    return "/home/project";
+}
+#endif
+
 static int check_allocation_cache(cupid_syscall_table_t *sys) {
     cupid_guest_io_t io = {.sys = sys};
     ctool_job_config_t guest_config = cupid_guest_job_config(&io);
@@ -221,6 +227,9 @@ int main(int argc, char **argv) {
     sys.vfs_unlink = host_unlink;
     sys.serial_write_string = host_serial;
     sys.serial_write_char = host_serial_char;
+#ifdef CUPID_TEST_GUEST_MEDIA_ENTRY
+    sys.shell_get_cwd = host_shell_cwd;
+#endif
     if (!check_allocation_cache(&sys)) {
         host_serial("Guest allocation cache contract failed.\n");
         return 3;

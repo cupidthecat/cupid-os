@@ -67,9 +67,10 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float, installed_tree: 
     )
     disk = scratch / "build.img"
     asset_paths = {Path(source) for _, source, _ in assets}
-    mounts = ()
     if installed_tree:
         stage_installed_tree(scratch, root, disk, steps, sources | asset_paths)
+        setup = ("--setup-command", f"cd {source_root}",
+                 "--setup-success-pattern", r"\[terminal\] command complete")
     else:
         if publish_source_iso(publisher, root, BUILD / "cupidc-engine.elf", iso, iso_members(sources)):
             raise ValueError("could not publish the user source ISO")
@@ -78,7 +79,7 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float, installed_tree: 
             raise ValueError("could not publish the user plan ISO")
         create_disk(disk, f"{iso}:/s.iso", f"{plan}:/{plan.name}", f"{BUILD / MEDIA_BUILD}:/b",
                     production_root=root)
-        mounts = ("--setup-command", "mount /disk/s.iso /src",
+        setup = ("--setup-command", "mount /disk/s.iso /src",
                   "--setup-success-pattern", r"VFS: mounted 'iso9660' at '/src'",
                   "--setup-command", f"mount /disk/{plan.name} {PLAN_ISO[1]}",
                   "--setup-success-pattern", f"VFS: mounted 'iso9660' at '{PLAN_ISO[1]}'")
@@ -87,7 +88,7 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float, installed_tree: 
         "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "1",
         "--image", str(disk), "--log", str(BUILD / log_name),
         "--require-command-completion", "--failure-pattern", BUILD_FAILURE_PATTERN,
-        *mounts,
+        *setup,
         "--setup-command", "exec /disk/b",
         "--setup-success-pattern", r"\[cupidbuild-guest\] build complete" + COMPILER_REAPED,
         "--command", "exec /home/hello.elf",

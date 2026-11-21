@@ -25,7 +25,9 @@ Cupid OS remains unfinished.
   from one ISO. It compiles and wraps objects in lists of related inputs.
   A single kernel job takes the ordered objects and runs both
   links, symbol generation, and disk-prefix publication inside Cupid OS.
-  Linux or WSL still generates the plan and publishes the media.
+  An editable HomeFS project can keep `cupidbuild.job` and its job files
+  together and run them from the project directory.
+  Linux or WSL still generates the replay plans and publishes the media.
   The normal image-command handoff and native developer build coordination
   remain open.
 - The private in-OS compiler supports halfword storage, integer array lists

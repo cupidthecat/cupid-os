@@ -65,13 +65,17 @@ Increasing initializer indices need one duplicate check per validation stage.
 
 >h2 Run a build plan
 
-Stage cupidbuild-guest.elf as /b and run exec /disk/b. Write each operation
-and its job path on separate lines in /home/cupidbuild.job.
+Stage cupidbuild-guest.elf as /b. Use cd to enter your project directory,
+then run exec /disk/b. Write each operation and its job path on separate
+lines in the project's cupidbuild.job.
 
   compile
-  /home/hello.cj
+  jobs/hello.cj
   link
-  /home/hello.lj
+  jobs/hello.lj
+
+Job paths in the project plan may also be absolute. If the directory has
+no plan, CupidBuild uses /home/cupidbuild.job with absolute job paths.
 
 Each step uses the format of its standalone job. Use raw for checked boot
 assembly, symbols for kernel symbols, object for wrapping or flattening,

@@ -186,9 +186,10 @@ def source_plan(root: Path, temporary_objects: bool, *, installed_tree: bool = F
 def stage_installed_tree(scratch: Path, root: Path, image: Path,
                          steps: tuple[tuple[str, bytes, bytes], ...],
                          sources: Collection[Path], *staged: str) -> None:
-    plan = media_plan_files(steps, request_root=b"/home/jobs/")
-    files = [(path.as_posix().encode("ascii"), contents) for path, contents in plan.items()]
+    plan = media_plan_files(steps, request_root=b"jobs/")
     project = INSTALLED_ROOT.removeprefix("/home/")
+    files = [(f"{project}/{path.as_posix()}".encode("ascii"), contents)
+             for path, contents in plan.items()]
     files.extend((f"{project}/{source.as_posix()}".encode("ascii"), (root / source).read_bytes())
                  for source in sorted(sources))
     homefs = scratch / "homefs.sys"
@@ -233,7 +234,7 @@ def check_installed(scratch: Path, root: Path, qemu: str, timeout: float, tempor
                if not (base / member).is_dir()}
     image = scratch / "build.img"
     stage_installed_tree(scratch, root, image, steps, sources)
-    execute_kernel_plan(scratch, root, image, qemu, timeout, references, installed_tree=True)
+    execute_kernel_plan(scratch, root, image, qemu, timeout, references, project_directory=INSTALLED_ROOT)
 
 
 def verify_pass_one(scratch: Path, root: Path, objects: list[str]) -> None:
@@ -266,7 +267,7 @@ def check_kernel_job(scratch: Path, root: Path, qemu: str, timeout: float, *,
     if installed_tree:
         image = scratch / "build.img"
         stage_installed_tree(scratch, root, image, steps, KERNEL_BUILD_FILES, *staged)
-        execute_kernel_plan(scratch, root, image, qemu, timeout, {}, installed_tree=True)
+        execute_kernel_plan(scratch, root, image, qemu, timeout, {}, project_directory=INSTALLED_ROOT)
         return
     replay(scratch, root, qemu, timeout, steps, SOURCE_ISOS[:1],
            ((root, iso_members(KERNEL_BUILD_FILES)),), {}, staged)
