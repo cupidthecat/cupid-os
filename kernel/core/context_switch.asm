@@ -1,5 +1,5 @@
-; context_switch.asm - Low-level context switch for CupidOS scheduler
-;
+; @file context_switch.asm
+; @brief Save and restore CPU state across scheduler context switches.
 ; void context_switch(process_t *old_proc, process_t *new_proc,
 ;                     uint32_t resume_eflags);
 ;

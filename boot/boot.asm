@@ -1,7 +1,7 @@
+; @file boot.asm
+; @brief Load Cupid OS from disk and enter the kernel.
  [org 0x7c00]
 [bits 16]
-
-; STAGE 1 - Boot Sector (512 bytes)
 ; Loads stage 2 from sectors 2-5 to 0x7E00, then jumps to it.
 ; With [org 0x7c00], stage 2 labels at offset 512+ resolve to 0x7E00+
 ; which is exactly where we load them. BOOT_DRIVE in stage 1 memory

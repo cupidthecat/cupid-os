@@ -48462,7 +48462,7 @@
       "category": "directive",
       "examples": [
         {
-          "line": 2,
+          "line": 4,
           "path": "boot/boot.asm",
           "text": "[bits 16]"
         },
@@ -48734,7 +48734,7 @@
       "category": "directive",
       "examples": [
         {
-          "line": 1,
+          "line": 3,
           "path": "boot/boot.asm",
           "text": "[org 0x7c00]"
         },
@@ -63272,7 +63272,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "cd81a77c9b375ebf03b19a0a2cf56df2ca34059d6cacfefcc43dfb593eeac340",
+    "active_source_digest": "acc1d8b9fe5e3a651300dedff1e962e5b4f2c415ddac9fb1da39b3ecda34cf63",
     "control_files": [
       {
         "path": "Makefile",
@@ -67870,7 +67870,7 @@
       "path": "boot/boot.asm",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidASM",
-      "sha256": "e42225f1fea0eaa7a7144c8a0e0c047466aa144bd6d4ef6240e826f11dc49b14"
+      "sha256": "c477a54bca47f65d66dc6c140c7d8387480dacf2221d320b471a4c3ef556531c"
     },
     {
       "build_owners": [
@@ -70262,7 +70262,7 @@
       "path": "kernel/core/context_switch.asm",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidASM",
-      "sha256": "fbf71e5c71ae5c38916ec8f988f18385e9dc418f83b609bbc488752db6066f23"
+      "sha256": "463b4ecd09a3d7da9035bee32dc011538e6ed080a982dff3751626f406a48e0e"
     },
     {
       "build_owners": [
@@ -71207,7 +71207,7 @@
       "path": "kernel/cpu/isr.asm",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidASM",
-      "sha256": "c50786acbe8319207b6915a3049dceef3fd7bde08d3f5c5f5d65521f52f86f7d"
+      "sha256": "1c17491a35980a08c35127f5fd859bf45f89a1ce1607482dda9006926245941e"
     },
     {
       "build_owners": [
@@ -86824,7 +86824,7 @@
       "path": "kernel/smp/smp_trampoline.S",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidASM",
-      "sha256": "342ae4ddc59ac22947fd07d8aeb1709e2adf915284c30a210e1cf24715aa7429"
+      "sha256": "6fc751bcd8ee2900e44a75dcdfda82868d58b0b1fa9a69803296c34b6b56ca4a"
     },
     {
       "build_owners": [

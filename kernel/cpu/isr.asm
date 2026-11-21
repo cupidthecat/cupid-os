@@ -1,6 +1,6 @@
+; @file isr.asm
+; @brief Dispatch i386 interrupts and exceptions to the kernel handlers.
 [BITS 32]
-
-; Declare external C functions
 extern isr_handler
 extern irq_handler
 extern percpu_interrupt_enter

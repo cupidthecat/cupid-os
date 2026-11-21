@@ -1,5 +1,11 @@
 # Bootstrapping log
 
+## 2026-11-21 — Document boot and kernel assembly
+
+The bootloader, SMP trampoline, interrupt entries and context switch now
+have Doxygen file headers. Checked CupidASM reproduced both raw binaries
+and both ELF objects byte for byte on Windows and WSL.
+
 ## 2026-11-21 — Move host disk publication into its own module
 
 The disk module contains the FAT16 image writer, retained source checks and
