@@ -180,7 +180,7 @@ class WindowsUserLinkPublicationTests(unittest.TestCase):
             changed = bootstrap._retarget_native_windows_behavior_seed(native, digest, linux, snapshot,
                 utf8=True, long_paths=long_paths, user_link_aliases=True, parent_plan_seed=parent)
             provenance = changed.manifest["provenance"]
-            self.assertEqual(provenance["source_input_count"], 113 if long_paths else 112)
+            self.assertEqual(provenance["source_input_count"], 118 if long_paths else 117)
             self.assertEqual(provenance["native_build_plan_sha256"], digest)
             same_profile = native.manifest["provenance"]["native_build_plan_sha256"] == digest and (
                 native.manifest["provenance"]["source_snapshot_sha256"] == bootstrap._source_snapshot_sha256(snapshot))

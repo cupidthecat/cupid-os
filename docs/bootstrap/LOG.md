@@ -1,5 +1,12 @@
 # Bootstrapping log
 
+## 2026-11-21 — Check CupidBuild includes during ABI publication reuse
+
+The user ABI test now checks all 119 producer sources, including the four
+CupidBuild includes, before reusing a published cohort. Two Windows seed
+tests now use the measured live counts and still check the recorded parent
+identities and strict rejection of unpromoted manifests.
+
 ## 2026-11-21 — Separate CupidBuild's core implementation
 
 CupidBuild's main implementation is 1,232 lines after moving compiler input
