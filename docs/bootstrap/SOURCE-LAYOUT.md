@@ -41,3 +41,8 @@ on Windows.
 serial output. The runner is now 1,912 lines, and its command-line entry
 point stays the same. All 160 terminal, fullscreen and user-runtime tests
 passed on Windows.
+
+The 4,486-line terminal test suite now has separate modules for terminal
+input and capture, the frontier runtime, and program-specific evidence.
+The modules share their serial, disk and monitor fixtures. All 160 tests
+passed again across the new module paths.
