@@ -104,6 +104,33 @@ def check(root: Path, scratch: Path) -> None:
         assert wrapped.read_bytes() == expected.read_bytes() and not pending.exists()
     print("Guest CupidObj matched the checked read-only object and rejected invalid symbol stems.")
 
+    text_object = scratch / "text.o"
+    subprocess.run([*command, "cupidobj", "--", "wrap-text", asset,
+                    "--identity", identity, "-o", text_object], check=True, timeout=120)
+    iso_paths = scratch / "iso.paths"
+    iso_paths.write_bytes(b"raw.o\ntext.o\n")
+    expected_iso = scratch / "expected.iso"
+    subprocess.run([*command, "cupidobj", "--", "iso-fixture", iso_paths,
+                    "--file", "raw.o", expected, "--file", "text.o", text_object,
+                    "-o", expected_iso], check=True, timeout=120)
+    members = (b"/asset\n/raw.o\nwrap-readonly\nsmp_trampoline\n"
+               b"/asset\n/text.o\nwrap-text\n/bin/test-clip.cc\n")
+    manifest = scratch / "assets.list"
+    manifest.write_bytes(members)
+    bundle = home / "assets.iso"
+    request = b"/assets.list\n/home/assets.iso\nwrap-bundle\n"
+    invoke(request, b"[cupidobj-guest] wrote /home/assets.iso")
+    assert bundle.read_bytes() == expected_iso.read_bytes() and not pending.exists()
+
+    for bad, result in ((members.replace(b"text.o", b"RAW.o"), b"input"),
+                        (members.rsplit(b"/bin/", 1)[0], b"input"),
+                        (members.replace(b"/asset\n/text", b"/missing\n/text"), b"not_found"),
+                        (b"/asset\n/raw.o\nwrap\n/asset\n" * 257, b"limit")):
+        manifest.write_bytes(bad)
+        invoke(request, b"[cupidobj-guest] bundle failed: " + result)
+        assert bundle.read_bytes() == expected_iso.read_bytes() and not pending.exists()
+    print("Guest CupidObj matched the checked asset ISO and preserved it after four rejections.")
+
 
 if __name__ == "__main__":
     root = Path(sys.argv[1]).resolve()

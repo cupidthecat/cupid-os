@@ -113,6 +113,11 @@ root. That last path supplies the ELF symbol names.
 For read-only data, use wrap-readonly and put the ELF symbol stem on the
 last line. Use smp_trampoline for the AP startup image.
 
+Use wrap-bundle on the third line to wrap several assets into one ISO.
+The first line then names a list file and the second names the output ISO.
+Each list entry gives the asset path, the ISO member path, the wrapping
+mode and the repository path or symbol stem. Use one field per line.
+
 >h2 Generate kernel installation source
 
 In /home/cupidinstall.job, put the output source path, the installation

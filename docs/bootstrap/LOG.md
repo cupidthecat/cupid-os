@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-21 — Wrap the ordinary kernel asset set in one guest job
+
+CupidObj reads the asset list, wraps each member and publishes one ISO.
+The first build rejected a chained initializer designator. A nested
+initializer compiled with the installed seed. The Linux contract matched
+the expected ISO and preserved it after a collision, a truncated record,
+a missing asset and an over-limit list.
+
+The QEMU run used the ordinary wrapping recipes from Make. The saved
+4,405,248-byte ISO matched the checked reference. Independent extraction
+matched all 182 object files and their names.
+
 ## 2026-11-21 — Rebuild the kernel parser inside Cupid OS
 
 The production-profile replay compiled `kernel/lang/cupidc_parse.cc` in

@@ -451,6 +451,27 @@ Use `check_guest_kernel_link.py --rebuild-assets` to feed both guest objects
 into the kernel links. With `--rebuild-disk`, the replay boots the disk saved
 by the guest and runs the embedded `ls`.
 
+### Bundle wrapped assets
+
+For a batch, set the job's first line to a list file and the second to the
+output ISO. Use `wrap-bundle` on the third. The list repeats four lines per
+asset. Give the ISO member a root-level path. A one-entry list looks like this.
+
+```text
+/disk/text.src
+/ls.o
+wrap-text
+/bin/ls.cc
+```
+
+CupidObj builds the entries and publishes the ISO after the whole list
+passes. The Linux or WSL replay derives the list from the production Make
+recipes. It matched the complete ISO and all 182 ordinary asset objects.
+
+```sh
+python3 bootstrap/guest/check_guest_asset_bundle.py --production-root /path/to/checked/build
+```
+
 ## Generate kernel installation sources inside Cupid OS
 
 Build the installation worker and stage `cupidinstall-guest.elf` as
