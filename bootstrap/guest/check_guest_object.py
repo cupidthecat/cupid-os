@@ -95,6 +95,15 @@ def check(root: Path, scratch: Path) -> None:
     assert wrapped.read_bytes() == expected.read_bytes() and not pending.exists()
     print("Guest CupidObj matched checked text and binary objects and preserved them on rejection.")
 
+    subprocess.run([*command, "cupidobj", "--", "wrap", asset, "--stem", "smp_trampoline",
+                    "--section", ".rodata", "--readonly", "-o", expected], check=True, timeout=120)
+    invoke(request + b"wrap-readonly\nsmp_trampoline\n", b"[cupidobj-guest] wrote /home/asset.o")
+    assert wrapped.read_bytes() == expected.read_bytes() and not pending.exists()
+    for stem in (b"/smp/trampoline", b"32_start", b"smp-trampoline"):
+        invoke(request + b"wrap-readonly\n" + stem + b"\n", invalid)
+        assert wrapped.read_bytes() == expected.read_bytes() and not pending.exists()
+    print("Guest CupidObj matched the checked read-only object and rejected invalid symbol stems.")
+
 
 if __name__ == "__main__":
     root = Path(sys.argv[1]).resolve()

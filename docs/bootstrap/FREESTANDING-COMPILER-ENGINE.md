@@ -365,11 +365,13 @@ It checks instruction decoding and branch targets before publication. The
 trampoline must also match the kernel's approved mixed-mode layout.
 
 ```sh
-make -C bootstrap/guest guest-raw check-guest-raw
+make -C bootstrap/guest guest-raw guest-object check-guest-raw
 python3 bootstrap/guest/check_guest_raw_assembly_runtime.py --production-root /path/to/checked/build
 ```
 
 The guest matched the checked bootloader and AP trampoline byte for byte.
+A guest CupidObj job wrapped the trampoline into the checked 4,508-byte
+kernel object.
 A shifted trampoline was rejected and left the saved binary intact.
 
 ## Rebuild the kernel assembly objects
@@ -432,6 +434,10 @@ the `_binary_*` symbols even when the staging filename differs.
 wrap-text
 /bin/ls.cc
 ```
+
+Use `wrap-readonly` to put raw bytes in `.rodata`. The fourth line is the
+explicit ELF symbol stem. The kernel uses `smp_trampoline` for the AP
+startup image.
 
 With a completed checked build, run the asset check on Linux or WSL.
 

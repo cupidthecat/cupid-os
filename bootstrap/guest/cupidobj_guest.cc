@@ -10,14 +10,31 @@
 #define OBJECT_PENDING "/home/.cupidobj-pending.bin"
 #define OBJECT_SOURCE_BYTES (16u * 1024u * 1024u)
 #define OBJECT_ARENA_BYTES (64u * 1024u * 1024u)
-#define OBJECT_JOB_BYTES (CUPID_GUEST_PATH_BYTES(3u) + sizeof("wrap-text\n"))
+#define OBJECT_JOB_BYTES (CUPID_GUEST_PATH_BYTES(3u) + sizeof("wrap-readonly\n"))
 #define OBJECT_SYMBOL_BYTES (VFS_MAX_PATH + sizeof("_binary__start"))
 
 typedef struct {
     ctool_invocation_request_t invocation;
     ctool_obj_operation_t operation;
     ctool_string_t identity;
+    ctool_bool readonly;
 } guest_object_job_t;
+
+static int ascii_alnum(char ch) {
+    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9');
+}
+
+static int read_symbol_stem(const char *stem, ctool_string_t *identity) {
+    ctool_string_t name = ctool_string(stem);
+    if (name.size == 0u || name.size >= VFS_MAX_PATH || (stem[0] >= '0' && stem[0] <= '9'))
+        return 0;
+    for (ctool_u32 i = 0; i < name.size; i++) {
+        if (!ascii_alnum(stem[i]) && stem[i] != '_')
+            return 0;
+    }
+    *identity = name;
+    return 1;
+}
 
 static int read_object_job(cupid_syscall_table_t *sys, char *file, guest_object_job_t *job) {
     int size = sys->vfs_read_text(OBJECT_JOB, file, OBJECT_JOB_BYTES);
@@ -39,6 +56,11 @@ static int read_object_job(cupid_syscall_table_t *sys, char *file, guest_object_
     char *logical = cupid_guest_next_job_line(&cursor, end);
     if (!mode || !logical || cursor != end)
         return 0;
+    if (strcmp(mode, "wrap-readonly") == 0) {
+        job->operation = CTOOL_OBJ_WRAP_BINARY;
+        job->readonly = CTOOL_TRUE;
+        return read_symbol_stem(logical, &job->identity);
+    }
     if (strcmp(mode, "wrap") == 0)
         job->operation = CTOOL_OBJ_WRAP_BINARY;
     else if (strcmp(mode, "wrap-text") == 0)
@@ -54,15 +76,16 @@ static int read_object_job(cupid_syscall_table_t *sys, char *file, guest_object_
     return 1;
 }
 
-static ctool_string_t asset_symbol(char *output, ctool_string_t identity, const char *suffix) {
+static ctool_string_t asset_symbol(char *output, const guest_object_job_t *job, const char *suffix) {
     const char prefix[] = "_binary_";
-    ctool_u32 length = sizeof(prefix) - 1u;
-    memcpy(output, prefix, length);
-    for (ctool_u32 i = 0; i < identity.size; i++) {
-        char ch = identity.data[i];
-        if ((ch < 'a' || ch > 'z') && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9'))
-            ch = '_';
-        output[length++] = ch;
+    ctool_u32 length = 0u;
+    if (!job->readonly) {
+        length = sizeof(prefix) - 1u;
+        memcpy(output, prefix, length);
+    }
+    for (ctool_u32 i = 0; i < job->identity.size; i++) {
+        char ch = job->identity.data[i];
+        output[length++] = ascii_alnum(ch) ? ch : '_';
     }
     memcpy(output + length, suffix, strlen(suffix) + 1u);
     return ctool_string(output);
@@ -78,12 +101,12 @@ static ctool_status_t build_object(ctool_invocation_t *invocation, void *context
     char size[OBJECT_SYMBOL_BYTES];
     if (job->operation != CTOOL_OBJ_EXTRACT_FLAT) {
         request.as.wrap_binary = (ctool_obj_wrap_binary_request_t){
-            .section_name = ctool_string(".data"),
-            .section_flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE,
+            .section_name = ctool_string(job->readonly ? ".rodata" : ".data"),
+            .section_flags = CTOOL_ELF32_SHF_ALLOC | (job->readonly ? 0u : CTOOL_ELF32_SHF_WRITE),
             .section_alignment = 1u,
-            .start_symbol = asset_symbol(start, job->identity, "_start"),
-            .end_symbol = asset_symbol(end, job->identity, "_end"),
-            .size_symbol = asset_symbol(size, job->identity, "_size")
+            .start_symbol = asset_symbol(start, job, "_start"),
+            .end_symbol = asset_symbol(end, job, "_end"),
+            .size_symbol = asset_symbol(size, job, "_size")
         };
     }
     ctool_obj_result_t result = {0};

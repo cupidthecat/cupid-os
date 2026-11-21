@@ -110,6 +110,9 @@ root. That last path supplies the ELF symbol names.
   wrap-text
   /bin/ls.cc
 
+For read-only data, use wrap-readonly and put the ELF symbol stem on the
+last line. Use smp_trampoline for the AP startup image.
+
 >h2 Generate kernel installation source
 
 In /home/cupidinstall.job, put the output source path, the installation

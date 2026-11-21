@@ -93429,11 +93429,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 123,
+      "lines": 146,
       "path": "bootstrap/guest/cupidobj_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "9ab5e8ee12451bba1ed1414c94a522b00b98f7b1669f7400015c3e37be9c833c"
+      "sha256": "522672c4e6c5ccaa8f66b8cd77ed7a50b93d3c44bd846cc792cada6eac1e601d"
     },
     {
       "classification": "host_fixture",

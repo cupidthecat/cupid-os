@@ -25,20 +25,31 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
     worker = f"{BUILD / 'cupidraw-guest.elf'}:/r"
     smoke = ("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "4", "--cpu", "max",
              "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.5",
-             "--require-command-completion", "--command", "exec /disk/r")
+             "--require-command-completion")
     sources = {
         "bootloader": ("boot/boot.asm", "boot/boot.bin"),
         "smp-trampoline": ("kernel/smp/smp_trampoline.S", "kernel/smp_trampoline.bin"),
     }
+    raw_ready = r"\[cupidraw-guest\] wrote /home/raw[.]bin" + COMPILER_REAPED
     for mode, (source, output) in sources.items():
         request = f"/disk/in.asm\n/home/raw.bin\n{mode}\n".encode("ascii")
-        write_homefs(homefs, ((b"cupidraw.job", request),))
+        jobs = [(b"cupidraw.job", request)]
+        stage = [worker, f"{root / source}:/in.asm"]
+        expectations = {"raw.bin": root / output}
+        commands = ("--command", "exec /disk/r", "--success-pattern", raw_ready)
+        if mode == "smp-trampoline":
+            wrap = b"/home/raw.bin\n/home/smp.o\nwrap-readonly\nsmp_trampoline\n"
+            jobs.append((b"cupidobj.job", wrap))
+            stage.append(f"{BUILD / 'cupidobj-guest.elf'}:/o")
+            expectations["smp.o"] = root / "kernel/smp/smp_trampoline.o"
+            commands = ("--setup-command", "exec /disk/r", "--setup-success-pattern", raw_ready,
+                        "--command", "exec /disk/o", "--success-pattern",
+                        r"\[cupidobj-guest\] wrote /home/smp[.]o" + COMPILER_REAPED)
+        write_homefs(homefs, tuple(jobs))
         disk = scratch / f"{mode}.img"
-        create_disk(disk, f"{homefs}:/homefs.sys", f"{root / source}:/in.asm", worker,
-                    production_root=root)
-        run(*smoke, "--image", str(disk), "--log", str(BUILD / f"kernel-raw-{mode}.log"),
-            "--success-pattern", r"\[cupidraw-guest\] wrote /home/raw[.]bin" + COMPILER_REAPED)
-        compare_homefs_files(read_homefs(disk), {"raw.bin": root / output})
+        create_disk(disk, f"{homefs}:/homefs.sys", *stage, production_root=root)
+        run(*smoke, "--image", str(disk), "--log", str(BUILD / f"kernel-raw-{mode}.log"), *commands)
+        compare_homefs_files(read_homefs(disk), expectations)
         disk.unlink()
 
     smp_source, smp_image = sources["smp-trampoline"]
@@ -49,7 +60,8 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
     disk = scratch / "rejected.img"
     create_disk(disk, f"{homefs}:/homefs.sys", f"{changed}:/in.asm", worker, production_root=root)
     run(*smoke, "--image", str(disk), "--log", str(BUILD / "kernel-raw-rejected.log"),
-        "--success-pattern", r"\[cupidraw-guest\] assembly failed: input" + COMPILER_REAPED)
+        "--command", "exec /disk/r", "--success-pattern",
+        r"\[cupidraw-guest\] assembly failed: input" + COMPILER_REAPED)
     compare_homefs_files(read_homefs(disk), {"raw.bin": root / smp_image})
 
 

@@ -123,6 +123,7 @@ checks the instructions and targets before either binary is saved. See the
 To wrap an asset, put its input and output paths first. Add `wrap` or
 `wrap-text` on the third line and the path from the repository root on the
 fourth. CupidObj uses the fourth line to name the data symbols.
+Use `wrap-readonly` followed by an explicit symbol stem for `.rodata`.
 
 The installation worker reads the production file lists and generates the
 `bin`, `docs` and `demos` sources in HomeFS for CupidC to compile. See the

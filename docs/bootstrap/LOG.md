@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-21 — Produce the AP startup object in Cupid OS
+
+CupidObj accepts `wrap-readonly` with an explicit symbol stem. It emits
+read-only `.rodata` with the requested start, end and size symbols. The
+Linux contract matched the hosted `--readonly --stem` recipe and preserved
+the previous object for three invalid stems.
+
+The guest assembled the actual trampoline and fed the saved 4,096-byte
+image to CupidObj. The 4,508-byte object matched the checked kernel input.
+A shifted trampoline was rejected without changing its saved raw image.
+The source ISO and ownership audit passed.
+
 ## 2026-11-21 — Check raw boot and trampoline assembly in Cupid OS
 
 The raw assembly worker passes CupidASM's ranges and control edges to
