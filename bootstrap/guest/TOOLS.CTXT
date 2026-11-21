@@ -63,6 +63,20 @@ Stage the symbol worker as /cupks and run exec /disk/cupks. Compile the
 generated source with CupidC and append its object to the second link.
 Increasing initializer indices need one duplicate check per validation stage.
 
+>h2 Run a build plan
+
+Stage cupidbuild-guest.elf as /b and run exec /disk/b. Write each operation
+and its job path on separate lines in /home/cupidbuild.job.
+
+  compile
+  /home/hello.cj
+  link
+  /home/hello.lj
+
+The two job files use the compiler and linker formats above. The driver
+validates the plan first and stops at the first failed step. Each step
+publishes its own output atomically.
+
 >h2 Assemble a relocatable object
 
   as -f elf32 -o /home/start.o /home/start.asm

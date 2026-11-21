@@ -4,7 +4,7 @@
  */
 
 #include "cupidld.h"
-#include "guest_job.h"
+#include "guest_build.h"
 
 #define LINK_JOB "/home/cupidld.job"
 #define LINK_PENDING "/home/.cupidld-pending.elf"
@@ -24,8 +24,8 @@ typedef struct {
     ctool_u32 count;
 } guest_link_job_t;
 
-static int read_link_job(char *file, guest_link_job_t *job) {
-    int bytes = __sys->vfs_read_text(LINK_JOB, file, LINK_JOB_BYTES);
+static int read_link_job(const char *path, char *file, guest_link_job_t *job) {
+    int bytes = __sys->vfs_read_text(path, file, LINK_JOB_BYTES);
     if (bytes <= 0 || (ctool_u32)bytes >= LINK_JOB_BYTES)
         return 0;
 
@@ -127,15 +127,15 @@ static ctool_status_t link_image(cupid_syscall_table_t *sys, const guest_link_jo
     return status;
 }
 
-void cupidld_guest_run(cupid_syscall_table_t *sys) {
+ctool_status_t cupid_guest_link_job(cupid_syscall_table_t *sys, const char *job_path) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
-        return;
+        return CTOOL_ERR_INVALID_ARGUMENT;
     cupid_init(sys);
     char file[LINK_JOB_BYTES];
     guest_link_job_t link = {0};
-    if (!read_link_job(file, &link)) {
+    if (!read_link_job(job_path, file, &link)) {
         sys->serial_write_string("[cupidld-guest] invalid request\n");
-        return;
+        return CTOOL_ERR_INPUT;
     }
     ctool_status_t status = link_image(sys, &link);
     if (status == CTOOL_OK) {
@@ -147,4 +147,9 @@ void cupidld_guest_run(cupid_syscall_table_t *sys) {
         sys->serial_write_string(ctool_status_name(status));
         sys->serial_write_string("\n");
     }
+    return status;
+}
+
+void cupidld_guest_run(cupid_syscall_table_t *sys) {
+    cupid_guest_link_job(sys, LINK_JOB);
 }

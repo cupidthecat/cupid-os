@@ -4,6 +4,7 @@
  */
 
 #include "cupidc_bundle.h"
+#include "guest_build.h"
 
 #define SOURCE_MOUNT "/src"
 #define JOB_PATH "/home/cupidc.job"
@@ -80,9 +81,9 @@ static int read_option(char *line, ctool_c_engine_request_t *request,
     return 1;
 }
 
-static int read_request(char *file, ctool_c_engine_request_t *request,
+static int read_request(const char *path, char *file, ctool_c_engine_request_t *request,
                         guest_compile_options_t *options, int *bundle) {
-    int size = __sys->vfs_read_text(JOB_PATH, file, JOB_BYTES);
+    int size = __sys->vfs_read_text(path, file, JOB_BYTES);
     if (size < 1 || (ctool_u32)size >= JOB_BYTES)
         return 0;
     char *cursor = file;
@@ -120,17 +121,19 @@ static ctool_status_t compile_bundle(ctool_invocation_t *invocation, void *profi
     return cupid_guest_compile_bundle(invocation, profile, __sys);
 }
 
-void cupidc_guest_run(cupid_syscall_table_t *sys) {
+ctool_status_t cupid_guest_compile_job(cupid_syscall_table_t *sys, const char *job_path) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
-        return;
+        return CTOOL_ERR_INVALID_ARGUMENT;
     cupid_init(sys);
     char file[JOB_BYTES];
     ctool_c_engine_request_t request = {0};
     guest_compile_options_t options;
     int bundle = 0;
-    if (!read_request(file, &request, &options, &bundle)) {
-        sys->serial_write_string("[cupidc-guest] invalid request file: " JOB_PATH "\n");
-        return;
+    if (!read_request(job_path, file, &request, &options, &bundle)) {
+        sys->serial_write_string("[cupidc-guest] invalid request file: ");
+        sys->serial_write_string(job_path);
+        sys->serial_write_string("\n");
+        return CTOOL_ERR_INPUT;
     }
 
     ctool_c_pp_include_root_t roots[] = {
@@ -161,7 +164,9 @@ void cupidc_guest_run(cupid_syscall_table_t *sys) {
         ? ctool_invoke(&request.config, &request.invocation, compile_bundle, &request, &result)
         : ctool_c_engine_compile(&request, &result);
     cupid_guest_job_drain_cache(&io);
-    if (status == CTOOL_OK && result.output_committed) {
+    if (status == CTOOL_OK && !result.output_committed)
+        status = CTOOL_ERR_IO;
+    if (status == CTOOL_OK) {
         sys->serial_write_string("[cupidc-guest] wrote ");
         sys->serial_write_string(request.invocation.output_path.data);
         sys->serial_write_string("\n");
@@ -170,4 +175,9 @@ void cupidc_guest_run(cupid_syscall_table_t *sys) {
         sys->serial_write_string(ctool_status_name(status));
         sys->serial_write_string("\n");
     }
+    return status;
+}
+
+void cupidc_guest_run(cupid_syscall_table_t *sys) {
+    cupid_guest_compile_job(sys, JOB_PATH);
 }

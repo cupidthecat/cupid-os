@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-21 — Run compile and link steps in one guest command
+
+The guest build driver validates the ordered plan and calls the existing
+compiler and linker in one process. A failed step stops the build. The
+standalone workers keep their own job paths.
+
+Windows and Linux built the same 2,853,540-byte driver. The Linux fixtures
+matched the object and executable, rejected four invalid plans and kept
+the previous executable after a failed compile or link. The standalone
+compiler and linker contracts passed. In QEMU the plan produced the exact
+5,868-byte object and 13,992-byte ELF, then the program ran and exited.
+
 ## 2026-11-21 — Rebuild and run the current CupidC worker in Cupid OS
 
 The compiler rebuilt all thirteen objects and saved one 2,983,936-byte
@@ -27,6 +39,9 @@ Moving the hosted checks kept their compile order. Linux and Windows
 each matched the checked CupidBuild producer object after using the
 definitions from their respective producer plans. The source ISO readback
 and active-source audit passed.
+
+Both public bootstraps finished with all six tools matching the installed
+seeds in stages three and four.
 
 ## 2026-11-21 — Compile a source group in one guest job
 

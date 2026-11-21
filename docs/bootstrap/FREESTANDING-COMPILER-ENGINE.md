@@ -3,7 +3,7 @@
 A loadable freestanding CupidC engine rebuilt all nine of its own objects,
 then relinked to the same complete image. This ran in a native Linux harness
 at the existing guest compiler arena address. Cupid OS also rebuilt and
-relinked the current thirteen-object standalone compiler. The rebuilt
+relinked its thirteen-object standalone compiler. The rebuilt
 executable ran inside Cupid OS and reproduced `ctool.o`.
 
 ## Build and verify
@@ -255,7 +255,7 @@ checked host link.
 
 The source ISO includes both worker sources, their shared adapter,
 `user/cupid.h` and `/src/bootstrap/guest/TOOLS.CTXT`. Its checked readback
-matches 55 files and seven directories. The first relink used one guest
+matches 57 files and seven directories. The first relink used one guest
 object and ten checked host objects. The current replay uses all thirteen
 compiler objects from the guest.
 
@@ -307,6 +307,35 @@ The rebuilt CupidC also compiled both CupidLD sources. CupidLD then linked five
 guest-produced objects into a byte-identical 251,904-byte copy of itself.
 The new linker produced the checked hello ELF from an object assembled inside
 Cupid OS. That program ran and released its external image lease.
+
+## Run a build plan inside Cupid OS
+
+`make -C bootstrap/guest guest-build` links the compiler and linker into
+one worker. Stage `cupidbuild-guest.elf` as `/b` on the FAT disk. Mount the
+compiler source ISO at `/src` and run `exec /disk/b`.
+
+In `/home/cupidbuild.job`, put each operation and job path on a separate
+line. This plan compiles an object and then links it.
+
+```text
+compile
+/home/hello.cj
+link
+/home/hello.lj
+```
+
+Each step uses the same format as its standalone worker. The driver
+validates up to 64 plan entries before starting, stops at the first
+failure and saves each successful output atomically.
+
+```sh
+make -C bootstrap/guest check-guest-build
+python3 bootstrap/guest/check_guest_build_runtime.py --production-root /path/to/checked/build
+```
+
+The QEMU replay compiled, linked and ran `hello`. Both saved outputs
+matched the checked build. The Linux test covered a failed compile with
+an existing object and executable, a failed link and four malformed plans.
 
 ## Rebuild and run the user examples
 
