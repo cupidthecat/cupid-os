@@ -1043,6 +1043,10 @@ as `curl`/`wget`, then use terminal or render-pipeline helpers on top:
 | `sshd` | In-kernel SSH server on port 22; `make run-ssh` forwards host 2222 to guest 22 |
 | `browser` | HTTP/HTTPS fetch, HTML5 tree build, CSS cascade/layout/paint, external stylesheets, `@font-face`, forms, and an asset-free `--selftest` |
 
+The Browser reads CSS values in `style.cc`, applies declarations in
+`style_properties.cc`, and resolves selector matches and inheritance in
+`style_cascade.cc`. These files are installed under `/bin/browser/`.
+
 `browser --selftest` runs the JavaScript lexer and binary64 interpreter without
 opening a window or making a network request. Its 26 result fields cover
 decimal and radix literals, numeric separators, primitive string-to-number

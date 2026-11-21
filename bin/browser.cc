@@ -26,6 +26,8 @@
 #include "browser/font_face.cc"
 #include "browser/image.cc"
 #include "browser/style.cc"
+#include "browser/style_properties.cc"
+#include "browser/style_cascade.cc"
 #include "browser/render_tree.cc"
 #include "browser/layout.cc"
 #include "browser/paint.cc"

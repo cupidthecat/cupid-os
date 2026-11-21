@@ -8,7 +8,7 @@ and their headers as of November 21, 2026. It excludes TempleOS. The
 
 | Area | Files |
 | --- | --- |
-| Browser | `bin/browser/js_interp.cc`, `bin/browser/style.cc` |
+| Browser | `bin/browser/js_interp.cc` |
 | Installed programs | `bin/notepad.cc`, `bin/ssh.cc` |
 | Graphics and window management | `kernel/gfx/gfx2d.cc`, `kernel/gui/desktop.cc` |
 | Language and shell | `kernel/lang/as.cc`, `kernel/lang/cupidc.cc`, `kernel/lang/cupidc_parse.cc`, `kernel/lang/shell.cc` |
@@ -251,3 +251,10 @@ leaves the generated source and ownership inventories unchanged.
 Separate modules own disk images, ISO fixtures, retained code paths and
 asset generation. All five files stay under 1,800 lines. The 181 build,
 validation and artifact cases passed on Windows and WSL with platform skips.
+
+## Browser styles
+
+`style.cc` sets defaults and parses CSS values. `style_properties.cc`
+applies declarations to the computed style. `style_cascade.cc` matches
+selectors and resolves priority and inheritance. The Browser includes
+all three in order, and each file has fewer than 1,300 lines.

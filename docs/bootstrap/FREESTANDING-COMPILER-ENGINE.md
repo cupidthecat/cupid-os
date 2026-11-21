@@ -643,12 +643,12 @@ make -C bootstrap/guest all guest-build
 python3 bootstrap/guest/check_guest_source_plan.py --production-root /path/to/checked/build
 ```
 
-The script reads the Make recipes, writes a CupidBuild job file, and
-stages 757 source files on three read-only ISOs mounted at `/src`,
-`/src/kernel/doom`, and `/assets`. The small ISOs fit the current
-directory inventory limit. The replay uses one virtual CPU and retries
-once if a source mount command completes without its success marker.
-One `exec /disk/b` runs all 439 steps in Cupid OS.
+The script reads the Make recipes and writes a CupidBuild job file. It
+stages inputs on three read-only ISOs mounted at `/src`, `/src/kernel/doom`,
+and `/assets`. The split keeps each ISO within the directory inventory
+limit. The replay uses one virtual CPU and retries once if a source mount
+command completes without its success marker. The checked run staged 757
+files and ran 439 steps with one `exec /disk/b`.
 It compiles and assembles the kernel and Doom, wraps assets, generates the
 installation tables, links both kernels, generates and compiles the kernel
 symbol table, flattens the kernel, and writes a fresh disk prefix.

@@ -50,6 +50,7 @@ SOURCE_SUFFIX_OWNERSHIP_POLICY = (
     "docs/bootstrap/c-source-suffix-ownership.json"
 )
 SOURCE_SUFFIX_OWNERSHIP_SCHEMA = "cupid.c-source-suffix-ownership.v1"
+BROWSER_FRAGMENT_COUNT = 24
 SOURCE_SUFFIXES = {
     ".c": "c",
     ".cc": "cupid_c",
@@ -17786,7 +17787,7 @@ def _validate_cupidobj_install_source_delivery(
         content_valid = (
             len(programs) == 108
             and headers == expected_headers
-            and len(browser) == 22
+            and len(browser) == BROWSER_FRAGMENT_COUNT
             and content_set == programs | headers | browser
         )
     elif output == "kernel/util/docs_programs_gen.cc":
@@ -18286,10 +18287,13 @@ def _c_preprocessor_active_cases_manifest(
     _c_preprocessor_require_exact_paths(
         "deferred hosted roots", deferred_hosted, _C_PP_DEFERRED_HOSTED_CASES
     )
-    if len(include_only) != 22 or len(include_only) != len(set(include_only)):
+    if (
+        len(include_only) != BROWSER_FRAGMENT_COUNT
+        or len(include_only) != len(set(include_only))
+    ):
         raise AuditError(
-            f"CupidC active preprocessing expected 22 distinct browser "
-            f"include-only fragments; found {len(include_only)}"
+            f"CupidC active preprocessing expected {BROWSER_FRAGMENT_COUNT} "
+            f"distinct browser include-only fragments; found {len(include_only)}"
         )
     browser = source_entries.get("bin/browser.cc")
     browser_includes = set(browser.get("includes", [])) if browser else set()

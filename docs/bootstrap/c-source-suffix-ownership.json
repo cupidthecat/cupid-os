@@ -42,6 +42,8 @@
     "bin/browser/parser.cc",
     "bin/browser/render_tree.cc",
     "bin/browser/style.cc",
+    "bin/browser/style_cascade.cc",
+    "bin/browser/style_properties.cc",
     "bin/browser/url.cc",
     "bin/browser/url_hash.cc",
     "bin/browser/util.cc",

@@ -810,6 +810,10 @@ Network apps on this branch:
             native identity, array-limit, bounded-pool, stack-balance,
             finite-format, and recovery checks without a window or network
 
+Browser style sources live in /bin/browser/. style.cc parses CSS values,
+style_properties.cc applies declarations, and style_cascade.cc resolves
+selector matches and inheritance.
+
 Host-to-guest SSH server:
   make run-ssh
   (guest) sshd

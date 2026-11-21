@@ -575,7 +575,7 @@ class CompilerProfileCases:
             if (match := deferred_pattern.fullmatch(line)) is not None
         ]
 
-        self.assertEqual(len(include_only), 22)
+        self.assertEqual(len(include_only), 24)
         self.assertTrue(
             all(owner == "/bin/browser.cc" for _, owner in include_only)
         )
@@ -747,7 +747,7 @@ class CompilerProfileCases:
                     "tracked_translation_units": 428,
                     "generated_translation_units": 4,
                     "total_translation_units": 432,
-                    "include_only_fragments": 22,
+                    "include_only_fragments": 24,
                     "delivered_non_root_headers": 2,
                     "deferred_hosted_translation_units": 0,
                     "deferred_external_header_units": 0,

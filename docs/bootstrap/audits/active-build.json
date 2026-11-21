@@ -597,6 +597,52 @@
       },
       {
         "inputs": [
+          "bin/browser/style_cascade.cc",
+          "Makefile",
+          "bootstrap/seeds/i386-windows/manifest.json",
+          "bootstrap/seeds/release.json",
+          "bootstrap/seeds/i386-windows/cupidasm.exe",
+          "bootstrap/seeds/i386-windows/cupidc.exe",
+          "bootstrap/seeds/i386-windows/cupiddis.exe",
+          "bootstrap/seeds/i386-windows/cupidld.exe",
+          "bootstrap/seeds/i386-windows/cupidobj.exe",
+          "bootstrap/seeds/i386-windows/cupidbuild.exe"
+        ],
+        "operation": "wrap_text_as_elf32_relocatable",
+        "output": "bin/browser/style_cascade.o",
+        "recipe": [
+          "$(CUPIDOBJ) wrap-text $< -o $@"
+        ],
+        "tools": [
+          "cupid_object",
+          "cupid_builder"
+        ]
+      },
+      {
+        "inputs": [
+          "bin/browser/style_properties.cc",
+          "Makefile",
+          "bootstrap/seeds/i386-windows/manifest.json",
+          "bootstrap/seeds/release.json",
+          "bootstrap/seeds/i386-windows/cupidasm.exe",
+          "bootstrap/seeds/i386-windows/cupidc.exe",
+          "bootstrap/seeds/i386-windows/cupiddis.exe",
+          "bootstrap/seeds/i386-windows/cupidld.exe",
+          "bootstrap/seeds/i386-windows/cupidobj.exe",
+          "bootstrap/seeds/i386-windows/cupidbuild.exe"
+        ],
+        "operation": "wrap_text_as_elf32_relocatable",
+        "output": "bin/browser/style_properties.o",
+        "recipe": [
+          "$(CUPIDOBJ) wrap-text $< -o $@"
+        ],
+        "tools": [
+          "cupid_object",
+          "cupid_builder"
+        ]
+      },
+      {
+        "inputs": [
           "bin/browser/url.cc",
           "Makefile",
           "bootstrap/seeds/i386-windows/manifest.json",
@@ -38690,6 +38736,8 @@
           "bin/browser/parser.o",
           "bin/browser/render_tree.o",
           "bin/browser/style.o",
+          "bin/browser/style_cascade.o",
+          "bin/browser/style_properties.o",
           "bin/browser/url.o",
           "bin/browser/url_hash.o",
           "bin/browser/util.o",
@@ -39151,6 +39199,8 @@
           "bin/browser/parser.o",
           "bin/browser/render_tree.o",
           "bin/browser/style.o",
+          "bin/browser/style_cascade.o",
+          "bin/browser/style_properties.o",
           "bin/browser/url.o",
           "bin/browser/url_hash.o",
           "bin/browser/util.o",
@@ -39606,6 +39656,8 @@
           "bin/browser/parser.o",
           "bin/browser/render_tree.o",
           "bin/browser/style.o",
+          "bin/browser/style_cascade.o",
+          "bin/browser/style_properties.o",
           "bin/browser/url.o",
           "bin/browser/url_hash.o",
           "bin/browser/util.o",
@@ -42304,6 +42356,8 @@
           "bin/browser/parser.cc",
           "bin/browser/render_tree.cc",
           "bin/browser/style.cc",
+          "bin/browser/style_cascade.cc",
+          "bin/browser/style_properties.cc",
           "bin/browser/url.cc",
           "bin/browser/url_hash.cc",
           "bin/browser/util.cc",
@@ -43034,8 +43088,8 @@
       "toolchain_startup_sources": 11
     },
     "bootstrap_artifact_coverage": {
-      "declared_artifacts": 436,
-      "linked_objects": 429,
+      "declared_artifacts": 438,
+      "linked_objects": 431,
       "missing_link_inputs": [],
       "status": "pass"
     },
@@ -46783,12 +46837,12 @@
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
       "direct_angle_occurrences": 346,
-      "direct_quoted_occurrences": 2311,
-      "include_occurrences": 2657,
+      "direct_quoted_occurrences": 2313,
+      "include_occurrences": 2659,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2657,
+      "ordinary_marker_occurrences": 2659,
       "pp_token_operand_occurrences": 0,
-      "source_files": 764,
+      "source_files": 766,
       "status": "pass"
     },
     "c_preprocessor_line_directives": {
@@ -46801,7 +46855,7 @@
       "numeric_marker_occurrences": 0,
       "ordinary_marker_occurrences": 0,
       "pp_token_line_occurrences": 0,
-      "source_files": 764,
+      "source_files": 766,
       "status": "pass"
     },
     "c_preprocessor_pragmas": {
@@ -46884,7 +46938,7 @@
       "deferred_hosted_translation_units": 0,
       "delivered_non_root_headers": 2,
       "generated_translation_units": 4,
-      "include_only_fragments": 22,
+      "include_only_fragments": 24,
       "profiles": [
         {
           "compatibility_pointer_conversions": false,
@@ -47641,24 +47695,24 @@
     "c_source_ownership": {
       "active": [],
       "active_tracked_c_sources": 0,
-      "active_tracked_cupid_c_sources": 432,
+      "active_tracked_cupid_c_sources": 434,
       "cupid_c_ownership_evidence": {
         "checked_cupidc_compile": 246,
         "checked_cupidc_contract": 56,
-        "explicit_runtime_delivery_policy": 130
+        "explicit_runtime_delivery_policy": 132
       },
       "cupidc_owned_tracked_c_sources": 0,
       "policy": {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
         "residual_c_sources": 17,
-        "runtime_delivery_sources": 130,
-        "sha256": "586486afcc2c34de62d01574ef45e41b539681212de6f3a9760783bacd5fe44a",
+        "runtime_delivery_sources": 132,
+        "sha256": "8c7a827d52277e286052f7246a68f40f65440bab0cbff63b74bdf05ed60c5cdb",
         "unreachable_cupid_c_sources": 76
       },
-      "proven_cupidc_owned_tracked_cupid_c_sources": 432,
+      "proven_cupidc_owned_tracked_cupid_c_sources": 434,
       "status": "pass",
       "tracked_c_sources": 17,
-      "tracked_cupid_c_sources": 508,
+      "tracked_cupid_c_sources": 510,
       "unreachable": [
         {
           "classification": "historical_copy",
@@ -52147,6 +52201,8 @@
         "bin/browser/parser.cc",
         "bin/browser/render_tree.cc",
         "bin/browser/style.cc",
+        "bin/browser/style_cascade.cc",
+        "bin/browser/style_properties.cc",
         "bin/cat.cc",
         "bin/ctxt.cc",
         "bin/curl.cc",
@@ -52469,6 +52525,8 @@
         "bin/browser/parser.cc",
         "bin/browser/render_tree.cc",
         "bin/browser/style.cc",
+        "bin/browser/style_cascade.cc",
+        "bin/browser/style_properties.cc",
         "bin/ctxt.cc",
         "bin/curl.cc",
         "bin/ed.cc",
@@ -52818,6 +52876,8 @@
         "bin/browser/parser.cc",
         "bin/browser/render_tree.cc",
         "bin/browser/style.cc",
+        "bin/browser/style_cascade.cc",
+        "bin/browser/style_properties.cc",
         "bin/browser/url.cc",
         "bin/browser/woff.cc",
         "bin/cd.cc",
@@ -53147,6 +53207,8 @@
         "bin/browser/parser.cc",
         "bin/browser/render_tree.cc",
         "bin/browser/style.cc",
+        "bin/browser/style_cascade.cc",
+        "bin/browser/style_properties.cc",
         "bin/browser/url_hash.cc",
         "bin/browser/woff.cc",
         "bin/feature13_double.cc",
@@ -53523,6 +53585,8 @@
         "bin/browser/parser.cc",
         "bin/browser/render_tree.cc",
         "bin/browser/style.cc",
+        "bin/browser/style_cascade.cc",
+        "bin/browser/style_properties.cc",
         "bin/browser/url.cc",
         "bin/browser/url_hash.cc",
         "bin/browser/util.cc",
@@ -53954,6 +54018,8 @@
         "bin/browser/parser.cc",
         "bin/browser/render_tree.cc",
         "bin/browser/style.cc",
+        "bin/browser/style_cascade.cc",
+        "bin/browser/style_properties.cc",
         "bin/browser/url.cc",
         "bin/browser/url_hash.cc",
         "bin/browser/util.cc",
@@ -54452,6 +54518,8 @@
         "bin/browser/parser.cc",
         "bin/browser/render_tree.cc",
         "bin/browser/style.cc",
+        "bin/browser/style_cascade.cc",
+        "bin/browser/style_properties.cc",
         "bin/browser/url.cc",
         "bin/browser/url_hash.cc",
         "bin/browser/util.cc",
@@ -58101,7 +58169,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2657
+      "occurrences": 2659
     },
     {
       "category": "preprocessor",
@@ -59366,6 +59434,8 @@
         "bin/browser/parser.cc",
         "bin/browser/render_tree.cc",
         "bin/browser/style.cc",
+        "bin/browser/style_cascade.cc",
+        "bin/browser/style_properties.cc",
         "bin/browser/url.cc",
         "bin/browser/url_hash.cc",
         "bin/browser/util.cc",
@@ -60076,6 +60146,8 @@
         "bin/browser/parser.cc",
         "bin/browser/render_tree.cc",
         "bin/browser/style.cc",
+        "bin/browser/style_cascade.cc",
+        "bin/browser/style_properties.cc",
         "bin/browser/url.cc",
         "bin/browser/url_hash.cc",
         "bin/browser/util.cc",
@@ -61746,6 +61818,8 @@
         "bin/browser/parser.cc",
         "bin/browser/render_tree.cc",
         "bin/browser/style.cc",
+        "bin/browser/style_cascade.cc",
+        "bin/browser/style_properties.cc",
         "bin/browser/url_hash.cc",
         "bin/browser/util.cc",
         "bin/browser/woff.cc",
@@ -62439,6 +62513,8 @@
         "bin/browser/parser.cc",
         "bin/browser/render_tree.cc",
         "bin/browser/style.cc",
+        "bin/browser/style_cascade.cc",
+        "bin/browser/style_properties.cc",
         "bin/browser/url.cc",
         "bin/browser/url_hash.cc",
         "bin/browser/util.cc",
@@ -62548,7 +62624,7 @@
         "bin/yield.cc"
       ],
       "id": "cupid_c.delivery.embedded_source",
-      "occurrences": 130
+      "occurrences": 132
     },
     {
       "category": "directive",
@@ -63275,7 +63351,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "dfcdb76882bf78c67a3a6f146f1e4dbc3808cf5bcd8de48393ebb597ca6bd3e1",
+    "active_source_digest": "17e64fa98fdbfd48cb34a395f075d8a645e867c27f58f98e89ec6e96a43f7518",
     "control_files": [
       {
         "path": "Makefile",
@@ -63291,7 +63367,7 @@
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
-        "sha256": "586486afcc2c34de62d01574ef45e41b539681212de6f3a9760783bacd5fe44a"
+        "sha256": "8c7a827d52277e286052f7246a68f40f65440bab0cbff63b74bdf05ed60c5cdb"
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
@@ -63324,7 +63400,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "74c8b8c459305c66d55a1cfa26ba0a876d0b728a09df99be13263e9dbde651cb"
+      "sha256": "203fe21a76f4f39653afe4f902b20a5f2fa10aed5b3812f999d9e4c64db7782b"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -63767,7 +63843,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 726,
+        "source_count": 728,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -63878,7 +63954,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 382,
+        "source_count": 384,
         "title": "Scale Cupid mode across embedded programs and browser fragments"
       }
     ],
@@ -64029,7 +64105,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 154
+        "source_count": 156
       }
     ]
   },
@@ -64208,6 +64284,8 @@
         "bin/browser/parser.cc",
         "bin/browser/render_tree.cc",
         "bin/browser/style.cc",
+        "bin/browser/style_cascade.cc",
+        "bin/browser/style_properties.cc",
         "bin/browser/url.cc",
         "bin/browser/url_hash.cc",
         "bin/browser/util.cc",
@@ -64215,12 +64293,12 @@
         "bin/browser/woff2.cc"
       ],
       "language": "cupid_c",
-      "lines": 38,
+      "lines": 40,
       "origin": "tracked",
       "path": "bin/browser.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c2fdaf3ba20df0ef5cd2a74ad0d4f21b67dd2943f1361452441d84d6dbfb9da9"
+      "sha256": "91beb45a570c0bcaf4620fd34b6ccfc407d03f6c69ed12aff37dd78b5dabae66"
     },
     {
       "build_owners": [
@@ -64753,12 +64831,74 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 3315,
+      "lines": 1201,
       "origin": "tracked",
       "path": "bin/browser/style.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ea249e8c85ba6b7f704d8f3e299326001ba8bf8ca60c321092ce78713988819d"
+      "sha256": "46d410b1f8872e549691399db4a79493abd4ce9384a6141619c28dc8e7ca433f"
+    },
+    {
+      "build_owners": [
+        "cupid_builder",
+        "cupid_object"
+      ],
+      "builds": [
+        "."
+      ],
+      "cohort": "cupid_c_browser_fragment",
+      "features": [
+        "c.control.break",
+        "c.control.continue",
+        "c.control.else",
+        "c.control.for",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.type.char",
+        "c.type.int",
+        "c.type.void",
+        "cupid_c.delivery.embedded_source"
+      ],
+      "includes": [],
+      "language": "cupid_c",
+      "lines": 889,
+      "origin": "tracked",
+      "path": "bin/browser/style_cascade.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "fdfb1b4dc2eaa956a75132781fd4303e4027053db6f79212038c0e51b1cb6626"
+    },
+    {
+      "build_owners": [
+        "cupid_builder",
+        "cupid_object"
+      ],
+      "builds": [
+        "."
+      ],
+      "cohort": "cupid_c_browser_fragment",
+      "features": [
+        "c.control.break",
+        "c.control.continue",
+        "c.control.else",
+        "c.control.for",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.type.char",
+        "c.type.int",
+        "c.type.void",
+        "cupid_c.delivery.embedded_source"
+      ],
+      "includes": [],
+      "language": "cupid_c",
+      "lines": 1224,
+      "origin": "tracked",
+      "path": "bin/browser/style_properties.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "5b3ae2ccb7e2cf6615f0ac2bea54be3e54626863cadb9f3d83af3f730f4d2529"
     },
     {
       "build_owners": [
@@ -93237,9 +93377,9 @@
     }
   ],
   "summary": {
-    "active_sources": 806,
+    "active_sources": 808,
     "features": 257,
-    "transforms": 452,
+    "transforms": 454,
     "unreachable_sources": 105
   },
   "supplemental_builds": [

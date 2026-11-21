@@ -1,5 +1,19 @@
 # Bootstrapping log
 
+## 2026-11-21 — Split Browser style parsing, properties, and cascade
+
+The three Browser style files have 1,201, 1,224, and 889 lines. The original
+preprocessing tokens match in order. The first audit rejected the old
+inspection manifest and fragment counts. The new files are now in the
+install table, source ownership audit, and CupidDis input manifest.
+
+Windows and WSL produced byte-identical pass-one ELFs, final ELFs, and raw
+kernels. The raw kernel is 9,507,764 bytes. CupidDis passed with all 433
+inputs. WSL reused the checked kernel files for image publication and
+passed all 16 exact size checks. Four-CPU guests passed `browser --selftest`
+on both hosts. The updated source-plan generator inventories 759 files
+for 441 steps, including the new Browser objects.
+
 ## 2026-11-21 — Check all host modules used by disk publication
 
 The root build regression now requires the four host modules that the

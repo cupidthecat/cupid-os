@@ -431,12 +431,12 @@ class BuildPublicationCases:
             for transform in audit["build"]["transforms"]
             if transform["output"].endswith(".o")
         }
-        self.assertEqual(len(object_outputs), 429)
+        self.assertEqual(len(object_outputs), 431)
         validated_code_inputs = object_outputs | {
             "kernel/kernel.elf.pass1",
             "kernel/kernel.elf",
         }
-        self.assertEqual(len(validated_code_inputs), 431)
+        self.assertEqual(len(validated_code_inputs), 433)
         declared_code_inputs = commands["CUPIDDIS_PRODUCTION_INPUTS"].split()
         input_manifest = commands["CUPIDDIS_PRODUCTION_INPUT_MANIFEST"]
         manifest_code_inputs = (
@@ -444,11 +444,11 @@ class BuildPublicationCases:
             .read_text(encoding="utf-8")
             .splitlines()
         )
-        self.assertEqual(len(declared_code_inputs), 431)
-        self.assertEqual(len(set(declared_code_inputs)), 431)
+        self.assertEqual(len(declared_code_inputs), 433)
+        self.assertEqual(len(set(declared_code_inputs)), 433)
         self.assertEqual(manifest_code_inputs, declared_code_inputs)
-        self.assertEqual(len(manifest_code_inputs), 431)
-        self.assertEqual(len(set(manifest_code_inputs)), 431)
+        self.assertEqual(len(manifest_code_inputs), 433)
+        self.assertEqual(len(set(manifest_code_inputs)), 433)
         self.assertEqual(set(declared_code_inputs), validated_code_inputs)
         validation_command = " ".join(
             (
@@ -650,8 +650,8 @@ class BuildPublicationCases:
         )
         expected_counts = {
             "cupid_assembler": 5,
-            "cupid_builder": 442,
-            "cupid_object": 192,
+            "cupid_builder": 444,
+            "cupid_object": 194,
             "cupid_linker": 2,
             "cupid_disassembler": 7,
         }
@@ -745,7 +745,7 @@ class BuildPublicationCases:
                 "bootstrap/seeds/release.json",
             }.issubset(size_contract["inputs"])
         )
-        self.assertEqual(len(cupid_owned), 443)
+        self.assertEqual(len(cupid_owned), 445)
         self.assertFalse(
             any(
                 transform["operation"] == "recursive_make"

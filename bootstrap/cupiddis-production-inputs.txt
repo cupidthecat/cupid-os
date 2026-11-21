@@ -286,6 +286,8 @@ bin/browser/paint.o
 bin/browser/parser.o
 bin/browser/render_tree.o
 bin/browser/style.o
+bin/browser/style_cascade.o
+bin/browser/style_properties.o
 bin/browser/url.o
 bin/browser/url_hash.o
 bin/browser/util.o
