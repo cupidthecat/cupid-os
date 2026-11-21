@@ -1310,6 +1310,16 @@ class ProfilePublicationCases:
             encoding="utf-8"
         )
         host = (TOOLCHAIN_ROOT / "cupidbuild_host.cc").read_text(encoding="utf-8")
+        windows = (TOOLCHAIN_ROOT / "cupidbuild_host_windows.inc").read_text(encoding="utf-8")
+        workspace = (TOOLCHAIN_ROOT / "cupidbuild_host_private_workspace.inc").read_text(
+            encoding="utf-8"
+        )
+        publication_source = (TOOLCHAIN_ROOT / "cupidbuild_host_publication.inc").read_text(
+            encoding="utf-8"
+        )
+        lifetime = (TOOLCHAIN_ROOT / "cupidbuild_host_transaction_lifetime.inc").read_text(
+            encoding="utf-8"
+        )
         operation = source.split("int cupidbuild_generate_profile_manifest(", 1)[
             1
         ].split("static void cupidbuild_compile_put_u32(", 1)[0]
@@ -1320,16 +1330,16 @@ class ProfilePublicationCases:
             host, "static int cupidbuild_host_snapshot_identity_equal("
         )[0][0]
         equality = host[equality_start:equality_end]
-        boundary = host.split(
+        boundary = publication_source.split(
             "static int cupidbuild_host_require_public_binding(", 1
         )[1].split("int cupidbuild_host_require_publication_boundary(", 1)[0]
         closure_start = _c_spelling_ranges(
-            host, "static int cupidbuild_host_require_discovery_directories("
+            workspace, "static int cupidbuild_host_require_discovery_directories("
         )[0][0]
         closure_end = _c_spelling_ranges(
-            host, "static int cupidbuild_host_write_lock_exclusive("
+            workspace, "static int cupidbuild_host_write_lock_exclusive("
         )[0][0]
-        closure = host[closure_start:closure_end]
+        closure = workspace[closure_start:closure_end]
         validation = "cupidbuild_host_require_discovery_directory_pass(transaction)"
         first_validation = closure.index(validation)
         after_first_pass = closure.index(
@@ -1346,18 +1356,22 @@ class ProfilePublicationCases:
         self.assertLess(first_validation, after_first_pass)
         self.assertLess(after_first_pass, second_validation)
         self.assertIn("cupidbuild_host_bind_discovery_directory", host)
-        self.assertIn("cupidbuild_host_close_discovery_directories", host)
-        self.assertIn("information + 32u", host)
-        self.assertIn("information + 36u", host)
-        self.assertIn("opened.changed[0] = after.change_high", host)
-        self.assertIn("opened.changed[1] = after.change_low", host)
+        self.assertIn("cupidbuild_host_close_discovery_directories", lifetime)
+        self.assertIn("information + 32u", windows)
+        self.assertIn("information + 36u", windows)
+        self.assertIn("opened.changed[0] = after.change_high", windows)
+        self.assertIn("opened.changed[1] = after.change_low", windows)
 
     def test_typed_profile_manifest_prepares_only_its_fixed_parent_chain(self):
         source = (TOOLCHAIN_ROOT / "cupidbuild_compile_profile.inc").read_text(
             encoding="utf-8"
         )
         entry = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
-        host = (TOOLCHAIN_ROOT / "cupidbuild_host.cc").read_text(encoding="utf-8")
+        profile_parent = (TOOLCHAIN_ROOT / "cupidbuild_host_profile_parent.inc").read_text(
+            encoding="utf-8"
+        )
+        windows = (TOOLCHAIN_ROOT / "cupidbuild_host_windows.inc").read_text(encoding="utf-8")
+        linux = (TOOLCHAIN_ROOT / "cupidbuild_host_linux.inc").read_text(encoding="utf-8")
         operation = source.split("int cupidbuild_generate_profile_manifest(", 1)[
             1
         ].split("static void cupidbuild_compile_put_u32(", 1)[0]
@@ -1378,15 +1392,15 @@ class ProfilePublicationCases:
         self.assertLess(publication, commit)
         self.assertLess(transaction_close, parent_close)
         self.assertIn("cupidbuild_host_transaction_close(transaction)", entry)
-        self.assertIn("CUPIDBUILD_WINDOWS_FILE_CREATE", host)
-        self.assertIn("attributes.root_directory = parent", host)
-        self.assertIn("CUPIDBUILD_LINUX_SYS_MKDIRAT", host)
-        self.assertIn("mkdirat(parent, name, 0700)", host)
-        self.assertIn("cupidbuild_host_profile_parent_open_root", host)
-        self.assertIn("cupidbuild_host_snapshot_identity_equal", host)
-        self.assertIn("preparation->bootstrap_created", host)
-        self.assertIn("preparation->build_created", host)
+        self.assertIn("CUPIDBUILD_WINDOWS_FILE_CREATE", windows)
+        self.assertIn("attributes.root_directory = parent", profile_parent)
+        self.assertIn("CUPIDBUILD_LINUX_SYS_MKDIRAT", linux)
+        self.assertIn("mkdirat(parent, name, 0700)", profile_parent)
+        self.assertIn("cupidbuild_host_profile_parent_open_root", profile_parent)
+        self.assertIn("cupidbuild_host_snapshot_identity_equal", profile_parent)
+        self.assertIn("preparation->bootstrap_created", profile_parent)
+        self.assertIn("preparation->build_created", profile_parent)
         self.assertLess(
-            host.index("if (preparation->bootstrap_created != 0"),
-            host.index("if (preparation->build_created != 0"),
+            profile_parent.index("if (preparation->bootstrap_created != 0"),
+            profile_parent.index("if (preparation->build_created != 0"),
         )

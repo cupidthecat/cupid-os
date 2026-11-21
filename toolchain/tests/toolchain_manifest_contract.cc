@@ -86,7 +86,7 @@ static const char manifest_report_schema[] = "cupid.toolchain-manifest-verificat
 #define MANIFEST_JPEG_BOOTSTRAP_FILE_COUNT 115u
 #define MANIFEST_BUILD_SPLIT_BOOTSTRAP_FILE_COUNT 117u
 #define MANIFEST_BUILD_SPLIT_MAX_BOOTSTRAP_FILE_COUNT 119u
-#define MANIFEST_MAX_BOOTSTRAP_FILE_COUNT 127u
+#define MANIFEST_MAX_BOOTSTRAP_FILE_COUNT 141u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
 #define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 29u
@@ -370,6 +370,20 @@ static const char *const manifest_expected_bootstrap_paths[MANIFEST_MAX_BOOTSTRA
     "toolchain/cupidobj_install_sources.inc",
     "toolchain/cupidobj_iso.inc",
     "toolchain/cupidobj_profile_manifest.inc",
+    "toolchain/cupidbuild_host_checked_process.inc",
+    "toolchain/cupidbuild_host_input_snapshots.inc",
+    "toolchain/cupidbuild_host_linux.inc",
+    "toolchain/cupidbuild_host_observer.inc",
+    "toolchain/cupidbuild_host_observer_binding.inc",
+    "toolchain/cupidbuild_host_observer_inventory.inc",
+    "toolchain/cupidbuild_host_observer_workers.inc",
+    "toolchain/cupidbuild_host_posix.inc",
+    "toolchain/cupidbuild_host_private_workspace.inc",
+    "toolchain/cupidbuild_host_profile_parent.inc",
+    "toolchain/cupidbuild_host_publication.inc",
+    "toolchain/cupidbuild_host_publication_lock.inc",
+    "toolchain/cupidbuild_host_transaction_lifetime.inc",
+    "toolchain/cupidbuild_host_windows.inc",
 };
 
 static int manifest_bootstrap_count_valid(size_t count) {

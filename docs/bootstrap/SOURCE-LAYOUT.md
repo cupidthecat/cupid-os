@@ -29,7 +29,6 @@ installed with the other `/bin` sources so the shell can compile `ssh`.
 | Compiler | `toolchain/cupidc_pp.cc`, `toolchain/cupidc_frontend.cc`, `toolchain/cupidc_ir.cc`, `toolchain/cupidc_emit.cc` |
 | Assembly and inspection | `toolchain/cupidasm.cc`, `toolchain/cupiddis.cc`, `toolchain/x86.cc` |
 | Linking | `toolchain/cupidld.cc` |
-| Build commands | `toolchain/cupidbuild_host.cc` |
 
 Keep command parsing, format handling and publication in focused modules.
 Compare emitted objects and checked seed outputs after moving code.
@@ -43,9 +42,9 @@ hold compiler inputs, profile transactions, kernel image work, FAT16 image
 publication and executable validation. The build audit tracks each include
 and bootstrap freezes it with the rest of the producer sources.
 
-Hosted output preparation and source path checks live in
-`toolchain/cupidbuild_host_source_paths.inc`. The remaining host adapter
-still needs to be split.
+`toolchain/cupidbuild_host.cc` holds the shared transaction types and helpers.
+Private includes hold the Windows and POSIX backends, tool execution,
+publication, retained source observation and path checks.
 
 ## Verification
 

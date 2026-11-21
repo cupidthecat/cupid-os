@@ -1,5 +1,21 @@
 # Bootstrapping log
 
+## 2026-11-21 — Split the CupidBuild host adapter
+
+The 13,946-line host adapter now keeps its shared types and helpers in a
+1,023-line file. Private includes hold the Windows and POSIX backends,
+transaction lifetime, tool execution, publication and source observation.
+The source audit and bootstrap capture include all fourteen new files.
+
+The two checked compilers reproduced their previous host objects byte for
+byte. The Linux object is 357,896 bytes and the Windows object is 379,224
+bytes. The focused suite ran 240 cases on each host, with eight Windows
+skips and two WSL skips. It covered retained files, directory observation,
+failed publication and SDK source inventories.
+The Windows seed rebuilt the 141-input source snapshot through its fixed
+point. Its source snapshot SHA-256 is
+`35b6a9a6165315b818f13d3de599b5e2423d8ce37bc4d384bb0652a3bf390407`.
+
 ## 2026-11-21 — Document the host Python tools
 
 Added Doxygen file headers to the fourteen remaining Python modules in

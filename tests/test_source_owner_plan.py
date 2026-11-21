@@ -59,7 +59,7 @@ class SourceOwnerPlanTests(unittest.TestCase):
 
     def test_current_source_and_sdk_capture_agree_with_no_duplicate_codec(self):
         captured = b.capture_source_snapshot(ROOT, self.plan, **self.flags)
-        self.assertEqual(len(captured), 127)
+        self.assertEqual(len(captured), 141)
         self.assertIn(TABLE, captured)
         self.assertIn(BRIDGE, captured)
         self.assertTrue(set((*b.CUPIDBUILD_CORE_FRAGMENTS, *b.CUPIDBUILD_HOST_FRAGMENTS,
