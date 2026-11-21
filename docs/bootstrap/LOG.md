@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## 2026-11-21 — Install the paired toolchain seeds
+
+The Windows and WSL preparations reproduced the reviewed release for
+`5f8bbf81`. Qualification matched its 114 source inputs and all twelve tools.
+The installed pair includes the optimized CupidC initializer checks and
+the source-owner support for the image input path.
+
+The first private cold builds reached the artifact gate with the correct
+kernel. The projection had put seed sizes in the wrong rows. Binding the
+sizes by manifest path made all 16 artifact checks pass on both hosts.
+The builds matched 440 complete products, including all 429 link inputs,
+six user products and the 200 MiB disk image. Four private boots checked
+`ls` and the ISO fixture with four CPUs, TLS, e1000 and DHCP.
+
+The installed manifests passed both seed verifiers. The refreshed build audit
+and 42 release and artifact-policy tests passed on Windows. The same 42
+tests passed in the WSL consumer checkout.
+
 ## 2026-11-20 — Resume the FAT16 scan within each file
 
 The allocator remembers where to resume a file's FAT search. A full suffix

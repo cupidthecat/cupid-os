@@ -22,10 +22,9 @@ Cupid OS remains unfinished.
   See the [guest build record](FREESTANDING-COMPILER-ENGINE.md).
 - Source-owner modules are in current producer plans, and paired named
   preparations reach a fixed point. The C reader now recognizes their exact
-  behavior profiles. Both refreshed full qualifications pass. Replacement-tool
-  cold OS/user consumers and four private boots also pass, along with four SDK
-  publication profiles. Full current repository replays, installed seed adoption
-  and the normal image-command handoff remain open.
+  behavior profiles. The installed seeds come from the same 114-file snapshot.
+  Cold OS and user builds agree across Windows and WSL, including the full disk
+  image. Full repository replays and the normal image-command handoff remain open.
 - The private in-OS compiler supports halfword storage, integer array lists
   and typed native calls. Its remaining language gaps and guest acceptance
   are separate from hosted compiler fixed points. The shell can inspect

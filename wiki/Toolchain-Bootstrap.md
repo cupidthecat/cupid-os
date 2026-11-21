@@ -10,8 +10,10 @@ coordinates final disk images and parts of toolchain verification. See
 
 Hosted toolchain rebuilds have reached a fixed point on Linux and Windows.
 A fixed point means two consecutive stages produce identical checked objects
-and tools. The [bootstrap records](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/README.md)
-list the remaining seed promotion, image publication and guest work.
+and tools. The installed seeds come from the same 114-file source snapshot.
+Cold builds on Windows and WSL produced the same disk image and example
+programs. The [bootstrap records](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/README.md)
+track the remaining image publication and guest work.
 
 ## Rebuild from checked seeds
 

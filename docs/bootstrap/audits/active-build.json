@@ -62742,11 +62742,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "ebe2829104f426ad9ad311e99600faeed6412c9fae1a3df1f9f6b0c3b35f7a5d"
+        "sha256": "f1533d7387ff4e1210f932c356ea9ab90f479a4b260d8a277cc1cd3162f4af2b"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
-        "sha256": "0371d1bab51c29fe96d2df2491956f2878b6e499b5ed5337965d44448a5e1717"
+        "sha256": "e976dc500ad3f424ca388843d7c3f7d781ed27d96f9f31d8afaa1aba5b86058b"
       }
     ],
     "generator": {
