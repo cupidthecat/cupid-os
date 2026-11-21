@@ -124,6 +124,19 @@ For bin, use --bin, --headers and --browser in that order. For docs, use
 --ctxt, --doc-assets and --home-assets. Keep the heading for an empty group.
 Stage the installation worker as /cupinst and run exec /disk/cupinst.
 
+>h2 Assemble a checked boot image
+
+Stage the raw assembly worker as /cupraw. In /home/cupidraw.job, put the
+source path, output path and bootloader or smp-trampoline on separate lines.
+
+  /disk/boot.asm
+  /home/boot.bin
+  bootloader
+
+Run exec /disk/cupraw. CupidDis checks the instructions and branch targets
+before the worker publishes the raw image. The trampoline also has to match
+the kernel's startup layout.
+
 >h2 Build a disk template
 
 Assemble the bootloader and check its saved range map.

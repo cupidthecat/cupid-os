@@ -354,6 +354,24 @@ dis --raw --range-map /home/boot.map --require-known /home/boot.bin
 All 2,560 guest-produced bytes matched the checked bootloader. A rejected
 assembly preserved the saved image and its map remained usable by CupidDis.
 
+## Check raw boot assembly inside Cupid OS
+
+Stage `cupidraw-guest.elf` as `/cupraw`. Put the source path, the HomeFS
+output path and `bootloader` or `smp-trampoline` in `/home/cupidraw.job`,
+one field per line. Run `exec /disk/cupraw`.
+
+The worker sends CupidASM's ranges and control edges directly to CupidDis.
+It checks instruction decoding and branch targets before publication. The
+trampoline must also match the kernel's approved mixed-mode layout.
+
+```sh
+make -C bootstrap/guest guest-raw check-guest-raw
+python3 bootstrap/guest/check_guest_raw_assembly_runtime.py --production-root /path/to/checked/build
+```
+
+The guest matched the checked bootloader and AP trampoline byte for byte.
+A shifted trampoline was rejected and left the saved binary intact.
+
 ## Rebuild the kernel assembly objects
 
 ```sh

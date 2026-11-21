@@ -58,8 +58,11 @@ GUEST_COMPILER := $(BUILD)/cupidc-guest.elf
 GUEST_ENTRY := cupidc_guest_run
 GUEST_SUPPORT := $(BUILD)/guest_job.o
 GUEST_ASSEMBLER := $(BUILD)/cupidasm-guest.elf
-GUEST_ASSEMBLER_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/x86.o \
-    $(BUILD)/cupidasm.o $(BUILD)/cupiddis.o $(GUEST_SUPPORT) $(BUILD)/cupidasm_guest.o
+GUEST_ASSEMBLER_CORE := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/x86.o \
+    $(BUILD)/cupidasm.o $(BUILD)/cupiddis.o $(GUEST_SUPPORT)
+GUEST_ASSEMBLER_OBJECTS := $(GUEST_ASSEMBLER_CORE) $(BUILD)/cupidasm_guest.o
+GUEST_RAW := $(BUILD)/cupidraw-guest.elf
+GUEST_RAW_OBJECTS := $(GUEST_ASSEMBLER_CORE) $(BUILD)/guest_raw_assembly.o
 GUEST_LINKER := $(BUILD)/cupidld-guest.elf
 GUEST_LINKER_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/cupidld.o \
     $(GUEST_SUPPORT) $(BUILD)/cupidld_guest.o
@@ -77,9 +80,10 @@ GUEST_DISK := $(BUILD)/cupiddisk-guest.elf
 GUEST_DISK_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/cupidobj.o \
     $(GUEST_SUPPORT) $(BUILD)/cupiddisk_guest.o
 
-.PHONY: guest-compiler guest-assembler guest-linker guest-object guest-install guest-ksyms guest-disk
+.PHONY: guest-compiler guest-assembler guest-raw guest-linker guest-object guest-install guest-ksyms guest-disk
 guest-compiler: $(GUEST_COMPILER)
 guest-assembler: $(GUEST_ASSEMBLER)
+guest-raw: $(GUEST_RAW)
 guest-linker: $(GUEST_LINKER)
 guest-object: $(GUEST_OBJECT)
 guest-install: $(GUEST_INSTALL)
@@ -101,6 +105,13 @@ $(BUILD)/cupidasm_guest.o: cupidasm_guest.cc guest_job.h ../../user/cupid.h $(TO
 
 $(GUEST_ASSEMBLER): $(GUEST_ASSEMBLER_OBJECTS) Makefile $(SEED_INPUTS)
 	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry cupidasm_guest_run \
+		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
+
+$(BUILD)/guest_raw_assembly.o: guest_raw_assembly.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupidasm.h $(TOOLCHAIN)/cupiddis.h $(TOOLCHAIN)/elf32.h $(TOOLCHAIN)/x86.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
+	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/guest_raw_assembly.cc -o $(PUBLISH)/guest_raw_assembly.o
+
+$(GUEST_RAW): $(GUEST_RAW_OBJECTS) Makefile $(SEED_INPUTS)
+	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry cupidraw_guest_run \
 		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
 
 $(BUILD)/cupidld.o: $(TOOLCHAIN)/cupidld.cc $(TOOLCHAIN)/cupidld.h $(TOOLCHAIN)/elf32.h $(TOOLCHAIN)/ctool.h $(HOST_HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
@@ -152,7 +163,7 @@ ISO_SOURCES := $(addprefix toolchain/,$(addsuffix .cc,$(CORE))) \
 	bootstrap/guest/cupidc_engine.cc bootstrap/guest/cupidc_engine.h \
 	bootstrap/guest/cupidc_guest.cc bootstrap/guest/guest_job.cc bootstrap/guest/guest_job.h \
 	bootstrap/guest/cupidasm_guest.cc bootstrap/guest/cupidld_guest.cc bootstrap/guest/cupidobj_guest.cc \
-	bootstrap/guest/cupidinstall_guest.cc \
+	bootstrap/guest/cupidinstall_guest.cc bootstrap/guest/guest_raw_assembly.cc \
 	bootstrap/guest/cupidksyms_guest.cc bootstrap/guest/cupiddisk_guest.cc bootstrap/guest/TOOLS.CTXT \
 	toolchain/cupidld.cc toolchain/cupidld.h user/cupid.h $(ISO_PEER_SOURCES) \
 	$(patsubst ../../%,%,$(filter-out cupidc_engine.h,$(HEADERS)))
@@ -227,6 +238,22 @@ $(GUEST_OBJECT_CONTRACT): $(GUEST_OBJECT_CONTRACT_OBJECTS) Makefile $(SEED_INPUT
 $(BUILD)/cupidobj_guest_linux_contract.o: cupidc_guest_linux_contract.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/ctool_host.h $(TOOLCHAIN)/ctool.h $(HOST_HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(HOSTED_CFLAGS) -I /user -D CUPID_TEST_GUEST_ENTRY=cupidobj_guest_run \
 		-c /bootstrap/guest/cupidc_guest_linux_contract.cc -o $(PUBLISH)/cupidobj_guest_linux_contract.o
+
+GUEST_RAW_CONTRACT := $(BUILD)/cupidraw-linux-contract.elf
+GUEST_RAW_CONTRACT_OBJECTS := $(GUEST_RAW_OBJECTS) $(addprefix $(BUILD)/,start.o linux_runtime.o \
+	ctool_host.o cupidraw_guest_linux_contract.o)
+
+.PHONY: check-guest-raw
+check-guest-raw: $(GUEST_RAW) $(GUEST_RAW_CONTRACT)
+	$(PYTHON) check_guest_raw_assembly.py "$(ROOT)" "$(abspath $(GUEST_RAW_CONTRACT))"
+
+$(GUEST_RAW_CONTRACT): $(GUEST_RAW_CONTRACT_OBJECTS) Makefile $(SEED_INPUTS)
+	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x08048000 --entry _start \
+		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
+
+$(BUILD)/cupidraw_guest_linux_contract.o: cupidc_guest_linux_contract.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/ctool_host.h $(TOOLCHAIN)/ctool.h $(HOST_HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
+	$(RUN) --tool cupidc -- $(HOSTED_CFLAGS) -I /user -D CUPID_TEST_GUEST_ENTRY=cupidraw_guest_run \
+		-c /bootstrap/guest/cupidc_guest_linux_contract.cc -o $(PUBLISH)/cupidraw_guest_linux_contract.o
 
 GUEST_INSTALL_CONTRACT := $(BUILD)/cupidinstall-guest-linux-contract.elf
 GUEST_INSTALL_CONTRACT_OBJECTS := $(GUEST_INSTALL_OBJECTS) $(addprefix $(BUILD)/,start.o linux_runtime.o \

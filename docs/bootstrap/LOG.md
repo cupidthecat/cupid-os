@@ -1,5 +1,20 @@
 # Bootstrapping log
 
+## 2026-11-21 — Check raw boot and trampoline assembly in Cupid OS
+
+The raw assembly worker passes CupidASM's ranges and control edges to
+CupidDis before publishing. It checks the bootloader size and the
+trampoline's fixed ranges and edges. Both host seeds built an identical
+624,428-byte worker.
+
+The first negative fixture failed at the assembler's operand parser. Using
+the supported jump syntax let the fixture reach the intended target check.
+The Linux contract matched both checked production binaries and preserved
+the preceding output across three rejected requests. QEMU matched the
+2,560-byte bootloader and 4,096-byte trampoline. An added instruction shifted
+the trampoline's startup layout and was rejected with its prior image intact.
+The source ISO matched 52 files and seven directories.
+
 ## 2026-11-21 — Generate installation sources in Cupid OS
 
 The guest CupidObj worker generates the `bin`, `docs` and `demos` sources

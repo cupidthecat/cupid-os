@@ -110,6 +110,10 @@ The source ISO also carries the shared CupidASM, CupidDis and CupidObj
 sources and headers. `make -C bootstrap/guest peer-objects` builds the checked
 reference objects for comparisons with guest output.
 
+The raw assembly worker builds the bootloader and AP trampoline. CupidDis
+checks the instructions and targets before either binary is saved. See the
+[raw assembly job format](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#check-raw-boot-assembly-inside-cupid-os).
+
 ## Guest CupidObj
 
 `make -C bootstrap/guest guest-object` builds the CupidObj worker. Stage it as
