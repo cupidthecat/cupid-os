@@ -315,9 +315,11 @@ def check(scratch: Path) -> None:
     invoke(b"[cupidbuild-guest] kernel build stopped at bootloader")
     assert project_boot.read_bytes() == b"preceding project bootloader"
     assert boot.read_bytes() == b"preceding bootloader"
-    local_object = home / "local.o"
-    (project_jobs / "assemble.job").write_bytes(b"/input.asm\n/home/local.o\n")
+    local_output = project / "obj"
+    local_object = local_output / "local.o"
+    (project_jobs / "assemble.job").write_bytes(b"/input.asm\n/home/project/obj/local.o\n")
     local_request = b"assemble\njobs/assemble.job\n"
+    directory_request = b"mkdir\nobj\n"
     plan.write_bytes(assemble)
     (home / "assembled.o").write_bytes(b"previous HomeFS output")
     for name in (b"../assemble.job", b"jobs/../assemble.job", b"a" * 512):
@@ -327,12 +329,24 @@ def check(scratch: Path) -> None:
         assert (home / "assembled.o").read_bytes() == b"previous HomeFS output"
     local_plan.write_bytes(b"assemble\njobs/missing.job\n")
     invoke(b"stopped at /home/project/jobs/missing.job")
-    local_plan.write_bytes(local_request)
+    for invalid_directory in (b"../obj", b"/home/obj", b"a" * 512):
+        local_plan.write_bytes(directory_request + b"mkdir\n" + invalid_directory + b"\n")
+        invoke(b"invalid request file: /home/project/cupidbuild.job")
+        assert not local_output.exists()
+    for blocked_directory in (b"jobs/assemble.job", b"missing/obj"):
+        local_plan.write_bytes(b"mkdir\n" + blocked_directory + b"\n" + local_request)
+        invoke(b"stopped at /home/project/" + blocked_directory)
+        assert not local_output.exists()
+    local_plan.write_bytes(directory_request + local_request)
+    media_plan.write_bytes(b"mkdir\n/plan/jobs/obj\n")
+    invoke(b"invalid request file: /plan/cupidbuild.job", "--media")
+    assert not (scratch / "plan/jobs/obj").exists()
     media_plan.unlink()
     invoke(b"invalid request file: /plan/cupidbuild.job", "--media")
     assert not local_object.exists()
-    invoke(b"[cupidbuild-guest] build complete")
-    assert local_object.read_bytes() == reference_assembly.read_bytes()
+    for _ in range(2):
+        invoke(b"[cupidbuild-guest] build complete")
+        assert local_object.read_bytes() == reference_assembly.read_bytes()
     assert (home / "assembled.o").read_bytes() == b"previous HomeFS output"
     print("Guest builds matched checked outputs from HomeFS and source-media plans.")
 

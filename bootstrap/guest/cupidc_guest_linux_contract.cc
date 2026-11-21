@@ -70,11 +70,31 @@ static int host_result(ctool_status_t status) {
     return status == CTOOL_OK ? 0 : status == CTOOL_ERR_NOT_FOUND ? -2 : -5;
 }
 
+static int absolute_path(const char *logical, char absolute[4096]) {
+    size_t prefix = host_length(root);
+    size_t suffix = host_length(logical) + 1;
+    if (prefix + suffix > 4096)
+        return 0;
+    host_copy(absolute, root, prefix);
+    host_copy(absolute + prefix, logical, suffix);
+    return 1;
+}
+
 static int host_stat(const char *path, cupid_stat_t *info) {
-    int result = host_result(config.files.file_size(config.files.context, ctool_string(path),
-                                                     &info->size));
+    ctool_path_t logical = {ctool_string(path)};
+    char absolute[4096];
+    if (!ctool_path_is_canonical(&logical) || !absolute_path(path, absolute))
+        return -22;
+    const unsigned int linux_directory_no_follow = 65536u | 131072u;
+    int fd = cupid_linux_syscall3(5, (unsigned int)absolute, linux_directory_no_follow, 0u);
+    if (fd >= 0) {
+        cupid_linux_syscall1(6, (unsigned int)fd);
+        info->size = 0;
+        info->type = VFS_TYPE_DIR;
+        return 0;
+    }
     info->type = VFS_TYPE_FILE;
-    return result;
+    return host_result(config.files.file_size(config.files.context, logical.text, &info->size));
 }
 
 static int host_read_all(const char *path, void *bytes, uint32_t size) {
@@ -82,6 +102,8 @@ static int host_read_all(const char *path, void *bytes, uint32_t size) {
     int result = host_stat(path, &info);
     if (result < 0)
         return result;
+    if (info.type != VFS_TYPE_FILE)
+        return -21;
     if (info.size > size)
         return -28;
     result = host_result(config.files.read_exact(config.files.context, ctool_string(path),
@@ -94,16 +116,6 @@ static int host_read_text(const char *path, char *text, uint32_t size) {
     if (count >= 0)
         text[count] = '\0';
     return count;
-}
-
-static int absolute_path(const char *logical, char absolute[4096]) {
-    size_t prefix = host_length(root);
-    size_t suffix = host_length(logical) + 1;
-    if (prefix + suffix > 4096)
-        return 0;
-    host_copy(absolute, root, prefix);
-    host_copy(absolute + prefix, logical, suffix);
-    return 1;
 }
 
 static int host_open(const char *path, uint32_t flags) {
@@ -143,6 +155,13 @@ static int host_unlink(const char *path) {
     if (!absolute_path(path, absolute))
         return -22;
     return cupid_linux_syscall1(10, (unsigned int)absolute);
+}
+
+static int host_mkdir(const char *path) {
+    char absolute[4096];
+    if (!absolute_path(path, absolute))
+        return -22;
+    return cupid_linux_syscall2(39, (unsigned int)absolute, 0700u);
 }
 
 static void host_serial(const char *text) {
@@ -218,6 +237,7 @@ int main(int argc, char **argv) {
     sys.strncmp = host_equal_n;
     sys.memcpy = host_copy;
     sys.vfs_stat = host_stat;
+    sys.vfs_mkdir = host_mkdir;
     sys.vfs_read_all = host_read_all;
     sys.vfs_read_text = host_read_text;
     sys.vfs_open = host_open;

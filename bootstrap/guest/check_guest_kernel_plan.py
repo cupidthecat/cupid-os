@@ -67,9 +67,6 @@ def execute_kernel_plan(scratch: Path, root: Path, image: Path, qemu: str, timeo
     if project_directory:
         setup.extend(("--setup-command", f"cd {project_directory}",
                       "--setup-success-pattern", r"\[terminal\] command complete"))
-    if output_directory != "/home":
-        setup.extend(("--setup-command", f"mkdir {output_directory}",
-                      "--setup-success-pattern", r"\[terminal\] command complete"))
     log = "kernel-installed-tree" if project_directory else "kernel-source-plan" if mounts else "kernel-plan"
     runtime_log = BUILD / f"{log}-runtime.log"
     command = (*smoke, "--smp", "1" if mounts or project_directory else "4", *setup,

@@ -672,12 +672,13 @@ python3 bootstrap/guest/check_guest_source_plan.py --production-root /path/to/ch
 ```
 
 The checker stages the project, plan and jobs in `/home/project`. It
-enters that directory, creates `build` and runs the worker. The compile
-list keeps its logical source and include paths. The kernel job finds
-the bootloader, script and symbol headers under the project root and
-saves its products in `build`.
-See [ADR 0504](../adr/0504-build-from-an-installed-guest-source-tree.md)
-and [ADR 0506](../adr/0506-keep-guest-kernel-products-in-the-project.md).
+enters that directory and runs the worker. The plan creates `build`.
+The compile list keeps its logical source and include paths. The kernel
+job finds the bootloader, script and symbol headers under the project
+root and saves its products in `build`.
+See [ADR 0504](../adr/0504-build-from-an-installed-guest-source-tree.md),
+[ADR 0506](../adr/0506-keep-guest-kernel-products-in-the-project.md)
+and [ADR 0507](../adr/0507-create-output-directories-from-guest-plans.md).
 
 CupidBuild runs the source and asset lists in order. Each list shares
 compiler options or an asset wrapping mode. The 430-object plan now uses
@@ -741,6 +742,11 @@ symbol object. All eleven saved products matched the checked build,
 including the same disk prefix. A four-CPU boot passed SMP, TLS, e1000,
 DHCP and `ls`. The earlier four-mount replay produced the same eleven
 products.
+
+The editable HomeFS replay also compiled all 430 pass-one objects into
+RAMFS from the installed sources. It saved eleven matching products in
+`/home`, the output path used by that replay. The resulting disk passed
+the four-CPU boot, including SMP, TLS, e1000, DHCP and `ls`.
 
 The default mode keeps every object in HomeFS. In the earlier HomeFS plan
 replay, all 428 pass-one objects, the generated symbol object, three

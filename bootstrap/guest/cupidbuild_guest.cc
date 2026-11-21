@@ -24,11 +24,24 @@ typedef struct {
     build_step_t steps[BUILD_STEP_LIMIT];
 } build_plan_t;
 
+static ctool_status_t create_directory(cupid_syscall_table_t *sys, const cupid_guest_request_t *step) {
+    const char *path = step->path;
+    if (!sys->vfs_mkdir || !sys->vfs_stat)
+        return CTOOL_ERR_UNSUPPORTED;
+    if (sys->vfs_mkdir(path) == 0)
+        return CTOOL_OK;
+    cupid_stat_t information;
+    if (sys->vfs_stat(path, &information) == 0 && information.type == VFS_TYPE_DIR)
+        return CTOOL_OK;
+    return CTOOL_ERR_IO;
+}
+
 static cupid_guest_operation_t find_operation(const char *name) {
     static const struct {
         const char *name;
         cupid_guest_operation_t run;
     } operations[] = {
+        {"mkdir", create_directory},
         {"compile", cupid_guest_compile_job},
         {"compile-list", cupid_guest_compile_list},
         {"link", cupid_guest_link_job},
@@ -89,7 +102,7 @@ static ctool_u32 read_plan(int size, const char *request_root, const char *direc
             return 0u;
 
         cupid_guest_operation_t run = find_operation(operation);
-        if (!run)
+        if (!run || (run == create_directory && (!directory || name[0] == '/')))
             return 0u;
         plan->steps[count++] = (build_step_t){run, name};
     }

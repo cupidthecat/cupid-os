@@ -73,8 +73,6 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float, installed_tree: 
     if installed_tree:
         stage_installed_tree(scratch, root, disk, steps, sources | asset_paths)
         setup = ("--setup-command", f"cd {source_root}",
-                 "--setup-success-pattern", r"\[terminal\] command complete",
-                 "--setup-command", f"mkdir {product_dir}",
                  "--setup-success-pattern", r"\[terminal\] command complete")
     else:
         if publish_source_iso(publisher, root, BUILD / "cupidc-engine.elf", iso, iso_members(sources)):

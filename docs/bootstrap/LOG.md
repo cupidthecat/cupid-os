@@ -1,5 +1,28 @@
 # Bootstrapping log
 
+## 2026-11-21 — Create output directories from guest build plans
+
+A project plan can create its build directory before running tools.
+CupidBuild checks the path with the rest of the plan before it creates
+anything. The Linux worker checks creation, reuse, invalid paths, an
+existing file, a missing parent and rejection from the media entry.
+The first Linux fixture treated an existing directory as a regular file.
+Checking the directory type first fixed the retry.
+
+The installed `hello` plan ran from a fresh project and matched all eight
+artifacts. The kernel replay linked 430 checked objects, matched all seven
+products and booted the resulting disk with four CPUs. Windows and WSL
+produced the same 12,500-byte build driver object. All 127 focused checks
+and the build audit passed on both hosts.
+
+## 2026-11-21 — Boot the kernel rebuilt from editable sources
+
+The full 19-request replay read 767 files from HomeFS and built all
+430 pass-one objects in RAMFS. It saved eleven products in `/home`,
+the output path in that worker. Every saved product matched the checked
+build, including both kernel ELFs and the 10,697,216-byte disk prefix.
+The rebuilt disk passed SMP, TLS, e1000, DHCP and `ls` with four CPUs.
+
 ## 2026-11-21 — Document the SMP sources and headers
 
 The fourteen SMP C sources and headers have Doxygen file comments.

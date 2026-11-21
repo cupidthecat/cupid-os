@@ -31,7 +31,9 @@ ASSET_DIRECTORY = "assets"
 ASSET_ROOT = f"{PLAN_ISO[1]}/{ASSET_DIRECTORY}"
 MEDIA_BUILD = "cupidbuild-media.elf"
 INSTALLED_ROOT = "/home/project"
-INSTALLED_BUILD = f"{INSTALLED_ROOT}/build"
+INSTALLED_BUILD_NAME = "build"
+INSTALLED_BUILD = f"{INSTALLED_ROOT}/{INSTALLED_BUILD_NAME}"
+BUILD_STEP_LIMIT = 512
 OBJECT_LIST_LIMIT = 256
 INSTALL_INCLUDE_OPTIONS = ("include /src/kernel", "include /src/kernel/core", "include /src/kernel/fs")
 KERNEL_BUILD_FILES = frozenset(map(Path, (
@@ -177,13 +179,14 @@ def source_plan(root: Path, temporary_objects: bool, *, installed_tree: bool = F
     if missing := aliases.keys() - built:
         raise ValueError(f"no guest source job for {', '.join(sorted(missing))}")
     steps.append(("kernel", b"kernel.job", job_contents(*source_option, *output_option, *aliases.values())))
-    if len(steps) > 512:
-        raise ValueError(f"{len(steps)} steps exceed the guest plan limit")
+    step_count = len(steps) + int(installed_tree)
+    if step_count > BUILD_STEP_LIMIT:
+        raise ValueError(f"{step_count} steps exceed the guest plan limit")
     doom = {path for path in files if path.is_relative_to(DOOM)}
     inputs = ((root, iso_members((files - doom) | {DOOM})),
               (root / DOOM, iso_members({path.relative_to(DOOM) for path in doom})),
               (root, iso_members(assets)))
-    print(f"Staging {len(files | assets)} source files for {len(steps)} guest steps "
+    print(f"Staging {len(files | assets)} source files for {step_count} guest steps "
           f"and {len(built)} pass-one objects.")
     return tuple(steps), inputs, references
 
@@ -191,7 +194,11 @@ def source_plan(root: Path, temporary_objects: bool, *, installed_tree: bool = F
 def stage_installed_tree(scratch: Path, root: Path, image: Path,
                          steps: tuple[tuple[str, bytes, bytes], ...],
                          sources: Collection[Path], *staged: str) -> None:
+    if len(steps) >= BUILD_STEP_LIMIT:
+        raise ValueError(f"{len(steps) + 1} steps exceed the guest plan limit")
     plan = media_plan_files(steps, request_root=b"jobs/")
+    manifest = Path("cupidbuild.job")
+    plan[manifest] = job_contents("mkdir", INSTALLED_BUILD_NAME) + plan[manifest]
     project = INSTALLED_ROOT.removeprefix("/home/")
     files = [(f"{project}/{path.as_posix()}".encode("ascii"), contents)
              for path, contents in plan.items()]

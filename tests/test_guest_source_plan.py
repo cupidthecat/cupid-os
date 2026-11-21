@@ -124,12 +124,20 @@ class GuestSourcePlanTests(unittest.TestCase):
                 guest_plan.stage_installed_tree(scratch, scratch, image, steps, {source})
             _, entries = calls["write_homefs"].call_args.args
             self.assertEqual(dict(entries), {
-                b"project/cupidbuild.job": b"compile-list\njobs/00/sources.job\n",
+                b"project/cupidbuild.job": b"mkdir\nbuild\ncompile-list\njobs/00/sources.job\n",
                 b"project/jobs/00/sources.job": steps[0][2],
                 b"project/kernel/main.cc": (scratch / source).read_bytes(),
             })
             self.assertEqual(calls["create_disk"].call_args.args[-1],
                              f"{guest_plan.BUILD / 'cupidbuild-guest.elf'}:/b")
+
+    def test_installed_tree_counts_directory_creation_toward_plan_limit(self):
+        steps = tuple(("compile", f"source{i}.job".encode("ascii"), b"") for i in range(512))
+        with patch.multiple(guest_plan, write_homefs=DEFAULT, create_disk=DEFAULT) as calls:
+            with self.assertRaisesRegex(ValueError, "513 steps exceed the guest plan limit"):
+                guest_plan.stage_installed_tree(self.root, self.root, self.root / "build.img", steps, ())
+        calls["write_homefs"].assert_not_called()
+        calls["create_disk"].assert_not_called()
 
     def test_source_lists_preserve_member_order_and_split_at_the_limit(self):
         extra = ["bin/link.o", "bin/logo.o", "bin/title.o", "kernel/core/helpers.o"]
@@ -327,7 +335,7 @@ class GuestMountRetryTests(unittest.TestCase):
         )
         arguments = self.runners["run"].call_args.args
         setup = [arguments[index + 1] for index, token in enumerate(arguments) if token == "--setup-command"]
-        self.assertEqual(setup, ["cd /home/project", "mkdir /home/project/build"])
+        self.assertEqual(setup, ["cd /home/project"])
         self.assertEqual(arguments[arguments.index("--command") + 1], "exec /disk/b")
         comparison = self.runners["compare_homefs_files"].call_args.args[1]
         self.assertEqual(len(comparison), 7)

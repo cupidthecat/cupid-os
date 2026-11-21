@@ -60,7 +60,8 @@ The kernel job also uses it to find the bootloader and linker script.
 
 **Project build plan**:
 The `cupidbuild.job` in the shell's current directory. CupidBuild resolves
-relative job paths against that directory before running the plan.
+relative paths against that directory before running the plan. A `mkdir`
+step creates a project-relative directory for later outputs.
 
 **Source cohort**:
 A related group of active sources migrated and verified under one tool-ownership and behavior gate.
