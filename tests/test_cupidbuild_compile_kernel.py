@@ -1,3 +1,5 @@
+## @file
+#  @brief Check the native CupidBuild kernel compile operation.
 import hashlib
 import json
 import os
@@ -464,7 +466,7 @@ int main(int argc, char **argv) {
         self.assertEqual(re.findall(r'"([^"]+)"', profile), list(KERNEL_I386_ARGUMENTS))
 
     def test_native_object_validator_keeps_compiler_relocation_policy(self):
-        from tests.test_cupidc_kernel_compile import _valid_elf32_object, _data_only_elf32_object
+        from tests.cupidc_kernel_compile_fixtures import _valid_elf32_object, _data_only_elf32_object
 
         original = _valid_elf32_object()
         absolute = bytearray(original)

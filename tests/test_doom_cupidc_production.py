@@ -18,7 +18,7 @@ from unittest import mock
 from tests.c_source_spelling import _c_spelling_ranges
 
 from tools import cupidc_kernel_compile as kernel_compile
-from tests.test_cupidc_kernel_compile import (
+from tests.cupidc_kernel_compile_fixtures import (
     FakeExecutor,
     SEED_MANIFEST,
     _run_captured_test_tool,

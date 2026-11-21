@@ -89,11 +89,11 @@ The existing executable test map is:
 
 | Contract | Existing coverage and next check |
 | --- | --- |
-| Frozen input root and logical paths | [`test_source_driven_inputs_are_compiled_from_one_frozen_closure`](../../tests/test_cupidc_kernel_compile.py#L1917); compare native transaction objects with the Python wrapper for all eleven active sources. |
-| Generated data-only object | [`test_generated_kernel_symbol_inputs_are_compiled_from_one_frozen_closure`](../../tests/test_cupidc_kernel_compile.py#L2048); reproduce the real generated symbol object. |
-| Source and header drift | [`test_source_driven_input_drift_preserves_the_existing_object`](../../tests/test_cupidc_kernel_compile.py#L1990) and [`test_generated_kernel_symbol_drift_preserves_the_existing_object`](../../tests/test_cupidc_kernel_compile.py#L2125). |
-| Tool and object failures | [Compiler, manifest, and invalid-object cases](../../tests/test_cupidc_kernel_compile.py#L2199); retain diagnostics, timeouts, and previous output bytes. |
-| Relocation policy | [PC-relative rejection, absolute subobject acceptance, and data-only acceptance](../../tests/test_cupidc_kernel_compile.py#L2286). |
+| Frozen input root and logical paths | Compare native transaction objects with the Python wrapper for all eleven active sources. [Frozen input test](../../tests/test_cupidc_kernel_compile_operations.py#L399) |
+| Generated data-only object | Reproduce the real generated symbol object. [Generated symbol test](../../tests/test_cupidc_kernel_compile_operations.py#L530) |
+| Source and header drift | Check that both compile paths preserve the existing object. [Source drift test](../../tests/test_cupidc_kernel_compile_operations.py#L472) and [generated symbol drift test](../../tests/test_cupidc_kernel_compile_operations.py#L607) |
+| Tool and object failures | Retain diagnostics, timeouts and previous output bytes. [Compiler, manifest and invalid-object cases](../../tests/test_cupidc_kernel_compile_operations.py#L681) |
+| Relocation policy | Reject an invalid PC-relative addend and accept absolute subobject and data-only references. [Relocation tests](../../tests/test_cupidc_kernel_compile_operations.py#L768) |
 | Guarded publication | Reuse [`CupidBuild CLI contracts`](../../tests/test_toolchain_cupidbuild.py) for locks, aliases, candidate replacement, output drift, rollback, and cleanup; exercise them through the new command. |
 | Fixed-point carriage | Add a successful compile and a failing compile with preserved sentinels to both compared generations in [`bootstrap_toolchain.py`](../../tools/bootstrap_toolchain.py). |
 

@@ -34,6 +34,14 @@ python -m unittest tests.test_cupidc_production tests.test_user_link_production 
 The split keeps the test cases and assertions intact. All 64 tests passed
 on Windows.
 
+## Kernel compiler tests
+
+The 2,555-line kernel compiler suite has separate files for Make recipes
+and compiler operations. The test modules and the Doom suite share one
+fixture file for ELF objects and expected inputs. Each test body kept
+its original assertions. The three files have 739, 963 and 901 lines.
+All 36 tests in the two new suites passed on Windows.
+
 ## QEMU terminal smoke test
 
 `tools/gui_terminal_smoke.py` drives QEMU and checks the resulting output.
