@@ -1,6 +1,6 @@
 ## @file
-#  @brief Verify guest ELF flattening and output preservation on failure.
-"""Compare the guest CupidObj worker with the checked hosted flattener."""
+#  @brief Verify guest ELF flattening, asset wrapping and output preservation.
+"""Compare the guest CupidObj worker with the checked hosted tool."""
 
 from pathlib import Path
 import subprocess
@@ -71,6 +71,29 @@ def check(root: Path, scratch: Path) -> None:
     invoke(request, b"[cupidobj-guest] wrote /home/flat.bin")
     assert output.read_bytes() == expected.read_bytes() and not pending.exists()
     print("Guest CupidObj matched the checked raw image and preserved output across seven rejections.")
+
+    asset = scratch / "asset"
+    wrapped = home / "asset.o"
+    request = b"/asset\n/home/asset.o\n"
+    identity = "bin/test-clip.cc"
+    for mode, contents in (("wrap", b"\x00Cupid\r\n\xff"),
+                           ("wrap-text", b"Cupid\r\nLine\rEnd\n")):
+        asset.write_bytes(contents)
+        subprocess.run([*command, "cupidobj", "--", mode, asset,
+                        "--identity", identity, "-o", expected], check=True, timeout=120)
+        invoke(request + f"{mode}\n/{identity}\n".encode("ascii"),
+               b"[cupidobj-guest] wrote /home/asset.o")
+        assert wrapped.read_bytes() == expected.read_bytes() and not pending.exists()
+
+    for fields in (b"wrap\n", b"wrap\n/\n", b"wrap\n/../escape\n", b"wrap-text\nasset\n",
+                   b"unknown\n/asset\n", b"wrap\n/asset\nextra\n"):
+        invoke(request + fields, invalid)
+        assert wrapped.read_bytes() == expected.read_bytes() and not pending.exists()
+
+    invoke(b"/missing\n/home/asset.o\nwrap\n/asset\n",
+           b"[cupidobj-guest] wrap failed: not_found")
+    assert wrapped.read_bytes() == expected.read_bytes() and not pending.exists()
+    print("Guest CupidObj matched checked text and binary objects and preserved them on rejection.")
 
 
 if __name__ == "__main__":

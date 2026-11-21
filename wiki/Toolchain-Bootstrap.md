@@ -112,9 +112,13 @@ reference objects for comparisons with guest output.
 
 ## Guest CupidObj
 
-`make -C bootstrap/guest guest-object` builds the ELF flattener. Stage it as
+`make -C bootstrap/guest guest-object` builds the CupidObj worker. Stage it as
 `/cupobj`, place the ELF path and a `/home` output path on separate lines in
 `/home/cupidobj.job`, then run `exec /disk/cupobj`.
+
+To wrap an asset, put its input and output paths first. Add `wrap` or
+`wrap-text` on the third line and the path from the repository root on the
+fourth. CupidObj uses the fourth line to name the data symbols.
 
 The guest flattener reproduced all 9,507,492 bytes of the checked raw kernel.
 Each worker reuses released work buffers and drains the cache before

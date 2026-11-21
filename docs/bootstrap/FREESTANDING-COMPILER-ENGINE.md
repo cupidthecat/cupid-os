@@ -401,6 +401,29 @@ In a four-vCPU guest, the production ELF flattened to 9,507,492 bytes.
 HomeFS readback matched the checked host output, SHA-256
 `01f737eb769ec52948c8739e0fc9062f147a7e888b4b255576bc42c4acfdaf6b`.
 
+## Wrap a kernel asset inside Cupid OS
+
+Use the same CupidObj worker and add two lines to `/home/cupidobj.job`.
+Choose `wrap` for binary data or `wrap-text` for text with normalized line
+endings. The final line is the path from the repository root. It determines
+the `_binary_*` symbols even when the staging filename differs.
+
+```text
+/disk/text.src
+/home/text.o
+wrap-text
+/bin/ls.cc
+```
+
+With a completed checked build, run the asset check on Linux or WSL.
+
+```sh
+python3 bootstrap/guest/check_guest_asset_runtime.py --production-root /path/to/checked/build
+```
+
+The saved `bin/ls.o` and `image.bmp.o` matched the checked objects. A request
+with a parent path component left the existing `ls` object intact.
+
 ## Build the disk template inside Cupid OS
 
 Build the worker with `make -C bootstrap/guest guest-disk` and stage it

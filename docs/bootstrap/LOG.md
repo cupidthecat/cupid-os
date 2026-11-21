@@ -1,5 +1,18 @@
 # Bootstrapping log
 
+## 2026-11-21 — Wrap kernel assets in Cupid OS
+
+The CupidObj worker accepts an asset path, a HomeFS output, a wrapping mode
+and the asset's repository path. The repository path supplies the ELF data
+symbols even when the guest reads from a shorter staging name. The existing
+two-line request still flattens an ELF.
+
+The Linux contract matched checked CupidObj on binary data and text with
+mixed line endings. Malformed requests and a missing input preserved the
+previous object. A four-CPU guest saved the production `bin/ls.o` and
+`image.bmp.o`. All 2,016 and 12,848 bytes matched the checked build. A path
+with a parent component was rejected and left the saved shell object intact.
+
 ## 2026-11-21 — Install the paired toolchain seeds
 
 The Windows and WSL preparations reproduced the reviewed release for
@@ -16,7 +29,10 @@ six user products and the 200 MiB disk image. Four private boots checked
 
 The installed manifests passed both seed verifiers. The refreshed build audit
 and 42 release and artifact-policy tests passed on Windows. The same 42
-tests passed in the WSL consumer checkout.
+tests passed in the WSL consumer checkout. Public bootstrap commands on both
+hosts reproduced the six installed tools in stages three and four. Windows
+passed 60 success, 54 failure and seven help cases. WSL passed 73 success,
+66 failure and seven help cases.
 
 ## 2026-11-20 — Resume the FAT16 scan within each file
 
@@ -37,7 +53,8 @@ saved and booted a matching 10,697,216-byte disk prefix.
 The two-stage frontier replay compiled 156 sources per stage. Its aggregate
 assertion caught the old total object size. The 324-byte FAT16 object growth
 puts the checked total at 4,258,428 bytes. All assertions passed against an
-independent readback of the checked production objects.
+independent readback of the checked production objects. The full two-stage
+replay passed after updating the total.
 
 ## 2026-11-20 — Assemble the production kernel objects in Cupid OS
 

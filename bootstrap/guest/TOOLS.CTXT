@@ -99,6 +99,17 @@ Stage the worker as /cupobj on the disk and run exec /disk/cupobj.
 HomeFS saves the worker output through a replacement file. FAT16 syncs its
 data chain before publishing the updated directory entry.
 
+>h2 Wrap a kernel asset
+
+Use the same request file. After the input and output paths, add wrap for
+binary data or wrap-text for source text, then the path from the repository
+root. That last path supplies the ELF symbol names.
+
+  /disk/text.src
+  /home/text.o
+  wrap-text
+  /bin/ls.cc
+
 >h2 Build a disk template
 
 Assemble the bootloader and check its saved range map.
