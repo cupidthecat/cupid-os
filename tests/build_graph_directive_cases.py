@@ -1423,7 +1423,9 @@ class DirectiveInventoryCases:
             self.assertEqual(contract["expression_occurrences"], 496)
             self.assertEqual(contract["unique_expressions"], 63)
             self.assertEqual(contract["directive_expression_pairs"], 66)
-            executable_contract = CUPIDC_PP_CONTRACT.read_text(encoding="utf-8")
+            executable_contract = CUPIDC_PP_CONTRACT.with_name(
+                "cupidc_pp_directive_contract.inc"
+            ).read_text(encoding="utf-8")
             totals_guard = re.search(
                 r"sizeof\(cases\) / sizeof\(cases\[0\]\)\) != (\d+)u \|\|"
                 r"\s*if_occurrences != (\d+)u \|\|\s*elif_occurrences != (\d+)u \|\|"
@@ -1552,7 +1554,10 @@ class DirectiveInventoryCases:
             )
 
     def test_checked_conditional_manifest_is_a_c_contract_prerequisite(self):
-        source = CUPIDC_PP_CONTRACT.read_text(encoding="utf-8")
+        caller = CUPIDC_PP_CONTRACT.read_text(encoding="utf-8")
+        source = CUPIDC_PP_CONTRACT.with_name("cupidc_pp_directive_contract.inc").read_text(
+            encoding="utf-8"
+        )
         define = source.index(
             "#define CUPIDC_PP_CONDITIONAL_CASE(expression, if_count, "
             "elif_count, expected)"
@@ -1572,6 +1577,10 @@ class DirectiveInventoryCases:
         )
         self.assertIsNotNone(rule)
         self.assertIn("tests/cupidc_pp_conditional_cases.inc", rule.group(1))
+        for name in ("source", "directive", "macro", "include"):
+            include_file = f"cupidc_pp_{name}_contract.inc"
+            self.assertIn(f'#include "{include_file}"', caller)
+            self.assertIn(f"tests/{include_file}", rule.group(1))
 
     def test_x86_catalogue_fixture_is_in_each_contract_source_closure(self):
         makefile = TOOLCHAIN_MAKEFILE.read_text(encoding="utf-8")

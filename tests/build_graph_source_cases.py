@@ -1273,8 +1273,8 @@ class SourceInventoryCases:
                 contract,
             )
             self.assertEqual(contract["source_files"], 766)
-            self.assertEqual(contract["include_occurrences"], 2661)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2315)
+            self.assertEqual(contract["include_occurrences"], 2664)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2318)
             self.assertEqual(contract["direct_angle_occurrences"], 346)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 

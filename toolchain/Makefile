@@ -656,6 +656,10 @@ $(BUILD_DIR)/core_contract.o: tests/core_contract.cc ctool.h ctool_host.h | $(BU
 
 $(BUILD_DIR)/cupidc_pp_contract.o: tests/cupidc_pp_contract.cc \
                                  tests/cupidc_pp_conditional_cases.inc \
+                                 tests/cupidc_pp_source_contract.inc \
+                                 tests/cupidc_pp_directive_contract.inc \
+                                 tests/cupidc_pp_macro_contract.inc \
+                                 tests/cupidc_pp_include_contract.inc \
                                  $(CUPIDC_PP_ACTIVE_CASES) \
                                  cupidc_pp.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@

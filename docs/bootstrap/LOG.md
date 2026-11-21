@@ -1,5 +1,19 @@
 # Bootstrapping log
 
+## 2026-11-21 — Split the CupidC preprocessor tests
+
+The 933-line runner keeps its command dispatch and active source checks.
+Four private includes hold the source, directive, macro and header lookup
+cases. The 412,960-byte object matched before and after the split on Windows
+and WSL. Both checked links also matched. All 40 test modes passed on the
+Cupid-built ELF and the Windows and WSL native runners.
+
+The current contract manifest records all four includes. The author and
+reader still accept the earlier 117-input profile and reject missing or
+substituted files. The first live manifest checks ran on both hosts at once
+and caught each other's temporary directories. The sequential retry passed.
+The build audit and 163 focused tests passed on both hosts.
+
 ## 2026-11-21 — Document the kernel audio files
 
 All fourteen audio sources and headers have Doxygen file comments.
@@ -13,7 +27,8 @@ Windows reproduced all seven audio objects. The WSL build matched
 all 430 pass-one objects, both kernel ELFs, the raw kernel, and the
 generated symbol source and object. The fast frontier test checks its pinned
 input fingerprint. The two x86 contract includes had already raised
-that inventory from 494 to 496 files.
+that inventory from 494 to 496 files. The full WSL frontier compiled all
+156 sources twice and passed its object and input checks.
 
 ## 2026-11-21 — Boot the kernel rebuilt from three source and plan ISOs
 

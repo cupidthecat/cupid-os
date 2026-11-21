@@ -34,7 +34,7 @@ Compare emitted objects and checked seed outputs after moving code.
 
 | Area | Files |
 | --- | --- |
-| Compiler contracts | `toolchain/tests/cupidc_frontend_contract.cc`, `toolchain/tests/cupidc_ir_contract.cc`, `toolchain/tests/cupidc_object_contract.cc`, `toolchain/tests/cupidc_pp_contract.cc`, `toolchain/tests/cupidc_type_contract.cc` |
+| Compiler contracts | `toolchain/tests/cupidc_frontend_contract.cc`, `toolchain/tests/cupidc_ir_contract.cc`, `toolchain/tests/cupidc_object_contract.cc`, `toolchain/tests/cupidc_type_contract.cc` |
 | Assembler and format contracts | `toolchain/tests/cupidasm_contract.cc`, `toolchain/tests/cupidasm_kernel_elf_contract.cc`, `toolchain/tests/cupiddis_contract.cc`, `toolchain/tests/cupidobj_contract.cc` |
 | Manifest contracts | `toolchain/tests/toolchain_manifest_contract.cc` |
 | Build and verification scripts | `tools/bootstrap_toolchain.py`, `tools/build_graph_audit.py`, `tools/cupidc_toolchain_contracts.py` |
@@ -65,6 +65,12 @@ python -m unittest tests.test_cupidc_production tests.test_user_link_production 
 
 The split keeps the test cases and assertions intact. All 64 tests passed
 on Windows.
+
+## Preprocessor tests
+
+The 5,775-line preprocessor suite now has a 933-line runner and four
+private includes for source handling, directives, macros and header lookup.
+Its 40 test modes and compiled artifacts match the earlier suite.
 
 ## Kernel compiler tests
 
