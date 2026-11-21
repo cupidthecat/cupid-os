@@ -1,3 +1,6 @@
+## @file
+#  @brief Check SIMD operations emitted by private CupidC.
+
 """Private compiler simd execution cases."""
 
 from .harness import (Path, REPO_ROOT, tempfile)

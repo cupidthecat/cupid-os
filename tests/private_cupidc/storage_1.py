@@ -1,3 +1,6 @@
+## @file
+#  @brief Check private CupidC pointers, arrays, and storage bindings.
+
 """Private compiler storage execution cases."""
 
 from .harness import (Path, REPO_ROOT, tempfile)

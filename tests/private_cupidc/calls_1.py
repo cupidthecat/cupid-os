@@ -1,3 +1,6 @@
+## @file
+#  @brief Check private CupidC native call behavior.
+
 """Private compiler calls execution cases."""
 
 from .harness import (Path, REPO_ROOT, tempfile)

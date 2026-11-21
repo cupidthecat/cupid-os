@@ -1,3 +1,6 @@
+## @file
+#  @brief Build and run native fixtures for private CupidC.
+
 """Shared native driver and execution helpers."""
 
 import os

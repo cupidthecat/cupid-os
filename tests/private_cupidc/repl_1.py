@@ -1,3 +1,6 @@
+## @file
+#  @brief Check persistent state in the private CupidC REPL.
+
 """Private compiler repl execution cases."""
 
 from .harness import (KERNEL_LANG, Path, tempfile)

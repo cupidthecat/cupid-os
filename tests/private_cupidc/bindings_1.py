@@ -1,3 +1,6 @@
+## @file
+#  @brief Check the private CupidC kernel binding signatures.
+
 """Private compiler bindings execution cases."""
 
 from .harness import (Path, REPO_ROOT, subprocess, tempfile)

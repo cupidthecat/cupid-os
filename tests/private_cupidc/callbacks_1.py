@@ -1,3 +1,6 @@
+## @file
+#  @brief Exercise private CupidC callback arguments and calls.
+
 """Private compiler callbacks execution cases."""
 
 from .harness import (KERNEL_LANG, Path, REPO_ROOT, tempfile)

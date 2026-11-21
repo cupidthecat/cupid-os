@@ -1,3 +1,6 @@
+## @file
+#  @brief Exercise private CupidC callback transport and validation.
+
 """Private compiler callbacks execution cases."""
 
 from .harness import (Path, tempfile)

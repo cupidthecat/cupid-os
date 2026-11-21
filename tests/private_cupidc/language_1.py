@@ -1,3 +1,6 @@
+## @file
+#  @brief Check private CupidC parsing and execution.
+
 """Private compiler language execution cases."""
 
 from .harness import (

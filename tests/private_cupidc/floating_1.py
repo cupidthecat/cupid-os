@@ -1,3 +1,6 @@
+## @file
+#  @brief Check private CupidC floating-point expressions and calls.
+
 """Private compiler floating execution cases."""
 
 from .harness import (Path, tempfile)

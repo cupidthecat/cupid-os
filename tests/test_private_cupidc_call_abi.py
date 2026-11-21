@@ -1,3 +1,6 @@
+## @file
+#  @brief Collect the private CupidC native execution and ABI tests.
+
 """Private compiler execution contracts, grouped by language feature."""
 
 from tests.private_cupidc.harness import PrivateCupidCHarness

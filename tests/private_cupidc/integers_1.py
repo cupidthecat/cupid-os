@@ -1,3 +1,6 @@
+## @file
+#  @brief Check private CupidC integer expressions and storage.
+
 """Private compiler integers execution cases."""
 
 from .harness import (Path, REPO_ROOT, tempfile)
