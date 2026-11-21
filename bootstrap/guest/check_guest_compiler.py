@@ -47,6 +47,7 @@ with tempfile.TemporaryDirectory(dir=build, prefix="guest-driver-") as temporary
     check(b"/toolchain/ctool.cc\n/home/ctool.o\nextra\n", b"[cupidc-guest] invalid request file")
     assert object_file.read_bytes() == sentinel
     check(b"/toolchain/ctool.cc\n/home/.cupidc-pending.o\n", b"[cupidc-guest] invalid request file")
+    check(b"/toolchain/ctool.cc\n/tmp/.cupidc-pending.o\n", b"[cupidc-guest] invalid request file")
     assert not pending.exists()
 
     pending.write_bytes(sentinel)

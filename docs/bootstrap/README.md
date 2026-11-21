@@ -21,8 +21,9 @@ Cupid OS remains unfinished.
   preparations reach a fixed point. The C reader now recognizes their exact
   behavior profiles. The installed seeds come from the same 114-file snapshot.
   Cold OS and user builds agree across Windows and WSL, including the full disk
-  image. The guest reads plans from a separate ISO and starts with a fresh
-  HomeFS. A single kernel job takes the ordered objects and runs both
+  image. The guest starts with a fresh HomeFS and reads plans and assets
+  from one ISO. It compiles and wraps objects in lists of related inputs.
+  A single kernel job takes the ordered objects and runs both
   links, symbol generation, and disk-prefix publication inside Cupid OS.
   Linux or WSL still generates the plan and publishes the media.
   The normal image-command handoff and native developer build coordination

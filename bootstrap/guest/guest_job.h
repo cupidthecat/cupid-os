@@ -12,6 +12,8 @@
 #define CUPID_GUEST_CACHE_SLOTS 64u
 #define CUPID_GUEST_PATH_BYTES(count) ((count) * VFS_MAX_PATH + 1u)
 #define CUPID_GUEST_PATH_JOB_BYTES CUPID_GUEST_PATH_BYTES(2u)
+#define CUPID_GUEST_OBJECT_LIST_LIMIT 256u
+#define CUPID_GUEST_OBJECT_LIST_BYTES CUPID_GUEST_PATH_BYTES(2u * CUPID_GUEST_OBJECT_LIST_LIMIT)
 
 typedef struct {
     const char *path;
@@ -53,6 +55,10 @@ int cupid_guest_read_paths(cupid_syscall_table_t *sys, const cupid_guest_request
 int cupid_guest_read_path_lines(cupid_syscall_table_t *sys, char **cursor, char *end,
                                ctool_path_t *paths, ctool_u32 count);
 char *cupid_guest_next_job_line(char **cursor, char *end);
+
+/* Read all source and object pairs before any output can be published. */
+ctool_u32 cupid_guest_read_object_list(cupid_syscall_table_t *sys, char *cursor, char *end,
+                                        const char *reserved_leaf, ctool_invocation_request_t *items);
 
 /* Return cached, released blocks. Live allocations still belong to the job. */
 void cupid_guest_job_drain_cache(cupid_guest_io_t *io);

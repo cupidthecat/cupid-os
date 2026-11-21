@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 ## @file
 #  @brief Build and run a user program through the in-OS build driver.
-"""Run a compile-and-link plan in one guest command and compare both products."""
+"""Run a guest build plan from read-only media and compare its products."""
 
 import argparse
 from pathlib import Path
 import tempfile
 
-from check_guest_build import COMPILE, LINK
+from check_guest_build import LINK
 from check_guest_install_runtime import INSTALL_HEADERS, installation_jobs
 from check_guest_runtime import (
     BUILD,
@@ -22,6 +22,7 @@ from check_guest_runtime import (
 from check_guest_source_plan import (
     INSTALL_INCLUDE_OPTIONS,
     MEDIA_BUILD,
+    ASSET_ROOT,
     PLAN_ISO,
     installation_request,
     iso_members,
@@ -39,19 +40,30 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
     installed_source, request = installation_request(demos, installation_jobs(root)[demos])
     members = iso_members({Path(path) for path in (*INSTALL_HEADERS, "kernel/cpu/isr.asm",
                                                    "user/cupid.h", "user/examples/hello.cc")})
+    assets = (
+        ("wrap", "image.bmp", "image.bmp.o"),
+        ("wrap-text", "cupidos-txt/00INDEX.CTXT", "cupidos-txt/00INDEX.o"),
+        ("wrap-jpeg", "file_example_JPG_1MB.jpg", "file_example_JPG_1MB.jpg.o"),
+    )
     steps = (
         ("assemble", b"isr.job", job_contents("/src/kernel/cpu/isr.asm", "/home/isr.o")),
         ("install", b"install.job", request),
         ("compile", b"compile-install.job", job_contents(
             f"/home/{installed_source}", "/home/demos.o", *INSTALL_INCLUDE_OPTIONS)),
-        ("compile", b"hello-temp.cj", COMPILE.replace(b"/home/hello.o", b"/tmp/hello.o")),
-        ("compile", b"hello.cj", COMPILE),
+        ("compile-list", b"hello.cj", job_contents(
+            "include /user", "sources",
+            "/user/examples/hello.cc", "/tmp/hello.o", "/user/examples/hello.cc", "/home/hello.o",
+        )),
         ("link", b"hello.lj", LINK.replace(b"/home/hello.o", b"/tmp/hello.o")),
+        *(("asset-list", f"asset{index}.job".encode("ascii"),
+           job_contents(mode, ASSET_ROOT, f"/{source}", f"/home/asset{index}.o"))
+          for index, (mode, source, _) in enumerate(assets)),
     )
     if publish_source_iso(publisher, root, BUILD / "cupidc-engine.elf", iso, members):
         raise ValueError("could not publish the user source ISO")
     plan = scratch / PLAN_ISO[0]
-    if publish_plan_iso(publisher, root, plan, steps):
+    if publish_plan_iso(publisher, root, plan, steps,
+                        (root, iso_members({Path(source) for _, source, _ in assets}))):
         raise ValueError("could not publish the user plan ISO")
 
     disk = scratch / "build.img"
@@ -77,6 +89,7 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
         "demos.o": root / Path(demos).with_suffix(".o"),
         "hello.o": root / "user/build/hello.o",
         "hello.elf": root / "user/build/hello",
+        **{f"asset{index}.o": root / obj for index, (_, _, obj) in enumerate(assets)},
     })
 
 

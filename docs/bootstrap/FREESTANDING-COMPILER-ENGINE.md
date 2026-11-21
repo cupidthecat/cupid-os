@@ -643,11 +643,23 @@ make -C bootstrap/guest guest-media-build
 python3 bootstrap/guest/check_guest_source_plan.py --production-root /path/to/checked/build
 ```
 
-The script reads Make's recipes and publishes the plan and requests on an
-ISO mounted at `/plan`. It stages the source inputs on three read-only
-ISOs mounted at `/src`, `/src/kernel/doom`, and `/assets`. The bootloader
-source, linker script, and headers for generated code are on `/src`.
+The script reads Make's recipes and publishes three read-only ISOs. The
+kernel sources, bootloader, linker script, and generated-code headers
+are on `/src`. Doom has its own mount at `/src/kernel/doom`. The plan ISO
+contains requests under `/plan/jobs` and assets under `/plan/assets`.
 HomeFS starts fresh and holds outputs created by the guest.
+
+CupidBuild runs the source and asset lists in order. Each list shares
+compiler options or an asset wrapping mode. The 430-object plan now uses
+19 requests, so the assets fit on the plan ISO. See
+[ADR 0503](../adr/0503-run-guest-object-lists-with-shared-settings.md).
+
+Expanding the lists reproduced all 434 earlier steps before the kernel
+job and the same link order in both storage modes. Windows and WSL built
+identical workers. The Linux checks cover malformed lists, reserved
+output names, and a missing input after an earlier successful item.
+The first fixture left a temporary candidate behind from a rejection
+check. It now removes that candidate before testing the next list.
 
 The final `kernel` job supplies the pass-one objects in link order.
 Guest CupidBuild assembles the bootloader, runs both links and symbol
@@ -679,10 +691,10 @@ installation tables, links both kernels, generates and compiles the kernel
 symbol table, flattens the kernel, and writes a fresh disk prefix. See
 [ADR 0501](../adr/0501-run-guest-build-plans-from-read-only-media.md).
 
-The focused media replay starts with fresh HomeFS, mounts the source and
-plan ISOs, and builds five files. The ISR object, generated demo source
-and object, and `hello` object and executable match the hosted build.
-The guest runs the resulting `hello` executable.
+The focused media replay starts with fresh HomeFS and mounts the source
+and plan ISOs. The ISR object, generated demo source and object, `hello`
+object and executable, and three wrapped assets match the hosted build.
+The guest links `hello` from its RAMFS object and runs the executable.
 
 A second media replay staged the 430 checked pass-one objects on FAT16
 and ran the final seven steps from `/plan`. The bootloader, both ELFs,

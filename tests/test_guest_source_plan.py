@@ -69,7 +69,12 @@ class GuestSourcePlanTests(unittest.TestCase):
             )
             self.assertEqual(
                 requests[b"source1.job"],
-                ("compile", guest_plan.job_contents("/kernel/doom/play.cc", link_order[0], "define doom")),
+                ("compile-list", guest_plan.job_contents(
+                    "define doom", "sources", "/kernel/doom/play.cc", link_order[0])),
+            )
+            self.assertEqual(
+                requests[b"asset0.job"],
+                ("asset-list", guest_plan.job_contents("wrap", "/plan/assets", "/bin/readme.txt", link_order[1])),
             )
 
         self.assertEqual(references["i000.o"], self.root / self.objects[0])
@@ -84,6 +89,38 @@ class GuestSourcePlanTests(unittest.TestCase):
         self.objects.insert(0, "kernel/missing.o")
         with self.assertRaisesRegex(ValueError, "no guest source job for kernel/missing[.]o"):
             guest_plan.source_plan(self.root, False)
+
+    def test_source_lists_preserve_member_order_and_split_at_the_limit(self):
+        extra = ["bin/link.o", "bin/logo.o", "bin/title.o", "kernel/core/helpers.o"]
+        self.objects[6:6] = extra
+        assets = {
+            "bin/readme.o": ("bin/readme.txt", "wrap"),
+            "bin/link.o": ("bin/link.txt", "wrap"),
+            "bin/logo.o": ("bin/logo.bmp", "wrap"),
+            "bin/title.o": ("bin/title.txt", "wrap-text"),
+        }
+        profiles = {
+            "kernel/core/main.cc": "kernel",
+            "kernel/core/helpers.cc": "kernel",
+            "kernel/doom/play.cc": "doom",
+        }
+        with patch.multiple(guest_plan, OBJECT_LIST_LIMIT=2, SOURCE_PROFILES=profiles,
+                            production_assets=lambda root: assets):
+            steps, _, _ = guest_plan.source_plan(self.root, True)
+        jobs = {name: contents for _, name, contents in steps}
+        self.assertEqual(jobs[b"asset0.job"], guest_plan.job_contents(
+            "wrap", "/plan/assets", "/bin/readme.txt", "/tmp/i001.o", "/bin/link.txt", "/tmp/i006.o",
+        ))
+        self.assertEqual(jobs[b"asset1.job"], guest_plan.job_contents(
+            "wrap", "/plan/assets", "/bin/logo.bmp", "/tmp/i007.o",
+        ))
+        self.assertEqual(jobs[b"asset2.job"], guest_plan.job_contents(
+            "wrap-text", "/plan/assets", "/bin/title.txt", "/tmp/i008.o",
+        ))
+        self.assertEqual(jobs[b"source0.job"], guest_plan.job_contents(
+            "define kernel", "sources",
+            "/kernel/core/main.cc", "/tmp/i004.o", "/kernel/core/helpers.cc", "/tmp/i009.o",
+        ))
 
     def test_guest_manifest_keeps_step_order_and_reads_requests_from_the_source_mount(self):
         steps, _, _ = guest_plan.source_plan(self.root, True)
@@ -116,9 +153,10 @@ class GuestSourcePlanTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             scratch = Path(temp)
 
-            def publish(publisher, root, engine, output, members, *, source_directory):
+            def publish(publisher, root, engine, output, members, *, source_directory, source_overrides):
                 self.assertEqual(root, self.root)
                 self.assertEqual(members, ("jobs", "jobs/00", "cupidbuild.job", "jobs/00/one.job"))
+                self.assertEqual(source_overrides, {})
                 self.assertEqual((source_directory / "cupidbuild.job").read_bytes(),
                                  b"compile\n/plan/jobs/00/one.job\n")
                 self.assertEqual((source_directory / "jobs/00/one.job").read_bytes(), b"request\n")
@@ -128,6 +166,28 @@ class GuestSourcePlanTests(unittest.TestCase):
                 self.assertEqual(guest_plan.publish_plan_iso(
                     scratch / "publisher", self.root, scratch / "p.iso",
                     (("compile", b"one.job", b"request\n"),)), 0)
+
+    def test_production_plan_carries_assets_under_the_plan_mount(self):
+        scratch = Path("scratch")
+        with patch.object(guest_plan, "replay") as replay:
+            guest_plan.check(scratch, self.root, "qemu", 10, True)
+        _, _, _, _, steps, mounts, inputs, _ = replay.call_args.args
+        self.assertEqual(mounts, (("s.iso", "/src"), ("d.iso", "/src/kernel/doom")))
+        self.assertEqual(len(inputs), 2)
+        assets = replay.call_args.kwargs["asset_input"]
+        self.assertEqual(assets, (self.root, ("bin", "bin/readme.txt")))
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.object(guest_plan, "publish_source_iso", return_value=0) as publish:
+                guest_plan.publish_plan_iso(Path("publisher"), self.root,
+                                            Path(temporary) / "p.iso", steps, assets)
+            self.assertEqual(publish.call_args.args[-1][-3:], (
+                "assets", "assets/bin", "assets/bin/readme.txt",
+            ))
+            self.assertEqual(publish.call_args.kwargs["source_overrides"], {
+                "assets": self.root,
+                "assets/bin": self.root / "bin",
+                "assets/bin/readme.txt": self.root / "bin/readme.txt",
+            })
 
     def test_duplicate_link_input_fails_before_creating_media(self):
         self.objects.insert(0, self.objects[0])

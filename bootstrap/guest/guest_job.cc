@@ -84,6 +84,27 @@ int cupid_guest_read_path_job(cupid_syscall_table_t *sys, const cupid_guest_requ
     return 1;
 }
 
+ctool_u32 cupid_guest_read_object_list(cupid_syscall_table_t *sys, char *cursor, char *end,
+                                        const char *reserved_leaf, ctool_invocation_request_t *items) {
+    ctool_u32 count = 0u;
+    while (cursor < end && count < CUPID_GUEST_OBJECT_LIST_LIMIT) {
+        ctool_path_t paths[2];
+        if (!cupid_guest_read_path_lines(sys, &cursor, end, paths, 2u) || paths[0].text.size <= 1u)
+            return 0u;
+        ctool_string_t output = paths[1].text;
+        if (sys->strcmp(output.data + output.size - 2u, ".o") != 0 ||
+            (reserved_leaf && sys->strcmp(
+                output.data + cupid_guest_output_prefix(sys, output), reserved_leaf) == 0))
+            return 0u;
+        for (ctool_u32 i = 0; i < count; i++) {
+            if (sys->strcmp(items[i].output_path.data, output.data) == 0)
+                return 0u;
+        }
+        items[count++] = (ctool_invocation_request_t){paths[0].text, output};
+    }
+    return cursor == end ? count : 0u;
+}
+
 static ctool_status_t file_failure(int status) {
     if (status == GUEST_ENOENT)
         return CTOOL_ERR_NOT_FOUND;

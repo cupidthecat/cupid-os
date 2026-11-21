@@ -81,6 +81,20 @@ and stops at the first failed step. Each step publishes output atomically.
 Use /tmp for intermediate files and /home for outputs that need to survive
 a reboot.
 
+>h2 Compile or wrap several objects
+
+A compile-list job starts with the usual compiler options, then a line
+containing sources. Write one source path and one output .o path per
+pair. CupidBuild uses the same options for every source.
+
+An asset-list job starts with wrap, wrap-text or wrap-jpeg, followed by
+the absolute asset directory. Each source path is relative to that
+directory and starts with a slash. The worker uses it to name the ELF
+symbols. The next line names the output .o file.
+
+Each list accepts up to 256 pairs and requires distinct output paths.
+If a worker fails, earlier published products remain available.
+
 >h2 Run a plan from a read-only ISO
 
 Build cupidbuild-media.elf with make -C bootstrap/guest guest-media-build.
@@ -88,6 +102,7 @@ Stage it as /b, mount the plan ISO at /plan, and run exec /disk/b.
 The media entry reads /plan/cupidbuild.job. Each job path must start with
 /plan/jobs/. The source replay reads headers and build inputs from source
 ISOs and starts with a fresh HomeFS for outputs.
+The production plan ISO also carries assets under /plan/assets.
 
 Use kernel followed by the job path to build the bootloader, both kernel
 ELFs and the disk prefix. The job lists up to 511 distinct pass-one .o

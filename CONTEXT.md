@@ -47,6 +47,11 @@ The source-media CupidBuild operation that accepts the ordered pass-one
 object paths, then assembles the bootloader, links both kernels, generates
 the symbol object, flattens the final ELF, and writes the disk prefix.
 
+**Guest object list**:
+An ordered group of source and output pairs that shares a compiler profile
+or asset wrapping mode. CupidBuild validates the list, then publishes each
+object as its worker finishes.
+
 **Source cohort**:
 A related group of active sources migrated and verified under one tool-ownership and behavior gate.
 _Avoid_: directory (a cohort may cross directories), individual file count

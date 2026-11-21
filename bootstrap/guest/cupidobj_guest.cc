@@ -18,6 +18,7 @@
 #define OBJECT_SYMBOL_BYTES (VFS_MAX_PATH + sizeof("_binary__start"))
 #define OBJECT_BUNDLE_LIMIT 256u
 #define OBJECT_BUNDLE_BYTES (OBJECT_BUNDLE_LIMIT * OBJECT_JOB_BYTES)
+#define ASSET_LIST_BYTES (CUPID_GUEST_OBJECT_LIST_BYTES + VFS_MAX_PATH + sizeof("wrap-text\n"))
 
 typedef struct {
     ctool_invocation_request_t invocation;
@@ -42,13 +43,11 @@ static int read_symbol_stem(const char *stem, ctool_string_t *identity) {
     return 1;
 }
 
-static int read_asset(const char *mode, const char *logical, guest_object_job_t *job) {
+static int read_asset_mode(const char *mode, guest_object_job_t *job) {
     if (strcmp(mode, "wrap-readonly") == 0) {
         job->operation = CTOOL_OBJ_WRAP_BINARY;
         job->readonly = CTOOL_TRUE;
-        return read_symbol_stem(logical, &job->identity);
-    }
-    if (strcmp(mode, "wrap") == 0)
+    } else if (strcmp(mode, "wrap") == 0)
         job->operation = CTOOL_OBJ_WRAP_BINARY;
     else if (strcmp(mode, "wrap-text") == 0)
         job->operation = CTOOL_OBJ_WRAP_TEXT;
@@ -56,7 +55,14 @@ static int read_asset(const char *mode, const char *logical, guest_object_job_t 
         job->operation = CTOOL_OBJ_WRAP_JPEG;
     else
         return 0;
+    return 1;
+}
 
+static int read_asset(const char *mode, const char *logical, guest_object_job_t *job) {
+    if (!read_asset_mode(mode, job))
+        return 0;
+    if (job->readonly)
+        return read_symbol_stem(logical, &job->identity);
     ctool_path_t identity = {ctool_string(logical)};
     if (identity.text.size <= 1u || identity.text.size >= VFS_MAX_PATH ||
         !ctool_path_is_canonical(&identity))
@@ -240,42 +246,97 @@ static ctool_status_t build_object(ctool_invocation_t *invocation, void *context
     return ctool_obj_transform(invocation->job, &request, invocation->output, &result);
 }
 
-ctool_status_t cupid_guest_object_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *input) {
-    if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
-        return CTOOL_ERR_INVALID_ARGUMENT;
-    cupid_init(sys);
-    char file[OBJECT_JOB_BYTES];
-    guest_object_job_t job = {0};
-    if (!read_object_job(sys, input, file, &job)) {
-        sys->serial_write_string("[cupidobj-guest] invalid request file: ");
-        sys->serial_write_string(input->path);
-        sys->serial_write_string("\n");
-        return CTOOL_ERR_INPUT;
-    }
-
+static ctool_status_t publish_object(cupid_syscall_table_t *sys, guest_object_job_t *job,
+                                      const char *input_prefix) {
     cupid_guest_io_t io = {
-        .sys = sys, .input_prefix = ctool_string(""), .pending_path = OBJECT_PENDING
+        .sys = sys, .input_prefix = ctool_string(input_prefix), .pending_path = OBJECT_PENDING
     };
     ctool_job_config_t config = cupid_guest_job_config(&io);
     config.limits.source_bytes = OBJECT_SOURCE_BYTES;
     config.limits.arena_bytes = OBJECT_ARENA_BYTES;
     ctool_invocation_result_t result = {0};
-    ctool_status_t status = ctool_invoke(&config, &job.invocation, build_object, &job, &result);
+    ctool_status_t status = ctool_invoke(&config, &job->invocation, build_object, job, &result);
     cupid_guest_job_drain_cache(&io);
     if (status == CTOOL_OK && !result.output_committed)
         status = CTOOL_ERR_IO;
     if (status == CTOOL_OK) {
         sys->serial_write_string("[cupidobj-guest] wrote ");
-        sys->serial_write_string(job.invocation.output_path.data);
+        sys->serial_write_string(job->invocation.output_path.data);
     } else {
-        const char *operation = job.operation == CTOOL_OBJ_EXTRACT_FLAT ? "flatten" :
-                                job.operation == CTOOL_OBJ_BUILD_ISO_FIXTURE ? "bundle" : "wrap";
+        const char *operation = job->operation == CTOOL_OBJ_EXTRACT_FLAT ? "flatten" :
+                                job->operation == CTOOL_OBJ_BUILD_ISO_FIXTURE ? "bundle" : "wrap";
         sys->serial_write_string("[cupidobj-guest] ");
         sys->serial_write_string(operation);
         sys->serial_write_string(" failed: ");
         sys->serial_write_string(ctool_status_name(status));
     }
     sys->serial_write_string("\n");
+    return status;
+}
+
+ctool_status_t cupid_guest_object_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *input) {
+    if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
+        return CTOOL_ERR_INVALID_ARGUMENT;
+    cupid_init(sys);
+    char file[OBJECT_JOB_BYTES];
+    guest_object_job_t job = {0};
+    if (read_object_job(sys, input, file, &job))
+        return publish_object(sys, &job, "");
+    sys->serial_write_string("[cupidobj-guest] invalid request file: ");
+    sys->serial_write_string(input->path);
+    sys->serial_write_string("\n");
+    return CTOOL_ERR_INPUT;
+}
+
+static ctool_u32 read_asset_list(cupid_syscall_table_t *sys, const cupid_guest_request_t *input,
+                                char *file, guest_object_job_t *job, const char **root,
+                                ctool_invocation_request_t *items) {
+    int size = cupid_guest_read_request(sys, input, file, ASSET_LIST_BYTES);
+    if (size <= 0 || (ctool_u32)size >= ASSET_LIST_BYTES)
+        return 0u;
+    char *cursor = file;
+    char *end = file + size;
+    char *mode = cupid_guest_next_job_line(&cursor, end);
+    char *directory = cupid_guest_next_job_line(&cursor, end);
+    if (!mode || !directory || !read_asset_mode(mode, job) || job->readonly)
+        return 0u;
+    ctool_path_t path = {ctool_string(directory)};
+    if (path.text.size >= VFS_MAX_PATH || !ctool_path_is_canonical(&path))
+        return 0u;
+    ctool_u32 prefix_size = path.text.size == 1u ? 0u : path.text.size;
+    *root = prefix_size ? directory : "";
+    ctool_u32 count = cupid_guest_read_object_list(sys, cursor, end, NULL, items);
+    for (ctool_u32 i = 0; i < count; i++) {
+        if (items[i].input_path.size + prefix_size >= VFS_MAX_PATH)
+            return 0u;
+    }
+    return count;
+}
+
+ctool_status_t cupid_guest_asset_list(cupid_syscall_table_t *sys, const cupid_guest_request_t *input) {
+    cupid_init(sys);
+    char *file = sys->malloc(ASSET_LIST_BYTES);
+    if (!file)
+        return CTOOL_ERR_NO_MEMORY;
+    guest_object_job_t job = {0};
+    ctool_invocation_request_t items[CUPID_GUEST_OBJECT_LIST_LIMIT];
+    const char *root = NULL;
+    ctool_u32 count = read_asset_list(sys, input, file, &job, &root, items);
+    ctool_status_t status = count ? CTOOL_OK : CTOOL_ERR_INPUT;
+    if (status != CTOOL_OK)
+        sys->serial_write_string("[cupidobj-guest] invalid asset list\n");
+    for (ctool_u32 i = 0; status == CTOOL_OK && i < count; i++) {
+        job.invocation = items[i];
+        ctool_string_t path = job.invocation.input_path;
+        job.identity = (ctool_string_t){path.data + 1u, path.size - 1u};
+        status = publish_object(sys, &job, root);
+        if (status != CTOOL_OK) {
+            sys->serial_write_string("[cupidobj-guest] list stopped at ");
+            sys->serial_write_string(path.data);
+            sys->serial_write_string("\n");
+        }
+    }
+    sys->free(file);
     return status;
 }
 

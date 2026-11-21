@@ -16,6 +16,88 @@ COMPILE = b"/user/examples/hello.cc\n/home/hello.o\ninclude /user\n"
 LINK = b"/home/hello.elf\n0x01c00000\n_start\n/home/hello.o\n"
 
 
+def check_object_lists(scratch, command, reference_object, invoke):
+    jobs = scratch / "plan/jobs"
+    plan = scratch / "plan/cupidbuild.job"
+    compile_list = jobs / "sources.job"
+    asset_list = jobs / "assets.job"
+    compile_step = b"compile-list\n/plan/jobs/sources.job\n"
+    asset_step = b"asset-list\n/plan/jobs/assets.job\n"
+    head = b"include /user\nsources\n"
+    first = b"/user/examples/hello.cc\n/home/list.o\n"
+    second = b"/user/examples/hello.cc\n/tmp/list.o\n"
+    outputs = (scratch / "home/list.o", scratch / "tmp/list.o")
+
+    plan.write_bytes(compile_step)
+    for invalid in (
+        head + first + first,
+        head + first + b"/user/examples/hello.cc\n",
+        head + first + second.replace(b"/tmp/list.o", b"/home/.cupidc-pending.o"),
+        head + first + second.replace(b"/tmp/list.o", b"/tmp/.cupidc-pending.o"),
+        head + first + second.replace(b"/tmp/list.o", b"/disk/list.o"),
+        head.replace(b"sources\n", b"") + first,
+        b"unknown /user\nsources\n" + first,
+        b"sources\n" + b"".join(
+            f"/user/examples/hello.cc\n/tmp/o{index}.o\n".encode("ascii") for index in range(257)
+        ),
+    ):
+        compile_list.write_bytes(invalid)
+        log = invoke(b"[cupidc-guest] invalid compile list", "--media")
+        assert b"[cupidc-guest] wrote" not in log
+        assert all(not path.exists() for path in outputs)
+
+    compile_list.write_bytes(head + first + second.replace(b"hello.cc", b"missing.cc") +
+                             second.replace(b"/tmp/list.o", b"/tmp/third.o"))
+    log = invoke(b"[cupidc-guest] list stopped at /user/examples/missing.cc", "--media")
+    assert outputs[0].read_bytes() == reference_object.read_bytes()
+    assert not outputs[1].exists() and not (scratch / "tmp/third.o").exists()
+    assert b"build complete" not in log
+
+    compile_list.write_bytes(head + first + second)
+    log = invoke(b"[cupidbuild-guest] build complete", "--media")
+    assert log.index(b"wrote /home/list.o") < log.index(b"wrote /tmp/list.o")
+    assert all(path.read_bytes() == reference_object.read_bytes() for path in outputs)
+
+    assets = scratch / "assets/bin"
+    assets.mkdir(parents=True)
+    members = [("bin/a.txt", "home/asset.o", b"Cupid\r\nLine\n"),
+               ("bin/b.txt", "tmp/asset.o", b"Other\r\nLine\rEnd\n")]
+    pairs = b""
+    expected = {}
+    for index, (logical, output, contents) in enumerate(members):
+        source = scratch / "assets" / logical
+        source.write_bytes(contents)
+        reference = scratch / f"asset{index}.o"
+        subprocess.run([*command, "cupidobj", "--", "wrap-text", source,
+                        "--identity", logical, "-o", reference], check=True, timeout=120)
+        expected[scratch / output] = reference.read_bytes()
+        pairs += f"/{logical}\n/{output}\n".encode("ascii")
+
+    plan.write_bytes(asset_step)
+    asset_head = b"wrap-text\n/assets\n"
+    for invalid in (asset_head.replace(b"wrap-text", b"wrap-readonly") + pairs,
+                    asset_head.replace(b"wrap-text", b"wrap-bundle") + pairs,
+                    asset_head.replace(b"/assets", b"/assets/../src") + pairs,
+                    asset_head + pairs.replace(b"/tmp/asset.o", b"/home/asset.o"),
+                    asset_head + pairs.replace(b"/bin/b.txt", b"/bin/../b.txt")):
+        asset_list.write_bytes(invalid)
+        log = invoke(b"[cupidobj-guest] invalid asset list", "--media")
+        assert b"[cupidobj-guest] wrote" not in log
+        assert all(not path.exists() for path in expected)
+
+    asset_list.write_bytes(asset_head + pairs.replace(b"/bin/b.txt", b"/bin/missing.txt"))
+    log = invoke(b"[cupidobj-guest] list stopped at /bin/missing.txt", "--media")
+    assert not (scratch / "tmp/asset.o").exists() and b"build complete" not in log
+    assert (scratch / "home/asset.o").read_bytes() == expected[scratch / "home/asset.o"]
+
+    asset_list.write_bytes(asset_head + pairs)
+    plan.write_bytes(compile_step + asset_step)
+    log = invoke(b"[cupidbuild-guest] build complete", "--media")
+    assert log.index(b"wrote /tmp/list.o") < log.index(b"wrote /home/asset.o")
+    assert log.index(b"wrote /home/asset.o") < log.index(b"wrote /tmp/asset.o")
+    assert all(path.read_bytes() == data for path, data in expected.items())
+
+
 def check(scratch: Path) -> None:
     sources = scratch / "src"
     (sources / "user/examples").mkdir(parents=True)
@@ -187,6 +269,8 @@ def check(scratch: Path) -> None:
     log = invoke(b"[cupidbuild-guest] kernel build stopped at bootloader", "--media")
     assert b"[cupidld-guest]" not in log and b"build complete" not in log
     assert boot.read_bytes() == b"preceding bootloader"
+    scratch_pending.unlink()
+    check_object_lists(scratch, command, reference_object, invoke)
     print("Guest builds matched checked outputs from HomeFS and source-media plans.")
 
 

@@ -14,10 +14,12 @@ typedef ctool_status_t (*cupid_guest_operation_t)(cupid_syscall_table_t *sys,
                                                 const cupid_guest_request_t *job);
 
 ctool_status_t cupid_guest_compile_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
+ctool_status_t cupid_guest_compile_list(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
 ctool_status_t cupid_guest_link_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
 
 ctool_status_t cupid_guest_symbols_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
 ctool_status_t cupid_guest_object_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
+ctool_status_t cupid_guest_asset_list(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
 ctool_status_t cupid_guest_raw_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
 ctool_status_t cupid_guest_assemble_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
 ctool_status_t cupid_guest_install_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);

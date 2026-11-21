@@ -4,7 +4,8 @@
 """Stage the production sources, run a guest build plan, and boot its disk."""
 
 import argparse
-from collections.abc import Collection
+from collections.abc import Callable, Collection, Iterable
+from itertools import groupby, islice
 from pathlib import Path
 import re
 import tempfile
@@ -22,10 +23,13 @@ from tools.cupidc_kernel_compile import _kernel_input_paths
 
 
 DOOM = Path("kernel/doom")
-SOURCE_ISOS = (("s.iso", "/src"), ("d.iso", "/src/kernel/doom"), ("a.iso", "/assets"))
+SOURCE_ISOS = (("s.iso", "/src"), ("d.iso", "/src/kernel/doom"))
 PLAN_ISO = ("p.iso", "/plan")
 REQUEST_DIRECTORY = Path("jobs")
+ASSET_DIRECTORY = "assets"
+ASSET_ROOT = f"{PLAN_ISO[1]}/{ASSET_DIRECTORY}"
 MEDIA_BUILD = "cupidbuild-media.elf"
+OBJECT_LIST_LIMIT = 256
 INSTALL_INCLUDE_OPTIONS = ("include /src/kernel", "include /src/kernel/core", "include /src/kernel/fs")
 KERNEL_BUILD_FILES = frozenset(map(Path, (
     "boot/boot.asm", "link.ld", "kernel/cpu/ksyms.h", "kernel/core/types.h",
@@ -69,8 +73,14 @@ def installation_request(source: str, contents: bytes) -> tuple[str, bytes]:
 
 
 def publish_plan_iso(publisher: Path, root: Path, output: Path,
-                     steps: tuple[tuple[str, bytes, bytes], ...]) -> int:
+                     steps: tuple[tuple[str, bytes, bytes], ...],
+                     asset_input: tuple[Path, tuple[str, ...]] | None = None) -> int:
     plan_files = media_plan_files(steps)
+    asset_paths = {}
+    if asset_input:
+        asset_root, members = asset_input
+        asset_paths[ASSET_DIRECTORY] = asset_root
+        asset_paths.update((f"{ASSET_DIRECTORY}/{member}", asset_root / member) for member in members)
     with tempfile.TemporaryDirectory(dir=output.parent, prefix="plan-inputs-") as temporary:
         staging = Path(temporary)
         for relative, contents in plan_files.items():
@@ -78,7 +88,8 @@ def publish_plan_iso(publisher: Path, root: Path, output: Path,
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes(contents)
         return publish_source_iso(publisher, root, BUILD / "cupidc-engine.elf", output,
-                                  iso_members(plan_files.keys()), source_directory=staging)
+                                  (*iso_members(plan_files.keys()), *asset_paths),
+                                  source_directory=staging, source_overrides=asset_paths)
 
 
 def source_plan(root: Path, temporary_objects: bool):
@@ -95,6 +106,16 @@ def source_plan(root: Path, temporary_objects: bool):
 
     def add(operation: str, name: str, contents: bytes) -> None:
         steps.append((operation, name.encode("ascii"), contents))
+
+    def add_lists(operation: str, prefix: str, entries: Iterable[tuple[str, str, str]],
+                  header: Callable[[str], tuple[str, ...]]) -> None:
+        index = 0
+        for key, group in groupby(entries, key=lambda entry: entry[0]):
+            options = header(key)
+            while batch := tuple(islice(group, OBJECT_LIST_LIMIT)):
+                paths = tuple(path for _, source, obj in batch for path in (source, obj))
+                add(operation, f"{prefix}{index}.job", job_contents(*options, *paths))
+                index += 1
 
     def output(name: str) -> str:
         if name in built or name not in aliases:
@@ -125,17 +146,21 @@ def source_plan(root: Path, temporary_objects: bool):
         ))
         references[destination] = root / source
 
-    for index, (obj, (source, mode)) in enumerate(production_assets(root).items()):
+    asset_objects = []
+    for obj, (source, mode) in production_assets(root).items():
         assets.add(Path(source))
-        add("object", f"asset{index}.job", job_contents(f"/assets/{source}", output(obj), mode, f"/{source}"))
+        asset_objects.append((mode, f"/{source}", output(obj)))
+    add_lists("asset-list", "asset", asset_objects, lambda mode: (mode, ASSET_ROOT))
 
-    for index, (source, profile) in enumerate(SOURCE_PROFILES.items()):
+    compiled_objects = []
+    for source, profile in SOURCE_PROFILES.items():
         obj = object_name(source)
         if obj not in aliases:
             continue
         files.update(path.relative_to(root) for path in _kernel_input_paths(root, source, profile))
-        add("compile", f"source{index}.job",
-            job_contents(f"/{source}", output(obj), *profile_options(profile)))
+        compiled_objects.append((profile, f"/{source}", output(obj)))
+    add_lists("compile-list", "source", compiled_objects,
+              lambda profile: (*profile_options(profile), "sources"))
 
     if missing := aliases.keys() - built:
         raise ValueError(f"no guest source job for {', '.join(sorted(missing))}")
@@ -155,7 +180,8 @@ def replay(scratch: Path, root: Path, qemu: str, timeout: float,
            steps: tuple[tuple[str, bytes, bytes], ...],
            sources: tuple[tuple[str, str], ...],
            inputs: tuple[tuple[Path, tuple[str, ...]], ...],
-           references: dict[str, Path], staged: tuple[str, ...] = ()) -> None:
+           references: dict[str, Path], staged: tuple[str, ...] = (), *,
+           asset_input: tuple[Path, tuple[str, ...]] | None = None) -> None:
     publisher = ROOT / "bootstrap/seeds/i386-linux/cupidbuild.elf"
     isos = []
     for (name, _), (source, members) in zip(sources, inputs, strict=True):
@@ -165,7 +191,7 @@ def replay(scratch: Path, root: Path, qemu: str, timeout: float,
             raise ValueError(f"could not publish {name}")
         isos.append(f"{iso}:/{name}")
     plan = scratch / PLAN_ISO[0]
-    if publish_plan_iso(publisher, root, plan, steps):
+    if publish_plan_iso(publisher, root, plan, steps, asset_input):
         raise ValueError(f"could not publish {plan.name}")
     isos.append(f"{plan}:/{plan.name}")
     image = scratch / "build.img"
@@ -175,7 +201,9 @@ def replay(scratch: Path, root: Path, qemu: str, timeout: float,
 
 def check(scratch: Path, root: Path, qemu: str, timeout: float, temporary_objects: bool) -> None:
     steps, inputs, references = source_plan(root, temporary_objects)
-    replay(scratch, root, qemu, timeout, steps, SOURCE_ISOS, inputs, references)
+    sources, doom, assets = inputs
+    replay(scratch, root, qemu, timeout, steps, SOURCE_ISOS, (sources, doom), references,
+           asset_input=assets)
 
 
 def check_kernel_job(scratch: Path, root: Path, qemu: str, timeout: float) -> None:

@@ -27,13 +27,15 @@ def write_manifest(path, members):
     path.write_bytes(("\n".join(members) + "\n").encode("ascii"))
 
 
-def stage_inputs(root, engine, members, fixtures):
+def stage_inputs(root, engine, members, fixtures, source_overrides=None):
     fixtures.mkdir()
+    overrides = source_overrides or {}
     for logical in members:
         relative = Path(logical)
         if relative.is_absolute() or relative.anchor or ".." in relative.parts:
             raise ValueError(f"invalid engine ISO path: {logical}")
         source = engine if logical == engine.name else root / relative
+        source = overrides.get(logical, source)
         target = fixtures / relative
         information = source.lstat()
         if stat.S_ISDIR(information.st_mode):
@@ -56,12 +58,13 @@ def stage_seed_pair(root, scratch):
             shutil.copy2(source / target / name, target_dir / name)
 
 
-def publish_source_iso(publisher, root, engine, output, members, *, source_directory=None):
+def publish_source_iso(publisher, root, engine, output, members, *,
+                       source_directory=None, source_overrides=None):
     with tempfile.TemporaryDirectory(dir=output.parent, prefix="iso-inputs-") as temporary:
         scratch = Path(temporary)
         write_manifest(scratch / "manifest", members)
         stage_inputs(root if source_directory is None else source_directory,
-                     engine, members, scratch / "fixtures")
+                     engine, members, scratch / "fixtures", source_overrides)
         stage_seed_pair(root, scratch)
         result = subprocess.run(publish_command(publisher, scratch, "candidate.iso"), timeout=180)
         if result.returncode:

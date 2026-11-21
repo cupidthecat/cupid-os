@@ -10,7 +10,7 @@
 #define MEDIA_JOB MEDIA_ROOT "cupidbuild.job"
 #define MEDIA_REQUESTS MEDIA_ROOT "jobs/"
 #define BUILD_STEP_LIMIT 512u
-#define BUILD_JOB_BYTES (BUILD_STEP_LIMIT * (VFS_MAX_PATH + sizeof("assemble")) + 1u)
+#define BUILD_JOB_BYTES (BUILD_STEP_LIMIT * (VFS_MAX_PATH + sizeof("compile-list")) + 1u)
 
 typedef struct {
     cupid_guest_operation_t run;
@@ -30,9 +30,11 @@ static cupid_guest_operation_t find_operation(const char *name, int media) {
         cupid_guest_operation_t run;
     } operations[] = {
         {"compile", cupid_guest_compile_job},
+        {"compile-list", cupid_guest_compile_list},
         {"link", cupid_guest_link_job},
         {"symbols", cupid_guest_symbols_job},
         {"object", cupid_guest_object_job},
+        {"asset-list", cupid_guest_asset_list},
         {"raw", cupid_guest_raw_job},
         {"assemble", cupid_guest_assemble_job},
         {"install", cupid_guest_install_job},

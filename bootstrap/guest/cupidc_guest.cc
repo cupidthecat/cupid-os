@@ -8,7 +8,8 @@
 
 #define SOURCE_MOUNT "/src"
 #define JOB_PATH "/home/cupidc.job"
-#define PENDING_PATH "/home/.cupidc-pending.o"
+#define PENDING_LEAF ".cupidc-pending.o"
+#define PENDING_PATH "/home/" PENDING_LEAF
 #define JOB_ARENA_BYTES (192u * 1024u * 1024u)
 #define INCLUDE_ROOT_LIMIT 64u
 #define FORCED_INCLUDE_LIMIT 16u
@@ -17,6 +18,7 @@
 #define JOB_BYTES (CUPID_GUEST_PATH_JOB_BYTES + sizeof("doom\n") - 1u + \
                    (INCLUDE_ROOT_LIMIT + FORCED_INCLUDE_LIMIT) * (VFS_MAX_PATH + 8u) + \
                    MACRO_LIMIT * (2u * VFS_MAX_PATH + 8u) + sizeof("bundle\n"))
+#define COMPILE_LIST_BYTES (JOB_BYTES + CUPID_GUEST_OBJECT_LIST_BYTES)
 
 typedef struct {
     ctool_c_pp_include_root_t roots[INCLUDE_ROOT_LIMIT];
@@ -27,6 +29,9 @@ typedef struct {
 static int read_option(char *line, ctool_c_engine_request_t *request,
                        guest_compile_options_t *options) {
     ctool_c_pp_request_t *pp = &request->preprocessor;
+    pp->include_roots = options->roots;
+    pp->forced_includes = options->forced;
+    pp->macro_actions = options->macros;
     if (strcmp(line, "doom") == 0) {
         if (request->parser.implicit_function_declarations)
             return 0;
@@ -81,6 +86,20 @@ static int read_option(char *line, ctool_c_engine_request_t *request,
     return 1;
 }
 
+static int read_profile(char **cursor, char *end, const char *delimiter,
+                        ctool_c_engine_request_t *request, guest_compile_options_t *options) {
+    while (*cursor < end) {
+        char *line = cupid_guest_next_job_line(cursor, end);
+        if (!line)
+            return 0;
+        if (delimiter && strcmp(line, delimiter) == 0)
+            return 1;
+        if (!read_option(line, request, options))
+            return 0;
+    }
+    return delimiter == NULL;
+}
+
 static int read_request(const cupid_guest_request_t *job, char *file, ctool_c_engine_request_t *request,
                         guest_compile_options_t *options, int *bundle) {
     int size = cupid_guest_read_request(__sys, job, file, JOB_BYTES);
@@ -92,7 +111,8 @@ static int read_request(const cupid_guest_request_t *job, char *file, ctool_c_en
     if (!cupid_guest_read_path_lines(__sys, &cursor, end, paths, 2u))
         return 0;
     ctool_string_t output = paths[1].text;
-    if (output.size < 8u || strcmp(output.data, PENDING_PATH) == 0)
+    ctool_u32 prefix = cupid_guest_output_prefix(__sys, output);
+    if (output.size < 8u || strcmp(output.data + prefix, PENDING_LEAF) == 0)
         return 0;
     if (output.size >= 10u && strcmp(output.data + output.size - 4u, ".iso") == 0) {
         char *mode = cupid_guest_next_job_line(&cursor, end);
@@ -104,38 +124,16 @@ static int read_request(const cupid_guest_request_t *job, char *file, ctool_c_en
     }
     request->invocation.input_path = paths[0].text;
     request->invocation.output_path = output;
-    if (cursor < end) {
-        request->preprocessor.include_roots = options->roots;
-        request->preprocessor.forced_includes = options->forced;
-        request->preprocessor.macro_actions = options->macros;
-    }
-    while (cursor < end) {
-        char *line = cupid_guest_next_job_line(&cursor, end);
-        if (!line || !read_option(line, request, options))
-            return 0;
-    }
-    return 1;
+    return read_profile(&cursor, end, NULL, request, options);
 }
 
 static ctool_status_t compile_bundle(ctool_invocation_t *invocation, void *profile) {
     return cupid_guest_compile_bundle(invocation, profile, __sys);
 }
 
-ctool_status_t cupid_guest_compile_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job) {
-    if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
-        return CTOOL_ERR_INVALID_ARGUMENT;
-    cupid_init(sys);
-    char file[JOB_BYTES];
-    ctool_c_engine_request_t request = {0};
-    guest_compile_options_t options;
-    int bundle = 0;
-    if (!read_request(job, file, &request, &options, &bundle)) {
-        sys->serial_write_string("[cupidc-guest] invalid request file: ");
-        sys->serial_write_string(job->path);
-        sys->serial_write_string("\n");
-        return CTOOL_ERR_INPUT;
-    }
-
+static ctool_status_t compile_request(cupid_syscall_table_t *sys, const ctool_c_engine_request_t *parsed,
+                                      int bundle) {
+    ctool_c_engine_request_t request = *parsed;
     ctool_c_pp_include_root_t roots[] = {
         {{ctool_string("/toolchain")}, CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE},
         {{ctool_string("/toolchain/hosted/i386-linux/include")}, CTOOL_C_PP_INCLUDE_ANGLE},
@@ -175,6 +173,54 @@ ctool_status_t cupid_guest_compile_job(cupid_syscall_table_t *sys, const cupid_g
         sys->serial_write_string(ctool_status_name(status));
         sys->serial_write_string("\n");
     }
+    return status;
+}
+
+ctool_status_t cupid_guest_compile_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job) {
+    if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
+        return CTOOL_ERR_INVALID_ARGUMENT;
+    cupid_init(sys);
+    char file[JOB_BYTES];
+    ctool_c_engine_request_t request = {0};
+    guest_compile_options_t options;
+    int bundle = 0;
+    if (read_request(job, file, &request, &options, &bundle))
+        return compile_request(sys, &request, bundle);
+    sys->serial_write_string("[cupidc-guest] invalid request file: ");
+    sys->serial_write_string(job->path);
+    sys->serial_write_string("\n");
+    return CTOOL_ERR_INPUT;
+}
+
+ctool_status_t cupid_guest_compile_list(cupid_syscall_table_t *sys, const cupid_guest_request_t *job) {
+    cupid_init(sys);
+    char *file = sys->malloc(COMPILE_LIST_BYTES);
+    if (!file)
+        return CTOOL_ERR_NO_MEMORY;
+    int size = cupid_guest_read_request(sys, job, file, COMPILE_LIST_BYTES);
+    ctool_c_engine_request_t request = {0};
+    guest_compile_options_t options;
+    ctool_invocation_request_t items[CUPID_GUEST_OBJECT_LIST_LIMIT];
+    ctool_u32 count = 0u;
+    if (size > 0 && (ctool_u32)size < COMPILE_LIST_BYTES) {
+        char *cursor = file;
+        char *end = file + size;
+        if (read_profile(&cursor, end, "sources", &request, &options))
+            count = cupid_guest_read_object_list(sys, cursor, end, PENDING_LEAF, items);
+    }
+    ctool_status_t status = count ? CTOOL_OK : CTOOL_ERR_INPUT;
+    if (status != CTOOL_OK)
+        sys->serial_write_string("[cupidc-guest] invalid compile list\n");
+    for (ctool_u32 i = 0; status == CTOOL_OK && i < count; i++) {
+        request.invocation = items[i];
+        status = compile_request(sys, &request, 0);
+        if (status != CTOOL_OK) {
+            sys->serial_write_string("[cupidc-guest] list stopped at ");
+            sys->serial_write_string(items[i].input_path.data);
+            sys->serial_write_string("\n");
+        }
+    }
+    sys->free(file);
     return status;
 }
 
