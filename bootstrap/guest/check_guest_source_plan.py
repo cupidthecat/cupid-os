@@ -4,23 +4,29 @@
 """Stage the production sources, run a guest build plan, and boot its disk."""
 
 import argparse
+from collections.abc import Collection
 from pathlib import Path
+import re
 import tempfile
 
 from check_guest_assembly_runtime import ASSEMBLY_SOURCES
 from check_guest_asset_bundle import production_assets
 from check_guest_install_runtime import INSTALL_HEADERS, installation_jobs
 from check_guest_kernel_link import production_objects
-from check_guest_kernel_plan import execute_kernel_plan, kernel_steps, write_kernel_plan
+from check_guest_kernel_plan import execute_kernel_plan, kernel_steps
 from check_guest_profile_runtime import SOURCE_PROFILES, profile_options
 from check_guest_raw_assembly_runtime import RAW_PRODUCTS, TRAMPOLINE_OBJECT
-from check_guest_runtime import BUILD, ROOT, create_disk
+from check_guest_runtime import BUILD, ROOT, build_plan_manifest, create_disk
 from source_iso import publish_source_iso
 from tools.cupidc_kernel_compile import _kernel_input_paths
 
 
 DOOM = Path("kernel/doom")
 SOURCE_ISOS = (("s.iso", "/src"), ("d.iso", "/src/kernel/doom"), ("a.iso", "/assets"))
+PLAN_ISO = ("p.iso", "/plan")
+REQUEST_DIRECTORY = Path("jobs")
+MEDIA_BUILD = "cupidbuild-media.elf"
+INSTALL_INCLUDE_OPTIONS = ("include /src/kernel", "include /src/kernel/core", "include /src/kernel/fs")
 
 
 def object_name(source: str) -> str:
@@ -31,10 +37,45 @@ def job_contents(*lines: str) -> bytes:
     return ("\n".join(lines) + "\n").encode("ascii")
 
 
-def iso_members(files: set[Path]) -> tuple[str, ...]:
+def iso_members(files: Collection[Path]) -> tuple[str, ...]:
     directories = {parent for path in files for parent in path.parents if parent != Path(".")}
     members = sorted(directories, key=lambda path: (len(path.parts), path.as_posix())) + sorted(files)
     return tuple(path.as_posix() for path in members)
+
+
+def media_plan_files(steps: tuple[tuple[str, bytes, bytes], ...]) -> dict[Path, bytes]:
+    for _, name, _ in steps:
+        if not re.fullmatch(rb"[A-Za-z0-9][A-Za-z0-9._-]*", name):
+            raise ValueError(f"invalid media job name {name!r}")
+    jobs = tuple((operation, f"{index // 64:02}/".encode("ascii") + name, contents)
+                 for index, (operation, name, contents) in enumerate(steps))
+    plan = build_plan_manifest(jobs, request_root=b"/plan/jobs/")
+    files = {REQUEST_DIRECTORY / name.decode("ascii"): contents for _, name, contents in jobs}
+    if len(files) != len(jobs):
+        raise ValueError("the guest plan repeats a job path")
+    files[Path("cupidbuild.job")] = plan
+    return files
+
+
+def installation_request(source: str, contents: bytes) -> tuple[str, bytes]:
+    destination = Path(source).name
+    first_line, _, arguments = contents.partition(b"\n")
+    if first_line != f"/home/{source}".encode("ascii") or not arguments:
+        raise ValueError(f"invalid installation job for {source}")
+    return destination, f"/home/{destination}\n".encode("ascii") + arguments
+
+
+def publish_plan_iso(publisher: Path, root: Path, output: Path,
+                     steps: tuple[tuple[str, bytes, bytes], ...]) -> int:
+    plan_files = media_plan_files(steps)
+    with tempfile.TemporaryDirectory(dir=output.parent, prefix="plan-inputs-") as temporary:
+        staging = Path(temporary)
+        for relative, contents in plan_files.items():
+            destination = staging / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(contents)
+        return publish_source_iso(publisher, root, BUILD / "cupidc-engine.elf", output,
+                                  iso_members(plan_files.keys()), source_directory=staging)
 
 
 def source_plan(root: Path, temporary_objects: bool):
@@ -44,7 +85,7 @@ def source_plan(root: Path, temporary_objects: bool):
     output_root = "/tmp" if temporary_objects else "/home"
     aliases = {name: f"{output_root}/i{index:03}.o" for index, name in enumerate(objects)}
     steps = []
-    files = set()
+    files = {Path(path) for path in (*INSTALL_HEADERS, "kernel/cpu/ksyms.h", "boot/boot.asm", "link.ld")}
     assets = set()
     references = {}
     built = set()
@@ -74,12 +115,12 @@ def source_plan(root: Path, temporary_objects: bool):
     references["smp.bin"] = root / raw
 
     for index, (source, contents) in enumerate(installation_jobs(root).items()):
-        add("install", f"kernel/util/i{index}.job", contents)
+        destination, job = installation_request(source, contents)
+        add("install", f"i{index}.job", job)
         add("compile", f"install{index}.job", job_contents(
-            f"/home/{source}", output(object_name(source)), "include /home/kernel",
-            "include /home/kernel/core", "include /home/kernel/fs",
+            f"/home/{destination}", output(object_name(source)), *INSTALL_INCLUDE_OPTIONS,
         ))
-        references[source] = root / source
+        references[destination] = root / source
 
     for index, (obj, (source, mode)) in enumerate(production_assets(root).items()):
         assets.add(Path(source))
@@ -95,7 +136,7 @@ def source_plan(root: Path, temporary_objects: bool):
 
     if missing := aliases.keys() - built:
         raise ValueError(f"no guest source job for {', '.join(sorted(missing))}")
-    steps.extend(kernel_steps(list(aliases.values())))
+    steps.extend(kernel_steps(list(aliases.values()), source_media=True))
     if len(steps) > 512:
         raise ValueError(f"{len(steps)} steps exceed the guest plan limit")
     doom = {path for path in files if path.is_relative_to(DOOM)}
@@ -111,20 +152,19 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float, temporary_object
     steps, inputs, references = source_plan(root, temporary_objects)
     publisher = ROOT / "bootstrap/seeds/i386-linux/cupidbuild.elf"
     isos = []
-    for (name, _), (source, members) in zip(SOURCE_ISOS, inputs):
+    for (name, _), (source, members) in zip(SOURCE_ISOS, inputs, strict=True):
         iso = scratch / name
         if publish_source_iso(publisher, root, BUILD / "cupidc-engine.elf", iso, members,
                               source_directory=source):
             raise ValueError(f"could not publish {name}")
         isos.append(f"{iso}:/{name}")
-    headers = tuple((path.encode("ascii"), (root / path).read_bytes()) for path in INSTALL_HEADERS)
-    homefs = scratch / "homefs.sys"
-    write_kernel_plan(homefs, root, steps, headers)
+    plan = scratch / PLAN_ISO[0]
+    if publish_plan_iso(publisher, root, plan, steps):
+        raise ValueError(f"could not publish {plan.name}")
+    isos.append(f"{plan}:/{plan.name}")
     image = scratch / "build.img"
-    create_disk(image, f"{homefs}:/homefs.sys", *isos,
-                f"{root / 'link.ld'}:/link.ld", f"{root / 'boot/boot.asm'}:/boot.asm",
-                f"{BUILD / 'cupidbuild-guest.elf'}:/b", production_root=root)
-    execute_kernel_plan(scratch, root, image, qemu, timeout, references, SOURCE_ISOS)
+    create_disk(image, *isos, f"{BUILD / MEDIA_BUILD}:/b", production_root=root)
+    execute_kernel_plan(scratch, root, image, qemu, timeout, references, (*SOURCE_ISOS, PLAN_ISO))
 
 
 if __name__ == "__main__":

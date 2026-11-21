@@ -6,6 +6,9 @@
 #include "guest_build.h"
 
 #define BUILD_JOB "/home/cupidbuild.job"
+#define MEDIA_ROOT "/plan/"
+#define MEDIA_JOB MEDIA_ROOT "cupidbuild.job"
+#define MEDIA_REQUESTS MEDIA_ROOT "jobs/"
 #define BUILD_STEP_LIMIT 512u
 #define BUILD_JOB_BYTES (BUILD_STEP_LIMIT * (VFS_MAX_PATH + sizeof("assemble")) + 1u)
 
@@ -42,13 +45,15 @@ static build_operation_t find_operation(const char *name) {
     return NULL;
 }
 
-static ctool_u32 read_plan(cupid_syscall_table_t *sys, char *text, build_step_t *steps) {
-    int size = sys->vfs_read_text(BUILD_JOB, text, BUILD_JOB_BYTES);
+static ctool_u32 read_plan(cupid_syscall_table_t *sys, const char *job_path,
+                           const char *request_root, build_plan_t *plan) {
+    int size = sys->vfs_read_text(job_path, plan->text, BUILD_JOB_BYTES);
     if (size <= 0 || (ctool_u32)size >= BUILD_JOB_BYTES)
         return 0u;
 
-    char *cursor = text;
-    char *end = text + size;
+    char *cursor = plan->text;
+    char *end = cursor + size;
+    size_t root_size = request_root ? strlen(request_root) : 0u;
     ctool_u32 count = 0u;
     while (cursor < end && count < BUILD_STEP_LIMIT) {
         const char *operation = cupid_guest_next_job_line(&cursor, end);
@@ -59,19 +64,24 @@ static ctool_u32 read_plan(cupid_syscall_table_t *sys, char *text, build_step_t 
         ctool_path_t path = {ctool_string(name)};
         if (path.text.size <= 1u || path.text.size >= VFS_MAX_PATH || !ctool_path_is_canonical(&path))
             return 0u;
+        if (request_root && (path.text.size <= root_size || strncmp(name, request_root, root_size) != 0))
+            return 0u;
 
         build_operation_t run = find_operation(operation);
         if (!run)
             return 0u;
-        steps[count++] = (build_step_t){run, name};
+        plan->steps[count++] = (build_step_t){run, name};
     }
     return cursor == end ? count : 0u;
 }
 
-static void execute_plan(cupid_syscall_table_t *sys, build_plan_t *plan) {
-    ctool_u32 count = read_plan(sys, plan->text, plan->steps);
+static void execute_plan(cupid_syscall_table_t *sys, const char *job_path,
+                         const char *request_root, build_plan_t *plan) {
+    ctool_u32 count = read_plan(sys, job_path, request_root, plan);
     if (count == 0u) {
-        sys->serial_write_string("[cupidbuild-guest] invalid request file: " BUILD_JOB "\n");
+        sys->serial_write_string("[cupidbuild-guest] invalid request file: ");
+        sys->serial_write_string(job_path);
+        sys->serial_write_string("\n");
         return;
     }
     for (ctool_u32 index = 0; index < count; index++) {
@@ -86,7 +96,7 @@ static void execute_plan(cupid_syscall_table_t *sys, build_plan_t *plan) {
     sys->serial_write_string("[cupidbuild-guest] build complete\n");
 }
 
-void cupidbuild_guest_run(cupid_syscall_table_t *sys) {
+static void run_build(cupid_syscall_table_t *sys, const char *job_path, const char *request_root) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
         return;
     cupid_init(sys);
@@ -95,6 +105,14 @@ void cupidbuild_guest_run(cupid_syscall_table_t *sys) {
         sys->serial_write_string("[cupidbuild-guest] could not allocate the build plan\n");
         return;
     }
-    execute_plan(sys, plan);
+    execute_plan(sys, job_path, request_root, plan);
     sys->free(plan);
+}
+
+void cupidbuild_guest_run(cupid_syscall_table_t *sys) {
+    run_build(sys, BUILD_JOB, NULL);
+}
+
+void cupidbuild_media_run(cupid_syscall_table_t *sys) {
+    run_build(sys, MEDIA_JOB, MEDIA_REQUESTS);
 }

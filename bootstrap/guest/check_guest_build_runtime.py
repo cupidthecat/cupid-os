@@ -7,8 +7,8 @@ import argparse
 from pathlib import Path
 import tempfile
 
-from check_guest_build import COMPILE, LINK, PLAN
-from check_guest_install_runtime import installation_jobs
+from check_guest_build import COMPILE, LINK
+from check_guest_install_runtime import INSTALL_HEADERS, installation_jobs
 from check_guest_runtime import (
     BUILD,
     BUILD_FAILURE_PATTERN,
@@ -18,7 +18,15 @@ from check_guest_runtime import (
     create_disk,
     read_homefs,
     run,
-    write_homefs,
+)
+from check_guest_source_plan import (
+    INSTALL_INCLUDE_OPTIONS,
+    MEDIA_BUILD,
+    PLAN_ISO,
+    installation_request,
+    iso_members,
+    job_contents,
+    publish_plan_iso,
 )
 from check_guest_user_runtime import USER_OUTPUT
 from source_iso import publish_source_iso
@@ -27,24 +35,27 @@ from source_iso import publish_source_iso
 def check(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
     publisher = ROOT / "bootstrap/seeds/i386-linux/cupidbuild.elf"
     iso = scratch / "user.iso"
-    members = ("user", "user/examples", "user/cupid.h", "user/examples/hello.cc")
+    demos = "kernel/util/demos_programs_gen.cc"
+    installed_source, request = installation_request(demos, installation_jobs(root)[demos])
+    members = iso_members({Path(path) for path in (*INSTALL_HEADERS, "kernel/cpu/isr.asm",
+                                                   "user/cupid.h", "user/examples/hello.cc")})
+    steps = (
+        ("assemble", b"isr.job", job_contents("/src/kernel/cpu/isr.asm", "/home/isr.o")),
+        ("install", b"install.job", request),
+        ("compile", b"compile-install.job", job_contents(
+            f"/home/{installed_source}", "/home/demos.o", *INSTALL_INCLUDE_OPTIONS)),
+        ("compile", b"hello-temp.cj", COMPILE.replace(b"/home/hello.o", b"/tmp/hello.o")),
+        ("compile", b"hello.cj", COMPILE),
+        ("link", b"hello.lj", LINK.replace(b"/home/hello.o", b"/tmp/hello.o")),
+    )
     if publish_source_iso(publisher, root, BUILD / "cupidc-engine.elf", iso, members):
         raise ValueError("could not publish the user source ISO")
+    plan = scratch / PLAN_ISO[0]
+    if publish_plan_iso(publisher, root, plan, steps):
+        raise ValueError("could not publish the user plan ISO")
 
-    demos = "kernel/util/demos_programs_gen.cc"
-    install = b"kernel/util/install.job"
-    plan = (b"assemble\n/home/isr.job\ninstall\n/home/" + install +
-            b"\ncompile\n/home/hello-temp.cj\n" + PLAN)
-    temporary = COMPILE.replace(b"/home/hello.o", b"/tmp/hello.o")
-    link = LINK.replace(b"/home/hello.o", b"/tmp/hello.o")
-    homefs = scratch / "homefs.sys"
-    write_homefs(homefs, ((b"cupidbuild.job", plan), (b"hello.cj", COMPILE), (b"hello.lj", link),
-                         (b"hello-temp.cj", temporary),
-                         (b"isr.job", b"/disk/isr.asm\n/home/isr.o\n"),
-                         (install, installation_jobs(root)[demos])))
     disk = scratch / "build.img"
-    create_disk(disk, f"{homefs}:/homefs.sys", f"{iso}:/s.iso",
-                f"{BUILD / 'cupidbuild-guest.elf'}:/b", f"{root / 'kernel/cpu/isr.asm'}:/isr.asm",
+    create_disk(disk, f"{iso}:/s.iso", f"{plan}:/{plan.name}", f"{BUILD / MEDIA_BUILD}:/b",
                 production_root=root)
     run("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "1", "--cpu", "max",
         "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "1",
@@ -52,6 +63,8 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
         "--require-command-completion", "--failure-pattern", BUILD_FAILURE_PATTERN,
         "--setup-command", "mount /disk/s.iso /src",
         "--setup-success-pattern", r"VFS: mounted 'iso9660' at '/src'",
+        "--setup-command", f"mount /disk/{plan.name} {PLAN_ISO[1]}",
+        "--setup-success-pattern", f"VFS: mounted 'iso9660' at '{PLAN_ISO[1]}'",
         "--setup-command", "exec /disk/b",
         "--setup-success-pattern", r"\[cupidbuild-guest\] build complete" + COMPILER_REAPED,
         "--command", "exec /home/hello.elf",
@@ -60,7 +73,8 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
                              r"\[PROCESS\] PID (?P=pid) .* exiting")
     compare_homefs_files(read_homefs(disk), {
         "isr.o": root / "kernel/cpu/isr.o",
-        demos: root / demos,
+        installed_source: root / demos,
+        "demos.o": root / Path(demos).with_suffix(".o"),
         "hello.o": root / "user/build/hello.o",
         "hello.elf": root / "user/build/hello",
     })

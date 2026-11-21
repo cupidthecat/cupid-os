@@ -111,8 +111,9 @@ driver ran a checked assembly job.
 
 One guest build plan rebuilds the kernel and Doom from source, wraps the
 assets, assembles the bootloader, runs both links and saves a checked disk
-prefix. The returned disk boots with four CPUs and runs `ls`. Linux or
-WSL prepares the source ISOs and job file.
+prefix. The earlier replay booted the result with four CPUs and ran `ls`.
+The source-media worker reads jobs from `/plan` and headers from `/src`.
+HomeFS starts fresh for outputs. Linux or WSL still prepares the ISOs.
 [Source-only replay](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#build-a-bootable-kernel-from-source-in-one-guest-plan)
 
 One CupidBuild command also compiles and links `cat`, `hello` and `ls`

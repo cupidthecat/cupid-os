@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## 2026-11-21 — Read guest build plans from their own ISO
+
+The media entry reads `/plan/cupidbuild.job` and confines request files to
+`/plan/jobs/`. The plan ISO fits the 512-entry limit with 450 entries for
+441 steps. Boot assembly, the link script, and headers remain on `/src`.
+The host no longer creates a HomeFS fixture for the source replay.
+
+The Linux worker contract matched both plan modes and rejected missing
+or out-of-tree media requests. A boot from fresh HomeFS ran `hello` and
+matched its object and executable, the ISR object, and the generated demo
+source and object. All 94 guest and terminal tests passed on both hosts.
+The production run inventories 767 source and asset files. Its full boot
+and artifact comparison is still running.
+
+The first scratch build mixed sources from two checkpoints. A forced
+rebuild after copying the complete guest and toolchain sources replaced
+the stale objects.
+
 ## 2026-11-21 — Separate the preprocessing checks from the audit driver
 
 The include parser and five directive checks now live in

@@ -58,8 +58,8 @@ def check(scratch: Path) -> None:
     object_path = home / "hello.o"
     executable = home / "hello.elf"
 
-    def invoke(marker: bytes) -> bytes:
-        result = subprocess.run([BUILD / "cupidbuild-guest-linux-contract.elf", scratch],
+    def invoke(marker: bytes, *arguments: str) -> bytes:
+        result = subprocess.run([BUILD / "cupidbuild-guest-linux-contract.elf", scratch, *arguments],
                                 check=True, capture_output=True, timeout=120)
         assert marker in result.stdout, result.stdout
         return result.stdout
@@ -144,7 +144,33 @@ def check(scratch: Path) -> None:
     assert b"[cupidld-guest]" not in log
     assert scratch_pending.read_bytes() == b"preceding temporary candidate"
     assert executable.read_bytes() == reference_executable.read_bytes()
-    print("Guest build matched four checked files, linked a temporary object, and rejected eleven plans or steps.")
+
+    media_root = scratch / "plan"
+    jobs = media_root / "jobs"
+    jobs.mkdir(parents=True)
+    media_plan = media_root / "cupidbuild.job"
+    media_request = PLAN.replace(b"/home/hello.", b"/plan/jobs/hello.")
+    (jobs / "hello.cj").write_bytes(COMPILE)
+    (jobs / "hello.lj").write_bytes(LINK)
+    (home / "hello.cj").write_bytes(COMPILE)
+    (home / "hello.lj").write_bytes(LINK)
+    home_pending.unlink()
+    object_path.unlink()
+    executable.unlink()
+    invoke(b"invalid request file: /plan/cupidbuild.job", "--media")
+    assert not object_path.exists() and not executable.exists()
+    for wrong_path in (b"/home/hello.lj", b"/plan/jobs-old/hello.lj", b"/plan/jobs/../hello.lj"):
+        media_plan.write_bytes(media_request.replace(b"/plan/jobs/hello.lj", wrong_path))
+        invoke(b"invalid request file: /plan/cupidbuild.job", "--media")
+        assert not object_path.exists() and not executable.exists()
+
+    plan.unlink()
+    media_plan.write_bytes(media_request)
+    invoke(b"[cupidbuild-guest] build complete", "--media")
+    assert object_path.read_bytes() == reference_object.read_bytes()
+    assert executable.read_bytes() == reference_executable.read_bytes()
+    assert not plan.exists() and media_plan.read_bytes() == media_request
+    print("Guest builds matched checked outputs from HomeFS and source-media plans.")
 
 
 if __name__ == "__main__":

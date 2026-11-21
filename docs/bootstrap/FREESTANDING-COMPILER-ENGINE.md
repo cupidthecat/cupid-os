@@ -639,24 +639,32 @@ then runs the shell's `ls` through CupidC.
 Start from a checked Linux or WSL build with its ordinary artifacts.
 
 ```sh
-make -C bootstrap/guest all guest-build
+make -C bootstrap/guest guest-media-build
 python3 bootstrap/guest/check_guest_source_plan.py --production-root /path/to/checked/build
 ```
 
-The script reads the Make recipes and writes a CupidBuild job file. It
-stages inputs on three read-only ISOs mounted at `/src`, `/src/kernel/doom`,
-and `/assets`. The split keeps each ISO within the directory inventory
-limit. The replay uses one virtual CPU and retries once if a source mount
-command completes without its success marker. The checked run staged 757
-files and ran 439 steps with one `exec /disk/b`.
-It compiles and assembles the kernel and Doom, wraps assets, generates the
-installation tables, links both kernels, generates and compiles the kernel
-symbol table, flattens the kernel, and writes a fresh disk prefix.
+The script reads Make's recipes and publishes the plan and requests on an
+ISO mounted at `/plan`. It stages the source inputs on three read-only
+ISOs mounted at `/src`, `/src/kernel/doom`, and `/assets`. The bootloader
+source, linker script, and headers for generated code are on `/src`.
+HomeFS starts fresh and holds outputs created by the guest.
 
-The default mode keeps every object in HomeFS. The checker read back all
-428 pass-one objects, the generated symbol object, three installation
-sources, the trampoline, and the final boot and kernel products. Every
-file matched the checked build. The 10,697,216-byte prefix had SHA-256
+The replay uses one virtual CPU and retries once if a setup command finishes
+without its mount marker. One `exec /disk/b` compiles and assembles the
+kernel and Doom, wraps assets, generates the
+installation tables, links both kernels, generates and compiles the kernel
+symbol table, flattens the kernel, and writes a fresh disk prefix. See
+[ADR 0501](../adr/0501-run-guest-build-plans-from-read-only-media.md).
+
+The focused media replay starts with fresh HomeFS, mounts the source and
+plan ISOs, and builds five files. The ISR object, generated demo source
+and object, and `hello` object and executable match the hosted build.
+The guest runs the resulting `hello` executable.
+
+The default mode keeps every object in HomeFS. In the earlier HomeFS plan
+replay, all 428 pass-one objects, the generated symbol object, three
+installation sources, the trampoline, and the final boot and kernel
+products matched the checked build. The 10,697,216-byte prefix had SHA-256
 `7611f033ac4caa9f10852461ec2f0d1321e17d10cbcde40383679f27870d3d6f`
 in that run.
 The host extends that prefix with zeroes to 200 MiB. A fresh four-CPU

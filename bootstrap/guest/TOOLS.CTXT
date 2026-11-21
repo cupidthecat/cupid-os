@@ -81,6 +81,14 @@ and stops at the first failed step. Each step publishes output atomically.
 Use /tmp for intermediate files and /home for outputs that need to survive
 a reboot.
 
+>h2 Run a plan from a read-only ISO
+
+Build cupidbuild-media.elf with make -C bootstrap/guest guest-media-build.
+Stage it as /b, mount the plan ISO at /plan, and run exec /disk/b.
+The media entry reads /plan/cupidbuild.job. Each job path must start with
+/plan/jobs/. The source replay reads headers and build inputs from source
+ISOs and starts with a fresh HomeFS for outputs.
+
 >h2 Assemble a relocatable object
 
   as -f elf32 -o /home/start.o /home/start.asm

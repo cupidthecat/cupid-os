@@ -94197,11 +94197,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 100,
+      "lines": 118,
       "path": "bootstrap/guest/cupidbuild_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "c83c9a441316a3730ede59411a14128d192f4f7f957e254bc3c42f993e1e2c24"
+      "sha256": "c37e37d64b5ec6556e887f0d74a5413477f3f83c76cf07a7e753482d2886989c"
     },
     {
       "classification": "not_reached",
@@ -94257,11 +94257,11 @@
       "classification": "host_fixture",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 216,
+      "lines": 230,
       "path": "bootstrap/guest/cupidc_guest_linux_contract.cc",
       "reason": "Linux syscall fixture for the opt-in toolchain workers",
       "relations": [],
-      "sha256": "905df0bfe7a54a39d272a54648346cbe8d0a69b050aa9b5fd919127095c7adbf"
+      "sha256": "f951f7c1268052a4e34e51e760db1335d9e4986f8f428ced0477177b499c3b79"
     },
     {
       "classification": "not_reached",

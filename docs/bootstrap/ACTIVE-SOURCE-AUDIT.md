@@ -194,13 +194,13 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bin/old_cc2_single.cc` | `cupid_c` | `explicitly_excluded` | 8238 | listed in a Make filter-out expression |
 | `bin/terminal_app.c` | `c` | `historical_copy` | 318 | historical_copy_of: `kernel/gui/terminal_app.cc` |
 | `bootstrap/guest/cupidasm_guest.cc` | `cupid_c` | `not_reached` | 93 | not reachable from the supported Make target or include closure |
-| `bootstrap/guest/cupidbuild_guest.cc` | `cupid_c` | `not_reached` | 100 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupidbuild_guest.cc` | `cupid_c` | `not_reached` | 118 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_bundle.cc` | `cupid_c` | `not_reached` | 108 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_bundle.h` | `c_header` | `not_reached` | 16 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_engine.cc` | `cupid_c` | `not_reached` | 35 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_engine.h` | `c_header` | `not_reached` | 27 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_guest.cc` | `cupid_c` | `not_reached` | 183 | not reachable from the supported Make target or include closure |
-| `bootstrap/guest/cupidc_guest_linux_contract.cc` | `cupid_c` | `host_fixture` | 216 | Linux syscall fixture for the opt-in toolchain workers |
+| `bootstrap/guest/cupidc_guest_linux_contract.cc` | `cupid_c` | `host_fixture` | 230 | Linux syscall fixture for the opt-in toolchain workers |
 | `bootstrap/guest/cupiddisk_guest.cc` | `cupid_c` | `not_reached` | 68 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidinstall_guest.cc` | `cupid_c` | `not_reached` | 150 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidksyms_guest.cc` | `cupid_c` | `not_reached` | 85 | not reachable from the supported Make target or include closure |

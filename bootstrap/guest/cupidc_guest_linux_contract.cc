@@ -11,6 +11,9 @@
 #endif
 
 void CUPID_TEST_GUEST_ENTRY(cupid_syscall_table_t *sys);
+#ifdef CUPID_TEST_GUEST_MEDIA_ENTRY
+void CUPID_TEST_GUEST_MEDIA_ENTRY(cupid_syscall_table_t *sys);
+#endif
 int cupid_linux_syscall1(int number, unsigned int argument);
 int cupid_linux_syscall2(int number, unsigned int first, unsigned int second);
 int cupid_linux_syscall3(int number, unsigned int first, unsigned int second, unsigned int third);
@@ -182,11 +185,22 @@ done:
 }
 
 int main(int argc, char **argv) {
-    if ((argc != 2 && (argc != 3 || host_equal(argv[2], "--fail-write") != 0)) ||
+    if ((argc != 2 && argc != 3) ||
         ctool_host_adapter_init(&adapter, argv[1]) != CTOOL_OK)
         return 2;
+    void (*entry)(cupid_syscall_table_t *) = CUPID_TEST_GUEST_ENTRY;
+    if (argc == 3) {
+#ifdef CUPID_TEST_GUEST_MEDIA_ENTRY
+        if (host_equal(argv[2], "--media") == 0)
+            entry = CUPID_TEST_GUEST_MEDIA_ENTRY;
+        else
+#endif
+        if (host_equal(argv[2], "--fail-write") == 0)
+            simulate_write_failure = 1;
+        else
+            return 2;
+    }
     root = argv[1];
-    simulate_write_failure = argc == 3;
     config = ctool_host_job_config(&adapter, ctool_default_limits());
     cupid_syscall_table_t sys = {0};
     sys.version = CUPID_SYSCALL_VERSION;
@@ -211,6 +225,6 @@ int main(int argc, char **argv) {
         host_serial("Guest allocation cache contract failed.\n");
         return 3;
     }
-    CUPID_TEST_GUEST_ENTRY(&sys);
+    entry(&sys);
     return live_allocations != 0;
 }

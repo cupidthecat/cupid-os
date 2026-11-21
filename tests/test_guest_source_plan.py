@@ -13,7 +13,6 @@ GUEST_TOOLS = Path(__file__).resolve().parents[1] / "bootstrap" / "guest"
 with patch.object(sys, "path", [str(GUEST_TOOLS), *sys.path]):
     import check_guest_kernel_plan as kernel_plan
     import check_guest_source_plan as guest_plan
-    from check_guest_runtime import build_plan_manifest
 
 
 class GuestSourcePlanTests(unittest.TestCase):
@@ -38,7 +37,7 @@ class GuestSourcePlanTests(unittest.TestCase):
             },
             production_objects=lambda root: self.objects,
             production_assets=lambda root: {"bin/readme.o": ("bin/readme.txt", "wrap")},
-            installation_jobs=lambda root: {self.install: b"install request\n"},
+            installation_jobs=lambda root: {self.install: f"/home/{self.install}\nbin\n".encode("ascii")},
             _kernel_input_paths=lambda root, source, profile: [
                 root / source, root / Path(source).with_suffix(".h")
             ],
@@ -62,12 +61,12 @@ class GuestSourcePlanTests(unittest.TestCase):
             link_order = [f"{directory}/i{index:03}.o" for index in range(len(self.objects) - 1)]
             self.assertEqual(
                 requests[b"pass1.job"],
-                ("link", guest_plan.job_contents("/home/pass1.elf", "script", "/disk/link.ld", *link_order)),
+                ("link", guest_plan.job_contents("/home/pass1.elf", "script", "/src/link.ld", *link_order)),
             )
             self.assertEqual(
                 requests[b"final.job"],
                 ("link", guest_plan.job_contents(
-                    "/home/kernel.elf", "script", "/disk/link.ld", *link_order, "/home/ksyms_data.o")),
+                    "/home/kernel.elf", "script", "/src/link.ld", *link_order, "/home/ksyms_data.o")),
             )
             self.assertEqual(
                 requests[b"a0.job"],
@@ -79,23 +78,61 @@ class GuestSourcePlanTests(unittest.TestCase):
             )
 
         self.assertEqual(references["i000.o"], self.root / self.objects[0])
-        self.assertEqual(references[self.install], self.root / self.install)
-        self.assertEqual(set(temporary_references), {"smp.bin", self.install})
+        install_name = Path(self.install).name
+        self.assertEqual(references[install_name], self.root / self.install)
+        self.assertEqual(set(temporary_references), {"smp.bin", install_name})
+        self.assertIn("kernel/cpu/ksyms.h", inputs[0][1])
+        self.assertIn("boot/boot.asm", inputs[0][1])
+        self.assertIn("link.ld", inputs[0][1])
 
     def test_missing_source_job_fails_before_creating_media(self):
         self.objects.insert(0, "kernel/missing.o")
         with self.assertRaisesRegex(ValueError, "no guest source job for kernel/missing[.]o"):
             guest_plan.source_plan(self.root, False)
 
-    def test_guest_manifest_keeps_step_order_and_nested_request_paths(self):
+    def test_guest_manifest_keeps_step_order_and_reads_requests_from_the_source_mount(self):
         steps, _, _ = guest_plan.source_plan(self.root, True)
-        manifest = build_plan_manifest(steps).splitlines()
-        self.assertEqual(manifest[:2], [b"assemble", b"/home/a0.job"])
+        files = guest_plan.media_plan_files(steps)
+        manifest = files[Path("cupidbuild.job")].splitlines()
+        request_root = b"/plan/jobs/00/"
+        self.assertEqual(manifest[:2], [b"assemble", request_root + b"a0.job"])
         install = manifest.index(b"install")
         self.assertEqual(manifest[install:install + 4], [
-            b"install", b"/home/kernel/util/i0.job", b"compile", b"/home/install0.job",
+            b"install", request_root + b"i0.job", b"compile", request_root + b"install0.job",
         ])
-        self.assertEqual(manifest[-2:], [b"disk", b"/home/disk.job"])
+        self.assertEqual(manifest[-2:], [b"disk", request_root + b"disk.job"])
+        self.assertEqual(files[Path("jobs/00/i0.job")], b"/home/bin_programs_gen.cc\nbin\n")
+        self.assertIn(b"include /src/kernel/fs\n", files[Path("jobs/00/install0.job")])
+
+    def test_media_groups_jobs_without_changing_step_order(self):
+        steps = tuple(("compile", f"a{index}.job".encode("ascii"), bytes([index])) for index in range(65))
+        files = guest_plan.media_plan_files(steps)
+        manifest = files[Path("cupidbuild.job")].splitlines()
+        self.assertEqual(manifest[127], b"/plan/jobs/00/a63.job")
+        self.assertEqual(manifest[129], b"/plan/jobs/01/a64.job")
+        self.assertEqual(files[Path("jobs/01/a64.job")], b"\x40")
+
+    def test_media_rejects_duplicate_or_outside_job_paths(self):
+        for names in ((b"same", b"same"), (b"../outside",)):
+            with self.subTest(names=names), self.assertRaises(ValueError):
+                guest_plan.media_plan_files(tuple(("compile", name, b"") for name in names))
+
+    def test_plan_iso_stages_only_generated_job_files(self):
+        with tempfile.TemporaryDirectory() as temp:
+            scratch = Path(temp)
+
+            def publish(publisher, root, engine, output, members, *, source_directory):
+                self.assertEqual(root, self.root)
+                self.assertEqual(members, ("jobs", "jobs/00", "cupidbuild.job", "jobs/00/one.job"))
+                self.assertEqual((source_directory / "cupidbuild.job").read_bytes(),
+                                 b"compile\n/plan/jobs/00/one.job\n")
+                self.assertEqual((source_directory / "jobs/00/one.job").read_bytes(), b"request\n")
+                return 0
+
+            with patch.object(guest_plan, "publish_source_iso", side_effect=publish):
+                self.assertEqual(guest_plan.publish_plan_iso(
+                    scratch / "publisher", self.root, scratch / "p.iso",
+                    (("compile", b"one.job", b"request\n"),)), 0)
 
     def test_duplicate_link_input_fails_before_creating_media(self):
         self.objects.insert(0, self.objects[0])

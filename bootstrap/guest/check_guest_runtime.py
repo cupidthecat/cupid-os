@@ -140,8 +140,9 @@ def write_homefs(path: Path, files: tuple[tuple[bytes, bytes], ...]) -> None:
             output.write(contents)
 
 
-def build_plan_manifest(steps: tuple[tuple[str, bytes, bytes], ...]) -> bytes:
-    return b"".join(operation.encode("ascii") + b"\n/home/" + name + b"\n"
+def build_plan_manifest(steps: tuple[tuple[str, bytes, bytes], ...], *,
+                        request_root: bytes = b"/home/") -> bytes:
+    return b"".join(operation.encode("ascii") + b"\n" + request_root + name + b"\n"
                     for operation, name, _ in steps)
 
 

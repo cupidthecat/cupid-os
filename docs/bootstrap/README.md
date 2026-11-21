@@ -21,7 +21,8 @@ Cupid OS remains unfinished.
   preparations reach a fixed point. The C reader now recognizes their exact
   behavior profiles. The installed seeds come from the same 114-file snapshot.
   Cold OS and user builds agree across Windows and WSL, including the full disk
-  image. Linux or WSL still prepares the guest's source media and job file.
+  image. The guest reads plans from a separate ISO and starts with a fresh
+  HomeFS. Linux or WSL still generates the plan and publishes the media.
   The normal image-command handoff and native developer build coordination
   remain open.
 - The private in-OS compiler supports halfword storage, integer array lists

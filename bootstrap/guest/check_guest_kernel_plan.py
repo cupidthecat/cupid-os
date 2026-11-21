@@ -24,18 +24,21 @@ from check_guest_runtime import (
 from tools.gui_terminal_smoke import PANIC_RE
 
 
-def link_request(output: str, objects: list[str]) -> bytes:
-    lines = ("/home/" + output, "script", "/disk/link.ld", *objects)
+def link_request(output: str, objects: list[str], script: str) -> bytes:
+    lines = ("/home/" + output, "script", script, *objects)
     return ("\n".join(lines) + "\n").encode("ascii")
 
 
-def kernel_steps(link_inputs: list[str]) -> tuple[tuple[str, bytes, bytes], ...]:
+def kernel_steps(link_inputs: list[str], *, source_media: bool = False) -> tuple[tuple[str, bytes, bytes], ...]:
+    boot = b"/src/boot/boot.asm" if source_media else b"/disk/boot.asm"
+    script = "/src/link.ld" if source_media else "/disk/link.ld"
+    symbol_includes = b"include /src/kernel/cpu\ninclude /src/kernel/core\n" if source_media else b""
     return (
-        ("raw", b"boot.job", b"/disk/boot.asm\n/home/boot.bin\nbootloader\n"),
-        ("link", b"pass1.job", link_request("pass1.elf", link_inputs)),
+        ("raw", b"boot.job", boot + b"\n/home/boot.bin\nbootloader\n"),
+        ("link", b"pass1.job", link_request("pass1.elf", link_inputs, script)),
         ("symbols", b"symbols.job", b"/home/pass1.elf\n/home/ksyms_data.cc\n"),
-        ("compile", b"compile.job", b"/home/ksyms_data.cc\n/home/ksyms_data.o\n"),
-        ("link", b"final.job", link_request("kernel.elf", [*link_inputs, "/home/ksyms_data.o"])),
+        ("compile", b"compile.job", b"/home/ksyms_data.cc\n/home/ksyms_data.o\n" + symbol_includes),
+        ("link", b"final.job", link_request("kernel.elf", [*link_inputs, "/home/ksyms_data.o"], script)),
         ("object", b"flatten.job", b"/home/kernel.elf\n/home/kernel.bin\n"),
         ("disk", b"disk.job", b"/home/boot.bin\n/home/kernel.bin\n/home/disk-prefix.img\n"),
     )

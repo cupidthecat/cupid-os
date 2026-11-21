@@ -65,6 +65,7 @@ GUEST_ASSEMBLER_OBJECTS := $(GUEST_ASSEMBLER_CORE) $(BUILD)/cupidasm_guest.o
 GUEST_RAW := $(BUILD)/cupidraw-guest.elf
 GUEST_RAW_OBJECTS := $(GUEST_ASSEMBLER_CORE) $(BUILD)/guest_raw_assembly.o
 GUEST_BUILD := $(BUILD)/cupidbuild-guest.elf
+GUEST_MEDIA_BUILD := $(BUILD)/cupidbuild-media.elf
 GUEST_BUILD_OBJECTS := $(GUEST_COMPILER_OBJECTS) $(addprefix $(BUILD)/,cupidld.o cupidld_guest.o cupidbuild_guest.o \
     cupidasm.o cupiddis.o cupidasm_guest.o guest_raw_assembly.o cupidinstall_guest.o \
     cupidksyms_guest.o cupidobj_guest.o cupiddisk_guest.o)
@@ -85,18 +86,21 @@ GUEST_DISK := $(BUILD)/cupiddisk-guest.elf
 GUEST_DISK_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/cupidobj.o \
     $(GUEST_SUPPORT) $(BUILD)/cupiddisk_guest.o
 
-.PHONY: guest-compiler guest-assembler guest-raw guest-linker guest-build guest-object guest-install guest-ksyms guest-disk
+.PHONY: guest-compiler guest-assembler guest-raw guest-linker guest-build guest-media-build guest-object guest-install guest-ksyms guest-disk
 guest-compiler: $(GUEST_COMPILER)
 guest-assembler: $(GUEST_ASSEMBLER)
 guest-raw: $(GUEST_RAW)
 guest-linker: $(GUEST_LINKER)
 guest-build: $(GUEST_BUILD)
+guest-media-build: $(GUEST_MEDIA_BUILD)
 
 $(BUILD)/cupidbuild_guest.o: cupidbuild_guest.cc guest_build.h guest_job.h ../../user/cupid.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/cupidbuild_guest.cc -o $(PUBLISH)/cupidbuild_guest.o
 
-$(GUEST_BUILD): $(GUEST_BUILD_OBJECTS) Makefile $(SEED_INPUTS)
-	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry cupidbuild_guest_run \
+$(GUEST_BUILD): GUEST_BUILD_ENTRY := cupidbuild_guest_run
+$(GUEST_MEDIA_BUILD): GUEST_BUILD_ENTRY := cupidbuild_media_run
+$(GUEST_BUILD) $(GUEST_MEDIA_BUILD): $(GUEST_BUILD_OBJECTS) Makefile $(SEED_INPUTS)
+	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry $(GUEST_BUILD_ENTRY) \
 		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
 guest-object: $(GUEST_OBJECT)
 guest-install: $(GUEST_INSTALL)
@@ -230,7 +234,7 @@ GUEST_BUILD_CONTRACT_OBJECTS := $(GUEST_BUILD_OBJECTS) $(addprefix $(BUILD)/,sta
 	ctool_host.o cupidbuild_guest_linux_contract.o)
 
 .PHONY: check-guest-build
-check-guest-build: $(GUEST_BUILD) $(GUEST_BUILD_CONTRACT)
+check-guest-build: $(GUEST_BUILD) $(GUEST_MEDIA_BUILD) $(GUEST_BUILD_CONTRACT)
 	$(PYTHON) check_guest_build.py
 
 $(GUEST_BUILD_CONTRACT): $(GUEST_BUILD_CONTRACT_OBJECTS) Makefile $(SEED_INPUTS)
@@ -239,6 +243,7 @@ $(GUEST_BUILD_CONTRACT): $(GUEST_BUILD_CONTRACT_OBJECTS) Makefile $(SEED_INPUTS)
 
 $(BUILD)/cupidbuild_guest_linux_contract.o: cupidc_guest_linux_contract.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/ctool_host.h $(TOOLCHAIN)/ctool.h $(HOST_HEADERS) Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(HOSTED_CFLAGS) -I /user -D CUPID_TEST_GUEST_ENTRY=cupidbuild_guest_run \
+		-D CUPID_TEST_GUEST_MEDIA_ENTRY=cupidbuild_media_run \
 		-c /bootstrap/guest/cupidc_guest_linux_contract.cc -o $(PUBLISH)/cupidbuild_guest_linux_contract.o
 
 GUEST_LINKER_CONTRACT := $(BUILD)/cupidld-guest-linux-contract.elf
