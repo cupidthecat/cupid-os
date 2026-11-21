@@ -1272,10 +1272,10 @@ class SourceInventoryCases:
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 772)
-            self.assertEqual(contract["include_occurrences"], 2674)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2328)
-            self.assertEqual(contract["direct_angle_occurrences"], 346)
+            self.assertEqual(contract["source_files"], 773)
+            self.assertEqual(contract["include_occurrences"], 2677)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2329)
+            self.assertEqual(contract["direct_angle_occurrences"], 348)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(

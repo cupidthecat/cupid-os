@@ -453,6 +453,12 @@ int cupidbuild_host_profile_transaction_open(
     const char *output_logical,
     cupidbuild_host_profile_parent_t *profile_parent,
     cupidbuild_host_transaction_t **transaction_out);
+/* Acquire guarded output authority without implicitly reading a source.
+ * Capacity is at most 2147483647 bytes. Invalid capacity clears the result
+ * before touching the filesystem. Capture inputs through the regular APIs. */
+int cupidbuild_host_publication_transaction_open_bounded(
+    const char *root, const char *output, unsigned long long capacity,
+    cupidbuild_host_transaction_t **transaction_out);
 int cupidbuild_host_runner_open(
     const char *working_directory,
     cupidbuild_host_transaction_t **transaction_out);
@@ -558,6 +564,20 @@ int cupidbuild_host_run_captured(cupidbuild_host_transaction_t *transaction,
                                  unsigned int timeout_milliseconds);
 int cupidbuild_host_forward_captured(
     cupidbuild_host_transaction_t *transaction);
+/* Read and write up to 64 KiB at a time through the retained candidate.
+ * Finish flushes and captures the candidate for the ordinary publish guard. */
+int cupidbuild_host_candidate_store_open(cupidbuild_host_transaction_t *transaction,
+                                         unsigned long long extent);
+int cupidbuild_host_candidate_store_extent(cupidbuild_host_transaction_t *transaction,
+                                           unsigned long long *extent_out);
+int cupidbuild_host_candidate_store_read(cupidbuild_host_transaction_t *transaction,
+                                         unsigned long long offset, unsigned char *bytes,
+                                         size_t size);
+int cupidbuild_host_candidate_store_write(cupidbuild_host_transaction_t *transaction,
+                                          unsigned long long offset, const unsigned char *bytes,
+                                          size_t size);
+int cupidbuild_host_candidate_store_finish(cupidbuild_host_transaction_t *transaction,
+                                           cupidbuild_host_snapshot_t *snapshot_out);
 int cupidbuild_host_capture_candidate(
     cupidbuild_host_transaction_t *transaction,
     cupidbuild_host_snapshot_t *snapshot_out,

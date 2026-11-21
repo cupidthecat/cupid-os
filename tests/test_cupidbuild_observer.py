@@ -469,7 +469,8 @@ class CupidBuildObserverTests(unittest.TestCase):
 
         source = directory / "source"
         paths = [ROOT / "toolchain" / name for name in
-                 ("cupidbuild_host.cc", "cupidbuild_host.h", "cupidbuild_host_external_inputs.inc",
+                 ("cupidbuild_host.cc", "cupidbuild_host.h", "cupidbuild_host_candidate_store.inc",
+                  "cupidbuild_host_external_inputs.inc",
                   "path_encoding.cc", "path_encoding.h")]
         paths.extend(path for path in (ROOT / "toolchain/hosted").rglob("*") if path.is_file())
         for path in paths:

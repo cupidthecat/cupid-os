@@ -307,7 +307,7 @@ class ManifestProfileCases:
                     self.assertEqual(bad.returncode, 1, bad.stderr)
                     self.assertEqual(bad.stdout, "")
 
-    def test_external_inputs_are_required_in_full_current_manifest(self):
+    def test_host_includes_are_required_in_full_current_manifest(self):
         profile = {"long_paths": True, "user_link_aliases": True}
         manifest, *_ = _owner_context_fixture(**profile)
         sources = manifest["bootstrap"]["source_inputs"]
@@ -316,21 +316,22 @@ class ManifestProfileCases:
             data = (REPO_ROOT / name).read_bytes()
             sources["files"][name] = {"size": len(data), "sha256": _digest(data)}
         sources["count"] = len(sources["files"])
-        self.assertEqual(sources["count"], 120)
+        self.assertEqual(sources["count"], 121)
         sources["sha256"] = _digest(_json_bytes(sources["files"]))
         for mode in ("author", "check"):
             with self.subTest(mode=mode):
                 run = self.run_author_request if mode == "author" else self.run_request
                 good = run(_owner_context_request(mode, manifest=manifest, **profile))
                 self.assertEqual(good.returncode, 0, good.stderr)
-                changed = copy.deepcopy(manifest)
-                snapshot = changed["bootstrap"]["source_inputs"]
-                name, = CUPIDBUILD_HOST_FRAGMENTS
-                snapshot["files"]["toolchain/unreviewed.inc"] = snapshot["files"].pop(name)
-                snapshot["sha256"] = _digest(_json_bytes(snapshot["files"]))
-                result = run(_owner_context_request(mode, manifest=changed, **profile))
-                self.assertEqual(result.returncode, 1, result.stderr)
-                self.assertEqual(result.stdout, "")
+                for name in CUPIDBUILD_HOST_FRAGMENTS:
+                    with self.subTest(source=name):
+                        changed = copy.deepcopy(manifest)
+                        snapshot = changed["bootstrap"]["source_inputs"]
+                        snapshot["files"]["toolchain/unreviewed.inc"] = snapshot["files"].pop(name)
+                        snapshot["sha256"] = _digest(_json_bytes(snapshot["files"]))
+                        result = run(_owner_context_request(mode, manifest=changed, **profile))
+                        self.assertEqual(result.returncode, 1, result.stderr)
+                        self.assertEqual(result.stdout, "")
 
     def test_historical_owner_rejects_a_spelling_header_in_place_of_an_old_member(self):
         original, *_ = _owner_context_fixture()

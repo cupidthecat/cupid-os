@@ -1,3 +1,9 @@
+/**
+ * @file runtime.cc
+ * @brief Provide C runtime operations for Cupid's hosted i386 tools.
+ */
+
+#include <cupid_runtime.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -458,6 +464,17 @@ static void cupid_heap_free_remove(cupid_heap_block_t *block) {
 static unsigned int cupid_heap_threading_enabled;
 static unsigned int cupid_heap_mutex;
 
+void cupid_runtime_mutex_acquire(unsigned int *word) {
+    while (__atomic_exchange_n(word, 1u, __ATOMIC_ACQUIRE)) {
+        while (__atomic_load_n(word, __ATOMIC_RELAXED)) {
+        }
+    }
+}
+
+void cupid_runtime_mutex_release(unsigned int *word) {
+    __atomic_store_n(word, 0u, __ATOMIC_RELEASE);
+}
+
 void cupid_runtime_heap_enable_threads(void) {
     if (!cupid_heap_threading_enabled)
         cupid_heap_threading_enabled = 1u;
@@ -466,16 +483,13 @@ void cupid_runtime_heap_enable_threads(void) {
 static int cupid_heap_enter(void) {
     if (!cupid_heap_threading_enabled)
         return 0;
-    while (__atomic_exchange_n(&cupid_heap_mutex, 1u, __ATOMIC_ACQUIRE)) {
-        while (__atomic_load_n(&cupid_heap_mutex, __ATOMIC_RELAXED)) {
-        }
-    }
+    cupid_runtime_mutex_acquire(&cupid_heap_mutex);
     return 1;
 }
 
 static void cupid_heap_leave(int locked) {
     if (locked)
-        __atomic_store_n(&cupid_heap_mutex, 0u, __ATOMIC_RELEASE);
+        cupid_runtime_mutex_release(&cupid_heap_mutex);
 }
 
 #if defined(CUPID_RUNTIME_WINDOWS)

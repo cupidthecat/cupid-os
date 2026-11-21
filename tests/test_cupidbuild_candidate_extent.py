@@ -133,6 +133,44 @@ class CupidBuildCandidateExtentTests(unittest.TestCase):
         self.assertIn('changed 1\n', result.stdout)
         self.check_output(root, IMAGE_BYTES)
 
+    def test_candidate_store_publishes_and_reuses_200_mib_without_implicit_source(self):
+        root = self.case / 'source-free'
+        (root / 'nested').mkdir(parents=True)
+        output = root / 'nested/file.o'
+        limited = os.name != 'nt'
+        result, _ = self.call('store-publish', IMAGE_BYTES, IMAGE_BYTES, root, memory=limited)
+        self.assertEqual(result.stdout, 'changed 1\n')
+        before = output.stat()
+        self.assertEqual(before.st_size, IMAGE_BYTES)
+        expected = hashlib.sha256(b'Z' * len(BLOCK))
+        empty = bytes(len(BLOCK))
+        for _ in range(IMAGE_BYTES // len(empty) - 2):
+            expected.update(empty)
+        expected.update(empty[:-1] + b'Z')
+        with output.open('rb') as stream:
+            self.assertEqual(hashlib.file_digest(stream, 'sha256').hexdigest(), expected.hexdigest())
+        result, _ = self.call('store-publish', IMAGE_BYTES, IMAGE_BYTES, root, memory=limited)
+        self.assertEqual(result.stdout, 'changed 0\n')
+        after = output.stat()
+        self.assertEqual((after.st_ino, after.st_mtime_ns), (before.st_ino, before.st_mtime_ns))
+        self.assertEqual(list(output.parent.iterdir()), [output])
+
+    def test_candidate_store_rejects_invalid_mutation_and_preserves_output(self):
+        root = self.case / 'source-free'
+        (root / 'nested').mkdir(parents=True)
+        output = root / 'nested/file.o'
+        output.write_bytes(b'prior output')
+        before = output.stat()
+        for mode, capacity in (('store-invalid-range', 8193), ('store-late-write', 8193),
+                               ('store-invalid-capacity', 'high')):
+            with self.subTest(mode=mode):
+                self.call(mode, 8193, capacity, root)
+                self.assertEqual(output.read_bytes(), b'prior output')
+                after = output.stat()
+                self.assertEqual((after.st_ino, after.st_mtime_ns),
+                                 (before.st_ino, before.st_mtime_ns))
+                self.assertEqual(list(output.parent.iterdir()), [output])
+
     def test_complete_200_mib_replaces_large_previous_output(self):
         root = self.fixture(existing=IMAGE_BYTES - 1)
         result, _ = self.call('candidate', IMAGE_BYTES, IMAGE_BYTES, root)

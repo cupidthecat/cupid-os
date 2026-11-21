@@ -1,5 +1,26 @@
 # Bootstrapping log
 
+## 2026-11-21 — Build bounded image candidates in retained storage
+
+The hosted adapter can open an output transaction before capturing inputs.
+The candidate store reads and writes in blocks up to 64 KiB and flushes
+the finished extent before handing it to the existing publication checks.
+It accepts the bounded transaction's 2,147,483,647-byte limit.
+
+The native and checked runners wrote the same 200 MiB sample and reused an
+equal file without changing its identity or timestamp. The WSL runs used a
+32 MiB address-space limit. Invalid ranges, capacity and late writes preserved
+the prior output. The Windows checked link uses the existing import set.
+
+The first staged build exposed a GNU-only lock call in the strict C host
+adapter. Sharing the allocator's lock implementation through the hosted
+runtime fixed the strict build. The rebuilt Windows candidate passed the
+kernel, production and user compile scenarios. Heap checks passed on both
+hosts, including Windows contention. The Linux runner directory test passed
+on WSL's native filesystem after a failure on the Windows-mounted checkout.
+The 121-input source inventory, four graph regressions and 199 seed and
+manifest tests passed on both hosts.
+
 ## 2026-11-21 — Freeze files from external observed roots
 
 Hosted transactions can now borrow a distinct retained root and freeze its

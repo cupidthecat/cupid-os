@@ -121,6 +121,68 @@ static int check_pattern(const char *path, size_t size) {
 #endif
 }
 
+static int candidate_store_case(const char *root, const char *mode, size_t size,
+                                unsigned long long capacity) {
+    static unsigned char block[65536];
+    static unsigned char observed[65536];
+    cupidbuild_host_transaction_t *transaction = NULL;
+    cupidbuild_host_snapshot_t snapshot;
+    unsigned long long extent = 0u;
+    size_t count = size < sizeof(block) ? size : sizeof(block);
+    int changed = 0;
+    int ok = 0;
+
+    if (strcmp(mode, "store-invalid-capacity") == 0) {
+        transaction = (cupidbuild_host_transaction_t *)1;
+        ok = !cupidbuild_host_publication_transaction_open_bounded(
+                 root, "nested/file.o", capacity, &transaction) && !transaction;
+        if (transaction && transaction != (cupidbuild_host_transaction_t *)1)
+            (void)cupidbuild_host_transaction_close(transaction);
+        return ok;
+    }
+    if (!cupidbuild_host_publication_transaction_open_bounded(root, "nested/file.o", capacity,
+                                                              &transaction) ||
+        !cupidbuild_host_frozen_source(transaction) || *cupidbuild_host_frozen_source(transaction) ||
+        !cupidbuild_host_candidate_store_open(transaction, size) ||
+        !cupidbuild_host_candidate_store_extent(transaction, &extent) || extent != size)
+        goto done;
+    memset(block, 0x5a, count);
+    if (!cupidbuild_host_candidate_store_write(transaction, 0u, block, count) ||
+        !cupidbuild_host_candidate_store_read(transaction, 0u, observed, count) ||
+        memcmp(block, observed, count))
+        goto done;
+    if (strcmp(mode, "store-invalid-range") == 0) {
+        observed[0] = 0xa5u;
+        ok = !cupidbuild_host_candidate_store_read(transaction, size, observed, 1u) &&
+             observed[0] == 0xa5u &&
+             !cupidbuild_host_candidate_store_finish(transaction, &snapshot) && !snapshot.present &&
+             !cupidbuild_host_publish(transaction);
+        goto done;
+    }
+    if (size > count &&
+        (!cupidbuild_host_candidate_store_read(transaction, size - 1u, observed, 1u) ||
+         observed[0] ||
+         !cupidbuild_host_candidate_store_write(transaction, size - 1u, block, 1u)))
+        goto done;
+    if (!cupidbuild_host_candidate_store_finish(transaction, &snapshot) || snapshot.size != size ||
+        (size && (!cupidbuild_host_candidate_store_read(transaction, size - 1u, observed, 1u) ||
+                  observed[0] != 0x5au)))
+        goto done;
+    if (strcmp(mode, "store-late-write") == 0) {
+        ok = !cupidbuild_host_candidate_store_write(transaction, 0u, block, 1u) &&
+             !cupidbuild_host_publish(transaction);
+    } else {
+        ok = cupidbuild_host_publish_if_changed(transaction, &changed);
+        if (ok)
+            printf("changed %d\n", changed);
+    }
+
+done:
+    if (!ok)
+        fprintf(stderr, "%s\n", cupidbuild_host_error(transaction));
+    return cupidbuild_host_transaction_close(transaction) && ok;
+}
+
 int main(int argc, char **argv) {
     cupidbuild_host_transaction_t *transaction = NULL;
     cupidbuild_host_snapshot_t snapshot;
@@ -149,6 +211,18 @@ int main(int argc, char **argv) {
     if (argc != 5 || !decode(argv[1]))
         return 90;
     mode = argv[2];
+    if (strncmp(mode, "store-", 6u) == 0) {
+        size_t capacity = 0u;
+        unsigned long long selected;
+        if (strcmp(argv[4], "high") == 0) {
+            selected = 2147483648ULL;
+        } else {
+            if (!extent(argv[4], &capacity))
+                return 91;
+            selected = capacity;
+        }
+        return candidate_store_case(argv[1], mode, size, selected) ? 0 : 3;
+    }
     private_file = strncmp(mode, "private", 7u) == 0;
     payload = strstr(mode, "bytes") != NULL;
     if (strcmp(mode, "invalid-capacity") == 0) {

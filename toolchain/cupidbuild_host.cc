@@ -33,6 +33,9 @@ unsigned int cupidbuild_host_execution_format(void) {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(CUPID_HOSTED_I386_LINUX_ABI_H)
+#include <cupid_runtime.h>
+#endif
 
 #if defined(_WIN32)
 #include <direct.h>
@@ -63,6 +66,8 @@ extern char **environ;
 #else
 #define CUPIDBUILD_CUSTOM_LINUX 1
 #define CUPIDBUILD_LINUX_SYS_PREAD64 180
+#define CUPIDBUILD_LINUX_SYS_PWRITE64 181
+#define CUPIDBUILD_LINUX_SYS_FTRUNCATE64 194
 #define CUPIDBUILD_LINUX_EINTR 4
 int cupid_linux_syscall0(int number);
 int cupid_linux_syscall1(int number, unsigned int first);
@@ -139,6 +144,12 @@ typedef struct {
     int reject_matching_nonfiles;
 } cupidbuild_host_discovery_query_t;
 
+typedef enum {
+    CUPIDBUILD_CANDIDATE_STORE_CLOSED,
+    CUPIDBUILD_CANDIDATE_STORE_WRITING,
+    CUPIDBUILD_CANDIDATE_STORE_FINISHED
+} cupidbuild_candidate_store_state_t;
+
 struct cupidbuild_host_transaction {
     cupidbuild_host_output_parent_t *prepared_output_parent;
     cupidbuild_host_observer_t *borrowed_observer;
@@ -188,6 +199,9 @@ struct cupidbuild_host_transaction {
     cupidbuild_host_snapshot_t repository_root_snapshot;
     cupidbuild_host_snapshot_t tool_stdout_snapshot;
     cupidbuild_host_snapshot_t tool_stderr_snapshot;
+    unsigned int candidate_store_lock;
+    cupidbuild_candidate_store_state_t candidate_store_state;
+    int candidate_store_failed;
     int candidate_captured;
     int candidate_sealed;
     int candidate_publish_created;
@@ -1818,6 +1832,7 @@ __declspec(dllimport) long __stdcall NtSetInformationFile(HANDLE file,
 #define cupid_windows_nt_set_information_file NtSetInformationFile
 #endif
 
+#define CUPIDBUILD_WINDOWS_END_OF_FILE_INFORMATION 20u
 #define CUPIDBUILD_WINDOWS_FILE_OPEN 1u
 #define CUPIDBUILD_WINDOWS_FILE_CREATE 2u
 #define CUPIDBUILD_WINDOWS_FILE_DIRECTORY_FILE 0x00000001u
@@ -8578,7 +8593,7 @@ int cupidbuild_host_make_input_executable(cupidbuild_host_transaction_t *transac
 static int cupidbuild_host_transaction_open_internal(
     const char *repository_root, const char *source_logical, const char *output_logical,
     cupidbuild_host_profile_parent_t *profile_parent,
-    cupidbuild_host_output_parent_t *output_parent, size_t candidate_limit,
+    cupidbuild_host_output_parent_t *output_parent, size_t candidate_limit, int capture_source,
     cupidbuild_host_transaction_t **transaction_out) {
     cupidbuild_host_transaction_t *transaction;
     cupidbuild_host_snapshot_t created_private_snapshot;
@@ -8623,12 +8638,13 @@ static int cupidbuild_host_transaction_open_internal(
     transaction->tool_stdout_descriptor = -1;
     transaction->tool_stderr_descriptor = -1;
 #endif
-    if (!cupidbuild_host_path_is_relative_safe(source_logical) ||
+    if ((capture_source && !cupidbuild_host_path_is_relative_safe(source_logical)) ||
         !cupidbuild_host_path_is_relative_safe(output_logical) ||
         !cupidbuild_host_copy_text(transaction->repository_root,
                                    sizeof(transaction->repository_root), repository_root) ||
-        !cupidbuild_host_join(transaction->source_path, sizeof(transaction->source_path),
-                              repository_root, source_logical) ||
+        (capture_source &&
+         !cupidbuild_host_join(transaction->source_path, sizeof(transaction->source_path),
+                               repository_root, source_logical)) ||
         !cupidbuild_host_join(transaction->output_path, sizeof(transaction->output_path),
                               repository_root, output_logical) ||
         !cupidbuild_host_parent(transaction->output_parent, sizeof(transaction->output_parent),
@@ -8948,10 +8964,11 @@ static int cupidbuild_host_transaction_open_internal(
         *transaction_out = transaction;
         return 0;
     }
-    if (!cupidbuild_host_freeze_input(transaction, transaction->source_path, "source.asm", &frozen,
-                                      (cupidbuild_host_snapshot_t *)0) ||
-        !cupidbuild_host_copy_text(transaction->frozen_source, sizeof(transaction->frozen_source),
-                                   frozen) ||
+    if ((capture_source &&
+         (!cupidbuild_host_freeze_input(transaction, transaction->source_path, "source.asm", &frozen,
+                                        (cupidbuild_host_snapshot_t *)0) ||
+          !cupidbuild_host_copy_text(transaction->frozen_source, sizeof(transaction->frozen_source),
+                                     frozen))) ||
         !cupidbuild_host_pin_initial_output(transaction)) {
         if (transaction->error[0] == '\0') {
             cupidbuild_host_set_error(transaction, "private artifact transaction cannot be opened");
@@ -8967,7 +8984,7 @@ static int cupidbuild_host_transaction_open_internal(
         return 0;
     }
 #endif
-    if (transaction->initial_output_snapshot.present != 0 &&
+    if (capture_source && transaction->initial_output_snapshot.present != 0 &&
         memcmp(transaction->initial_output_snapshot.identity,
                transaction->inputs[0].snapshot.identity,
                sizeof(transaction->initial_output_snapshot.identity)) == 0) {
@@ -8984,7 +9001,7 @@ int cupidbuild_host_transaction_open(const char *repository_root, const char *so
                                      cupidbuild_host_transaction_t **transaction_out) {
     return cupidbuild_host_transaction_open_internal(
         repository_root, source_logical, output_logical, (cupidbuild_host_profile_parent_t *)0,
-        (cupidbuild_host_output_parent_t *)0, CUPIDBUILD_HOST_FILE_LIMIT, transaction_out);
+        (cupidbuild_host_output_parent_t *)0, CUPIDBUILD_HOST_FILE_LIMIT, 1, transaction_out);
 }
 
 int cupidbuild_host_transaction_open_bounded(const char *repository_root,
@@ -8997,7 +9014,7 @@ int cupidbuild_host_transaction_open_bounded(const char *repository_root,
         return 0;
     return cupidbuild_host_transaction_open_internal(
         repository_root, source_logical, output_logical, (cupidbuild_host_profile_parent_t *)0,
-        (cupidbuild_host_output_parent_t *)0, (size_t)candidate_capacity, transaction_out);
+        (cupidbuild_host_output_parent_t *)0, (size_t)candidate_capacity, 1, transaction_out);
 }
 
 int cupidbuild_host_profile_transaction_open(const char *repository_root,
@@ -9006,7 +9023,7 @@ int cupidbuild_host_profile_transaction_open(const char *repository_root,
                                              cupidbuild_host_transaction_t **transaction_out) {
     return cupidbuild_host_transaction_open_internal(
         repository_root, source_logical, output_logical, profile_parent,
-        (cupidbuild_host_output_parent_t *)0, CUPIDBUILD_HOST_FILE_LIMIT, transaction_out);
+        (cupidbuild_host_output_parent_t *)0, CUPIDBUILD_HOST_FILE_LIMIT, 1, transaction_out);
 }
 
 int cupidbuild_host_output_transaction_open(const char *root, const char *source,
@@ -9020,9 +9037,20 @@ int cupidbuild_host_output_transaction_open(const char *root, const char *source
     }
     if (!cupidbuild_host_transaction_open_internal(
             root, source, output, (cupidbuild_host_profile_parent_t *)0, preparation,
-            CUPIDBUILD_HOST_FILE_LIMIT, transaction_out))
+            CUPIDBUILD_HOST_FILE_LIMIT, 1, transaction_out))
         return 0;
     return cupidbuild_host_require_publication_boundary(*transaction_out);
+}
+
+int cupidbuild_host_publication_transaction_open_bounded(
+    const char *root, const char *output, unsigned long long capacity,
+    cupidbuild_host_transaction_t **transaction_out) {
+    if (transaction_out)
+        *transaction_out = NULL;
+    if (capacity == 0u || capacity > 2147483647ULL)
+        return 0;
+    return cupidbuild_host_transaction_open_internal(root, NULL, output, NULL, NULL,
+                                                      (size_t)capacity, 0, transaction_out);
 }
 
 int cupidbuild_host_runner_open(const char *working_directory,
@@ -9851,7 +9879,8 @@ int cupidbuild_host_run_captured(cupidbuild_host_transaction_t *transaction, con
     cupidbuild_host_snapshot_t working_path_snapshot;
 #endif
     int result;
-    if (transaction == (cupidbuild_host_transaction_t *)0 || transaction->runner_transaction == 0 ||
+    if (transaction == (cupidbuild_host_transaction_t *)0 ||
+        transaction->runner_transaction == 0 ||
         tool == (const char *)0 || arguments == (const char *const *)0 ||
         timeout_milliseconds == 0u || transaction->captured != 0 ||
         !cupidbuild_host_require_frozen_inputs(transaction)) {
@@ -10080,7 +10109,9 @@ static int cupidbuild_host_run_at(cupidbuild_host_transaction_t *transaction, co
         return -1;
     }
 #endif
-    if (transaction == (cupidbuild_host_transaction_t *)0 || tool == (const char *)0 ||
+    if (transaction == (cupidbuild_host_transaction_t *)0 ||
+        transaction->candidate_store_state != CUPIDBUILD_CANDIDATE_STORE_CLOSED ||
+        transaction->candidate_store_failed || tool == (const char *)0 ||
         arguments == (const char *const *)0 || transaction->runner_transaction != 0 ||
         timeout_milliseconds == 0u || !cupidbuild_host_require_frozen_inputs(transaction)) {
         return -1;
@@ -10248,7 +10279,9 @@ int cupidbuild_host_run_to_private_output(cupidbuild_host_transaction_t *transac
     int result;
     (void)memset(&output_snapshot, 0, sizeof(output_snapshot));
     (void)memset(&stderr_snapshot, 0, sizeof(stderr_snapshot));
-    if (transaction == (cupidbuild_host_transaction_t *)0 || transaction->runner_transaction != 0 ||
+    if (transaction == (cupidbuild_host_transaction_t *)0 ||
+        transaction->candidate_store_state != CUPIDBUILD_CANDIDATE_STORE_CLOSED ||
+        transaction->candidate_store_failed || transaction->runner_transaction != 0 ||
         tool == (const char *)0 || arguments == (const char *const *)0 ||
         timeout_milliseconds == 0u || !cupidbuild_host_require_frozen_inputs(transaction)) {
         if (transaction != (cupidbuild_host_transaction_t *)0) {
@@ -10381,9 +10414,15 @@ int cupidbuild_host_run_to_private_output(cupidbuild_host_transaction_t *transac
     return result;
 }
 
+#include "cupidbuild_host_candidate_store.inc"
+
 static int cupidbuild_host_read_candidate(cupidbuild_host_transaction_t *transaction,
                                           cupidbuild_host_snapshot_t *snapshot,
                                           unsigned char **bytes_out) {
+    if (transaction->candidate_store_failed ||
+        transaction->candidate_store_state == CUPIDBUILD_CANDIDATE_STORE_WRITING)
+        return 0;
+
     size_t limit = transaction->candidate_limit;
     if (bytes_out != (unsigned char **)0 && limit > CUPIDBUILD_HOST_FILE_LIMIT)
         limit = CUPIDBUILD_HOST_FILE_LIMIT;
@@ -10925,7 +10964,9 @@ int cupidbuild_host_write_private_output_bounded(cupidbuild_host_transaction_t *
                                                  const unsigned char *bytes, size_t size,
                                                  size_t capacity) {
     cupidbuild_host_snapshot_t snapshot;
-    if (transaction == (cupidbuild_host_transaction_t *)0 || bytes == (const unsigned char *)0 ||
+    if (transaction == (cupidbuild_host_transaction_t *)0 ||
+        transaction->candidate_store_state != CUPIDBUILD_CANDIDATE_STORE_CLOSED ||
+        transaction->candidate_store_failed || bytes == (const unsigned char *)0 ||
         capacity == 0u || capacity > 2147483647u || size > capacity ||
         !cupidbuild_host_require_frozen_inputs(transaction) ||
         !cupidbuild_host_close_private_output_handle(transaction) ||

@@ -310,7 +310,10 @@ CUPIDBUILD_CORE_FRAGMENTS = (
     "toolchain/cupidbuild_kernel_image.inc",
     "toolchain/cupidbuild_validation.inc",
 )
-CUPIDBUILD_HOST_FRAGMENTS = ("toolchain/cupidbuild_host_external_inputs.inc",)
+CUPIDBUILD_HOST_FRAGMENTS = (
+    "toolchain/cupidbuild_host_candidate_store.inc",
+    "toolchain/cupidbuild_host_external_inputs.inc",
+)
 EXPECTED_SOURCES = (
     ("runtime", "/toolchain/hosted/i386-linux/runtime.cc", True),
     ("ctool", "/toolchain/ctool.cc", False),

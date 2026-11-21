@@ -196,7 +196,8 @@ CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/publication_runtime.cc
                                       tests/hosted_i386_windows_runtime_contract.cc
 CUPIDBUILD_CORE_FRAGMENTS := cupidbuild_compile_inputs.inc cupidbuild_compile_profile.inc \
                              cupidbuild_kernel_image.inc cupidbuild_validation.inc
-CUPIDBUILD_HOST_FRAGMENTS := cupidbuild_host_external_inputs.inc
+CUPIDBUILD_HOST_FRAGMENTS := cupidbuild_host_candidate_store.inc \
+                             cupidbuild_host_external_inputs.inc
 CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.cc artifact_size_policy.h contract_parse_internal.h \
                               path_encoding.h native_utf8.h \
                               contract_parse_internal.cc \
