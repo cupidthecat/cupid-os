@@ -1,3 +1,8 @@
+/**
+ * @file cupidbuild_source_path.h
+ * @brief Join lexical source paths to the working directory.
+ */
+
 #ifndef CUPID_TOOLCHAIN_BUILD_SOURCE_PATH_H
 #define CUPID_TOOLCHAIN_BUILD_SOURCE_PATH_H
 

@@ -1,3 +1,8 @@
+/**
+ * @file fat16_names.cc
+ * @brief Project guest paths into FAT16 short names.
+ */
+
 #include "fat16_names.h"
 
 typedef struct {

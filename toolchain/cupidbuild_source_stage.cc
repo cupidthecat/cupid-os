@@ -1,3 +1,8 @@
+/**
+ * @file cupidbuild_source_stage.cc
+ * @brief Resolve optional image stages and retain missing path checks.
+ */
+
 #include "cupidbuild_source_stage.h"
 #include "cupidbuild_source_path.h"
 #include <stdlib.h>

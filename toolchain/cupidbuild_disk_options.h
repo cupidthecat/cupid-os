@@ -1,3 +1,8 @@
+/**
+ * @file cupidbuild_disk_options.h
+ * @brief Read the geometry, input paths, and staging options for a disk build.
+ */
+
 #ifndef CUPIDBUILD_DISK_OPTIONS_H
 #define CUPIDBUILD_DISK_OPTIONS_H
 

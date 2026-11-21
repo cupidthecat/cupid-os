@@ -64626,7 +64626,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "be92ce134feb09aa07dc477667ba7f9c61d25f948b30f6e551742c1b644c83f0",
+    "active_source_digest": "67942d95c5ba0a796742dac15c7e5a2354010c145d3a143680d218be2e346bad",
     "control_files": [
       {
         "path": "Makefile",
@@ -90010,12 +90010,12 @@
         "toolchain/cupidbuild_source_path.h"
       ],
       "language": "cupid_c",
-      "lines": 751,
+      "lines": 756,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_disk_input_discovery.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "6a3ff88f2035c686fd3c89bcca0fef24ffdcab7a82db0424f72c78580481b4fb"
+      "sha256": "196aeb625d8870e197feff41aa463eec1a5af944c121bcb2df1fe98c7def19cf"
     },
     {
       "build_owners": [
@@ -90045,12 +90045,12 @@
         "toolchain/cupidbuild_source_stage.h"
       ],
       "language": "c_header",
-      "lines": 50,
+      "lines": 55,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_disk_input_discovery.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "60caa0025c82d079206cf95e710fcdd9626864f8ce61e120243b951e8c2e506e"
+      "sha256": "ad5e443bb42f6056deb2b33fc882e34e9b1e7aaf90f5bc99eb14707c627497f3"
     },
     {
       "build_owners": [
@@ -90082,12 +90082,12 @@
         "toolchain/cupidbuild_disk_integer.h"
       ],
       "language": "cupid_c",
-      "lines": 166,
+      "lines": 171,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_disk_integer.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "357355161a85b6791cf4962803dbdc6ca6f53f966e9d9b9b63a4f303b5bc184e"
+      "sha256": "8a386fe541395168c02266a2eb114968b0e17606a95038c7b182104247c3d3f8"
     },
     {
       "build_owners": [
@@ -90118,12 +90118,12 @@
         "kernel/doom/src/include_stubs/stdint.h"
       ],
       "language": "c_header",
-      "lines": 34,
+      "lines": 39,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_disk_integer.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c382c730ad976618ac3c9783c7cb7b8f03368262b94761ca5f8d7576e748d1aa"
+      "sha256": "baea0a5e2f56cb75e30d20827d67a44edad0871e571e4b45717c68e15f8b09d0"
     },
     {
       "build_owners": [
@@ -90161,12 +90161,12 @@
         "toolchain/path_encoding.h"
       ],
       "language": "cupid_c",
-      "lines": 461,
+      "lines": 466,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_disk_options.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e688c8fc74505d6749a0961dc8cdf8c358232884a3075fca3a2a601d74dbc065"
+      "sha256": "066c76c262e154a060b25b2b6630bd25aeeae5d98b3475743b93c7e1b71d35b2"
     },
     {
       "build_owners": [
@@ -90197,12 +90197,12 @@
         "toolchain/cupidbuild_disk_integer.h"
       ],
       "language": "c_header",
-      "lines": 60,
+      "lines": 65,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_disk_options.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f6ba20a7d00dd19c1d51317f52f3e13b38871e1e3e50dfc99d6522889710df92"
+      "sha256": "6cd5ccf333121fcbd57f4ebe08de468938dc6ee55300f3829bb72cbac684d865"
     },
     {
       "build_owners": [
@@ -90756,12 +90756,12 @@
         "toolchain/cupidbuild_source_path.h"
       ],
       "language": "cupid_c",
-      "lines": 252,
+      "lines": 257,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_source_file.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "229c0e088399f5ab3f435cef188111ad946fbfcf65e36cf6efb61f20c8c7c83b"
+      "sha256": "e2cbcc9c6e22cf3a8d72d43ff4f75466d3051390b06e13a8f15d722cdefdd3a8"
     },
     {
       "build_owners": [
@@ -90789,12 +90789,12 @@
         "toolchain/cupidbuild_host.h"
       ],
       "language": "c_header",
-      "lines": 64,
+      "lines": 69,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_source_file.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b48cdf444197a15ef1bbc1c42887d474f023dc3a028ea048de73ed8ce720792f"
+      "sha256": "5802d60c3077d6ac35bec6145d4f3141374c4fb2a5860b1e7c94630175627e43"
     },
     {
       "build_owners": [
@@ -90826,12 +90826,12 @@
         "toolchain/path_encoding.h"
       ],
       "language": "cupid_c",
-      "lines": 180,
+      "lines": 185,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_source_path.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "0e9c5a092bdb22a38e988c21684d2a6b8526d2ae302e9255671aca06856b2584"
+      "sha256": "7234a50e8db941895dac07aebbf87a705ff37323e2791641e6eb74d132a117a6"
     },
     {
       "build_owners": [
@@ -90857,12 +90857,12 @@
         "kernel/doom/src/include_stubs/stddef.h"
       ],
       "language": "c_header",
-      "lines": 15,
+      "lines": 20,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_source_path.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "2efc7d8edc2565e25f22d5b00356f23706c0b80a6ca01f438bff43542fc7d58a"
+      "sha256": "f1f9800fd620979d85c7ca8251728d7aa8e371caf1d13dea420a35ab28578b72"
     },
     {
       "build_owners": [
@@ -90891,12 +90891,12 @@
         "toolchain/cupidbuild_source_stage.h"
       ],
       "language": "cupid_c",
-      "lines": 128,
+      "lines": 133,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_source_stage.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "25600c7a9d543fad4af67833c17ad1489b6a6ad206563a5bbd777a7ff0584991"
+      "sha256": "88a7a51f555d9b2491deeb655e274a5fa8554ff9986005a6bb7d994cd1343a23"
     },
     {
       "build_owners": [
@@ -90924,12 +90924,12 @@
         "toolchain/cupidbuild_source_file.h"
       ],
       "language": "c_header",
-      "lines": 42,
+      "lines": 47,
       "origin": "tracked",
       "path": "toolchain/cupidbuild_source_stage.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "cd4ab926af6f3a006941691e4a060eef63ecbfc0a09c7843386c40d19d054ee6"
+      "sha256": "ed04e54f4bffd48d23f79324f075b997ab6d5fc55f12a24c09ff357995a9b7cd"
     },
     {
       "build_owners": [
@@ -91897,12 +91897,12 @@
         "toolchain/disk_image.h"
       ],
       "language": "cupid_c",
-      "lines": 252,
+      "lines": 257,
       "origin": "tracked",
       "path": "toolchain/disk_image.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "20798e67f019b5a75ac4a94c0edbb47d0dd83638011b294558316eaf5fefaaea"
+      "sha256": "2177badc63eec86f27585b11e860d505b5e24c3ac7bda1f514987a4689a49b47"
     },
     {
       "build_owners": [
@@ -91930,12 +91930,12 @@
         "toolchain/fat16_stage.h"
       ],
       "language": "c_header",
-      "lines": 50,
+      "lines": 55,
       "origin": "tracked",
       "path": "toolchain/disk_image.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "da0d10dc18cd86d8698249d949d7ef7c4bdbd29814b70246f0dd2e01ec0b7496"
+      "sha256": "a8f7b653c552a8555a4a3c589e455903ca088a7f7954e19af50b77d5dfa78f9c"
     },
     {
       "build_owners": [
@@ -92038,12 +92038,12 @@
         "toolchain/fat16_names.h"
       ],
       "language": "cupid_c",
-      "lines": 226,
+      "lines": 231,
       "origin": "tracked",
       "path": "toolchain/fat16_names.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "8385fa189369b3407d4d98a0ed056ff51ea54ed2728bf6b81951052f7c085f0d"
+      "sha256": "ff0caa461aa749e81225854b3d578d997c0781c476cb627b7d5e75cbcdf79fc1"
     },
     {
       "build_owners": [
@@ -92068,12 +92068,12 @@
         "toolchain/fat16_stage.h"
       ],
       "language": "c_header",
-      "lines": 30,
+      "lines": 35,
       "origin": "tracked",
       "path": "toolchain/fat16_names.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "780a1d91039d4b438ec10063f6db50335f9257a33d8bf169281d449f7b6015cb"
+      "sha256": "34c6ef55133c587b7ce41cee3a0eda57a1e2b48f97d1ccf886a482f51d4f669f"
     },
     {
       "build_owners": [
@@ -92102,12 +92102,12 @@
         "toolchain/fat16_stage.h"
       ],
       "language": "cupid_c",
-      "lines": 497,
+      "lines": 502,
       "origin": "tracked",
       "path": "toolchain/fat16_stage.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "92e4374b5a1f13cd487f56ead97ddd75ac22936ebe692a66f4db2d916104ad8a"
+      "sha256": "9bb432c7ed3a0ffd7e79cce3f42e9873683410fb1ba7f6da4dac610deb28e02c"
     },
     {
       "build_owners": [
@@ -92135,12 +92135,12 @@
         "toolchain/ctool.h"
       ],
       "language": "c_header",
-      "lines": 54,
+      "lines": 59,
       "origin": "tracked",
       "path": "toolchain/fat16_stage.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "86f8af58dbe8629d1356a5ae4efd85c2846ba3530b97357146f46a3c3778df47"
+      "sha256": "3b03bf3540000782f3311ab356ad032a2306ae85e766ffee46c37024c6e27545"
     },
     {
       "build_owners": [

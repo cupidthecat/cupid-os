@@ -1,3 +1,8 @@
+/**
+ * @file disk_image.h
+ * @brief Request a bounded disk image build that can preserve an existing FAT volume.
+ */
+
 #ifndef CUPID_TOOLCHAIN_DISK_IMAGE_H
 #define CUPID_TOOLCHAIN_DISK_IMAGE_H
 

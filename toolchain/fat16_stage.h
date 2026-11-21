@@ -1,3 +1,8 @@
+/**
+ * @file fat16_stage.h
+ * @brief Describe the sector store and payloads for FAT16 staging.
+ */
+
 #ifndef CUPID_TOOLCHAIN_FAT16_STAGE_H
 #define CUPID_TOOLCHAIN_FAT16_STAGE_H
 

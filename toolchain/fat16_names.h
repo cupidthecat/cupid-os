@@ -1,3 +1,8 @@
+/**
+ * @file fat16_names.h
+ * @brief Select Unicode tables and convert guest names for FAT16.
+ */
+
 #ifndef CUPID_TOOLCHAIN_FAT16_NAMES_H
 #define CUPID_TOOLCHAIN_FAT16_NAMES_H
 

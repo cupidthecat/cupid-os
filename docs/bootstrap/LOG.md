@@ -1,5 +1,22 @@
 # Bootstrapping log
 
+## 2026-11-21 — Document the disk build sources
+
+The nine disk and source modules now have Doxygen file comments in their
+implementations and headers. The comments cover path discovery, image
+geometry, FAT16 staging and filename conversion.
+
+Checked CupidC reproduced all nine objects on Windows and WSL. The
+normal Windows target and the Linux target also emitted identical objects
+for these modules. The frozen producer snapshot now records the comments.
+All 89 focused tests and the build audit passed on both hosts.
+
+The private retained publisher also reproduced the Python writer's 200 MiB
+image with the earlier 9,507,764-byte kernel. Both native and Cupid-built
+Linux runners matched all 3,200 blocks. The first fixture stopped during
+capture of an input outside the publication root. The passing retry used
+local copies. External input capture and the Make handoff remain open.
+
 ## 2026-11-21 — Check CupidBuild includes during ABI publication reuse
 
 The user ABI test now checks all 119 producer sources, including the four

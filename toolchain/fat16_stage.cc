@@ -1,3 +1,8 @@
+/**
+ * @file fat16_stage.cc
+ * @brief Create directories and stage files in a FAT16 image.
+ */
+
 #include "fat16_stage.h"
 
 #define FAT16_SECTOR_BYTES 512u

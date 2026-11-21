@@ -1,3 +1,8 @@
+/**
+ * @file cupidbuild_disk_options.cc
+ * @brief Parse image options and derive WAD stage destinations.
+ */
+
 #include "cupidbuild_disk_options.h"
 
 #include <stdlib.h>

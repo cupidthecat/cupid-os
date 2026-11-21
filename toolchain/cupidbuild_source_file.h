@@ -1,3 +1,8 @@
+/**
+ * @file cupidbuild_source_file.h
+ * @brief Select a source file while retaining its original path binding.
+ */
+
 #ifndef CUPID_TOOLCHAIN_BUILD_SOURCE_FILE_H
 #define CUPID_TOOLCHAIN_BUILD_SOURCE_FILE_H
 

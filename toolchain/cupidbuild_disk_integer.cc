@@ -1,3 +1,8 @@
+/**
+ * @file cupidbuild_disk_integer.cc
+ * @brief Parse Unicode decimal arguments for disk geometry.
+ */
+
 #include "cupidbuild_disk_integer.h"
 
 #include <string.h>

@@ -1,3 +1,8 @@
+/**
+ * @file cupidbuild_disk_input_discovery.h
+ * @brief Expose the retained source views needed to prepare a disk image.
+ */
+
 #ifndef CUPIDBUILD_DISK_INPUT_DISCOVERY_H
 #define CUPIDBUILD_DISK_INPUT_DISCOVERY_H
 

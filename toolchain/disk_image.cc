@@ -1,3 +1,8 @@
+/**
+ * @file disk_image.cc
+ * @brief Compose a complete disk image from retained inputs.
+ */
+
 #include "disk_image.h"
 
 typedef struct {

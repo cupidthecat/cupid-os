@@ -1,3 +1,8 @@
+/**
+ * @file cupidbuild_disk_input_discovery.cc
+ * @brief Retain the required files and optional stages for a disk build.
+ */
+
 #include "cupidbuild_disk_input_discovery.h"
 #include "cupidbuild_source_path.h"
 #include <stdlib.h>

@@ -1,3 +1,8 @@
+/**
+ * @file cupidbuild_source_file.cc
+ * @brief Resolve and retain required and optional source files.
+ */
+
 #include "cupidbuild_source_file.h"
 #include "cupidbuild_source_path.h"
 #include <stdlib.h>

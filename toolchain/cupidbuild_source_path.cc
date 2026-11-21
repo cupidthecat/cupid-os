@@ -1,3 +1,8 @@
+/**
+ * @file cupidbuild_source_path.cc
+ * @brief Normalize requested source paths under host pathname rules.
+ */
+
 #include "cupidbuild_source_path.h"
 #include "cupidbuild_host.h"
 #include "path_encoding.h"

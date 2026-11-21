@@ -1,3 +1,8 @@
+/**
+ * @file cupidbuild_disk_integer.h
+ * @brief Report the sign and range of disk option integers.
+ */
+
 #ifndef CUPIDBUILD_DISK_INTEGER_H
 #define CUPIDBUILD_DISK_INTEGER_H
 

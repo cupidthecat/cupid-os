@@ -1,3 +1,8 @@
+/**
+ * @file cupidbuild_source_stage.h
+ * @brief Select optional stage files and check their requested paths.
+ */
+
 #ifndef CUPID_TOOLCHAIN_BUILD_SOURCE_STAGE_H
 #define CUPID_TOOLCHAIN_BUILD_SOURCE_STAGE_H
 
