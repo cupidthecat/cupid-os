@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-21 — Use 189 guest-built inputs in both kernel links
+
+The replay rebuilt 182 ordinary asset objects, three installation objects,
+the ISR, context switch and AP startup objects, and the kernel parser.
+Both links used those 189 guest objects. The checked raw assembly worker
+also built the bootloader in the linking guest.
+
+Both kernel ELFs, the symbol source and object, the 9,507,960-byte raw
+kernel and the bootloader matched the checked build. The saved disk prefix
+matched all 10,697,216 bytes. The resulting 200 MiB disk booted with four
+CPUs, TLS, e1000 and DHCP, then ran `ls`.
+
 ## 2026-11-21 — Sync each guest output once
 
 Guest workers keep the candidate descriptor open while HomeFS renames and

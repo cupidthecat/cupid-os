@@ -15,9 +15,9 @@ Cupid OS remains unfinished.
   objects with their production profiles. The assembler worker reproduced
   both production kernel assembly objects. The guest wrapped all 182 ordinary
   kernel assets and generated and compiled all three installation sources. It ran
-  the `cat`, `hello` and `ls` examples, completed both kernel links and
-  flattened the final ELF. The boot-media replay uses the guest's
-  bootloader and raw kernel to make a disk that boots.
+  the `cat`, `hello` and `ls` examples. The replay used 189 guest-built
+  inputs in both kernel links and flattened the final ELF. The guest's
+  bootloader and raw kernel produced a disk that boots.
   See the [guest build record](FREESTANDING-COMPILER-ENGINE.md).
 - Source-owner modules are in current producer plans, and paired named
   preparations reach a fixed point. The C reader now recognizes their exact

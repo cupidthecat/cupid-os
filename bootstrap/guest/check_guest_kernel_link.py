@@ -10,9 +10,11 @@ import subprocess
 import tempfile
 
 from check_guest_assembly_runtime import ASSEMBLY_SOURCES, assemble_production_objects
-from check_guest_asset_runtime import ASSET_SOURCES, wrap_production_assets
+from check_guest_asset_bundle import wrap_production_bundle
 from check_guest_disk_runtime import check as check_disk
+from check_guest_install_runtime import INSTALL_SOURCES, rebuild_installation_objects
 from check_guest_profile_runtime import SOURCE_PROFILES, compile_production_objects
+from check_guest_raw_assembly_runtime import TRAMPOLINE_OBJECT, assemble_production_raw
 from check_guest_runtime import (
     BUILD,
     COMPILER_REAPED,
@@ -53,20 +55,35 @@ def production_objects(root: Path) -> list[str]:
 
 def check(scratch: Path, root: Path, qemu: str, timeout: float,
           rebuild_sources: list[str], rebuild_disk: bool, rebuild_assembly: bool,
-          rebuild_assets: bool) -> None:
+          rebuild_assets: bool, rebuild_installation: bool) -> None:
     objects = production_objects(root)[:-1]
-    sources = [*rebuild_sources, *ASSEMBLY_SOURCES.values()] if rebuild_assembly else rebuild_sources
+    sources = list(rebuild_sources)
+    if rebuild_assembly:
+        sources.extend(ASSEMBLY_SOURCES.values())
+    if rebuild_installation:
+        sources.extend(INSTALL_SOURCES)
     wanted = [Path(source).with_suffix(".o").as_posix() for source in sources]
-    if rebuild_assets:
-        wanted.extend(ASSET_SOURCES)
+    if rebuild_assembly:
+        wanted.append(TRAMPOLINE_OBJECT)
     if missing := set(wanted) - set(objects):
         raise ValueError(f"no pass-one kernel input for {', '.join(sorted(missing))}")
     rebuilt = compile_production_objects(scratch / "compile", root, rebuild_sources,
                                          qemu, timeout)
     if rebuild_assembly:
         rebuilt.update(assemble_production_objects(scratch / "assemble", root, qemu, timeout))
+        trampoline = assemble_production_raw(scratch / "trampoline", root, "smp-trampoline", qemu, timeout)
+        output = scratch / "smp_trampoline.o"
+        output.write_bytes(trampoline[TRAMPOLINE_OBJECT])
+        rebuilt[TRAMPOLINE_OBJECT] = output
+    if rebuild_installation:
+        rebuilt.update(rebuild_installation_objects(scratch / "install", root, qemu, timeout))
     if rebuild_assets:
-        rebuilt.update(wrap_production_assets(scratch / "wrap", root, qemu, timeout))
+        assets = wrap_production_bundle(scratch / "wrap", root, qemu, timeout)
+        if missing := assets.keys() - set(objects):
+            raise ValueError(f"no pass-one kernel input for {', '.join(sorted(missing))}")
+        rebuilt.update(assets)
+    if rebuilt:
+        print(f"Using {len(rebuilt)} guest-built inputs in both kernel links.")
     # Keep each FAT staging directory within a single directory cluster.
     inputs = [f"/obj{index // 64}/i{index:03}.o" for index in range(len(objects))]
     stage_objects = [
@@ -74,6 +91,7 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float,
     ]
     if rebuild_disk:
         stage_objects.append(f"{root / 'boot/boot.asm'}:/boot.asm")
+        stage_objects.append(f"{BUILD / 'cupidraw-guest.elf'}:/r")
     disk_objects = [f"/disk{alias}" for alias in inputs]
 
     def link_request(destination: str, cohort: list[str]) -> bytes:
@@ -81,6 +99,7 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float,
         return ("\n".join(paths) + "\n").encode("ascii")
 
     homefs = scratch / "homefs.sys"
+    raw_job = ((b"cupidraw.job", b"/disk/boot.asm\n/home/boot.bin\nbootloader\n"),) if rebuild_disk else ()
     write_homefs(homefs, (
         (b"cupidld.job", link_request("/home/pass1.elf", disk_objects)),
         (b"cupidksyms.job", b"/home/pass1.elf\n/home/ksyms_data.cc\n"),
@@ -89,6 +108,7 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float,
         (b"types.h", (root / "kernel/core/types.h").read_bytes()),
         (b"f", link_request("/home/kernel.elf", [*disk_objects, "/home/ksyms_data.o"])),
         (b"cupidobj.job", b"/home/kernel.elf\n/home/kernel.bin\n"),
+        *raw_job,
     ))
     image = scratch / "link.img"
     create_disk(image, f"{homefs}:/homefs.sys", f"{root / 'link.ld'}:/link.ld",
@@ -104,10 +124,8 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float,
     boot_commands = ()
     if rebuild_disk:
         boot_commands = (
-            "--setup-command", "as -f bin --map /home/boot.map -o /home/boot.bin /disk/boot.asm",
-            "--setup-success-pattern", r"\[asm\] Wrote raw image: /home/boot[.]bin .*map: /home/boot[.]map",
-            "--setup-command", "dis --raw --range-map /home/boot.map --require-known /home/boot.bin",
-            "--setup-success-pattern", r"^\[disassembly raw\]\r?$",
+            "--setup-command", "exec /disk/r",
+            "--setup-success-pattern", r"\[cupidraw-guest\] wrote /home/boot[.]bin" + COMPILER_REAPED,
         )
     run(*smoke, "--image", str(image), "--log", str(BUILD / "kernel-build-runtime.log"),
         *boot_commands,
@@ -161,9 +179,11 @@ def main() -> None:
     parser.add_argument("--rebuild-disk", action="store_true",
                         help="assemble the bootloader and build the final disk prefix in Cupid OS")
     parser.add_argument("--rebuild-assembly", action="store_true",
-                        help="assemble the ISR and context-switch objects before linking")
+                        help="rebuild the ISR, context switch and AP startup objects")
     parser.add_argument("--rebuild-assets", action="store_true",
-                        help="wrap the ls source and the bitmap before linking")
+                        help="wrap the ordinary production kernel assets before linking")
+    parser.add_argument("--rebuild-installation", action="store_true",
+                        help="generate and compile the three kernel installation sources")
     parser.add_argument("--qemu", default="qemu-system-i386")
     parser.add_argument("--timeout", type=float, default=1800)
     args = parser.parse_args()
@@ -173,7 +193,8 @@ def main() -> None:
         parser.error("production sources must be distinct")
     with tempfile.TemporaryDirectory(prefix="cupid-kernel-link-") as temporary:
         check(Path(temporary), args.production_root.resolve(), args.qemu, args.timeout,
-              args.rebuild_source, args.rebuild_disk, args.rebuild_assembly, args.rebuild_assets)
+              args.rebuild_source, args.rebuild_disk, args.rebuild_assembly, args.rebuild_assets,
+              args.rebuild_installation)
 
 
 if __name__ == "__main__":
