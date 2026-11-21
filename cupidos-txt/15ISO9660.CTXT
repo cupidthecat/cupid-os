@@ -71,7 +71,7 @@ mount /disk/hello.iso /iso
 
 5. `cat /iso/readme.txt` prints the content.
 
-6. `umount /iso` when done.
+6. Run `umount /iso` when done. The path and mount slot can then be reused.
 
 [Mount test ISO](shell:mount /disk/hello.iso /iso)
 [List mounted ISO](shell:ls /iso)

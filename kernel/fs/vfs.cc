@@ -1,9 +1,6 @@
 /**
- * vfs.cc - Virtual File System for Cupid OS
- *
- * Provides a unified file API across multiple filesystem types
- * (RamFS, DevFS, FAT16) with hierarchical mount points and
- * Linux-style path resolution.
+ * @file vfs.cc
+ * @brief Resolve paths and route file operations to mounted filesystems.
  */
 
 #include "vfs.h"
@@ -148,7 +145,17 @@ int vfs_register_fs(vfs_fs_ops_t *ops) {
 int vfs_mount(const char *source, const char *target, const char *fs_type) {
     if (!target || !fs_type)
         return VFS_EINVAL;
-    if (mount_count >= VFS_MAX_MOUNTS)
+
+    int slot = mount_count;
+    for (int i = 0; i < mount_count; i++) {
+        if (mounts[i].mounted) {
+            if (strcmp(mounts[i].path, target) == 0)
+                return VFS_EBUSY;
+        } else if (slot == mount_count) {
+            slot = i;
+        }
+    }
+    if (slot >= VFS_MAX_MOUNTS)
         return VFS_ENOSPC;
 
     vfs_fs_ops_t *ops = find_fs_type(fs_type);
@@ -157,7 +164,7 @@ int vfs_mount(const char *source, const char *target, const char *fs_type) {
         return VFS_EINVAL;
     }
 
-    vfs_mount_t *m = &mounts[mount_count];
+    vfs_mount_t *m = &mounts[slot];
     vfs_strcpy(m->path, target, VFS_MAX_PATH);
     m->ops = ops;
     m->fs_private = NULL;
@@ -172,7 +179,8 @@ int vfs_mount(const char *source, const char *target, const char *fs_type) {
     }
 
     m->mounted = 1;
-    mount_count++;
+    if (slot == mount_count)
+        mount_count++;
 
     KINFO("VFS: mounted '%s' at '%s'", fs_type, target);
     return VFS_OK;

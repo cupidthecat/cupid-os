@@ -1,7 +1,7 @@
+/** @file fs.cc
+ * @brief Serve the shell's static, read-only files. */
 #include "fs.h"
 #include "string.h"
-
-// Simple read-only in-memory filesystem
 // Add new static entries here to expose files to the shell.
 static const char license_text[] = "cupid-os is GPLv3. See LICENSE for full terms.\n";
 

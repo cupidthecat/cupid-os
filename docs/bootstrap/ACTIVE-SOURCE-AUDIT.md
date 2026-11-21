@@ -31,7 +31,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `boot_assembly` | 1 | 298 |
 | `cupid_asm_demo` | 22 | 1470 |
 | `cupid_c_browser_fragment` | 22 | 19539 |
-| `cupid_c_program` | 108 | 23029 |
+| `cupid_c_program` | 108 | 23045 |
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 10320 |
 | `cupidc` | 8 | 20012 |
@@ -45,7 +45,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_core` | 17 | 4352 |
 | `kernel_cpu` | 19 | 3230 |
 | `kernel_crypto` | 40 | 5431 |
-| `kernel_fs` | 27 | 7774 |
+| `kernel_fs` | 27 | 7782 |
 | `kernel_gfx` | 29 | 14208 |
 | `kernel_gui` | 28 | 12525 |
 | `kernel_lang` | 20 | 11055 |
@@ -100,7 +100,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1533 |
 | `asm.relocation` | 1 | 95 |
-| `c.control` | 12 | 98046 |
+| `c.control` | 12 | 98058 |
 | `c.declaration` | 1 | 33 |
 | `c.declarator` | 4 | 4194 |
 | `c.expression` | 2 | 7282 |
@@ -109,7 +109,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.preprocessor` | 18 | 8717 |
 | `c.qualifier` | 2 | 19383 |
 | `c.storage` | 4 | 11840 |
-| `c.type` | 15 | 65016 |
+| `c.type` | 15 | 65020 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
@@ -193,8 +193,8 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bin/old_cc2.cc` | `cupid_c` | `explicitly_excluded` | 2 | listed in a Make filter-out expression |
 | `bin/old_cc2_single.cc` | `cupid_c` | `explicitly_excluded` | 8238 | listed in a Make filter-out expression |
 | `bin/terminal_app.c` | `c` | `historical_copy` | 318 | historical_copy_of: `kernel/gui/terminal_app.cc` |
-| `bootstrap/guest/cupidasm_guest.cc` | `cupid_c` | `not_reached` | 84 | not reachable from the supported Make target or include closure |
-| `bootstrap/guest/cupidbuild_guest.cc` | `cupid_c` | `not_reached` | 85 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupidasm_guest.cc` | `cupid_c` | `not_reached` | 93 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupidbuild_guest.cc` | `cupid_c` | `not_reached` | 100 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_bundle.cc` | `cupid_c` | `not_reached` | 108 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_bundle.h` | `c_header` | `not_reached` | 16 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_engine.cc` | `cupid_c` | `not_reached` | 35 | not reachable from the supported Make target or include closure |
@@ -202,14 +202,14 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bootstrap/guest/cupidc_guest.cc` | `cupid_c` | `not_reached` | 183 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_guest_linux_contract.cc` | `cupid_c` | `host_fixture` | 216 | Linux syscall fixture for the opt-in toolchain workers |
 | `bootstrap/guest/cupiddisk_guest.cc` | `cupid_c` | `not_reached` | 68 | not reachable from the supported Make target or include closure |
-| `bootstrap/guest/cupidinstall_guest.cc` | `cupid_c` | `not_reached` | 140 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupidinstall_guest.cc` | `cupid_c` | `not_reached` | 148 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidksyms_guest.cc` | `cupid_c` | `not_reached` | 85 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidld_guest.cc` | `cupid_c` | `not_reached` | 155 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidobj_guest.cc` | `cupid_c` | `not_reached` | 283 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/engine_image.cc` | `cupid_c` | `host_fixture` | 77 | external compiler image loader used by the Linux fixed-point test |
 | `bootstrap/guest/engine_image.h` | `c_header` | `host_fixture` | 28 | image-plan interface used by the Linux fixed-point test |
 | `bootstrap/guest/engine_linux_contract.cc` | `cupid_c` | `host_fixture` | 193 | Linux harness for the opt-in freestanding compiler fixed-point test |
-| `bootstrap/guest/guest_build.h` | `c_header` | `not_reached` | 19 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/guest_build.h` | `c_header` | `not_reached` | 21 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/guest_job.cc` | `cupid_c` | `not_reached` | 227 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/guest_job.h` | `c_header` | `not_reached` | 47 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/guest_raw_assembly.cc` | `cupid_c` | `not_reached` | 200 | not reachable from the supported Make target or include closure |

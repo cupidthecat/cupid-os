@@ -1,6 +1,6 @@
 /**
- * Block Device Layer
- *
+ * @file blockdev.cc
+ * @brief Register block devices and route sector requests to their drivers.
  * Provides a generic abstraction for block-based storage devices.
  * Allows different device drivers (ATA, floppy, etc.) to register
  * themselves and be accessed through a uniform interface.

@@ -1,13 +1,9 @@
 // help: P2 ISO9660 smoke: mount hello.iso, verify RR + case-fold + multi-mount
 // help: Usage: feature17_iso (run after `make sync-iso` on host)
-//
-//  This test exercises the end-to-end ISO9660 stack through the VFS layer.
-//  `vfs_mount` / `vfs_umount` are not bound as CupidC builtins, so we drive
-//  the shell via `shell_execute_line("mount ... iso9660")`.  `mount_count`
-//  reports a high-water-mark that never decrements on umount, so we verify
-//  mount state via `mount_path(i)` iteration instead (NULL for free slots).
-//  File I/O goes through the bound `vfs_open` / `vfs_read` / `vfs_close`
-//  builtins directly.
+/**
+ * @file feature17_iso.cc
+ * @brief Exercise ISO mounts and file access through the shell and VFS.
+ */
 
 int str_eq_n(const char *a, const char *b, int n) {
     /* Byte-compare the first n bytes; stops at n, never reads past. */
@@ -400,6 +396,26 @@ void main() {
     shell_execute_line("umount /iso_2");
     shell_execute_line("umount /iso_3");
     shell_execute_line("umount /iso_4");
+
+    /* Repeated source mounts must leave room for subsequent builds. */
+    int slots = mount_count();
+    int cycle = 0;
+    while (cycle < 40) {
+        shell_execute_line("mount /disk/hello.iso /iso_reuse iso9660");
+        if (!is_mounted("/iso_reuse")) {
+            serial_printf("[feature17] FAIL ISO remount cycle %d\n", cycle);
+            ok = 0;
+            break;
+        }
+        shell_execute_line("mount /disk/hello.iso /iso_reuse iso9660");
+        shell_execute_line("umount /iso_reuse");
+        if (is_mounted("/iso_reuse") || mount_count() != slots) {
+            serial_printf("[feature17] FAIL ISO slot reuse at cycle %d\n", cycle);
+            ok = 0;
+            break;
+        }
+        cycle = cycle + 1;
+    }
 
     if (!check_vfs_binding_conversions()) {
         serial_printf("[feature17] FAIL native binding conversion\n");

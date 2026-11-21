@@ -1,5 +1,5 @@
-/* kernel/fs/iso9660_vfs.cc - VFS adapter for ISO9660. */
-
+/** @file iso9660_vfs.cc
+ * @brief Expose read-only ISO9660 images through the VFS. */
 #include "iso9660_vfs.h"
 #include "iso9660.h"
 #include "loopdev.h"

@@ -1,6 +1,6 @@
 /**
- * vfs_helpers.cc - High-level VFS convenience functions
- *
+ * @file vfs_helpers.cc
+ * @brief Read, write, and copy complete files through the VFS.
  * Simple read/write-all wrappers around the VFS layer so callers
  * don't need to manually open / read-loop / close.
  */

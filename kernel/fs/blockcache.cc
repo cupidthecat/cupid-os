@@ -1,6 +1,6 @@
 /**
- * Block Cache
- *
+ * @file blockcache.cc
+ * @brief Cache disk sectors with LRU eviction and write-back.
  * Implements an LRU (Least Recently Used) cache for disk sectors with
  * write-back policy. Provides significant performance improvement by
  * reducing disk I/O operations.

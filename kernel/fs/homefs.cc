@@ -1,6 +1,6 @@
 /**
- * homefs.cc - Native persistent filesystem for Cupid OS /home
- *
+ * @file homefs.cc
+ * @brief Store the /home directory tree in a FAT16 container.
  * Provides a tree-based filesystem with nested directories and long names,
  * while persisting all contents into a single FAT16-hosted container file.
  * This keeps FAT16 as a compatibility/storage backend instead of exposing

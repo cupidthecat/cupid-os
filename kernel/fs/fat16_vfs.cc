@@ -1,6 +1,6 @@
 /**
- * fat16_vfs.cc - FAT16 VFS wrapper for Cupid OS
- *
+ * @file fat16_vfs.cc
+ * @brief Route VFS operations to the FAT16 driver.
  * Wraps the existing FAT16 driver (root-directory-only flat namespace)
  * into the VFS filesystem operations interface.
  *

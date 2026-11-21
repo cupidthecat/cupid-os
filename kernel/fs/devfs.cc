@@ -1,6 +1,6 @@
 /**
- * devfs.cc - Device filesystem for Cupid OS
- *
+ * @file devfs.cc
+ * @brief Expose registered devices under /dev.
  * Provides /dev with pseudo-devices like null, zero, random, serial.
  * Each device is registered with read/write callbacks.
  */

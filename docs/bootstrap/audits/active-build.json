@@ -52057,6 +52057,7 @@
         "bin/ctxt.cc",
         "bin/curl.cc",
         "bin/ed.cc",
+        "bin/feature17_iso.cc",
         "bin/feature25.cc",
         "bin/fm.cc",
         "bin/gfxgui_test.cc",
@@ -52238,7 +52239,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 2248
+      "occurrences": 2250
     },
     {
       "category": "control",
@@ -53016,7 +53017,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5810
+      "occurrences": 5811
     },
     {
       "category": "control",
@@ -53319,7 +53320,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 5098
+      "occurrences": 5099
     },
     {
       "category": "control",
@@ -53817,7 +53818,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 45992
+      "occurrences": 45998
     },
     {
       "category": "control",
@@ -54219,7 +54220,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28524
+      "occurrences": 28525
     },
     {
       "category": "control",
@@ -54634,7 +54635,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3161
+      "occurrences": 3162
     },
     {
       "category": "declaration",
@@ -60530,7 +60531,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 26310
+      "occurrences": 26314
     },
     {
       "category": "type",
@@ -63182,7 +63183,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "8ef42a473b9e8a158565b2bb672c5654ea6745a8001c509f3ce501d6cfee227a",
+    "active_source_digest": "217dedca66bb9f17158ee6bec8f52a916380b848e85aff4c97d4570c15ded596",
     "control_files": [
       {
         "path": "Makefile",
@@ -65599,6 +65600,7 @@
       ],
       "cohort": "cupid_c_program",
       "features": [
+        "c.control.break",
         "c.control.else",
         "c.control.if",
         "c.control.return",
@@ -65612,12 +65614,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 416,
+      "lines": 432,
       "origin": "tracked",
       "path": "bin/feature17_iso.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c9d2205a2b3c2f279aa3ce617d8a2f3e34af86d6e81d34008ac6261450de10c9"
+      "sha256": "5f2dcfd019d2fecc286b2a2f8477e4500d88a3dd56d9c131dedf5ebdb8cf8325"
     },
     {
       "build_owners": [
@@ -80326,7 +80328,7 @@
       "path": "kernel/fs/blockcache.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ee0e166b4c3da93a052271313f171e0e7ca2af5d9a8a870df021d03c7bc42dec"
+      "sha256": "a9b7efb5cec348197e73100b5ff64486cb4d6039168aafc52e870b170d9eb092"
     },
     {
       "build_owners": [
@@ -80399,7 +80401,7 @@
       "path": "kernel/fs/blockdev.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "a79a7ae6614cba1fe6382f9a54a8d3c79723a7ae4bb1ed086f3227d4e96bee86"
+      "sha256": "29e8091a5431221377d8e0ab3c5b8d4e715a34cd82c35e8989bbcbcbc0c63e82"
     },
     {
       "build_owners": [
@@ -80478,7 +80480,7 @@
       "path": "kernel/fs/devfs.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b746b88659bc1438c53350b3b35e402ea30d14e93b07c5e54272bbb9d8a6114d"
+      "sha256": "1f2e48e5b5583bb8de649af696a74d05117a84ee812772d1a04b65bd554eafde"
     },
     {
       "build_owners": [
@@ -80673,7 +80675,7 @@
       "path": "kernel/fs/fat16_vfs.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "4eef8955298569690bb42f7e04d07bcd2da81946d3566b2ae82987a2f230a19a"
+      "sha256": "21e3bf32db62b5decb27743d956ad44e354aec42bfa28f915feff67f60386bc9"
     },
     {
       "build_owners": [
@@ -80736,7 +80738,7 @@
       "path": "kernel/fs/fs.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "1641e7be89b80bf4f97c3b1823d643c542fe60f4f3b68de4401a04c1f32a01db"
+      "sha256": "7085dfc44c11c8aaa76506a02e49720ce8a34cef669e87dbb5aae9aadfd6847a"
     },
     {
       "build_owners": [
@@ -80819,7 +80821,7 @@
       "path": "kernel/fs/homefs.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "636819e562b38856bb5ba4b1e0cf5505a69ac244ce6f9e02840ae7f5eb32ee29"
+      "sha256": "f395ac5ebaf5f7f6f3acdbe089a590c8cb8291ce7b240ab334cc08639dff4061"
     },
     {
       "build_owners": [
@@ -80895,7 +80897,7 @@
       "path": "kernel/fs/iso9660.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "caec7c3cf1d6efc0fcc024dfb94a650237c53aeb267055066bb4144a7d8e0f81"
+      "sha256": "07682ac2c267c003c4d321a497ac9fc9f8481d4438bf18237d97c5471d5f6f53"
     },
     {
       "build_owners": [
@@ -80979,7 +80981,7 @@
       "path": "kernel/fs/iso9660_vfs.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "5687258975fe245eebba48b06f3eb129b78e09e4312e6cb9539527209fef0816"
+      "sha256": "cf8034028c601110404ccfccc4085607798a7dc9b59dd66af78ac2aeb5132447"
     },
     {
       "build_owners": [
@@ -81047,7 +81049,7 @@
       "path": "kernel/fs/loopdev.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "8f1512117517c6643ad3514afde69dea85f1bc924fd69f7f65cac03348be91e0"
+      "sha256": "72362668e050ee3688afbabf3a874c59b996c373ba7ab6e8b97fb2a05b88c2c6"
     },
     {
       "build_owners": [
@@ -81123,7 +81125,7 @@
       "path": "kernel/fs/ramfs.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9f7772bfcd7ca03b48cc20cba3cca0a04296603f0dd3622b021dcef313e7349c"
+      "sha256": "621c3064c14edab9f6f554e23c054a66ed49415e7864a0896fcd28851f7a9c88"
     },
     {
       "build_owners": [
@@ -81190,12 +81192,12 @@
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 464,
+      "lines": 472,
       "origin": "tracked",
       "path": "kernel/fs/vfs.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "31e17335226f82c0bafae6e3dfa11caac6923696c57727d77e8f77ce0144b9ff"
+      "sha256": "25036ffa25564039c1cc66cc1d1305e371e2ba67fdf1825f711c268d73fc539e"
     },
     {
       "build_owners": [
@@ -81266,7 +81268,7 @@
       "path": "kernel/fs/vfs_helpers.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "042cbcf3902b7d91449ce2444b637c7c9f5ee3d443beaa896174ede643f720bf"
+      "sha256": "6e966874f67dd2cbca8b0cddd283014813b1cc1dc17a433d590448d428811c0a"
     },
     {
       "build_owners": [
@@ -93937,21 +93939,21 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 84,
+      "lines": 93,
       "path": "bootstrap/guest/cupidasm_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "1d6321ab8eef8e8576b23bad90076c5172346f238891a4bacdd2d3e5094b9482"
+      "sha256": "b82d73927b1795b4297579e35cbfc7dcb025542cb15165f3fe983935b76d13b0"
     },
     {
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 85,
+      "lines": 100,
       "path": "bootstrap/guest/cupidbuild_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "fd71027c3b4a101b150cc61f66201242ccf5f069d40228eadf6a3cfcc0f926ee"
+      "sha256": "c83c9a441316a3730ede59411a14128d192f4f7f957e254bc3c42f993e1e2c24"
     },
     {
       "classification": "not_reached",
@@ -94027,11 +94029,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 140,
+      "lines": 148,
       "path": "bootstrap/guest/cupidinstall_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "118a6140ee77283e5c538a1f947ad7e144cd8fceb4a1ac8606f47876e3398af4"
+      "sha256": "7c8d2d85fd6a83b69d6cbc47ed32bf2c10bc02f2ce040d61df1b77bd19d2822a"
     },
     {
       "classification": "not_reached",
@@ -94097,11 +94099,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "c_header",
-      "lines": 19,
+      "lines": 21,
       "path": "bootstrap/guest/guest_build.h",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "90b34b6033e3cc9c20f8eb2687744cfa7011529a1a761d9da4558c4e31fdaeb5"
+      "sha256": "d1bea395c243cd3e32a17dff86899de24d667e7412f1f7325bd4532a79b307be"
     },
     {
       "classification": "not_reached",

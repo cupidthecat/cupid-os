@@ -1,6 +1,6 @@
 /**
- * ramfs.cc - In-memory filesystem for Cupid OS
- *
+ * @file ramfs.cc
+ * @brief Provide the in-memory directory tree used for the root filesystem.
  * Implements a simple RAM-based filesystem with directory tree support.
  * Files are stored in dynamically allocated memory.  Used for root
  * filesystem (/), /bin, and /tmp mount points.

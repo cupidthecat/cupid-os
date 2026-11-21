@@ -1,5 +1,25 @@
 # Bootstrapping log
 
+## 2026-11-21 — Reuse cleared VFS mount slots
+
+On the old kernel, 28 source mount and unmount cycles filled the remaining
+slots. The mount table now reuses the first free slot and rejects duplicate
+active targets. File descriptors keep their existing slot addresses.
+
+The four-CPU ISO test passed 40 remount cycles, duplicate-target rejection,
+the existing mount-pool limit and the VFS bindings. CupidC compiled the
+revised VFS source inside Cupid OS and matched the checked object. Windows
+and WSL produced the same VFS and ISO test objects.
+
+Eleven filesystem implementation files gained Doxygen headers. The first
+pass shifted source lines used in debug output. Reusing the existing
+comment lines preserved the emitted bytes on both hosts.
+
+The normal Windows and WSL builds passed all 16 exact artifact checks.
+Both kernel ELFs, the 9,508,708-byte raw kernel and the full 200 MiB disk
+matched. The disk booted with four CPUs, TLS, e1000 and DHCP and passed
+the ISO regression.
+
 ## 2026-11-21 — Separate seed tests and refresh their input fixtures
 
 The seed suite keeps its 156 unittest names. Its shared fixtures and case

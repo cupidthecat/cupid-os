@@ -1,5 +1,5 @@
-/* kernel/fs/iso9660.cc - ISO9660 / ECMA-119 + Rock Ridge parser. */
-
+/** @file iso9660.cc
+ * @brief Read ISO9660 directories and Rock Ridge names. */
 #include "iso9660.h"
 #include "serial.h"
 #include "string.h"

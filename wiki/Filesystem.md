@@ -50,7 +50,8 @@ The VFS implementation is in `kernel/fs/vfs.cc/h`. The shell, Notepad, and progr
 
 ### Features
 
-- **Mount table** - up to 16 simultaneous mount points
+- **Mount table** - up to 32 simultaneous mount points. Unmounting frees a
+  slot for reuse. An active target cannot be mounted twice.
 - **File descriptor table** - up to 64 open files
 - **Path resolution** - longest-prefix match finds the correct filesystem
 - **Current working directory** - shell tracks CWD for relative paths

@@ -1,5 +1,5 @@
-/* kernel/fs/loopdev.cc: file-backed block_device_t using the VFS. */
-
+/** @file loopdev.cc
+ * @brief Read a VFS file as a block device. */
 #include "loopdev.h"
 #include "memory.h"
 #include "serial.h"
