@@ -20,8 +20,8 @@ from check_guest_runtime import (
 
 
 ASSET_SOURCES = {
-    "bin/ls.o": "bin/ls.cc",
-    "image.bmp.o": "image.bmp",
+    "bin/ls.o": ("bin/ls.cc", "wrap-text"),
+    "image.bmp.o": ("image.bmp", "wrap"),
 }
 
 
@@ -29,40 +29,35 @@ def wrap_production_assets(scratch: Path, root: Path, qemu: str,
                            timeout: float) -> dict[str, Path]:
     scratch.mkdir()
     homefs = scratch / "homefs.sys"
-    write_homefs(homefs, (
-        (b"cupidobj.job", b"/disk/text.src\n/home/text.o\nwrap-text\n/bin/ls.cc\n"),
-        (b"logo.job", b"/disk/logo.bmp\n/home/logo.o\nwrap\n/image.bmp\n"),
-        (b"bad.job", b"/disk/text.src\n/home/text.o\nwrap-text\n/../bin/ls.cc\n"),
-    ))
-    image = scratch / "assets.img"
-    create_disk(image, f"{homefs}:/homefs.sys", f"{root / ASSET_SOURCES['bin/ls.o']}:/text.src",
-                f"{root / ASSET_SOURCES['image.bmp.o']}:/logo.bmp",
-                f"{BUILD / 'cupidobj-guest.elf'}:/o", production_root=root)
-    completed = r"\[terminal\] command complete"
-    run("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "4", "--cpu", "max",
-        "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.5",
-        "--require-command-completion", "--image", str(image),
-        "--log", str(BUILD / "kernel-assets-runtime.log"),
-        "--setup-command", "exec /disk/o",
-        "--setup-success-pattern", r"\[cupidobj-guest\] wrote /home/text[.]o" + COMPILER_REAPED,
-        "--setup-command", "cp /home/logo.job /home/cupidobj.job",
-        "--setup-success-pattern", completed,
-        "--setup-command", "exec /disk/o",
-        "--setup-success-pattern", r"\[cupidobj-guest\] wrote /home/logo[.]o" + COMPILER_REAPED,
-        "--setup-command", "cp /home/bad.job /home/cupidobj.job",
-        "--setup-success-pattern", completed,
-        "--command", "exec /disk/o",
-        "--success-pattern", r"\[cupidobj-guest\] invalid request file" + COMPILER_REAPED)
-
-    references = {"text.o": "bin/ls.o", "logo.o": "image.bmp.o"}
-    matched = compare_homefs_files(read_homefs(image),
-                                   {name: root / path for name, path in references.items()})
-    image.unlink()
+    smoke = ("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "4", "--cpu", "max",
+             "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.5",
+             "--require-command-completion", "--command", "exec /disk/o")
+    worker = f"{BUILD / 'cupidobj-guest.elf'}:/o"
     objects = {}
-    for name, path in references.items():
-        output = scratch / name
-        output.write_bytes(matched[name])
+    for path, (source, mode) in ASSET_SOURCES.items():
+        request = f"/disk/in\n/home/asset.o\n{mode}\n/{source}\n".encode("ascii")
+        write_homefs(homefs, ((b"cupidobj.job", request),))
+        image = scratch / "asset.img"
+        create_disk(image, f"{homefs}:/homefs.sys", f"{root / source}:/in", worker,
+                    production_root=root)
+        log = BUILD / f"kernel-asset-{Path(source).name}.log"
+        run(*smoke, "--image", str(image), "--log", str(log),
+            "--success-pattern", r"\[cupidobj-guest\] wrote /home/asset[.]o" + COMPILER_REAPED)
+        matched = compare_homefs_files(read_homefs(image), {"asset.o": root / path})
+        image.unlink()
+        output = scratch / Path(path).name
+        output.write_bytes(matched["asset.o"])
         objects[path] = output
+
+    target = "bin/ls.o"
+    rejected = b"/disk/in\n/home/asset.o\nwrap-text\n/../bin/ls.cc\n"
+    write_homefs(homefs, ((b"cupidobj.job", rejected), (b"asset.o", objects[target].read_bytes())))
+    image = scratch / "rejected.img"
+    create_disk(image, f"{homefs}:/homefs.sys", worker, production_root=root)
+    run(*smoke, "--image", str(image), "--log", str(BUILD / "kernel-asset-rejected.log"),
+        "--success-pattern", r"\[cupidobj-guest\] invalid request file" + COMPILER_REAPED)
+    compare_homefs_files(read_homefs(image), {"asset.o": root / target})
+    image.unlink()
     return objects
 
 

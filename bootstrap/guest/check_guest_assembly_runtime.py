@@ -31,8 +31,8 @@ def assemble_production_objects(scratch: Path, root: Path, qemu: str,
     homefs = scratch / "homefs.sys"
     write_homefs(homefs, (
         (b"cupidasm.job", b"/disk/isr.asm\n/home/isr.o\n"),
-        (b"switch.job", b"/disk/switch.asm\n/home/switch.o\n"),
-        (b"bad.job", b"/disk/bad.asm\n/home/isr.o\n"),
+        (b"s", b"/disk/switch.asm\n/home/switch.o\n"),
+        (b"b", b"/disk/bad.asm\n/home/isr.o\n"),
     ))
     invalid = scratch / "bad.asm"
     invalid.write_bytes(b"[BITS 32]\nsection .text\ndb 0x0f\n")
@@ -46,13 +46,15 @@ def assemble_production_objects(scratch: Path, root: Path, qemu: str,
         "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.5",
         "--require-command-completion", "--image", str(disk),
         "--log", str(BUILD / "kernel-assembly-runtime.log"),
+        "--setup-command", "cd /home",
+        "--setup-success-pattern", completed,
         "--setup-command", "exec /disk/a",
         "--setup-success-pattern", r"\[cupidasm-guest\] wrote /home/isr[.]o" + COMPILER_REAPED,
-        "--setup-command", "cp /home/switch.job /home/cupidasm.job",
+        "--setup-command", "cp s cupidasm.job",
         "--setup-success-pattern", completed,
         "--setup-command", "exec /disk/a",
         "--setup-success-pattern", r"\[cupidasm-guest\] wrote /home/switch[.]o" + COMPILER_REAPED,
-        "--setup-command", "cp /home/bad.job /home/cupidasm.job",
+        "--setup-command", "cp b cupidasm.job",
         "--setup-success-pattern", completed,
         "--command", "exec /disk/a",
         "--success-pattern", r"\[cupidasm-guest\] object code check failed.*?"

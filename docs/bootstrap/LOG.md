@@ -1,5 +1,17 @@
 # Bootstrapping log
 
+## 2026-11-21 — Link a kernel with guest-wrapped assets
+
+The kernel replay used the guest-built `bin/ls.o` and `image.bmp.o` in both
+links. The two ELFs, symbol source and object, raw kernel and bootloader
+matched the checked build. CupidObj published the same 10,697,216-byte disk
+prefix and the resulting disk booted with four CPUs, TLS, e1000 and DHCP.
+The shell ran `ls` from the embedded source.
+
+Earlier runs found a preceding request still in place after a shell copy.
+The asset fixtures now boot with their requests already present. Shorter
+request names let the ELF assembly replay complete with both checked objects.
+
 ## 2026-11-21 — Produce the AP startup object in Cupid OS
 
 CupidObj accepts `wrap-readonly` with an explicit symbol stem. It emits

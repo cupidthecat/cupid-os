@@ -447,6 +447,9 @@ python3 bootstrap/guest/check_guest_asset_runtime.py --production-root /path/to/
 
 The saved `bin/ls.o` and `image.bmp.o` matched the checked objects. A request
 with a parent path component left the existing `ls` object intact.
+Use `check_guest_kernel_link.py --rebuild-assets` to feed both guest objects
+into the kernel links. With `--rebuild-disk`, the replay boots the disk saved
+by the guest and runs the embedded `ls`.
 
 ## Generate kernel installation sources inside Cupid OS
 
