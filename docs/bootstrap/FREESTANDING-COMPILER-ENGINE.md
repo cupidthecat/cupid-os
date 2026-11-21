@@ -663,9 +663,12 @@ The host extends that prefix with zeroes to 200 MiB. A fresh four-CPU
 boot passed the SMP, TLS, e1000 and DHCP checks and ran `ls`.
 
 Use `--temporary-objects` to keep the pass-one objects in RAMFS. The
-checker compares the saved installation sources, trampoline and final
-products in this mode. The intermediate objects disappear at shutdown.
-Preparing the source media and build plan still uses Linux or WSL.
+checker compared the saved installation sources, trampoline, and final
+products with the checked build in this mode. The 10,697,216-byte prefix
+had SHA-256 `dc6df4f3767363581ba7674bc2c95d7b8921aeed9f5b8ccb37a23a2fbf43b742`.
+It booted with four CPUs and ran `ls`. The intermediate objects disappear
+at shutdown. Preparing the source media and build plan still uses Linux
+or WSL.
 
 ## Retained proof
 

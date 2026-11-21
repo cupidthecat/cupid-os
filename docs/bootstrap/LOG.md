@@ -1,5 +1,12 @@
 # Bootstrapping log
 
+## 2026-11-21 — Boot the kernel rebuilt through RAMFS
+
+The kernel plan finished all 439 steps with pass-one objects in RAMFS.
+The eleven saved files matched the checked build, including both ELFs,
+the raw kernel, and the 10,697,216-byte disk prefix. The new disk booted
+with four CPUs and passed the TLS, e1000, DHCP and `ls` checks.
+
 ## 2026-11-21 — Build the user examples in one guest command
 
 The user replay now sends the six compile and link jobs to CupidBuild as
