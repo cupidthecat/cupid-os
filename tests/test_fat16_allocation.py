@@ -1,3 +1,5 @@
+## @file
+#  @brief Exercise the kernel FAT16 allocator with controlled sector callbacks.
 """Run the active static FAT allocator against controlled sector callbacks."""
 import hashlib
 import os
@@ -71,6 +73,8 @@ class Fat16AllocationTests(unittest.TestCase):
                 self.assertEqual(result.stderr, b'')
                 if mode == 'a':
                     self.assertIn(b'table_fnv=3810730861', result.stdout)
+                if mode == 'p':
+                    self.assertIn(b'table_fnv=3608449077', result.stdout)
 
     def test_complete_container_allocation_has_bounded_sector_reads(self): self.check('a')
     def test_lowest_free_holes_are_selected_in_order(self): self.check('b')
@@ -87,6 +91,9 @@ class Fat16AllocationTests(unittest.TestCase):
     def test_freed_earlier_cluster_is_reused(self): self.check('m')
     def test_last_nonreserved_cluster_can_be_allocated(self): self.check('n')
     def test_reserved_cluster_numbers_never_satisfy_exhaustion(self): self.check('o')
+    def test_large_chain_keeps_scan_progress(self): self.check('p')
+    def test_full_suffix_wraps_once_without_skipping_an_earlier_hole(self): self.check('q')
+    def test_failed_mark_stops_before_the_cursor_wraps(self): self.check('r')
 
 if __name__ == '__main__':
     unittest.main()

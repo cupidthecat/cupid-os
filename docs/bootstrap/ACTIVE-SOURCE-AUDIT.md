@@ -45,7 +45,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_core` | 17 | 4352 |
 | `kernel_cpu` | 19 | 3230 |
 | `kernel_crypto` | 40 | 5431 |
-| `kernel_fs` | 27 | 7772 |
+| `kernel_fs` | 27 | 7774 |
 | `kernel_gfx` | 29 | 14208 |
 | `kernel_gui` | 28 | 12525 |
 | `kernel_lang` | 20 | 11055 |
@@ -100,7 +100,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1533 |
 | `asm.relocation` | 1 | 95 |
-| `c.control` | 12 | 98025 |
+| `c.control` | 12 | 98028 |
 | `c.declaration` | 1 | 33 |
 | `c.declarator` | 4 | 4191 |
 | `c.expression` | 2 | 7281 |
@@ -109,7 +109,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.preprocessor` | 18 | 8680 |
 | `c.qualifier` | 2 | 19369 |
 | `c.storage` | 4 | 11831 |
-| `c.type` | 15 | 64968 |
+| `c.type` | 15 | 64967 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
@@ -256,7 +256,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `toolchain/tests/disk_image_contract.cc` | `cupid_c` | `not_reached` | 116 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/disk_stage_contract.cc` | `cupid_c` | `not_reached` | 208 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/elf32_oracle.c` | `c` | `host_oracle` | 8 | optional host compiler input for ELF32 reader comparison |
-| `toolchain/tests/fat16_allocation_contract.cc` | `cupid_c` | `not_reached` | 197 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/fat16_allocation_contract.cc` | `cupid_c` | `not_reached` | 233 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/fat16_names_contract.cc` | `cupid_c` | `not_reached` | 87 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/fat16_stage_contract.cc` | `cupid_c` | `not_reached` | 156 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/hosted_fgets_contract.cc` | `cupid_c` | `not_reached` | 126 | not reachable from the supported Make target or include closure |

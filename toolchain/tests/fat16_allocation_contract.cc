@@ -1,5 +1,8 @@
-/* The private include contains exact allocator/accessor bodies captured from
- * the active fat16.cc. Sector callbacks replace storage, not allocator logic. */
+/**
+ * @file fat16_allocation_contract.cc
+ * @brief Check the production allocator with controlled sector callbacks.
+ */
+/* The include contains the allocator and accessors from fat16.cc. */
 /* The Windows native oracle has a compiler-provided size_t. The kernel's
  * unrelated typedef is unused here and keeps a private name in this caller. */
 #define size_t cupid_fat_size_t
@@ -77,10 +80,21 @@ static void prepare(uint32_t used, uint32_t clusters) {
     reads = writes = failed_read = failed_write = outside_reads = 0u;
 }
 
-static int allocated(uint16_t expected) {
-    uint16_t result = fat16_alloc_cluster();
+static uint16_t allocate_first(void) {
+    uint32_t cursor = 2u;
+    return fat16_alloc_cluster(&cursor);
+}
+
+static int allocated_from(uint16_t expected, uint32_t *cursor) {
+    uint16_t result = fat16_alloc_cluster(cursor);
     return result == expected && tables[0][expected] == FAT16_EOC_MAX &&
-           tables[1][expected] == FAT16_EOC_MAX && outside_reads == 0u;
+           tables[1][expected] == FAT16_EOC_MAX && outside_reads == 0u &&
+           *cursor == (uint32_t)expected + 1u;
+}
+
+static int allocated(uint16_t expected) {
+    uint32_t cursor = 2u;
+    return allocated_from(expected, &cursor);
 }
 
 static int rejected_geometry(uint32_t mode) {
@@ -109,13 +123,13 @@ static int rejected_geometry(uint32_t mode) {
         fs.sectors_per_cluster = 3u;
     if (mode == 11u)
         fs.root_dir_entries = 0u;
-    return fat16_alloc_cluster() == 0u && reads == 0u && writes == 0u;
+    return allocate_first() == 0u && reads == 0u && writes == 0u;
 }
 
 int main(int argc, char **argv) {
     uint32_t mode, i, copy, hash = 2166136261u;
     int ok = 0;
-    if (argc != 2 || argv[1][0] < 'a' || argv[1][0] > 'o' || argv[1][1] != 0)
+    if (argc != 2 || argv[1][0] < 'a' || argv[1][0] > 'r' || argv[1][1] != 0)
         return 1;
     mode = (uint32_t)(argv[1][0] - 'a');
     prepare(7049u, 15000u);
@@ -137,26 +151,26 @@ int main(int argc, char **argv) {
         ok = allocated(255u) && allocated(256u);
     } else if (mode == 4u) {
         prepare(153u, 152u);
-        ok = allocated(153u) && fat16_alloc_cluster() == 0u;
+        ok = allocated(153u) && allocate_first() == 0u;
     } else if (mode == 5u) {
         prepare(15002u, 15000u);
-        ok = fat16_alloc_cluster() == 0u && writes == 0u && outside_reads == 0u;
+        ok = allocate_first() == 0u && writes == 0u && outside_reads == 0u;
     } else if (mode == 6u) {
         failed_read = 10u;
-        ok = fat16_alloc_cluster() == 0u && writes == 0u;
+        ok = allocate_first() == 0u && writes == 0u;
     } else if (mode == 7u) {
         prepare(2u, 15000u);
         failed_read = 2u;
-        ok = fat16_alloc_cluster() == 0u && writes == 0u && tables[0][2] == FAT16_FREE;
+        ok = allocate_first() == 0u && writes == 0u && tables[0][2] == FAT16_FREE;
     } else if (mode == 8u) {
         prepare(2u, 15000u);
         failed_write = 1u;
         ok =
-            fat16_alloc_cluster() == 0u && tables[0][2] == FAT16_FREE && tables[1][2] == FAT16_FREE;
+            allocate_first() == 0u && tables[0][2] == FAT16_FREE && tables[1][2] == FAT16_FREE;
     } else if (mode == 9u) {
         prepare(2u, 15000u);
         failed_write = 2u;
-        ok = fat16_alloc_cluster() == 0u && tables[0][2] == FAT16_EOC_MAX &&
+        ok = allocate_first() == 0u && tables[0][2] == FAT16_EOC_MAX &&
              tables[1][2] == FAT16_FREE;
     } else if (mode == 10u) {
         ok = 1;
@@ -181,10 +195,32 @@ int main(int argc, char **argv) {
                 ok = 0;
     } else if (mode == 14u) {
         prepare(0xfff0u, 65524u);
-        ok = fat16_alloc_cluster() == 0u && writes == 0u && outside_reads == 0u;
+        ok = allocate_first() == 0u && writes == 0u && outside_reads == 0u;
         for (i = 0xfff0u; i < 65536u; i++)
             if (tables[0][i] != FAT16_FREE || tables[1][i] != FAT16_FREE)
                 ok = 0;
+    } else if (mode == 15u) {
+        uint32_t cursor = 2u;
+        ok = 1;
+        for (i = 0u; i < 2651u; i++)
+            if (!allocated_from((uint16_t)(7049u + i), &cursor))
+                ok = 0;
+        ok = ok && reads <= 8100u && writes == 5302u;
+    } else if (mode == 16u) {
+        uint32_t cursor = 14999u;
+        prepare(15002u, 15000u);
+        tables[0][42] = tables[1][42] = FAT16_FREE;
+        ok = allocated_from(42u, &cursor) && fat16_alloc_cluster(&cursor) == 0u &&
+             cursor == 43u && outside_reads == 0u && writes == 2u;
+        cursor = 15002u;
+        ok = ok && fat16_alloc_cluster(&cursor) == 0u && cursor == 15002u && writes == 2u;
+    } else if (mode == 17u) {
+        uint32_t cursor = 7049u;
+        tables[0][42] = tables[1][42] = FAT16_FREE;
+        failed_write = 1u;
+        ok = fat16_alloc_cluster(&cursor) == 0u && cursor == 7049u && reads == 2u &&
+             writes == 1u && tables[0][42] == FAT16_FREE && tables[1][42] == FAT16_FREE &&
+             tables[0][7049] == FAT16_FREE && tables[1][7049] == FAT16_FREE;
     }
     for (copy = 0u; copy < 2u; copy++) {
         const unsigned char *bytes = (const unsigned char *)tables[copy];

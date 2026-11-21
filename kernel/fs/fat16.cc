@@ -1,13 +1,6 @@
 /**
- * FAT16 Filesystem Implementation
- *
- * Implements FAT16 filesystem with MBR partition support.
- * Provides file operations: open, read, close, list directory, write.
- *
- * Limitations:
- * - Root directory only (no subdirectories)
- * - 8.3 filenames only
- * - First partition only
+ * @file fat16.cc
+ * @brief Mount and update the first MBR FAT16 partition using 8.3 names.
  */
 
 #include "fat16.h"
@@ -818,14 +811,13 @@ static int fat16_write_fat_entry(uint16_t cluster, uint16_t value) {
 }
 
 /**
- * fat16_alloc_cluster - Allocate a free cluster from the FAT
+ * @brief Reserve a cluster and advance this file's scan cursor.
  *
- * Scans each FAT sector once for its first free entry, marks it as
- * end-of-chain, and returns the lowest free data cluster.
- *
- * @return Cluster number (>= 2) on success, 0 on failure (disk full)
+ * Start at cluster 2 for a new chain. Wrap once to check for earlier free
+ * entries if the rest of the FAT is full. Advance only after both FATs
+ * accept the end-of-chain marker.
  */
-static uint16_t fat16_alloc_cluster(void) {
+static uint16_t fat16_alloc_cluster(uint32_t *cursor) {
     if (fs.bytes_per_sector != 512u || fs.sectors_per_cluster == 0u ||
         (fs.sectors_per_cluster & (fs.sectors_per_cluster - 1u)) != 0u || fs.num_fats == 0u ||
         fs.num_fats > 2u || fs.sectors_per_fat == 0u || fs.root_dir_entries == 0u ||
@@ -845,21 +837,30 @@ static uint16_t fat16_alloc_cluster(void) {
     uint32_t limit = total_clusters + 2u;
     if (limit > FAT16_RESERVED_MIN)
         limit = FAT16_RESERVED_MIN;
-    uint32_t cluster = 2u;
+    uint32_t start = *cursor < limit ? *cursor : 2u;
+    uint32_t cluster = start;
+    uint32_t end = limit;
     uint8_t buffer[512];
 
-    while (cluster < limit) {
+    for (;;) {
+        if (cluster >= end) {
+            if (end == start || start == 2u)
+                break;
+            cluster = 2u;
+            end = start;
+        }
         uint32_t offset = cluster * 2u;
         uint32_t sector = offset / 512u;
         uint32_t position = offset % 512u;
         if (blockcache_read(fs.fat_start + sector, buffer) != 0)
             return 0;
-        while (position < 512u && cluster < limit) {
+        while (position < 512u && cluster < end) {
             uint16_t entry =
                 (uint16_t)((uint16_t)buffer[position] | ((uint16_t)buffer[position + 1u] << 8u));
             if (entry == FAT16_FREE) {
                 if (fat16_write_fat_entry((uint16_t)cluster, FAT16_EOC_MAX) != 0)
                     return 0;
+                *cursor = cluster + 1u;
                 return (uint16_t)cluster;
             }
             cluster++;
@@ -994,9 +995,10 @@ int fat16_write_file(const char *filename, const void *data, uint32_t size) {
 
     uint16_t first_cluster = 0;
     uint16_t prev_cluster = 0;
+    uint32_t allocation_cursor = 2u;
 
     for (uint32_t i = 0; i < clusters_needed; i++) {
-        uint16_t c = fat16_alloc_cluster();
+        uint16_t c = fat16_alloc_cluster(&allocation_cursor);
         if (c == 0) {
             fat16_release_unpublished_chain(first_cluster);
             serial_printf("[fat16_write_file] alloc failed at cluster %u/%u\n", i, clusters_needed);
@@ -1649,8 +1651,8 @@ scan_done:
     if (free_sector < 0)
         return -1; /* Root directory full */
 
-    /* Allocate a cluster for the directory contents */
-    uint16_t cluster = fat16_alloc_cluster();
+    uint32_t allocation_cursor = 2u;
+    uint16_t cluster = fat16_alloc_cluster(&allocation_cursor);
     if (cluster == 0)
         return -1;
     if (blockcache_sync() != 0) {

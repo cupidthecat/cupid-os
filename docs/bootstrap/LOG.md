@@ -1,5 +1,21 @@
 # Bootstrapping log
 
+## 2026-11-20 — Resume the FAT16 scan within each file
+
+The allocator remembers where to resume a file's FAT search. A full suffix
+wraps to check earlier free entries. A sector error stops the scan before
+it advances. The 2,651-cluster fixture dropped from 93,330 to 7,980 sector
+reads with the same writes and the same FAT bytes. All 18 cases passed on
+Windows, WSL and the checked i386 executable.
+
+Checked CupidC produced the same 62,036-byte FAT16 object on Windows and
+WSL. The full and warm rebuilds matched all 429 link objects and both ELFs.
+An overlapping build tripped the publication guard. Retrying the flatten
+step produced identical raw kernels. An isolated image build passed all
+16 artifact gates. The four-CPU boot passed all 23 Doom
+libc markers, including the HomeFS batch test. The guest disk worker also
+saved and booted a matching 10,697,216-byte disk prefix.
+
 ## 2026-11-20 — Assemble the production kernel objects in Cupid OS
 
 The shell assembler added kernel bindings to the ISR object. The standalone

@@ -51797,7 +51797,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 2247
+      "occurrences": 2248
     },
     {
       "category": "control",
@@ -52875,7 +52875,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 5095
+      "occurrences": 5096
     },
     {
       "category": "control",
@@ -53371,7 +53371,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 45987
+      "occurrences": 45989
     },
     {
       "category": "control",
@@ -54186,7 +54186,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3161
+      "occurrences": 3160
     },
     {
       "category": "declaration",
@@ -61785,7 +61785,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 16403
+      "occurrences": 16402
     },
     {
       "category": "declaration",
@@ -62714,7 +62714,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "40fc126b836915955fe24e204817691faec2cd0f467cd327e1d00941c581c464",
+    "active_source_digest": "2864e61da4590ecf6a7de3028e2e4c40423fa657cbe5a40d8865c21e17807397",
     "control_files": [
       {
         "path": "Makefile",
@@ -79994,12 +79994,12 @@
         "kernel/fs/fat16_control.h"
       ],
       "language": "cupid_c",
-      "lines": 1992,
+      "lines": 1994,
       "origin": "tracked",
       "path": "kernel/fs/fat16.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ebfec4af7440eca87eb2353bbcf9ff3ee00fdd0f23fa0c508f2e69700f91a2b6"
+      "sha256": "e11bf6be7d6a44ae741ba8062e0fb8dd28e549dda0b240e3028f2f9a58cb9565"
     },
     {
       "build_owners": [
@@ -93983,11 +93983,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 197,
+      "lines": 233,
       "path": "toolchain/tests/fat16_allocation_contract.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "b6d5d18e01595bd0db7c0b07f02a94158fa3c095fcbd4b3e0e19e5c81fb438a5"
+      "sha256": "37db4a569f770db7c1748ce6568504f44c20f5d8212f72d280926a824aeb5985"
     },
     {
       "classification": "not_reached",

@@ -2214,8 +2214,9 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                                           "e0bbd53fc378e086a849da3495870378",
                                       ),
                 "kernel/fs/fat16.cc": (
-                                          61712,
-                                          '1459d35b42b974c53dbc6eb987a9c82eb5b5afacad12e10f7e9361af401ffa97',
+                                          62036,
+                                          "f32ed497fb2cbe2ee859b8862cbc0198"
+                                          "82493a578ca09a16163d40e6cbf3492c",
                                       ),
                 "kernel/fs/iso9660.cc": (
                                             12284,
@@ -2327,7 +2328,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             )
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                '0a91f8fa0af2ab21566edffb16d4a88521df232ea65205a7337201f483efd095',
+                "bcb9942f11c431bca4c743e28678c2d60"
+                "3d295d4f2c0ddb147757133da2dc08e",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],
