@@ -80,6 +80,14 @@ All 102 cases passed on WSL. Windows passed with three platform skips.
 The first pair shared a checkout and hit the root-change guard. Both
 retries ran in separate checkouts and kept that guard enabled.
 
+## CupidBuild command-line tests
+
+The 6,502-line suite now keeps assembly, image publication, Doom profile
+publication, checked execution and seed contracts in their own modules.
+The main suite still builds the CLI once and collects the same 148 tests.
+Each file stays under 1,600 lines. The suite and both fixture consumers
+ran 166 cases on Windows and WSL, with 12 and eight platform skips.
+
 ## Native contract runner tests
 
 The 3,944-line suite now separates publication and user ABI cases from
