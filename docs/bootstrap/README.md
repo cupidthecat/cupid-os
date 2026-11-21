@@ -26,7 +26,8 @@ Cupid OS remains unfinished.
   A single kernel job takes the ordered objects and runs both
   links, symbol generation, and disk-prefix publication inside Cupid OS.
   An editable HomeFS project can keep `cupidbuild.job` and its job files
-  together and run them from the project directory.
+  together, run them from the project directory and keep its outputs in
+  a local build directory.
   Linux or WSL still generates the replay plans and publishes the media.
   The normal image-command handoff and native developer build coordination
   remain open.

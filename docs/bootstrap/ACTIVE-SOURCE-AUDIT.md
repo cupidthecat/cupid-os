@@ -195,7 +195,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bin/terminal_app.c` | `c` | `historical_copy` | 318 | historical_copy_of: `kernel/gui/terminal_app.cc` |
 | `bootstrap/guest/cupidasm_guest.cc` | `cupid_c` | `not_reached` | 93 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidbuild_guest.cc` | `cupid_c` | `not_reached` | 158 | not reachable from the supported Make target or include closure |
-| `bootstrap/guest/cupidbuild_kernel.cc` | `cupid_c` | `not_reached` | 132 | not reachable from the supported Make target or include closure |
+| `bootstrap/guest/cupidbuild_kernel.cc` | `cupid_c` | `not_reached` | 165 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_bundle.cc` | `cupid_c` | `not_reached` | 108 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_bundle.h` | `c_header` | `not_reached` | 16 | not reachable from the supported Make target or include closure |
 | `bootstrap/guest/cupidc_engine.cc` | `cupid_c` | `not_reached` | 35 | not reachable from the supported Make target or include closure |

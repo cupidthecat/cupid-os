@@ -53,7 +53,7 @@ def write_kernel_plan(homefs: Path, root: Path, steps: tuple[tuple[str, bytes, b
 def execute_kernel_plan(scratch: Path, root: Path, image: Path, qemu: str, timeout: float,
                         extra_references: dict[str, Path],
                         mounts: tuple[tuple[str, str], ...] = (), *,
-                        project_directory: str | None = None) -> None:
+                        project_directory: str | None = None, output_directory: str = "/home") -> None:
     smoke = ("tools/gui_terminal_smoke.py", "--qemu", qemu, "--cpu", "max",
              "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.75",
              "--require-command-completion")
@@ -66,6 +66,9 @@ def execute_kernel_plan(scratch: Path, root: Path, image: Path, qemu: str, timeo
                       "--setup-success-pattern", marker))
     if project_directory:
         setup.extend(("--setup-command", f"cd {project_directory}",
+                      "--setup-success-pattern", r"\[terminal\] command complete"))
+    if output_directory != "/home":
+        setup.extend(("--setup-command", f"mkdir {output_directory}",
                       "--setup-success-pattern", r"\[terminal\] command complete"))
     log = "kernel-installed-tree" if project_directory else "kernel-source-plan" if mounts else "kernel-plan"
     runtime_log = BUILD / f"{log}-runtime.log"
@@ -85,7 +88,7 @@ def execute_kernel_plan(scratch: Path, root: Path, image: Path, qemu: str, timeo
 
     expected_prefix = scratch / "expected-prefix.img"
     write_reference_prefix(expected_prefix, root / "boot/boot.bin", root / "kernel/kernel.bin")
-    matched = compare_homefs_files(read_homefs(image), {
+    products = {
         "boot.bin": root / "boot/boot.bin",
         "pass1.elf": root / "kernel/kernel.elf.pass1",
         "ksyms_data.cc": root / "kernel/cpu/ksyms_data.cc",
@@ -93,9 +96,13 @@ def execute_kernel_plan(scratch: Path, root: Path, image: Path, qemu: str, timeo
         "kernel.elf": root / "kernel/kernel.elf",
         "kernel.bin": root / "kernel/kernel.bin",
         "disk-prefix.img": expected_prefix,
-        **extra_references,
+    }
+    prefix = output_directory.removeprefix("/home").lstrip("/")
+    prefix = f"{prefix}/" if prefix else ""
+    matched = compare_homefs_files(read_homefs(image), {
+        **{prefix + name: path for name, path in products.items()}, **extra_references,
     })
-    boot_prefix(scratch / "sealed.img", matched["disk-prefix.img"], (*smoke, "--smp", "4"),
+    boot_prefix(scratch / "sealed.img", matched[prefix + "disk-prefix.img"], (*smoke, "--smp", "4"),
                 BUILD / f"{log}-boot.log")
 
 

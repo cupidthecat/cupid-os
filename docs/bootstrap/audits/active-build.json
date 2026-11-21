@@ -94388,11 +94388,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 132,
+      "lines": 165,
       "path": "bootstrap/guest/cupidbuild_kernel.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "5d69eb00878b90a2fa35b1f591e84b8a288187415d941fe6e612d895f4b0280a"
+      "sha256": "0804c8dda35bf6b1272c83a1a84316494b12e8769b961d3315a243e89571ccbb"
     },
     {
       "classification": "not_reached",

@@ -46,6 +46,7 @@ _Avoid_: every build target, only the default target
 The CupidBuild operation that accepts the ordered pass-one
 object paths, then assembles the bootloader, links both kernels, generates
 the symbol object, flattens the final ELF, and writes the disk prefix.
+An optional output directory keeps those products with the checkout.
 
 **Guest object list**:
 An ordered group of source and output pairs that shares a compiler profile

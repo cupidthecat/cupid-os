@@ -5,9 +5,9 @@
 
 import argparse
 from pathlib import Path
+import re
 import tempfile
 
-from check_guest_build import LINK
 from check_guest_install_runtime import INSTALL_HEADERS, installation_jobs
 from check_guest_runtime import (
     BUILD,
@@ -21,6 +21,7 @@ from check_guest_runtime import (
 )
 from check_guest_source_plan import (
     INSTALL_INCLUDE_OPTIONS,
+    INSTALLED_BUILD,
     INSTALLED_ROOT,
     MEDIA_BUILD,
     ASSET_ROOT,
@@ -39,7 +40,9 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float, installed_tree: 
     publisher = ROOT / "bootstrap/seeds/i386-linux/cupidbuild.elf"
     iso = scratch / "user.iso"
     demos = "kernel/util/demos_programs_gen.cc"
-    installed_source, request = installation_request(demos, installation_jobs(root)[demos])
+    product_dir = INSTALLED_BUILD if installed_tree else "/home"
+    executable = f"{product_dir}/hello.elf"
+    installed_source, request = installation_request(demos, installation_jobs(root)[demos], product_dir)
     sources = {Path(path) for path in (*INSTALL_HEADERS, "kernel/cpu/isr.asm",
                                        "user/cupid.h", "user/examples/hello.cc")}
     source_root = INSTALLED_ROOT if installed_tree else "/src"
@@ -51,18 +54,18 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float, installed_tree: 
         ("wrap-jpeg", "file_example_JPG_1MB.jpg", "file_example_JPG_1MB.jpg.o"),
     )
     steps = (
-        ("assemble", b"isr.job", job_contents(f"{source_root}/kernel/cpu/isr.asm", "/home/isr.o")),
+        ("assemble", b"isr.job", job_contents(f"{source_root}/kernel/cpu/isr.asm", f"{product_dir}/isr.o")),
         ("install", b"install.job", request),
         ("compile", b"compile-install.job", job_contents(
-            f"/home/{installed_source}", "/home/demos.o",
+            f"{product_dir}/{installed_source}", f"{product_dir}/demos.o",
             *(option.replace("/src", source_root, 1) for option in INSTALL_INCLUDE_OPTIONS))),
         ("compile-list", b"hello.cj", job_contents(
             *source_option, "include /user", "sources",
-            "/user/examples/hello.cc", "/tmp/hello.o", "/user/examples/hello.cc", "/home/hello.o",
+            "/user/examples/hello.cc", "/tmp/hello.o", "/user/examples/hello.cc", f"{product_dir}/hello.o",
         )),
-        ("link", b"hello.lj", LINK.replace(b"/home/hello.o", b"/tmp/hello.o")),
+        ("link", b"hello.lj", job_contents(executable, "0x01c00000", "_start", "/tmp/hello.o")),
         *(("asset-list", f"asset{index}.job".encode("ascii"),
-           job_contents(mode, asset_root, f"/{source}", f"/home/asset{index}.o"))
+           job_contents(mode, asset_root, f"/{source}", f"{product_dir}/asset{index}.o"))
           for index, (mode, source, _) in enumerate(assets)),
     )
     disk = scratch / "build.img"
@@ -70,6 +73,8 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float, installed_tree: 
     if installed_tree:
         stage_installed_tree(scratch, root, disk, steps, sources | asset_paths)
         setup = ("--setup-command", f"cd {source_root}",
+                 "--setup-success-pattern", r"\[terminal\] command complete",
+                 "--setup-command", f"mkdir {product_dir}",
                  "--setup-success-pattern", r"\[terminal\] command complete")
     else:
         if publish_source_iso(publisher, root, BUILD / "cupidc-engine.elf", iso, iso_members(sources)):
@@ -91,17 +96,20 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float, installed_tree: 
         *setup,
         "--setup-command", "exec /disk/b",
         "--setup-success-pattern", r"\[cupidbuild-guest\] build complete" + COMPILER_REAPED,
-        "--command", "exec /home/hello.elf",
-        "--success-pattern", rf"\[elf\] Loaded /home/hello\.elf as PID (?P<pid>[1-9][0-9]*).*?"
+        "--command", f"exec {executable}",
+        "--success-pattern", rf"\[elf\] Loaded {re.escape(executable)} as PID (?P<pid>[1-9][0-9]*).*?"
                              rf"\[elf-syscall\] pid=(?P=pid) op={USER_OUTPUT['hello']}[\r\n]+.*?"
                              r"\[PROCESS\] PID (?P=pid) .* exiting")
-    compare_homefs_files(read_homefs(disk), {
+    products = {
         "isr.o": root / "kernel/cpu/isr.o",
         installed_source: root / demos,
         "demos.o": root / Path(demos).with_suffix(".o"),
         "hello.o": root / "user/build/hello.o",
         "hello.elf": root / "user/build/hello",
         **{f"asset{index}.o": root / obj for index, (_, _, obj) in enumerate(assets)},
+    }
+    compare_homefs_files(read_homefs(disk), {
+        f"{product_dir}/{leaf}".removeprefix("/home/"): path for leaf, path in products.items()
     })
 
 

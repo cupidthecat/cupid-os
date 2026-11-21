@@ -117,6 +117,9 @@ link.ld from /src, generates the symbol object between links, and saves
 the disk prefix as /home/disk-prefix.img.
 The editable plan can also run this job. Add root /home/project on its
 first line to read boot/boot.asm, link.ld and headers from that tree.
+Add output /home/project/build after root and before the object list to
+put all seven kernel products there. Create the directory first. Without
+an output line, the job writes to /home.
 
 >h2 Assemble a relocatable object
 

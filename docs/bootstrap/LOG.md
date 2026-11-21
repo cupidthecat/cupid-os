@@ -1,5 +1,20 @@
 # Bootstrapping log
 
+## 2026-11-21 — Keep guest build products in the project
+
+Installed-tree builds save their persistent products under
+`/home/project/build`. The kernel job reads its output directory before
+assembly starts and rejects a pass-one object at the generated symbol
+path. The Linux worker checks also reject malformed, read-only and
+overlong paths while preserving the existing files.
+
+The `hello` replay ran the nested executable and matched all eight
+saved artifacts. A 430-object kernel replay matched all seven products
+in the same directory. Its disk booted with four CPUs and passed TLS,
+e1000, DHCP and `ls`. Windows and WSL emitted identical 14,456-byte
+kernel-job objects. All 168 focused tests and the build graph audit
+passed on both hosts.
+
 ## 2026-11-21 — Run CupidBuild from the project directory
 
 An editable project keeps its plan and requests under one directory.

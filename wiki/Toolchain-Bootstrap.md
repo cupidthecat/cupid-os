@@ -119,7 +119,8 @@ from `/src`. Source lists share compiler options. Asset lists share a
 wrapping mode. The production replay uses three read-only mounts.
 The installed-tree mode enters `/home/project` and reads `cupidbuild.job`
 there. Its job paths can be relative to the project. The compile lists
-keep the project's logical source paths.
+keep the project's logical source paths. Persistent build products go to
+`/home/project/build`.
 Its `kernel` job takes the pass-one object list and runs both links,
 symbol generation, and disk-prefix publication. HomeFS starts fresh for
 outputs. Linux or WSL still prepares the ISOs.

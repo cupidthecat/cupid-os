@@ -5,23 +5,54 @@
 
 #include "guest_build.h"
 
-#define BOOT_BIN "/home/boot.bin"
-#define PASS_ONE "/home/pass1.elf"
-#define SYMBOL_SOURCE "/home/ksyms_data.cc"
-#define SYMBOL_OBJECT "/home/ksyms_data.o"
-#define KERNEL_ELF "/home/kernel.elf"
-#define KERNEL_BIN "/home/kernel.bin"
-#define DISK_PREFIX "/home/disk-prefix.img"
 #define BOOT_SOURCE "/boot/boot.asm"
 #define PASS_ONE_LIMIT (CUPID_GUEST_LINK_INPUT_LIMIT - 1u)
 
+enum kernel_product {
+    BOOT_BIN, PASS_ONE, SYMBOL_SOURCE, SYMBOL_OBJECT, KERNEL_ELF, KERNEL_BIN, DISK_PREFIX,
+    PRODUCT_COUNT
+};
+
 typedef struct {
-    char list[CUPID_GUEST_PATH_BYTES(PASS_ONE_LIMIT + 1u) + sizeof("root ")];
+    char list[CUPID_GUEST_PATH_BYTES(PASS_ONE_LIMIT + 2u) + sizeof("root output ")];
     const char *root;
     ctool_string_t objects[PASS_ONE_LIMIT];
     ctool_u32 count;
+    char products[PRODUCT_COUNT][VFS_MAX_PATH];
     char link[CUPID_GUEST_PATH_BYTES(CUPID_GUEST_LINK_INPUT_LIMIT + 3u)];
 } kernel_inputs_t;
+
+static char *append_text(char *out, const char *text) {
+    size_t size = strlen(text);
+    memcpy(out, text, size + 1u);
+    return out + size;
+}
+
+static int read_output_paths(cupid_syscall_table_t *sys, char **cursor, char *end,
+                             kernel_inputs_t *inputs) {
+    static const char *const leaves[PRODUCT_COUNT] = {
+        "/boot.bin", "/pass1.elf", "/ksyms_data.cc", "/ksyms_data.o",
+        "/kernel.elf", "/kernel.bin", "/disk-prefix.img"
+    };
+    const char *directory = "/home";
+    if (end - *cursor >= 7 && strncmp(*cursor, "output ", 7u) == 0) {
+        const char *line = cupid_guest_next_job_line(cursor, end);
+        if (!line)
+            return 0;
+        directory = line + 7;
+    }
+    ctool_path_t path = {ctool_string(directory)};
+    if (!ctool_path_is_canonical(&path))
+        return 0;
+    for (ctool_u32 i = 0; i < PRODUCT_COUNT; i++) {
+        if (path.text.size + strlen(leaves[i]) >= VFS_MAX_PATH)
+            return 0;
+        append_text(append_text(inputs->products[i], directory), leaves[i]);
+        if (!cupid_guest_output_prefix(sys, ctool_string(inputs->products[i])))
+            return 0;
+    }
+    return 1;
+}
 
 static int read_objects(cupid_syscall_table_t *sys, const cupid_guest_request_t *job, kernel_inputs_t *inputs) {
     int size = cupid_guest_read_request(sys, job, inputs->list, sizeof(inputs->list));
@@ -30,7 +61,8 @@ static int read_objects(cupid_syscall_table_t *sys, const cupid_guest_request_t 
     char *cursor = inputs->list;
     char *end = cursor + size;
     if (!cupid_guest_read_root(sys, &cursor, end, "/src", &inputs->root) ||
-        strlen(inputs->root) + sizeof(BOOT_SOURCE) > VFS_MAX_PATH)
+        strlen(inputs->root) + sizeof(BOOT_SOURCE) > VFS_MAX_PATH ||
+        !read_output_paths(sys, &cursor, end, inputs))
         return 0;
     inputs->count = 0;
     while (cursor < end && inputs->count < PASS_ONE_LIMIT) {
@@ -40,7 +72,7 @@ static int read_objects(cupid_syscall_table_t *sys, const cupid_guest_request_t 
         ctool_path_t path = {ctool_string(line)};
         if (path.text.size <= 2u || path.text.size >= VFS_MAX_PATH ||
             !ctool_path_is_canonical(&path) || strcmp(line + path.text.size - 2u, ".o") != 0 ||
-            strcmp(line, SYMBOL_OBJECT) == 0)
+            strcmp(line, inputs->products[SYMBOL_OBJECT]) == 0)
             return 0;
         for (ctool_u32 i = 0; i < inputs->count; i++) {
             if (strcmp(line, inputs->objects[i].data) == 0)
@@ -51,14 +83,8 @@ static int read_objects(cupid_syscall_table_t *sys, const cupid_guest_request_t 
     return cursor == end && inputs->count != 0u;
 }
 
-static char *append_text(char *out, const char *text) {
-    size_t size = strlen(text);
-    memcpy(out, text, size + 1u);
-    return out + size;
-}
-
 static ctool_string_t link_request(kernel_inputs_t *inputs, int final_link) {
-    char *end = append_text(inputs->link, final_link ? KERNEL_ELF : PASS_ONE);
+    char *end = append_text(inputs->link, inputs->products[final_link ? KERNEL_ELF : PASS_ONE]);
     end = append_text(end, "\nscript\n");
     end = append_text(end, inputs->root);
     end = append_text(end, "/link.ld\n");
@@ -68,39 +94,46 @@ static ctool_string_t link_request(kernel_inputs_t *inputs, int final_link) {
         end += path->size;
         *end++ = '\n';
     }
-    if (final_link)
-        end = append_text(end, SYMBOL_OBJECT "\n");
+    if (final_link) {
+        end = append_text(end, inputs->products[SYMBOL_OBJECT]);
+        *end++ = '\n';
+    }
     return (ctool_string_t){inputs->link, (size_t)(end - inputs->link)};
 }
 
 static ctool_status_t build_kernel(cupid_syscall_table_t *sys, const char *path, kernel_inputs_t *inputs) {
-    char boot[VFS_MAX_PATH + sizeof("\n" BOOT_BIN "\nbootloader\n")];
-    char symbols[2u * VFS_MAX_PATH + sizeof(SYMBOL_SOURCE "\n" SYMBOL_OBJECT "\ninclude \ninclude \n")];
-    char *end = append_text(boot, inputs->root);
-    append_text(end, BOOT_SOURCE "\n" BOOT_BIN "\nbootloader\n");
-    end = append_text(symbols, SYMBOL_SOURCE "\n" SYMBOL_OBJECT "\ninclude ");
-    end = append_text(end, inputs->root);
-    end = append_text(end, "/kernel/cpu\ninclude ");
-    end = append_text(end, inputs->root);
-    append_text(end, "/kernel/core\n");
+    char boot[VFS_MAX_PATH];
+    char cpu_include[VFS_MAX_PATH + sizeof("include ")];
+    char core_include[VFS_MAX_PATH + sizeof("include ")];
+    append_text(append_text(boot, inputs->root), BOOT_SOURCE);
+    append_text(append_text(append_text(cpu_include, "include "), inputs->root), "/kernel/cpu");
+    append_text(append_text(append_text(core_include, "include "), inputs->root), "/kernel/core");
+    char (*products)[VFS_MAX_PATH] = inputs->products;
     const struct {
         const char *name;
         cupid_guest_operation_t run;
-        const char *text;
+        const char *lines[4];
     } steps[] = {
-        {"bootloader", cupid_guest_raw_job, boot},
-        {"pass-one link", cupid_guest_link_job, NULL},
-        {"symbol source", cupid_guest_symbols_job, PASS_ONE "\n" SYMBOL_SOURCE "\n"},
-        {"symbol object", cupid_guest_compile_job, symbols},
-        {"final link", cupid_guest_link_job, NULL},
-        {"raw kernel", cupid_guest_object_job, KERNEL_ELF "\n" KERNEL_BIN "\n"},
-        {"disk prefix", cupid_guest_disk_job, BOOT_BIN "\n" KERNEL_BIN "\n" DISK_PREFIX "\n"},
+        {"bootloader", cupid_guest_raw_job, {boot, products[BOOT_BIN], "bootloader"}},
+        {"pass-one link", cupid_guest_link_job, {NULL}},
+        {"symbol source", cupid_guest_symbols_job, {products[PASS_ONE], products[SYMBOL_SOURCE]}},
+        {"symbol object", cupid_guest_compile_job,
+         {products[SYMBOL_SOURCE], products[SYMBOL_OBJECT], cpu_include, core_include}},
+        {"final link", cupid_guest_link_job, {NULL}},
+        {"raw kernel", cupid_guest_object_job, {products[KERNEL_ELF], products[KERNEL_BIN]}},
+        {"disk prefix", cupid_guest_disk_job, {products[BOOT_BIN], products[KERNEL_BIN], products[DISK_PREFIX]}},
     };
+    char text[CUPID_GUEST_PATH_BYTES(4u) + 2u * sizeof("include ")];
     int final_link = 0;
     for (ctool_u32 i = 0; i < sizeof(steps) / sizeof(steps[0]); i++) {
         cupid_guest_request_t job = {.path = path};
-        if (steps[i].text) {
-            job.text = ctool_string(steps[i].text);
+        if (steps[i].lines[0]) {
+            char *end = text;
+            for (ctool_u32 line = 0; line < 4u && steps[i].lines[line]; line++) {
+                end = append_text(end, steps[i].lines[line]);
+                *end++ = '\n';
+            }
+            job.text = (ctool_string_t){text, (size_t)(end - text)};
         } else {
             job.text = link_request(inputs, final_link);
             final_link = 1;

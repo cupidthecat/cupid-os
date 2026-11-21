@@ -93,7 +93,8 @@ class GuestSourcePlanTests(unittest.TestCase):
     def test_installed_tree_keeps_logical_source_names_and_link_order(self):
         steps, inputs, references = guest_plan.source_plan(self.root, True, installed_tree=True)
         _, media_inputs, media_references = guest_plan.source_plan(self.root, True)
-        self.assertEqual((inputs, references), (media_inputs, media_references))
+        self.assertEqual(inputs, media_inputs)
+        self.assertEqual(references, {f"project/build/{name}": path for name, path in media_references.items()})
         requests = {name: data for _, name, data in steps}
         self.assertEqual(requests[b"source1.job"], guest_plan.job_contents(
             "root /home/project", "define doom", "sources", "/kernel/doom/play.cc", "/tmp/i000.o",
@@ -102,10 +103,14 @@ class GuestSourcePlanTests(unittest.TestCase):
             "wrap", "/home/project", "/bin/readme.txt", "/tmp/i001.o",
         ))
         self.assertIn(b"include /home/project/kernel/fs\n", requests[b"install0.job"])
+        self.assertTrue(requests[b"install0.job"].startswith(b"/home/project/build/"))
         self.assertTrue(requests[b"a0.job"].startswith(b"/home/project/kernel/core/isr.asm\n"))
         self.assertEqual(requests[b"kernel.job"], guest_plan.job_contents(
-            "root /home/project", *(f"/tmp/i{index:03}.o" for index in range(len(self.objects) - 1)),
+            "root /home/project", "output /home/project/build",
+            *(f"/tmp/i{index:03}.o" for index in range(len(self.objects) - 1)),
         ))
+        _, _, persistent = guest_plan.source_plan(self.root, False, installed_tree=True)
+        self.assertEqual(persistent["project/build/i000.o"], self.root / self.objects[0])
 
     def test_installed_tree_stages_editable_plan_and_source_in_homefs(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -315,11 +320,16 @@ class GuestMountRetryTests(unittest.TestCase):
         self.runners["boot_prefix"].assert_not_called()
 
     def test_installed_tree_enters_project_before_running_worker(self):
+        self.runners["compare_homefs_files"].return_value = {"project/build/disk-prefix.img": b"nested prefix"}
         kernel_plan.execute_kernel_plan(
             self.scratch, self.scratch, self.scratch / "build.img", "qemu", 10, {},
-            project_directory="/home/project",
+            project_directory="/home/project", output_directory="/home/project/build",
         )
         arguments = self.runners["run"].call_args.args
-        self.assertEqual(arguments[arguments.index("--setup-command") + 1], "cd /home/project")
+        setup = [arguments[index + 1] for index, token in enumerate(arguments) if token == "--setup-command"]
+        self.assertEqual(setup, ["cd /home/project", "mkdir /home/project/build"])
         self.assertEqual(arguments[arguments.index("--command") + 1], "exec /disk/b")
-        self.runners["boot_prefix"].assert_called_once()
+        comparison = self.runners["compare_homefs_files"].call_args.args[1]
+        self.assertEqual(len(comparison), 7)
+        self.assertTrue(all(name.startswith("project/build/") for name in comparison))
+        self.assertEqual(self.runners["boot_prefix"].call_args.args[1], b"nested prefix")

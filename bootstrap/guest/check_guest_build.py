@@ -296,6 +296,25 @@ def check(scratch: Path) -> None:
     project_jobs = project / "jobs"
     project_jobs.mkdir()
     local_plan = project / "cupidbuild.job"
+    build_directory = project / "build"
+    build_directory.mkdir()
+    project_boot = build_directory / "boot.bin"
+    project_boot.write_bytes(b"preceding project bootloader")
+    local_plan.write_bytes(b"kernel\njobs/kernel.job\n")
+    project_kernel = project_jobs / "kernel.job"
+    for invalid in (b"output /home/project/../build\n/disk/input.o\n",
+                    b"output /src\n/disk/input.o\n",
+                    b"output /home/" + b"a" * 500 + b"\n/disk/input.o\n",
+                    b"output /home/project/build\n/home/project/build/ksyms_data.o\n"):
+        project_kernel.write_bytes(invalid)
+        log = invoke(b"[cupidbuild-guest] invalid kernel object list")
+        assert b"[cupidraw-guest]" not in log
+        assert project_boot.read_bytes() == b"preceding project bootloader"
+        assert boot.read_bytes() == b"preceding bootloader"
+    project_kernel.write_bytes(b"root /home/project\noutput /home/project/build\n/disk/input.o\n")
+    invoke(b"[cupidbuild-guest] kernel build stopped at bootloader")
+    assert project_boot.read_bytes() == b"preceding project bootloader"
+    assert boot.read_bytes() == b"preceding bootloader"
     local_object = home / "local.o"
     (project_jobs / "assemble.job").write_bytes(b"/input.asm\n/home/local.o\n")
     local_request = b"assemble\njobs/assemble.job\n"
