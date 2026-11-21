@@ -1,5 +1,13 @@
 # Bootstrapping log
 
+## 2026-11-21 — Rebuild and run the current CupidC worker in Cupid OS
+
+The compiler rebuilt all thirteen objects and saved one 2,983,936-byte
+ISO. The guest mounted it and linked a 2,720,680-byte worker. The complete
+ISO, every object and the new worker matched the checked host build.
+A second boot ran the rebuilt worker and matched all 41,804 bytes of
+`ctool.o`. The Linux worker contract matched the same object ISO.
+
 ## 2026-11-21 — Wrap and check the kernel JPEG in Cupid OS
 
 The guest uses CupidObj's typed JPEG operation and the independent

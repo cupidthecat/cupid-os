@@ -99,7 +99,7 @@ The standalone CupidASM worker reproduced the interrupt and context-switch
 objects. It checks the object with CupidDis before saving it. The kernel
 replay accepts `--rebuild-assembly` to use both guest-built objects.
 
-Cupid OS rebuilt all eleven standalone compiler objects and linked a new
+Cupid OS rebuilt all thirteen standalone compiler objects and linked a new
 CupidC executable from them. The guest ELF matched the checked host build
 byte for byte. It ran in Cupid OS and reproduced `ctool.o` again.
 

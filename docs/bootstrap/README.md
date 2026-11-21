@@ -9,9 +9,9 @@ Cupid OS remains unfinished.
 
 - The normal graph has 452 transforms: 449 use CupidBuild and three retain
   Python coordination. GNU Make still schedules the build.
-- CupidC and CupidLD have rebuilt and run their own standalone executables
-  inside Cupid OS. The rebuilt compiler reproduced the CupidASM, CupidDis
-  and CupidObj core objects. It also reproduced selected kernel and Doom
+- CupidC rebuilt and ran its thirteen-object compiler worker inside Cupid OS.
+  CupidLD also rebuilt and ran its own worker. The rebuilt compiler reproduced
+  the CupidASM, CupidDis and CupidObj core objects and selected kernel and Doom
   objects with their production profiles. The assembler worker reproduced
   both production kernel assembly objects. The guest wrapped all 183 kernel
   assets, including JPEG, and generated and compiled all three installation

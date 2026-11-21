@@ -3,8 +3,8 @@
 A loadable freestanding CupidC engine rebuilt all nine of its own objects,
 then relinked to the same complete image. This ran in a native Linux harness
 at the existing guest compiler arena address. Cupid OS also rebuilt and
-relinked the eleven-object standalone compiler. The rebuilt executable ran
-inside Cupid OS and reproduced `ctool.o`.
+relinked the current thirteen-object standalone compiler. The rebuilt
+executable ran inside Cupid OS and reproduced `ctool.o`.
 
 ## Build and verify
 
@@ -255,9 +255,9 @@ checked host link.
 
 The source ISO includes both worker sources, their shared adapter,
 `user/cupid.h` and `/src/bootstrap/guest/TOOLS.CTXT`. Its checked readback
-matches 47 files and seven directories. The first relink used one guest
-object and ten checked host objects. The full reconstruction below uses
-eleven guest-built inputs.
+matches 55 files and seven directories. The first relink used one guest
+object and ten checked host objects. The current replay uses all thirteen
+compiler objects from the guest.
 
 ## Rebuild the standalone compiler in Cupid OS
 
@@ -285,6 +285,15 @@ cupidc_guest_run
 /home/cupidc_guest.o
 /home/cupidc_bundle.o
 /home/cupidobj.o
+```
+
+The automated replay compiles those thirteen inputs in one job. It mounts
+the saved object ISO inside Cupid OS and links the worker directly from it.
+The ISO and every object matched. The saved 2,720,680-byte ELF matched the
+checked worker and reproduced all 41,804 bytes of `ctool.o` in a fresh boot.
+
+```sh
+python3 bootstrap/guest/check_guest_compiler_self_host.py --production-root /path/to/checked/build
 ```
 
 At `c8447942`, all eleven objects produced inside Cupid OS matched the
