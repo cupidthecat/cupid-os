@@ -52,4 +52,21 @@ typedef struct {
 ctool_status_t ctool_disk_image_compose(const ctool_disk_image_request_t *request,
                                         ctool_disk_image_result_t *result_out);
 
+
+/* Publish consecutive sector-aligned ranges of up to 64 KiB. NULL bytes
+ * represent a zero-filled range. A target may leave those bytes untouched
+ * only when the corresponding extent is already known to contain zeros.
+ * Scratch is caller-owned, disjoint and 512..65536 bytes in sector units.
+ * The original sector target is ignored. Validation, reuse, and provisional
+ * candidate rules match the sector form above. */
+typedef struct {
+    void *context;
+    ctool_u32 sector_count;
+    ctool_status_t (*write_range)(void *context, ctool_u64 offset,
+                                  const ctool_u8 *bytes, ctool_u32 size);
+} ctool_disk_range_target_t;
+ctool_status_t ctool_disk_image_compose_ranges(
+    const ctool_disk_image_request_t *request, ctool_disk_range_target_t target,
+    ctool_u8 *buffer, ctool_u32 capacity, ctool_disk_image_result_t *result_out);
+
 #endif

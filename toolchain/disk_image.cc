@@ -195,30 +195,23 @@ static ctool_status_t disk_reuse(const ctool_disk_image_request_t *r, ctool_bool
     return CTOOL_OK;
 }
 
-ctool_status_t ctool_disk_image_compose(const ctool_disk_image_request_t *r,
-                                        ctool_disk_image_result_t *out) {
+static ctool_status_t disk_prepare(const ctool_disk_image_request_t *r,
+                                    ctool_u32 *template_sectors,
+                                    ctool_disk_image_result_t *result) {
     disk_layout_t layout;
-    ctool_disk_image_result_t result;
-    ctool_u8 expected[512], actual[512];
-    ctool_u32 sector, template_sectors;
     ctool_status_t status;
-    result.ready = result.reused = result.attempted_write = CTOOL_FALSE;
-    if (out == (ctool_disk_image_result_t *)0)
-        return CTOOL_ERR_INVALID_ARGUMENT;
-    *out = result;
-    if (r == (const ctool_disk_image_request_t *)0 ||
-        r->candidate.sector_count != r->image_sectors ||
-        r->candidate.write_sector == (ctool_status_t (*)(void *, ctool_u32, const ctool_u8 *))0 ||
-        r->fat_start_lba <= 5u || r->fat_start_lba >= r->image_sectors ||
+    ctool_u8 expected[512], actual[512];
+    ctool_u32 sector;
+    if (r->fat_start_lba <= 5u || r->fat_start_lba >= r->image_sectors ||
         r->bootloader.size < 2560u || r->kernel.size > (ctool_u64)r->fat_start_lba * 512u - 2560u)
         return CTOOL_ERR_INVALID_ARGUMENT;
     status = disk_choose_layout(r->image_sectors - r->fat_start_lba, &layout);
     if (status != CTOOL_OK)
         return status;
-    template_sectors = r->fat_start_lba + layout.data_start;
-    if (r->checked_template.size != (ctool_u64)template_sectors * 512u)
+    *template_sectors = r->fat_start_lba + layout.data_start;
+    if (r->checked_template.size != (ctool_u64)*template_sectors * 512u)
         return CTOOL_ERR_INPUT;
-    for (sector = 0u; sector < template_sectors; sector++) {
+    for (sector = 0u; sector < *template_sectors; sector++) {
         status = disk_render(r, &layout, sector, expected);
         if (status != CTOOL_OK)
             return status;
@@ -228,7 +221,22 @@ ctool_status_t ctool_disk_image_compose(const ctool_disk_image_request_t *r,
         if (!disk_equal(expected, actual))
             return CTOOL_ERR_INPUT;
     }
-    status = disk_reuse(r, &result.reused);
+    return disk_reuse(r, &result->reused);
+}
+
+ctool_status_t ctool_disk_image_compose(const ctool_disk_image_request_t *r,
+                                        ctool_disk_image_result_t *out) {
+    ctool_disk_image_result_t result;
+    ctool_u8 actual[512];
+    ctool_u32 sector, template_sectors;
+    ctool_status_t status;
+    result.ready = result.reused = result.attempted_write = CTOOL_FALSE;
+    if (!out)
+        return CTOOL_ERR_INVALID_ARGUMENT;
+    *out = result;
+    if (!r || r->candidate.sector_count != r->image_sectors || !r->candidate.write_sector)
+        return CTOOL_ERR_INVALID_ARGUMENT;
+    status = disk_prepare(r, &template_sectors, &result);
     if (status != CTOOL_OK)
         return status;
     for (sector = 0u; sector < r->image_sectors; sector++) {
@@ -253,5 +261,66 @@ ctool_status_t ctool_disk_image_compose(const ctool_disk_image_request_t *r,
     }
     result.ready = CTOOL_TRUE;
     *out = result;
+    return CTOOL_OK;
+}
+
+ctool_status_t ctool_disk_image_compose_ranges(
+    const ctool_disk_image_request_t *request, ctool_disk_range_target_t target,
+    ctool_u8 *buffer, ctool_u32 capacity, ctool_disk_image_result_t *result_out) {
+    ctool_disk_image_result_t result;
+    ctool_status_t status;
+    ctool_u64 extent;
+    ctool_u64 fat;
+    ctool_u64 template_size;
+    ctool_u64 position = 0u;
+    ctool_u32 template_sectors;
+
+    result.ready = result.reused = result.attempted_write = CTOOL_FALSE;
+    if (!result_out)
+        return CTOOL_ERR_INVALID_ARGUMENT;
+    *result_out = result;
+    if (!request || target.sector_count != request->image_sectors ||
+        !target.write_range || !buffer || capacity < 512u || capacity > 65536u ||
+        capacity % 512u != 0u)
+        return CTOOL_ERR_INVALID_ARGUMENT;
+    status = disk_prepare(request, &template_sectors, &result);
+    if (status != CTOOL_OK)
+        return status;
+
+    extent = (ctool_u64)request->image_sectors * 512u;
+    fat = (ctool_u64)request->fat_start_lba * 512u;
+    template_size = (ctool_u64)template_sectors * 512u;
+    while (position < extent) {
+        ctool_u64 end = extent;
+        ctool_disk_source_t source;
+        ctool_bool zero = CTOOL_FALSE;
+        ctool_u32 count;
+        if (result.reused && position >= fat) {
+            source = request->previous;
+        } else if (position < template_size) {
+            source = request->checked_template;
+            end = result.reused ? fat : template_size;
+        } else {
+            zero = CTOOL_TRUE;
+        }
+        count = end - position < capacity ? (ctool_u32)(end - position) : capacity;
+        if (!zero) {
+            status = disk_read(source, position, buffer, count);
+            if (status != CTOOL_OK) {
+                *result_out = result;
+                return status;
+            }
+        }
+        result.attempted_write = CTOOL_TRUE;
+        status = target.write_range(target.context, position, zero ? (const ctool_u8 *)0 : buffer,
+                                    count);
+        if (status != CTOOL_OK) {
+            *result_out = result;
+            return status;
+        }
+        position += count;
+    }
+    result.ready = CTOOL_TRUE;
+    *result_out = result;
     return CTOOL_OK;
 }

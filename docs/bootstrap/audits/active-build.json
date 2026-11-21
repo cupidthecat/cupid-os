@@ -54884,7 +54884,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5803
+      "occurrences": 5805
     },
     {
       "category": "control",
@@ -55705,7 +55705,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 45458
+      "occurrences": 45467
     },
     {
       "category": "control",
@@ -56117,7 +56117,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28026
+      "occurrences": 28034
     },
     {
       "category": "control",
@@ -56512,6 +56512,7 @@
         "toolchain/cupidld_main.cc",
         "toolchain/cupidobj.cc",
         "toolchain/cupidobj_main.cc",
+        "toolchain/disk_image.cc",
         "toolchain/elf32.cc",
         "toolchain/fat16_names.cc",
         "toolchain/fat16_stage.cc",
@@ -56539,7 +56540,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3171
+      "occurrences": 3172
     },
     {
       "category": "declaration",
@@ -56707,7 +56708,7 @@
         "user/cupid.h"
       ],
       "id": "c.declarator.function_pointer",
-      "occurrences": 1032
+      "occurrences": 1033
     },
     {
       "category": "declarator",
@@ -60578,7 +60579,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 18708
+      "occurrences": 18711
     },
     {
       "category": "qualifier",
@@ -61159,7 +61160,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10579
+      "occurrences": 10580
     },
     {
       "category": "type",
@@ -63036,7 +63037,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 1164
+      "occurrences": 1165
     },
     {
       "category": "type",
@@ -63356,7 +63357,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 1229
+      "occurrences": 1230
     },
     {
       "category": "type",
@@ -64256,7 +64257,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 15779
+      "occurrences": 15780
     },
     {
       "category": "declaration",
@@ -65193,7 +65194,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "fac0a05a53959e2e67c4fffce39e53b962431d9252f7220034c83f91b12cc995",
+    "active_source_digest": "61911a4858ba5577e58948a953619e4478a5b32c6e87a0b1ea3069040274ad0e",
     "control_files": [
       {
         "path": "Makefile",
@@ -92612,6 +92613,7 @@
         "c.control.for",
         "c.control.if",
         "c.control.return",
+        "c.control.while",
         "c.preprocessor.include",
         "c.qualifier.const",
         "c.storage.static",
@@ -92624,12 +92626,12 @@
         "toolchain/disk_image.h"
       ],
       "language": "cupid_c",
-      "lines": 257,
+      "lines": 326,
       "origin": "tracked",
       "path": "toolchain/disk_image.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "2177badc63eec86f27585b11e860d505b5e24c3ac7bda1f514987a4689a49b47"
+      "sha256": "86daa6bcafc394fc715bc4cbcad90406129c34f83eefff1810a4d7f2492ab751"
     },
     {
       "build_owners": [
@@ -92657,12 +92659,12 @@
         "toolchain/fat16_stage.h"
       ],
       "language": "c_header",
-      "lines": 55,
+      "lines": 72,
       "origin": "tracked",
       "path": "toolchain/disk_image.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "a8f7b653c552a8555a4a3c589e455903ca088a7f7954e19af50b77d5dfa78f9c"
+      "sha256": "8be83acf158f917390963f9a0a35252e826e7624085ccc2e6bcc43d8d8bb3541"
     },
     {
       "build_owners": [
@@ -97096,11 +97098,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 116,
+      "lines": 142,
       "path": "toolchain/tests/disk_image_contract.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "fddee49df667df45002acdef07eb719de8f0137aa20df0c9706a4df29a097f52"
+      "sha256": "bc96dc0c22194af19e1b4624f49d973ef468d06fb7d7abb164764676edfd1e41"
     },
     {
       "classification": "not_reached",

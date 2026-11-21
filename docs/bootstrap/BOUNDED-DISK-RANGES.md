@@ -1,5 +1,11 @@
 # Bounded disk composition transfers
 
+The active composer now exposes a range entry point. It shares template
+validation and reuse rules with the sector entry point. Its caller supplies
+512 to 65,536 bytes of scratch space and receives ordered sector-aligned
+ranges. An empty data pointer marks a zero-filled range. The normal Make
+image recipe still uses Python.
+
 The full retained Windows publisher exceeds its 600-second limit with
 sector-by-sector composition. Tagged measurements separate source capture,
 composition, publication and cleanup. Composition takes 117.271 seconds on

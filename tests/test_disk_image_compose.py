@@ -73,10 +73,14 @@ class DiskImageComposeTests(unittest.TestCase):
             stream.seek(-513, 2)
             stream.write(b'tail survives both copies')
 
-    def call(self, program, candidate, *, previous=False, force=False, mode='none', fail=0):
-        result = subprocess.run([str(program), str(candidate), str(self.boot), str(self.kernel),
+    def call(self, program, candidate, *, previous=False, force=False, mode='none', fail=0,
+             block_size=None):
+        command = [str(program), str(candidate), str(self.boot), str(self.kernel),
             str(self.template), str(self.previous) if previous else '-', str(self.sectors),
-            str(self.start), str(int(force)), mode, str(fail)], capture_output=True, timeout=180)
+            str(self.start), str(int(force)), mode, str(fail)]
+        if block_size is not None:
+            command.append(str(block_size))
+        result = subprocess.run(command, capture_output=True, timeout=180)
         self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace'))
         self.assertEqual(result.stderr, b'')
         return {key.decode(): int(value) for key, value in re.findall(rb'(\w+)=(\d+)', result.stdout)}
@@ -88,7 +92,7 @@ class DiskImageComposeTests(unittest.TestCase):
             stream.write(b'unchanged private candidate'.ljust(512, b'!'))
         return output
 
-    def parity(self, *, previous=False, reuse=False, force=False):
+    def parity(self, *, previous=False, reuse=False, force=False, block_size=None):
         expected = self.case / 'expected.img'
         if reuse:
             shutil.copyfile(self.previous, expected)
@@ -98,10 +102,13 @@ class DiskImageComposeTests(unittest.TestCase):
         before = identity(self.previous) if previous else None
         for index, program in enumerate(self.programs):
             output = self.candidate(index)
-            report = self.call(program, output, previous=previous, force=force)
+            report = self.call(program, output, previous=previous, force=force, block_size=block_size)
             self.assertEqual((report['status'], report['ready'], report['reused'], report['dirty']),
                              (OK, 1, int(reuse), 1), report)
-            self.assertEqual(report['writes'], self.sectors)
+            if block_size is None or block_size == 512:
+                self.assertEqual(report['writes'], self.sectors)
+            else:
+                self.assertLess(report['writes'], self.sectors)
             self.assertEqual(identity(output), identity(expected))
             if previous: self.assertEqual(identity(self.previous), before)
         if self.retained:
@@ -111,11 +118,12 @@ class DiskImageComposeTests(unittest.TestCase):
             for path in [expected, *(self.case / ('actual-' + str(i) + '.img') for i in range(len(self.programs)))]:
                 shutil.copyfile(path, directory / path.name)
 
-    def reject(self, status, *, previous=False, mode='none', fail=0, dirty=False):
+    def reject(self, status, *, previous=False, mode='none', fail=0, dirty=False, block_size=None):
         for index, program in enumerate(self.programs):
             output = self.candidate(index)
             before = identity(output)
-            report = self.call(program, output, previous=previous, mode=mode, fail=fail)
+            report = self.call(program, output, previous=previous, mode=mode, fail=fail,
+                               block_size=block_size)
             self.assertEqual((report['status'], report['ready'], report['dirty']), (status, 0, int(dirty)), report)
             if not dirty:
                 self.assertEqual(report['writes'], 0)
@@ -140,6 +148,25 @@ class DiskImageComposeTests(unittest.TestCase):
     def test_force_format_discards_previous_files(self):
         self.persisted()
         self.parity(previous=True, force=True)
+
+    def test_ranges_match_sector_images_at_three_block_sizes(self):
+        self.persisted()
+        for block_size in (512, 4096, 65536):
+            with self.subTest(block_size=block_size):
+                self.parity(block_size=block_size)
+                self.parity(previous=True, reuse=True, block_size=block_size)
+                self.parity(previous=True, force=True, block_size=block_size)
+
+    def test_ranges_reject_invalid_buffers_and_report_partial_writes(self):
+        for block_size in (0, 511, 768, 66048):
+            with self.subTest(block_size=block_size):
+                self.reject(INVALID, block_size=block_size)
+        for mode in ('no-writer', 'wrong-capacity', 'null-request', 'no-template-reader'):
+            with self.subTest(mode=mode):
+                self.reject(INVALID, mode=mode, block_size=4096)
+        self.reject(IO, mode='template', fail=1, block_size=4096)
+        report = self.reject(IO, mode='write', fail=2, dirty=True, block_size=65536)
+        self.assertEqual(report['writes'], 2)
 
     def test_invalid_previous_image_reformats(self):
         self.persisted()
@@ -243,6 +270,7 @@ class DiskImageComposeTests(unittest.TestCase):
         self.template.write_bytes(checked.read_bytes())
         self.persisted()
         self.parity(previous=True, reuse=True)
+        self.parity(previous=True, reuse=True, block_size=65536)
 
 
 if __name__ == '__main__': unittest.main()

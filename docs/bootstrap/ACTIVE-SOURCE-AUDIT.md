@@ -57,7 +57,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_util` | 2 | 692 |
 | `project_source` | 1 | 5 |
 | `toolchain_contract` | 25 | 137748 |
-| `toolchain_core` | 110 | 117779 |
+| `toolchain_core` | 110 | 117865 |
 | `toolchain_host_adapter` | 2 | 255 |
 | `toolchain_kernel_adapter` | 2 | 579 |
 | `user_program` | 3 | 139 |
@@ -100,16 +100,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1533 |
 | `asm.relocation` | 1 | 95 |
-| `c.control` | 12 | 96850 |
+| `c.control` | 12 | 96870 |
 | `c.declaration` | 1 | 33 |
-| `c.declarator` | 4 | 3874 |
+| `c.declarator` | 4 | 3875 |
 | `c.expression` | 2 | 6703 |
 | `c.extension` | 20 | 426 |
 | `c.initializer` | 1 | 654 |
 | `c.preprocessor` | 18 | 8809 |
-| `c.qualifier` | 2 | 18979 |
-| `c.storage` | 4 | 11420 |
-| `c.type` | 15 | 64320 |
+| `c.qualifier` | 2 | 18982 |
+| `c.storage` | 4 | 11421 |
+| `c.type` | 15 | 64323 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 135 |
 | `cupid_c.directive` | 1 | 1 |
@@ -260,7 +260,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `toolchain/tests/cupidc_wide_pointer_runtime.cc` | `cupid_c` | `not_reached` | 102 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupiddis_kernel_adapter_contract.cc` | `cupid_c` | `host_oracle` | 634 | native public kernel-adapter contract outside production build roots |
 | `toolchain/tests/cupidobj_disk_stream_contract.cc` | `cupid_c` | `not_reached` | 531 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/disk_image_contract.cc` | `cupid_c` | `not_reached` | 116 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/disk_image_contract.cc` | `cupid_c` | `not_reached` | 142 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/disk_stage_contract.cc` | `cupid_c` | `not_reached` | 208 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/elf32_oracle.c` | `c` | `host_oracle` | 8 | optional host compiler input for ELF32 reader comparison |
 | `toolchain/tests/fat16_allocation_contract.cc` | `cupid_c` | `not_reached` | 233 | not reachable from the supported Make target or include closure |

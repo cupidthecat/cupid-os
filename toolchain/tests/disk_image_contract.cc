@@ -9,6 +9,7 @@ typedef struct {
     const char *mode;
     unsigned calls;
     unsigned fail;
+    ctool_u64 position;
 } disk_io_t;
 
 static unsigned parse_uint(const char *text) {
@@ -47,6 +48,20 @@ static ctool_status_t candidate_write(void *context, ctool_u32 sector, const cto
     return fwrite(bytes, 1u, 512u, io->file) == 512u ? CTOOL_OK : CTOOL_ERR_IO;
 }
 
+static ctool_status_t candidate_write_range(void *context, ctool_u64 offset,
+                                             const ctool_u8 *bytes, ctool_u32 size) {
+    static const ctool_u8 zeros[65536];
+    disk_io_t *io = context;
+    io->calls++;
+    if (offset != io->position || size == 0u || size > sizeof(zeros) || size % 512u ||
+        offset > 2147483647u || fseek(io->file, (long)offset, SEEK_SET))
+        return CTOOL_ERR_IO;
+    if (!strcmp(io->mode, "write") && io->calls == io->fail)
+        return CTOOL_ERR_IO;
+    io->position += size;
+    return fwrite(bytes ? bytes : zeros, 1u, size, io->file) == size ? CTOOL_OK : CTOOL_ERR_IO;
+}
+
 int main(int argc, char **argv) {
     ctool_disk_image_request_t request;
     ctool_disk_image_result_t result;
@@ -55,7 +70,7 @@ int main(int argc, char **argv) {
     const char *roles[5] = {"boot", "kernel", "template", "previous", "candidate"};
     unsigned i;
     ctool_status_t status;
-    if (argc != 11)
+    if (argc != 11 && argc != 12)
         return 2;
     memset(&request, 0, sizeof(request));
     memset(&result, 0, sizeof(result));
@@ -102,8 +117,19 @@ int main(int argc, char **argv) {
         request.candidate.write_sector = NULL;
     if (!strcmp(argv[9], "no-template-reader"))
         request.checked_template.read_exact = NULL;
-    status = ctool_disk_image_compose(!strcmp(argv[9], "null-request") ? NULL : &request,
-                                      !strcmp(argv[9], "null-result") ? NULL : &result);
+    if (argc == 12) {
+        static ctool_u8 block[65536];
+        ctool_disk_range_target_t target;
+        target.context = &streams[4];
+        target.sector_count = request.candidate.sector_count;
+        target.write_range = !strcmp(argv[9], "no-writer") ? NULL : candidate_write_range;
+        status = ctool_disk_image_compose_ranges(!strcmp(argv[9], "null-request") ? NULL : &request,
+                   target, block, parse_uint(argv[11]),
+                   !strcmp(argv[9], "null-result") ? NULL : &result);
+    } else {
+        status = ctool_disk_image_compose(!strcmp(argv[9], "null-request") ? NULL : &request,
+                                          !strcmp(argv[9], "null-result") ? NULL : &result);
+    }
     for (i = 0u; i < 5u; i++)
         if (streams[i].file && fclose(streams[i].file))
             return 5;

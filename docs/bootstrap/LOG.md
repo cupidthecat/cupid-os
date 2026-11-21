@@ -1,5 +1,26 @@
 # Bootstrapping log
 
+## 2026-11-21 — Compose disk images in ranges
+
+The disk composer can send consecutive sector-aligned ranges up to 64 KiB.
+Both entry points check the complete CupidObj template and use the same
+rules for reusing an existing FAT volume. A range with no source bytes
+represents zero-filled space. A new private image store can leave that space
+unwritten.
+
+Native and checked callers passed all 18 composition tests on Windows and
+WSL. The tests cover fresh images, reuse, forced formatting, invalid ranges,
+read and write failures, and a complete 200 MiB comparison. The first
+standalone checked test omitted the FAT16 header from its source copy.
+Adding the header fixed the fixture.
+
+A private command using the same range API matched every block of a 32 MiB
+Python image on each host. It used the real external kernel and the explicit
+seed release. Windows finished in 59.3 seconds and WSL in 55.6 seconds. The
+WSL image passed the four-CPU e1000 boot, all 62 TLS checks and `ls`.
+The 123-input Windows producer reached a fixed point with source snapshot
+SHA-256 `94f8c01f53aafc1b0fd4dc45191bd311f4205ff948c5990e9b5b43d32d0ed94a`.
+
 ## 2026-11-21 — Retain output directories outside the checkout
 
 CupidBuild can resolve an absolute image output, follow an existing directory
