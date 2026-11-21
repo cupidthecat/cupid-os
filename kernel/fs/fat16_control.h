@@ -1,3 +1,8 @@
+/**
+ * @file fat16_control.h
+ * @brief Reserve FAT16 files and report why an open failed.
+ */
+
 #ifndef FAT16_CONTROL_H
 #define FAT16_CONTROL_H
 

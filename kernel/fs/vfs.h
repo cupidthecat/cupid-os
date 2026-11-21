@@ -1,3 +1,8 @@
+/**
+ * @file vfs.h
+ * @brief Resolve paths and dispatch operations to mounted filesystems.
+ */
+
 #ifndef VFS_H
 #define VFS_H
 

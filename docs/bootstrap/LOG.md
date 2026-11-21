@@ -1,5 +1,16 @@
 # Bootstrapping log
 
+## 2026-11-21 — Document kernel filesystem headers
+
+All fourteen headers in `kernel/fs` now open with Doxygen file comments.
+The FAT16 and block-device declarations keep their diagnostic line numbers.
+The first edit to `ramfs.h` crossed mixed line endings and cut the opening
+slash from an existing comment. Restoring it fixed the compile failure.
+
+Checked CupidBuild reproduced all 39 dependent objects on Windows and WSL.
+The 65 FAT16 allocation, naming and staging tests passed on both hosts,
+along with the typed-layout contract and build audit.
+
 ## 2026-11-21 — Separate SSH channel handling
 
 `ssh.cc` now keeps connection setup and authentication. `ssh_channel.h`

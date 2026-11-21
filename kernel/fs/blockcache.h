@@ -1,3 +1,8 @@
+/**
+ * @file blockcache.h
+ * @brief Cache reads and writes to block devices.
+ */
+
 #ifndef BLOCKCACHE_H
 #define BLOCKCACHE_H
 

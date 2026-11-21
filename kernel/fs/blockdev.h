@@ -1,10 +1,10 @@
+/** @file blockdev.h
+ * @brief Register block devices and dispatch sector operations. */
 #ifndef BLOCKDEV_H
 #define BLOCKDEV_H
 
 #include "types.h"
-
 #define MAX_BLOCK_DEVICES 4
-
 typedef struct {
     const char* name;
     uint32_t sector_count;

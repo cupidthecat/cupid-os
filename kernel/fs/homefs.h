@@ -1,3 +1,8 @@
+/**
+ * @file homefs.h
+ * @brief Mount and persist the /home directory tree.
+ */
+
 #ifndef HOMEFS_H
 #define HOMEFS_H
 

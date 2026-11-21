@@ -1,13 +1,13 @@
+/**
+ * @file ramfs.h
+ * @brief Provide the in-memory filesystem for boot files and temporary storage.
+ */
+
 #ifndef RAMFS_H
 #define RAMFS_H
 
 #include "types.h"
 #include "vfs.h"
-
-/**
- * @file ramfs.h
- * @brief In-memory filesystem for boot files and temporary storage.
- */
 
 /** Maximum file size for writes and seeks. */
 #define RAMFS_MAX_DATA (1024u * 1024u)

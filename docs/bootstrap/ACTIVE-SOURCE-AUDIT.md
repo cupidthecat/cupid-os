@@ -45,7 +45,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_core` | 17 | 4352 |
 | `kernel_cpu` | 19 | 3230 |
 | `kernel_crypto` | 40 | 5431 |
-| `kernel_fs` | 27 | 7781 |
+| `kernel_fs` | 27 | 7821 |
 | `kernel_gfx` | 29 | 14208 |
 | `kernel_gui` | 28 | 12525 |
 | `kernel_lang` | 20 | 11055 |

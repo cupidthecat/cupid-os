@@ -64231,7 +64231,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "a031fe0fb34c4176190fd910c3de8d6e6152280d2c1fbb8d7ed8a0dbc097afde",
+    "active_source_digest": "43fa7ec2b0f59eced1ab12d965eebffba7529c636192aa717c2f9168d589550e",
     "control_files": [
       {
         "path": "Makefile",
@@ -81531,12 +81531,12 @@
         "kernel/fs/blockdev.h"
       ],
       "language": "c_header",
-      "lines": 38,
+      "lines": 43,
       "origin": "tracked",
       "path": "kernel/fs/blockcache.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "7173e90f074fa892a975bd0064e4e26ef8a67dd352180a45291b58f371736c0a"
+      "sha256": "6e690262d8bcabac6322100cd00de6c489ccfac5d403c0e467911623ada7fb7c"
     },
     {
       "build_owners": [
@@ -81607,7 +81607,7 @@
       "path": "kernel/fs/blockdev.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f574a1a6c568688e32261dd284724ad66ce7c553abdd346ef8c38eae823dbc3d"
+      "sha256": "1f1b81663f820a8ff72ad945107092122c84d300fb2dae9dcd1c59d0ca0d17ed"
     },
     {
       "build_owners": [
@@ -81684,7 +81684,7 @@
       "path": "kernel/fs/devfs.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "2572fab28ce9392f840a3f8d4b27d7b13c7ea50076c9e8ce6e5bf1e8046be514"
+      "sha256": "16b2d2b86b127a3648c887aa1aa72b0ef42f8b8cb40ac3ce4e505e066323e8f2"
     },
     {
       "build_owners": [
@@ -81767,7 +81767,7 @@
       "path": "kernel/fs/fat16.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e1f0f88591af68e74e474896969f7696a3d1b537a6a126e7a1e68d3d57f2b01d"
+      "sha256": "cc7259661997b0a67cc66bf9160c20fc4d8cc6602299ddbd6d53b7fc124dbad6"
     },
     {
       "build_owners": [
@@ -81793,12 +81793,12 @@
         "kernel/fs/fat16.h"
       ],
       "language": "c_header",
-      "lines": 24,
+      "lines": 29,
       "origin": "tracked",
       "path": "kernel/fs/fat16_control.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "8c096440dd5aeb99de0234e94cd5030e9a81053d70cb69ade88022cf105bc2c3"
+      "sha256": "1862d44c0e466ff2d5b3254cbd1c3943b7bbf28e68a5b7f911fd497ab0e75210"
     },
     {
       "build_owners": [
@@ -81870,12 +81870,12 @@
         "kernel/fs/vfs.h"
       ],
       "language": "c_header",
-      "lines": 18,
+      "lines": 16,
       "origin": "tracked",
       "path": "kernel/fs/fat16_vfs.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "0cb29b03a65ade283986f619397c987be50fb360b3151be6de4ca704af8290da"
+      "sha256": "19a03eb384807cfe39bf7bc0dc5af8740eb72ca6adb4ce46d4b155e37f117095"
     },
     {
       "build_owners": [
@@ -81937,12 +81937,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 17,
+      "lines": 22,
       "origin": "tracked",
       "path": "kernel/fs/fs.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c09149fc7ae04857dd8c0c6ebeaae4f3c160ba384a1febee89b1126e1ce69726"
+      "sha256": "09e1d0b890740ba25c02264ecb0cccf843c4a445b777345e18634d4275dbf813"
     },
     {
       "build_owners": [
@@ -82018,12 +82018,12 @@
         "kernel/fs/vfs.h"
       ],
       "language": "c_header",
-      "lines": 24,
+      "lines": 29,
       "origin": "tracked",
       "path": "kernel/fs/homefs.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "531354fc1f6fe879232fa321b3586f3cf54c7f870f1ba66891c222cef60639e5"
+      "sha256": "5c0d0cd868bad8198d9b3ec3f8c53d45f58a57ffd0b6170ebd6495d854931be7"
     },
     {
       "build_owners": [
@@ -82098,12 +82098,12 @@
         "kernel/fs/blockdev.h"
       ],
       "language": "c_header",
-      "lines": 56,
+      "lines": 61,
       "origin": "tracked",
       "path": "kernel/fs/iso9660.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "2777371db3cb33e744b16185d4365c4cfcc9691dcd20747106f3a4bb976086b5"
+      "sha256": "e1cfd652c12b42364474fc743c7d03a35a82cf5e3bf2acb939dd7c1249a3e427"
     },
     {
       "build_owners": [
@@ -82176,12 +82176,12 @@
         "kernel/fs/vfs.h"
       ],
       "language": "c_header",
-      "lines": 10,
+      "lines": 14,
       "origin": "tracked",
       "path": "kernel/fs/iso9660_vfs.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "71926194e4c0ad81a5d9f6f4bc4cd7f1a5e56916fce82fb880fd696abc74f233"
+      "sha256": "8b903ce27d50911e19897b10b5682fc58d65b6f541d2b1a283786b2491916a50"
     },
     {
       "build_owners": [
@@ -82246,12 +82246,12 @@
         "kernel/fs/blockdev.h"
       ],
       "language": "c_header",
-      "lines": 20,
+      "lines": 23,
       "origin": "tracked",
       "path": "kernel/fs/loopdev.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "6dc6345481146ace38ee7b6b15c2789cce1c2aaaba66a8548db036e28ab78162"
+      "sha256": "9e7ae354e9a4a738fea44c9205e18dca25639b048e67f4484ae7118bd6aed223"
     },
     {
       "build_owners": [
@@ -82329,7 +82329,7 @@
       "path": "kernel/fs/ramfs.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e7f95c8c411ed48b1102fad335f2d8e4e7b49f2845bed71c81f207000fa012da"
+      "sha256": "bc236016894d976357376f1e845987b5834e8bae34db98202fcace29de27c61c"
     },
     {
       "build_owners": [
@@ -82400,12 +82400,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 130,
+      "lines": 135,
       "origin": "tracked",
       "path": "kernel/fs/vfs.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c01ad3ed0ad8d6e02f81ba99413d3d61f8b2b067b96f8edae9f7ec32f84c89ae"
+      "sha256": "21fa152e5b131b5c31df37f9aa0b22da330906f638a972802d84d02439e7990f"
     },
     {
       "build_owners": [
@@ -82466,12 +82466,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 43,
+      "lines": 48,
       "origin": "tracked",
       "path": "kernel/fs/vfs_helpers.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ec946018148ceec38ddcac373e779a61f265acb6ba555c9f30546c8cfc4786de"
+      "sha256": "a24a41862ceb9061ecb634b547fe93858d75c23d426a371d1a861ad69c70177c"
     },
     {
       "build_owners": [

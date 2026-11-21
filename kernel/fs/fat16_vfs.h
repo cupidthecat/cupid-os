@@ -1,9 +1,7 @@
 /**
- * fat16_vfs.h - FAT16 VFS wrapper for CupidOS
- *
- * Thin wrapper exposing the existing FAT16 driver through
- * the VFS filesystem operations interface.
-*/
+ * @file fat16_vfs.h
+ * @brief Expose FAT16 through the virtual filesystem.
+ */
 
 #ifndef FAT16_VFS_H
 #define FAT16_VFS_H

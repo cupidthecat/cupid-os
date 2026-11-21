@@ -1,5 +1,8 @@
-/* kernel/loopdev.h -- File-backed block device for mounting disk images
- * (e.g. .iso files) via the VFS layer.*/
+/**
+ * @file loopdev.h
+ * @brief Read a virtual filesystem file as a block device.
+ */
+
 #ifndef LOOPDEV_H
 #define LOOPDEV_H
 
