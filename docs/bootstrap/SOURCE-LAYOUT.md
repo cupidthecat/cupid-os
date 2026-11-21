@@ -55,6 +55,13 @@ share a 49-line fixture that creates the source and seed tree. The split
 preserves all 44 test cases and their assertions. The suites passed on
 Windows with two platform skips and WSL with one.
 
+## CupidASM command-line tests
+
+The 2,409-line assembler suite now keeps raw image and range-map recovery
+tests in an 831-line module. The 1,596-line command-line module keeps the
+existing test names and builds CupidASM once. All 49 cases passed on
+Windows and WSL with four platform skips on each host.
+
 ## QEMU terminal smoke test
 
 `tools/gui_terminal_smoke.py` drives QEMU and checks the resulting output.
