@@ -110,10 +110,10 @@ driver ran a checked assembly job. The peer replay can also rebuild
 CupidC. It reads its build plan from an ISO and starts with a fresh HomeFS.
 [Peer replay commands](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#rebuild-and-run-the-peer-workers)
 
-One guest build plan rebuilt all 431 linked kernel objects from source and
-asset media, including Doom and the generated symbols. Both kernel ELFs and
-the disk prefix matched the checked build. The resulting disk booted with
-four CPUs and ran `ls`.
+One guest build plan used 19 requests and three read-only ISOs to rebuild
+all 431 linked kernel objects, including Doom and the generated symbols.
+All eleven saved products matched the checked build. The resulting disk
+booted with four CPUs and ran `ls`.
 The source-media worker reads jobs and assets from `/plan` and headers
 from `/src`. Source lists share compiler options. Asset lists share a
 wrapping mode. The production replay uses three read-only mounts.

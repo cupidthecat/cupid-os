@@ -1,5 +1,14 @@
 # Bootstrapping log
 
+## 2026-11-21 — Boot the kernel rebuilt from three source and plan ISOs
+
+One CupidBuild command ran the 19-request plan with 767 staged source
+files. The guest produced all 430 pass-one objects, including Doom,
+then generated and compiled the symbol table. All eleven saved
+products matched the checked build. The 10,697,216-byte disk prefix
+also matched the earlier link-only replay. A fresh four-CPU boot passed
+SMP, TLS, e1000, DHCP and `ls`.
+
 ## 2026-11-21 — Keep guest build products in the project
 
 Installed-tree builds save their persistent products under

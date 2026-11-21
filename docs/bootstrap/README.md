@@ -10,10 +10,10 @@ Cupid OS remains unfinished.
 - The normal graph has 454 transforms: 451 use CupidBuild and three retain
   Python coordination. GNU Make still schedules the build.
 - Cupid OS rebuilt and ran the full CupidC, CupidASM, CupidLD, CupidObj
-  and CupidBuild workers. The assembler includes CupidDis. One guest build
-  plan rebuilt all 431 linked objects from source and asset media, including
-  Doom and the generated symbol table. Both kernel ELFs and the disk prefix
-  matched the checked build. The resulting disk booted with four CPUs and ran `ls`.
+  and CupidBuild workers. The assembler includes CupidDis. The 19-request
+  plan rebuilt all 431 linked objects from three read-only ISOs, including Doom
+  and the generated symbol table. All eleven saved products matched the checked
+  build. The resulting disk booted with four CPUs and ran `ls`.
   A second guest plan compiled and linked `cat`, `hello` and `ls` in one
   command, then each program ran from HomeFS.
   See the [guest build record](FREESTANDING-COMPILER-ENGINE.md).
@@ -21,8 +21,8 @@ Cupid OS remains unfinished.
   preparations reach a fixed point. The C reader now recognizes their exact
   behavior profiles. The installed seeds come from the same 114-file snapshot.
   Cold OS and user builds agree across Windows and WSL, including the full disk
-  image. The guest starts with a fresh HomeFS and reads plans and assets
-  from one ISO. It compiles and wraps objects in lists of related inputs.
+  image. The read-only replay starts with a fresh HomeFS. It reads the plan
+  and assets from the same ISO and compiles and wraps objects in lists.
   A single kernel job takes the ordered objects and runs both
   links, symbol generation, and disk-prefix publication inside Cupid OS.
   An editable HomeFS project can keep `cupidbuild.job` and its job files

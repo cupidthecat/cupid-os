@@ -735,10 +735,12 @@ build. The 10,697,216-byte prefix had SHA-256
 The resulting disk booted with four CPUs and passed TLS, e1000, DHCP,
 and `ls`.
 
-The complete four-mount replay also rebuilt all 430 pass-one objects from
-source and asset media in RAMFS, then generated and compiled the symbol
-object. All eleven saved products matched the checked build, including the
-same disk prefix. A four-CPU boot passed SMP, TLS, e1000, DHCP and `ls`.
+The complete three-mount replay staged 767 source files. Its 19 requests
+rebuilt all 430 pass-one objects in RAMFS and generated and compiled the
+symbol object. All eleven saved products matched the checked build,
+including the same disk prefix. A four-CPU boot passed SMP, TLS, e1000,
+DHCP and `ls`. The earlier four-mount replay produced the same eleven
+products.
 
 The default mode keeps every object in HomeFS. In the earlier HomeFS plan
 replay, all 428 pass-one objects, the generated symbol object, three
