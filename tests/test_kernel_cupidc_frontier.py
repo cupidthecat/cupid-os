@@ -30,8 +30,8 @@ from tests.kernel_cupidc_frontier_fixtures import (
 
 
 FRONTIER_INPUT_FINGERPRINT = (
-    500,
-    "0bb71c8dfebdffbc061a578f1eedf7c9acc06b26653807ddc717e0b86376c6ac",
+    504,
+    "5f0d58db2ec5101e90537daef0c3ff6dba84963f5b96d855dd2e630b2309ad14",
 )
 
 

@@ -665,6 +665,7 @@ $(BUILD_DIR)/cupidc_pp_contract.o: tests/cupidc_pp_contract.cc \
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidc_type_contract.o: tests/cupidc_type_contract.cc \
+                                   tests/cupidc_layout_stress_contract.inc \
                                    cupidc_type.h cupidc_pp.h \
                                    ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
@@ -732,16 +733,20 @@ $(BUILD_DIR)/cupiddis_kernel_adapter_contract.o: \
 		-I../kernel/lang -I../kernel/core \
 		$(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidasm_contract.o: tests/cupidasm_contract.cc cupidasm.h elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
+$(BUILD_DIR)/cupidasm_contract.o: tests/cupidasm_contract.cc tests/cupidasm_source_contract.inc \
+                                cupidasm.h elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidasm_demos_contract.o: tests/cupidasm_demos_contract.cc cupidasm.h elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidasm_kernel_elf_contract.o: tests/cupidasm_kernel_elf_contract.cc ../kernel/lang/as_elf.h cupidasm.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
+$(BUILD_DIR)/cupidasm_kernel_elf_contract.o: tests/cupidasm_kernel_elf_contract.cc \
+    tests/cupidasm_publication_contract.inc ../kernel/lang/as_elf.h \
+    cupidasm.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidobj_contract.o: tests/cupidobj_contract.cc cupidobj.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
+$(BUILD_DIR)/cupidobj_contract.o: tests/cupidobj_contract.cc tests/cupidobj_image_contract.inc \
+                               cupidobj.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidld_contract.o: tests/cupidld_contract.cc tests/cupidld_pe32_cases.inc \

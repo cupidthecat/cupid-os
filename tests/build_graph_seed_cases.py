@@ -1886,7 +1886,7 @@ class SeedDeliveryCases:
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["tool_c_sources"], 44)
         self.assertEqual(contract["compared_c_objects"], 44)
-        self.assertEqual(contract["contract_manifest_inputs"], 121)
+        self.assertEqual(contract["contract_manifest_inputs"], 125)
         names = (
             "tests/test_toolchain_cupidc_object.py", "toolchain/cupidc_main.cc",
             "toolchain/cupidld.h", "toolchain/cupidld_main.cc", "toolchain/cupidld.cc",

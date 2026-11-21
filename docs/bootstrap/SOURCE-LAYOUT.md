@@ -34,8 +34,8 @@ Compare emitted objects and checked seed outputs after moving code.
 
 | Area | Files |
 | --- | --- |
-| Compiler contracts | `toolchain/tests/cupidc_frontend_contract.cc`, `toolchain/tests/cupidc_ir_contract.cc`, `toolchain/tests/cupidc_object_contract.cc`, `toolchain/tests/cupidc_type_contract.cc` |
-| Assembler and format contracts | `toolchain/tests/cupidasm_contract.cc`, `toolchain/tests/cupidasm_kernel_elf_contract.cc`, `toolchain/tests/cupiddis_contract.cc`, `toolchain/tests/cupidobj_contract.cc` |
+| Compiler contracts | `toolchain/tests/cupidc_frontend_contract.cc`, `toolchain/tests/cupidc_ir_contract.cc`, `toolchain/tests/cupidc_object_contract.cc` |
+| Disassembler contracts | `toolchain/tests/cupiddis_contract.cc` |
 | Manifest contracts | `toolchain/tests/toolchain_manifest_contract.cc` |
 | Build and verification scripts | `tools/bootstrap_toolchain.py`, `tools/build_graph_audit.py`, `tools/cupidc_toolchain_contracts.py` |
 
@@ -76,6 +76,13 @@ Its 40 test modes and compiled artifacts match the earlier suite.
 
 The 2,022-line Python suite moves release and inventory checks into a
 760-line module. The original entry point keeps all 75 test names.
+
+## Assembler, object and layout tests
+
+Four suites move assembly source cases, artifact publication, disk and
+ISO fixtures, and type layout stress cases into private includes. Each
+runner and include fits under 2,000 lines. All 40 modes remain available
+through the same commands.
 
 ## Kernel compiler tests
 

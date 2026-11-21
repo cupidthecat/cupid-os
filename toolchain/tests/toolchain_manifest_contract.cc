@@ -72,7 +72,8 @@ static const char manifest_report_schema[] = "cupid.toolchain-manifest-verificat
 #define MANIFEST_JPEG_RELEASE_INPUT_COUNT 114u
 #define MANIFEST_PE32_RELEASE_INPUT_COUNT 115u
 #define MANIFEST_X86_SPLIT_INPUT_COUNT 117u
-#define MANIFEST_MAX_INPUT_COUNT 121u
+#define MANIFEST_PP_SPLIT_INPUT_COUNT 121u
+#define MANIFEST_MAX_INPUT_COUNT 125u
 #define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 80u
 #define MANIFEST_LONG_PATH_BOOTSTRAP_FILE_COUNT 81u
 #define MANIFEST_ALIAS_LONG_PATH_BOOTSTRAP_FILE_COUNT 82u
@@ -232,6 +233,10 @@ static const char *const manifest_expected_input_paths[MANIFEST_MAX_INPUT_COUNT]
     "toolchain/tests/cupidc_pp_include_contract.inc",
     "toolchain/tests/cupidc_pp_macro_contract.inc",
     "toolchain/tests/cupidc_pp_source_contract.inc",
+    "toolchain/tests/cupidasm_source_contract.inc",
+    "toolchain/tests/cupidasm_publication_contract.inc",
+    "toolchain/tests/cupidobj_image_contract.inc",
+    "toolchain/tests/cupidc_layout_stress_contract.inc",
 };
 
 static const char *const manifest_expected_bootstrap_paths[MANIFEST_MAX_BOOTSTRAP_FILE_COUNT] = {
@@ -642,7 +647,7 @@ static int manifest_input_count_valid(size_t count) {
            count == MANIFEST_OWNER_RELEASE_INPUT_COUNT ||
            count == MANIFEST_SOURCE_SPELLING_RELEASE_INPUT_COUNT ||
            count == MANIFEST_JPEG_RELEASE_INPUT_COUNT || count == MANIFEST_PE32_RELEASE_INPUT_COUNT ||
-           count == MANIFEST_X86_SPLIT_INPUT_COUNT ||
+           count == MANIFEST_X86_SPLIT_INPUT_COUNT || count == MANIFEST_PP_SPLIT_INPUT_COUNT ||
            count == MANIFEST_MAX_INPUT_COUNT;
 }
 

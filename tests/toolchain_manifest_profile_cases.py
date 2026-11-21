@@ -238,10 +238,9 @@ class ManifestProfileCases:
         jpeg = "toolchain/cupidbuild_jpeg.h"
         x86_paths = ("toolchain/tests/x86_integer_contract.inc",
                      "toolchain/tests/x86_operand_contract.inc")
-        for name in (jpeg, "toolchain/tests/cupidld_pe32_cases.inc", *x86_paths):
+        for name in (jpeg, "toolchain/tests/cupidld_pe32_cases.inc"):
             data = (REPO_ROOT / name).read_bytes()
             manifest["inputs"][name] = {"size": len(data), "sha256": _digest(data)}
-        manifest["input_count"] = len(manifest["inputs"])
         sources = manifest["bootstrap"]["source_inputs"]
         sources["files"][jpeg] = manifest["inputs"][jpeg].copy()
         sources["count"] = len(sources["files"])
@@ -252,19 +251,24 @@ class ManifestProfileCases:
             "toolchain/tests/cupidc_pp_macro_contract.inc",
             "toolchain/tests/cupidc_pp_include_contract.inc",
         )
-        current = copy.deepcopy(manifest)
-        for name in pp_paths:
-            data = (REPO_ROOT / name).read_bytes()
-            current["inputs"][name] = {"size": len(data), "sha256": _digest(data)}
-        current["input_count"] = len(current["inputs"])
-        for mode in ("author", "check"):
-            run = self.run_author_request if mode == "author" else self.run_request
-            for profile, paths in ((manifest, x86_paths), (current, pp_paths)):
-                good = run(_owner_context_request(mode, manifest=profile))
+        contract_paths = (
+            "toolchain/tests/cupidasm_source_contract.inc",
+            "toolchain/tests/cupidasm_publication_contract.inc",
+            "toolchain/tests/cupidobj_image_contract.inc",
+            "toolchain/tests/cupidc_layout_stress_contract.inc",
+        )
+        for paths in (x86_paths, pp_paths, contract_paths):
+            for name in paths:
+                data = (REPO_ROOT / name).read_bytes()
+                manifest["inputs"][name] = {"size": len(data), "sha256": _digest(data)}
+            manifest["input_count"] = len(manifest["inputs"])
+            for mode in ("author", "check"):
+                run = self.run_author_request if mode == "author" else self.run_request
+                good = run(_owner_context_request(mode, manifest=manifest))
                 self.assertEqual(good.returncode, 0, good.stderr)
                 for name in paths:
                     with self.subTest(mode=mode, path=name):
-                        changed = copy.deepcopy(profile)
+                        changed = copy.deepcopy(manifest)
                         changed["inputs"]["toolchain/tests/unreviewed.inc"] = changed["inputs"].pop(name)
                         bad = run(_owner_context_request(mode, manifest=changed))
                         self.assertEqual(bad.returncode, 1, bad.stderr)
@@ -638,10 +642,14 @@ class ManifestProfileCases:
                           "toolchain/tests/cupidc_pp_include_contract.inc",
                           "toolchain/tests/cupidc_pp_macro_contract.inc",
                           "toolchain/tests/cupidc_pp_source_contract.inc",
+                          "toolchain/tests/cupidasm_source_contract.inc",
+                          "toolchain/tests/cupidasm_publication_contract.inc",
+                          "toolchain/tests/cupidobj_image_contract.inc",
+                          "toolchain/tests/cupidc_layout_stress_contract.inc",
                           "toolchain/tests/cupidc_source_spelling_fixture.h",
                           "tools/__init__.py", "tools/bootstrap_user_abi.py",
                           "tools/bootstrap_stage_release.py", "tools/seed_release_identity.py"}, actual)
-        self.assertEqual(len(actual), 121)
+        self.assertEqual(len(actual), 125)
 
     def _complete_release_inventory_fixture(self, **profile):
         manifest, observations, seed_bytes, seed_observations = _complete_context_fixture(**profile)

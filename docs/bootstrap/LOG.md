@@ -1,5 +1,20 @@
 # Bootstrapping log
 
+## 2026-11-21 — Split four assembler, object and layout test suites
+
+Assembly source cases, artifact publication, disk and ISO cases, and
+type layout stress cases each have a private include. Both hosts emitted
+the same four objects before and after the split. The checked ELF links
+also matched. All 40 modes passed on the checked ELFs and the native
+runners on Windows and WSL.
+
+The first runtime fixture omitted the assembler's demo includes. Adding
+those inputs let the existing include-resolution test pass. The first
+audit also caught two inventory entries in the wrong sort order. The
+publication reader accepts the previous 121-input profile. The current
+125-input profile rejects missing or substituted split files.
+All 166 focused tests and the build audit passed on Windows and WSL.
+
 ## 2026-11-21 — Create output directories from guest build plans
 
 A project plan can create its build directory before running tools.
