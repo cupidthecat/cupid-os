@@ -6,6 +6,7 @@
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 
 from check_guest_runtime import BUILD, ROOT, SEED_MANIFEST
@@ -32,11 +33,27 @@ def check(scratch: Path) -> None:
     subprocess.run([*command, "cupidld", "--", "-m", "elf_i386", "--text-address",
                     "0x01c00000", "--entry", "_start", "-o", reference_executable, reference_object],
                    check=True, timeout=120)
+    reference_install = scratch / "install.cc"
+    subprocess.run([*command, "cupidobj", "--", "install-source", "demos", "--demos",
+                    "demos/hello.asm", "-o", reference_install], cwd=ROOT, check=True, timeout=120)
+    assembly = scratch / "input.asm"
+    assembly.write_bytes(b"[BITS 32]\nsection .text\nglobal sample\nsample: ret\n")
+    reference_assembly = scratch / "reference.o"
+    subprocess.run([sys.executable, ROOT / "tools/bootstrap_toolchain.py", "run",
+                    "--manifest", manifest, "--root", ROOT, "--tool", "cupidasm",
+                    "--", "-f", "elf32", assembly, "-o", reference_assembly],
+                   check=True, timeout=120)
 
     home = scratch / "home"
     home.mkdir()
     (home / "hello.cj").write_bytes(COMPILE)
     (home / "hello.lj").write_bytes(LINK)
+    assemble = b"assemble\n/home/assemble.job\n"
+    install = b"install\n/home/install.job\n"
+    assemble_job = home / "assemble.job"
+    assemble_job.write_bytes(b"/input.asm\n/home/assembled.o\n")
+    install_job = home / "install.job"
+    install_job.write_bytes(b"/home/installed.cc\ndemos\n--demos\n/demos/hello.asm\n")
     plan = home / "cupidbuild.job"
     object_path = home / "hello.o"
     executable = home / "hello.elf"
@@ -49,14 +66,17 @@ def check(scratch: Path) -> None:
 
     for invalid in (PLAN.replace(b"link\n", b"unknown\n"),
                     PLAN.replace(b"/home/hello.lj\n", b"/home/../hello.lj\n"),
-                    PLAN + b"link\n", PLAN + PLAN * 32):
+                    PLAN + b"link\n", PLAN * 256 + assemble):
         plan.write_bytes(invalid)
         invoke(b"[cupidbuild-guest] invalid request")
         assert not object_path.exists() and not executable.exists()
 
-    plan.write_bytes(PLAN)
+    plan.write_bytes(assemble + install + PLAN)
     log = invoke(b"[cupidbuild-guest] build complete")
+    assert log.index(b"wrote /home/assembled.o") < log.index(b"wrote /home/installed.cc")
     assert log.index(b"wrote /home/hello.o") < log.index(b"wrote /home/hello.elf")
+    assert (home / "assembled.o").read_bytes() == reference_assembly.read_bytes()
+    assert (home / "installed.cc").read_bytes() == reference_install.read_bytes()
     assert object_path.read_bytes() == reference_object.read_bytes()
     assert executable.read_bytes() == reference_executable.read_bytes()
 
@@ -87,7 +107,18 @@ def check(scratch: Path) -> None:
     plan.write_bytes(b"raw\n/home/boot.job\n" + PLAN)
     log = invoke(b"[cupidbuild-guest] stopped at /home/boot.job")
     assert b"[cupidc-guest]" not in log and boot.read_bytes() == b"preceding bootloader"
-    print("Guest build matched the checked object and executable and stopped on eight rejected plans or steps.")
+
+    assembly.write_bytes(b"[BITS 32]\nsection .text\ndb 0x0f\n")
+    plan.write_bytes(assemble + install * 511)
+    log = invoke(b"[cupidbuild-guest] stopped at /home/assemble.job")
+    assert b"object code check failed" in log and b"[cupidinstall-guest]" not in log
+    assert (home / "assembled.o").read_bytes() == reference_assembly.read_bytes()
+    install_job.write_bytes(b"/home/installed.cc\ndemos\n--demos\n/demos/hello.cc\n")
+    plan.write_bytes(install + PLAN)
+    log = invoke(b"[cupidbuild-guest] stopped at /home/install.job")
+    assert b"generation failed: input" in log and b"[cupidc-guest]" not in log
+    assert (home / "installed.cc").read_bytes() == reference_install.read_bytes()
+    print("Guest build matched four checked files and stopped on ten rejected plans or steps.")
 
 
 if __name__ == "__main__":

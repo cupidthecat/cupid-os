@@ -8,6 +8,7 @@ from pathlib import Path
 import tempfile
 
 from check_guest_build import COMPILE, LINK, PLAN
+from check_guest_install_runtime import installation_jobs
 from check_guest_runtime import (
     BUILD,
     COMPILER_REAPED,
@@ -29,13 +30,19 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
     if publish_source_iso(publisher, root, BUILD / "cupidc-engine.elf", iso, members):
         raise ValueError("could not publish the user source ISO")
 
+    demos = "kernel/util/demos_programs_gen.cc"
+    install = b"kernel/util/install.job"
+    plan = b"assemble\n/home/isr.job\ninstall\n/home/" + install + b"\n" + PLAN
     homefs = scratch / "homefs.sys"
-    write_homefs(homefs, ((b"cupidbuild.job", PLAN), (b"hello.cj", COMPILE), (b"hello.lj", LINK)))
+    write_homefs(homefs, ((b"cupidbuild.job", plan), (b"hello.cj", COMPILE), (b"hello.lj", LINK),
+                         (b"isr.job", b"/disk/isr.asm\n/home/isr.o\n"),
+                         (install, installation_jobs(root)[demos])))
     disk = scratch / "build.img"
     create_disk(disk, f"{homefs}:/homefs.sys", f"{iso}:/s.iso",
-                f"{BUILD / 'cupidbuild-guest.elf'}:/b", production_root=root)
-    run("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "4", "--cpu", "max",
-        "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.75",
+                f"{BUILD / 'cupidbuild-guest.elf'}:/b", f"{root / 'kernel/cpu/isr.asm'}:/isr.asm",
+                production_root=root)
+    run("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "1", "--cpu", "max",
+        "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "1",
         "--image", str(disk), "--log", str(BUILD / "guest-build-runtime.log"),
         "--require-command-completion", "--setup-command", "mount /disk/s.iso /src",
         "--setup-success-pattern", r"VFS: mounted 'iso9660' at '/src'",
@@ -46,6 +53,8 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
                              rf"\[elf-syscall\] pid=(?P=pid) op={USER_OUTPUT['hello']}[\r\n]+.*?"
                              r"\[PROCESS\] PID (?P=pid) .* exiting")
     compare_homefs_files(read_homefs(disk), {
+        "isr.o": root / "kernel/cpu/isr.o",
+        demos: root / demos,
         "hello.o": root / "user/build/hello.o",
         "hello.elf": root / "user/build/hello",
     })

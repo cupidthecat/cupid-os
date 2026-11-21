@@ -6,8 +6,8 @@
 #include "guest_build.h"
 
 #define BUILD_JOB "/home/cupidbuild.job"
-#define BUILD_STEP_LIMIT 64u
-#define BUILD_JOB_BYTES (BUILD_STEP_LIMIT * (VFS_MAX_PATH + sizeof("compile\n")))
+#define BUILD_STEP_LIMIT 512u
+#define BUILD_JOB_BYTES (BUILD_STEP_LIMIT * (VFS_MAX_PATH + sizeof("assemble")) + 1u)
 
 typedef ctool_status_t (*build_operation_t)(cupid_syscall_table_t *sys, const char *job_path);
 
@@ -15,6 +15,11 @@ typedef struct {
     build_operation_t run;
     const char *job_path;
 } build_step_t;
+
+typedef struct {
+    char text[BUILD_JOB_BYTES];
+    build_step_t steps[BUILD_STEP_LIMIT];
+} build_plan_t;
 
 static build_operation_t find_operation(const char *name) {
     static const struct {
@@ -26,6 +31,8 @@ static build_operation_t find_operation(const char *name) {
         {"symbols", cupid_guest_symbols_job},
         {"object", cupid_guest_object_job},
         {"raw", cupid_guest_raw_job},
+        {"assemble", cupid_guest_assemble_job},
+        {"install", cupid_guest_install_job},
         {"disk", cupid_guest_disk_job},
     };
     for (ctool_u32 index = 0; index < sizeof(operations) / sizeof(operations[0]); index++) {
@@ -61,25 +68,33 @@ static ctool_u32 read_plan(cupid_syscall_table_t *sys, char *text, build_step_t 
     return cursor == end ? count : 0u;
 }
 
-void cupidbuild_guest_run(cupid_syscall_table_t *sys) {
-    if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
-        return;
-    cupid_init(sys);
-
-    char text[BUILD_JOB_BYTES];
-    build_step_t steps[BUILD_STEP_LIMIT];
-    ctool_u32 count = read_plan(sys, text, steps);
+static void execute_plan(cupid_syscall_table_t *sys, build_plan_t *plan) {
+    ctool_u32 count = read_plan(sys, plan->text, plan->steps);
     if (count == 0u) {
         sys->serial_write_string("[cupidbuild-guest] invalid request file: " BUILD_JOB "\n");
         return;
     }
     for (ctool_u32 index = 0; index < count; index++) {
-        if (steps[index].run(sys, steps[index].job_path) != CTOOL_OK) {
+        const build_step_t *step = &plan->steps[index];
+        if (step->run(sys, step->job_path) != CTOOL_OK) {
             sys->serial_write_string("[cupidbuild-guest] stopped at ");
-            sys->serial_write_string(steps[index].job_path);
+            sys->serial_write_string(step->job_path);
             sys->serial_write_string("\n");
             return;
         }
     }
     sys->serial_write_string("[cupidbuild-guest] build complete\n");
+}
+
+void cupidbuild_guest_run(cupid_syscall_table_t *sys) {
+    if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
+        return;
+    cupid_init(sys);
+    build_plan_t *plan = sys->malloc(sizeof(*plan));
+    if (!plan) {
+        sys->serial_write_string("[cupidbuild-guest] could not allocate the build plan\n");
+        return;
+    }
+    execute_plan(sys, plan);
+    sys->free(plan);
 }

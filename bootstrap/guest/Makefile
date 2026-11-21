@@ -66,7 +66,8 @@ GUEST_RAW := $(BUILD)/cupidraw-guest.elf
 GUEST_RAW_OBJECTS := $(GUEST_ASSEMBLER_CORE) $(BUILD)/guest_raw_assembly.o
 GUEST_BUILD := $(BUILD)/cupidbuild-guest.elf
 GUEST_BUILD_OBJECTS := $(GUEST_COMPILER_OBJECTS) $(addprefix $(BUILD)/,cupidld.o cupidld_guest.o cupidbuild_guest.o \
-    cupidasm.o cupiddis.o guest_raw_assembly.o cupidksyms_guest.o cupidobj_guest.o cupiddisk_guest.o)
+    cupidasm.o cupiddis.o cupidasm_guest.o guest_raw_assembly.o cupidinstall_guest.o \
+    cupidksyms_guest.o cupidobj_guest.o cupiddisk_guest.o)
 GUEST_LINKER := $(BUILD)/cupidld-guest.elf
 GUEST_LINKER_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/cupidld.o \
     $(GUEST_SUPPORT) $(BUILD)/cupidld_guest.o
@@ -115,7 +116,7 @@ $(GUEST_COMPILER): $(GUEST_COMPILER_OBJECTS) Makefile $(SEED_INPUTS)
 $(BUILD)/guest_job.o: guest_job.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/guest_job.cc -o $(PUBLISH)/guest_job.o
 
-$(BUILD)/cupidasm_guest.o: cupidasm_guest.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupidasm.h $(TOOLCHAIN)/cupiddis.h $(TOOLCHAIN)/elf32.h $(TOOLCHAIN)/x86.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
+$(BUILD)/cupidasm_guest.o: cupidasm_guest.cc guest_build.h guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupidasm.h $(TOOLCHAIN)/cupiddis.h $(TOOLCHAIN)/elf32.h $(TOOLCHAIN)/x86.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/cupidasm_guest.cc -o $(PUBLISH)/cupidasm_guest.o
 
 $(GUEST_ASSEMBLER): $(GUEST_ASSEMBLER_OBJECTS) Makefile $(SEED_INPUTS)
@@ -146,7 +147,7 @@ $(GUEST_OBJECT): $(GUEST_OBJECTS) Makefile $(SEED_INPUTS)
 	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry cupidobj_guest_run \
 		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
 
-$(BUILD)/cupidinstall_guest.o: cupidinstall_guest.cc guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupidobj.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
+$(BUILD)/cupidinstall_guest.o: cupidinstall_guest.cc guest_build.h guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupidobj.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/cupidinstall_guest.cc -o $(PUBLISH)/cupidinstall_guest.o
 
 $(GUEST_INSTALL): $(GUEST_INSTALL_OBJECTS) Makefile $(SEED_INPUTS)

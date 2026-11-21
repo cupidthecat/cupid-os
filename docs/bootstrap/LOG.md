@@ -1,5 +1,21 @@
 # Bootstrapping log
 
+## 2026-11-21 — Schedule assembly and installation in the guest plan
+
+The plan can now run checked relocatable assembly and generate kernel
+installation source. It accepts 512 operations. The plan lives on the
+heap so its length leaves the worker stack available for compiler calls.
+
+Windows and WSL built the same 3,293,380-byte driver. The Linux contract
+matched four checked files, accepted a 512-step plan, and rejected a
+513-step plan before publishing output. Bad assembly and installation
+inputs preserved the preceding files and stopped the plan. In QEMU,
+the revised assembler rebuilt and ran from its seven guest-built objects.
+The plan also assembled the ISR, generated the demo installation source,
+compiled and linked `hello`, and ran it. All four saved files matched.
+An earlier GUI run built the files and then missed the slash in the
+command to run `hello`. The one-vCPU replay with a longer key pause passed.
+
 ## 2026-11-21 — Boot a kernel built from every guest object
 
 CupidC matched all 240 production profile objects, including all 83 Doom

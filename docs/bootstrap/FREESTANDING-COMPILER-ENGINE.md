@@ -341,7 +341,7 @@ link
 ```
 
 Each step uses the same format as its standalone worker. The driver
-validates up to 64 plan entries before starting, stops at the first
+validates up to 512 plan entries before starting, stops at the first
 failure and saves each successful output atomically.
 
 ```sh
@@ -349,13 +349,14 @@ make -C bootstrap/guest check-guest-build
 python3 bootstrap/guest/check_guest_build_runtime.py --production-root /path/to/checked/build
 ```
 
-The QEMU replay compiled, linked and ran `hello`. Both saved outputs
-matched the checked build. The Linux test covered a failed compile with
-an existing object and executable, a failed link and four malformed plans.
+The QEMU replay assembled the ISR, generated the demo installation source,
+and compiled, linked and ran `hello`. All four files matched the checked
+build. The Linux contract rejected ten invalid plans or failed steps.
 
-The driver also accepts `raw`, `symbols`, `object` and `disk`. The kernel
-plan assembles the bootloader, runs both links, generates and compiles
-kernel symbols, flattens the final ELF, and saves the disk prefix.
+The driver accepts `assemble` for an ELF object and `install` for kernel
+installation source. It also accepts `raw`, `symbols`, `object` and `disk`.
+The kernel plan assembles the bootloader, runs both links, generates and
+compiles kernel symbols, flattens the final ELF, and saves the disk prefix.
 
 ```sh
 python3 bootstrap/guest/check_guest_kernel_plan.py --production-root /path/to/checked/build

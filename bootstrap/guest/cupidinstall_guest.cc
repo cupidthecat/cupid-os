@@ -4,7 +4,7 @@
  */
 
 #include "cupidobj.h"
-#include "guest_job.h"
+#include "guest_build.h"
 
 #define INSTALL_JOB "/home/cupidinstall.job"
 #define INSTALL_PENDING "/home/.cupidinstall-pending.cc"
@@ -48,9 +48,10 @@ static int read_groups(char *cursor, char *end, const install_group_t *groups,
     return !line && total != 0u;
 }
 
-static int read_install_job(cupid_syscall_table_t *sys, char *file, ctool_path_t *output,
+static int read_install_job(cupid_syscall_table_t *sys, const char *job_path,
+                            char *file, ctool_path_t *output,
                             ctool_obj_install_source_request_t *install, ctool_string_t *paths) {
-    int size = sys->vfs_read_text(INSTALL_JOB, file, INSTALL_JOB_BYTES);
+    int size = sys->vfs_read_text(job_path, file, INSTALL_JOB_BYTES);
     if (size < 1 || (ctool_u32)size >= INSTALL_JOB_BYTES)
         return 0;
     char *cursor = file;
@@ -114,18 +115,20 @@ static ctool_status_t publish_source(cupid_syscall_table_t *sys, const ctool_obj
     return status;
 }
 
-void cupidinstall_guest_run(cupid_syscall_table_t *sys) {
+ctool_status_t cupid_guest_install_job(cupid_syscall_table_t *sys, const char *job_path) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
-        return;
+        return CTOOL_ERR_INVALID_ARGUMENT;
     cupid_init(sys);
     char file[INSTALL_JOB_BYTES];
     ctool_string_t paths[INSTALL_PATH_LIMIT];
     ctool_path_t output;
-    ctool_source_t source = {.path = {ctool_string(INSTALL_JOB)}};
+    ctool_source_t source = {.path = {ctool_string(job_path)}};
     ctool_obj_request_t request = {.operation = CTOOL_OBJ_GENERATE_INSTALL_SOURCE, .input = &source};
-    if (!read_install_job(sys, file, &output, &request.as.install_source, paths)) {
-        sys->serial_write_string("[cupidinstall-guest] invalid request file: " INSTALL_JOB "\n");
-        return;
+    if (!read_install_job(sys, job_path, file, &output, &request.as.install_source, paths)) {
+        sys->serial_write_string("[cupidinstall-guest] invalid request file: ");
+        sys->serial_write_string(job_path);
+        sys->serial_write_string("\n");
+        return CTOOL_ERR_INPUT;
     }
 
     ctool_status_t status = publish_source(sys, &request, &output);
@@ -137,4 +140,9 @@ void cupidinstall_guest_run(cupid_syscall_table_t *sys) {
         sys->serial_write_string(ctool_status_name(status));
     }
     sys->serial_write_string("\n");
+    return status;
+}
+
+void cupidinstall_guest_run(cupid_syscall_table_t *sys) {
+    (void)cupid_guest_install_job(sys, INSTALL_JOB);
 }

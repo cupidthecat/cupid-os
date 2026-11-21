@@ -75,7 +75,8 @@ and its job path on separate lines in /home/cupidbuild.job.
 
 Each step uses the format of its standalone job. Use raw for checked boot
 assembly, symbols for kernel symbols, object for wrapping or flattening,
-and disk for a bootable disk prefix. The driver validates the plan first
+assemble for an ELF object, install for generated kernel source, and disk
+for a bootable disk prefix. The driver validates up to 512 steps first
 and stops at the first failed step. Each step publishes output atomically.
 
 >h2 Assemble a relocatable object

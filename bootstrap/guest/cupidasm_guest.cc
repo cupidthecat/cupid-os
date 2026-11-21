@@ -5,7 +5,7 @@
 
 #include "cupidasm.h"
 #include "cupiddis.h"
-#include "guest_job.h"
+#include "guest_build.h"
 
 #define ASM_JOB "/home/cupidasm.job"
 #define ASM_PENDING "/home/.cupidasm-pending.o"
@@ -54,16 +54,18 @@ static ctool_status_t assemble_object(ctool_invocation_t *invocation, void *cont
     return CTOOL_OK;
 }
 
-void cupidasm_guest_run(cupid_syscall_table_t *sys) {
+ctool_status_t cupid_guest_assemble_job(cupid_syscall_table_t *sys, const char *job_path) {
     if (!sys || sys->version != CUPID_SYSCALL_VERSION || sys->table_size < sizeof(*sys))
-        return;
+        return CTOOL_ERR_INVALID_ARGUMENT;
     cupid_init(sys);
     char file[CUPID_GUEST_PATH_JOB_BYTES];
     ctool_invocation_request_t request;
-    if (!cupid_guest_read_path_job(sys, ASM_JOB, file, &request) ||
+    if (!cupid_guest_read_path_job(sys, job_path, file, &request) ||
         strcmp(request.output_path.data, ASM_PENDING) == 0) {
-        sys->serial_write_string("[cupidasm-guest] invalid request file: " ASM_JOB "\n");
-        return;
+        sys->serial_write_string("[cupidasm-guest] invalid request file: ");
+        sys->serial_write_string(job_path);
+        sys->serial_write_string("\n");
+        return CTOOL_ERR_INPUT;
     }
 
     cupid_guest_io_t io = {
@@ -73,7 +75,9 @@ void cupidasm_guest_run(cupid_syscall_table_t *sys) {
     ctool_invocation_result_t result = {0};
     ctool_status_t status = ctool_invoke(&config, &request, assemble_object, sys, &result);
     cupid_guest_job_drain_cache(&io);
-    if (status == CTOOL_OK && result.output_committed) {
+    if (status == CTOOL_OK && !result.output_committed)
+        status = CTOOL_ERR_IO;
+    if (status == CTOOL_OK) {
         sys->serial_write_string("[cupidasm-guest] wrote ");
         sys->serial_write_string(request.output_path.data);
     } else {
@@ -81,4 +85,9 @@ void cupidasm_guest_run(cupid_syscall_table_t *sys) {
         sys->serial_write_string(ctool_status_name(status));
     }
     sys->serial_write_string("\n");
+    return status;
+}
+
+void cupidasm_guest_run(cupid_syscall_table_t *sys) {
+    (void)cupid_guest_assemble_job(sys, ASM_JOB);
 }
