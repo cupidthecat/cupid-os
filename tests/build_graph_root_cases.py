@@ -10,7 +10,9 @@ import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
+
 from tests.c_source_spelling import _c_spelling_ranges
+from tools.build_graph_report import render_markdown
 from tests.build_graph_audit_fixtures import (
     ACTIVE_BUILD_MANIFEST,
     AUDIT_TOOL,
@@ -262,7 +264,7 @@ class RootGraphCases:
                 "toolchain_startup_sources": 11,
             },
         )
-        markdown = _load_audit_module()._render_markdown(audit)
+        markdown = render_markdown(audit)
         self.assertIn(
             "38 active assembly sources; 38 CupidASM-owned; "
             "11 Toolchain startup; 0 other-owned; 0 ownerless; "

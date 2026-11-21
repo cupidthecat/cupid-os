@@ -63405,11 +63405,19 @@
       {
         "path": "tools/build_graph_preprocessor.py",
         "sha256": "096dce8f3b7f43a9a39f177adad85121b590472212684f8a83367e16b25e91f5"
+      },
+      {
+        "path": "tools/build_graph_report.py",
+        "sha256": "7fe454fc787aecbc52b6e6ad2b22adb4d9c09c27e2d4cc1eb42767d5fa197353"
+      },
+      {
+        "path": "tools/build_graph_kernel_inputs.py",
+        "sha256": "65e94896a74ca068bb736cd0b7babcbbbbde3689c118aa75f6facf34678912a9"
       }
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "0e829e90e2e8bd778afd9a0a98ef2494515dd774435de7f2780988095fa2ac76"
+      "sha256": "c0c50af641066a288780d3815c39c9b65654daf1891d3223fc1c2e1dd67b5866"
     },
     "text_hash_policy": "canonical_lf"
   },

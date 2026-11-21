@@ -1,9 +1,13 @@
+## @file
+#  @brief Check the production kernel's frozen source closures.
+
 import copy
 import subprocess
 import unittest
 from pathlib import Path
 
 from tools import build_graph_audit as audit
+from tools.build_graph_kernel_inputs import KERNEL_INPUT_CLOSURES
 from tools import cupidc_kernel_compile as oracle
 
 
@@ -13,10 +17,10 @@ ROOT = Path(__file__).resolve().parents[1]
 class CupidBuildKernelProductionTests(unittest.TestCase):
     def test_native_cohort_retains_every_frozen_header(self):
         self.assertEqual(
-            audit._CUPIDBUILD_KERNEL_INPUT_CLOSURES,
+            KERNEL_INPUT_CLOSURES,
             oracle.FROZEN_KERNEL_INPUT_CLOSURES,
         )
-        self.assertEqual(len(audit._CUPIDBUILD_KERNEL_INPUT_CLOSURES), 157)
+        self.assertEqual(len(KERNEL_INPUT_CLOSURES), 157)
 
     def test_delivery_contract_rejects_recipe_and_input_changes(self):
         seed = ["seed/manifest.json"] + [

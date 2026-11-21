@@ -250,6 +250,16 @@ conditionals, pragmas, and `#exe` blocks. The audit uses the same include
 parser for these checks and for the source closure. It records the directive
 module's hash with the other build controls.
 
+`tools/build_graph_report.py` renders the collected audit as JSON and
+Markdown. Its 425 lines cover report formatting. Both formats reproduce
+the prior audit byte for byte when given the same data.
+
+`tools/build_graph_kernel_inputs.py` lists the 157 expected kernel source
+closures. The audit checks the build against this list, independently of
+the compiler wrapper's capture table. The inventory takes 1,790 lines.
+Only provenance changed in the regenerated audit. Exact checks passed
+on Windows and WSL.
+
 ## Host build commands
 
 `hostbuild.py` keeps the command line, checked assembly and code validation.
