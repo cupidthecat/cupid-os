@@ -668,6 +668,15 @@ class GuiTerminalInputTests(unittest.TestCase):
         )
         self.assertEqual(args.setup_success_pattern, ["copy complete"])
 
+    def test_cli_setup_timeout_is_separate_from_the_command_timeout(self):
+        args = gui_terminal_smoke.parse_args(["--timeout", "1800", "--setup-timeout", "60"])
+        self.assertEqual(args.setup_timeout, 60)
+        self.assertEqual(args.timeout, 1800)
+        self.assertIsNone(gui_terminal_smoke.parse_args([]).setup_timeout)
+        for invalid in ("0", "nan", "inf"):
+            with self.subTest(invalid=invalid), mock.patch("sys.stderr"), self.assertRaises(SystemExit):
+                gui_terminal_smoke.parse_args(["--setup-timeout", invalid])
+
     def test_cli_accepts_a_private_system_image(self):
         args = gui_terminal_smoke.parse_args(["--private-image"])
 

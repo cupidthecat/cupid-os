@@ -1,5 +1,12 @@
 # Bootstrapping log
 
+## 2026-11-21 — Give terminal setup commands their own deadline
+
+A mistyped mount waited for the full compiler deadline. Terminal checks
+can now set a shorter deadline for setup. A real guest with a missing
+setup marker stopped after 56 seconds including boot. The 148 terminal
+and runtime checks passed on Windows and WSL.
+
 ## 2026-11-21 — Run the kernel and disk plan in one guest command
 
 The plan assembles the bootloader, links the staged inputs, generates and

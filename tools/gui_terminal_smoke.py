@@ -401,10 +401,10 @@ def positive_count(text: str) -> int:
 
 
 def positive_delay(text: str) -> float:
-    """Parse a positive key delay for argparse and direct callers."""
+    """Parse a finite positive delay in seconds."""
     value = float(text)
-    if value <= 0.0:
-        raise ValueError("key pause must be positive")
+    if not 0.0 < value < float("inf"):
+        raise ValueError("delay must be finite and positive")
     return value
 
 
@@ -1746,7 +1746,7 @@ def run(args: argparse.Namespace) -> int:
                 args.log,
                 setup_command,
                 setup_pattern,
-                args.timeout,
+                args.setup_timeout or args.timeout,
                 args.key_pause,
                 require_completion=args.require_command_completion,
             )
@@ -1850,6 +1850,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="append",
         default=[],
         help="serial expression proving the matching setup command completed",
+    )
+    parser.add_argument(
+        "--setup-timeout",
+        type=positive_delay,
+        help="seconds to wait for each setup command before failing",
     )
     parser.add_argument(
         "--private-image",
