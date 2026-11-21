@@ -1,5 +1,13 @@
 # Bootstrapping log
 
+## 2026-11-21 — Move the host ISO fixtures into their own module
+
+The ISO module keeps Rock Ridge layout, input snapshots and byte checks
+together. The `build-iso` and `gen-big` command lines stay the same. All
+48 moved definitions kept their syntax trees. The ordinary production ISO
+continues to use checked CupidBuild. The 118 ISO, hostbuild and artifact
+cases passed on Windows and WSL with five and one platform skips.
+
 ## 2026-11-21 — Document boot and kernel assembly
 
 The bootloader, SMP trampoline, interrupt entries and context switch now

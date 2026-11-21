@@ -82,6 +82,7 @@ GENERATED_CONTROL_FILES = (
     "Makefile",
     "tools/hostbuild.py",
     "tools/hostbuild_disk.py",
+    "tools/hostbuild_iso.py",
 )
 
 

@@ -645,11 +645,11 @@ class HostBuildIsoCases:
             original_render = hostbuild._render_iso_image
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_iso.run_seed_tool",
                     side_effect=run_checked,
                 ),
                 mock.patch(
-                    "tools.hostbuild._render_iso_image",
+                    "tools.hostbuild_iso._render_iso_image",
                     side_effect=lambda snapshot: (
                         self.assertTrue(state["checked"])
                         or original_render(snapshot)
@@ -685,7 +685,7 @@ class HostBuildIsoCases:
             )
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_iso.run_seed_tool",
                     return_value=failure,
                 ),
                 self.assertRaisesRegex(
@@ -709,7 +709,7 @@ class HostBuildIsoCases:
             )
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_iso.run_seed_tool",
                     return_value=successful_without_output,
                 ),
                 self.assertRaisesRegex(
@@ -739,7 +739,7 @@ class HostBuildIsoCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_iso.run_seed_tool",
                     side_effect=make_directory_candidate,
                 ),
                 self.assertRaisesRegex(
@@ -769,7 +769,7 @@ class HostBuildIsoCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_iso.run_seed_tool",
                     side_effect=write_wrong_candidate,
                 ),
                 self.assertRaisesRegex(
@@ -817,7 +817,7 @@ class HostBuildIsoCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_iso.run_seed_tool",
                     side_effect=write_then_drift_seed,
                 ),
                 self.assertRaisesRegex(
@@ -890,7 +890,7 @@ class HostBuildIsoCases:
             try:
                 with (
                     mock.patch(
-                        "tools.hostbuild.run_seed_tool",
+                        "tools.hostbuild_iso.run_seed_tool",
                         side_effect=AssertionError(
                             "CupidObj must not run for a second publisher"
                         ),
@@ -934,7 +934,7 @@ class HostBuildIsoCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild._render_iso_image",
+                    "tools.hostbuild_iso._render_iso_image",
                     side_effect=render_then_mutate,
                 ),
                 self.assertRaisesRegex(
@@ -1095,7 +1095,7 @@ class HostBuildIsoCases:
             stdout = io.StringIO()
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_iso.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 contextlib.redirect_stdout(stdout),
@@ -1150,7 +1150,7 @@ class HostBuildIsoCases:
             diagnostic = io.StringIO()
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_iso.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 contextlib.redirect_stderr(diagnostic),
@@ -1202,7 +1202,7 @@ class HostBuildIsoCases:
             diagnostic = io.StringIO()
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_iso.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 contextlib.redirect_stderr(diagnostic),
@@ -1257,7 +1257,7 @@ class HostBuildIsoCases:
             diagnostic = io.StringIO()
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_iso.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 contextlib.redirect_stderr(diagnostic),
@@ -1314,7 +1314,7 @@ class HostBuildIsoCases:
             diagnostic = io.StringIO()
             with (
                 mock.patch(
-                    "tools.hostbuild.run_seed_tool",
+                    "tools.hostbuild_iso.run_seed_tool",
                     side_effect=run_seed,
                 ),
                 contextlib.redirect_stderr(diagnostic),
@@ -1380,7 +1380,7 @@ class HostBuildIsoCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild._render_iso_image",
+                    "tools.hostbuild_iso._render_iso_image",
                     side_effect=render_then_mutate,
                 ),
                 self.assertRaisesRegex(
@@ -1408,7 +1408,7 @@ class HostBuildIsoCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild._render_iso_image",
+                    "tools.hostbuild_iso._render_iso_image",
                     side_effect=render_then_add,
                 ),
                 self.assertRaisesRegex(
@@ -1427,7 +1427,7 @@ class HostBuildIsoCases:
 
             with (
                 mock.patch(
-                    "tools.hostbuild._render_iso_image",
+                    "tools.hostbuild_iso._render_iso_image",
                     side_effect=render_then_replace_output,
                 ),
                 self.assertRaisesRegex(
