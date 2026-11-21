@@ -1,5 +1,15 @@
 # Bootstrapping log
 
+## 2026-11-21 — Split build graph tests by responsibility
+
+The suite keeps its original 143 unittest names. Make recipes, source
+ownership, preprocessor directives, and fixed-point checks live in focused
+modules. Every file stays under 2,000 lines.
+
+Windows and WSL each passed 139 cases on the first complete run. Four
+cases needed updated audit counts or the two new compiler-wrapper files
+in their fixtures. The four reruns passed on both hosts.
+
 ## 2026-11-21 — Move the host ISO fixtures into their own module
 
 The ISO module keeps Rock Ridge layout, input snapshots and byte checks
