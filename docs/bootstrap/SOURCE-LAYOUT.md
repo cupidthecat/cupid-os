@@ -88,6 +88,12 @@ The main suite still builds the CLI once and collects the same 148 tests.
 Each file stays under 1,600 lines. The suite and both fixture consumers
 ran 166 cases on Windows and WSL, with 12 and eight platform skips.
 
+## Hostbuild tests
+
+The 5,088-line suite now keeps disk, ISO, symbol and JPEG cases in four
+modules. Each stays under 1,800 lines. The original entry point still runs
+all 90 tests under the same names. Windows and WSL passed with one skip each.
+
 ## Native contract runner tests
 
 The 3,944-line suite now separates publication and user ABI cases from
