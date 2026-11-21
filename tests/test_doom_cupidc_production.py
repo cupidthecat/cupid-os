@@ -1,3 +1,5 @@
+## @file
+#  @brief Verify Doom source ownership, compiler profiles, and artifact publication.
 import hashlib
 import inspect
 import json
@@ -244,6 +246,9 @@ class DoomCupidCProductionTests(unittest.TestCase):
         dglibc_source = (REPO_ROOT / "kernel/doom/dglibc.cc").read_text(
             encoding="utf-8"
         )
+        dglibc_selftest = (REPO_ROOT / "kernel/doom/dglibc_selftest.inc").read_text(
+            encoding="utf-8"
+        )
         compatibility = (
             REPO_ROOT / "kernel/doom/dglibc_compat.h"
         ).read_text(encoding="utf-8")
@@ -391,14 +396,14 @@ class DoomCupidCProductionTests(unittest.TestCase):
             "!g_homefs || g_homefs->batch_depth == 0u", homefs_source
         )
         self.assertIn(
-            "publish_status = homefs_batch_end();", dglibc_source
+            "publish_status = homefs_batch_end();", dglibc_selftest
         )
         self.assertIn(
-            "[PASS] dglibc HomeFS batch boundary", dglibc_source
+            "[PASS] dglibc HomeFS batch boundary", dglibc_selftest
         )
-        self.assertIn("while (acquired < 16)", dglibc_source)
-        self.assertIn("denied = vfs_open(path, O_WRONLY | O_CREAT)", dglibc_source)
-        self.assertIn("for (int i = 0; i < acquired; i++)", dglibc_source)
+        self.assertIn("while (acquired < 16)", dglibc_selftest)
+        self.assertIn("denied = vfs_open(path, O_WRONLY | O_CREAT)", dglibc_selftest)
+        self.assertIn("for (int i = 0; i < acquired; i++)", dglibc_selftest)
         self.assertIn("fat16_open_checked(path, &file)", homefs_source)
         self.assertIn(
             "fat16_reserve_file(HOMEFS_CONTAINER_NAME)", homefs_source
@@ -773,6 +778,7 @@ class DoomCupidCProductionTests(unittest.TestCase):
             path.relative_to(REPO_ROOT).as_posix() for path in inputs
         }
         self.assertIn("kernel/doom/dglibc.cc", relative)
+        self.assertIn("kernel/doom/dglibc_selftest.inc", relative)
         self.assertIn("drivers/serial.h", relative)
         self.assertIn("kernel/core/types.h", relative)
         self.assertIn("kernel/doom/src/doomdef.h", relative)

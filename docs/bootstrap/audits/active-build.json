@@ -3192,6 +3192,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -6647,6 +6648,7 @@
           "kernel/crypto/x509.h",
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -7003,6 +7005,7 @@
           "kernel/crypto/x509.h",
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -7365,6 +7368,7 @@
           "kernel/crypto/x509.h",
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
           "kernel/doom/src/d_englsh.h",
@@ -7722,6 +7726,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -8077,6 +8082,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -8435,6 +8441,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -8793,6 +8800,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -9151,6 +9159,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -9509,6 +9518,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -9867,6 +9877,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -10225,6 +10236,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -10583,6 +10595,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -10941,6 +10954,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -11299,6 +11313,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -11657,6 +11672,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -12015,6 +12031,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -12373,6 +12390,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -12731,6 +12749,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -13089,6 +13108,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -13447,6 +13467,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -13805,6 +13826,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -14163,6 +14185,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -14521,6 +14544,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -14879,6 +14903,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -15237,6 +15262,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -15595,6 +15621,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -15953,6 +15980,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -16311,6 +16339,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -16669,6 +16698,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -17027,6 +17057,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -17385,6 +17416,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -17743,6 +17775,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -18101,6 +18134,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -18459,6 +18493,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -18817,6 +18852,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -19175,6 +19211,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -19533,6 +19570,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -19891,6 +19929,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -20249,6 +20288,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -20607,6 +20647,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -20965,6 +21006,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -21323,6 +21365,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -21681,6 +21724,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -22039,6 +22083,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -22397,6 +22442,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -22755,6 +22801,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -23113,6 +23160,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -23471,6 +23519,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -23829,6 +23878,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -24187,6 +24237,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -24545,6 +24596,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -24903,6 +24955,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -25261,6 +25314,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -25619,6 +25673,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -25977,6 +26032,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -26335,6 +26391,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -26693,6 +26750,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -27051,6 +27109,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -27409,6 +27468,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -27767,6 +27827,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -28125,6 +28186,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -28483,6 +28545,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -28841,6 +28904,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -29199,6 +29263,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -29557,6 +29622,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -29915,6 +29981,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -30273,6 +30340,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -30631,6 +30699,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -30989,6 +31058,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -31347,6 +31417,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -31705,6 +31776,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -32063,6 +32135,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -32421,6 +32494,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -32779,6 +32853,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -33137,6 +33212,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -33495,6 +33571,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -33853,6 +33930,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -34211,6 +34289,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -34569,6 +34648,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -34927,6 +35007,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -35285,6 +35366,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -35643,6 +35725,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -36001,6 +36084,7 @@
           "kernel/crypto/x509_chain.h",
           "kernel/doom/dglibc.h",
           "kernel/doom/dglibc_compat.h",
+          "kernel/doom/dglibc_selftest.inc",
           "kernel/doom/doomgeneric_cupidos.h",
           "kernel/doom/src/am_map.h",
           "kernel/doom/src/config.h",
@@ -46185,10 +46269,10 @@
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
       "direct_angle_occurrences": 346,
-      "direct_quoted_occurrences": 2303,
-      "include_occurrences": 2649,
+      "direct_quoted_occurrences": 2304,
+      "include_occurrences": 2650,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2649,
+      "ordinary_marker_occurrences": 2650,
       "pp_token_operand_occurrences": 0,
       "source_files": 759,
       "status": "pass"
@@ -51708,7 +51792,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 2250
+      "occurrences": 2247
     },
     {
       "category": "control",
@@ -52484,7 +52568,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5806
+      "occurrences": 5805
     },
     {
       "category": "control",
@@ -52786,7 +52870,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 5097
+      "occurrences": 5095
     },
     {
       "category": "control",
@@ -53282,7 +53366,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 46103
+      "occurrences": 45986
     },
     {
       "category": "control",
@@ -53683,7 +53767,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28612
+      "occurrences": 28516
     },
     {
       "category": "control",
@@ -54097,7 +54181,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3165
+      "occurrences": 3161
     },
     {
       "category": "declaration",
@@ -54265,7 +54349,7 @@
         "user/cupid.h"
       ],
       "id": "c.declarator.function_pointer",
-      "occurrences": 1033
+      "occurrences": 1032
     },
     {
       "category": "declarator",
@@ -54446,7 +54530,7 @@
         "toolchain/user_syscall_abi.cc"
       ],
       "id": "c.declarator.variadic",
-      "occurrences": 63
+      "occurrences": 61
     },
     {
       "category": "expression",
@@ -54697,7 +54781,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 7255
+      "occurrences": 7239
     },
     {
       "category": "extension",
@@ -54803,13 +54887,12 @@
       ],
       "files": [
         "kernel/core/panic.h",
-        "kernel/doom/dglibc.cc",
         "kernel/doom/dglibc.h",
         "kernel/doom/doomgeneric_cupidos.cc",
         "kernel/doom/src/i_system.h"
       ],
       "id": "c.extension.attribute.noreturn",
-      "occurrences": 11
+      "occurrences": 9
     },
     {
       "category": "extension",
@@ -57460,7 +57543,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2649
+      "occurrences": 2650
     },
     {
       "category": "preprocessor",
@@ -58083,7 +58166,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 19135
+      "occurrences": 19098
     },
     {
       "category": "qualifier",
@@ -58201,7 +58284,6 @@
         "kernel/crypto/p256.h",
         "kernel/crypto/x25519.h",
         "kernel/crypto/x509_chain.h",
-        "kernel/doom/dglibc.cc",
         "kernel/doom/dglibc.h",
         "kernel/doom/dglibc_compat.h",
         "kernel/doom/doom_libc_stubs.cc",
@@ -58292,7 +58374,7 @@
         "toolchain/hosted/i386-linux/include/stdio.h"
       ],
       "id": "c.storage.extern",
-      "occurrences": 706
+      "occurrences": 697
     },
     {
       "category": "storage",
@@ -58654,7 +58736,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10999
+      "occurrences": 10988
     },
     {
       "category": "type",
@@ -59148,7 +59230,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 12678
+      "occurrences": 12618
     },
     {
       "category": "type",
@@ -59977,7 +60059,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 26344
+      "occurrences": 26302
     },
     {
       "category": "type",
@@ -60005,7 +60087,6 @@
         "kernel/audio/mus2midi.cc",
         "kernel/core/string.cc",
         "kernel/core/types.h",
-        "kernel/doom/dglibc.cc",
         "kernel/doom/dglibc_compat.h",
         "kernel/doom/doom_libc_stubs.cc",
         "kernel/doom/src/i_swap.h",
@@ -60041,7 +60122,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.long",
-      "occurrences": 709
+      "occurrences": 707
     },
     {
       "category": "type",
@@ -61057,7 +61138,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 4653
+      "occurrences": 4652
     },
     {
       "category": "type",
@@ -61699,7 +61780,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 16423
+      "occurrences": 16402
     },
     {
       "category": "declaration",
@@ -62628,11 +62709,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "2196c76be85747ac4564030e9f9904f2006c78ccd6b2f1e2a0d38f8bdb1e20a8",
+    "active_source_digest": "17b76fd99b6bb70b17a5cb24900eb5092a06e71c9c071ea256f5a446e3866989",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "f5e1ede7521f87833c0184f975702889f9a72f64d1b89a2accdf33ce954eb463"
+        "sha256": "1e1fce5f49a3ea4959a875769bc225147ad74005bca184f3b789b0067c6ddbc4"
       },
       {
         "path": "user/Makefile",
@@ -72310,7 +72391,6 @@
         "c.declarator.function_pointer",
         "c.declarator.variadic",
         "c.expression.sizeof",
-        "c.extension.attribute.noreturn",
         "c.extension.builtin.va_arg",
         "c.extension.builtin.va_end",
         "c.extension.builtin.va_list",
@@ -72322,13 +72402,11 @@
         "c.preprocessor.undef",
         "c.qualifier.const",
         "c.qualifier.volatile",
-        "c.storage.extern",
         "c.storage.static",
         "c.type.char",
         "c.type.double",
         "c.type.enum",
         "c.type.int",
-        "c.type.long",
         "c.type.struct",
         "c.type.typedef",
         "c.type.unsigned",
@@ -72349,12 +72427,12 @@
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 2186,
+      "lines": 1281,
       "origin": "tracked",
       "path": "kernel/doom/dglibc.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "bcf12637e3e3b0c8212109c7040ac8406846c83ed387384935398ed08eb04ba9"
+      "sha256": "937ac24b1f4ce7daa09e38cca78a9a9bd44972c0ed9c47a54c57a086057a811b"
     },
     {
       "build_owners": [

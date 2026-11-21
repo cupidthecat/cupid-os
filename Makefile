@@ -941,7 +941,7 @@ kernel/audio/opl_smoke.o: kernel/audio/opl_smoke.cc drivers/serial.h kernel/audi
 
 # CupidBuild freezes every configured include root. Make tracks that same
 # complete header search space, including headers not selected by this source.
-DOOM_CUPIDC_HEADERS := $(sort $(wildcard drivers/*.h kernel/*.h kernel/*/*.h \
+DOOM_CUPIDC_HEADERS := $(sort $(wildcard drivers/*.h kernel/*.h kernel/*/*.h kernel/doom/*.inc \
 	                         kernel/doom/src/*.h \
 	                         kernel/doom/src/include_stubs/*.h \
 	                         kernel/doom/src/include_stubs/*/*.h \

@@ -46,3 +46,18 @@ The 4,486-line terminal test suite now has separate modules for terminal
 input and capture, the frontier runtime, and program-specific evidence.
 The modules share their serial, disk and monitor fixtures. All 160 tests
 passed again across the new module paths.
+
+## Doom libc shim
+
+`kernel/doom/dglibc.cc` contains the runtime adapters. Its private storage,
+formatting and lifecycle tests live in `kernel/doom/dglibc_selftest.inc`.
+CupidC still compiles them in one translation unit so the tests can use
+private helpers without exporting them. Make now tracks the included file
+along with the rest of the Doom compiler profile.
+
+The split leaves the two files at 1,281 and 909 lines. The first preview
+moved an assertion's source line and changed one byte in the object. Keeping
+the file header's line count restored the exact 88,972-byte object on WSL
+and Windows. The two Doom suites passed 46 tests on WSL with one skip.
+The four-vCPU guest passed the installed `dglibc_test`, including its
+HomeFS batch check.
