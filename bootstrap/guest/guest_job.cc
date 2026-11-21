@@ -7,6 +7,8 @@
 
 #define GUEST_ENOENT (-2)
 #define GUEST_ENOSPC (-28)
+#define HOME_PREFIX "/home/"
+#define TEMP_PREFIX "/tmp/"
 
 char *cupid_guest_next_job_line(char **cursor, char *end) {
     char *line = *cursor;
@@ -25,6 +27,16 @@ char *cupid_guest_next_job_line(char **cursor, char *end) {
     return line;
 }
 
+ctool_u32 cupid_guest_output_prefix(cupid_syscall_table_t *sys, ctool_string_t path) {
+    if (path.size > sizeof(HOME_PREFIX) - 1u &&
+        sys->strncmp(path.data, HOME_PREFIX, sizeof(HOME_PREFIX) - 1u) == 0)
+        return sizeof(HOME_PREFIX) - 1u;
+    if (path.size > sizeof(TEMP_PREFIX) - 1u &&
+        sys->strncmp(path.data, TEMP_PREFIX, sizeof(TEMP_PREFIX) - 1u) == 0)
+        return sizeof(TEMP_PREFIX) - 1u;
+    return 0u;
+}
+
 int cupid_guest_read_path_lines(cupid_syscall_table_t *sys, char **cursor, char *end,
                                ctool_path_t *paths, ctool_u32 count) {
     if (count == 0u)
@@ -38,8 +50,7 @@ int cupid_guest_read_path_lines(cupid_syscall_table_t *sys, char **cursor, char 
             return 0;
         paths[i] = path;
     }
-    ctool_string_t output = paths[count - 1u].text;
-    return output.size >= 7u && sys->strncmp(output.data, "/home/", 6u) == 0;
+    return cupid_guest_output_prefix(sys, paths[count - 1u].text) != 0u;
 }
 
 int cupid_guest_read_paths(cupid_syscall_table_t *sys, const char *job_path,
@@ -116,12 +127,31 @@ static ctool_status_t guest_read(void *context, ctool_string_t logical, ctool_u8
 
 static ctool_status_t guest_write(void *context, ctool_string_t path, ctool_bytes_t contents) {
     cupid_guest_io_t *io = context;
+    const char *candidate = io->pending_path;
+    ctool_u32 prefix = cupid_guest_output_prefix(io->sys, path);
+    if (!candidate || prefix == 0u)
+        return CTOOL_ERR_PATH;
+
+    char temporary[VFS_MAX_PATH];
+    if (prefix == sizeof(TEMP_PREFIX) - 1u) {
+        ctool_string_t pending = ctool_string(candidate);
+        if (pending.size <= sizeof(HOME_PREFIX) - 1u || pending.size >= sizeof(temporary) ||
+            io->sys->strncmp(candidate, HOME_PREFIX, sizeof(HOME_PREFIX) - 1u) != 0)
+            return CTOOL_ERR_PATH;
+        io->sys->memcpy(temporary, TEMP_PREFIX, sizeof(TEMP_PREFIX) - 1u);
+        io->sys->memcpy(temporary + sizeof(TEMP_PREFIX) - 1u, candidate + sizeof(HOME_PREFIX) - 1u,
+                        pending.size - (sizeof(HOME_PREFIX) - 1u) + 1u);
+        candidate = temporary;
+    }
+    if (io->sys->strcmp(candidate, path.data) == 0)
+        return CTOOL_ERR_INPUT;
+
     cupid_stat_t pending;
-    int status = io->sys->vfs_stat(io->pending_path, &pending);
+    int status = io->sys->vfs_stat(candidate, &pending);
     if (status != GUEST_ENOENT)
         return file_failure(status);
     cupid_guest_job_drain_cache(io);
-    int fd = io->sys->vfs_open(io->pending_path, O_WRONLY | O_CREAT | O_TRUNC);
+    int fd = io->sys->vfs_open(candidate, O_WRONLY | O_CREAT | O_TRUNC);
     if (fd < 0)
         return file_failure(fd);
 
@@ -136,12 +166,12 @@ static ctool_status_t guest_write(void *context, ctool_string_t path, ctool_byte
         }
         written += (ctool_u32)count;
     }
-    /* HomeFS syncs the rename. Keep the candidate open until that commit. */
+    /* Keep the candidate open so HomeFS syncs only the completed rename. */
     if (status == 0)
-        status = io->sys->vfs_rename(io->pending_path, path.data);
+        status = io->sys->vfs_rename(candidate, path.data);
     io->sys->vfs_close(fd);
     if (status < 0) {
-        io->sys->vfs_unlink(io->pending_path);
+        io->sys->vfs_unlink(candidate);
         return file_failure(status);
     }
     return CTOOL_OK;

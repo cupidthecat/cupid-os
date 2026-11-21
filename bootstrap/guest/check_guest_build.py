@@ -118,7 +118,33 @@ def check(scratch: Path) -> None:
     log = invoke(b"[cupidbuild-guest] stopped at /home/install.job")
     assert b"generation failed: input" in log and b"[cupidc-guest]" not in log
     assert (home / "installed.cc").read_bytes() == reference_install.read_bytes()
-    print("Guest build matched four checked files and stopped on ten rejected plans or steps.")
+
+    temporary = scratch / "tmp"
+    temporary.mkdir()
+    home_pending = home / ".cupidc-pending.o"
+    home_pending.write_bytes(b"preceding HomeFS candidate")
+    (home / "hello.cj").write_bytes(COMPILE.replace(b"/home/hello.o", b"/tmp/hello.o"))
+    (home / "hello.lj").write_bytes(LINK.replace(b"/home/hello.o", b"/tmp/hello.o"))
+    plan.write_bytes(PLAN)
+    log = invoke(b"[cupidbuild-guest] build complete")
+    assert b"wrote /home/hello.elf" in log
+    assert (temporary / "hello.o").read_bytes() == reference_object.read_bytes()
+    assert executable.read_bytes() == reference_executable.read_bytes()
+    assert home_pending.read_bytes() == b"preceding HomeFS candidate"
+
+    shutil.copytree(sources / "user", temporary / "user")
+    (home / "hello.cj").write_bytes(b"/tmp/user/examples/hello.cc\n/tmp/hello.o\ninclude /tmp/user\n")
+    invoke(b"[cupidbuild-guest] build complete")
+    assert (temporary / "hello.o").read_bytes() == reference_object.read_bytes()
+
+    scratch_pending = temporary / ".cupidc-pending.o"
+    assert not scratch_pending.exists()
+    scratch_pending.write_bytes(b"preceding temporary candidate")
+    log = invoke(b"[cupidbuild-guest] stopped at /home/hello.cj")
+    assert b"[cupidld-guest]" not in log
+    assert scratch_pending.read_bytes() == b"preceding temporary candidate"
+    assert executable.read_bytes() == reference_executable.read_bytes()
+    print("Guest build matched four checked files, linked a temporary object, and rejected eleven plans or steps.")
 
 
 if __name__ == "__main__":

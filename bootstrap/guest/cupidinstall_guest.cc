@@ -56,8 +56,10 @@ static int read_install_job(cupid_syscall_table_t *sys, const char *job_path,
         return 0;
     char *cursor = file;
     char *end = file + size;
-    if (!cupid_guest_read_path_lines(sys, &cursor, end, output, 1u) ||
-        output->text.size < sizeof("/home/x.cc") - 1u ||
+    if (!cupid_guest_read_path_lines(sys, &cursor, end, output, 1u))
+        return 0;
+    ctool_u32 prefix = cupid_guest_output_prefix(sys, output->text);
+    if (output->text.size <= prefix + 3u ||
         strcmp(output->text.data + output->text.size - 3u, ".cc") != 0 ||
         strcmp(output->text.data, INSTALL_PENDING) == 0)
         return 0;

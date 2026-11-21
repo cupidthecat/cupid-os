@@ -1,5 +1,21 @@
 # Bootstrapping log
 
+## 2026-11-21 — Keep guest build intermediates in RAMFS
+
+The workers accept temporary outputs under `/tmp`. Each output is renamed
+within its filesystem and keeps its own reserved candidate name. CupidC
+also reads generated sources from RAMFS.
+
+Windows and WSL built matching compiler, linker, install and build workers.
+The Linux contracts kept the preceding temporary and persistent files
+after rejected jobs. In QEMU the temporary `hello.o` stayed in RAMFS. The
+same 5,868-byte object saved to HomeFS required a 1,255,967-byte sync.
+CupidLD linked the RAMFS object into the checked 13,992-byte executable,
+which ran in Cupid OS.
+
+The complete temporary build stopped at `notepad.o`. Its 73,396 bytes
+exceed the kernel's 64 KiB RAMFS write limit.
+
 ## 2026-11-21 — Rebuild and run CupidBuild inside Cupid OS
 
 The guest built all 24 CupidBuild objects and linked the 3,293,380-byte

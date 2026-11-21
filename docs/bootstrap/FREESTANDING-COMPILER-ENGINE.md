@@ -349,14 +349,20 @@ Each step uses the same format as its standalone worker. The driver
 validates up to 512 plan entries before starting, stops at the first
 failure and saves each successful output atomically.
 
+Use `/tmp` for intermediate files. The workers write and rename temporary
+products in RAMFS. The kernel at this checkpoint limits RAMFS writes to
+64 KiB per file. Use `/home` for larger files and files the next boot should
+retain.
+
 ```sh
 make -C bootstrap/guest check-guest-build
 python3 bootstrap/guest/check_guest_build_runtime.py --production-root /path/to/checked/build
 ```
 
 The QEMU replay assembled the ISR, generated the demo installation source,
-and compiled, linked and ran `hello`. All four files matched the checked
-build. The Linux contract rejected ten invalid plans or failed steps.
+compiled and linked `hello` through a temporary object, then ran the
+executable. The four saved files matched the checked build. The Linux
+contract rejected eleven invalid plans or failed steps.
 
 The driver accepts `assemble` for an ELF object and `install` for kernel
 installation source. It also accepts `raw`, `symbols`, `object` and `disk`.

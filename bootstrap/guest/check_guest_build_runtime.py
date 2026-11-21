@@ -33,9 +33,13 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
 
     demos = "kernel/util/demos_programs_gen.cc"
     install = b"kernel/util/install.job"
-    plan = b"assemble\n/home/isr.job\ninstall\n/home/" + install + b"\n" + PLAN
+    plan = (b"assemble\n/home/isr.job\ninstall\n/home/" + install +
+            b"\ncompile\n/home/hello-temp.cj\n" + PLAN)
+    temporary = COMPILE.replace(b"/home/hello.o", b"/tmp/hello.o")
+    link = LINK.replace(b"/home/hello.o", b"/tmp/hello.o")
     homefs = scratch / "homefs.sys"
-    write_homefs(homefs, ((b"cupidbuild.job", plan), (b"hello.cj", COMPILE), (b"hello.lj", LINK),
+    write_homefs(homefs, ((b"cupidbuild.job", plan), (b"hello.cj", COMPILE), (b"hello.lj", link),
+                         (b"hello-temp.cj", temporary),
                          (b"isr.job", b"/disk/isr.asm\n/home/isr.o\n"),
                          (install, installation_jobs(root)[demos])))
     disk = scratch / "build.img"

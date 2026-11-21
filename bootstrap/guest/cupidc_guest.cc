@@ -144,7 +144,7 @@ ctool_status_t cupid_guest_compile_job(cupid_syscall_table_t *sys, const char *j
     request.abi = CTOOL_C_ENGINE_ABI;
     request.bytes = sizeof(request);
     const char *source_mount =
-        bundle || strncmp(request.invocation.input_path.data, "/home/", 6u) == 0 ? "" : SOURCE_MOUNT;
+        bundle || cupid_guest_output_prefix(sys, request.invocation.input_path) ? "" : SOURCE_MOUNT;
     cupid_guest_io_t io = {
         .sys = sys, .input_prefix = ctool_string(source_mount), .pending_path = PENDING_PATH
     };

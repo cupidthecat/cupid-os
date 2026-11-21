@@ -78,6 +78,8 @@ assembly, symbols for kernel symbols, object for wrapping or flattening,
 assemble for an ELF object, install for generated kernel source, and disk
 for a bootable disk prefix. The driver validates up to 512 steps first
 and stops at the first failed step. Each step publishes output atomically.
+Use /tmp for intermediate files and /home for outputs that need to survive
+a reboot.
 
 >h2 Assemble a relocatable object
 

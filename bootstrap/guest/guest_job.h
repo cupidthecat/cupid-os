@@ -27,14 +27,18 @@ typedef struct {
 } cupid_guest_io_t;
 
 /* The adapter and syscall table must outlive the job. Input paths are
- * relative to input_prefix. Output paths already name guest VFS files. */
+ * relative to input_prefix. A pending path under /home also reserves the
+ * matching name under /tmp for temporary products. */
 ctool_job_config_t cupid_guest_job_config(cupid_guest_io_t *io);
 
-/* Read two canonical paths. The output is under /home. Views borrow file. */
+/* Return the length of a writable directory prefix, including its slash. */
+ctool_u32 cupid_guest_output_prefix(cupid_syscall_table_t *sys, ctool_string_t path);
+
+/* Read two canonical paths. The output is under /home or /tmp. Views borrow file. */
 int cupid_guest_read_path_job(cupid_syscall_table_t *sys, const char *job_path,
                               char *file, ctool_invocation_request_t *invocation);
 
-/* Each field occupies one line. The last path is an output under /home. */
+/* Each field occupies one line. The last path is the writable output. */
 int cupid_guest_read_paths(cupid_syscall_table_t *sys, const char *job_path,
                           char *file, ctool_u32 capacity, ctool_path_t *paths, ctool_u32 count);
 int cupid_guest_read_path_lines(cupid_syscall_table_t *sys, char **cursor, char *end,

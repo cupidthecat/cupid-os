@@ -38,9 +38,10 @@ static int read_link_job(const char *path, char *file, guest_link_job_t *job) {
         return 0;
 
     job->output.text = ctool_string(output);
-    if (!ctool_path_is_canonical(&job->output) || strncmp(output, "/home/", 6u) != 0 ||
+    ctool_u32 prefix = cupid_guest_output_prefix(__sys, job->output.text);
+    if (!ctool_path_is_canonical(&job->output) || prefix == 0u ||
         strcmp(output, LINK_PENDING) == 0 || job->output.text.size >= VFS_MAX_PATH ||
-        job->output.text.size <= 10u ||
+        job->output.text.size <= prefix + 4u ||
         strcmp(output + job->output.text.size - 4u, ".elf") != 0)
         return 0;
 
