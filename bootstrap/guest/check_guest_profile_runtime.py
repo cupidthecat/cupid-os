@@ -5,6 +5,8 @@
 
 import argparse
 from pathlib import Path
+import shutil
+import subprocess
 import tempfile
 
 from check_guest_asset_bundle import expected_bundle
@@ -24,6 +26,7 @@ from tools.cupidc_kernel_compile import (
     COMPILER_PROFILE_SOURCES,
     _kernel_input_paths,
 )
+from tools.gui_terminal_smoke import PANIC_RE
 
 
 DEFAULT_SOURCES = (
@@ -86,13 +89,22 @@ def compile_profile_batch(scratch: Path, root: Path, profile: str, sources: list
     create_disk(disk, f"{homefs}:/homefs.sys", f"{iso}:/p.iso",
                 f"{BUILD / 'cupidc-guest.elf'}:/c", production_root=root)
     log = BUILD / f"production-profile-{sources[0].replace('/', '-')}.log"
-    run("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "4",
-        "--cpu", "max", "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.5",
-        "--image", str(disk), "--log", str(log), "--require-command-completion",
-        "--setup-command", "mount /disk/p.iso /src",
-        "--setup-success-pattern", r"VFS: mounted 'iso9660' at '/src'",
-        "--command", "exec /disk/c",
-        "--success-pattern", r"\[cupidc-guest\] wrote /home/objects[.]iso" + COMPILER_REAPED)
+    mounted = "VFS: mounted 'iso9660' at '/src'"
+    command = ("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "4",
+               "--cpu", "max", "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.75",
+               "--setup-timeout", "75", "--image", str(disk), "--log", str(log),
+               "--require-command-completion", "--setup-command", "mount /disk/p.iso /src",
+               "--setup-success-pattern", mounted, "--command", "exec /disk/c",
+               "--success-pattern", r"\[cupidc-guest\] wrote /home/objects[.]iso" + COMPILER_REAPED)
+    try:
+        run(*command)
+    except subprocess.CalledProcessError:
+        transcript = log.read_text(encoding="utf-8", errors="replace") if log.is_file() else ""
+        if (mounted in transcript or "[terminal] command complete" not in transcript or
+                PANIC_RE.search(transcript)):
+            raise
+        print("Retrying the guest command after the source mount was missed.")
+        run(*command)
 
     matched = compare_object_bundle(read_homefs(disk), scratch, reference,
                                     {name: root / obj for name, obj in members.items()})
@@ -108,6 +120,7 @@ def compile_profile_batch(scratch: Path, root: Path, profile: str, sources: list
 
 def compile_production_objects(
     scratch: Path, root: Path, sources: list[str], qemu: str, timeout: float,
+    capture_directory: Path | None = None,
 ) -> dict[str, Path]:
     if not sources:
         return {}
@@ -122,7 +135,16 @@ def compile_production_objects(
         for start in range(0, len(members), MAX_BATCH_SOURCES):
             batch = members[start:start + MAX_BATCH_SOURCES]
             with tempfile.TemporaryDirectory(dir=scratch, prefix=f"{profile}-") as temporary:
-                objects.update(compile_profile_batch(Path(temporary), root, profile, batch, qemu, timeout))
+                compiled = compile_profile_batch(Path(temporary), root, profile, batch, qemu, timeout)
+                objects.update(compiled)
+                if capture_directory is not None:
+                    for logical, product in compiled.items():
+                        destination = capture_directory / logical
+                        destination.parent.mkdir(parents=True, exist_ok=True)
+                        with tempfile.TemporaryDirectory(dir=destination.parent) as private:
+                            candidate = Path(private) / destination.name
+                            shutil.copyfile(product, candidate)
+                            destination.hardlink_to(candidate)
     return objects
 
 
@@ -133,6 +155,8 @@ def main() -> None:
     cohort.add_argument("--source", action="append", metavar="PATH",
                         help="replay a repository-relative production source (repeatable)")
     cohort.add_argument("--all", action="store_true", help="replay all production profiles")
+    parser.add_argument("--capture-objects", type=Path,
+                        help="save checked guest objects in a new directory as each group finishes")
     parser.add_argument("--qemu", default="qemu-system-i386")
     parser.add_argument("--timeout", type=float, default=1800)
     args = parser.parse_args()
@@ -141,9 +165,14 @@ def main() -> None:
         parser.error(f"no checked production profile for {', '.join(sorted(unknown))}")
     if len(set(sources)) != len(sources):
         parser.error("production sources must be distinct")
+    if args.capture_objects is not None:
+        try:
+            args.capture_objects.mkdir(parents=True)
+        except OSError as error:
+            parser.error(f"cannot create capture directory: {error}")
     with tempfile.TemporaryDirectory(prefix="cupid-profile-") as temporary:
         compile_production_objects(Path(temporary) / "compile", args.production_root.resolve(),
-                                   sources, args.qemu, args.timeout)
+                                   sources, args.qemu, args.timeout, args.capture_objects)
 
 
 if __name__ == "__main__":

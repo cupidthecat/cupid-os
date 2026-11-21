@@ -108,9 +108,11 @@ workers. The assembler includes CupidDis and reproduced the ISR object.
 The linker produced the checked `hello` ELF, and CupidObj produced the
 checked JPEG object. [Peer replay commands](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#rebuild-and-run-the-peer-workers)
 
-The guest build driver reads `/home/cupidbuild.job`. One command assembled
-the bootloader, ran both kernel links, and saved the disk prefix. The disk
-booted and ran `ls`. See the [build plan format](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#run-a-build-plan-inside-cupid-os).
+The kernel replay uses all 428 guest-built pass-one objects, including
+Doom. The build plan assembles the bootloader, runs both kernel links,
+generates and compiles the symbol table, and saves the disk prefix.
+The disk boots with four CPUs and runs `ls`.
+[Kernel replay](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#build-the-disk-template-inside-cupid-os)
 
 The source ISO also carries the shared CupidASM, CupidDis and CupidObj
 sources and headers. `make -C bootstrap/guest peer-objects` builds the checked

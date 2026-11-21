@@ -224,7 +224,10 @@ python3 bootstrap/guest/check_guest_profile_runtime.py
 
 Use `--production-root` to select a separate completed checked build.
 Repeat `--source` to select other repository-relative sources from the
-checked production profiles.
+checked production profiles. Use `--all --capture-objects DIRECTORY` to
+keep verified objects in a new directory, with their repository paths.
+Each completed batch is saved as it finishes. The replay bounds the mount
+wait and retries a missed mount once.
 
 ## Link objects inside Cupid OS
 
@@ -602,17 +605,20 @@ The replay accepts `--boot` and `--kernel` to select saved guest artifacts.
 Run the full boot-media replay from a completed checked Linux or WSL build.
 
 ```sh
-make -C bootstrap/guest guest-compiler guest-linker guest-ksyms guest-object \
-  guest-disk guest-raw guest-assembler guest-install
-python3 bootstrap/guest/check_guest_kernel_link.py --rebuild-disk \
-  --rebuild-assets --rebuild-assembly --rebuild-installation \
-  --rebuild-source kernel/lang/cupidc_parse.cc
+make -C bootstrap/guest all guest-build guest-compiler guest-linker \
+  guest-object guest-raw guest-assembler guest-install
+python3 bootstrap/guest/check_guest_kernel_link.py --rebuild-all \
+  --production-root /path/to/checked/build
 ```
 
+The replay requires every ordered pass-one object. Use
+`--use-profile-objects DIRECTORY` to reuse a capture. The replay compares
+and snapshots each captured object before staging. The guest build plan
+then produces both links and the bootable disk prefix.
+
 The raw assembly worker builds the bootloader and validates its ranges and
-control edges with CupidDis.
-A second guest runs the disk worker with the bootloader and raw kernel
-read back from the kernel replay. The test zero-extends the saved prefix
+control edges with CupidDis. The disk job uses the saved bootloader and raw
+kernel. The test zero-extends the saved prefix
 and boots it with four virtual CPUs. It checks SMP, TLS, e1000 and DHCP,
 then runs the shell's `ls` through CupidC.
 

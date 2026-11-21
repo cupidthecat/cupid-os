@@ -9,22 +9,19 @@ Cupid OS remains unfinished.
 
 - The normal graph has 452 transforms: 449 use CupidBuild and three retain
   Python coordination. GNU Make still schedules the build.
-- CupidC rebuilt and ran its thirteen-object compiler worker inside Cupid OS.
-  CupidLD also rebuilt and ran its own worker. The rebuilt compiler reproduced
-  the CupidASM, CupidDis and CupidObj core objects and selected kernel and Doom
-  objects with their production profiles. The assembler worker reproduced
-  both production kernel assembly objects. The guest wrapped all 183 kernel
-  assets, including JPEG, and generated and compiled all three installation
-  sources. It ran the `cat`, `hello` and `ls` examples. A native build plan
-  compiled and linked `hello` from one command. Another plan assembled the
-  bootloader, linked the kernel from staged objects, and saved the prefix
-  for a disk that boots.
+- Cupid OS rebuilt and ran the full CupidC, CupidASM, CupidLD and CupidObj
+  workers. The assembler includes CupidDis. The kernel replay produced
+  all 429 linked objects inside Cupid OS, including Doom and the generated
+  symbol table. It matched both kernel ELFs and saved the checked disk
+  prefix. The disk booted with four CPUs and ran `ls`. A separate replay
+  compiled, linked and ran `cat`, `hello` and `ls`.
   See the [guest build record](FREESTANDING-COMPILER-ENGINE.md).
 - Source-owner modules are in current producer plans, and paired named
   preparations reach a fixed point. The C reader now recognizes their exact
   behavior profiles. The installed seeds come from the same 114-file snapshot.
   Cold OS and user builds agree across Windows and WSL, including the full disk
-  image. The full guest build and the normal image-command handoff remain open.
+  image. Guest source staging, the normal image-command handoff and native
+  developer build coordination remain open.
 - The private in-OS compiler supports halfword storage, integer array lists
   and typed native calls. Its remaining language gaps and guest acceptance
   are separate from hosted compiler fixed points. The shell can inspect
@@ -69,9 +66,7 @@ complete OS can rebuild itself from inside the guest.
   profile readback, exact producer snapshot and paired complete user checks.
 
 - [Freestanding compiler engine](FREESTANDING-COMPILER-ENGINE.md) covers the
-  ELF loader, compiler-source ISO and standalone executable. Cupid OS rebuilt
-  all eleven compiler objects, linked the executable and ran it. The complete
-  in-guest toolchain rebuild remains open.
+  ELF loader, compiler-source ISO, standalone workers and kernel replay.
 
 - [Keyboard FIFO repair](KEYBOARD-FIFO-REPAIR.md): shared reader cursor, checked
   tool fixtures, complete kernel rechecks and the 31-command guest frontier.

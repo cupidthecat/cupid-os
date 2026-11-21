@@ -1,5 +1,23 @@
 # Bootstrapping log
 
+## 2026-11-21 — Boot a kernel built from every guest object
+
+CupidC matched all 240 production profile objects, including all 83 Doom
+objects. The replay retained each successful batch and reused it after
+two source mounts were mistyped by the terminal. A separate replay
+verified the shorter mount wait and the saved-object comparison.
+
+The final plan used all 428 guest-built pass-one objects. CupidASM supplied
+three assembly objects. CupidC supplied the 239 profiled inputs and three
+generated installation objects. CupidObj supplied the 183 asset objects.
+The plan generated and compiled the symbol object for the final link.
+The bootloader, both ELFs, symbol source and object, raw kernel, and
+10,697,216-byte disk prefix matched the checked build. The resulting 200
+MiB disk booted with four CPUs, TLS, e1000 and DHCP and ran `ls`.
+
+The replay still uses the host to stage bootstrap media, schedule compile
+batches and extend the saved disk prefix.
+
 ## 2026-11-21 — Rebuild and run the peer workers
 
 Cupid OS compiled and linked complete CupidASM, CupidLD and CupidObj
