@@ -1,3 +1,5 @@
+## @file
+#  @brief Verify production compiler recipes and their checked inputs and outputs.
 import os
 import re
 import shutil

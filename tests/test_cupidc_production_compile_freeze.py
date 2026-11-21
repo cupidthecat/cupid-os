@@ -1,3 +1,5 @@
+## @file
+#  @brief Verify that production compilation retains its approved input snapshot.
 import subprocess
 import tempfile
 import unittest

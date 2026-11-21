@@ -33,3 +33,11 @@ python -m unittest tests.test_cupidc_production tests.test_user_link_production 
 
 The split keeps the test cases and assertions intact. All 64 tests passed
 on Windows.
+
+## QEMU terminal smoke test
+
+`tools/gui_terminal_smoke.py` drives QEMU and checks the resulting output.
+`tools/gui_terminal_contracts.py` holds the command sequence and the expected
+serial output. The runner is now 1,912 lines, and its command-line entry
+point stays the same. All 160 terminal, fullscreen and user-runtime tests
+passed on Windows.

@@ -1,3 +1,5 @@
+## @file
+#  @brief Test QEMU terminal input, serial checks, and capture validation.
 import hashlib
 import io
 import itertools
@@ -10,7 +12,7 @@ import wave
 from pathlib import Path
 from unittest import mock
 
-from tools import gui_terminal_smoke
+from tools import gui_terminal_contracts, gui_terminal_smoke
 from tests.c_source_spelling import _c_spelling_ranges, c_block, c_literal_text
 
 
@@ -394,7 +396,7 @@ def _frontier_command_outputs():
 def _frontier_command(text, occurrence=0):
     commands = [
         command
-        for command in gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS
+        for command in gui_terminal_contracts.FRONTIER_RUNTIME_COMMANDS
         if command.text == text
     ]
     return commands[occurrence]
@@ -404,7 +406,7 @@ def _frontier_command_output(text, occurrence=0):
     command_indexes = [
         index
         for index, command in enumerate(
-            gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS
+            gui_terminal_contracts.FRONTIER_RUNTIME_COMMANDS
         )
         if command.text == text
     ]
@@ -1632,7 +1634,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             if command.startswith("device_del frontier_mass_storage")
         ]
         self.assertGreaterEqual(
-            gui_terminal_smoke.FRONTIER_STORAGE_REATTACHMENTS,
+            gui_terminal_contracts.FRONTIER_STORAGE_REATTACHMENTS,
             5,
         )
         self.assertEqual(len(storage_adds), 5)
@@ -1725,7 +1727,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 self.run_replug_contract(log, monitor)
 
     def test_command_sequence_uses_source_backed_success_markers(self):
-        commands = gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS
+        commands = gui_terminal_contracts.FRONTIER_RUNTIME_COMMANDS
 
         self.assertEqual(
             [command.text for command in commands],
@@ -1780,7 +1782,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             feature7_command.expected_pattern,
         )
         self.assertIn(
-            gui_terminal_smoke.CUPIDC_COMPLETION_PATTERN,
+            gui_terminal_contracts.CUPIDC_COMPLETION_PATTERN,
             feature7_command.expected_pattern,
         )
         feature7_source = FEATURE7_SOURCE.read_text(encoding="utf-8")
@@ -1798,7 +1800,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
         self.assertEqual(
             commands[-1].interaction_pattern,
-            gui_terminal_smoke.GODSONG_SETTINGS_READY_PATTERN,
+            gui_terminal_contracts.GODSONG_SETTINGS_READY_PATTERN,
         )
         self.assertNotIn("flip frame=2", commands[-1].interaction_pattern)
         self.assertEqual(commands[-1].followup_settle_seconds, 0.0)
@@ -1955,11 +1957,11 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
         self.assertIn(
             "[test_fpaug-parity] FAIL",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
         self.assertIn(
             "FAIL test_fpaug",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
 
     def test_godsong_publishes_readiness_at_the_first_popup_boundary(self):
@@ -2193,8 +2195,8 @@ class FrontierRuntimeContractTests(unittest.TestCase):
 
     def test_command_sequence_applies_only_explicit_timeout_overrides(self):
         commands = (
-            gui_terminal_smoke.TerminalCommand("a", "A"),
-            gui_terminal_smoke.TerminalCommand(
+            gui_terminal_contracts.TerminalCommand("a", "A"),
+            gui_terminal_contracts.TerminalCommand(
                 "b",
                 "B",
                 timeout_seconds=7.5,
@@ -2206,7 +2208,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         with (
             tempfile.TemporaryDirectory() as temporary,
             mock.patch.object(
-                gui_terminal_smoke,
+                gui_terminal_contracts,
                 "FRONTIER_RUNTIME_COMMANDS",
                 commands,
             ),
@@ -2232,7 +2234,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
 
     def test_doom_recovery_requires_both_failures_before_a_fresh_ls(self):
-        commands = gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS
+        commands = gui_terminal_contracts.FRONTIER_RUNTIME_COMMANDS
         command_texts = [command.text for command in commands]
         no_wad_index = command_texts.index("doom")
         missing_iwad_index = command_texts.index(
@@ -2339,7 +2341,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
 
         self.assertIn(
             "[FAIL] dglibc",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
 
     def test_browser_number_selftest_requires_every_boundary(self):
@@ -2393,7 +2395,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
 
         self.assertIn(
             "[browser-js-number] FAIL",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
 
     def test_unary_command_requires_value_type_error_and_recovery_evidence(
@@ -2425,7 +2427,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 )
         self.assertIn(
             "[feature13-unary] FAIL",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
         self.assertEqual(
             command.allowed_failure_pattern,
@@ -2540,7 +2542,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         ):
             self.assertIn(
                 failure,
-                gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+                gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
             )
 
         source = (
@@ -2719,7 +2721,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
         self.assertIn(
             "[feature13-compare] FAIL",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
 
         source = (
@@ -2757,7 +2759,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
         self.assertIn(
             "[feature13-truth] FAIL",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
 
         source = (
@@ -2795,7 +2797,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
         self.assertIn(
             "[feature13-update] FAIL",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
 
         source = (
@@ -2837,7 +2839,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
         self.assertIn(
             "[feature13-lvalue] FAIL",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
 
         source = (
@@ -2867,7 +2869,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         self.assertIn(r"\[feature13-indirect-update\] PASS", expected)
         self.assertIn(
             "[feature13-indirect-update] FAIL",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
         for expression in (
             "(*feature13_indirect_float_pointer(&pointer_value))++",
@@ -2887,7 +2889,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         external_output = _frontier_command_output(external.text)
         self.assertIn(
             "[feature13-derived-aot] FAIL",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
 
         self.assertIsNotNone(
@@ -2946,7 +2948,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         ):
             self.assertIn(
                 failure,
-                gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+                gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
             )
 
         source = (
@@ -2985,7 +2987,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
         self.assertIn(
             "[feature13-call] FAIL",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
 
         source = (
@@ -3020,7 +3022,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
         self.assertIn(
             "[feature13-literal] FAIL",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
 
         source = (
@@ -3258,7 +3260,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 )
         self.assertIn(
             "FAIL feature15_libm",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
 
     def test_libm_guest_source_calls_the_production_math_path(self):
@@ -3426,11 +3428,11 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
         self.assertIn(
             "FAIL jpeg_decode_mem",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
         self.assertIn(
             "FAIL glyph_rasterize",
-            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            gui_terminal_contracts.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
 
     def test_iso_guest_source_calls_the_production_glyph_path(self):
@@ -3470,7 +3472,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
         command = next(
             entry
-            for entry in gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS
+            for entry in gui_terminal_contracts.FRONTIER_RUNTIME_COMMANDS
             if entry.text == "/bin/feature17_iso.cc"
         )
         self.assertIn(
@@ -3519,7 +3521,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
 
         self.assertEqual(
             monitor.completed,
-            len(gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS),
+            len(gui_terminal_contracts.FRONTIER_RUNTIME_COMMANDS),
         )
         self.assertEqual(
             marker_release_sent_counts,
@@ -3530,7 +3532,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         self.assertIn("[gfx2d] flip frame=2", data)
         self.assertEqual(
             sleep.call_args_list.count(mock.call(1.0)),
-            len(gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS) - 1,
+            len(gui_terminal_contracts.FRONTIER_RUNTIME_COMMANDS) - 1,
         )
         self.assertEqual(sleep.call_args_list.count(mock.call(2.0)), 0)
         sent = b"".join(monitor.sent)
@@ -3552,7 +3554,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             process = mock.Mock()
             process.poll.return_value = None
             command = _frontier_command("godsong 1 200")
-            interaction = gui_terminal_smoke.TerminalCommand(
+            interaction = gui_terminal_contracts.TerminalCommand(
                 command.text,
                 command.interaction_pattern,
             )
@@ -3579,7 +3581,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
     def test_doom_recovery_does_not_reuse_the_first_ls_completion(self):
         command_texts = [
             command.text
-            for command in gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS
+            for command in gui_terminal_contracts.FRONTIER_RUNTIME_COMMANDS
         ]
         post_doom_ls_index = [
             index

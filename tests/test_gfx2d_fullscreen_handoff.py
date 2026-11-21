@@ -1,3 +1,5 @@
+## @file
+#  @brief Test fullscreen graphics ownership and cleanup.
 import os
 import shutil
 import subprocess
@@ -33,7 +35,7 @@ DOOM_SOURCE = REPO_ROOT / "kernel" / "doom" / "doomgeneric_cupidos.cc"
 PAINT_SOURCE = REPO_ROOT / "bin" / "paint.cc"
 PAINT_DEMO_SOURCE = REPO_ROOT / "demos" / "paint.cc"
 PARITY_GFX2D_SOURCE = REPO_ROOT / "demos" / "parity_gfx2d.asm"
-SMOKE_SOURCE = REPO_ROOT / "tools" / "gui_terminal_smoke.py"
+SMOKE_CONTRACT = REPO_ROOT / "tools" / "gui_terminal_contracts.py"
 
 
 def _function_source(source: str, name: str) -> str:
@@ -1015,7 +1017,7 @@ class Gfx2DFullscreenHandoffContractTests(unittest.TestCase):
     def test_guest_exit_leaves_nested_cleanup_to_the_process_reaper(self):
         source = EXIT_SOURCE.read_text(encoding="utf-8")
         kill_source = KILL_SOURCE.read_text(encoding="utf-8")
-        smoke = SMOKE_SOURCE.read_text(encoding="utf-8")
+        smoke = SMOKE_CONTRACT.read_text(encoding="utf-8")
         process = PROCESS_SOURCE.read_text(encoding="utf-8")
 
         self.assertEqual(source.count("gfx2d_fullscreen_enter();"), 2)

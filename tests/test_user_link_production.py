@@ -1,3 +1,5 @@
+## @file
+#  @brief Verify production linking and publication of user executables.
 import os
 import re
 import shutil

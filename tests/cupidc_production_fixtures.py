@@ -1,4 +1,5 @@
-"""Seed paths and binary fixtures for production tests."""
+## @file
+#  @brief Provide seed paths and binary fixtures for production tests.
 
 import struct
 from pathlib import Path
