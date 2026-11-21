@@ -59,8 +59,18 @@ Windows with two platform skips and WSL with one.
 
 The 2,409-line assembler suite now keeps raw image and range-map recovery
 tests in an 831-line module. The 1,596-line command-line module keeps the
-existing test names and builds CupidASM once. All 49 cases passed on
+existing test names and builds CupidASM once. The 49-case suite passed on
 Windows and WSL with four platform skips on each host.
+
+## CupidDis and CupidObj command-line tests
+
+The disassembler keeps raw decoding and range-map checks in a 655-line
+module. Its 1,899-line command-line suite still runs all 37 cases under the
+same names. It passed on both hosts with one Windows skip.
+
+CupidObj keeps typed profile checks in a 769-line module. The 1,925-line
+command-line suite still provides the build helper used by the ISO tests.
+The two suites passed 58 cases on WSL and on Windows with three skips.
 
 ## QEMU terminal smoke test
 
