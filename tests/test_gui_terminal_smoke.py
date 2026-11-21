@@ -399,6 +399,33 @@ class GuiTerminalInputTests(unittest.TestCase):
         self.assertEqual(monitor.sent[-1], b"sendkey ret 300\n")
         self.assertEqual(len(monitor.sent), len(command) + 1)
 
+    def test_terminal_command_fails_immediately_on_a_new_worker_rejection(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text("boot complete\n", encoding="utf-8")
+            monitor = SequencedMonitorSocket(log, ["build stopped at /home/test.job\n"])
+            process = mock.Mock()
+            with mock.patch("tools.gui_terminal_smoke.time.sleep"):
+                ok, data = gui_terminal_smoke.run_terminal_command(
+                    process, monitor, log, "exec /disk/b", "build complete", 7200, 0.35,
+                    require_completion=True, failure_pattern="build stopped at ",
+                )
+        self.assertFalse(ok)
+        self.assertIn("build stopped at /home/test.job", data)
+        process.poll.assert_not_called()
+
+    def test_terminal_command_ignores_an_earlier_worker_rejection(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text("build stopped at /home/previous.job\n", encoding="utf-8")
+            monitor = SequencedMonitorSocket(log, ["build complete\n[terminal] command complete\n"])
+            with mock.patch("tools.gui_terminal_smoke.time.sleep"):
+                ok, _ = gui_terminal_smoke.run_terminal_command(
+                    mock.Mock(), monitor, log, "exec /disk/b", "build complete", 1, 0.35,
+                    require_completion=True, failure_pattern="build stopped at ",
+                )
+        self.assertTrue(ok)
+
     def test_terminal_completion_rejects_an_early_success_without_ready(self):
         with tempfile.TemporaryDirectory() as temporary:
             log = Path(temporary) / "serial.log"

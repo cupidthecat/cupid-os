@@ -21,6 +21,7 @@ FAT_START_LBA = 20480
 SEED_MANIFEST = "bootstrap/seeds/i386-linux/manifest.json"
 HOMEFS_MAGIC = 0x31465348
 COMPILER_REAPED = r".*?released compiler image lease"
+BUILD_FAILURE_PATTERN = r"\[cupidbuild-guest\] (?:stopped at |invalid request file|could not allocate)"
 COMPILE_JOB = b"/toolchain/ctool.cc\n/home/ctool.o\n"
 REJECTED_JOB = b"/toolchain/missing.cc\n/home/ctool.o\n"
 FRONTEND_JOB = b"/toolchain/cupidc_frontend.cc\n/home/frontend.o\n"

@@ -1,5 +1,13 @@
 # Bootstrapping log
 
+## 2026-11-21 — Stop terminal checks on a worker rejection
+
+Terminal checks can now match a failure reported by the current command.
+The check counts each rejection against the command that emitted it.
+A real guest plan with a missing job stopped after 84 seconds including
+boot. Its command deadline was 1,500 seconds. The 155 terminal and
+program-runtime checks passed on Windows and WSL.
+
 ## 2026-11-21 — Schedule assembly and installation in the guest plan
 
 The plan can now run checked relocatable assembly and generate kernel

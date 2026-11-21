@@ -502,11 +502,15 @@ def wait_log_success_count(
     success_pattern: str,
     minimum_count: int,
     timeout: float,
+    *,
+    failure: tuple[str, int] | None = None,
 ) -> tuple[bool, str]:
-    """Wait for a new repeated-command success or an immediate panic."""
+    """Wait for a new command result or an immediate panic."""
     deadline = time.time() + timeout
     while time.time() < deadline:
         data = read_log(log)
+        if failure is not None and success_count(data, failure[0]) >= failure[1]:
+            return False, data
         if PANIC_RE.search(data):
             return True, data
         if success_count(data, success_pattern) >= minimum_count:
@@ -687,12 +691,16 @@ def run_terminal_command(
     key_pause: float,
     *,
     require_completion: bool = False,
+    failure_pattern: str | None = None,
 ) -> tuple[bool, str]:
     """Type one command and require one new matching serial event."""
     re.compile(success_pattern, re.S | re.M)
     keys = [key_name(ch) for ch in command]
     before = read_log(log)
     completed = success_count(before, success_pattern)
+    wait_options = {}
+    if failure_pattern is not None:
+        wait_options["failure"] = (failure_pattern, success_count(before, failure_pattern) + 1)
     ready_pattern = r"^\[terminal\] command complete\r?$"
     ready_count = success_count(before, ready_pattern)
     for key in keys:
@@ -706,6 +714,7 @@ def run_terminal_command(
         success_pattern,
         completed + 1,
         timeout,
+        **wait_options,
     )
     if PANIC_RE.search(data):
         return False, data
@@ -713,6 +722,7 @@ def run_terminal_command(
         ok, data = wait_log_success_count(
             proc, log, ready_pattern, ready_count + 1,
             max(0.0, deadline - time.monotonic()),
+            **wait_options,
         )
     if PANIC_RE.search(data):
         return False, data
@@ -1749,6 +1759,7 @@ def run(args: argparse.Namespace) -> int:
                 args.setup_timeout or args.timeout,
                 args.key_pause,
                 require_completion=args.require_command_completion,
+                failure_pattern=args.failure_pattern,
             )
             if not ok:
                 print(
@@ -1769,6 +1780,7 @@ def run(args: argparse.Namespace) -> int:
                 args.timeout,
                 args.key_pause,
                 require_completion=args.require_command_completion,
+                failure_pattern=args.failure_pattern,
             )
             if not ok:
                 print(
@@ -1877,6 +1889,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--success-pattern",
         default=DEFAULT_SUCCESS_PATTERN,
         help="regular expression required in serial output after the command",
+    )
+    parser.add_argument(
+        "--failure-pattern",
+        help="fail on a new match for this serial expression during any command",
     )
     parser.add_argument(
         "--verify-smp-runtime",

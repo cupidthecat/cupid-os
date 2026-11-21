@@ -11,6 +11,7 @@ from check_guest_build import COMPILE, LINK, PLAN
 from check_guest_install_runtime import installation_jobs
 from check_guest_runtime import (
     BUILD,
+    BUILD_FAILURE_PATTERN,
     COMPILER_REAPED,
     ROOT,
     compare_homefs_files,
@@ -44,7 +45,8 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float) -> None:
     run("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "1", "--cpu", "max",
         "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "1",
         "--image", str(disk), "--log", str(BUILD / "guest-build-runtime.log"),
-        "--require-command-completion", "--setup-command", "mount /disk/s.iso /src",
+        "--require-command-completion", "--failure-pattern", BUILD_FAILURE_PATTERN,
+        "--setup-command", "mount /disk/s.iso /src",
         "--setup-success-pattern", r"VFS: mounted 'iso9660' at '/src'",
         "--setup-command", "exec /disk/b",
         "--setup-success-pattern", r"\[cupidbuild-guest\] build complete" + COMPILER_REAPED,
