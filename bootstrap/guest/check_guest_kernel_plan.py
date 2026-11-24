@@ -8,7 +8,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-from check_guest_disk_runtime import boot_prefix, write_reference_prefix
+from check_guest_disk_runtime import boot_disk, write_reference_disk
 from check_guest_runtime import (
     BUILD,
     BUILD_FAILURE_PATTERN,
@@ -53,7 +53,8 @@ def write_kernel_plan(homefs: Path, root: Path, steps: tuple[tuple[str, bytes, b
 def execute_kernel_plan(scratch: Path, root: Path, image: Path, qemu: str, timeout: float,
                         extra_references: dict[str, Path],
                         mounts: tuple[tuple[str, str], ...] = (), *,
-                        project_directory: str | None = None, output_directory: str = "/home") -> None:
+                        project_directory: str | None = None, output_directory: str = "/home",
+                        image_mib: int | None = None) -> None:
     smoke = ("tools/gui_terminal_smoke.py", "--qemu", qemu, "--cpu", "max",
              "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.75",
              "--require-command-completion")
@@ -83,8 +84,9 @@ def execute_kernel_plan(scratch: Path, root: Path, image: Path, qemu: str, timeo
         print("Retrying the guest build after a source mount was missed.")
         run(*command)
 
-    expected_prefix = scratch / "expected-prefix.img"
-    write_reference_prefix(expected_prefix, root / "boot/boot.bin", root / "kernel/kernel.bin")
+    disk_name = "cupidos.img" if image_mib is not None else "disk-prefix.img"
+    expected_disk = scratch / "expected.img"
+    write_reference_disk(expected_disk, root / "boot/boot.bin", root / "kernel/kernel.bin", image_mib)
     products = {
         "boot.bin": root / "boot/boot.bin",
         "pass1.elf": root / "kernel/kernel.elf.pass1",
@@ -92,15 +94,15 @@ def execute_kernel_plan(scratch: Path, root: Path, image: Path, qemu: str, timeo
         "ksyms_data.o": root / "kernel/cpu/ksyms_data.o",
         "kernel.elf": root / "kernel/kernel.elf",
         "kernel.bin": root / "kernel/kernel.bin",
-        "disk-prefix.img": expected_prefix,
+        disk_name: expected_disk,
     }
     prefix = output_directory.removeprefix("/home").lstrip("/")
     prefix = f"{prefix}/" if prefix else ""
     matched = compare_homefs_files(read_homefs(image), {
         **{prefix + name: path for name, path in products.items()}, **extra_references,
     })
-    boot_prefix(scratch / "sealed.img", matched[prefix + "disk-prefix.img"], (*smoke, "--smp", "4"),
-                BUILD / f"{log}-boot.log")
+    boot_disk(scratch / "sealed.img", matched[prefix + disk_name], (*smoke, "--smp", "4"),
+              BUILD / f"{log}-boot.log", complete=image_mib is not None)
 
 
 def run_kernel_plan(scratch: Path, root: Path, objects: list[Path], qemu: str, timeout: float) -> None:

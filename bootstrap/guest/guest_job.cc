@@ -203,6 +203,12 @@ static ctool_status_t guest_write(void *context, ctool_string_t path, ctool_byte
     ctool_u32 prefix = cupid_guest_output_prefix(io->sys, path);
     if (!candidate || prefix == 0u)
         return CTOOL_ERR_PATH;
+    if (io->output_extent) {
+        if (prefix != sizeof(HOME_PREFIX) - 1u || contents.size > io->output_extent)
+            return CTOOL_ERR_LIMIT;
+        if (!io->sys->vfs_seek)
+            return CTOOL_ERR_UNSUPPORTED;
+    }
 
     char temporary[VFS_MAX_PATH];
     if (prefix == sizeof(TEMP_PREFIX) - 1u) {
@@ -238,7 +244,19 @@ static ctool_status_t guest_write(void *context, ctool_string_t path, ctool_byte
         }
         written += (ctool_u32)count;
     }
-    /* Keep the candidate open so HomeFS syncs only the completed rename. */
+    if (status == 0 && written < io->output_extent) {
+        /* HomeFS zeroes newly allocated capacity, including the gap from EOF. */
+        int end = (int)(io->output_extent - 1u);
+        status = io->sys->vfs_seek(fd, end, SEEK_SET);
+        if (status == end) {
+            ctool_u8 zero = 0u;
+            int count = io->sys->vfs_write(fd, &zero, 1u);
+            status = count == 1 ? 0 : count < 0 ? count : -1;
+        } else if (status >= 0) {
+            status = -1;
+        }
+    }
+    /* HomeFS flushes the completed file as part of rename. */
     if (status == 0)
         status = io->sys->vfs_rename(candidate, path.data);
     io->sys->vfs_close(fd);

@@ -23,6 +23,7 @@ static ctool_job_config_t config;
 static unsigned live_allocations;
 static int simulate_heap_pressure;
 static int simulate_write_failure;
+static int simulate_seek_failure;
 static const char *root;
 
 static void *host_alloc(size_t size) {
@@ -138,6 +139,12 @@ static int host_write(int fd, const void *bytes, uint32_t size) {
     return cupid_linux_syscall3(4, (unsigned int)fd, (unsigned int)bytes, size);
 }
 
+static int host_seek(int fd, int32_t offset, int whence) {
+    if (simulate_seek_failure)
+        return -28;
+    return cupid_linux_syscall3(19, (unsigned int)fd, (unsigned int)offset, (unsigned int)whence);
+}
+
 static int host_close(int fd) {
     return cupid_linux_syscall1(6, (unsigned int)fd);
 }
@@ -222,6 +229,8 @@ int main(int argc, char **argv) {
 #endif
         if (host_equal(argv[2], "--fail-write") == 0)
             simulate_write_failure = 1;
+        else if (host_equal(argv[2], "--fail-seek") == 0)
+            simulate_seek_failure = 1;
         else
             return 2;
     }
@@ -242,6 +251,7 @@ int main(int argc, char **argv) {
     sys.vfs_read_text = host_read_text;
     sys.vfs_open = host_open;
     sys.vfs_write = host_write;
+    sys.vfs_seek = host_seek;
     sys.vfs_close = host_close;
     sys.vfs_rename = host_rename;
     sys.vfs_unlink = host_unlink;

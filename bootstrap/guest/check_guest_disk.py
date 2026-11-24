@@ -7,6 +7,8 @@ import subprocess
 import sys
 import tempfile
 
+from check_guest_disk_runtime import write_reference_disk
+
 
 def check(root: Path, scratch: Path) -> None:
     seed = root / "bootstrap/seeds/i386-linux"
@@ -34,9 +36,9 @@ def check(root: Path, scratch: Path) -> None:
     job = home / "cupiddisk.job"
     pending = home / ".cupiddisk-pending.img"
 
-    def invoke(request: bytes, marker: bytes) -> None:
+    def invoke(request: bytes, marker: bytes, *options: str) -> None:
         job.write_bytes(request)
-        result = subprocess.run([runner, scratch], check=True, capture_output=True, timeout=90)
+        result = subprocess.run([runner, scratch, *options], check=True, capture_output=True, timeout=90)
         assert marker in result.stdout, result.stdout
 
     build = b"/inputs/boot.bin\n/inputs/kernel.bin\n/home/template.img\n"
@@ -63,7 +65,24 @@ def check(root: Path, scratch: Path) -> None:
     pending.write_bytes(b"preceding pending image")
     invoke(build, failed)
     assert output.read_bytes() == expected and pending.read_bytes() == b"preceding pending image"
-    print("Guest disk template matched the checked bytes and preserved output on seven rejections.")
+    pending.unlink()
+
+    full = build + b"image 32\n"
+    image_reference = scratch / "full.img"
+    write_reference_disk(image_reference, boot, kernel, 32)
+    invoke(full, b"[cupiddisk-guest] wrote /home/template.img")
+    complete = image_reference.read_bytes()
+    assert len(complete) == 32 * 1024 * 1024
+    assert output.read_bytes() == complete and not pending.exists()
+
+    for mode in (b"image", b"image -1", b"image 10", b"image 2048", b"image 32 extra",
+                 b"image 32\nimage 32"):
+        invoke(build + mode + b"\n", invalid)
+        assert output.read_bytes() == complete and not pending.exists()
+    invoke(full.replace(b"/home/template.img", b"/tmp/template.img"), invalid)
+    invoke(full, failed + b": limit", "--fail-seek")
+    assert output.read_bytes() == complete and not pending.exists()
+    print("Guest prefix and full image matched checked outputs. Invalid requests and seek failure preserved the image.")
 
 
 if __name__ == "__main__":

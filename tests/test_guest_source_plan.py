@@ -11,6 +11,7 @@ from unittest.mock import DEFAULT, patch
 
 GUEST_TOOLS = Path(__file__).resolve().parents[1] / "bootstrap" / "guest"
 with patch.object(sys, "path", [str(GUEST_TOOLS), *sys.path]):
+    import check_guest_disk_runtime as disk_runtime
     import check_guest_kernel_plan as kernel_plan
     import check_guest_source_plan as guest_plan
 
@@ -107,6 +108,16 @@ class GuestSourcePlanTests(unittest.TestCase):
         self.assertTrue(requests[b"a0.job"].startswith(b"/home/project/kernel/core/isr.asm\n"))
         self.assertEqual(requests[b"kernel.job"], guest_plan.job_contents(
             "root .", "output build",
+            *(f"/tmp/i{index:03}.o" for index in range(len(self.objects) - 1)),
+        ))
+        complete, complete_inputs, complete_references = guest_plan.source_plan(
+            self.root, True, installed_tree=True, image_mib=32,
+        )
+        self.assertEqual(complete_inputs, inputs)
+        self.assertEqual(complete_references, references)
+        self.assertEqual(complete[:-1], steps[:-1])
+        self.assertEqual(complete[-1][2], guest_plan.job_contents(
+            "root .", "output build", "image 32",
             *(f"/tmp/i{index:03}.o" for index in range(len(self.objects) - 1)),
         ))
         _, _, persistent = guest_plan.source_plan(self.root, False, installed_tree=True)
@@ -297,8 +308,8 @@ class GuestMountRetryTests(unittest.TestCase):
         self.failure = subprocess.CalledProcessError(1, "gui_terminal_smoke.py")
         self.runners = self.enterContext(patch.multiple(
             kernel_plan, BUILD=self.scratch, run=DEFAULT,
-            write_reference_prefix=DEFAULT, read_homefs=DEFAULT,
-            compare_homefs_files=DEFAULT, boot_prefix=DEFAULT,
+            write_reference_disk=DEFAULT, read_homefs=DEFAULT,
+            compare_homefs_files=DEFAULT, boot_disk=DEFAULT,
         ))
         self.runners["compare_homefs_files"].return_value = {"disk-prefix.img": b"checked prefix"}
 
@@ -315,7 +326,7 @@ class GuestMountRetryTests(unittest.TestCase):
         self.execute(f"{self.markers[0]}\n[terminal] command complete\n")
         self.assertEqual(run.call_count, 2)
         self.assertEqual(*run.call_args_list)
-        self.runners["boot_prefix"].assert_called_once()
+        self.runners["boot_disk"].assert_called_once()
 
     def test_worker_failure_after_mounts_is_reported_without_retry(self):
         run = self.runners["run"]
@@ -325,7 +336,7 @@ class GuestMountRetryTests(unittest.TestCase):
         with self.assertRaises(subprocess.CalledProcessError):
             self.execute(transcript)
         run.assert_called_once()
-        self.runners["boot_prefix"].assert_not_called()
+        self.runners["boot_disk"].assert_not_called()
 
     def test_installed_tree_enters_project_before_running_worker(self):
         self.runners["compare_homefs_files"].return_value = {"project/build/disk-prefix.img": b"nested prefix"}
@@ -340,4 +351,22 @@ class GuestMountRetryTests(unittest.TestCase):
         comparison = self.runners["compare_homefs_files"].call_args.args[1]
         self.assertEqual(len(comparison), 7)
         self.assertTrue(all(name.startswith("project/build/") for name in comparison))
-        self.assertEqual(self.runners["boot_prefix"].call_args.args[1], b"nested prefix")
+        self.assertEqual(self.runners["boot_disk"].call_args.args[1], b"nested prefix")
+
+    def test_complete_image_boots_guest_file_without_extension(self):
+        product = "project/build/cupidos.img"
+        self.runners["compare_homefs_files"].return_value = {product: b"complete disk"}
+        kernel_plan.execute_kernel_plan(
+            self.scratch, self.scratch, self.scratch / "build.img", "qemu", 10, {},
+            project_directory="/home/project", output_directory="/home/project/build", image_mib=32,
+        )
+        self.assertIn(product, self.runners["compare_homefs_files"].call_args.args[1])
+        reference = self.runners["write_reference_disk"].call_args
+        self.assertEqual(reference.args[-1], 32)
+        boot = self.runners["boot_disk"].call_args
+        self.assertEqual(boot.args[1], b"complete disk")
+        self.assertTrue(boot.kwargs["complete"])
+        with patch.object(disk_runtime, "run") as launch:
+            disk_runtime.boot_disk(*boot.args, **boot.kwargs)
+        launch.assert_called_once()
+        self.assertEqual(boot.args[0].read_bytes(), b"complete disk")

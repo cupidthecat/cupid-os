@@ -1,6 +1,6 @@
 /**
  * @file cupidbuild_kernel.cc
- * @brief Build the production kernel and disk prefix from an ordered object list.
+ * @brief Build the production kernel and boot media from an ordered object list.
  */
 
 #include "guest_build.h"
@@ -9,14 +9,15 @@
 #define PASS_ONE_LIMIT (CUPID_GUEST_LINK_INPUT_LIMIT - 1u)
 
 enum kernel_product {
-    BOOT_BIN, PASS_ONE, SYMBOL_SOURCE, SYMBOL_OBJECT, KERNEL_ELF, KERNEL_BIN, DISK_PREFIX,
+    BOOT_BIN, PASS_ONE, SYMBOL_SOURCE, SYMBOL_OBJECT, KERNEL_ELF, KERNEL_BIN, DISK_OUTPUT,
     PRODUCT_COUNT
 };
 
 typedef struct {
-    char list[CUPID_GUEST_PATH_BYTES(PASS_ONE_LIMIT + 2u) + sizeof("root output ")];
+    char list[CUPID_GUEST_PATH_BYTES(PASS_ONE_LIMIT + 2u) + sizeof("root output image 2047\n")];
     char root_path[VFS_MAX_PATH];
     const char *root;
+    const char *image_option;
     ctool_string_t objects[PASS_ONE_LIMIT];
     ctool_u32 count;
     char products[PRODUCT_COUNT][VFS_MAX_PATH];
@@ -48,14 +49,22 @@ static int read_output_paths(cupid_syscall_table_t *sys, char **cursor, char *en
     ctool_path_t path = {ctool_string(directory)};
     if (!ctool_path_is_canonical(&path))
         return 0;
-    for (ctool_u32 i = 0; i < PRODUCT_COUNT; i++) {
-        if (path.text.size + strlen(leaves[i]) >= VFS_MAX_PATH)
+    inputs->image_option = NULL;
+    if (end - *cursor >= 6 && strncmp(*cursor, "image ", 6u) == 0) {
+        ctool_u32 extent;
+        inputs->image_option = cupid_guest_next_job_line(cursor, end);
+        if (!inputs->image_option || !cupid_guest_disk_image_extent(sys, inputs->image_option, &extent))
             return 0;
-        append_text(append_text(inputs->products[i], directory), leaves[i]);
+    }
+    for (ctool_u32 i = 0; i < PRODUCT_COUNT; i++) {
+        const char *leaf = i == DISK_OUTPUT && inputs->image_option ? "/cupidos.img" : leaves[i];
+        if (path.text.size + strlen(leaf) >= VFS_MAX_PATH)
+            return 0;
+        append_text(append_text(inputs->products[i], directory), leaf);
         if (!cupid_guest_output_prefix(sys, ctool_string(inputs->products[i])))
             return 0;
     }
-    return 1;
+    return !inputs->image_option || strncmp(inputs->products[DISK_OUTPUT], "/home/", 6u) == 0;
 }
 
 static int read_objects(cupid_syscall_table_t *sys, const cupid_guest_request_t *job, kernel_inputs_t *inputs) {
@@ -126,7 +135,8 @@ static ctool_status_t build_kernel(cupid_syscall_table_t *sys, const char *path,
          {products[SYMBOL_SOURCE], products[SYMBOL_OBJECT], cpu_include, core_include}},
         {"final link", cupid_guest_link_job, {NULL}},
         {"raw kernel", cupid_guest_object_job, {products[KERNEL_ELF], products[KERNEL_BIN]}},
-        {"disk prefix", cupid_guest_disk_job, {products[BOOT_BIN], products[KERNEL_BIN], products[DISK_PREFIX]}},
+        {"disk", cupid_guest_disk_job,
+         {products[BOOT_BIN], products[KERNEL_BIN], products[DISK_OUTPUT], inputs->image_option}},
     };
     char text[CUPID_GUEST_PATH_BYTES(4u) + 2u * sizeof("include ")];
     int final_link = 0;

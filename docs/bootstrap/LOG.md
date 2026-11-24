@@ -1,5 +1,42 @@
 # Bootstrapping log
 
+## 2026-11-24 — Save a complete disk inside Cupid OS
+
+Add an optional `image <MiB>` line to the guest disk and kernel jobs.
+CupidObj writes the same boot, kernel, and FAT16 structures. The guest
+writer extends its private HomeFS candidate before publishing the file.
+The three-line disk job and kernel jobs without a size still write a prefix.
+
+The standalone replay saved all 33,554,432 bytes of a 32 MiB image.
+It matched the hosted CupidBuild image, SHA-256
+`c5bf7a9d1cce360a254b42cc5b19c3a81d82789bc710a6f5f31b8e14a0ed5292`.
+QEMU booted the extracted bytes with four CPUs and ran `ls`.
+The Linux disk fixture checks invalid sizes, a RAMFS destination, and a
+seek failure after the prefix was written. Each rejection preserves the
+preceding image. Windows and WSL produced matching guest workers. The
+guest-plan, terminal smoke, and wiki suites passed 99 Windows tests.
+WSL passed the disk and plan contracts, the compiler, linker, raw assembly,
+and object regressions, and the regenerated build audit.
+
+The installed-tree replay passed with 431 checked pass-one objects.
+Cupid OS assembled the bootloader, linked both kernels, generated and
+compiled the symbol table, flattened the final ELF, and saved
+`/home/project/build/cupidos.img`. All seven products matched their
+checked references. QEMU booted that saved image with four CPUs and ran
+`ls`. The source ISO also built with the updated CTXT manual.
+
+The first integrated replay faulted before assembly. The size parser
+used the disk worker's syscall table before that translation unit had
+initialized it. The parser now takes the caller's table. The host
+disk fixture uses a checked CupidObj reference with a zero-filled tail.
+The hosted image command rejected that synthetic boot fixture, while it
+accepted the real checked boot and kernel files.
+
+The complete guest image starts with an empty FAT16 data area. Build
+plan preparation and staging installed media still use the host. The
+current HomeFS path keeps the full file in memory, and the 32 MiB check
+does not qualify production-size image publication.
+
 ## 2026-11-21 — Publish the normal disk image with CupidBuild
 
 Installed the paired Linux and Windows seeds qualified from the 124-input

@@ -30,6 +30,7 @@ typedef struct {
     cupid_syscall_table_t *sys;
     ctool_string_t input_prefix;
     const char *pending_path;
+    ctool_u32 output_extent; /* Optional zero-filled extent for a fresh HomeFS file. */
     ctool_u32 cached_bytes;
     cupid_guest_cached_allocation_t cache[CUPID_GUEST_CACHE_SLOTS];
 } cupid_guest_io_t;

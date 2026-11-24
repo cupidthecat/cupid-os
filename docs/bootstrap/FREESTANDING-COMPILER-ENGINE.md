@@ -629,6 +629,33 @@ prefix with the checked host tool and checks rejected jobs.
 Cupid OS, compares the prefix, extends the file with zeroes and boots it.
 The replay accepts `--boot` and `--kernel` to select saved guest artifacts.
 
+### Save a complete disk image
+
+Use a HomeFS output path and add the disk size in MiB as a fourth line.
+
+```text
+/home/boot.bin
+/home/kernel.bin
+/home/cupidos.img
+image 32
+```
+
+For the installed project's kernel job, put `image 32` after any
+`root` and `output` lines and before the object list. CupidBuild
+writes `cupidos.img` in the output directory. The image keeps the FAT16
+partition at sector 20,480 and starts with an empty data area. The working
+disk needs space for the completed image and any prior copy while HomeFS
+publishes the replacement.
+
+On Linux or WSL, the replay compares the entire saved disk and boots the
+extracted bytes without extending them.
+
+```sh
+make -C bootstrap/guest guest-disk guest-build
+python3 bootstrap/guest/check_guest_disk_runtime.py --image-mib 32
+python3 bootstrap/guest/check_guest_source_plan.py --installed-tree --link-only --image-mib 32
+```
+
 Run the full boot-media replay from a completed checked Linux or WSL build.
 
 ```sh

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 ## @file
-#  @brief Build a disk prefix in Cupid OS, compare its bytes, and boot it.
-"""Build a FAT16 disk prefix in Cupid OS and boot the resulting image."""
+#  @brief Verify guest disk output and boot the resulting image.
+"""Build boot media in Cupid OS and boot the saved result."""
 
 import argparse
 from pathlib import Path
@@ -22,22 +22,29 @@ from check_guest_runtime import (
 )
 
 
-def write_reference_prefix(reference: Path, boot: Path, kernel: Path) -> None:
+def write_reference_disk(reference: Path, boot: Path, kernel: Path, image_mib: int | None) -> None:
     subprocess.run([
         ROOT / "bootstrap/seeds/i386-linux/cupidbuild.elf", "run", "--root", ROOT,
         "--seed-manifest", ROOT / SEED_MANIFEST,
         "--seed-release", ROOT / "bootstrap/seeds/release.json",
         "--tool", "cupidobj", "--", "disk-template", boot, "--kernel", kernel,
-        "--image-sectors", "409600", "--fat-start-lba", str(FAT_START_LBA), "-o", reference,
+        "--image-sectors", str((image_mib or 200) * 2048),
+        "--fat-start-lba", str(FAT_START_LBA), "-o", reference,
     ], check=True, timeout=180)
+    if image_mib is not None:
+        with reference.open("r+b") as disk:
+            disk.truncate(image_mib * 1024 * 1024)
 
-def check(scratch: Path, root: Path, boot: Path, kernel: Path, qemu: str, timeout: float) -> None:
-    reference = scratch / "host-prefix.img"
-    write_reference_prefix(reference, boot, kernel)
+
+def check(scratch: Path, root: Path, boot: Path, kernel: Path, qemu: str, timeout: float,
+          *, image_mib: int | None = None) -> None:
+    reference = scratch / "checked.img"
+    write_reference_disk(reference, boot, kernel, image_mib)
+    product = "cupidos.img" if image_mib is not None else "disk-prefix.img"
+    option = f"image {image_mib}\n" if image_mib is not None else ""
+    request = f"/disk/boot.bin\n/disk/kern.bin\n/home/{product}\n{option}".encode("ascii")
     homefs = scratch / "homefs.sys"
-    write_homefs(homefs, (
-        (b"cupiddisk.job", b"/disk/boot.bin\n/disk/kern.bin\n/home/disk-prefix.img\n"),
-    ))
+    write_homefs(homefs, ((b"cupiddisk.job", request),))
     image = scratch / "input.img"
     create_disk(image, f"{homefs}:/homefs.sys", f"{boot}:/boot.bin", f"{kernel}:/kern.bin",
                 f"{BUILD / 'cupiddisk-guest.elf'}:/cupdisk", production_root=root)
@@ -46,17 +53,18 @@ def check(scratch: Path, root: Path, boot: Path, kernel: Path, qemu: str, timeou
              "--require-command-completion")
     run(*smoke, "--image", str(image), "--log", str(BUILD / "disk-template-runtime.log"),
         "--command", "exec /disk/cupdisk",
-        "--success-pattern", r"\[cupiddisk-guest\] wrote /home/disk-prefix[.]img" + COMPILER_REAPED)
+        "--success-pattern", rf"\[cupiddisk-guest\] wrote /home/{product[:-4]}[.]img" + COMPILER_REAPED)
 
-    matched = compare_homefs_files(read_homefs(image), {"disk-prefix.img": reference})
-    boot_prefix(scratch / "guest.img", matched["disk-prefix.img"], smoke,
-                BUILD / "disk-template-boot.log")
+    matched = compare_homefs_files(read_homefs(image), {product: reference})
+    boot_disk(scratch / "guest.img", matched[product], smoke, BUILD / "disk-template-boot.log",
+              complete=image_mib is not None)
 
 
-def boot_prefix(media: Path, contents: bytes, smoke: tuple[str, ...], log: Path) -> None:
+def boot_disk(media: Path, contents: bytes, smoke: tuple[str, ...], log: Path, *, complete: bool) -> None:
     with media.open("xb") as disk:
         disk.write(contents)
-        disk.truncate(200 * 1024 * 1024)
+        if not complete:
+            disk.truncate(200 * 1024 * 1024)
     run(*smoke, "--image", str(media), "--log", str(log),
         "--verify-smp-runtime", "--command", "ls",
         "--success-pattern", r"\[cupidc\] JIT compile: /bin/ls[.]cc.*?\[cupidc\] JIT execution complete")
@@ -67,6 +75,7 @@ def main() -> None:
     parser.add_argument("--production-root", type=Path, default=ROOT)
     parser.add_argument("--boot", type=Path, help="bootloader bytes for the guest disk job")
     parser.add_argument("--kernel", type=Path, help="raw kernel bytes for the guest disk job")
+    parser.add_argument("--image-mib", type=int, help="publish a complete disk of this size")
     parser.add_argument("--qemu", default="qemu-system-i386")
     parser.add_argument("--timeout", type=float, default=1800)
     args = parser.parse_args()
@@ -74,7 +83,7 @@ def main() -> None:
     boot = args.boot.resolve() if args.boot else root / "boot/boot.bin"
     kernel = args.kernel.resolve() if args.kernel else root / "kernel/kernel.bin"
     with tempfile.TemporaryDirectory(prefix="cupid-disk-template-") as temporary:
-        check(Path(temporary), root, boot, kernel, args.qemu, args.timeout)
+        check(Path(temporary), root, boot, kernel, args.qemu, args.timeout, image_mib=args.image_mib)
 
 
 if __name__ == "__main__":
