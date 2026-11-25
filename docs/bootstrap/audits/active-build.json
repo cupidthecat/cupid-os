@@ -99081,11 +99081,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 187,
+      "lines": 190,
       "path": "bootstrap/guest/cupidbuild_kernel.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "05caa96592b97700c7cd8ca54b7b6801ddbf3c932e5a37ada729dc328f95b6e6"
+      "sha256": "bc91504880c3b7948e9401e5dfb9edb4d23cd6e71d32fe1c5f0181ed9ee25a08"
     },
     {
       "classification": "not_reached",
@@ -99151,11 +99151,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 233,
+      "lines": 244,
       "path": "bootstrap/guest/cupiddisk_guest.cc",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "98f68167981269f085310a19b5381ea68d766e7beff7ff6e8974e732cfdbf5dc"
+      "sha256": "4c340360f8a34b0d01b03020789240194ce6290001cc809905c93a39c8365f60"
     },
     {
       "classification": "not_reached",
@@ -99231,11 +99231,11 @@
       "classification": "not_reached",
       "duplicate_of": [],
       "language": "c_header",
-      "lines": 32,
+      "lines": 33,
       "path": "bootstrap/guest/guest_build.h",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "211e6a66e4af819cafb7770feacf4ccae1bd22baf7cf8b9413b18ad3dc620cd5"
+      "sha256": "e353e22fb333118332a739cbeb9a0536c2c35c5c6411e528f52e60187e1dea0b"
     },
     {
       "classification": "not_reached",

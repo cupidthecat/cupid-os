@@ -1,5 +1,27 @@
 # Bootstrapping log
 
+## 2026-11-24 — Keep disk staging paths with the project
+
+Local kernel and disk jobs accept a project-relative stage manifest.
+Relative source paths in the manifest resolve from the same project
+directory. Paths inside the FAT16 image remain absolute. Existing
+absolute source paths still work, and traversal fails validation.
+
+Windows and WSL built identical guest workers. The guest disk and build
+contracts passed, the source ISO built, and the bootstrap audit matched.
+The Windows suite passed 102 tests. The FAT16 suites passed 34 Windows
+tests and 47 WSL tests. Native Windows CupidBuild reproduced the earlier
+64 MiB guest image. Windows QEMU booted it with four CPUs, ran `ls`, and
+opened Notepad in a separate boot.
+
+An installed-tree job read the manifest and `hello.iso` from local
+project paths, linked 431 checked pass-one objects, and wrote the same
+32 MiB image and six kernel products as the absolute-path fixture.
+The saved image booted with four CPUs and ran `ls`.
+Closing a HomeFS source can trigger another container flush before
+the image is published. The replay recorded two pending-file flushes
+before the rename.
+
 ## 2026-11-24 — Resume FAT16 allocation in the host verifier
 
 The Python FAT16 verifier now resumes its search after the last allocated

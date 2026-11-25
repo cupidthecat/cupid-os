@@ -37,13 +37,6 @@ def write_reference_disk(reference: Path, boot: Path, kernel: Path, image_mib: i
             disk.truncate(image_mib * 1024 * 1024)
 
 
-def asset_fixture(assets: tuple[StageFile, ...]) -> tuple[bytes, tuple[str, ...]]:
-    paths = tuple(f"/a{index}.bin" for index in range(len(assets)))
-    manifest = "".join(f"/disk{path}\n{asset.dest}\n" for path, asset in zip(paths, assets, strict=True))
-    inputs = tuple(f"{asset.source}:{path}" for path, asset in zip(paths, assets, strict=True))
-    return manifest.encode("ascii"), inputs
-
-
 def check(scratch: Path, root: Path, boot: Path, kernel: Path, qemu: str, timeout: float,
           *, image_mib: int | None = None, assets: tuple[StageFile, ...] = ()) -> None:
     reference = scratch / "checked.img"
@@ -56,8 +49,12 @@ def check(scratch: Path, root: Path, boot: Path, kernel: Path, qemu: str, timeou
     if assets:
         stage_files(reference, FAT_START_LBA, list(assets))
         request += b"stage /home/assets\n"
-        stage_list, input_files = asset_fixture(assets)
-        settings.append((b"assets", stage_list))
+        pairs = []
+        for index, asset in enumerate(assets):
+            path = f"/a{index}.bin"
+            pairs.append(f"/disk{path}\n{asset.dest}\n")
+            input_files.append(f"{asset.source}:{path}")
+        settings.append((b"assets", "".join(pairs).encode("ascii")))
     homefs = scratch / "homefs.sys"
     write_homefs(homefs, ((b"cupiddisk.job", request), *settings))
     image = scratch / "input.img"

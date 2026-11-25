@@ -24,6 +24,7 @@ typedef struct {
 typedef struct {
     cupid_syscall_table_t *sys;
     const char *list;
+    const char *project;
     ctool_u32 sectors;
     ctool_allocator_t allocator;
 } disk_staging_t;
@@ -33,11 +34,18 @@ typedef struct {
     int fd;
 } disk_file_t;
 
-const char *cupid_guest_disk_stage_list(cupid_syscall_table_t *sys, const char *option) {
+const char *cupid_guest_disk_stage_list(cupid_syscall_table_t *sys, const char *option,
+                                       const char *project, char absolute[VFS_MAX_PATH]) {
     if (sys->strncmp(option, "stage ", 6u) != 0)
         return NULL;
-    ctool_path_t path = {ctool_string(option + 6u)};
-    return path.text.size < VFS_MAX_PATH && ctool_path_is_canonical(&path) ? path.text.data : NULL;
+    const char *list = cupid_guest_project_path(sys, project, option + 6u, absolute);
+    if (!list)
+        return NULL;
+    ctool_path_t path = {ctool_string(list)};
+    if (path.text.size >= VFS_MAX_PATH || !ctool_path_is_canonical(&path) ||
+        sys->strcmp(list, DISK_PENDING) == 0)
+        return NULL;
+    return list;
 }
 
 static ctool_status_t disk_read_at(void *context, ctool_u32 offset, ctool_u8 *bytes, ctool_u32 size) {
@@ -115,8 +123,10 @@ static ctool_status_t stage_image(void *context, int fd) {
         char *cursor = list;
         char *end = list + size;
         while (status == CTOOL_OK && cursor < end) {
-            const char *source = cupid_guest_next_job_line(&cursor, end);
+            const char *input = cupid_guest_next_job_line(&cursor, end);
             const char *target = cupid_guest_next_job_line(&cursor, end);
+            char absolute[VFS_MAX_PATH];
+            const char *source = input ? cupid_guest_project_path(sys, staging->project, input, absolute) : NULL;
             status = source && target ? stage_asset(sys, volume, source, target) : CTOOL_ERR_INPUT;
         }
         if (volume)
@@ -162,7 +172,7 @@ static ctool_status_t make_template(ctool_invocation_t *invocation, void *contex
 
 static int read_disk_request(cupid_syscall_table_t *sys, const cupid_guest_request_t *job,
                              char *file, ctool_u32 capacity, ctool_path_t *paths, ctool_u32 *extent,
-                             const char **stages) {
+                             const char **stages, char absolute[VFS_MAX_PATH]) {
     int size = cupid_guest_read_request(sys, job, file, capacity);
     if (size <= 0 || (ctool_u32)size >= capacity)
         return 0;
@@ -180,8 +190,8 @@ static int read_disk_request(cupid_syscall_table_t *sys, const cupid_guest_reque
     if (cursor == end)
         return 1;
     option = cupid_guest_next_job_line(&cursor, end);
-    *stages = option ? cupid_guest_disk_stage_list(sys, option) : NULL;
-    return *stages && cursor == end && sys->strcmp(*stages, DISK_PENDING) != 0;
+    *stages = option ? cupid_guest_disk_stage_list(sys, option, job->project_directory, absolute) : NULL;
+    return *stages && cursor == end;
 }
 
 ctool_status_t cupid_guest_disk_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job) {
@@ -191,8 +201,9 @@ ctool_status_t cupid_guest_disk_job(cupid_syscall_table_t *sys, const cupid_gues
     char file[CUPID_GUEST_PATH_BYTES(4u) + sizeof("image 2047\nstage ")];
     ctool_path_t paths[3];
     ctool_u32 extent = 0u;
+    char absolute[VFS_MAX_PATH];
     const char *stages = NULL;
-    if (!read_disk_request(sys, job, file, sizeof(file), paths, &extent, &stages)) {
+    if (!read_disk_request(sys, job, file, sizeof(file), paths, &extent, &stages, absolute)) {
         sys->serial_write_string("[cupiddisk-guest] invalid request\n");
         return CTOOL_ERR_INPUT;
     }
@@ -201,7 +212,7 @@ ctool_status_t cupid_guest_disk_job(cupid_syscall_table_t *sys, const cupid_gues
         .sys = sys, .pending_path = DISK_PENDING, .output_extent = extent
     };
     ctool_job_config_t config = cupid_guest_job_config(&io);
-    disk_staging_t staging = {sys, stages, extent / 512u, config.allocator};
+    disk_staging_t staging = {sys, stages, job->project_directory, extent / 512u, config.allocator};
     if (stages) {
         if (!sys->vfs_read)
             return CTOOL_ERR_UNSUPPORTED;

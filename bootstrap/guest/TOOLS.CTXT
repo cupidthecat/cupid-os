@@ -125,7 +125,9 @@ the disk prefix as /home/disk-prefix.img.
 To save a complete image, put image 32 after any root and output lines and
 before the object paths. CupidBuild writes cupidos.img in the output
 directory. Use HomeFS for the full image. To stage files, put
-stage /home/disk-assets immediately after the image line.
+stage disk-assets immediately after the image line. In a local plan,
+CupidBuild resolves the manifest and any relative source paths from the
+project directory. Paths inside the new image start with /.
 For a local project plan, use root . on the first line to read boot/boot.asm,
 link.ld and headers from the project. Use output build after root and before
 the object list to save all seven products in the project's build directory.

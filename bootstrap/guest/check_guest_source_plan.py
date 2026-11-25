@@ -13,7 +13,6 @@ import tempfile
 
 from check_guest_assembly_runtime import ASSEMBLY_SOURCES
 from check_guest_asset_bundle import production_assets
-from check_guest_disk_runtime import asset_fixture
 from check_guest_install_runtime import INSTALL_HEADERS, installation_jobs
 from check_guest_kernel_link import production_objects
 from check_guest_kernel_plan import execute_kernel_plan
@@ -103,7 +102,7 @@ def publish_plan_iso(publisher: Path, root: Path, output: Path,
 def image_options(image_mib: int | None, stage_assets: bool) -> tuple[str, ...]:
     options = (f"image {image_mib}",) if image_mib is not None else ()
     if stage_assets:
-        options += (f"stage {INSTALLED_ROOT}/disk-assets",)
+        options += ("stage disk-assets",)
     return options
 
 
@@ -216,9 +215,12 @@ def stage_installed_tree(scratch: Path, root: Path, image: Path,
     files.extend((f"{project}/{source.as_posix()}".encode("ascii"), (root / source).read_bytes())
                  for source in sorted(sources))
     if image_assets:
-        manifest, payloads = asset_fixture(image_assets)
-        files.append((f"{project}/disk-assets".encode("ascii"), manifest))
-        staged += payloads
+        pairs = []
+        for index, asset in enumerate(image_assets):
+            name = f"disk-inputs/{index}"
+            files.append((f"{project}/{name}".encode("ascii"), asset.source.read_bytes()))
+            pairs.extend((name, asset.dest))
+        files.append((f"{project}/disk-assets".encode("ascii"), job_contents(*pairs)))
     homefs = scratch / "homefs.sys"
     write_homefs(homefs, tuple(files))
     create_disk(image, f"{homefs}:/homefs.sys", f"{BUILD / 'cupidbuild-guest.elf'}:/b",

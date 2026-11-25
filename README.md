@@ -5,10 +5,10 @@ shells, persistent filesystems, networking, and its own development tools.
 The current kernel and executable format target 32-bit i386.
 
 The normal build uses checked CupidC, CupidASM, CupidLD, CupidObj, CupidDis,
-and CupidBuild seeds. Hosted toolchain fixed points have been verified on
-Linux and Windows. Building and maintaining the complete system inside
-Cupid OS remains unfinished. See the [bootstrap records](docs/bootstrap/README.md)
-for current evidence and limitations.
+and CupidBuild seeds. GCC and NASM are optional comparison tools. The
+toolchain can rebuild itself on Linux and Windows. Rebuilding the complete
+system inside Cupid OS is still in progress.
+See the [bootstrap records](docs/bootstrap/README.md) for current progress.
 
 ## Build and run
 

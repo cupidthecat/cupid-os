@@ -127,7 +127,7 @@ class GuestSourcePlanTests(unittest.TestCase):
         self.assertEqual(staged_references, references)
         self.assertEqual(staged[:-1], steps[:-1])
         self.assertEqual(staged[-1][2], complete[-1][2].replace(
-            b"image 32\n", b"image 32\nstage /home/project/disk-assets\n",
+            b"image 32\n", b"image 32\nstage disk-assets\n",
         ))
         _, _, persistent = guest_plan.source_plan(self.root, False, installed_tree=True)
         self.assertEqual(persistent["project/build/i000.o"], self.root / self.objects[0])
@@ -152,15 +152,18 @@ class GuestSourcePlanTests(unittest.TestCase):
                              f"{guest_plan.BUILD / 'cupidbuild-guest.elf'}:/b")
 
     def test_installed_tree_stages_disk_manifest_and_payload(self):
-        with patch.multiple(guest_plan, write_homefs=DEFAULT, create_disk=DEFAULT) as calls:
-            image = self.root / "build.img"
-            iso = self.root / "test_iso/hello.iso"
-            guest_plan.stage_installed_tree(
-                self.root, self.root, image, (), (), image_assets=(guest_plan.StageFile(iso, "/hello.iso"),),
-            )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            image = root / "build.img"
+            iso = root / "hello.iso"
+            iso.write_bytes(b"iso payload")
+            with patch.multiple(guest_plan, write_homefs=DEFAULT, create_disk=DEFAULT) as calls:
+                guest_plan.stage_installed_tree(
+                    root, root, image, (), (), image_assets=(guest_plan.StageFile(iso, "/hello.iso"),),
+                )
         _, entries = calls["write_homefs"].call_args.args
-        self.assertEqual(dict(entries)[b"project/disk-assets"], b"/disk/a0.bin\n/hello.iso\n")
-        self.assertEqual(calls["create_disk"].call_args.args[-1], f"{iso}:/a0.bin")
+        self.assertEqual(dict(entries)[b"project/disk-assets"], b"disk-inputs/0\n/hello.iso\n")
+        self.assertEqual(dict(entries)[b"project/disk-inputs/0"], b"iso payload")
 
     def test_installed_tree_counts_directory_creation_toward_plan_limit(self):
         steps = tuple(("compile", f"source{i}.job".encode("ascii"), b"") for i in range(512))

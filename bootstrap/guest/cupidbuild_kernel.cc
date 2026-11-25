@@ -59,8 +59,10 @@ static int read_output_paths(cupid_syscall_table_t *sys, char **cursor, char *en
     }
     inputs->stage_option = NULL;
     if (inputs->image_option && end - *cursor >= 6 && strncmp(*cursor, "stage ", 6u) == 0) {
+        char manifest[VFS_MAX_PATH];
         inputs->stage_option = cupid_guest_next_job_line(cursor, end);
-        if (!inputs->stage_option || !cupid_guest_disk_stage_list(sys, inputs->stage_option))
+        if (!inputs->stage_option ||
+            !cupid_guest_disk_stage_list(sys, inputs->stage_option, project_directory, manifest))
             return 0;
     }
     for (ctool_u32 i = 0; i < PRODUCT_COUNT; i++) {
@@ -122,7 +124,8 @@ static ctool_string_t link_request(kernel_inputs_t *inputs, int final_link) {
     return (ctool_string_t){inputs->link, (size_t)(end - inputs->link)};
 }
 
-static ctool_status_t build_kernel(cupid_syscall_table_t *sys, const char *path, kernel_inputs_t *inputs) {
+static ctool_status_t build_kernel(cupid_syscall_table_t *sys, const cupid_guest_request_t *request,
+                                   kernel_inputs_t *inputs) {
     char boot[VFS_MAX_PATH];
     char cpu_include[VFS_MAX_PATH + sizeof("include ")];
     char core_include[VFS_MAX_PATH + sizeof("include ")];
@@ -148,7 +151,7 @@ static ctool_status_t build_kernel(cupid_syscall_table_t *sys, const char *path,
     char text[CUPID_GUEST_PATH_BYTES(5u) + 2u * sizeof("include ")];
     int final_link = 0;
     for (ctool_u32 i = 0; i < sizeof(steps) / sizeof(steps[0]); i++) {
-        cupid_guest_request_t job = {.path = path};
+        cupid_guest_request_t job = {.path = request->path, .project_directory = request->project_directory};
         if (steps[i].lines[0]) {
             char *end = text;
             for (ctool_u32 line = 0; line < 5u && steps[i].lines[line]; line++) {
@@ -178,7 +181,7 @@ ctool_status_t cupid_guest_kernel_job(cupid_syscall_table_t *sys, const cupid_gu
         return CTOOL_ERR_NO_MEMORY;
     ctool_status_t status = CTOOL_ERR_INPUT;
     if (read_objects(sys, job, inputs)) {
-        status = build_kernel(sys, job->path, inputs);
+        status = build_kernel(sys, job, inputs);
     } else {
         sys->serial_write_string("[cupidbuild-guest] invalid kernel object list\n");
     }

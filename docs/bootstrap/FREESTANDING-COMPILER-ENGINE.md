@@ -658,6 +658,10 @@ inside the new image for each file, one path per line.
 /wads/freedo~1.wad
 ```
 
+In a local CupidBuild plan, `stage disk-assets` reads the manifest from
+the project directory. A source such as `media/hello.iso` also resolves
+from there. Paths inside the new image still start with `/`.
+
 Choose a size with room for every asset. CupidBuild creates directories as
 needed and writes both FAT tables before publishing the image. A failed
 stage leaves the preceding image in place.
