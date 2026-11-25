@@ -16,6 +16,11 @@ Cupid OS remains unfinished.
   A fresh WSL checkout built all 16 checked artifacts with failing
   stand-ins for GCC, NASM, Clang, GNU assembler and linker tools. The build
   called none of them. Its 200 MiB image booted on four CPUs and ran `ls`.
+- The current hosted producer has 141 source paths after the CupidObj and
+  CupidBuild splits. The public bootstrap commands on Windows and WSL
+  reached the behavior gate, which expects the reviewed 124-input tool
+  bytes. Both rejected the newer tools. The paired replacement is being
+  qualified with the same checks.
 - Cupid OS rebuilt and ran CupidC, CupidASM with CupidDis, CupidLD, CupidObj,
   and CupidBuild inside the guest. A 19-request plan rebuilt 431 pass-one
   objects, including Doom. It generated the symbol object between the two
@@ -48,10 +53,10 @@ Cupid OS remains unfinished.
   The [capability matrix](CAPABILITY-MATRIX.md) lists remaining language gaps.
 - Doom passed the keyboard, save-name, and reboot checks. Freedoom completed
   a four-CPU timedemo on November 24 using the 64 MiB guest-matched image.
-  The replay ran 7,117 game ticks and returned to the shell. The 200 MiB
-  image reached graphics and started the demo on Windows and WSL. Both
-  reached the test deadline. Interactive gameplay and audio checks remain
-  open.
+  Windows and WSL later completed the same 7,117 game ticks on a 64 MiB
+  reference with the streaming kernel. The earlier 200 MiB image reached
+  graphics and started the demo on both hosts, then reached both test
+  deadlines. Interactive gameplay and audio checks remain open.
 - TempleOS is read-only reference material and is excluded from build counts.
 
 See the [ownership audit](ACTIVE-SOURCE-AUDIT.md),

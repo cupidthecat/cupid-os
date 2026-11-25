@@ -86,6 +86,19 @@ with the streaming HomeFS writer. It advanced from 1 to 38 in about
 65 seconds after graphics initialized. One sampled CPU was executing
 `OPL3_EnvelopeCalc`. The timedemo was still running when the sample ended.
 
+Windows and WSL later finished the timedemo on the same 64 MiB hosted
+reference disk with the streaming kernel and both staged assets.
+Both completed 7,117 game ticks and returned to the shell.
+
+| QEMU host | Real ticks | Frames per second |
+| --- | ---: | ---: |
+| Windows | 48,970 | 5.09 |
+| WSL | 41,596 | 5.99 |
+
+The WSL retry used `doom -timedemo demo1` after a missed command. The
+game selected `/disk/wads/freedo~1.wad`. The image SHA-256 was
+`59e89ef8d10565f5e2dccfe6a76d5c892f68c753a3dcbe32ea9b833d6c5e8193`.
+
 ## Evidence and limits
 
 The first rebuilt guest exposes both the missing space and the input leak; it
