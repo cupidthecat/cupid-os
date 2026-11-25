@@ -21,7 +21,10 @@ Cupid OS remains unfinished.
   objects, including Doom. It generated the symbol object between the two
   links and wrote a disk prefix. The read-only ISO replay and the
   editable HomeFS replay each produced eleven matching outputs. Their
-  rebuilt disks booted with four CPUs and ran `ls`.
+  rebuilt disks booted with four CPUs and ran `ls`. A later fresh
+  installed-tree run rebuilt 431 objects from 804 inputs and published
+  the entire 200 MiB disk with the checked ISO. All eleven products
+  matched the host build, and the saved image booted on four CPUs.
   The guest disk worker also saved a complete 200 MiB image with the
   checked ISO and Freedoom WAD. It matched the hosted reference, reopened
   after reboot, and booted on four CPUs. The working HomeFS container used

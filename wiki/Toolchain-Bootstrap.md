@@ -37,6 +37,11 @@ installation inputs, asset roles, and pass-one link order.
 [CupidBuild](CupidBuild#build-a-kernel-from-an-installed-checkout) shows
 the job files and the terminal command.
 
+A clean installed-tree replay rebuilt the 431 pass-one objects and
+published a 200 MiB disk with `hello.iso`. The saved kernel, image, and
+other checked products matched the host build. The guest booted the
+saved disk and ran `ls`.
+
 ## Freestanding compiler engine
 
 `make -C bootstrap/guest` builds an i386 ELF with the full CupidC compiler
