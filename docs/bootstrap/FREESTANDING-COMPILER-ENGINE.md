@@ -846,15 +846,36 @@ the expected outputs independently from the supported host graph.
 make -C bootstrap/guest check-guest-build check-project-layout
 python3 bootstrap/guest/check_guest_source_plan.py --native-project \
   --installed-tree --temporary-objects --image-mib 200 --stage-iso \
-  --stage-wad third_party/freedoom/0.13.0/freedoom1.wad
+  --stage-wad third_party/freedoom/0.13.0/freedoom1.wad \
+  --release-output build/guest-engine/checked-release.img
+python3 bootstrap/guest/check_guest_release_runtime.py \
+  build/guest-engine/checked-release.img
 ```
+
+The replay saves the read-back image after the hosted byte comparison and
+four-CPU boot pass. It writes the file beside the previous image before
+replacing it. The runtime check boots private copies to run `ls`, mount
+the ISO, copy and read its text fixture, and run the Freedoom timedemo.
+`--programs-only` runs the shell and ISO checks. `--logs` selects a
+directory for the serial transcripts.
+
+The export tests preserve an existing image when boot or file writeback
+fails. A successful export keeps the compared bytes.
+
+The shell and ISO checks passed on Windows and WSL using the 200 MiB
+image that matched the guest disk job. Both ran `ls` and `cat` and copied
+the same 22-byte ISO fixture into HomeFS. The image SHA-256 was
+`abdba24f148cdbb528a25c240314806dd3c326e2f9430a67b9398d0e7cb39f8a`.
+The first smoke attempt used shell redirection, which the key injector
+could not type. The revised check copies the ISO file in the guest and
+compares the bytes saved by HomeFS after the guest shuts down.
 
 Run `python3 bootstrap/guest/check_guest_source_plan.py --write-project-layout`
 after changing the supported kernel build inputs and review the result.
 `check-project-layout` compares the checked layout with the current Make
 object order, installation recipes, asset jobs, and compiler profiles.
 
-The Linux syscall fixture built a kernel with a built-in compiler profile,
+The Linux syscall fixture built a kernel with compiler options from the layout,
 a text asset, and an ELF assembly object. HomeFS and RAMFS intermediates
 produced matching objects, links, and disk prefixes. The fixture also
 compares the complete 32 MiB image with a checked FAT16 layout and a

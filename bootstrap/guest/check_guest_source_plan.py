@@ -307,7 +307,7 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float, temporary_object
 
 def check_installed(scratch: Path, root: Path, qemu: str, timeout: float, temporary_objects: bool,
                     *, image_mib: int | None = None, image_assets: tuple[StageFile, ...] = (),
-                    native_project: bool = False) -> None:
+                    native_project: bool = False, release_output: Path | None = None) -> None:
     steps, inputs, references = source_plan(root, temporary_objects, installed_tree=True, image_mib=image_mib,
                                             stage_assets=bool(image_assets))
     sources = {(base / member).relative_to(root) for base, members in inputs for member in members
@@ -321,7 +321,7 @@ def check_installed(scratch: Path, root: Path, qemu: str, timeout: float, tempor
                          native_plan=native_plan)
     execute_kernel_plan(scratch, root, image, qemu, timeout, references,
                         project_directory=INSTALLED_ROOT, output_directory=INSTALLED_BUILD,
-                        image_mib=image_mib, image_assets=image_assets)
+                        image_mib=image_mib, image_assets=image_assets, release_output=release_output)
 
 
 def verify_pass_one(scratch: Path, root: Path, objects: list[str]) -> None:
@@ -340,7 +340,7 @@ def verify_pass_one(scratch: Path, root: Path, objects: list[str]) -> None:
 
 def check_kernel_job(scratch: Path, root: Path, qemu: str, timeout: float, *,
                      installed_tree: bool = False, image_mib: int | None = None,
-                     image_assets: tuple[StageFile, ...] = ()) -> None:
+                     image_assets: tuple[StageFile, ...] = (), release_output: Path | None = None) -> None:
     objects = production_objects(root)[:-1]
     missing = [source for source in objects if not (root / source).is_file()]
     if missing:
@@ -359,7 +359,7 @@ def check_kernel_job(scratch: Path, root: Path, qemu: str, timeout: float, *,
                              image_assets=image_assets)
         execute_kernel_plan(scratch, root, image, qemu, timeout, {},
                             project_directory=INSTALLED_ROOT, output_directory=INSTALLED_BUILD,
-                            image_mib=image_mib, image_assets=image_assets)
+                            image_mib=image_mib, image_assets=image_assets, release_output=release_output)
         return
     replay(scratch, root, qemu, timeout, steps, SOURCE_ISOS[:1],
            ((root, iso_members(KERNEL_BUILD_FILES)),), {}, staged)
@@ -384,6 +384,7 @@ if __name__ == "__main__":
     parser.add_argument("--image-mib", type=int, help="build a complete disk in the installed project")
     parser.add_argument("--stage-iso", action="store_true", help="stage the checked hello.iso")
     parser.add_argument("--stage-wad", type=Path, help="stage a Freedoom WAD at /wads/freedoom1.wad")
+    parser.add_argument("--release-output", type=Path, help="save the complete guest image after comparison and boot")
     parser.add_argument("--qemu", default="qemu-system-i386")
     parser.add_argument("--timeout", type=float, default=14400)
     args = parser.parse_args()
@@ -391,8 +392,8 @@ if __name__ == "__main__":
         parser.error("--native-project requires an installed source rebuild")
     if args.image_mib is not None and not args.installed_tree:
         parser.error("--image-mib requires --installed-tree")
-    if (args.stage_iso or args.stage_wad) and args.image_mib is None:
-        parser.error("--stage-iso and --stage-wad require --image-mib")
+    if (args.stage_iso or args.stage_wad or args.release_output) and args.image_mib is None:
+        parser.error("--stage-iso, --stage-wad, and --release-output require --image-mib")
     root = args.production_root.resolve()
     if args.write_project_layout or args.check_project_layout:
         expected = project_layout(root)
@@ -409,9 +410,11 @@ if __name__ == "__main__":
             image_assets += (StageFile(args.stage_wad.resolve(strict=True), "/wads/freedoom1.wad"),)
         if args.link_only:
             check_kernel_job(Path(temporary), root, args.qemu, args.timeout,
-                             installed_tree=args.installed_tree, image_mib=args.image_mib, image_assets=image_assets)
+                             installed_tree=args.installed_tree, image_mib=args.image_mib, image_assets=image_assets,
+                             release_output=args.release_output)
         elif args.installed_tree:
             check_installed(Path(temporary), root, args.qemu, args.timeout, args.temporary_objects,
-                            image_mib=args.image_mib, image_assets=image_assets, native_project=args.native_project)
+                            image_mib=args.image_mib, image_assets=image_assets, native_project=args.native_project,
+                            release_output=args.release_output)
         else:
             check(Path(temporary), root, args.qemu, args.timeout, args.temporary_objects)

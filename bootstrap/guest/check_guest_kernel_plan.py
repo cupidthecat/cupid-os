@@ -4,6 +4,7 @@
 """Assemble, link and publish the checked kernel and disk prefix in Cupid OS."""
 
 import argparse
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -52,11 +53,23 @@ def write_kernel_plan(homefs: Path, root: Path, steps: tuple[tuple[str, bytes, b
                          *((name, contents) for _, name, contents in steps), *inputs))
 
 
+def save_checked_disk(destination: Path, contents: bytes) -> None:
+    with tempfile.TemporaryDirectory(prefix=".cupid-release-", dir=destination.parent) as temporary:
+        candidate = Path(temporary) / destination.name
+        with candidate.open("xb") as disk:
+            disk.write(contents)
+            disk.flush()
+            os.fsync(disk.fileno())
+        candidate.replace(destination)
+    print(f"Saved the checked guest image to {destination}")
+
+
 def execute_kernel_plan(scratch: Path, root: Path, image: Path, qemu: str, timeout: float,
                         extra_references: dict[str, Path],
                         mounts: tuple[tuple[str, str], ...] = (), *,
                         project_directory: str | None = None, output_directory: str = "/home",
-                        image_mib: int | None = None, image_assets: tuple[StageFile, ...] = ()) -> None:
+                        image_mib: int | None = None, image_assets: tuple[StageFile, ...] = (),
+                        release_output: Path | None = None) -> None:
     smoke = ("tools/gui_terminal_smoke.py", "--qemu", qemu, "--cpu", "max",
              "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.75",
              "--require-command-completion")
@@ -105,8 +118,11 @@ def execute_kernel_plan(scratch: Path, root: Path, image: Path, qemu: str, timeo
     matched = compare_homefs_files(read_homefs(image), {
         **{prefix + name: path for name, path in products.items()}, **extra_references,
     })
-    boot_disk(scratch / "sealed.img", matched[prefix + disk_name], (*smoke, "--smp", "4"),
+    checked_disk = matched[prefix + disk_name]
+    boot_disk(scratch / "sealed.img", checked_disk, (*smoke, "--smp", "4"),
               BUILD / f"{log}-boot.log", complete=image_mib is not None)
+    if release_output is not None:
+        save_checked_disk(release_output, checked_disk)
 
 
 def run_kernel_plan(scratch: Path, root: Path, objects: list[Path], qemu: str, timeout: float) -> None:

@@ -115,6 +115,20 @@ For a local project, use `stage disk-assets` and source paths relative to
 the project directory.
 [Guest disk job and boot checks](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#save-a-complete-disk-image)
 
+## Verify a saved release disk
+
+An image with the checked `hello.iso` and Freedoom WAD can be tested
+on the host with QEMU. The check boots private copies on four CPUs,
+runs the shell tools, reads the staged ISO, and runs a Freedoom timedemo.
+
+```sh
+python3 bootstrap/guest/check_guest_release_runtime.py build/guest-engine/checked-release.img
+```
+
+Use `--programs-only` for the shell and ISO checks. The installed-tree
+replay accepts `--release-output` to save the tested bytes for these checks.
+[Replay and export commands](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#prepare-kernel-requests-in-cupidbuild)
+
 ## When a command fails
 
 Read the diagnostic before replacing files. A manifest or release mismatch

@@ -1,5 +1,20 @@
 # Freedoom runtime handoff
 
+## Complete 200 MiB image, 2026-11-24
+
+The 200 MiB image with the checked ISO and Freedoom 1 WAD matched the
+guest disk job byte for byte. Its SHA-256 was
+`abdba24f148cdbb528a25c240314806dd3c326e2f9430a67b9398d0e7cb39f8a`.
+The four-CPU WSL replay mounted the WAD, initialized music, and reached
+640-by-400 graphics. The 1,800-second command deadline expired before
+Doom reported a completed timedemo. The earlier 64 MiB image completed
+the same timedemo in 7,117 game ticks.
+
+The shell and ISO fixture checks on copies of the 200 MiB image passed
+on Windows and WSL. The [release replay](FREESTANDING-COMPILER-ENGINE.md#prepare-kernel-requests-in-cupidbuild)
+keeps the staged-image and Doom checks together. Interactive play and
+audio still need qualification.
+
 ## Four-CPU initialization sampling, 2026-10-05
 
 The exact accepted image and matching kernel ELF are copied into a private
