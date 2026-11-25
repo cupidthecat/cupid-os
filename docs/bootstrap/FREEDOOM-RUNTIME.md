@@ -12,8 +12,11 @@ the same timedemo in 7,117 game ticks.
 
 The shell and ISO fixture checks on copies of the 200 MiB image passed
 on Windows and WSL. The [release replay](FREESTANDING-COMPILER-ENGINE.md#prepare-kernel-requests-in-cupidbuild)
-keeps the staged-image and Doom checks together. Interactive play and
-audio still need qualification.
+describes the staged-image and Doom checks. The first Windows run typed
+`/disk/was/` and returned with an IWAD-open error. The checker now reports
+that error immediately and accepts a longer delay between key reports.
+With a 1.2-second gap, Windows opened the checked IWAD and started
+the demo. Interactive play and audio still need qualification.
 
 ## Four-CPU initialization sampling, 2026-10-05
 

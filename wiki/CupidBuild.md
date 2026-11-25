@@ -125,8 +125,9 @@ runs the shell tools, reads the staged ISO, and runs a Freedoom timedemo.
 python3 bootstrap/guest/check_guest_release_runtime.py build/guest-engine/checked-release.img
 ```
 
-Use `--programs-only` for the shell and ISO checks. The installed-tree
-replay accepts `--release-output` to save the tested bytes for these checks.
+Use `--programs-only` for the shell and ISO checks or `--doom-only` for the
+timedemo. If QEMU misses keystrokes, increase `--key-pause`. The installed-tree
+replay accepts `--release-output` to save the bytes after the boot check.
 [Replay and export commands](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#prepare-kernel-requests-in-cupidbuild)
 
 ## When a command fails

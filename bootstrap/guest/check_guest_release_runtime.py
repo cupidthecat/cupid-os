@@ -37,6 +37,7 @@ def check_doom(image: Path, smoke: tuple[str, ...], logs: Path) -> None:
     run(*smoke, "--image", str(image), "--private-image", "--log", str(logs / "release-doom.log"),
         "--setup-command", "ls", "--setup-success-pattern", LS,
         "--command", "doom -iwad /disk/wads/freedo~1.wad -timedemo demo1",
+        "--failure-pattern", r"IWAD file '[^']+' not found!",
         "--success-pattern", r"timed [0-9]+ gametics in [0-9]+ realtics.*?\[doom\] returned to shell")
 
 
@@ -46,15 +47,19 @@ def main() -> None:
     parser.add_argument("--qemu", default="qemu-system-i386")
     parser.add_argument("--logs", type=Path, default=BUILD)
     parser.add_argument("--timeout", type=float, default=3600)
-    parser.add_argument("--programs-only", action="store_true", help="check only ls and the ISO file readback")
+    parser.add_argument("--key-pause", type=float, default=0.75, help="seconds between emulated key reports")
+    scope = parser.add_mutually_exclusive_group()
+    scope.add_argument("--programs-only", action="store_true", help="check only ls and the ISO file readback")
+    scope.add_argument("--doom-only", action="store_true", help="run only the Freedoom timedemo")
     args = parser.parse_args()
 
     image = args.image.resolve(strict=True)
     logs = args.logs.resolve()
     smoke = ("tools/gui_terminal_smoke.py", "--qemu", args.qemu, "--cpu", "max", "--smp", "4",
              "--nic", "e1000", "--timeout", str(args.timeout), "--setup-timeout", "180",
-             "--key-pause", "0.75", "--require-command-completion", "--verify-smp-runtime")
-    check_programs(image, smoke, logs)
+             "--key-pause", str(args.key_pause), "--require-command-completion", "--verify-smp-runtime")
+    if not args.doom_only:
+        check_programs(image, smoke, logs)
     if not args.programs_only:
         check_doom(image, smoke, logs)
 

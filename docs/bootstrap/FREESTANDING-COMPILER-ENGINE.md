@@ -856,8 +856,9 @@ The replay saves the read-back image after the hosted byte comparison and
 four-CPU boot pass. It writes the file beside the previous image before
 replacing it. The runtime check boots private copies to run `ls`, mount
 the ISO, copy and read its text fixture, and run the Freedoom timedemo.
-`--programs-only` runs the shell and ISO checks. `--logs` selects a
-directory for the serial transcripts.
+Use `--programs-only` for the shell and ISO checks or `--doom-only` for
+the timedemo. `--logs` selects a serial transcript directory.
+`--key-pause` adjusts the time between emulated USB key reports.
 
 The export tests preserve an existing image when boot or file writeback
 fails. A successful export keeps the compared bytes.
@@ -869,6 +870,8 @@ the same 22-byte ISO fixture into HomeFS. The image SHA-256 was
 The first smoke attempt used shell redirection, which the key injector
 could not type. The revised check copies the ISO file in the guest and
 compares the bytes saved by HomeFS after the guest shuts down.
+A separate four-CPU smoke opened the Notepad window on Windows and WSL
+after mounting the same ISO and passing the path to its text fixture.
 
 Run `python3 bootstrap/guest/check_guest_source_plan.py --write-project-layout`
 after changing the supported kernel build inputs and review the result.

@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -7,6 +8,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "bootstrap" / "guest"))
 
 import check_guest_kernel_plan as replay
+import check_guest_release_runtime as runtime
 
 
 class GuestReleaseOutputTests(unittest.TestCase):
@@ -50,6 +52,21 @@ class GuestReleaseOutputTests(unittest.TestCase):
                     replay.save_checked_disk(destination, b"new checked image")
             self.assertEqual(destination.read_bytes(), previous)
             self.assertEqual(list(scratch.iterdir()), [destination])
+
+
+class GuestReleaseRuntimeTests(unittest.TestCase):
+    def test_doom_reports_missing_wad_as_failure(self):
+        with patch.object(runtime, "run") as run:
+            runtime.check_doom(Path("cupidos.img"), ("smoke",), Path("build"))
+        command = run.call_args.args
+        failure = command[command.index("--failure-pattern") + 1]
+        success = command[command.index("--success-pattern") + 1]
+        opened_wrong_path = "IWAD file '/disk/was/freedo~1.wad' not found!\n[doom] returned to shell"
+        completed = "timed 7117 gametics in 19179 realtics (12.987904 fps)\n[doom] returned to shell"
+        self.assertRegex(opened_wrong_path, failure)
+        self.assertNotRegex(opened_wrong_path, re.compile(success, re.S))
+        self.assertRegex(completed, re.compile(success, re.S))
+        self.assertNotRegex(completed, failure)
 
 
 if __name__ == "__main__":
