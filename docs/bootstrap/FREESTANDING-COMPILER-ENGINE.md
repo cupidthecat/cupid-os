@@ -965,6 +965,12 @@ Windows and WSL produced matching HomeFS, FAT16, block-cache, and dglibc
 objects. The raw kernel is 9,514,996 bytes with SHA-256
 `1eae0d5d38f41bf16a14b79fe4acafbbdaa830a58f1ae59ed7acee3f299231c1`.
 
+A clean native Windows build and the WSL build matched all 432 kernel
+objects, the generated symbol source, the bootloader, both ELF links,
+and the raw kernel. Both normal 200 MiB images had SHA-256
+`358b65140e3309e35330804f6f60958c2910d49da57a4d4611e1dbdc0c415447`
+before boot. Both booted on four CPUs and ran `ls` through CupidC.
+
 The first four-CPU storage run passed the HomeFS config and save checks.
 The older RamFS diagnostic then failed because it expected 64 KiB.
 The diagnostic now reads the filesystem's 1 MiB limit from `ramfs.h`
