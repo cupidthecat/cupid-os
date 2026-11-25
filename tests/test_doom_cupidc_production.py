@@ -256,7 +256,8 @@ class DoomCupidCProductionTests(DoomProfileFixture, unittest.TestCase):
             homefs_source,
         )
         self.assertIn("rec.name_len > size - pos", homefs_source)
-        self.assertIn("rec.size > size - pos", homefs_source)
+        self.assertIn("stored_size > size - pos", homefs_source)
+        self.assertIn("stored_size > rec.size", homefs_source)
         self.assertNotIn("pos + rec.name_len > size", homefs_source)
         self.assertNotIn("pos + rec.size > size", homefs_source)
         self.assertIn("static ramfs_node_t *ramfs_existing_parent", ramfs_source)

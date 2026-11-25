@@ -328,9 +328,10 @@ CupidDis, and reproduced the checked ISR object. CupidLD rebuilt from
 five objects and linked the checked `hello` ELF. CupidObj rebuilt from
 five objects and wrapped the production JPEG into the checked object.
 
-CupidBuild rebuilt all 24 objects and linked the 3,293,380-byte driver.
+CupidBuild rebuilt all 27 objects and linked the 3,382,816-byte driver.
 The rebuilt driver ran an assembly job and reproduced the checked ISR
-object inside the same guest.
+object inside the same guest. This replay includes the shared FAT16
+writer and name rules used by disk jobs.
 
 The read-only CupidLD replay matched all five worker objects, the
 260,400-byte linker ELF, and the `hello` ELF it produced. The compiler
@@ -672,16 +673,23 @@ extracted bytes without extending them.
 ```sh
 make -C bootstrap/guest guest-disk guest-build
 python3 bootstrap/guest/check_guest_disk_runtime.py --image-mib 32
-python3 bootstrap/guest/check_guest_disk_runtime.py --image-mib 64 --stage-iso \
+python3 bootstrap/guest/check_guest_disk_runtime.py --image-mib 200 --stage-iso \
   --stage-wad third_party/freedoom/0.13.0/freedoom1.wad
 python3 bootstrap/guest/check_guest_source_plan.py --installed-tree --link-only \
-  --image-mib 32 --stage-iso
+  --image-mib 200 --stage-iso
 ```
 
-HomeFS loads each file directly from its saved container when it mounts.
-The file stays in memory, and saving still rewrites the whole container.
-To check a large restore and the fallback for invalid containers, build
-the OS and run `python3 bootstrap/guest/check_guest_homefs_restore.py`.
+HomeFS can represent a file as a populated prefix and an implicit zero
+tail. The disk worker uses this when it extends a new image. File sizes
+and reads still describe the full image. HomeFS uses version 1 for a
+container of dense files. Version 2 adds a 32-bit little-endian stored
+length after each record header. The name and stored bytes follow it.
+The current kernel reads both versions.
+
+The 200 MiB replay reopens the working disk, checks its image after a
+failed staging request, and boots the extracted bytes. To check large
+restores and invalid containers, build the OS and run
+`python3 bootstrap/guest/check_guest_homefs_restore.py`.
 
 Run the full boot-media replay from a completed checked Linux or WSL build.
 

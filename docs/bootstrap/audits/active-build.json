@@ -57349,7 +57349,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 45566
+      "occurrences": 45576
     },
     {
       "category": "control",
@@ -57779,7 +57779,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28116
+      "occurrences": 28118
     },
     {
       "category": "control",
@@ -58216,7 +58216,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3175
+      "occurrences": 3176
     },
     {
       "category": "declaration",
@@ -58849,7 +58849,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 6690
+      "occurrences": 6693
     },
     {
       "category": "extension",
@@ -59961,7 +59961,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3520
+      "occurrences": 3521
     },
     {
       "category": "preprocessor",
@@ -62344,7 +62344,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 18780
+      "occurrences": 18781
     },
     {
       "category": "qualifier",
@@ -67092,7 +67092,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "06bc71becf6a6bfc4a679c6b9cabc8e6f8f92040ad8aad65a09fe8f2c586f208",
+    "active_source_digest": "80c1e7915116afb4b63d197d6c87ab1430e2a45d63617f0ef926d0231874327a",
     "control_files": [
       {
         "path": "Makefile",
@@ -84849,12 +84849,12 @@
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 1281,
+      "lines": 1321,
       "origin": "tracked",
       "path": "kernel/fs/homefs.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "fba54209b9d70e2202883ed980b5b4c5da7df828e166ebcfab1b090f0941e672"
+      "sha256": "bf04af3ed9260873abaa51bbcc9f17575cc0f54a5916edb61d1513f93e22c318"
     },
     {
       "build_owners": [

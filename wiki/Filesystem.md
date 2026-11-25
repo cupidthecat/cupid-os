@@ -7,6 +7,11 @@ time. The mounted tree and its file contents remain in memory. If the
 container is invalid, Cupid OS reports the failure and keeps the container
 on disk for recovery.
 
+HomeFS stores only the populated prefix of a file with a zero-filled
+tail. File reads and sizes still include that tail. Dense containers
+use version 1. Use a kernel with version 2 support to mount working
+disks that contain sparse files.
+
 ---
 
 ## Architecture

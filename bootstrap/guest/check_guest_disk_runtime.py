@@ -37,6 +37,25 @@ def write_reference_disk(reference: Path, boot: Path, kernel: Path, image_mib: i
             disk.truncate(image_mib * 1024 * 1024)
 
 
+def reopen_probe(reference: Path) -> bytes:
+    with reference.open("rb") as disk:
+        offset = disk.seek(-4, 2)
+        tail = disk.read(4)
+    compare = " && ".join(f"tail[{index}] == {byte}" for index, byte in enumerate(tail))
+    return f"""void main() {{
+    int fd = vfs_open("/home/cupidos.img", 0);
+    if (fd < 0)
+        return;
+    unsigned char tail[4];
+    int offset = vfs_seek(fd, -4, 2);
+    int size = vfs_read(fd, tail, 4);
+    vfs_close(fd);
+    if (offset == {offset} && size == 4 && {compare})
+        serial_printf("[disk-reopen] full image available\\n");
+}}
+""".encode("ascii")
+
+
 def check(scratch: Path, root: Path, boot: Path, kernel: Path, qemu: str, timeout: float,
           *, image_mib: int | None = None, assets: tuple[StageFile, ...] = ()) -> None:
     reference = scratch / "checked.img"
@@ -55,19 +74,39 @@ def check(scratch: Path, root: Path, boot: Path, kernel: Path, qemu: str, timeou
             pairs.append(f"/disk{path}\n{asset.dest}\n")
             input_files.append(f"{asset.source}:{path}")
         settings.append((b"assets", "".join(pairs).encode("ascii")))
+        settings.append((b"reject.job", request.replace(b"stage /home/assets", b"stage /home/reject-assets")))
+        settings.append((b"reject-assets", (pairs[0] + "/home/missing-stage\n/missing.bin\n").encode("ascii")))
+    if image_mib is not None:
+        settings.append((b"reopen.cc", reopen_probe(reference)))
     homefs = scratch / "homefs.sys"
     write_homefs(homefs, ((b"cupiddisk.job", request), *settings))
     image = scratch / "input.img"
     create_disk(image, f"{homefs}:/homefs.sys", f"{boot}:/boot.bin", f"{kernel}:/kern.bin",
                 f"{BUILD / 'cupiddisk-guest.elf'}:/cupdisk", *input_files, production_root=root)
     smoke = ("tools/gui_terminal_smoke.py", "--qemu", qemu, "--smp", "4",
-             "--cpu", "max", "--nic", "e1000", "--timeout", str(timeout),
+             "--cpu", "max", "--nic", "e1000", "--key-pause", "0.35", "--timeout", str(timeout),
              "--require-command-completion")
     run(*smoke, "--image", str(image), "--log", str(BUILD / "disk-template-runtime.log"),
         "--command", "exec /disk/cupdisk",
         "--success-pattern", rf"\[cupiddisk-guest\] wrote /home/{product[:-4]}[.]img" + COMPILER_REAPED)
 
-    matched = compare_homefs_files(read_homefs(image), {product: reference})
+    container = read_homefs(image)
+    print(f"Working HomeFS container uses {len(container)} FAT16 bytes.")
+    matched = compare_homefs_files(container, {product: reference})
+    reopen = "exec /home/reopen.cc"
+    reopened = r"\[disk-reopen\] full image available"
+    if image_mib is not None:
+        runtime = (*smoke, "--image", str(image), "--log", str(BUILD / "disk-template-reopen.log"),
+                   "--verify-smp-runtime")
+        if assets:
+            run(*runtime, "--setup-command", reopen, "--setup-success-pattern", reopened,
+                "--setup-command", "cp /home/reject.job /home/cupiddisk.job",
+                "--setup-success-pattern", r"\[terminal\] command complete",
+                "--command", "exec /disk/cupdisk",
+                "--success-pattern", r"\[cupiddisk-guest\] template failed: not_found" + COMPILER_REAPED)
+            matched = compare_homefs_files(read_homefs(image), {product: reference})
+        else:
+            run(*runtime, "--command", reopen, "--success-pattern", reopened)
     boot_disk(scratch / "guest.img", matched[product], smoke, BUILD / "disk-template-boot.log",
               complete=image_mib is not None)
 

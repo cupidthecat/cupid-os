@@ -6,7 +6,9 @@ from pathlib import Path
 import struct
 import tempfile
 
-from check_guest_runtime import BUILD, FAT_START_LBA, compare_homefs_files, create_disk, read_homefs, run, write_homefs
+from check_guest_runtime import (
+    BUILD, FAT_START_LBA, HOMEFS_MAGIC, compare_homefs_files, create_disk, read_homefs, run, write_homefs,
+)
 from tools.hostbuild_disk import FAT16_EOC, Fat16Image
 
 
@@ -29,6 +31,21 @@ def check_import(scratch: Path, smoke: tuple[str, ...]) -> None:
     run(*smoke, "--image", str(image), "--log", str(BUILD / "homefs-import-runtime.log"), "--verify-smp-runtime",
         "--command", "ls", "--success-pattern", r"\[cupidc\] JIT execution complete")
     compare_homefs_files(read_homefs(image), {"root.txt": root_file, "folder/leaf.txt": leaf})
+
+
+def check_sparse_length(scratch: Path, smoke: tuple[str, ...]) -> None:
+    invalid = scratch / "sparse-invalid.sys"
+    invalid.write_bytes(b"".join((
+        struct.pack("<III", HOMEFS_MAGIC, 2, 2),
+        struct.pack("<IIIII", 0xFFFFFFFF, 1, 0, 0, 0),
+        struct.pack("<IIIII", 0, 0, 2, 4, 3),
+        b"fileABC",
+    )))
+    image = scratch / "sparse-invalid.img"
+    create_disk(image, f"{invalid}:/homefs.sys")
+    check_rejected(image, BUILD / "homefs-restore-sparse-invalid.log", smoke)
+    if read_homefs(image) != invalid.read_bytes():
+        raise ValueError("the rejected sparse HomeFS container changed")
 
 
 def check(scratch: Path, qemu: str, timeout: float) -> None:
@@ -91,7 +108,8 @@ def check(scratch: Path, qemu: str, timeout: float) -> None:
         if directory[offset:offset + 32] != entry or disk._read_fat(cluster) != FAT16_EOC:
             raise ValueError("the short HomeFS container was replaced")
     check_import(scratch, smoke)
-    print("HomeFS restored the large file and preserved both rejected containers.")
+    check_sparse_length(scratch, smoke)
+    print("HomeFS restored the large file and preserved the rejected containers.")
 
 
 if __name__ == "__main__":

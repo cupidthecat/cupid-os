@@ -19,10 +19,10 @@ Cupid OS remains unfinished.
   both links and wrote a disk prefix. The read-only ISO replay and the
   editable HomeFS replay each produced eleven matching outputs. Their
   rebuilt disks booted with four CPUs and ran `ls`.
-  The guest disk worker can also save a complete 32 MiB image in HomeFS.
-  QEMU booted that file without host padding. A 64 MiB guest image with
-  the checked ISO and Freedoom WAD also matched the hosted reference and
-  booted. HomeFS still keeps the image in memory during publication.
+  The guest disk worker also saved a complete 200 MiB image with the
+  checked ISO and Freedoom WAD. It matched the hosted reference, reopened
+  after reboot, and booted on four CPUs. The working HomeFS container used
+  40,792,903 bytes on FAT16.
 - A separate guest plan built `cat`, `hello` and `ls` in one command. Each
   program ran from HomeFS. Linux or WSL still prepares the plans and
   media for these checks. The [guest build record](FREESTANDING-COMPILER-ENGINE.md)

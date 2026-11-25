@@ -122,7 +122,7 @@ ELFs and the disk prefix. The job lists up to 511 distinct pass-one .o
 paths in link order, one per line. CupidBuild reads boot/boot.asm and
 link.ld from /src, generates the symbol object between links, and saves
 the disk prefix as /home/disk-prefix.img.
-To save a complete image, put image 32 after any root and output lines and
+To save a complete image, put image 200 after any root and output lines and
 before the object paths. CupidBuild writes cupidos.img in the output
 directory. Use HomeFS for the full image. To stage files, put
 stage disk-assets immediately after the image line. In a local plan,
@@ -242,10 +242,10 @@ Stage the worker as /cupdisk and run exec /disk/cupdisk. The result ends
 after the empty FAT16 root directory. It describes the standard 200 MiB
 image with its partition starting at sector 20480.
 
-For a complete 32 MiB disk, change the output path to /home/cupidos.img
-and add image 32 as the fourth line. HomeFS needs room for the whole file
-and its replacement. HomeFS reloads each saved file into memory when it
-mounts the working disk.
+For a complete 200 MiB disk, change the output path to /home/cupidos.img
+and add image 200 as the fourth line. HomeFS saves the populated part of
+the image and supplies any zero-filled tail when read. Allow room for the
+previous image while replacing it.
 
 Add stage /home/disk-assets after the image line to stage files. In
 /home/disk-assets, give each source path and its path in the new image

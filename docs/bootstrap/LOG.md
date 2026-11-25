@@ -1,5 +1,48 @@
 # Bootstrapping log
 
+## 2026-11-24 — Save the standard 200 MiB image inside Cupid OS
+
+HomeFS can store a file's populated prefix and supply a zero-filled
+tail on read. Seeking past EOF and writing zero now grows the logical
+file without allocating the tail. A write that puts data in the tail
+extends the stored prefix. Dense containers keep their version 1 format.
+Version 2 records carry the logical and stored lengths, and the kernel
+reads both versions.
+
+CupidBuild staged the checked `hello.iso` and Freedoom 1 WAD in a
+200 MiB disk inside Cupid OS. The working HomeFS container took
+40,792,903 FAT16 bytes. The complete 209,715,200-byte image matched the
+hosted reference, SHA-256
+`abdba24f148cdbb528a25c240314806dd3c326e2f9430a67b9398d0e7cb39f8a`.
+The working disk reopened the file after reboot. A job that staged the
+ISO and then failed on a missing file preserved every byte of the
+previous image. The extracted image booted with four CPUs and ran `ls`.
+
+The installed-tree kernel job linked 431 checked pass-one objects and
+staged the ISO in a 200 MiB image. All seven outputs matched their
+references. The extracted image booted with four CPUs and ran `ls`.
+
+The same kernel restored the 132 MiB version 1 fixture, preserved the
+invalid and shortened containers, and imported nested FAT16 files.
+It rejected a version 2 record that stored more bytes than its logical
+length. The checked Windows and WSL compilers produced the same
+38,780-byte HomeFS object. Windows passed 198 tests. The WSL suite ran
+198 tests with one platform skip.
+
+The normal WSL build passed all 16 exact artifact checks. It produced
+a 9,514,464-byte raw kernel and a 200 MiB image that booted with four
+CPUs. The build audit and guest source ISO also passed.
+
+The 804-file source replay on the preceding kernel wrote the objects,
+linked both kernels, and flattened the final ELF. It stopped at the
+32 MiB disk job when HomeFS could not allocate a 77,839,294-byte
+container buffer. That replay did not reach artifact comparison.
+
+The CupidBuild self-rebuild matched all 27 objects and its 3,382,816-byte
+executable. The rebuilt worker ran in the same guest and produced the
+checked ISR object. A 20-minute deadline expired during compilation;
+the retry with a two-hour deadline completed.
+
 ## 2026-11-24 — Read HomeFS directly into the mounted tree
 
 HomeFS reads each HFS1 record from FAT16 and loads its file contents

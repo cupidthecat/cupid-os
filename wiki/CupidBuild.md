@@ -67,9 +67,10 @@ MBR sector count, the FAT16 volume, and the checked CupidObj template.
 ## Build a disk inside Cupid OS
 
 A guest kernel job can write a complete bootable disk to HomeFS. Put
-`image 32` after any `root` and `output` lines and before the object
-list to write a 32 MiB `cupidos.img`. Leave enough free space on the
-working disk for the image and any previous copy.
+`image 200` after any `root` and `output` lines and before the object
+list to write a 200 MiB `cupidos.img`. HomeFS saves the populated part of
+the image and supplies any zero-filled tail when read. Leave space on the
+working disk for any previous copy.
 
 To stage files into the new FAT16 volume, put `stage /home/disk-assets`
 after the image line. In that manifest, write an absolute path to an

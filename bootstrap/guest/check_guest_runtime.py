@@ -57,18 +57,26 @@ def read_homefs(image: Path) -> bytes:
 
 
 def compare_homefs_files(payload: bytes, references: dict[str, Path]) -> dict[str, bytes]:
+    if len(payload) < 12:
+        raise ValueError("truncated HOMEFS.SYS header")
     magic, version, count = struct.unpack_from("<III", payload)
-    if magic != HOMEFS_MAGIC or version != 1:
+    if magic != HOMEFS_MAGIC or version not in (1, 2):
         raise ValueError("invalid HOMEFS.SYS header")
 
     offset = 12
+    record_size = 16 if version == 1 else 20
     paths = []
     matched = {}
     for index in range(count):
-        parent, _, size, name_size = struct.unpack_from("<IIII", payload, offset)
-        offset += 16
+        if offset + record_size > len(payload):
+            raise ValueError("truncated HOMEFS.SYS record")
+        parent, kind, size, name_size = struct.unpack_from("<IIII", payload, offset)
+        stored_size = size if version == 1 else struct.unpack_from("<I", payload, offset + 16)[0]
+        if stored_size > size or (kind == 1 and size != 0):
+            raise ValueError("invalid HOMEFS.SYS file size")
+        offset += record_size
         end_name = offset + name_size
-        end_file = end_name + size
+        end_file = end_name + stored_size
         if end_file > len(payload):
             raise ValueError("truncated HOMEFS.SYS entry")
         name = payload[offset:end_name].decode("utf-8")
@@ -81,13 +89,20 @@ def compare_homefs_files(payload: bytes, references: dict[str, Path]) -> dict[st
         paths.append(path)
 
         if path in references:
+            reference = references[path]
+            if path in matched or reference.stat().st_size != size:
+                raise ValueError(f"guest /home/{path} differs from the checked file")
             data = payload[end_name:end_file]
-            if path in matched or data != references[path].read_bytes():
+            if stored_size < size:
+                data += bytes(size - stored_size)
+            if data != reference.read_bytes():
                 raise ValueError(f"guest /home/{path} differs from the checked file")
             digest = hashlib.sha256(data).hexdigest()
             print(f"/home/{path} matches all {len(data)} bytes ({digest})")
             matched[path] = data
         offset = end_file
+    if offset != len(payload):
+        raise ValueError("trailing data in HOMEFS.SYS")
     if missing := references.keys() - matched.keys():
         raise ValueError(f"missing guest files: {', '.join(sorted(missing))}")
     return matched
