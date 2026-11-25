@@ -861,9 +861,9 @@ python3 bootstrap/guest/check_guest_release_runtime.py \
 The replay saves the read-back image after the hosted byte comparison and
 four-CPU boot pass. It writes the file beside the previous image before
 replacing it. The runtime check boots private copies to run `ls`, mount
-the ISO, copy and read its text fixture, and run the Freedoom timedemo.
-Use `--programs-only` for the shell and ISO checks or `--doom-only` for
-the timedemo. `--logs` selects a serial transcript directory.
+the ISO, copy and read its text fixture, edit a HomeFS file in Notepad,
+and run the Freedoom timedemo. To run one check, use `--programs-only`,
+`--notepad-only`, or `--doom-only`. `--logs` selects a serial transcript directory.
 `--key-pause` adjusts the time between emulated USB key reports.
 
 The export tests preserve an existing image when boot or file writeback
@@ -882,7 +882,19 @@ The first smoke attempt used shell redirection, which the key injector
 could not type. The revised check copies the ISO file in the guest and
 compares the bytes saved by HomeFS after the guest shuts down.
 A separate four-CPU smoke opened the Notepad window on Windows and WSL
-after mounting the same ISO and passing the path to its text fixture.
+after mounting the same ISO. The edit-and-save check copies the fixture
+to HomeFS, opens that copy, waits for the Notepad window, and sends the
+edit and save keys. It compares the saved file after closing QEMU. On
+both hosts the edit saved the same 13 bytes with SHA-256
+`17d6ffb21ae29c2f3940afe4c387f535255e52c041d545ae67ad3ad8d53c2f11`.
+The runtime tests reject a stale window marker and an unchanged file.
+An earlier runner sent Ctrl+Q immediately after Ctrl+S. Both hosts logged
+the save and waited for a window close that never arrived. The runner
+now waits for the save to reach HomeFS and checks the file on disk.
+The shell, ISO, and automated Notepad checks passed on both hosts using
+the later streaming HomeFS image. Windows passed with `--key-pause 1.2`.
+The WSL Notepad run at that spacing missed the ISO mount. It passed with
+`--key-pause 1.8`. All 158 release and terminal tests passed on each host.
 
 Run `python3 bootstrap/guest/check_guest_source_plan.py --write-project-layout`
 after changing the supported kernel build inputs and review the result.

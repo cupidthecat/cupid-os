@@ -692,11 +692,17 @@ def run_terminal_command(
     *,
     require_completion: bool = False,
     failure_pattern: str | None = None,
+    interaction: tuple[str, list[str]] | None = None,
 ) -> tuple[bool, str]:
     """Type one command and require one new matching serial event."""
     re.compile(success_pattern, re.S | re.M)
     keys = [key_name(ch) for ch in command]
     before = read_log(log)
+    if interaction is not None:
+        interaction_pattern, followup_keys = interaction
+        if not followup_keys or any(not re.fullmatch(r"[a-z0-9_-]+", key) for key in followup_keys):
+            raise ValueError("follow-up keys must be QEMU key names")
+        interaction_count = success_count(before, interaction_pattern) + 1
     completed = success_count(before, success_pattern)
     wait_options = {}
     if failure_pattern is not None:
@@ -708,6 +714,16 @@ def run_terminal_command(
     send_key(mon, "ret", key_pause)
 
     deadline = time.monotonic() + timeout
+    if interaction is not None:
+        opened, data = wait_log_success_count(
+            proc, log, interaction_pattern, interaction_count, timeout, **wait_options,
+        )
+        if not opened or PANIC_RE.search(data):
+            return False, data
+        time.sleep(max(COMMAND_SETTLE_SECONDS, 2 * key_pause))
+        for key in followup_keys:
+            send_key(mon, key, key_pause)
+        timeout = max(0.0, deadline - time.monotonic())
     ok, data = wait_log_success_count(
         proc,
         log,
@@ -1692,6 +1708,7 @@ def run(args: argparse.Namespace) -> int:
         *args.setup_success_pattern,
     ):
         re.compile(pattern, re.S)
+    interaction = (args.interaction_pattern, args.followup_key) if args.interaction_pattern else None
 
     runtime_args = args
     private_directory: tempfile.TemporaryDirectory[str] | None = None
@@ -1781,6 +1798,7 @@ def run(args: argparse.Namespace) -> int:
                 args.key_pause,
                 require_completion=args.require_command_completion,
                 failure_pattern=args.failure_pattern,
+                interaction=interaction,
             )
             if not ok:
                 print(
@@ -1894,6 +1912,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--failure-pattern",
         help="fail on a new match for this serial expression during any command",
     )
+    parser.add_argument("--interaction-pattern", help="serial marker that must precede the follow-up keys")
+    parser.add_argument("--followup-key", action="append", default=[], help="QEMU key to send after the marker")
     parser.add_argument(
         "--verify-smp-runtime",
         action="store_true",
@@ -1922,6 +1942,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         parser.error(
             "each --setup-command needs one --setup-success-pattern"
         )
+    if bool(args.interaction_pattern) != bool(args.followup_key):
+        parser.error("--interaction-pattern and --followup-key must be used together")
+    if args.verify_frontier_runtime and args.interaction_pattern:
+        parser.error("--verify-frontier-runtime uses its own interaction sequence")
     return args
 
 

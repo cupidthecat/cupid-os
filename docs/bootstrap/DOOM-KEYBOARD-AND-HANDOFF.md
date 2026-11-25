@@ -81,6 +81,11 @@ without a timedemo result or return to the shell. The first Windows
 run missed keystrokes in the IWAD path. The retry used 1.2 seconds per
 key report and opened the correct WAD.
 
+A Windows QEMU monitor sampled `gametic` on the later 200 MiB image
+with the streaming HomeFS writer. It advanced from 1 to 38 in about
+65 seconds after graphics initialized. One sampled CPU was executing
+`OPL3_EnvelopeCalc`. The timedemo was still running when the sample ended.
+
 ## Evidence and limits
 
 The first rebuilt guest exposes both the missing space and the input leak; it

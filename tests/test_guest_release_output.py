@@ -86,6 +86,37 @@ class GuestReleaseInputsTests(unittest.TestCase):
 
 
 class GuestReleaseRuntimeTests(unittest.TestCase):
+    def test_notepad_reads_back_the_edited_file_on_a_private_copy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            scratch = Path(directory)
+            image = scratch / "original.img"
+            homefs = scratch / "homefs.sys"
+            image.write_bytes(b"original disk")
+
+            def run_smoke(*command):
+                target = Path(command[command.index("--image") + 1])
+                self.assertNotEqual(target, image)
+                self.assertEqual(target.read_bytes(), image.read_bytes())
+                self.assertIn('notepad_open_file("/home/npcheck.txt");', command)
+                keys = [command[index + 1] for index, option in enumerate(command) if option == "--followup-key"]
+                self.assertEqual(keys[0], "ctrl-a")
+                self.assertEqual(keys[-1], "ctrl-s")
+                replay.write_homefs(homefs, ((b"npcheck.txt", b"edit saved 42"),))
+                target.write_bytes(homefs.read_bytes())
+
+            with patch.object(runtime, "run", side_effect=run_smoke), patch.object(runtime, "read_homefs", Path.read_bytes):
+                runtime.check_notepad(image, ("smoke",), scratch)
+            self.assertEqual(image.read_bytes(), b"original disk")
+
+    def test_notepad_rejects_an_unchanged_iso_copy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            scratch = Path(directory)
+            image = scratch / "original.img"
+            replay.write_homefs(image, ((b"npcheck.txt", b"unchanged ISO fixture"),))
+            with patch.object(runtime, "run"), patch.object(runtime, "read_homefs", Path.read_bytes):
+                with self.assertRaisesRegex(ValueError, "differs from the checked file"):
+                    runtime.check_notepad(image, ("smoke",), scratch)
+
     def test_doom_reports_missing_wad_as_failure(self):
         with patch.object(runtime, "run") as run:
             runtime.check_doom(Path("cupidos.img"), ("smoke",), Path("build"))

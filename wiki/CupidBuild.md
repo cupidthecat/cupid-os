@@ -121,14 +121,15 @@ available for the checkout and its builds.
 
 An image with the checked `hello.iso` and Freedoom WAD can be tested
 on the host with QEMU. The check boots private copies on four CPUs,
-runs the shell tools, reads the staged ISO, and runs a Freedoom timedemo.
+runs the shell tools, reads the staged ISO, checks a Notepad edit and save,
+and runs a Freedoom timedemo.
 
 ```sh
 python3 bootstrap/guest/check_guest_release_runtime.py build/guest-engine/checked-release.img
 ```
 
-Use `--programs-only` for the shell and ISO checks or `--doom-only` for the
-timedemo. If QEMU misses keystrokes, increase `--key-pause`. The installed-tree
+Use `--programs-only`, `--notepad-only`, or `--doom-only` to run one check.
+If QEMU misses keystrokes, increase `--key-pause`. The installed-tree
 replay accepts `--release-output` to save the image after comparing every
 byte with the hosted build and booting that image. The runtime check can
 then use the saved image on another host.

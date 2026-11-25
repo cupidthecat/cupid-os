@@ -414,6 +414,33 @@ class GuiTerminalInputTests(unittest.TestCase):
         self.assertIn("build stopped at /home/test.job", data)
         process.poll.assert_not_called()
 
+    def test_followup_keys_wait_for_a_new_window_marker(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text("window open\n", encoding="utf-8")
+            monitor = SequencedMonitorSocket(log, ["window open\n", "file saved\n"])
+            with mock.patch("tools.gui_terminal_smoke.time.sleep"):
+                ok, _ = gui_terminal_smoke.run_terminal_command(
+                    mock.Mock(), monitor, log, "edit", "file saved", 1.0, 0.35,
+                    interaction=("window open", ["ctrl-a", "ret"]),
+                )
+        self.assertTrue(ok)
+        self.assertEqual(monitor.sent[-3:], [b"sendkey ret 300\n", b"sendkey ctrl-a 300\n", b"sendkey ret 300\n"])
+
+    def test_followup_keys_skip_an_earlier_window_marker(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text("window open\n", encoding="utf-8")
+            monitor = SequencedMonitorSocket(log, ["open failed\n"])
+            with mock.patch("tools.gui_terminal_smoke.time.sleep"):
+                ok, _ = gui_terminal_smoke.run_terminal_command(
+                    mock.Mock(), monitor, log, "edit", "file saved", 1.0, 0.35,
+                    failure_pattern="open failed", interaction=("window open", ["ctrl-a"]),
+                )
+        self.assertFalse(ok)
+        self.assertEqual(monitor.sent[-1], b"sendkey ret 300\n")
+        self.assertNotIn(b"sendkey ctrl-a 300\n", monitor.sent)
+
     def test_terminal_command_ignores_an_earlier_worker_rejection(self):
         with tempfile.TemporaryDirectory() as temporary:
             log = Path(temporary) / "serial.log"
