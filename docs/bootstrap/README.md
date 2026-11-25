@@ -11,16 +11,11 @@ Cupid OS remains unfinished.
   the work, and CupidBuild publishes the disk image. The supported graph
   has 455 transforms, of which 453 use CupidBuild. The other two publish and
   verify the hosted SDK contracts through Python.
-- Both installed seeds come from the same 124-file source snapshot. Cold
+- Both installed seeds come from the same 141-file source snapshot. Cold
   builds on Windows and WSL produced matching disk images and user programs.
   A fresh WSL checkout built all 16 checked artifacts with failing
   stand-ins for GCC, NASM, Clang, GNU assembler and linker tools. The build
   called none of them. Its 200 MiB image booted on four CPUs and ran `ls`.
-- The current hosted producer has 141 source paths after the CupidObj and
-  CupidBuild splits. The public bootstrap commands on Windows and WSL
-  reached the behavior gate, which expects the reviewed 124-input tool
-  bytes. Both rejected the newer tools. The paired replacement is being
-  qualified with the same checks.
 - Cupid OS rebuilt and ran CupidC, CupidASM with CupidDis, CupidLD, CupidObj,
   and CupidBuild inside the guest. A 19-request plan rebuilt 431 pass-one
   objects, including Doom. It generated the symbol object between the two

@@ -33,8 +33,8 @@
     {
       "format": "elf32",
       "name": "cupidbuild",
-      "sha256": "93dea0ad5f72f9e715a6bdea3ce563a287b5872d0c6c916e90b52bf591a615a4",
-      "size": 1331656
+      "sha256": "f2ebbd2a1e1db01cf42dea54f7fd84f25168aa1e6866e3e8b863421bc353bdf5",
+      "size": 1335752
     },
     {
       "format": "pe32",
@@ -69,17 +69,17 @@
     {
       "format": "pe32",
       "name": "cupidbuild",
-      "sha256": "c073970653bb22169864d72fc56862046e281b28c20e168414597564f95e6f85",
-      "size": 1316864
+      "sha256": "41a9520ffb01396ec83226e7b8ed7868176725d4fe9304a40f0188d5268178d9",
+      "size": 1317888
     }
   ],
   "linux_plan_sha256": "e58a047f92d21a9ffbae6cc19726477f95ca3a872f1238d9cbab58dae950faaa",
-  "parent_linux_manifest_sha256": "0ab797ccb0e769a493d510df6795612e3338e3a1d21be4bb333b0ffe97bdf801",
-  "parent_source_revision": "5f8bbf8176ecc12fc9348a3c6495db68768f5f7e",
-  "parent_windows_manifest_sha256": "e976dc500ad3f424ca388843d7c3f7d781ed27d96f9f31d8afaa1aba5b86058b",
+  "parent_linux_manifest_sha256": "2a60385503b06370f8d1960ac678eb846452f56dbe7bdcb429990fa101f8676e",
+  "parent_source_revision": "2d3fb86fb5aa9241d927f87d538799e6876ee80f",
+  "parent_windows_manifest_sha256": "4b48dfa6349366af05114241641de9accd5f3e54dc9e4ba9b094348f5876bba2",
   "schema": "cupid.seed-release.v1",
-  "source_input_count": 124,
-  "source_revision": "2d3fb86fb5aa9241d927f87d538799e6876ee80f",
-  "source_snapshot_sha256": "696bf8c92232ba20a0056c3b5dccd4af49ccefbbd4b09e01472dd32621921f9b",
+  "source_input_count": 141,
+  "source_revision": "a4e0760d636afb15908f053b03c1cf14b6bbbcca",
+  "source_snapshot_sha256": "35b6a9a6165315b818f13d3de599b5e2423d8ce37bc4d384bb0652a3bf390407",
   "windows_plan_sha256": "edf91edb181c104e9762ac7f68c4636b5da153ac43e24f1d4dc941424f96e63c"
 }

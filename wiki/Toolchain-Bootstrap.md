@@ -11,7 +11,7 @@ and NASM are optional comparison tools. See
 
 Hosted toolchain rebuilds have reached a fixed point on Linux and Windows.
 A fixed point means two consecutive stages produce identical checked objects
-and tools. The installed seeds come from the same 124-file source snapshot.
+and tools. The installed seeds come from the same 141-file source snapshot.
 Cold builds on Windows and WSL produced the same disk image and example
 programs. The [bootstrap records](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/README.md)
 track the remaining work on building inside Cupid OS.

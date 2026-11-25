@@ -67137,11 +67137,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "a1f63e3a2f6606c5d603b8aa7b9fb5215145e2f870acddb1dc79a5abf89ad49c"
+        "sha256": "b03ac435cfd69ddf7f2c7f81ba5979aa2f2c89335aa3ce401d388b8cdf41ab41"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
-        "sha256": "4b48dfa6349366af05114241641de9accd5f3e54dc9e4ba9b094348f5876bba2"
+        "sha256": "be6e88cece8e14099362f7da4a6c22a8fe161cea94b974bf313328d32d911081"
       },
       {
         "path": "tools/build_graph_features.py",

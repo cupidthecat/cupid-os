@@ -1,5 +1,44 @@
 # Bootstrapping log
 
+## 2026-11-25 — Qualify the seeds after the source split
+
+The public Windows and WSL bootstraps rebuilt the current sources and
+stopped at the reviewed behavior gate. The installed release covered
+124 inputs. The current CupidObj and CupidBuild source layout captures
+141 input paths and changes the CupidBuild binary on both hosts. The
+other five tools match the previous seed bytes.
+
+Both preparations captured source revision
+`a4e0760d636afb15908f053b03c1cf14b6bbbcca` with snapshot SHA-256
+`35b6a9a6165315b818f13d3de599b5e2423d8ce37bc4d384bb0652a3bf390407`.
+The first attempts put the output outside the source root and were
+rejected. The reruns used separate directories under `build/bootstrap`.
+Independent readback verified all 333 retained stage files across the
+two preparations and matched their stage-three and stage-four outputs.
+
+The paired release kept both existing build plans and recorded the
+previous manifests as its parents. Full qualification recompiled and
+checked all final files against the preparations. It passed 146 behavior
+cases under WSL and 121 on native Windows. The candidate release SHA-256
+is `8d87932aa465dbc19807f09fcb89fb745cff1638ba2a6b75cc7ecb260fe21431`.
+
+| Seed | CupidBuild bytes | Qualified report SHA-256 |
+| --- | ---: | --- |
+| Linux | 1,335,752 | `02ffeda45135e9ac2eb1b60d15833106bbfa611c8e889b3dfa2602e583f12ce1` |
+| Windows | 1,317,888 | `f5c0f2e2cacf740c627206174e222c3d5990a58c01626e9e469fcdb9c60074d4` |
+
+The seed and release test selection ran 125 tests on each host, with one Windows
+skip and three WSL skips. The promoted Windows manifest binds to the exact
+Linux manifest. The size policy records both new CupidBuild sizes. The
+behavior gate still requires the reviewed bytes in both final stages.
+
+The public bootstrap commands passed with the new installed pair. All
+six stage-two tool images matched each installed seed, and the two
+final stages matched. Clean Windows and WSL builds accepted all sixteen
+artifact sizes and produced the same 200 MiB disk, SHA-256
+`358b65140e3309e35330804f6f60958c2910d49da57a4d4611e1dbdc0c415447`.
+Both booted on four CPUs and ran `ls`.
+
 ## 2026-11-24 — Save the standard 200 MiB image inside Cupid OS
 
 HomeFS can store a file's populated prefix and supply a zero-filled
