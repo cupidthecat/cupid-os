@@ -247,7 +247,7 @@ class DoomCupidCProductionTests(DoomProfileFixture, unittest.TestCase):
         self.assertIn("while (acquired < 16)", dglibc_selftest)
         self.assertIn("denied = vfs_open(path, O_WRONLY | O_CREAT)", dglibc_selftest)
         self.assertIn("for (int i = 0; i < acquired; i++)", dglibc_selftest)
-        self.assertIn("fat16_open_checked(path, &file)", homefs_source)
+        self.assertIn("fat16_open_checked(path, file)", homefs_source)
         self.assertIn(
             "fat16_reserve_file(HOMEFS_CONTAINER_NAME)", homefs_source
         )

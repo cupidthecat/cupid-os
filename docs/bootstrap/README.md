@@ -31,8 +31,9 @@ Cupid OS remains unfinished.
   typed native calls. The shell can inspect saved raw files with CupidDis.
   The [capability matrix](CAPABILITY-MATRIX.md) lists remaining language gaps.
 - Doom passed the keyboard, save-name, and reboot checks. Freedoom completed
-  a four-CPU timedemo on November 18. The November 21 replay timed out after
-  graphics startup. Gameplay and audio acceptance remain open.
+  a four-CPU timedemo on November 24 using the 64 MiB guest-matched image.
+  The replay ran 7,117 game ticks and returned to the shell. Interactive
+  gameplay and audio checks remain open.
 - TempleOS is read-only reference material and is excluded from build counts.
 
 See the [ownership audit](ACTIVE-SOURCE-AUDIT.md),

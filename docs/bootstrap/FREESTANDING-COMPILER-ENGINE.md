@@ -678,6 +678,11 @@ python3 bootstrap/guest/check_guest_source_plan.py --installed-tree --link-only 
   --image-mib 32 --stage-iso
 ```
 
+HomeFS loads each file directly from its saved container when it mounts.
+The file stays in memory, and saving still rewrites the whole container.
+To check a large restore and the fallback for invalid containers, build
+the OS and run `python3 bootstrap/guest/check_guest_homefs_restore.py`.
+
 Run the full boot-media replay from a completed checked Linux or WSL build.
 
 ```sh

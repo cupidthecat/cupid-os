@@ -421,12 +421,18 @@ static void homefs_clear_fs(homefs_t *fs) {
     fs->dirty = false;
 }
 
-static int homefs_deserialize(homefs_t *fs, const uint8_t *data, uint32_t size) {
-    if (!fs || !data || size < sizeof(homefs_disk_header_t))
-        return VFS_EINVAL;
+static bool homefs_read_exact(fat16_file_t *file, void *buffer, uint32_t size) {
+    int count = fat16_read(file, buffer, size);
+    return count >= 0 && (uint32_t)count == size;
+}
 
+static int homefs_deserialize(homefs_t *fs, fat16_file_t *file) {
+    uint32_t size = file->file_size;
     homefs_disk_header_t hdr;
-    memcpy(&hdr, data, sizeof(hdr));
+    if (size < sizeof(hdr))
+        return size == 0u ? VFS_EIO : VFS_EINVAL;
+    if (!homefs_read_exact(file, &hdr, sizeof(hdr)))
+        return VFS_EIO;
     if (hdr.magic != HOMEFS_MAGIC || hdr.version != HOMEFS_VERSION || hdr.node_count == 0) {
         return VFS_EIO;
     }
@@ -450,7 +456,8 @@ static int homefs_deserialize(homefs_t *fs, const uint8_t *data, uint32_t size) 
         }
 
         homefs_disk_node_t rec;
-        memcpy(&rec, data + pos, sizeof(rec));
+        if (!homefs_read_exact(file, &rec, sizeof(rec)))
+            goto fail;
         pos += (uint32_t)sizeof(rec);
 
         if (pos > size || rec.name_len >= VFS_MAX_NAME || rec.name_len > size - pos) {
@@ -459,9 +466,8 @@ static int homefs_deserialize(homefs_t *fs, const uint8_t *data, uint32_t size) 
 
         char name[VFS_MAX_NAME];
         memset(name, 0, sizeof(name));
-        if (rec.name_len > 0) {
-            memcpy(name, data + pos, rec.name_len);
-        }
+        if (rec.name_len > 0 && !homefs_read_exact(file, name, rec.name_len))
+            goto fail;
         name[rec.name_len] = '\0';
         pos += rec.name_len;
 
@@ -489,7 +495,11 @@ static int homefs_deserialize(homefs_t *fs, const uint8_t *data, uint32_t size) 
                 failure = VFS_ENOSPC;
                 goto fail;
             }
-            memcpy(node->data, data + pos, rec.size);
+            if (!homefs_read_exact(file, node->data, rec.size)) {
+                kfree(node->data);
+                kfree(node);
+                goto fail;
+            }
             node->size = rec.size;
             node->capacity = rec.size;
             pos += rec.size;
@@ -575,17 +585,34 @@ static int homefs_flush(homefs_t *fs) {
     return VFS_OK;
 }
 
-static int homefs_read_fat_file(const char *path, uint8_t **out_data, uint32_t *out_size) {
-    fat16_file_t *file = NULL;
-    int open_status = fat16_open_checked(path, &file);
+static int homefs_open_fat_file(const char *path, fat16_file_t **file) {
+    int open_status = fat16_open_checked(path, file);
     if (open_status == FAT16_OPEN_NOT_FOUND)
         return VFS_ENOENT;
     if (open_status == FAT16_OPEN_NO_HANDLES)
         return VFS_EMFILE;
     if (open_status == FAT16_OPEN_INVALID)
         return VFS_EINVAL;
-    if (open_status != FAT16_OPEN_OK)
-        return VFS_EIO;
+    return open_status == FAT16_OPEN_OK ? VFS_OK : VFS_EIO;
+}
+
+static int homefs_restore(homefs_t *fs) {
+    fat16_file_t *file;
+    int rc = homefs_open_fat_file(HOMEFS_CONTAINER_NAME, &file);
+    if (rc < 0)
+        return rc;
+    rc = homefs_deserialize(fs, file);
+    fat16_close(file);
+    if (rc < 0)
+        serial_printf("[homefs] refusing invalid container (%d)\n", rc);
+    return rc;
+}
+
+static int homefs_read_fat_file(const char *path, uint8_t **out_data, uint32_t *out_size) {
+    fat16_file_t *file;
+    int rc = homefs_open_fat_file(path, &file);
+    if (rc < 0)
+        return rc;
 
     uint32_t size = file->file_size;
     uint8_t *buf = NULL;
@@ -595,8 +622,7 @@ static int homefs_read_fat_file(const char *path, uint8_t **out_data, uint32_t *
             fat16_close(file);
             return VFS_ENOSPC;
         }
-        int rd = fat16_read(file, buf, size);
-        if (rd < 0 || (uint32_t)rd != size) {
+        if (!homefs_read_exact(file, buf, size)) {
             kfree(buf);
             fat16_close(file);
             return VFS_EIO;
@@ -627,7 +653,8 @@ static int homefs_strieq(const char *a, const char *b) {
     return *a == '\0' && *b == '\0';
 }
 
-static int homefs_add_imported_file(homefs_node_t *parent, const char *name, const uint8_t *data,
+/* Take ownership of the read buffer on success. */
+static int homefs_add_imported_file(homefs_node_t *parent, const char *name, uint8_t *data,
                                     uint32_t size) {
     size_t nlen = strlen(name);
     if (!homefs_valid_name_bytes(name, (uint32_t)nlen) || parent->depth >= HOMEFS_MAX_DEPTH)
@@ -639,16 +666,9 @@ static int homefs_add_imported_file(homefs_node_t *parent, const char *name, con
     if (!node)
         return VFS_ENOSPC;
 
-    if (size > 0) {
-        node->data = kmalloc(size);
-        if (!node->data) {
-            kfree(node);
-            return VFS_ENOSPC;
-        }
-        memcpy(node->data, data, size);
-        node->size = size;
-        node->capacity = size;
-    }
+    node->data = data;
+    node->size = size;
+    node->capacity = size;
 
     node->parent = parent;
     node->depth = parent->depth + 1u;
@@ -688,9 +708,9 @@ static int homefs_import_subdir_entry(const char *name, uint32_t size, uint8_t a
     }
     (void)size;
     status = homefs_add_imported_file(ictx->dir, name, data, file_size);
-    if (data)
-        kfree(data);
     if (status < 0) {
+        if (data)
+            kfree(data);
         ictx->status = status;
         return 1;
     }
@@ -746,9 +766,9 @@ static int homefs_import_root_entry(const char *name, uint32_t size, uint8_t att
         }
         (void)size;
         status = homefs_add_imported_file(ictx->fs->root, name, data, file_size);
-        if (data)
-            kfree(data);
         if (status < 0) {
+            if (data)
+                kfree(data);
             ictx->status = status;
             return 1;
         }
@@ -793,22 +813,8 @@ static int homefs_mount(const char *source, void **fs_private) {
         return VFS_ENOSPC;
     }
 
-    uint8_t *data = NULL;
-    uint32_t size = 0;
-    int read_status = homefs_read_fat_file(HOMEFS_CONTAINER_NAME, &data, &size);
-    if (read_status == VFS_OK) {
-        int load_status = (data && size > 0u) ? homefs_deserialize(fs, data, size) : VFS_EIO;
-        if (load_status < 0) {
-            serial_printf("[homefs] refusing invalid container (%d)\n", load_status);
-            if (data)
-                kfree(data);
-            homefs_clear_fs(fs);
-            kfree(fs);
-            return load_status;
-        }
-        if (data)
-            kfree(data);
-    } else if (read_status == VFS_ENOENT) {
+    int load_status = homefs_restore(fs);
+    if (load_status == VFS_ENOENT) {
         serial_printf("[homefs] no container found, importing FAT16 contents\n");
         int import_status = homefs_import_from_fat(fs);
         if (import_status < 0) {
@@ -816,10 +822,10 @@ static int homefs_mount(const char *source, void **fs_private) {
             kfree(fs);
             return import_status;
         }
-    } else {
+    } else if (load_status < 0) {
         homefs_clear_fs(fs);
         kfree(fs);
-        return read_status;
+        return load_status;
     }
 
     int reserve_status = fat16_reserve_file(HOMEFS_CONTAINER_NAME);

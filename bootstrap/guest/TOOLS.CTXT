@@ -244,7 +244,8 @@ image with its partition starting at sector 20480.
 
 For a complete 32 MiB disk, change the output path to /home/cupidos.img
 and add image 32 as the fourth line. HomeFS needs room for the whole file
-and its replacement.
+and its replacement. HomeFS reloads each saved file into memory when it
+mounts the working disk.
 
 Add stage /home/disk-assets after the image line to stage files. In
 /home/disk-assets, give each source path and its path in the new image

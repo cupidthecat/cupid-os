@@ -2,6 +2,11 @@
 
 Cupid OS uses a Linux-style **Virtual File System (VFS)** to expose one file API across several filesystem types. The directory tree contains RamFS boot files, DevFS devices, raw FAT16 at `/disk`, and HomeFS at `/home`. HomeFS stores its logical tree in `/disk/HOMEFS.SYS`; direct FAT16 at `/home` is a fallback used only when the HomeFS mount fails.
 
+HomeFS reads each saved file directly into its working buffer at mount
+time. The mounted tree and its file contents remain in memory. If the
+container is invalid, Cupid OS reports the failure and keeps the container
+on disk for recovery.
+
 ---
 
 ## Architecture
@@ -52,7 +57,7 @@ The VFS implementation is in `kernel/fs/vfs.cc/h`. The shell, Notepad, and progr
 
 - **Mount table** - up to 32 simultaneous mount points. Unmounting frees a
   slot for reuse. An active target cannot be mounted twice.
-- **File descriptor table** - up to 64 open files
+- **File descriptor table** - up to 256 open files
 - **Path resolution** - longest-prefix match finds the correct filesystem
 - **Current working directory** - shell tracks CWD for relative paths
 - **Pluggable backends** - any filesystem implementing `vfs_fs_ops_t` can be mounted

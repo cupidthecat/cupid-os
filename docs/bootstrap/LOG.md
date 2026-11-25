@@ -1,5 +1,43 @@
 # Bootstrapping log
 
+## 2026-11-24 — Read HomeFS directly into the mounted tree
+
+HomeFS reads each HFS1 record from FAT16 and loads its file contents
+into the buffer the mounted tree will use. A first-boot FAT import also
+keeps the buffer it read. This removes the extra payload copy when
+loading a saved working disk. The container format is unchanged.
+Short reads and invalid records discard the partial tree. Saving still
+serializes the full container and needs a separate change for large
+release images.
+
+In four-CPU QEMU, the previous kernel rejected a HomeFS container with a
+132 MiB file because the two copies did not fit in the kernel heap. The
+new kernel mounted it and ran a CupidC probe that read the last four
+bytes. The checked Windows and WSL compilers produced the same
+37,336-byte HomeFS object. The 19 Windows Doom contracts and 175 kernel,
+FAT16, guest plan, terminal and wiki tests passed. The same suites ran
+194 tests on WSL with one platform skip.
+
+QEMU also rejected an invalid record after a valid file and a FAT chain
+that ended during a payload. The original container and its FAT entry
+survived the respective failures. A first boot imported a file and a
+nested file, and both matched after reading them back from HomeFS.
+
+The normal WSL build passed all 16 exact artifact checks and wrote a
+200 MiB image. The raw kernel measured 9,513,040 bytes. Its image booted
+with four CPUs and ran `ls`. The guest source ISO built with the updated
+manual, and the regenerated build audit passed.
+
+## 2026-11-24 — Complete Freedoom on the guest-matched image
+
+The 64 MiB image with the staged Freedoom 1 WAD ran `demo1` with four
+CPUs. It recorded 7,117 game ticks in 19,179 real ticks at 12.99 fps,
+left fullscreen mode, and returned to the shell. The runner expected
+a CupidC JIT marker because its SMP contract also covers the shell.
+The Doom-only log passed the remaining SMP checks, and an earlier
+`ls` boot of the same image passed the full contract. Audio output was
+disabled for this run.
+
 ## 2026-11-24 — Keep disk staging paths with the project
 
 Local kernel and disk jobs accept a project-relative stage manifest.

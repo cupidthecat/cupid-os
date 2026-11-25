@@ -56491,7 +56491,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5808
+      "occurrences": 5807
     },
     {
       "category": "control",
@@ -56890,7 +56890,7 @@
         "toolchain/user_syscall_abi.cc"
       ],
       "id": "c.control.goto",
-      "occurrences": 3515
+      "occurrences": 3518
     },
     {
       "category": "control",
@@ -57779,7 +57779,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28113
+      "occurrences": 28116
     },
     {
       "category": "control",
@@ -62344,7 +62344,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 18781
+      "occurrences": 18780
     },
     {
       "category": "qualifier",
@@ -62944,7 +62944,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10605
+      "occurrences": 10608
     },
     {
       "category": "type",
@@ -63468,7 +63468,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 12515
+      "occurrences": 12516
     },
     {
       "category": "type",
@@ -64327,7 +64327,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 26354
+      "occurrences": 26357
     },
     {
       "category": "type",
@@ -66155,7 +66155,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 15807
+      "occurrences": 15808
     },
     {
       "category": "declaration",
@@ -67092,7 +67092,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "3a90884fd74da7b134564a8ffba60ff2f30ef9d16aacbc0b522cd47842e585b5",
+    "active_source_digest": "06bc71becf6a6bfc4a679c6b9cabc8e6f8f92040ad8aad65a09fe8f2c586f208",
     "control_files": [
       {
         "path": "Makefile",
@@ -84849,12 +84849,12 @@
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 1275,
+      "lines": 1281,
       "origin": "tracked",
       "path": "kernel/fs/homefs.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f395ac5ebaf5f7f6f3acdbe089a590c8cb8291ce7b240ab334cc08639dff4061"
+      "sha256": "fba54209b9d70e2202883ed980b5b4c5da7df828e166ebcfab1b090f0941e672"
     },
     {
       "build_owners": [
