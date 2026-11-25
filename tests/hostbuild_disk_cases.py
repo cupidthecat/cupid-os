@@ -82,6 +82,25 @@ class HostBuildDiskCases:
         with image.open("r+b") as stream:
             stream.truncate(self.image_bytes)
 
+    def test_fat_staging_scans_each_allocated_cluster_once_and_reuses_freed_space(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            image = Path(temporary) / "test.img"
+            self._write_valid_image(image, self._disk_template_payload(b"\0" * 2560, b"kernel"))
+            with hostbuild.Fat16Image(image, self.FAT_START_LBA) as fat:
+                cluster_bytes = fat.sectors_per_cluster * hostbuild.SECTOR_SIZE
+                fat.write_file("/kept.bin", b"a" * cluster_bytes)
+                with mock.patch.object(fat, "_read_fat", wraps=fat._read_fat) as checked:
+                    fat.write_file("/large.bin", b"b" * (64 * cluster_bytes))
+                    self.assertEqual(checked.call_count, 128)
+                fat.write_file("/large.bin", b"c")
+                fat.write_file("/reused.bin", b"d")
+
+                for name, expected in ((b"KEPT    BIN", 2), (b"LARGE   BIN", 3),
+                                       (b"REUSED  BIN", 4)):
+                    index, data, _ = fat._find_entry(None, name)
+                    self.assertEqual(struct.unpack_from("<H", data, index + 26)[0], expected)
+                self.assertEqual(fat._read_fat(5), 0)
+
     def _copy_checked_seed(self, root):
         copied_seed = root / "seed"
         shutil.copytree(SEED_MANIFEST.parent, copied_seed)

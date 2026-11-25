@@ -248,6 +248,7 @@ class Fat16Image:
         self.fat_start_lba = fat_start_lba
         self.f = image.open("r+b")
         self._read_bpb()
+        self._next_free_cluster = 2
 
     def close(self) -> None:
         self.f.close()
@@ -321,11 +322,12 @@ class Fat16Image:
         self.f.write(data)
 
     def _alloc_cluster(self) -> int:
-        for c in range(2, self.cluster_count + 2):
+        for c in range(self._next_free_cluster, self.cluster_count + 2):
             if self._read_fat(c) == 0:
                 self._write_fat(c, FAT16_EOC)
                 self.f.seek(self._cluster_offset(c))
                 self.f.write(b"\x00" * (self.sectors_per_cluster * SECTOR_SIZE))
+                self._next_free_cluster = c + 1
                 return c
         raise OSError("FAT16 partition is full")
 
@@ -336,6 +338,7 @@ class Fat16Image:
                 raise ValueError("FAT16 file chain is corrupt")
             nxt = self._read_fat(cluster)
             self._write_fat(cluster, 0)
+            self._next_free_cluster = min(self._next_free_cluster, cluster)
             cluster = nxt
             remaining -= 1
 

@@ -1,5 +1,19 @@
 # Bootstrapping log
 
+## 2026-11-24 — Resume FAT16 allocation in the host verifier
+
+The Python FAT16 verifier now resumes its search after the last allocated
+cluster and moves back when a file frees an earlier cluster. This keeps
+first-free allocation order and avoids rescanning the occupied prefix
+for every cluster of a large file.
+
+All 29 host image tests passed on Windows and WSL. The allocation test
+counts the reads for a 64-cluster file and verifies that replacing the
+file releases its unused clusters for the next file. In WSL, staging the
+checked ISO and Freedoom WAD into the 64 MiB reference image took 0.97
+seconds and produced the same SHA-256 as the earlier run, which spent
+over two minutes staging the reference.
+
 ## 2026-11-24 — Stage files in guest-built disk images
 
 The guest disk and kernel jobs accept `stage /absolute/manifest` after
