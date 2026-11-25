@@ -1,3 +1,8 @@
+/**
+ * @file midiopl.h
+ * @brief Declare MIDI-to-OPL3 controls and rendering.
+ */
+
 #ifndef KERNEL_AUDIO_MIDIOPL_H
 #define KERNEL_AUDIO_MIDIOPL_H
 

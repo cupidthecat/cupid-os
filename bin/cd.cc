@@ -1,11 +1,11 @@
-//help: Change the current working directory
-//help: Usage: cd [directory]
-//help: Changes to the specified directory. With no arguments,
-//help: changes to the root directory (/). Supports relative
-//help: paths, "." (current) and ".." (parent).
+// help: Change the current working directory
+// help: Usage: cd [directory]
+// help: Changes to the specified directory. With no arguments,
+// help: changes to the root directory (/). Supports relative
+// help: paths, "." (current) and ".." (parent).
 
 void main() {
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
     char path[256];
 
     // Default to "/" if no args

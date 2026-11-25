@@ -1,6 +1,6 @@
-//help:mount - list mounted filesystems
-//help:Usage: mount
-//help:Displays all currently mounted filesystems and their mount points.
+// help:mount - list mounted filesystems
+// help:Usage: mount
+// help:Displays all currently mounted filesystems and their mount points.
 void main() {
     int count = mount_count();
     if (count == 0) {

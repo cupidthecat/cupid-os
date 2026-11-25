@@ -1,13 +1,13 @@
-//help: Show current date and time
-//help: Usage: date [+epoch|+short]
-//help: Displays the current date and time from the
-//help: hardware real-time clock.
-//help:   date         Full date and time
-//help:   date +epoch  Seconds since Unix epoch
-//help:   date +short  Short date and time
+// help: Show current date and time
+// help: Usage: date [+epoch|+short]
+// help: Displays the current date and time from the
+// help: hardware real-time clock.
+// help:   date         Full date and time
+// help:   date +epoch  Seconds since Unix epoch
+// help:   date +short  Short date and time
 
 void main() {
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
 
     if (strcmp(args, "+epoch") == 0) {
         print_int(rtc_epoch());

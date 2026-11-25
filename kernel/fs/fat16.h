@@ -1,3 +1,5 @@
+/** @file fat16.h
+ * @brief Read and write FAT16 files, directories, and cluster chains. */
 #ifndef FAT16_H
 #define FAT16_H
 
@@ -8,9 +10,9 @@
 #define FAT16_TYPE_1 0x04  // FAT16 < 32MB
 #define FAT16_TYPE_2 0x06  // FAT16 >= 32MB
 #define FAT16_TYPE_3 0x0E  // FAT16 LBA
-
 // FAT entry values
 #define FAT16_FREE         0x0000
+#define FAT16_RESERVED_MIN 0xFFF0
 #define FAT16_BAD_CLUSTER  0xFFF7
 #define FAT16_EOC_MIN      0xFFF8
 #define FAT16_EOC_MAX      0xFFFF
@@ -22,7 +24,6 @@
 #define FAT_ATTR_VOLUME_ID 0x08
 #define FAT_ATTR_DIRECTORY 0x10
 #define FAT_ATTR_ARCHIVE   0x20
-
 #pragma pack(push, 1)
 
 typedef struct {

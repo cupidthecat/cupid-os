@@ -1,14 +1,18 @@
-//help: Count lines, words, and bytes in a file
-//help: Usage: wc [-l|-w|-c] <file>
-//help: Default prints all three counts. Flags select one:
-//help:   -l  lines only
-//help:   -w  words only
-//help:   -c  bytes only
+// help: Count lines, words, and bytes in a file
+// help: Usage: wc [-l|-w|-c] <file>
+// help: Default prints all three counts. Flags select one:
+// help:   -l  lines only
+// help:   -w  words only
+// help:   -c  bytes only
 
 int parse_token(char *str, int start, char *out, int maxlen) {
     int i = start;
-    while (str[i] == ' ' || str[i] == '\t') i = i + 1;
-    if (str[i] == 0) { out[0] = 0; return 0; }
+    while (str[i] == ' ' || str[i] == '\t')
+        i = i + 1;
+    if (str[i] == 0) {
+        out[0] = 0;
+        return 0;
+    }
 
     int j = 0;
     while (str[i] != 0 && str[i] != ' ' && str[i] != '\t' && j < maxlen - 1) {
@@ -21,7 +25,7 @@ int parse_token(char *str, int start, char *out, int maxlen) {
 }
 
 void main() {
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
     char tok1[64];
     char tok2[256];
     int pos = 0;
@@ -36,9 +40,12 @@ void main() {
     char mode = 0;
     char *path_arg;
     if (tok1[0] == '-') {
-        if (tok1[1] == 'l' && tok1[2] == 0) mode = 'l';
-        else if (tok1[1] == 'w' && tok1[2] == 0) mode = 'w';
-        else if (tok1[1] == 'c' && tok1[2] == 0) mode = 'c';
+        if (tok1[1] == 'l' && tok1[2] == 0)
+            mode = 'l';
+        else if (tok1[1] == 'w' && tok1[2] == 0)
+            mode = 'w';
+        else if (tok1[1] == 'c' && tok1[2] == 0)
+            mode = 'c';
         else {
             print("wc: unknown flag: ");
             println(tok1);
@@ -76,7 +83,8 @@ void main() {
         while (i < r) {
             char c = buf[i];
             bytes = bytes + 1;
-            if (c == '\n') lines = lines + 1;
+            if (c == '\n')
+                lines = lines + 1;
             if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
                 in_word = 0;
             } else {

@@ -1,5 +1,5 @@
-//help: P4 USB stack smoke: HC registered + at least one USB device + HID present
-//help: Usage: feature19_usb
+// help: P4 USB stack smoke: HC registered + at least one USB device + HID present
+// help: Usage: feature19_usb
 
 void main() {
     int n = usb_device_count();

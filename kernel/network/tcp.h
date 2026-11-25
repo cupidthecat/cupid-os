@@ -13,7 +13,7 @@ void tcp_input(uint32_t src_ip, const uint8_t *buf, uint32_t len);
 /* Periodic tick from net_process_pending - drives retransmit + timers. */
 void tcp_tick(void);
 
-/* Socket-layer entry points (called from socket.c). */
+/* Socket-layer entry points called from socket.cc. */
 int tcp_connect(int fd, uint32_t ip, uint16_t port);
 int tcp_send   (int fd, const uint8_t *buf, uint32_t len);
 int tcp_recv   (int fd, uint8_t *buf, uint32_t len);

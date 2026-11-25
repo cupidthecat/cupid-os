@@ -1,3 +1,8 @@
+/**
+ * @file acpi.h
+ * @brief Declare ACPI discovery for SMP.
+ */
+
 #ifndef ACPI_H
 #define ACPI_H
 

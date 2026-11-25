@@ -6,28 +6,33 @@ This guide explains the current disk model and how to work with the FAT16 partit
 
 ## Quick Setup (Copy-Paste)
 
-If you just want a working HDD image fast:
+Run these commands from the checkout.
 
 ```bash
 # Build (or reuse) cupidos.img
 make HDD_MB=200
 
 # Copy host file into FAT root (visible as /disk in CupidOS)
-python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 cupid.bmp:/cupid.bmp
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 image.bmp:/image.bmp
 
 # Boot
 make run
 ```
 
-That's it. Read on for a detailed explanation of each step.
+The sections below explain the image layout and the manual alternatives.
 
 ---
 
 ## Requirements
 
-The normal build and host-copy flow uses `tools/hostbuild.py` and works on
-Linux and native Windows with Python 3. `mtools` is optional for manual FAT16
-inspection/copying.
+The normal Make target uses checked CupidBuild and CupidObj to compose the
+disk image on Linux and native Windows. When the FAT16 volume can be reused,
+its existing files are preserved. CupidBuild checks the inputs before it
+publishes the image.
+
+Use Python 3 for the optional host-copy commands below. On Linux, you can
+also use `mtools` to inspect or copy files. See [CupidBuild](CupidBuild)
+for direct image commands.
 
 The alternate loop-mount method is Linux/WSL-only and needs root/sudo access:
 
@@ -73,23 +78,26 @@ Default is `HDD_MB=200`.
 Copy files into FAT root with the Python helper:
 
 ```bash
-python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 cupid.bmp:/cupid.bmp
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 image.bmp:/image.bmp
 ```
 
 On Windows, use `python` instead of `python3`.
+
+The Make recipes give `hostbuild.py` the partition start as an LBA. They do
+not precompute a byte offset while parsing the Makefile.
 
 If you prefer `mtools`, install it and use the FAT byte offset:
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y mtools
-mcopy -o -i cupidos.img@@8388608 cupid.bmp ::/cupid.bmp
-mdir -i cupidos.img@@8388608 ::/
+mcopy -o -i cupidos.img@@10485760 image.bmp ::/image.bmp
+mdir -i cupidos.img@@10485760 ::/
 ```
 
 Mapping:
 - FAT `::/` corresponds to CupidOS `/disk`
-- `::/cupid.bmp` becomes `/disk/cupid.bmp` in CupidOS
+- `::/image.bmp` becomes `/disk/image.bmp` in CupidOS
 - On first boot without `HOMEFS.SYS`, homefs imports existing FAT files into `/home`
 
 If `FAT_START_LBA` is customized, use offset:
@@ -104,14 +112,14 @@ mcopy -o -i cupidos.img@@${offset_bytes} file.txt ::/file.txt
 If you prefer mounting from Linux directly:
 
 ```bash
-sudo mount -o loop,offset=$((16384*512)) cupidos.img /mnt/cupidos
+sudo mount -o loop,offset=$((20480*512)) cupidos.img /mnt/cupidos
 ```
 
 This mounts the FAT16 partition directly from `cupidos.img`.
 
 ### 4. Add Files (Loop-Mount Path)
 
-Now copy files into it:
+Copy files into the mounted partition:
 
 ```bash
 # Simple text file
@@ -152,7 +160,7 @@ EOF
 sudo umount /mnt/cupidos
 ```
 
-Your `cupidos.img` now contains the updated FAT16 data.
+The copied files are stored in the FAT16 partition inside `cupidos.img`.
 
 ---
 
@@ -235,7 +243,8 @@ cupidc /home/DEMO.CC
 
 ### Syncing to Disk
 
-Writes go through a **block cache** and may not be flushed to disk immediately. The cache auto-flushes every 5 seconds, but you can force it:
+The block cache writes dirty sectors to disk every five seconds. Run
+`sync` to flush pending writes immediately.
 
 ```bash
 sync
@@ -261,7 +270,7 @@ Always `sync` before shutting down QEMU to avoid data loss.
 
 ### No files visible in /disk
 - Verify files were copied to FAT root `::/`.
-- Check FAT listing from host: `mdir -i cupidos.img@@8388608 ::/`.
+- Check FAT listing from host: `mdir -i cupidos.img@@10485760 ::/`.
 - Check serial output for FAT16 mount messages.
 
 ### "mount" doesn't show /disk as fat16
@@ -278,7 +287,7 @@ Always `sync` before shutting down QEMU to avoid data loss.
 - No long filename (LFN) support.
 
 ### Wrong offset in mtools/loop mount
-- Default FAT offset is `8388608` bytes (`16384 * 512`).
+- Default FAT offset is `10485760` bytes (`20480 * 512`).
 - If `FAT_START_LBA` changed, recompute offset as `FAT_START_LBA * 512`.
 
 ### Permission denied

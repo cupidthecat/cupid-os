@@ -1,6 +1,7 @@
-//help: CupidC low-priority compatibility test #5
-//help: Usage: cupidc_test5
-//help: Verifies volatile(parse/ignore), static locals, #ifdef, variadic defs, and struct initializer-list parsing.
+// help: CupidC low-priority compatibility test #5
+// help: Usage: cupidc_test5
+// help: Verifies volatile(parse/ignore), static locals, #ifdef, variadic defs, and struct
+// initializer-list parsing.
 
 #define T5_ENABLED 1
 
@@ -10,11 +11,7 @@ int t5_ifdef_value = 1;
 int t5_ifdef_value = 0;
 #endif
 
-enum {
-    T5_BUF = 4,
-    T5_ROWS = 2,
-    T5_COLS = T5_BUF - 1
-};
+enum { T5_BUF = 4, T5_ROWS = 2, T5_COLS = T5_BUF - 1 };
 
 struct t5_pair {
     int a;
@@ -52,7 +49,8 @@ void main() {
     int c1 = t5_counter();
     int c2 = t5_counter();
     if (c1 != 1 || c2 != 2) {
-        serial_printf("[cupidc_test5] FAIL: static local sequence c1=%u c2=%u expected 1,2\n", c1, c2);
+        serial_printf("[cupidc_test5] FAIL: static local sequence c1=%u c2=%u expected 1,2\n", c1,
+                      c2);
         ok = 0;
     }
 
@@ -68,10 +66,10 @@ void main() {
     }
 
     struct t5_pair local_pair = {0};
-    if (t5_global_pair.a != 0 || t5_global_pair.b != 0 ||
-        local_pair.a != 0 || local_pair.b != 0) {
-        serial_printf("[cupidc_test5] FAIL: struct init values g=(%u,%u) l=(%u,%u) expected zeros\n",
-                      t5_global_pair.a, t5_global_pair.b, local_pair.a, local_pair.b);
+    if (t5_global_pair.a != 0 || t5_global_pair.b != 0 || local_pair.a != 0 || local_pair.b != 0) {
+        serial_printf(
+            "[cupidc_test5] FAIL: struct init values g=(%u,%u) l=(%u,%u) expected zeros\n",
+            t5_global_pair.a, t5_global_pair.b, local_pair.a, local_pair.b);
         ok = 0;
     }
 
@@ -83,8 +81,8 @@ void main() {
         ok = 0;
     }
 
-    serial_printf("[cupidc_test5] v=%u c1=%u c2=%u ifdef=%u vf=%u ok=%u\n",
-                  v, c1, c2, t5_ifdef_value, vf, ok);
+    serial_printf("[cupidc_test5] v=%u c1=%u c2=%u ifdef=%u vf=%u ok=%u\n", v, c1, c2,
+                  t5_ifdef_value, vf, ok);
 
     if (ok) {
         println("cupidc_test5: PASS");

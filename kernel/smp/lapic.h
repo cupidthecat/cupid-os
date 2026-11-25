@@ -1,3 +1,8 @@
+/**
+ * @file lapic.h
+ * @brief Declare local APIC controls and interrupt vectors.
+ */
+
 #ifndef LAPIC_H
 #define LAPIC_H
 

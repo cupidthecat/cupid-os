@@ -1,6 +1,6 @@
-//help:kill - kill a process by PID
-//help:Usage: kill <pid>
-//help:Terminates the process with the given PID. Cannot kill PID 1 (idle process).
+// help:kill - kill a process by PID
+// help:Usage: kill <pid>
+// help:Terminates the process with the given PID. Cannot kill PID 1 (idle process).
 void main() {
     char *args = get_args();
     if (args == 0) {

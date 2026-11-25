@@ -1,6 +1,6 @@
-//help: P1 Phase G feature test: inline CupidASM using SSE + x87 from CupidC
-//help: Usage: feature16_asm_fpu
-//help: Verifies asm { } blocks accept SSE scalar and x87 opcodes from Phase B.
+// help: P1 Phase G feature test: inline CupidASM using SSE + x87 from CupidC
+// help: Usage: feature16_asm_fpu
+// help: Verifies asm { } blocks accept SSE scalar and x87 opcodes from Phase B.
 
 void main() {
     int ok = 1;
@@ -15,9 +15,8 @@ void main() {
         addss xmm0, xmm1
         movss [r], xmm0
     }
-    if (*(int*)&r != 0x40A00000) {   /* 5.0 */
-        serial_printf("[feature16] FAIL addss: got=0x%x expected=0x40A00000\n",
-                      *(int*)&r);
+    if (*(int *)&r != 0x40A00000) { /* 5.0 */
+        serial_printf("[feature16] FAIL addss: got=0x%x expected=0x40A00000\n", *(int *)&r);
         ok = 0;
     }
 
@@ -29,9 +28,8 @@ void main() {
         sqrtss xmm0, xmm0
         movss [sq], xmm0
     }
-    if (*(int*)&sq != 0x40400000) {   /* 3.0 */
-        serial_printf("[feature16] FAIL sqrtss: got=0x%x expected=0x40400000\n",
-                      *(int*)&sq);
+    if (*(int *)&sq != 0x40400000) { /* 3.0 */
+        serial_printf("[feature16] FAIL sqrtss: got=0x%x expected=0x40400000\n", *(int *)&sq);
         ok = 0;
     }
 
@@ -47,8 +45,8 @@ void main() {
         finit
     }
     /* sin(0) == 0.0 - expect bit pattern 0x00000000. */
-    if (*(int*)&sinz != 0x00000000) {
-        serial_printf("[feature16] FAIL fsin(0): bits=0x%x\n", *(int*)&sinz);
+    if (*(int *)&sinz != 0x00000000) {
+        serial_printf("[feature16] FAIL fsin(0): bits=0x%x\n", *(int *)&sinz);
         ok = 0;
     }
 
@@ -67,14 +65,18 @@ void main() {
     /* Expect {6, 8, 10, 12} - check lane 0 via vc.x.  CupidC can't yet
      * compare floats with !=, so bit-compare instead: 6.0 -> 0x40C00000.*/
     float vc_x = vc.x;
-    if (*(int*)&vc_x != 0x40C00000) {
+    if (*(int *)&vc_x != 0x40C00000) {
         serial_printf("[feature16] FAIL addps lane0: got=0x%x expected=0x40C00000\n",
-                      *(int*)&vc_x);
+                      *(int *)&vc_x);
         ok = 0;
     }
 
-    if (ok) serial_printf("PASS feature16_asm_fpu\n");
-    else    serial_printf("FAIL feature16_asm_fpu\n");
-    if (ok) println("PASS feature16_asm_fpu");
-    else    println("FAIL feature16_asm_fpu");
+    if (ok)
+        serial_printf("PASS feature16_asm_fpu\n");
+    else
+        serial_printf("FAIL feature16_asm_fpu\n");
+    if (ok)
+        println("PASS feature16_asm_fpu");
+    else
+        println("FAIL feature16_asm_fpu");
 }

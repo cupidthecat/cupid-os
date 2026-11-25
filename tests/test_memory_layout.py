@@ -1,0 +1,196 @@
+import re
+import shutil
+import struct
+import subprocess
+import unittest
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _macro_value(source: str, name: str) -> int:
+    match = re.search(
+        rf"^#define\s+{re.escape(name)}\s+(0x[0-9A-Fa-f]+)u?"
+        r"(?:\s*/\*.*\*/)?\s*$",
+        source,
+        re.MULTILINE,
+    )
+    if match is None:
+        raise AssertionError(f"missing fixed-address macro {name}")
+    return int(match.group(1), 16)
+
+
+class MemoryLayoutContractTests(unittest.TestCase):
+    def test_fixed_regions_keep_size_alignment_and_adjacency(self):
+        header = (REPO_ROOT / "kernel/mm/memory.h").read_text(
+            encoding="utf-8"
+        )
+        stack_bottom = _macro_value(header, "STACK_BOTTOM")
+        stack_top = _macro_value(header, "STACK_TOP")
+        external_start = _macro_value(
+            header, "EXTERNAL_EXEC_ARENA_START"
+        )
+        external_end = _macro_value(header, "EXTERNAL_EXEC_ARENA_END")
+        cupidc_start = _macro_value(header, "CUPIDC_EXEC_ARENA_START")
+        cupidc_end = _macro_value(header, "CUPIDC_EXEC_ARENA_END")
+        cupidasm_start = _macro_value(
+            header, "CUPIDASM_EXEC_ARENA_START"
+        )
+        cupidasm_end = _macro_value(header, "CUPIDASM_EXEC_ARENA_END")
+
+        self.assertEqual(stack_bottom, 0x00F00000)
+        self.assertEqual(stack_top, 0x01100000)
+        self.assertEqual(external_start, 0x01C00000)
+        self.assertEqual(external_end, 0x01E00000)
+        self.assertEqual(cupidc_start, 0x01100000)
+        self.assertEqual(cupidc_end, 0x01A00000)
+        self.assertEqual(cupidasm_start, 0x01A00000)
+        self.assertEqual(cupidasm_end, 0x01C00000)
+        self.assertEqual(stack_top - stack_bottom, 2 * 1024 * 1024)
+        self.assertEqual(external_end - external_start, 2 * 1024 * 1024)
+        self.assertEqual(cupidc_end - cupidc_start, 9 * 1024 * 1024)
+        self.assertEqual(cupidasm_end - cupidasm_start, 2 * 1024 * 1024)
+        self.assertEqual(stack_top, cupidc_start)
+        self.assertEqual(cupidc_end, cupidasm_start)
+        self.assertEqual(cupidasm_end, external_start)
+        for address in (
+            stack_bottom,
+            stack_top,
+            external_start,
+            external_end,
+            cupidc_start,
+            cupidc_end,
+            cupidasm_start,
+            cupidasm_end,
+        ):
+            self.assertEqual(address % 4096, 0)
+
+    def test_link_boot_kernel_and_user_build_use_the_same_boundaries(self):
+        linker = (REPO_ROOT / "link.ld").read_text(encoding="utf-8")
+        boot = (REPO_ROOT / "boot/boot.asm").read_text(encoding="utf-8")
+        kernel = (REPO_ROOT / "kernel/core/kernel.cc").read_text(
+            encoding="utf-8"
+        )
+        cupidc = (REPO_ROOT / "kernel/lang/cupidc.h").read_text(
+            encoding="utf-8"
+        )
+        root_makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        logical_makefile = root_makefile.replace("\\\n", " ")
+        user_makefile = (REPO_ROOT / "user/Makefile").read_text(
+            encoding="utf-8"
+        )
+        logical_user_makefile = user_makefile.replace("\\\n", " ")
+
+        self.assertIn("ASSERT(_loaded_end <= 0xAFF600,", linker)
+        self.assertIn("ASSERT(_kernel_end <= 0xF00000,", linker)
+        self.assertRegex(boot, r"(?m)^\s*dd 20480\s*$")
+        self.assertRegex(
+            boot,
+            r"(?m)^\s*mov word \[sectors_left\], 20475\s+;",
+        )
+        self.assertRegex(boot, r"(?m)^\s*mov esp, 0x1100000\s+;")
+        self.assertIn('"mov $0x1100000, %%esp\\n"', kernel)
+        self.assertIn("#define CC_JIT_CODE_BASE 0x01100000u", cupidc)
+        self.assertIn("#define CC_JIT_DATA_BASE 0x01200000u", cupidc)
+        self.assertIn("#define CC_AOT_CODE_BASE 0x01100000u", cupidc)
+        self.assertIn("#define CC_AOT_DATA_BASE 0x01200000u", cupidc)
+        self.assertIn("FAT_START_LBA ?= 20480", root_makefile)
+        self.assertIn("USER_TEXT_ADDRESS ?= 0x01C00000", user_makefile)
+        self.assertRegex(
+            logical_user_makefile,
+            r"(?m)^\$\(BUILD\)/%: \$\(BUILD\)/%\.o "
+            r"\$\(CUPIDLD_USER_LINK_INPUTS\) Makefile$",
+        )
+        self.assertIn(
+            "$(CUPIDLD_USER_LINK) --input user/$< --output user/$@",
+            logical_user_makefile,
+        )
+        for target in (
+            "kernel/core/kernel.o",
+            "kernel/core/process.o",
+            "kernel/lang/exec.o",
+        ):
+            rule = re.search(
+                rf"(?m)^{re.escape(target)}: ([^\r\n]+)$",
+                logical_makefile,
+            )
+            self.assertIsNotNone(rule, target)
+            self.assertIn("kernel/mm/memory.h", rule.group(1))
+
+    def test_generated_user_executables_use_the_current_external_arena(self):
+        outputs = [
+            REPO_ROOT / "user/build" / name
+            for name in ("hello", "ls", "cat")
+        ]
+        if not all(path.is_file() for path in outputs):
+            make = shutil.which("make")
+            self.assertIsNotNone(make, "GNU Make is required")
+            result = subprocess.run(
+                [make, "-C", "user", "all"],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=180,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                msg=(result.stderr + result.stdout)[-4000:],
+            )
+
+        ignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("/user/build/", ignore.splitlines())
+        for name in ("hello", "ls", "cat"):
+            with self.subTest(program=name):
+                image = (REPO_ROOT / "user/build" / name).read_bytes()
+                header = struct.unpack_from("<16sHHIIIIIHHHHHH", image, 0)
+                ident = header[0]
+                file_type = header[1]
+                machine = header[2]
+                entry = header[4]
+                program_offset = header[5]
+                program_entry_size = header[9]
+                program_count = header[10]
+                self.assertEqual(ident[:6], b"\x7fELF\x01\x01")
+                self.assertEqual(file_type, 2)
+                self.assertEqual(machine, 3)
+                self.assertGreaterEqual(entry, 0x01C00000)
+                self.assertLess(entry, 0x01E00000)
+
+                entry_is_executable = False
+                load_count = 0
+                for index in range(program_count):
+                    offset = program_offset + index * program_entry_size
+                    program = struct.unpack_from("<IIIIIIII", image, offset)
+                    (
+                        segment_type,
+                        file_offset,
+                        virtual_address,
+                        _physical_address,
+                        file_size,
+                        memory_size,
+                        flags,
+                        _alignment,
+                    ) = program
+                    if segment_type != 1:
+                        continue
+                    load_count += 1
+                    self.assertGreaterEqual(virtual_address, 0x01C00000)
+                    self.assertLessEqual(
+                        virtual_address + memory_size, 0x01E00000
+                    )
+                    self.assertLessEqual(file_offset + file_size, len(image))
+                    if (
+                        flags & 1
+                        and virtual_address
+                        <= entry
+                        < virtual_address + file_size
+                    ):
+                        entry_is_executable = True
+                self.assertGreater(load_count, 0)
+                self.assertTrue(entry_is_executable)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,5 +1,5 @@
-//help: P5 SMP smoke: count CPUs + atomic-increment binding verification
-//help: Usage: feature20_smp
+// help: P5 SMP smoke: count CPUs + atomic-increment binding verification
+// help: Usage: feature20_smp
 
 U0 Main() {
     I32 n = smp_cpu_count();

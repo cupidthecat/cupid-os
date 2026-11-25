@@ -1,6 +1,10 @@
 # Architecture
 
-cupid-os is a monolithic, single-address-space, ring-0 operating system for 32-bit x86. Every component - kernel, drivers, shell, applications - runs in the same flat memory space with full hardware access.
+cupid-os is a monolithic, single-address-space, ring-0 operating system for 32-bit x86. The kernel, drivers, shell, and applications all run in the same flat memory space with full hardware access.
+
+Checked Cupid tools compile and link the operating system. CupidBuild verifies
+the toolchain, checks the inputs and publishes the kernel and disk image.
+For the build commands and seed release process, see [Toolchain Bootstrap](Toolchain-Bootstrap).
 
 ---
 
@@ -10,12 +14,13 @@ cupid-os is a monolithic, single-address-space, ring-0 operating system for 32-b
 BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
     │
     ├── Set up stack at 0x7C00
-    ├── Load kernel from disk (sectors 1+) to 0x10000
+    ├── Read kernel chunks through the 0x10000 real-mode bounce buffer
+    ├── Copy each chunk to its final 0x00100000+ address with unreal mode
     ├── Set 640x480x32bpp via Bochs VBE I/O ports (0x01CE/0x01CF)
     ├── Read VBE LFB address from PCI BAR0 -> store at 0x0500
     ├── Set up GDT (flat model: code + data segments)
     ├── Switch to protected mode (CR0 bit 0)
-    └── Far jump to kernel entry at 0x10000
+    └── Far jump to kernel entry at 0x00100000
             │
             ├── idt_init()          - Interrupt Descriptor Table
             ├── pic_init()          - PIC remapping (IRQ0->32, IRQ8->40)
@@ -45,6 +50,32 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
             └── desktop_run()       - Main event loop
 ```
 
+The promoted CupidBuild seed owns the checked transactions for the 2,560-byte
+boot image and 4,096-byte SMP trampoline. CupidASM writes each private image
+and its typed v2 range map. CupidDis requires known instructions, local
+targets, and source-resolved edges before publication. The boot map contains
+nine local relative, two local far, and one external far edge. The trampoline
+map contains four local relative, one local far, and one indirect unprovable
+edge. A failed check preserves the previous image, and the map stays private.
+ADR 0305 records raw local-target adoption, ADR 0340 records source-resolved
+edges, ADR 0356 records seed carriage, and ADR 0357 records direct publication
+ownership.
+
+The public in-kernel raw adapter accepts fixed 16-bit code, fixed 32-bit code,
+or the same typed code16, code32, and data range records used by the shared
+inspector. A caller may require complete known-instruction coverage. CupidDis
+then checks its typed summary and returns before printing a listing if selected
+code is unknown, invalid, or truncated. The older JIT adapter remains
+permissive fixed-32. ADR 0334 records this boundary.
+
+Checked CupidDis can also validate static ELF code anchors. Its explicit
+policy checks the kernel entry and every defined function symbol against
+decoded starts in file-backed executable load regions. It reports an address
+outside code separately from an address in the middle of an instruction. The
+normal two-ELF kernel transaction selects this policy together with linked
+local-target validation. ADR 0320 records the rule, and ADR 0323 records its
+promotion and adoption.
+
 ---
 
 ## Memory Layout
@@ -57,17 +88,15 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
 0x00100000 ├──────────────────────────┤
            │ Kernel image             │ .text/.rodata/.data/.bss
            │                          │ extends to linker _kernel_end
-0x00B00000 ├──────────────────────────┤
+0x00F00000 ├──────────────────────────┤
            │ Kernel stack             │ 2MB, grows down
-0x00D00000 ├──────────────────────────┤
-           │ Reserved gap             │ PMM-managed when free
-0x01000000 ├──────────────────────────┤
+0x01100000 ├──────────────────────────┤
            │ CupidC JIT/AOT           │ 1MB code + 8MB data
-0x01900000 ├──────────────────────────┤
-           │ Reserved gap             │
 0x01A00000 ├──────────────────────────┤
            │ CupidASM JIT/AOT         │ 1MB code + 1MB data
 0x01C00000 ├──────────────────────────┤
+           │ External ELF arena       │ 2MB, permanent reservation/exclusive lease
+0x01E00000 ├──────────────────────────┤
            │ Heap/pages/process stacks│ PMM + kmalloc arena
 0x20000000 ├──────────────────────────┤
            │ End of managed memory    │ 512MB total
@@ -113,13 +142,18 @@ kernel/
 │               ACPI, AP trampoline
 ├── tls/        TLS 1.2 / 1.3 record + handshake + CA bundle
 ├── usb/        USB core, UHCI, EHCI, HID, hub, MSC
-└── util/       calendar, generated *_programs_gen.c
+└── util/       calendar, generated *_programs_gen.cc
 
 drivers/        ATA, keyboard, mouse, PIT, RTC, serial, speaker,
                 timer, VGA, PCI, RTL8139, E1000
 ```
 
-Module dependency direction (top depends on bottom, no cycles):
+The [active build audit](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/ACTIVE-SOURCE-AUDIT.md)
+lists the current source inputs and the tools that own each build step.
+The [earlier architecture notes](https://github.com/cupidthecat/cupid-os/blob/d59f5498f97673b2f3b1bb3970d81bb0be663f8b/wiki/Architecture.md)
+preserve the older compiler and seed checkpoints.
+
+The module dependencies run from top to bottom and contain no cycles:
 
 ```
 gui      → gfx, lang, fs, mm, core
@@ -143,48 +177,48 @@ core     → (nothing)
 ### Kernel Core
 | Component | Files | Purpose |
 |-----------|-------|---------|
-| Kernel entry | `kernel.c/h` | VGA, init sequence, main print functions |
-| IDT | `idt.c/h` | Interrupt descriptor table setup |
-| ISR/IRQ | `isr.asm`, `irq.c/h` | Interrupt/exception dispatching |
-| PIC | `pic.c/h` | Programmable interrupt controller |
-| Memory | `memory.c/h`, `paging.c` | PMM, heap, paging, canaries, leak detection |
-| VFS | `vfs.c/h` | Virtual filesystem, mount table, path resolution |
-| Panic | `panic.c/h`, `assert.h` | Crash handler, assertions |
-| Strings | `string.c/h` | `strlen`, `strcmp`, `memcpy`, `memset` |
-| Math | `math.c/h` | 64-bit division, `itoa`, hex printing |
+| Kernel entry | `kernel/core/kernel.cc`, `kernel/core/kernel.h` | Fixed stack, linked BSS clear, non-returning entry handoff, VGA, initialization, and main print functions |
+| IDT | `idt.cc/h` | Interrupt descriptor table setup |
+| ISR/IRQ | `isr.asm`, `irq.cc/h` | Interrupt/exception dispatching |
+| PIC | `pic.cc/h` | Programmable interrupt controller |
+| Memory | `memory.cc/h`, `paging.cc` | PMM, heap, paging, canaries, leak detection |
+| VFS | `vfs.cc/h` | Virtual filesystem, mount table, path resolution |
+| Panic | `panic.cc/h`, `assert.h` | Crash handler, assertions |
+| Strings | `string.cc/h` | `strlen`, `strcmp`, `memcpy`, `memset` |
+| Math | `math.cc/h` | 64-bit division, `itoa`, hex printing |
 
 ### Drivers
 | Driver | Files | IRQ | Purpose |
 |--------|-------|-----|---------|
-| Keyboard | `keyboard.c/h` | IRQ1 | PS/2 input with modifiers |
-| Mouse | `mouse.c/h` | IRQ12 | PS/2 mouse with cursor |
-| Timer | `timer.c/h`, `pit.c/h` | IRQ0 | 200Hz PIT, uptime, sleep |
-| VGA | `vga.c/h` | - | VBE 640x480 32bpp, double buffering |
-| ATA | `ata.c/h` | - | PIO disk read/write |
-| Serial | `serial.c/h` | - | COM1 logging |
-| Speaker | `speaker.c/h` | - | PC speaker tones |
-| RTC | `rtc.c/h` | - | CMOS real-time clock |
+| Keyboard | `keyboard.cc/h` | IRQ1 | PS/2 input with modifiers |
+| Mouse | `mouse.cc/h` | IRQ12 | PS/2 mouse with cursor |
+| Timer | `timer.cc/h`, `pit.cc/h` | IRQ0 | 200Hz PIT, uptime, sleep |
+| VGA | `vga.cc/h` | - | VBE 640x480 32bpp, double buffering |
+| ATA | `ata.cc/h` | - | PIO disk read/write |
+| Serial | `serial.cc/h` | - | COM1 logging |
+| Speaker | `speaker.cc/h` | - | PC speaker tones |
+| RTC | `rtc.cc/h` | - | CMOS real-time clock |
 
 ### Subsystems
 | Subsystem | Files | Purpose |
 |-----------|-------|---------|
-| Shell | `shell.c/h` | interactive shell with CWD, REPL fallback, completion, pipes/redirects |
-| CupidScript | `cupidscript*.c/h` | Bash-like scripting language |
-| Ed Editor | `ed.c/h` | Unix ed(1) line editor |
-| VFS | `vfs.c/h` | Virtual File System with mount table and path resolution |
-| RamFS | `ramfs.c/h` | In-memory filesystem (root, /bin, /tmp) |
-| DevFS | `devfs.c/h` | Device filesystem (/dev/null, zero, random, serial) |
-| FAT16 VFS | `fat16_vfs.c/h` | FAT16 VFS wrapper for /disk |
-| homefs | `homefs.c/h` | persistent `/home` image stored in `/disk/HOMEFS.SYS` |
-| FAT16 | `fat16.c/h`, `blockdev.c/h`, `blockcache.c/h` | FAT16 driver with block cache |
-| In-Memory FS | `fs.c/h` | Legacy read-only system file table |
-| Exec | `exec.c/h` | CUPD program loader |
-| Process Mgr | `process.c/h`, `context_switch.asm` | Scheduler, context switching |
-| GUI | `gui.c/h`, `desktop.c/h`, `graphics.c/h`, `font_8x8.c/h` | Window manager, desktop |
-| Terminal | `terminal_app.c/h` | GUI terminal application |
-| Notepad | `notepad.c/h` | Text editor application (VFS file dialog) |
-| Clipboard | `clipboard.c/h` | System clipboard |
-| Calendar | `calendar.c/h` | Calendar math, time/date formatting, popup state |
+| Shell | `shell.cc/h` | interactive shell with CWD, REPL fallback, completion, pipes/redirects |
+| CupidScript | `cupidscript*.cc/h` | Bash-like scripting language |
+| Ed Editor | `ed.cc/h` | Unix ed(1) line editor |
+| VFS | `vfs.cc/h` | Virtual File System with mount table and path resolution |
+| RamFS | `ramfs.cc/h` | In-memory filesystem (root, /bin, /tmp) |
+| DevFS | `devfs.cc/h` | Device filesystem (/dev/null, zero, random, serial) |
+| FAT16 VFS | `fat16_vfs.cc/h` | FAT16 VFS wrapper for /disk |
+| homefs | `homefs.cc/h` | persistent `/home` image stored in `/disk/HOMEFS.SYS` |
+| FAT16 | `fat16.cc/h`, `blockdev.cc/h`, `blockcache.cc/h` | FAT16 driver with block cache |
+| In-Memory FS | `fs.cc/h` | Legacy read-only system file table |
+| Exec | `exec.cc/h` | CUPD program loader |
+| Process Mgr | `process.cc/h`, `context_switch.asm` | Scheduler, context switching |
+| GUI | `gui.cc/h`, `desktop.cc/h`, `graphics.cc/h`, `font_8x8.cc/h` | Window manager, desktop |
+| Terminal | `terminal_app.cc/h` | GUI terminal application |
+| Notepad | `bin/notepad.cc` | Text editor application (VFS file dialog) |
+| Clipboard | `clipboard.cc/h` | System clipboard |
+| Calendar | `calendar.cc/h` | Calendar math, time/date formatting, popup state |
 
 ---
 
@@ -216,7 +250,7 @@ cupid-os uses **deferred preemptive multitasking**:
    - Store ESP into old process PCB
    - Load new process ESP and jump to new EIP
 
-This avoids the complexity and stack corruption risks of switching inside interrupt handlers.
+Deferring the switch keeps context changes out of interrupt handlers, where a switch could corrupt the active stack.
 
 ---
 

@@ -1,8 +1,13 @@
-/* kernel/iso9660.h - ECMA-119 + Rock Ridge (SUSP/RRIP) parser.
+/**
+ * @file iso9660.h
+ * @brief Read ISO9660 directories and Rock Ridge file names.
+ *
  * Pure functions over block_device_t. No VFS coupling.
  * All strings are null-terminated ASCII. Rock Ridge NM records
  * may contain arbitrary bytes; non-ASCII is preserved but lookups
- * use ASCII case-fold.*/
+ * use ASCII case-fold.
+ */
+
 #ifndef ISO9660_H
 #define ISO9660_H
 

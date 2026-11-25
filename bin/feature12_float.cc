@@ -1,6 +1,6 @@
-//help: P1 Phase C feature test: basic float arithmetic
-//help: Usage: feature12_float
-//help: Verifies float add/sub/mul/div and int<->float casts. Prints PASS/FAIL.
+// help: P1 Phase C feature test: basic float arithmetic
+// help: Usage: feature12_float
+// help: Verifies float add/sub/mul/div and int<->float casts. Prints PASS/FAIL.
 
 void main() {
     int ok = 1;
@@ -9,7 +9,7 @@ void main() {
     float a = 1.5;
     float b = 2.5;
     float c = a + b;
-    int cb = *(int*)&c;   /* reinterpret bits */
+    int cb = *(int *)&c; /* reinterpret bits */
     if (cb != 0x40800000) {
         serial_printf("[feature12] FAIL add: got=0x%x expected=0x40800000\n", cb);
         ok = 0;
@@ -19,7 +19,7 @@ void main() {
     float d = 3.0;
     float e = 2.0;
     float f = d * e;
-    int fb = *(int*)&f;
+    int fb = *(int *)&f;
     if (fb != 0x40C00000) {
         serial_printf("[feature12] FAIL mul: got=0x%x expected=0x40C00000\n", fb);
         ok = 0;
@@ -29,7 +29,7 @@ void main() {
     float g = 10.0;
     float h = 4.0;
     float i = g - h;
-    int ib = *(int*)&i;
+    int ib = *(int *)&i;
     if (ib != 0x40C00000) {
         serial_printf("[feature12] FAIL sub: got=0x%x expected=0x40C00000\n", ib);
         ok = 0;
@@ -39,7 +39,7 @@ void main() {
     float j = 15.0;
     float k = 3.0;
     float l = j / k;
-    int lb = *(int*)&l;
+    int lb = *(int *)&l;
     if (lb != 0x40A00000) {
         serial_printf("[feature12] FAIL div: got=0x%x expected=0x40A00000\n", lb);
         ok = 0;
@@ -56,7 +56,7 @@ void main() {
     /* (float)5 = 5.0 (bits 0x40A00000) */
     int p = 5;
     float q = (float)p;
-    int qb = *(int*)&q;
+    int qb = *(int *)&q;
     if (qb != 0x40A00000) {
         serial_printf("[feature12] FAIL cast int->float: got=0x%x\n", qb);
         ok = 0;
@@ -66,7 +66,7 @@ void main() {
     int r = 1;
     float s = 0.5;
     float t = r + s;
-    int tb = *(int*)&t;
+    int tb = *(int *)&t;
     if (tb != 0x3FC00000) {
         serial_printf("[feature12] FAIL mix int+float: got=0x%x expected=0x3FC00000\n", tb);
         ok = 0;
@@ -110,8 +110,8 @@ void main() {
     int c0_i = (int)c0;
     int sq_i = (int)sq;
     if (s0_i != 0 || c0_i != 1 || sq_i != 2) {
-        serial_printf("[feature12] FAIL libm hw fastpath: sin0=%d cos0=%d sqrt4=%d\n",
-                      s0_i, c0_i, sq_i);
+        serial_printf("[feature12] FAIL libm hw fastpath: sin0=%d cos0=%d sqrt4=%d\n", s0_i, c0_i,
+                      sq_i);
         ok = 0;
     }
 
@@ -124,13 +124,13 @@ void main() {
     double fl = floor(3.7);
     double ce = ceil(3.2);
     double md = fmod(10.0, 3.0);
-    int af_i2 = (int)(af * 2.0);    /* 7 */
-    int fl_i = (int)fl;             /* 3 */
-    int ce_i = (int)ce;             /* 4 */
-    int md_i = (int)md;             /* 1 */
+    int af_i2 = (int)(af * 2.0); /* 7 */
+    int fl_i = (int)fl;          /* 3 */
+    int ce_i = (int)ce;          /* 4 */
+    int md_i = (int)md;          /* 1 */
     if (af_i2 != 7 || fl_i != 3 || ce_i != 4 || md_i != 1) {
-        serial_printf("[feature12] FAIL fabs/floor/ceil/fmod: %d %d %d %d\n",
-                      af_i2, fl_i, ce_i, md_i);
+        serial_printf("[feature12] FAIL fabs/floor/ceil/fmod: %d %d %d %d\n", af_i2, fl_i, ce_i,
+                      md_i);
         ok = 0;
     }
 
@@ -146,8 +146,7 @@ void main() {
     int tr_i = (int)tr_shifted;
     int rn_i = (int)rn;
     if (tr_i != 8 || (rn_i != 2 && rn_i != 3)) {
-        serial_printf("[feature12] FAIL trunc/round: tr_shifted=%d rn=%d\n",
-                      tr_i, rn_i);
+        serial_printf("[feature12] FAIL trunc/round: tr_shifted=%d rn=%d\n", tr_i, rn_i);
         ok = 0;
     }
 
@@ -157,10 +156,10 @@ void main() {
     float vy = vec.y;
     float vz = vec.z;
     float vw = vec.w;
-    if (*(int*)&vx != 0x3F800000 || *(int*)&vy != 0x40000000 ||
-        *(int*)&vz != 0x40400000 || *(int*)&vw != 0x40800000) {
-        serial_printf("[feature12] FAIL float4 access: 0x%x 0x%x 0x%x 0x%x\n",
-                      *(int*)&vx, *(int*)&vy, *(int*)&vz, *(int*)&vw);
+    if (*(int *)&vx != 0x3F800000 || *(int *)&vy != 0x40000000 || *(int *)&vz != 0x40400000 ||
+        *(int *)&vw != 0x40800000) {
+        serial_printf("[feature12] FAIL float4 access: 0x%x 0x%x 0x%x 0x%x\n", *(int *)&vx,
+                      *(int *)&vy, *(int *)&vz, *(int *)&vw);
         ok = 0;
     }
 
@@ -177,9 +176,13 @@ void main() {
         ok = 0;
     }
 
-    if (ok) serial_printf("PASS feature12_float\n");
-    else    serial_printf("FAIL feature12_float\n");
+    if (ok)
+        serial_printf("PASS feature12_float\n");
+    else
+        serial_printf("FAIL feature12_float\n");
     /* Also go to console for visual runs. */
-    if (ok) println("PASS feature12_float");
-    else    println("FAIL feature12_float");
+    if (ok)
+        println("PASS feature12_float");
+    else
+        println("FAIL feature12_float");
 }

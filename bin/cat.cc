@@ -1,10 +1,10 @@
-//help: Display file contents
-//help: Usage: cat <filename>
-//help: Prints the contents of a file to the terminal.
-//help: Output is truncated at 64KB for safety.
+// help: Display file contents
+// help: Usage: cat <filename>
+// help: Prints the contents of a file to the terminal.
+// help: Output is truncated at 64KB for safety.
 
 void main() {
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
     if (strlen(args) == 0) {
         println("Usage: cat <filename>");
         return;

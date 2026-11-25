@@ -1,5 +1,5 @@
-; kernel/smp_trampoline.S - AP real-mode -> protected-mode bootstrap at 0x8000.
-
+; @file smp_trampoline.S
+; @brief Start each application processor in protected mode from 0x8000.
 BITS 16
 ORG 0x8000
 

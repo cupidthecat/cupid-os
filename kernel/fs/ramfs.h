@@ -1,17 +1,16 @@
+/**
+ * @file ramfs.h
+ * @brief Provide the in-memory filesystem for boot files and temporary storage.
+ */
+
 #ifndef RAMFS_H
 #define RAMFS_H
 
 #include "types.h"
 #include "vfs.h"
 
-/*  *  ramfs.h - In-memory filesystem for CupidOS
- *
- *  Provides a simple RAM-based filesystem with directory tree support.
- *  Used for /, /bin, /tmp mount points.
- **/
-
-#define RAMFS_MAX_FILES   128
-#define RAMFS_MAX_DATA    (64 * 1024)  /* 64KB max per file */
+/** Maximum file size for writes and seeks. */
+#define RAMFS_MAX_DATA (1024u * 1024u)
 
 /* Get the VFS operations struct for ramfs */
 vfs_fs_ops_t *ramfs_get_ops(void);

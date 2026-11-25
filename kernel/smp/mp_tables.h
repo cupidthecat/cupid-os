@@ -1,3 +1,8 @@
+/**
+ * @file mp_tables.h
+ * @brief Declare the CPU and interrupt data found in MP tables.
+ */
+
 #ifndef MP_TABLES_H
 #define MP_TABLES_H
 

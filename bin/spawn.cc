@@ -1,6 +1,6 @@
-//help:spawn - spawn test processes
-//help:Usage: spawn [N]
-//help:Spawns N test processes that print messages and yield. Default N=1,
+// help:spawn - spawn test processes
+// help:Usage: spawn [N]
+// help:Spawns N test processes that print messages and yield. Default N=1,
 void main() {
     int count = 1;
     char *args = get_args();

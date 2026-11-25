@@ -1,0 +1,129 @@
+{
+  "alias_passed_methods": 48,
+  "alias_selected_methods": 48,
+  "api_calls": 388,
+  "hosts": {
+    "linux": {
+      "alias_passed_methods": 24,
+      "alias_selected_methods": 24,
+      "complete_api_and_legacy_outcomes_equal_original": true,
+      "legacy_declared_skips": 3,
+      "legacy_passed_methods": 173,
+      "legacy_selected_methods": 176,
+      "missing_unc_api_calls": 64,
+      "original_replay": {
+        "sha256": "191d0f266898c5db6ed9e81136d50489b99d23be8e86d4e6757b9030e4b5f732",
+        "size": 6110
+      },
+      "resolved_parent_api_calls": 20,
+      "retained_api_calls": 86,
+      "seconds": 1468.5235764450008,
+      "seed_manifest": {
+        "sha256": "1f7847a6bf7479caa5b34ac99fb05969025c017f0c8dc42b3b98d6f3d50021e2",
+        "size": 9123
+      },
+      "tools": {
+        "cupidasm": {
+          "sha256": "69e779f7291cfe3bcedd18d8a66ef4ae98385a816f26bf8c237c4a88d79dfdda",
+          "size": 485084
+        },
+        "cupidbuild": {
+          "sha256": "2911cef0cf91ae1e3511135e17e7737b72865cab68580536289b2760338b9e46",
+          "size": 1129436
+        },
+        "cupidc": {
+          "sha256": "7bef8d49ecd5cea9a3392a853f4dce578d96b3e3f2e3e47fdf2487e2b6cb0a4a",
+          "size": 2549284
+        },
+        "cupiddis": {
+          "sha256": "f66cfc8dcdb33308dd6c354b810764652a0294e5bef1fcadc7a3507649639430",
+          "size": 510212
+        },
+        "cupidld": {
+          "sha256": "2242524c1be20e519c4a47bb50b5d1e340e42607e4e4a0a75eac9ae20cdb1a22",
+          "size": 296920
+        },
+        "cupidobj": {
+          "sha256": "6a9851fce7ceb4271311c806a2115d3afdf3333685b31271c6ac05882723f43e",
+          "size": 389404
+        }
+      },
+      "whole_checked_programs_equal_original": 6,
+      "whole_objects_equal_original": 9
+    },
+    "windows": {
+      "alias_passed_methods": 24,
+      "alias_selected_methods": 24,
+      "complete_api_and_legacy_outcomes_equal_original": true,
+      "legacy_declared_skips": 9,
+      "legacy_passed_methods": 167,
+      "legacy_selected_methods": 176,
+      "missing_unc_api_calls": 104,
+      "original_replay": {
+        "sha256": "1e77ab5756566197f4841f40e9828150b82609540b20d9fe9991b9e29e88cbf3",
+        "size": 6945
+      },
+      "resolved_parent_api_calls": 22,
+      "retained_api_calls": 92,
+      "seconds": 919.7597604000475,
+      "seed_manifest": {
+        "sha256": "e496a0fb2e36e74bc04a4ef3e1923c25a805fb1342035c32eb1c4eba20ba5bcf",
+        "size": 2853
+      },
+      "tools": {
+        "cupidasm": {
+          "sha256": "53427883f2afcc07bef43847aedcf23fb5c678c43cb303c1237c8ea7b4cdffdc",
+          "size": 480256
+        },
+        "cupidbuild": {
+          "sha256": "f45e66e72e91e0c6fd120567b45efaa7df2d64e3ac45e7f95fafb8f10077db7c",
+          "size": 1112576
+        },
+        "cupidc": {
+          "sha256": "601586883a05f9fee01eefefef64d95a2a3c15091842746638e640a544eb0b6f",
+          "size": 2490880
+        },
+        "cupiddis": {
+          "sha256": "b39e1129023e916518e6dc7016d7bbceb07e70b83d5c9c53025e9715c4c5e809",
+          "size": 504832
+        },
+        "cupidld": {
+          "sha256": "98b3b93b0672b4d69d6226abb545dc0ef669b7789575878c169111b48c845efd",
+          "size": 296448
+        },
+        "cupidobj": {
+          "sha256": "373ddd710053dae8ca55160f06759f9dd43eaccc761865bc792ec81cf0c50239",
+          "size": 382464
+        }
+      },
+      "whole_checked_programs_equal_original": 6,
+      "whole_objects_equal_original": 15
+    }
+  },
+  "independent_review_seconds": 2.62111119995825,
+  "installed_root_seed_files_unchanged": 15,
+  "legacy_declared_skips": 12,
+  "legacy_passed_methods": 340,
+  "legacy_selected_methods": 352,
+  "normal_source_inputs_unchanged": 99,
+  "original_evidence": {
+    "sha256": "b4e7e95831f71a919f9fd8b82cf84d7b4b59c6228b23cb04281cd12626ec615b",
+    "size": 34302
+  },
+  "replay_receipts_archive": {
+    "sha256": "5845fe4f62f983727c5319728dbf884482478d37216aaa19e245154f196be130",
+    "size": 53077
+  },
+  "replay_receipts_uncompressed": {
+    "sha256": "f2f7b51ae422a6d5f96aafcaf950cad700700c53eee80f716984b565c0719990",
+    "size": 902883
+  },
+  "replay_runner": {
+    "sha256": "d0f28ffe915390475117f1a4af95277c084828a9720ad8b412e4f82e12e7a952",
+    "size": 13537
+  },
+  "schema": "cupid.native-observer-paths-replay-review.v1",
+  "status": "pass",
+  "whole_checked_programs_equal_original": 12,
+  "whole_objects_equal_original": 24
+}

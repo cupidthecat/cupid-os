@@ -1,0 +1,73 @@
+{
+  "installed_seed_changes": 0,
+  "normal_build_owner_changes": 0,
+  "originals_archive": {
+    "sha256": "e820be3e5528fab76071e91f26675dc51f0679befb58b96bfde78a4d82e641fb",
+    "size": 253792
+  },
+  "originals_uncompressed": {
+    "sha256": "2703d0bda3ae8c09cf68acc2164f773565381381c5b7de715102702555574881",
+    "size": 1284453
+  },
+  "prototype_failure_preserved": true,
+  "runs": {
+    "native-private-integrated-20261012-r2": {
+      "inputs_unchanged": true,
+      "runner_seconds": 58.125857100007124,
+      "skipped": 0,
+      "test_seconds": 57.829,
+      "tests": 503
+    },
+    "native-private-linux-integrated-20261012": {
+      "inputs_unchanged": true,
+      "runner_seconds": 10.461726051,
+      "skipped": 8,
+      "test_seconds": 9.811,
+      "tests": 503
+    },
+    "user-abi-include-repair-20261012": {
+      "inputs_unchanged": true,
+      "runner_seconds": 227.17780110007152,
+      "skipped": 1,
+      "test_seconds": 226.871,
+      "tests": 10
+    }
+  },
+  "schema": "cupid.native-windows-private-oracle-review.v1",
+  "sources": {
+    "Makefile": {
+      "sha256": "41a8780046aef24bce12ee5ec4c92948bb1f9e635701dae2fecf29c7d1993c79",
+      "size": 136046
+    },
+    "docs/bootstrap/c-source-suffix-ownership.json": {
+      "sha256": "ee298fad92a0a0a422737f886e235097b1988bf2c2501db94bfe2d75b0ec3ac6",
+      "size": 7811
+    },
+    "tests/support/windows_i386_oracle.cc": {
+      "sha256": "49bc889c8f463ec32815f803a8d015a83c70bfeee891c133121ef23f8eafcfd6",
+      "size": 6404
+    },
+    "tests/support/windows_i386_stack.S": {
+      "sha256": "3d0b60ebd775448b51fbc3e4e068b8699a8c1d82fa669b4b4a49fa1b0cccd347",
+      "size": 276
+    },
+    "tests/test_cupidbuild_user_abi_cli.py": {
+      "sha256": "c4fa874512870014ddb9ebf0e49ae4f5dc1f4c274aa1824aa6cf29594817e55d",
+      "size": 11540
+    },
+    "tests/test_private_cupidc_call_abi.py": {
+      "sha256": "89d225f5e91399a7ef4048a63f4d422e0922fe151a248ff6527056921f14eeec",
+      "size": 499572
+    },
+    "tests/test_windows_i386_oracle.py": {
+      "sha256": "e3788bcaaacb2d3d6c52874f1ebf5124d6254bbe7cf8169382f208bfd7424cc4",
+      "size": 5778
+    },
+    "tests/windows_i386_oracle.py": {
+      "sha256": "64a7634fb04f93e4958b8afb6ebfadc043a3d3d4e65c60e5fce37be829f539e3",
+      "size": 3234
+    }
+  },
+  "status": "focused-pass",
+  "whole_repository_suite_claimed": false
+}

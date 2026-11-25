@@ -1,7 +1,7 @@
-//help: Show system uptime
-//help: Usage: time
-//help: Displays how long the system has been running
-//help: in seconds and milliseconds.
+// help: Show system uptime
+// help: Usage: time
+// help: Displays how long the system has been running
+// help: in seconds and milliseconds.
 
 void main() {
     int ms = uptime_ms();

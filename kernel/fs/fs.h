@@ -1,3 +1,8 @@
+/**
+ * @file fs.h
+ * @brief Look up static files available to the shell.
+ */
+
 #ifndef FS_H
 #define FS_H
 

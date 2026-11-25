@@ -1,0 +1,139 @@
+{
+  "artifact_gates_per_host": 16,
+  "artifact_policy": {
+    "sha256": "e1f4f9e3d5e0ab9e766d767cca97c3282a2e4dcb06c520aef89b56dd33de3e75",
+    "size": 3384
+  },
+  "changed_objects": [
+    "cupidos-txt/12HOLYC-CUPIDC.o"
+  ],
+  "checkpoint": "c2eabb95a088f938a66ec779fc4e94b1ce04844d",
+  "fat_bytes_preserved": 199229440,
+  "hosts": {
+    "linux": {
+      "closed": {
+        "sha256": "24204907d2bc047ec1a74909da48b506573a22db9e88b6fd0f5829382676d9e2",
+        "size": 103222
+      },
+      "seconds": 1519.885395516
+    },
+    "windows": {
+      "closed": {
+        "sha256": "85c6274cae5d81a0486fccc574d613fdeccd8bcc9aeec653e111f23e96240b76",
+        "size": 104488
+      },
+      "seconds": 2058.454639600008
+    }
+  },
+  "image": {
+    "sha256": "1ec0a0e428275b0bd00b232a574dbe6f25dc59f22160eddf57c37b8545251373",
+    "size": 209715200
+  },
+  "image_bytes_compared": 209715200,
+  "independent_review_seconds": 85.74881779996213,
+  "kernel_alignment_delta_bytes": -1,
+  "kernel_policy_measurements": {
+    "kernel/kernel.bin": {
+      "artifact": {
+        "sha256": "7250eeef8bee8093fbd875f44ccb72d2b20bf8d1c49478d1fee29ee5ed04a828",
+        "size": 9305208
+      },
+      "measured_exact_bytes": 9305208,
+      "previous_exact_bytes": 9303840
+    },
+    "kernel/kernel.elf": {
+      "artifact": {
+        "sha256": "a1a77572206dc1d9bdae5882db3fb625711feb3754de734f4ead942c1041c79c",
+        "size": 9531836
+      },
+      "measured_exact_bytes": 9531836,
+      "previous_exact_bytes": 9531836
+    },
+    "kernel/kernel.elf.pass1": {
+      "artifact": {
+        "sha256": "443a975275040911fd766a0c00967a04b891c71fd45c23b4dbbbf28df523921e",
+        "size": 9400764
+      },
+      "measured_exact_bytes": 9400764,
+      "previous_exact_bytes": 9400764
+    }
+  },
+  "manual": {
+    "sha256": "988fddbe3cd78051eec309650d16da6ad389b3a7165507b82dfa2ad317d8520d",
+    "size": 75963
+  },
+  "manual_delta_bytes": 1369,
+  "normal_source_inputs_unchanged": 99,
+  "original_receipts_archive": {
+    "sha256": "f272491b84384c249f8ea7867ff37fc3ee0c06d4564251cf04c7a5f6f0f6681b",
+    "size": 866925
+  },
+  "original_receipts_uncompressed": {
+    "sha256": "05ddd15cd899d51a976cc9b54fd51eb6acb21e8468071e1ec97b47c4cd4c92db",
+    "size": 3183725
+  },
+  "preserved_failed_attempts": 0,
+  "preserved_successful_measurement_commands": 12,
+  "raw_kernel": {
+    "sha256": "7250eeef8bee8093fbd875f44ccb72d2b20bf8d1c49478d1fee29ee5ed04a828",
+    "size": 9305208
+  },
+  "raw_kernel_delta_bytes": 1368,
+  "root_adoption": {
+    "application": {
+      "sha256": "01f417161dc9d1d670a8ec6122d182466b0c3ede20585abe58099900f08f55e6",
+      "size": 20264
+    },
+    "artifact_policy_regression_methods": 17,
+    "closed": {
+      "sha256": "45d917fed414d293b698cf4357a79f16e7d30643f88d88a074ec6f6faff29f39",
+      "size": 7176
+    },
+    "exact_artifact_gates": 16,
+    "fat_bytes_preserved": 199229440,
+    "image": {
+      "sha256": "1ec0a0e428275b0bd00b232a574dbe6f25dc59f22160eddf57c37b8545251373",
+      "size": 209715200
+    },
+    "image_bytes_compared": 209715200,
+    "independent_review_seconds": 53.47672099992633,
+    "manual": {
+      "sha256": "988fddbe3cd78051eec309650d16da6ad389b3a7165507b82dfa2ad317d8520d",
+      "size": 75963
+    },
+    "measured_kernel_policy_rows": 3,
+    "normal_root_seconds": 1511.8107279000105,
+    "normal_source_inputs_unchanged": 99,
+    "raw_kernel": {
+      "sha256": "7250eeef8bee8093fbd875f44ccb72d2b20bf8d1c49478d1fee29ee5ed04a828",
+      "size": 9305208
+    },
+    "root_files_changed": 2,
+    "root_receipts_archive": {
+      "sha256": "509453bc1e7b2e2fcfdc55c5023c069e6df8d651e3b7f9e5f1afdc58cc506930",
+      "size": 120653
+    },
+    "root_receipts_uncompressed": {
+      "sha256": "868854da924e4b913fc3579fb9920e86c9f856b8614110bb3b11def8e5f35624",
+      "size": 544640
+    },
+    "schema": "cupid.retained-stream-group-manual-root-review.v1",
+    "status": "pass",
+    "strict_boots": 2,
+    "user_abi_fields": 103,
+    "user_abi_providers": 101,
+    "whole_linked_outputs_equal_paired_consumers": 4,
+    "whole_objects_equal_paired_consumers": 429,
+    "whole_user_outputs_equal_paired_consumers": 6
+  },
+  "schema": "cupid.retained-stream-group-manual-paired-review.v1",
+  "source_revision": "1d852023df98c03481c4b3979dccb398288b7115",
+  "status": "pass",
+  "strict_boots": 4,
+  "unchanged_objects": 428,
+  "user_abi_fields": 103,
+  "user_abi_providers": 101,
+  "whole_linked_products_equal": 4,
+  "whole_objects_equal": 429,
+  "whole_user_products_equal": 6
+}

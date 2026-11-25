@@ -1,11 +1,15 @@
-//help: Print first lines of a file
-//help: Usage: head [-n N] <file>
-//help: Default N is 10. Output truncated at 64KB.
+// help: Print first lines of a file
+// help: Usage: head [-n N] <file>
+// help: Default N is 10. Output truncated at 64KB.
 
 int parse_token(char *str, int start, char *out, int maxlen) {
     int i = start;
-    while (str[i] == ' ' || str[i] == '\t') i = i + 1;
-    if (str[i] == 0) { out[0] = 0; return 0; }
+    while (str[i] == ' ' || str[i] == '\t')
+        i = i + 1;
+    if (str[i] == 0) {
+        out[0] = 0;
+        return 0;
+    }
 
     int j = 0;
     while (str[i] != 0 && str[i] != ' ' && str[i] != '\t' && j < maxlen - 1) {
@@ -28,7 +32,7 @@ int parse_int(char *s) {
 }
 
 void main() {
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
     char tok[256];
     int pos = 0;
 
@@ -45,14 +49,23 @@ void main() {
 
     if (tok[0] == '-' && tok[1] == 'n' && tok[2] == 0) {
         l = parse_token(args, pos, tok, 256);
-        if (l == 0) { println("head: -n needs argument"); return; }
+        if (l == 0) {
+            println("head: -n needs argument");
+            return;
+        }
         pos = pos + l;
         n = parse_int(tok);
         l = parse_token(args, pos, path_arg, 256);
-        if (l == 0) { println("head: missing file"); return; }
+        if (l == 0) {
+            println("head: missing file");
+            return;
+        }
     } else {
         int i = 0;
-        while (tok[i]) { path_arg[i] = tok[i]; i = i + 1; }
+        while (tok[i]) {
+            path_arg[i] = tok[i];
+            i = i + 1;
+        }
         path_arg[i] = 0;
     }
 
@@ -74,7 +87,8 @@ void main() {
         int i = 0;
         while (i < r && printed_lines < n) {
             putchar(buf[i]);
-            if (buf[i] == '\n') printed_lines = printed_lines + 1;
+            if (buf[i] == '\n')
+                printed_lines = printed_lines + 1;
             i = i + 1;
             total_bytes = total_bytes + 1;
             if (total_bytes > 65536) {
@@ -83,7 +97,8 @@ void main() {
                 return;
             }
         }
-        if (printed_lines >= n) break;
+        if (printed_lines >= n)
+            break;
         r = vfs_read(fd, buf, 256);
     }
     vfs_close(fd);

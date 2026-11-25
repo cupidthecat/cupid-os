@@ -1,11 +1,11 @@
-//help: AC97 audio smoke tests
-//help: Usage: audiotest <sine|opl|pan|sweep|all>
+// help: AC97 audio smoke tests
+// help: Usage: audiotest <sine|opl|pan|sweep|all>
 
 void main() {
     char *args;
     I32 present;
 
-    args = (char*)get_args();
+    args = (char *)get_args();
 
     if (strlen(args) == 0) {
         serial_write_string("Usage: audiotest <sine|opl|pan|sweep|all>\n");

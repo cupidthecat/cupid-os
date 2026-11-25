@@ -1,4 +1,8 @@
-/* kernel/iso9660_vfs.h - VFS adapter for ISO9660. */
+/**
+ * @file iso9660_vfs.h
+ * @brief Mount read-only ISO9660 images through the virtual filesystem.
+ */
+
 #ifndef ISO9660_VFS_H
 #define ISO9660_VFS_H
 

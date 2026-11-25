@@ -1,11 +1,15 @@
-//help: Print last lines of a file
-//help: Usage: tail [-n N] <file>
-//help: Default N is 10. Reads up to 64KB.
+// help: Print last lines of a file
+// help: Usage: tail [-n N] <file>
+// help: Default N is 10. Reads up to 64KB.
 
 int parse_token(char *str, int start, char *out, int maxlen) {
     int i = start;
-    while (str[i] == ' ' || str[i] == '\t') i = i + 1;
-    if (str[i] == 0) { out[0] = 0; return 0; }
+    while (str[i] == ' ' || str[i] == '\t')
+        i = i + 1;
+    if (str[i] == 0) {
+        out[0] = 0;
+        return 0;
+    }
 
     int j = 0;
     while (str[i] != 0 && str[i] != ' ' && str[i] != '\t' && j < maxlen - 1) {
@@ -28,7 +32,7 @@ int parse_int(char *s) {
 }
 
 void main() {
-    char *args = (char*)get_args();
+    char *args = (char *)get_args();
     char tok[256];
     int pos = 0;
 
@@ -45,14 +49,23 @@ void main() {
 
     if (tok[0] == '-' && tok[1] == 'n' && tok[2] == 0) {
         l = parse_token(args, pos, tok, 256);
-        if (l == 0) { println("tail: -n needs argument"); return; }
+        if (l == 0) {
+            println("tail: -n needs argument");
+            return;
+        }
         pos = pos + l;
         n = parse_int(tok);
         l = parse_token(args, pos, path_arg, 256);
-        if (l == 0) { println("tail: missing file"); return; }
+        if (l == 0) {
+            println("tail: missing file");
+            return;
+        }
     } else {
         int i = 0;
-        while (tok[i]) { path_arg[i] = tok[i]; i = i + 1; }
+        while (tok[i]) {
+            path_arg[i] = tok[i];
+            i = i + 1;
+        }
         path_arg[i] = 0;
     }
 
@@ -67,7 +80,7 @@ void main() {
     }
 
     /* Slurp up to 64KB. Truncate if larger. */
-    char *blob = (char*)kmalloc(65537);
+    char *blob = (char *)kmalloc(65537);
     if (!blob) {
         println("tail: out of memory");
         vfs_close(fd);
@@ -93,17 +106,20 @@ void main() {
     int newlines = 0;
     int i = 0;
     while (i < total) {
-        if (blob[i] == '\n') newlines = newlines + 1;
+        if (blob[i] == '\n')
+            newlines = newlines + 1;
         i = i + 1;
     }
 
     int target_skip = newlines - n;
-    if (target_skip < 0) target_skip = 0;
+    if (target_skip < 0)
+        target_skip = 0;
 
     int start = 0;
     int seen = 0;
     while (start < total && seen < target_skip) {
-        if (blob[start] == '\n') seen = seen + 1;
+        if (blob[start] == '\n')
+            seen = seen + 1;
         start = start + 1;
     }
 

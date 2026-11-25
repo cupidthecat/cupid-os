@@ -1,7 +1,13 @@
 /* Render */
 
-int viewport_x() { return 0; }
-int viewport_y() { return ADDR_H + 1; }
+int viewport_x() {
+    return 0;
+}
+
+int viewport_y() {
+    return ADDR_H + 1;
+}
+
 /* Carve out chrome rows: address bar (top, ADDR_H + 1px hairline) and
  * status bar (bottom, STATUS_H + 1px hairline). The extra 1px on each
  * side keeps glyph descenders from the last visible line bleeding
@@ -9,7 +15,8 @@ int viewport_y() { return ADDR_H + 1; }
  * line overlapping the bottom chrome on d1_selectors_v2.*/
 int viewport_h() {
     int h = cur_ch - (ADDR_H + 1) - (STATUS_H + 1);
-    if (h < 60) h = 60;
+    if (h < 60)
+        h = 60;
     return h;
 }
 
@@ -31,15 +38,18 @@ int paint_clip_top;
 
 void paint_clip_init(int x, int y, int w, int h) {
     paint_clip_top = 0;
-    paint_clip_x[0] = x; paint_clip_y[0] = y;
-    paint_clip_w[0] = w; paint_clip_h[0] = h;
+    paint_clip_x[0] = x;
+    paint_clip_y[0] = y;
+    paint_clip_w[0] = w;
+    paint_clip_h[0] = h;
     gfx2d_clip_set(x, y, w, h);
 }
 
 /* Intersect (x,y,w,h) with the current top of stack and push the result.
  * gfx2d_clip_set is replaced with the intersection.*/
 void paint_clip_push(int x, int y, int w, int h) {
-    if (paint_clip_top + 1 >= 16) return;
+    if (paint_clip_top + 1 >= 16)
+        return;
     int px = paint_clip_x[paint_clip_top];
     int py = paint_clip_y[paint_clip_top];
     int pw = paint_clip_w[paint_clip_top];
@@ -48,8 +58,12 @@ void paint_clip_push(int x, int y, int w, int h) {
     int y0 = (y > py) ? y : py;
     int x1 = ((x + w) < (px + pw)) ? (x + w) : (px + pw);
     int y1 = ((y + h) < (py + ph)) ? (y + h) : (py + ph);
-    int nw = x1 - x0; if (nw < 0) nw = 0;
-    int nh = y1 - y0; if (nh < 0) nh = 0;
+    int nw = x1 - x0;
+    if (nw < 0)
+        nw = 0;
+    int nh = y1 - y0;
+    if (nh < 0)
+        nh = 0;
     paint_clip_top++;
     paint_clip_x[paint_clip_top] = x0;
     paint_clip_y[paint_clip_top] = y0;
@@ -59,12 +73,11 @@ void paint_clip_push(int x, int y, int w, int h) {
 }
 
 void paint_clip_pop(void) {
-    if (paint_clip_top <= 0) return;
+    if (paint_clip_top <= 0)
+        return;
     paint_clip_top--;
-    gfx2d_clip_set(paint_clip_x[paint_clip_top],
-                   paint_clip_y[paint_clip_top],
-                   paint_clip_w[paint_clip_top],
-                   paint_clip_h[paint_clip_top]);
+    gfx2d_clip_set(paint_clip_x[paint_clip_top], paint_clip_y[paint_clip_top],
+                   paint_clip_w[paint_clip_top], paint_clip_h[paint_clip_top]);
 }
 
 int rt_screen_x(int n) {
@@ -79,7 +92,8 @@ int rt_screen_x(int n) {
     int cur = n;
     while (cur >= 0) {
         x += rt_x[cur];
-        if (rt_is_oof[cur]) break;
+        if (rt_is_oof[cur])
+            break;
         if (rt_dom[cur] >= 0) {
             int sty = rt_style[cur];
             if (cs_position[sty] == POS_RELATIVE) {
@@ -104,8 +118,12 @@ int rt_screen_y(int n) {
     int fixed_anchor = 0;
     while (cur >= 0) {
         y += rt_y[cur];
-        if (rt_is_fixed[cur]) { fixed_anchor = 1; break; }
-        if (rt_is_oof[cur]) break;
+        if (rt_is_fixed[cur]) {
+            fixed_anchor = 1;
+            break;
+        }
+        if (rt_is_oof[cur])
+            break;
         if (rt_dom[cur] >= 0) {
             int sty = rt_style[cur];
             if (cs_position[sty] == POS_RELATIVE) {
@@ -130,15 +148,18 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
     int kind = rt_kind[n];
     int cs = rt_style[n];
 
-    int paints_box = (kind == RT_BLOCK || kind == RT_INLINE_BLOCK ||
-                      kind == RT_LIST_ITEM || kind == RT_TABLE_CELL ||
-                      kind == RT_REPLACED);
-    if (!paints_box) return;
+    int paints_box = (kind == RT_BLOCK || kind == RT_INLINE_BLOCK || kind == RT_LIST_ITEM ||
+                      kind == RT_TABLE_CELL || kind == RT_REPLACED);
+    if (!paints_box)
+        return;
 
     int radius = cs_border_radius[cs];
-    if (radius * 2 > w) radius = w / 2;
-    if (radius * 2 > h) radius = h / 2;
-    if (radius < 0) radius = 0;
+    if (radius * 2 > w)
+        radius = w / 2;
+    if (radius * 2 > h)
+        radius = h / 2;
+    if (radius < 0)
+        radius = 0;
 
     /* 1. Box-shadow (no blur, no spread). One offset rect underneath the
      * box, rounded to match if a radius is set.*/
@@ -163,8 +184,8 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
      * + RoundedRect clip in BoxPainterBase::paintFillLayer.*/
     int bg = cs_bg[cs];
     int suppress_bg = 0;
-    if (doc_bg_suppress_body && rt_dom[n] >= 0 &&
-        n_tag[rt_dom[n]] == T_BODY) suppress_bg = 1;
+    if (doc_bg_suppress_body && rt_dom[n] >= 0 && n_tag[rt_dom[n]] == T_BODY)
+        suppress_bg = 1;
     if (!suppress_bg) {
         int gtype = cs_bg_grad[cs];
         if (gtype != BG_GRAD_NONE) {
@@ -222,30 +243,40 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
             tile_w = (iw * scale) / 1000;
             tile_h = (ih * scale) / 1000;
         } else {
-            if (tile_w == BG_SIZE_AUTO) tile_w = iw;
-            if (tile_h == BG_SIZE_AUTO) tile_h = ih;
-            if (cs_bg_size_w[cs] == BG_SIZE_AUTO &&
-                cs_bg_size_h[cs] != BG_SIZE_AUTO && tile_h > 0) {
+            if (tile_w == BG_SIZE_AUTO)
+                tile_w = iw;
+            if (tile_h == BG_SIZE_AUTO)
+                tile_h = ih;
+            if (cs_bg_size_w[cs] == BG_SIZE_AUTO && cs_bg_size_h[cs] != BG_SIZE_AUTO &&
+                tile_h > 0) {
                 tile_w = (iw * tile_h) / ih;
             }
-            if (cs_bg_size_h[cs] == BG_SIZE_AUTO &&
-                cs_bg_size_w[cs] != BG_SIZE_AUTO && tile_w > 0) {
+            if (cs_bg_size_h[cs] == BG_SIZE_AUTO && cs_bg_size_w[cs] != BG_SIZE_AUTO &&
+                tile_w > 0) {
                 tile_h = (ih * tile_w) / iw;
             }
         }
-        if (tile_w < 1) tile_w = 1;
-        if (tile_h < 1) tile_h = 1;
+        if (tile_w < 1)
+            tile_w = 1;
+        if (tile_h < 1)
+            tile_h = 1;
 
         int px = cs_bg_pos_x[cs];
         int py = cs_bg_pos_y[cs];
         int origin_x;
         int origin_y;
-        if (px == -10000)      origin_x = (w - tile_w) / 2;
-        else if (px == -20000) origin_x = w - tile_w;
-        else                   origin_x = px;
-        if (py == -10000)      origin_y = (h - tile_h) / 2;
-        else if (py == -20000) origin_y = h - tile_h;
-        else                   origin_y = py;
+        if (px == -10000)
+            origin_x = (w - tile_w) / 2;
+        else if (px == -20000)
+            origin_x = w - tile_w;
+        else
+            origin_x = px;
+        if (py == -10000)
+            origin_y = (h - tile_h) / 2;
+        else if (py == -20000)
+            origin_y = h - tile_h;
+        else
+            origin_y = py;
 
         int rep = cs_bg_repeat[cs];
         int tile_x_count;
@@ -253,13 +284,16 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
         int start_x;
         int start_y;
         if (rep == BG_REPEAT_NONE) {
-            tile_x_count = 1; tile_y_count = 1;
-            start_x = origin_x; start_y = origin_y;
+            tile_x_count = 1;
+            tile_y_count = 1;
+            start_x = origin_x;
+            start_y = origin_y;
         } else {
             /* Step start back to the first tile that intersects the box. */
             if (rep == BG_REPEAT_X || rep == BG_REPEAT_BOTH) {
                 start_x = origin_x;
-                while (start_x > 0) start_x = start_x - tile_w;
+                while (start_x > 0)
+                    start_x = start_x - tile_w;
                 tile_x_count = (w - start_x + tile_w - 1) / tile_w;
             } else {
                 start_x = origin_x;
@@ -267,15 +301,18 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
             }
             if (rep == BG_REPEAT_Y || rep == BG_REPEAT_BOTH) {
                 start_y = origin_y;
-                while (start_y > 0) start_y = start_y - tile_h;
+                while (start_y > 0)
+                    start_y = start_y - tile_h;
                 tile_y_count = (h - start_y + tile_h - 1) / tile_h;
             } else {
                 start_y = origin_y;
                 tile_y_count = 1;
             }
         }
-        if (tile_x_count > 64) tile_x_count = 64;
-        if (tile_y_count > 64) tile_y_count = 64;
+        if (tile_x_count > 64)
+            tile_x_count = 64;
+        if (tile_y_count > 64)
+            tile_y_count = 64;
         /* CSS Backgrounds & Borders §3.10: `background-clip` default is
          * `border-box`, so the bg image must not paint outside the
          * element's border box. Without this clip, `cover` (which scales
@@ -314,14 +351,15 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
             gfx2d_rect_round(sx, sy, w, h, radius, bc);
         } else if (style == BS_DASHED || style == BS_DOTTED) {
             int dash = (style == BS_DASHED) ? 4 : 1;
-            int gap  = (style == BS_DASHED) ? 4 : 2;
+            int gap = (style == BS_DASHED) ? 4 : 2;
             int step = dash + gap;
             int xx;
             if (bw_t || bw_b) {
                 xx = 0;
                 while (xx < w) {
                     int seg = dash;
-                    if (xx + seg > w) seg = w - xx;
+                    if (xx + seg > w)
+                        seg = w - xx;
                     if (bw_t)
                         gfx2d_rect_fill(sx + xx, sy, seg, bw_t, bc);
                     if (bw_b)
@@ -334,7 +372,8 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
                 yy = 0;
                 while (yy < h) {
                     int seg = dash;
-                    if (yy + seg > h) seg = h - yy;
+                    if (yy + seg > h)
+                        seg = h - yy;
                     if (bw_l)
                         gfx2d_rect_fill(sx, sy + yy, bw_l, seg, bc);
                     if (bw_r)
@@ -343,10 +382,14 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
                 }
             }
         } else {
-            if (bw_t) gfx2d_rect_fill(sx, sy, w, bw_t, bc);
-            if (bw_b) gfx2d_rect_fill(sx, sy + h - bw_b, w, bw_b, bc);
-            if (bw_l) gfx2d_rect_fill(sx, sy, bw_l, h, bc);
-            if (bw_r) gfx2d_rect_fill(sx + w - bw_r, sy, bw_r, h, bc);
+            if (bw_t)
+                gfx2d_rect_fill(sx, sy, w, bw_t, bc);
+            if (bw_b)
+                gfx2d_rect_fill(sx, sy + h - bw_b, w, bw_b, bc);
+            if (bw_l)
+                gfx2d_rect_fill(sx, sy, bw_l, h, bc);
+            if (bw_r)
+                gfx2d_rect_fill(sx + w - bw_r, sy, bw_r, h, bc);
         }
     }
 }
@@ -369,14 +412,16 @@ void paint_rt_content(int n, int sx, int sy) {
 void paint_rt_node(int n) {
     int sx = rt_screen_x(n);
     int sy = rt_screen_y(n);
-    int w  = rt_w[n];
-    int h  = rt_h[n];
+    int w = rt_w[n];
+    int h = rt_h[n];
 
     int cs = rt_style[n];
 
     /* Off-screen cull */
-    if (sy + h < viewport_y()) return;
-    if (sy > viewport_y() + viewport_h()) return;
+    if (sy + h < viewport_y())
+        return;
+    if (sy > viewport_y() + viewport_h())
+        return;
 
     paint_rt_box_decoration(n, sx, sy, w, h);
     paint_rt_content(n, sx, sy);
@@ -415,23 +460,24 @@ void paint_rt_node(int n) {
          * BLOCK-level RT_REPLACED (e.g. <img display:block>) lays out
          * as its own block child rather than going into a line box, so
          * paint it directly.*/
-        int is_inline_atom_kind = (ck == RT_INLINE || ck == RT_TEXT ||
-                                   ck == RT_INLINE_BLOCK ||
-                                   (ck == RT_REPLACED &&
-                                    cs_display[c_cs] != DISP_BLOCK));
+        int is_inline_atom_kind = (ck == RT_INLINE || ck == RT_TEXT || ck == RT_INLINE_BLOCK ||
+                                   (ck == RT_REPLACED && cs_display[c_cs] != DISP_BLOCK));
         if (is_inline_atom_kind) {
-            c = rt_next[c]; continue;
+            c = rt_next[c];
+            continue;
         }
         /* Out-of-flow positioned children paint in a separate z-index-
          * ordered pass at the document root after the in-flow walk; skip
          * them here. Reference: blink/Source/core/paint/PaintLayerPainter
          * paintLayerWithEffects + sortByZOrder.*/
         if (rt_is_stack[c]) {
-            c = rt_next[c]; continue;
+            c = rt_next[c];
+            continue;
         }
         int is_float_child = (rt_dom[c] >= 0) && (cs_float[c_cs] != FLOAT_NONE);
         if (is_float_child) {
-            c = rt_next[c]; continue;
+            c = rt_next[c];
+            continue;
         }
         paint_rt_node(c);
         c = rt_next[c];
@@ -440,25 +486,27 @@ void paint_rt_node(int n) {
     while (c >= 0) {
         int ck = rt_kind[c];
         int c_cs = rt_style[c];
-        int is_inline_atom_kind = (ck == RT_INLINE || ck == RT_TEXT ||
-                                   ck == RT_INLINE_BLOCK ||
-                                   (ck == RT_REPLACED &&
-                                    cs_display[c_cs] != DISP_BLOCK));
+        int is_inline_atom_kind = (ck == RT_INLINE || ck == RT_TEXT || ck == RT_INLINE_BLOCK ||
+                                   (ck == RT_REPLACED && cs_display[c_cs] != DISP_BLOCK));
         if (is_inline_atom_kind) {
-            c = rt_next[c]; continue;
+            c = rt_next[c];
+            continue;
         }
         if (rt_is_stack[c]) {
-            c = rt_next[c]; continue;
+            c = rt_next[c];
+            continue;
         }
         int is_float_child = (rt_dom[c] >= 0) && (cs_float[c_cs] != FLOAT_NONE);
         if (!is_float_child) {
-            c = rt_next[c]; continue;
+            c = rt_next[c];
+            continue;
         }
         paint_rt_node(c);
         c = rt_next[c];
     }
 
-    if (clip_pushed) paint_clip_pop();
+    if (clip_pushed)
+        paint_clip_pop();
 }
 
 void paint_rt_text(int n, int sx, int sy) {
@@ -467,11 +515,14 @@ void paint_rt_text(int n, int sx, int sy) {
     int tier = cs_font_size_tier[cs];
     int font = tier_to_font(tier);
     int fg = cs_color[cs];
-    if (fg < 0) fg = 0x000000;
+    if (fg < 0)
+        fg = 0x000000;
     char buf[256];
     int len = rt_text_len[n];
-    if (len > 255) len = 255;
-    for (int k = 0; k < len; k++) buf[k] = attr_pool[rt_text_off[n] + k];
+    if (len > 255)
+        len = 255;
+    for (int k = 0; k < len; k++)
+        buf[k] = attr_pool[rt_text_off[n] + k];
     buf[len] = 0;
     int size_px = cs_font_size_px[cs];
     int face = cs_face_id_for(cs);
@@ -479,15 +530,13 @@ void paint_rt_text(int n, int sx, int sy) {
     int italic = cs_font_i[cs];
     if (face >= 0 && size_px > 0) {
         int baseline = sy + fontsys_ascent(face, size_px);
-        fontsys_draw_run_styled(face, size_px, sx, baseline, buf, len, fg,
-                                bold, italic);
+        fontsys_draw_run_styled(face, size_px, sx, baseline, buf, len, fg, bold, italic);
     } else {
         gfx2d_text_n(sx, sy, buf, len, fg, font);
     }
     if (cs_text_dec[cs] & TD_UNDERLINE) {
-        int uw = (face >= 0 && size_px > 0)
-                 ? fontsys_run_width(face, size_px, buf, len)
-                 : gfx2d_text_width_n(buf, len, font);
+        int uw = (face >= 0 && size_px > 0) ? fontsys_run_width(face, size_px, buf, len)
+                                            : gfx2d_text_width_n(buf, len, font);
         gfx2d_rect_fill(sx, sy + effective_line_h(cs, tier) - 2, uw, 1, fg);
     }
 }
@@ -508,17 +557,23 @@ void paint_rt_line_box(int n, int sx, int sy) {
         int content_w = 0;
         int kk;
         for (kk = first; kk < first + count; kk = kk + 1) {
-            if (la_x[kk] < 0) continue;
+            if (la_x[kk] < 0)
+                continue;
             int rightmost = la_x[kk] + la_w[kk];
-            if (rightmost > content_w) content_w = rightmost;
+            if (rightmost > content_w)
+                content_w = rightmost;
         }
         int slack = rt_w[n] - content_w;
-        if (slack < 0) slack = 0;
-        if (align == TA_CENTER) align_shift = slack / 2;
-        else if (align == TA_RIGHT) align_shift = slack;
+        if (slack < 0)
+            slack = 0;
+        if (align == TA_CENTER)
+            align_shift = slack / 2;
+        else if (align == TA_RIGHT)
+            align_shift = slack;
     }
     for (int k = first; k < first + count; k++) {
-        if (la_x[k] < 0) continue;       /* sentinel atom - break point not painted */
+        if (la_x[k] < 0)
+            continue; /* sentinel atom - break point not painted */
         int ax = sx + la_x[k] + align_shift;
         int tier = la_font_tier[k];
         /* Center glyph vertically in the line box: line_h is taller than the
@@ -540,20 +595,26 @@ void paint_rt_line_box(int n, int sx, int sy) {
             int rt_n = -la_text_off[k] - 1;
             rt_x[rt_n] = sx + la_x[k] + align_shift - rt_screen_x(rt_parent[rt_n]);
             rt_y[rt_n] = sy - rt_screen_y(rt_parent[rt_n]);
-            if (rt_intrinsic_w[rt_n] > 0) rt_w[rt_n] = rt_intrinsic_w[rt_n];
-            if (rt_intrinsic_h[rt_n] > 0) rt_h[rt_n] = rt_intrinsic_h[rt_n];
+            if (rt_intrinsic_w[rt_n] > 0)
+                rt_w[rt_n] = rt_intrinsic_w[rt_n];
+            if (rt_intrinsic_h[rt_n] > 0)
+                rt_h[rt_n] = rt_intrinsic_h[rt_n];
             paint_rt_node(rt_n);
             continue;
         }
         int fg = la_fg[k];
-        if (fg < 0) fg = 0x000000;
+        if (fg < 0)
+            fg = 0x000000;
         int bg = la_bg[k];
         int line_h = effective_line_h(rt_style[n], tier);
-        if (bg >= 0) gfx2d_rect_fill(ax, ay, la_w[k], line_h, bg);
+        if (bg >= 0)
+            gfx2d_rect_fill(ax, ay, la_w[k], line_h, bg);
         char buf[256];
         int len = la_text_len[k];
-        if (len > 255) len = 255;
-        for (int kk = 0; kk < len; kk++) buf[kk] = attr_pool[la_text_off[k] + kk];
+        if (len > 255)
+            len = 255;
+        for (int kk = 0; kk < len; kk++)
+            buf[kk] = attr_pool[la_text_off[k] + kk];
         buf[len] = 0;
         int face = la_face_id[k];
         int size_px = la_size_px[k];
@@ -563,7 +624,8 @@ void paint_rt_line_box(int n, int sx, int sy) {
             int asc = fontsys_ascent(face, size_px);
             int line_full = fontsys_line_height(face, size_px);
             int extra = line_h - line_full;
-            if (extra < 0) extra = 0;
+            if (extra < 0)
+                extra = 0;
             int baseline = sy + extra / 2 + asc;
             /* Walk UTF-8 codepoints, grouping consecutive same-face runs.
              * Without this, Google Fonts' Latin-only subset would draw
@@ -584,7 +646,8 @@ void paint_rt_line_box(int n, int sx, int sy) {
             while (p < len) {
                 int cp;
                 int adv = utf8_decode_one(buf + p, len - p, &cp);
-                if (adv <= 0) break;
+                if (adv <= 0)
+                    break;
                 int sub_face;
                 if (cs_atom >= 0) {
                     if (cp == last_cp_face_cp) {
@@ -597,7 +660,8 @@ void paint_rt_line_box(int n, int sx, int sy) {
                 } else {
                     sub_face = face;
                 }
-                if (sub_face < 0) sub_face = face;
+                if (sub_face < 0)
+                    sub_face = face;
                 /* Synthesised-glyph fallback: when no registered face
                  * carries this codepoint, try to draw a primitive
                  * approximation via gfx2d (snowman, etc) so the user
@@ -609,9 +673,15 @@ void paint_rt_line_box(int n, int sx, int sy) {
                 if (cp == 0x2603) {
                     if (!fontsys_face_has_cp(sub_face, cp)) {
                         int s = size_px;
-                        int top_r = s / 7; if (top_r < 2) top_r = 2;
-                        int mid_r = s / 5; if (mid_r < 3) mid_r = 3;
-                        int bot_r = s / 4; if (bot_r < 4) bot_r = 4;
+                        int top_r = s / 7;
+                        if (top_r < 2)
+                            top_r = 2;
+                        int mid_r = s / 5;
+                        if (mid_r < 3)
+                            mid_r = 3;
+                        int bot_r = s / 4;
+                        if (bot_r < 4)
+                            bot_r = 4;
                         int gap = 1;
                         int cx_s = x_cur + s / 2;
                         int top_y = baseline - (top_r + mid_r * 2 + bot_r * 2 + gap * 2);
@@ -632,7 +702,8 @@ void paint_rt_line_box(int n, int sx, int sy) {
                 while (run_end < len) {
                     int cp2;
                     int adv2 = utf8_decode_one(buf + run_end, len - run_end, &cp2);
-                    if (adv2 <= 0) break;
+                    if (adv2 <= 0)
+                        break;
                     int f2;
                     if (cs_atom >= 0) {
                         if (cp2 == last_cp_face_cp) {
@@ -645,19 +716,19 @@ void paint_rt_line_box(int n, int sx, int sy) {
                     } else {
                         f2 = face;
                     }
-                    if (f2 < 0) f2 = face;
-                    if (f2 != sub_face) break;
+                    if (f2 < 0)
+                        f2 = face;
+                    if (f2 != sub_face)
+                        break;
                     run_end = run_end + adv2;
                     cp_count = cp_count + 1;
                 }
                 int sub_len = run_end - run_start;
-                fontsys_draw_run_styled(sub_face, size_px,
-                                        x_cur, baseline,
-                                        buf + run_start, sub_len, fg,
-                                        la_bold[k], la_italic[k]);
-                int sub_w = fontsys_run_width(sub_face, size_px,
-                                              buf + run_start, sub_len);
-                if (la_bold[k]) sub_w = sub_w + cp_count;
+                fontsys_draw_run_styled(sub_face, size_px, x_cur, baseline, buf + run_start,
+                                        sub_len, fg, la_bold[k], la_italic[k]);
+                int sub_w = fontsys_run_width(sub_face, size_px, buf + run_start, sub_len);
+                if (la_bold[k])
+                    sub_w = sub_w + cp_count;
                 x_cur = x_cur + sub_w;
                 p = run_end;
             }
@@ -710,12 +781,14 @@ void paint_rt_replaced(int n, int sx, int sy) {
         int is_check = 0;
         int is_radio = 0;
         if (type_s) {
-            if (b_strieq(type_s, "checkbox")) is_check = 1;
-            if (!is_check && b_strieq(type_s, "radio")) is_radio = 1;
+            if (b_strieq(type_s, "checkbox"))
+                is_check = 1;
+            if (!is_check && b_strieq(type_s, "radio"))
+                is_radio = 1;
         }
         int sty = rt_style[n];
-        int border_set = (cs_border[sty][0] | cs_border[sty][1] |
-                          cs_border[sty][2] | cs_border[sty][3]) != 0;
+        int border_set =
+            (cs_border[sty][0] | cs_border[sty][1] | cs_border[sty][2] | cs_border[sty][3]) != 0;
         /* paint_rt_box_decoration already painted the author border (if
          * any) outside this call. Inset the white fill by 1px on each
          * side that has a border so we don't paint over the stroke and
@@ -726,8 +799,10 @@ void paint_rt_replaced(int n, int sx, int sy) {
         if (is_check || is_radio) {
             int iw = rt_w[n] - 2 * inset;
             int ih = rt_h[n] - 2 * inset;
-            if (iw < 0) iw = 0;
-            if (ih < 0) ih = 0;
+            if (iw < 0)
+                iw = 0;
+            if (ih < 0)
+                ih = 0;
             gfx2d_rect_fill(sx + inset, sy + inset, iw, ih, 0xFFFFFF);
             if (!border_set) {
                 gfx2d_rect_fill(sx, sy, rt_w[n], 1, 0x808080);
@@ -750,8 +825,10 @@ void paint_rt_replaced(int n, int sx, int sy) {
         /* text-style input */
         int iw = rt_w[n] - 2 * inset;
         int ih = rt_h[n] - 2 * inset;
-        if (iw < 0) iw = 0;
-        if (ih < 0) ih = 0;
+        if (iw < 0)
+            iw = 0;
+        if (ih < 0)
+            ih = 0;
         gfx2d_rect_fill(sx + inset, sy + inset, iw, ih, 0xFFFFFF);
         if (!border_set) {
             gfx2d_rect_fill(sx, sy, rt_w[n], 1, 0x808080);
@@ -760,8 +837,7 @@ void paint_rt_replaced(int n, int sx, int sy) {
             gfx2d_rect_fill(sx + rt_w[n] - 1, sy, 1, rt_h[n], 0x808080);
         }
         int ii = rt_input_idx[n];
-        int is_focused = (focus_mode == FOCUS_INPUT && ii >= 0 &&
-                          ii == focused_input);
+        int is_focused = (focus_mode == FOCUS_INPUT && ii >= 0 && ii == focused_input);
         if (is_focused) {
             /* Focus ring outside the existing border so it doesn't fight
              * the author's red border. Single-pixel inset blue.*/
@@ -795,8 +871,10 @@ void paint_rt_replaced(int n, int sx, int sy) {
         if (c >= 0) {
             char buf[64];
             int len = rt_text_len[c];
-            if (len > 63) len = 63;
-            for (int k = 0; k < len; k++) buf[k] = attr_pool[rt_text_off[c] + k];
+            if (len > 63)
+                len = 63;
+            for (int k = 0; k < len; k++)
+                buf[k] = attr_pool[rt_text_off[c] + k];
             buf[len] = 0;
             gfx2d_text(sx + 4, sy + 2, buf, 0x000000, 0);
         }
@@ -809,7 +887,8 @@ void paint_rt_marker(int n, int sx, int sy) {
     int cs = rt_style[parent];
     int ls = cs_list_style[cs];
     int fg = cs_color[cs] >= 0 ? cs_color[cs] : 0x000000;
-    if (ls == LS_NONE) return;
+    if (ls == LS_NONE)
+        return;
     /* `list-style-position: outside` (default): marker sits in the
      * padding-left of the parent <ul>, vertically aligned to the first
      * line box's baseline. paint_rt_marker is called with sx = li
@@ -819,19 +898,24 @@ void paint_rt_marker(int n, int sx, int sy) {
      * formula in paint_rt_line_box).*/
     char *glyph = "\xE2\x80\xA2";
     int glyph_len = 3;
-    if (ls == LS_DISC)        glyph = "\xE2\x80\xA2";  /* • */
-    else if (ls == LS_CIRCLE) glyph = "\xE2\x97\xA6";  /* ◦ */
-    else if (ls == LS_SQUARE) glyph = "\xE2\x96\xA0";  /* ■ */
+    if (ls == LS_DISC)
+        glyph = "\xE2\x80\xA2"; /* • */
+    else if (ls == LS_CIRCLE)
+        glyph = "\xE2\x97\xA6"; /* ◦ */
+    else if (ls == LS_SQUARE)
+        glyph = "\xE2\x96\xA0"; /* ■ */
     char dec_buf[16];
     if (ls == LS_DECIMAL) {
         int idx = 1;
         int sib = rt_first_child[rt_parent[parent]];
         while (sib >= 0 && sib != parent) {
-            if (rt_kind[sib] == RT_LIST_ITEM) idx++;
+            if (rt_kind[sib] == RT_LIST_ITEM)
+                idx++;
             sib = rt_next[sib];
         }
         int p = b_append_int(dec_buf, 0, idx);
-        dec_buf[p] = '.'; dec_buf[p + 1] = 0;
+        dec_buf[p] = '.';
+        dec_buf[p + 1] = 0;
         glyph = dec_buf;
         glyph_len = p + 1;
     }
@@ -839,17 +923,17 @@ void paint_rt_marker(int n, int sx, int sy) {
     int size_px = cs_font_size_px[cs] > 0 ? cs_font_size_px[cs] : 14;
     if (face >= 0) {
         int gw = fontsys_run_width(face, size_px, glyph, glyph_len);
-        if (gw <= 0) gw = size_px / 2;
+        if (gw <= 0)
+            gw = size_px / 2;
         int asc = fontsys_ascent(face, size_px);
-        if (asc <= 0) asc = size_px - 2;
+        if (asc <= 0)
+            asc = size_px - 2;
         /* Right-align the marker into the gap left of the content edge.
          * The 6px gutter mirrors what real browsers leave between
          * marker glyph and text (Blink: ListMarkerPainter.cpp uses an
          * em-relative offset; 6px is a fixed-pixel approximation that
          * looks right for body-sized fonts).*/
-        fontsys_draw_run_styled(face, size_px,
-                                sx - gw - 6, sy + asc,
-                                glyph, glyph_len,
+        fontsys_draw_run_styled(face, size_px, sx - gw - 6, sy + asc, glyph, glyph_len,
                                 (unsigned int)fg, 0, 0);
     } else {
         /* No TTF face: fall back to the 8x8 bitmap '*'. */
@@ -868,48 +952,52 @@ void draw_address_bar(int sx, int sy, int sw) {
      * input.cc:handle_left_click matches these coordinates.*/
     int btn_w = 22;
     int btn_h = 20;
-    int btn_y = sy + (ADDR_H - btn_h) / 2;        /* 4 */
+    int btn_y = sy + (ADDR_H - btn_h) / 2; /* 4 */
     int back_x = sx + 6;
-    int fwd_x  = back_x + btn_w + 4;              /* 32 */
+    int fwd_x = back_x + btn_w + 4; /* 32 */
     int back_enabled = (hist_pos > 1);
-    int fwd_enabled  = (hist_pos < hist_count);
+    int fwd_enabled = (hist_pos < hist_count);
     /* Active fill is darker, disabled fill matches toolbar bg so the
      * button reads as flat.  Stroke contrast keeps disabled arrows
      * readable but muted (was 0xC0C0C0, invisible against 0xF0F0F0).*/
     int back_fill = back_enabled ? 0xFFFFFF : 0xE8E8E8;
-    int fwd_fill  = fwd_enabled  ? 0xFFFFFF : 0xE8E8E8;
+    int fwd_fill = fwd_enabled ? 0xFFFFFF : 0xE8E8E8;
     int back_stroke = back_enabled ? 0x202020 : 0x808080;
-    int fwd_stroke  = fwd_enabled  ? 0x202020 : 0x808080;
+    int fwd_stroke = fwd_enabled ? 0x202020 : 0x808080;
     int border_color = 0x808080;
     gfx2d_rect_fill(back_x, btn_y, btn_w, btn_h, back_fill);
-    gfx2d_rect_fill(fwd_x,  btn_y, btn_w, btn_h, fwd_fill);
+    gfx2d_rect_fill(fwd_x, btn_y, btn_w, btn_h, fwd_fill);
     /* Centered glyph: "<" / ">" at NORMAL (8x8). Inset to put the
      * baseline visually centered inside a 20-tall button.*/
     int glyph_x_back = back_x + (btn_w - 8) / 2;
-    int glyph_x_fwd  = fwd_x  + (btn_w - 8) / 2;
-    int glyph_y      = btn_y + (btn_h - 8) / 2;
+    int glyph_x_fwd = fwd_x + (btn_w - 8) / 2;
+    int glyph_y = btn_y + (btn_h - 8) / 2;
     gfx2d_text(glyph_x_back, glyph_y, "<", back_stroke, 0);
-    gfx2d_text(glyph_x_fwd,  glyph_y, ">", fwd_stroke, 0);
+    gfx2d_text(glyph_x_fwd, glyph_y, ">", fwd_stroke, 0);
     /* 1 px outlines */
     gfx2d_rect_fill(back_x, btn_y, btn_w, 1, border_color);
     gfx2d_rect_fill(back_x, btn_y + btn_h - 1, btn_w, 1, border_color);
     gfx2d_rect_fill(back_x, btn_y, 1, btn_h, border_color);
     gfx2d_rect_fill(back_x + btn_w - 1, btn_y, 1, btn_h, border_color);
-    gfx2d_rect_fill(fwd_x,  btn_y, btn_w, 1, border_color);
-    gfx2d_rect_fill(fwd_x,  btn_y + btn_h - 1, btn_w, 1, border_color);
-    gfx2d_rect_fill(fwd_x,  btn_y, 1, btn_h, border_color);
+    gfx2d_rect_fill(fwd_x, btn_y, btn_w, 1, border_color);
+    gfx2d_rect_fill(fwd_x, btn_y + btn_h - 1, btn_w, 1, border_color);
+    gfx2d_rect_fill(fwd_x, btn_y, 1, btn_h, border_color);
     gfx2d_rect_fill(fwd_x + btn_w - 1, btn_y, 1, btn_h, border_color);
 
     /* URL label + value baseline-aligned with the button text:
      *   text height 8 → top = sy + (ADDR_H - 8)/2 = 10.*/
-    int label_x = fwd_x + btn_w + 8;              /* 64 */
-    int text_y  = sy + (ADDR_H - 8) / 2;
+    int label_x = fwd_x + btn_w + 8; /* 64 */
+    int text_y = sy + (ADDR_H - 8) / 2;
     gfx2d_text(label_x, text_y, "URL:", 0x404040, 0);
     char tmp[128];
     int ml = addr_len;
-    if (ml > 127) ml = 127;
+    if (ml > 127)
+        ml = 127;
     int k = 0;
-    while (k < ml) { tmp[k] = addr_buf[k]; k = k + 1; }
+    while (k < ml) {
+        tmp[k] = addr_buf[k];
+        k = k + 1;
+    }
     tmp[ml] = 0;
     int field_x = label_x + 4 * char_w + 4;
     gfx2d_text(field_x, text_y, tmp, 0x000000, 0);
@@ -928,7 +1016,10 @@ void draw_status_bar(int sx, int sy, int sw) {
     }
     char tmp[80];
     int k = 0;
-    while (m[k] && k < 79) { tmp[k] = m[k]; k = k + 1; }
+    while (m[k] && k < 79) {
+        tmp[k] = m[k];
+        k = k + 1;
+    }
     tmp[k] = 0;
     gfx2d_text(sx + 4, sy + 4, tmp, 0x202020, 0);
 }
@@ -938,9 +1029,11 @@ void draw_scrollbar(int sx, int sy) {
     int sb_y = sy;
     int sb_h = viewport_h();
     gfx2d_rect_fill(sb_x, sb_y, 12, sb_h, 0xE0E0E0);
-    if (doc_h <= sb_h) return;
+    if (doc_h <= sb_h)
+        return;
     int thumb_h = (sb_h * sb_h) / doc_h;
-    if (thumb_h < 16) thumb_h = 16;
+    if (thumb_h < 16)
+        thumb_h = 16;
     int max_scroll = doc_h - sb_h;
     int thumb_y = sb_y + ((sb_h - thumb_h) * scroll_y) / max_scroll;
     gfx2d_rect_fill(sb_x + 2, thumb_y, 8, thumb_h, 0x808080);
@@ -961,17 +1054,24 @@ int document_bg() {
     int body_bg = -1;
     for (int n = 0; n < nodes_count; n++) {
         int tag = n_tag[n];
-        if (tag == T_HTML && html_bg < 0) html_bg = cs_bg[n];
-        else if (tag == T_BODY && body_bg < 0) body_bg = cs_bg[n];
+        if (tag == T_HTML && html_bg < 0)
+            html_bg = cs_bg[n];
+        else if (tag == T_BODY && body_bg < 0)
+            body_bg = cs_bg[n];
     }
     doc_bg_suppress_body = 0;
-    if (html_bg >= 0) return html_bg;
-    if (body_bg >= 0) { doc_bg_suppress_body = 1; return body_bg; }
+    if (html_bg >= 0)
+        return html_bg;
+    if (body_bg >= 0) {
+        doc_bg_suppress_body = 1;
+        return body_bg;
+    }
     return page_bg;
 }
 
 void render() {
-    if (gui_win_begin_paint(win) != 0) return;
+    if (gui_win_begin_paint(win) != 0)
+        return;
     /* Drawing inside begin_paint targets the window's offscreen surface
      * which has its own (0,0) origin; do NOT use gui_win_content_x/y
      * here.  Mouse handlers translate screen coords back to surface coords
@@ -986,8 +1086,7 @@ void render() {
      * the full web viewport so a centered body still sits over its
      * propagated page color (CSS canvas-painting rule).*/
     int doc_color = document_bg();
-    gfx2d_rect_fill(cx + viewport_x(), cy + viewport_y(),
-                    cur_cw, viewport_h(), doc_color);
+    gfx2d_rect_fill(cx + viewport_x(), cy + viewport_y(), cur_cw, viewport_h(), doc_color);
 
     /* address bar */
     draw_address_bar(cx, cy, cur_cw);
@@ -999,7 +1098,8 @@ void render() {
     int vy = cy + viewport_y();
     paint_clip_init(vx, vy, cur_cw - 12, viewport_h());
 
-    if (rt_count > 0) paint_rt_node(0);
+    if (rt_count > 0)
+        paint_rt_node(0);
 
     /* Out-of-flow positioned subtrees paint AFTER the in-flow walk, in
      * z-index ascending order (document order as the stable tiebreaker).
@@ -1020,7 +1120,8 @@ void render() {
         }
         rt_oof_list[oj + 1] = key_n;
     }
-    for (oi = 0; oi < oof_n; oi = oi + 1) paint_rt_node(rt_oof_list[oi]);
+    for (oi = 0; oi < oof_n; oi = oi + 1)
+        paint_rt_node(rt_oof_list[oi]);
 
     gfx2d_clip_clear();
 
@@ -1044,7 +1145,8 @@ void error_page(char *msg) {
     page_bg = 0xFFE8E8;
     page_fg = 0x000000;
     doc_h = 40;
-    if (gui_win_begin_paint(win) != 0) return;
+    if (gui_win_begin_paint(win) != 0)
+        return;
     gfx2d_rect_fill(0, 0, cur_cw, cur_ch, page_bg);
     draw_address_bar(0, 0, cur_cw);
     int vx = viewport_x();

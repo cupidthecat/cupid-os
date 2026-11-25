@@ -1,0 +1,35 @@
+/**
+ * @file guest_build.h
+ * @brief Run individual toolchain requests from a guest build.
+ */
+
+#ifndef CUPID_BOOTSTRAP_GUEST_BUILD_H
+#define CUPID_BOOTSTRAP_GUEST_BUILD_H
+
+#include "guest_job.h"
+
+#define CUPID_GUEST_LINK_INPUT_LIMIT 512u
+
+typedef ctool_status_t (*cupid_guest_operation_t)(cupid_syscall_table_t *sys,
+                                                const cupid_guest_request_t *job);
+
+ctool_status_t cupid_guest_compile_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
+ctool_status_t cupid_guest_compile_list(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
+ctool_status_t cupid_guest_link_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
+
+ctool_status_t cupid_guest_symbols_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
+ctool_status_t cupid_guest_object_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
+ctool_status_t cupid_guest_asset_list(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
+ctool_status_t cupid_guest_raw_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
+ctool_status_t cupid_guest_assemble_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
+ctool_status_t cupid_guest_install_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
+const char *cupid_guest_disk_stage_list(cupid_syscall_table_t *sys, const char *option,
+                                       const char *project, char absolute[VFS_MAX_PATH]);
+int cupid_guest_disk_image_extent(cupid_syscall_table_t *sys, const char *option, ctool_u32 *extent);
+ctool_status_t cupid_guest_disk_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
+
+ctool_status_t cupid_guest_create_directory(cupid_syscall_table_t *sys, const char *path);
+ctool_status_t cupid_guest_project_kernel(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
+ctool_status_t cupid_guest_kernel_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
+
+#endif

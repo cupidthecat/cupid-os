@@ -1,5 +1,5 @@
-//help: Test print_int function
-//help: Usage: test_print
+// help: Test print_int function
+// help: Usage: test_print
 
 void main() {
     println("Testing print_int:");

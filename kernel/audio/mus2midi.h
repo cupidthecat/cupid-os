@@ -1,3 +1,8 @@
+/**
+ * @file mus2midi.h
+ * @brief Declare the Doom MUS-to-MIDI converter.
+ */
+
 /* Vendored from https://github.com/chocolate-doom/chocolate-doom
  * (HEAD as of 2026-05-06)
  * License: GPL-2

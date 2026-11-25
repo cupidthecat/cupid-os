@@ -207,5 +207,6 @@ void syscall_init(void);
  * The ELF loader passes this to user programs.
 */
 cupid_syscall_table_t *syscall_get_table(void);
+cupid_syscall_table_t *syscall_get_compiler_table(void);
 
 #endif /* SYSCALL_H */

@@ -1,0 +1,882 @@
+## @file
+#  @brief Generate kernel symbol sources, installation tables, and JPEG objects.
+"""Prepare kernel assets and check the output of the selected producer."""
+
+from __future__ import annotations
+
+import os
+import shutil
+import struct
+import subprocess
+import tempfile
+from pathlib import Path
+
+if __package__:
+    from .bootstrap_toolchain import BootstrapError, run_seed_tool
+else:
+    from bootstrap_toolchain import BootstrapError, run_seed_tool
+
+
+class KsymsGenerationError(RuntimeError):
+    """The kernel symbol source could not be generated safely."""
+
+
+class EmbedJpegError(RuntimeError):
+    """A JPEG asset could not be wrapped safely."""
+
+
+class EmbedJpegCopyError(EmbedJpegError):
+    """A validated JPEG could not be copied to private storage."""
+
+
+class InstallSourceGenerationError(RuntimeError):
+    """An installation table could not be generated safely."""
+
+
+def build_ksyms_blob(symbols: list[tuple[int, str]]) -> bytes:
+    filtered = [(addr, name) for addr, name in symbols if name and not name.startswith(".L")]
+    filtered.sort(key=lambda item: item[0])
+
+    seen: set[int] = set()
+    unique: list[tuple[int, str]] = []
+    for addr, name in filtered:
+        if addr in seen:
+            continue
+        seen.add(addr)
+        unique.append((addr, name))
+
+    strtab = bytearray()
+    offsets: list[int] = []
+    for _, name in unique:
+        offsets.append(len(strtab))
+        strtab.extend(name.encode("utf-8") + b"\0")
+
+    count = len(unique)
+    string_off = 16 + count * 8
+    total_size = string_off + len(strtab)
+    blob = bytearray(struct.pack("<IIII", 0x4D59534B, count, string_off, total_size))
+    for (addr, _), name_off in zip(unique, offsets):
+        blob.extend(struct.pack("<II", addr, name_off))
+    blob.extend(strtab)
+    return bytes(blob)
+
+
+def _pack_ksyms_words(blob: bytes) -> tuple[int, ...]:
+    padding = (-len(blob)) % 4
+    padded = blob + (b"\0" * padding)
+    return tuple(
+        struct.unpack_from("<I", padded, offset)[0]
+        for offset in range(0, len(padded), 4)
+    )
+
+
+def _parse_nm_symbols(output: str) -> list[tuple[int, str]]:
+    symbols: list[tuple[int, str]] = []
+    for line_number, line in enumerate(output.splitlines(), 1):
+        parts = line.split()
+        if not parts:
+            continue
+        if len(parts) == 2:
+            if parts[0] in {"U", "u", "v", "w"}:
+                continue
+            raise KsymsGenerationError(
+                f"symbol reader omitted an address at line {line_number}"
+            )
+        if len(parts) != 3 or len(parts[1]) != 1:
+            raise KsymsGenerationError(
+                f"symbol reader emitted a malformed row at line {line_number}"
+            )
+        addr_s, typ, name = parts
+        try:
+            address = int(addr_s, 16)
+        except ValueError as error:
+            raise KsymsGenerationError(
+                f"symbol reader emitted an invalid address at line {line_number}"
+            ) from error
+        if address < 0 or address > 0xFFFFFFFF:
+            raise KsymsGenerationError(
+                f"symbol reader address is outside i386 at line {line_number}"
+            )
+        if typ in {"t", "T", "w", "W"} and not name.startswith(".L"):
+            symbols.append((address, name))
+    return symbols
+
+
+def _symbols_from_nm(
+    nm: str | tuple[str, ...], elf: Path
+) -> list[tuple[int, str]]:
+    command = (nm,) if isinstance(nm, str) else nm
+    try:
+        proc = subprocess.run(
+            [*command, "-n", str(elf)],
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError as error:
+        details = (error.stderr or "").strip()
+        suffix = f": {details}" if details else ""
+        raise KsymsGenerationError(
+            f"symbol reader failed with status {error.returncode}{suffix}"
+        ) from error
+    except OSError as error:
+        raise KsymsGenerationError(
+            f"symbol reader could not run: {error}"
+        ) from error
+    return _parse_nm_symbols(proc.stdout)
+
+
+def _symbol_text_from_seed(
+    manifest: Path,
+    working_directory: Path,
+    elf: Path,
+) -> str:
+    try:
+        proc = run_seed_tool(
+            manifest,
+            working_directory,
+            "cupiddis",
+            ("-n", elf),
+            timeout=60,
+        )
+    except BootstrapError as error:
+        raise KsymsGenerationError(
+            f"checked CupidDis could not run: {error}"
+        ) from error
+    if proc.returncode != 0:
+        details = (proc.stderr or proc.stdout or "").strip()
+        suffix = f": {details}" if details else ""
+        raise KsymsGenerationError(
+            f"checked CupidDis failed with status "
+            f"{proc.returncode}{suffix}"
+        )
+    return proc.stdout
+
+
+def _render_ksyms_source(blob: bytes) -> bytes:
+    words = _pack_ksyms_words(blob)
+    lines = [
+        "/* Auto-generated by tools/hostbuild.py -- do not edit. */\n",
+        '#include "ksyms.h"\n\n',
+        "/* i386 words preserve the blob bytes with fewer initializers. */\n",
+        "const unsigned int\n",
+        '__attribute__((section(".ksyms"), used, aligned(4)))\n',
+        "ksym_blob[] = {\n",
+    ]
+    for i in range(0, len(words), 8):
+        chunk = words[i : i + 8]
+        lines.append(
+            "  " + " ".join(f"0x{word:08x}u," for word in chunk) + "\n"
+        )
+    lines.extend(
+        (
+            "};\n\n",
+            f"const unsigned int ksym_blob_size = {len(blob)}u;\n",
+        )
+    )
+    return "".join(lines).encode("ascii")
+
+
+def _resolve_symbol_reader(nm: str) -> Path:
+    candidate = Path(nm)
+    if not candidate.exists():
+        found = shutil.which(nm)
+        if found is None:
+            raise KsymsGenerationError(
+                f"symbol reader is unavailable: {nm}"
+            )
+        candidate = Path(found)
+    try:
+        resolved = candidate.resolve(strict=True)
+    except OSError as error:
+        raise KsymsGenerationError(
+            f"symbol reader cannot be resolved: {nm}"
+        ) from error
+    if not resolved.is_file():
+        raise KsymsGenerationError(
+            f"symbol reader is not a file: {resolved}"
+        )
+    return resolved
+
+
+def _read_ksyms_input(path: Path, description: str) -> bytes:
+    try:
+        resolved = path.resolve(strict=True)
+    except OSError as error:
+        raise KsymsGenerationError(
+            f"{description} cannot be resolved: {path}"
+        ) from error
+    if not resolved.is_file():
+        raise KsymsGenerationError(
+            f"{description} is not a file: {resolved}"
+        )
+    try:
+        return resolved.read_bytes()
+    except OSError as error:
+        raise KsymsGenerationError(
+            f"{description} cannot be read: {resolved}: {error}"
+        ) from error
+
+
+def write_ksyms_source(
+    nm: str | None,
+    elf: Path,
+    out: Path,
+    *,
+    seed_manifest: Path | None = None,
+) -> None:
+    if (nm is None) == (seed_manifest is None):
+        raise KsymsGenerationError(
+            "select exactly one symbol reader"
+        )
+    reader = _resolve_symbol_reader(nm) if nm is not None else None
+    try:
+        input_elf = elf.resolve(strict=True)
+        output_parent = out.parent.resolve(strict=True)
+    except OSError as error:
+        raise KsymsGenerationError(
+            f"kernel symbol path cannot be resolved: {error}"
+        ) from error
+    output = output_parent / out.name
+    if not input_elf.is_file():
+        raise KsymsGenerationError(
+            f"pass-one kernel is not a file: {input_elf}"
+        )
+    if output.is_symlink():
+        raise KsymsGenerationError(
+            f"generated symbol output may not be a symlink: {output}"
+        )
+    if output.exists() and not output.is_file():
+        raise KsymsGenerationError(
+            f"generated symbol output is not a file: {output}"
+        )
+    if output == input_elf or (reader is not None and output == reader):
+        raise KsymsGenerationError(
+            "generated symbol output may not replace an input"
+        )
+
+    elf_payload = _read_ksyms_input(input_elf, "pass-one kernel")
+    reader_payload: bytes | None = None
+    reader_mode: int | None = None
+    manifest: Path | None = None
+    manifest_payload: bytes | None = None
+    if reader is not None:
+        reader_payload = _read_ksyms_input(reader, "symbol reader")
+        try:
+            reader_mode = reader.stat().st_mode
+        except OSError as error:
+            raise KsymsGenerationError(
+                f"symbol reader metadata cannot be read: {reader}: {error}"
+            ) from error
+    else:
+        assert seed_manifest is not None
+        try:
+            manifest = seed_manifest.resolve(strict=True)
+        except OSError as error:
+            raise KsymsGenerationError(
+                f"checked seed manifest cannot be resolved: "
+                f"{seed_manifest}: {error}"
+            ) from error
+        if output == manifest:
+            raise KsymsGenerationError(
+                "generated symbol output may not replace an input"
+            )
+        manifest_payload = _read_ksyms_input(
+            manifest, "checked seed manifest"
+        )
+
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix=f".{output.name}.mksyms-",
+            dir=output_parent,
+        ) as temporary:
+            frozen_root = Path(temporary)
+            frozen_elf = frozen_root / "input" / "kernel.elf.pass1"
+            frozen_output = frozen_root / "output" / output.name
+            frozen_elf.parent.mkdir()
+            frozen_output.parent.mkdir()
+            frozen_elf.write_bytes(elf_payload)
+
+            def require_inputs_unchanged() -> None:
+                if (
+                    _read_ksyms_input(input_elf, "pass-one kernel")
+                    != elf_payload
+                    or (
+                        reader is not None
+                        and _read_ksyms_input(reader, "symbol reader")
+                        != reader_payload
+                    )
+                    or (
+                        manifest is not None
+                        and _read_ksyms_input(
+                            manifest, "checked seed manifest"
+                        )
+                        != manifest_payload
+                    )
+                ):
+                    raise KsymsGenerationError(
+                        "kernel symbol inputs changed while generating source"
+                    )
+
+            if reader is not None:
+                frozen_reader = (
+                    frozen_root / "tool" / f"cupiddis{reader.suffix}"
+                )
+                frozen_reader.parent.mkdir()
+                assert reader_payload is not None
+                assert reader_mode is not None
+                frozen_reader.write_bytes(reader_payload)
+                frozen_reader.chmod(reader_mode)
+                symbols = _symbols_from_nm(
+                    str(frozen_reader), frozen_elf
+                )
+                symbol_text = None
+            else:
+                assert manifest is not None
+                symbol_text = _symbol_text_from_seed(
+                    manifest, frozen_root, frozen_elf
+                )
+                symbols = _parse_nm_symbols(symbol_text)
+            if not symbols:
+                raise KsymsGenerationError(
+                    "symbol reader reported no kernel text symbols"
+                )
+            blob = build_ksyms_blob(symbols)
+            expected_source = _render_ksyms_source(blob)
+            if manifest is None:
+                frozen_output.write_bytes(expected_source)
+            else:
+                assert symbol_text is not None
+                frozen_symbols = frozen_root / "input" / "kernel.symbols"
+                frozen_symbols.write_bytes(symbol_text.encode("utf-8"))
+                require_inputs_unchanged()
+                try:
+                    generated = run_seed_tool(
+                        manifest,
+                        frozen_root,
+                        "cupidobj",
+                        (
+                            "ksyms-source",
+                            frozen_symbols,
+                            "-o",
+                            frozen_output,
+                        ),
+                        timeout=60,
+                    )
+                except BootstrapError as error:
+                    raise KsymsGenerationError(
+                        f"checked CupidObj could not run: {error}"
+                    ) from error
+                if generated.returncode != 0:
+                    details = (
+                        generated.stderr or generated.stdout or ""
+                    ).strip()
+                    suffix = f": {details}" if details else ""
+                    raise KsymsGenerationError(
+                        "checked CupidObj failed with status "
+                        f"{generated.returncode}{suffix}"
+                    )
+                if frozen_output.is_symlink() or not frozen_output.is_file():
+                    raise KsymsGenerationError(
+                        "checked CupidObj did not produce a regular source file"
+                    )
+                generated_source = _read_ksyms_input(
+                    frozen_output, "checked CupidObj source"
+                )
+                if generated_source != expected_source:
+                    raise KsymsGenerationError(
+                        "checked CupidObj output differs from the Python oracle"
+                    )
+
+            require_inputs_unchanged()
+            os.replace(frozen_output, output)
+    except KsymsGenerationError:
+        raise
+    except OSError as error:
+        raise KsymsGenerationError(
+            f"generated symbol source could not be published: {error}"
+        ) from error
+    print(f"[hostbuild] mksyms: {out} ({len(blob)} bytes)")
+
+
+def _prepare_baseline_jpeg(src: Path, tmp: Path) -> None:
+    try:
+        payload = src.read_bytes()
+    except OSError as error:
+        raise EmbedJpegError(
+            f"JPEG input cannot be read: {src}: {error}"
+        ) from error
+    if not payload.startswith(b"\xff\xd8"):
+        raise EmbedJpegError("JPEG input has no SOI marker")
+
+    frame_markers = {
+        0xC0,
+        0xC1,
+        0xC2,
+        0xC3,
+        0xC5,
+        0xC6,
+        0xC7,
+        0xC9,
+        0xCA,
+        0xCB,
+        0xCD,
+        0xCE,
+        0xCF,
+    }
+    offset = 2
+    frame_marker: int | None = None
+    saw_scan = False
+    saw_eoi = False
+    while offset < len(payload):
+        if payload[offset] != 0xFF:
+            raise EmbedJpegError(
+                "JPEG marker stream is malformed outside a scan"
+            )
+        while offset < len(payload) and payload[offset] == 0xFF:
+            offset += 1
+        if offset >= len(payload):
+            break
+        marker = payload[offset]
+        offset += 1
+        if marker == 0x00:
+            raise EmbedJpegError(
+                "JPEG marker stream contains stuffed data before a scan"
+            )
+        if marker == 0xD9:
+            saw_eoi = True
+            if offset != len(payload):
+                raise EmbedJpegError(
+                    "JPEG input has trailing bytes after the EOI marker"
+                )
+            break
+        if marker in {0x01, 0xD8} or 0xD0 <= marker <= 0xD7:
+            if marker != 0x01:
+                raise EmbedJpegError(
+                    f"unexpected standalone JPEG marker 0x{marker:02x}"
+                )
+            continue
+        if offset + 2 > len(payload):
+            raise EmbedJpegError("JPEG marker length is truncated")
+        segment_size = int.from_bytes(payload[offset : offset + 2], "big")
+        if segment_size < 2 or offset + segment_size > len(payload):
+            raise EmbedJpegError("JPEG marker length is invalid")
+        if marker in frame_markers:
+            if frame_marker is not None:
+                raise EmbedJpegError(
+                    "JPEG input contains more than one frame header"
+                )
+            if segment_size < 8:
+                raise EmbedJpegError("JPEG frame header is truncated")
+            component_count = payload[offset + 7]
+            if component_count == 0 or segment_size != 8 + 3 * component_count:
+                raise EmbedJpegError(
+                    "JPEG frame header has an invalid component table"
+                )
+            if payload[offset + 2] == 0:
+                raise EmbedJpegError(
+                    "JPEG frame header has an invalid sample precision"
+                )
+            if (
+                int.from_bytes(payload[offset + 3 : offset + 5], "big") == 0
+                or int.from_bytes(payload[offset + 5 : offset + 7], "big")
+                == 0
+            ):
+                raise EmbedJpegError(
+                    "JPEG frame header has an invalid image size"
+                )
+            frame_marker = marker
+        if marker == 0xDA:
+            if frame_marker is None:
+                raise EmbedJpegError(
+                    "JPEG scan appears before its frame header"
+                )
+            if segment_size < 6:
+                raise EmbedJpegError("JPEG scan header is truncated")
+            scan_components = payload[offset + 2]
+            if (
+                scan_components == 0
+                or segment_size != 6 + 2 * scan_components
+            ):
+                raise EmbedJpegError(
+                    "JPEG scan header has an invalid component table"
+                )
+            saw_scan = True
+            offset += segment_size
+            while offset < len(payload):
+                if payload[offset] != 0xFF:
+                    offset += 1
+                    continue
+                marker_offset = offset
+                while offset < len(payload) and payload[offset] == 0xFF:
+                    offset += 1
+                if offset >= len(payload):
+                    raise EmbedJpegError(
+                        "JPEG entropy data ends with a partial marker"
+                    )
+                scan_marker = payload[offset]
+                offset += 1
+                if scan_marker == 0x00 or 0xD0 <= scan_marker <= 0xD7:
+                    continue
+                offset = marker_offset
+                break
+            continue
+        offset += segment_size
+
+    if frame_marker == 0xC2:
+        raise EmbedJpegError(
+            "unsupported progressive JPEG frame; "
+            "check in a baseline SOF0/SOF1 asset"
+        )
+    if frame_marker not in {0xC0, 0xC1}:
+        if frame_marker is None:
+            raise EmbedJpegError(
+                "JPEG input has no supported SOF0/SOF1 frame"
+            )
+        raise EmbedJpegError(
+            f"unsupported JPEG frame marker 0x{frame_marker:02x}; "
+            "check in a baseline SOF0/SOF1 asset"
+        )
+    if not saw_scan:
+        raise EmbedJpegError("JPEG input has no scan")
+    if not saw_eoi:
+        raise EmbedJpegError("JPEG input has no EOI marker")
+    try:
+        tmp.write_bytes(payload)
+    except OSError as error:
+        raise EmbedJpegCopyError(
+            f"checked JPEG copy cannot be written: {tmp}: {error}"
+        ) from error
+    print(f"[hostbuild] JPEG baseline embed {src}")
+
+
+def _embed_jpeg_with_seed(
+    seed_manifest: Path,
+    src: Path,
+    out: Path,
+) -> None:
+    try:
+        manifest = seed_manifest.resolve(strict=True)
+        input_jpeg = src.resolve(strict=True)
+        output_parent = out.parent.resolve(strict=True)
+    except OSError as error:
+        raise EmbedJpegError(
+            f"checked JPEG path cannot be resolved: {error}"
+        ) from error
+    output = output_parent / out.name
+    if output.is_symlink():
+        raise EmbedJpegError(
+            f"embedded JPEG output may not be a symlink: {output}"
+        )
+    if output.exists() and not output.is_file():
+        raise EmbedJpegError(
+            f"embedded JPEG output is not a file: {output}"
+        )
+    if not input_jpeg.is_file():
+        raise EmbedJpegError(
+            f"JPEG input is not a file: {input_jpeg}"
+        )
+    if output in {manifest, input_jpeg}:
+        raise EmbedJpegError(
+            "embedded JPEG output may not replace an input"
+        )
+    try:
+        manifest_payload = manifest.read_bytes()
+        jpeg_payload = input_jpeg.read_bytes()
+    except OSError as error:
+        raise EmbedJpegError(
+            f"checked JPEG input cannot be read: {error}"
+        ) from error
+
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix=f".{output.name}.embed-jpeg-",
+            dir=output_parent,
+        ) as temporary:
+            temporary_root = Path(temporary)
+            frozen_jpeg = temporary_root / "input.jpg"
+            oracle_jpeg = temporary_root / "asset.python-oracle.jpg"
+            wrapped = temporary_root / output.name
+            frozen_jpeg.write_bytes(jpeg_payload)
+            arguments = [
+                "wrap-jpeg",
+                str(frozen_jpeg),
+                "--identity",
+                str(src),
+                "-o",
+                str(wrapped),
+            ]
+            try:
+                proc = run_seed_tool(
+                    manifest,
+                    Path.cwd(),
+                    "cupidobj",
+                    arguments,
+                    timeout=60,
+                )
+            except BootstrapError as error:
+                raise EmbedJpegError(
+                    f"checked CupidObj could not run: {error}"
+                ) from error
+            if proc.returncode != 0:
+                details = (proc.stderr or proc.stdout or "").strip()
+                suffix = f": {details}" if details else ""
+                raise EmbedJpegError(
+                    f"checked CupidObj failed with status "
+                    f"{proc.returncode}{suffix}"
+                )
+            if wrapped.is_symlink() or not wrapped.is_file():
+                raise EmbedJpegError(
+                    "checked CupidObj reported success without a regular "
+                    "object"
+                )
+            try:
+                _prepare_baseline_jpeg(frozen_jpeg, oracle_jpeg)
+            except EmbedJpegCopyError as error:
+                raise EmbedJpegError(
+                    "Python JPEG oracle could not write its private copy: "
+                    f"{error}"
+                ) from error
+            except EmbedJpegError as error:
+                raise EmbedJpegError(
+                    "checked CupidObj JPEG acceptance differs from the "
+                    f"Python oracle: {error}"
+                ) from error
+            if oracle_jpeg.read_bytes() != jpeg_payload:
+                raise EmbedJpegError(
+                    "Python JPEG oracle changed the frozen input bytes"
+                )
+            if (
+                manifest.read_bytes() != manifest_payload
+                or input_jpeg.read_bytes() != jpeg_payload
+            ):
+                raise EmbedJpegError(
+                    "checked JPEG inputs changed while wrapping the object"
+                )
+            os.replace(wrapped, output)
+    except EmbedJpegError:
+        raise
+    except OSError as error:
+        raise EmbedJpegError(
+            f"embedded JPEG object could not be published: {error}"
+        ) from error
+
+
+def embed_jpeg(
+    object_tool: str | None,
+    src: Path,
+    out: Path,
+    *,
+    seed_manifest: Path | None = None,
+) -> None:
+    if (object_tool is None) == (seed_manifest is None):
+        raise EmbedJpegError(
+            "select exactly one JPEG object writer"
+        )
+    if seed_manifest is not None:
+        _embed_jpeg_with_seed(seed_manifest, src, out)
+        return
+
+    assert object_tool is not None
+    tmp = Path(str(out) + ".baseline.jpg")
+    try:
+        _prepare_baseline_jpeg(src, tmp)
+        subprocess.run(
+            [
+                object_tool,
+                "wrap",
+                str(tmp),
+                "--identity",
+                str(src),
+                "-o",
+                str(out),
+            ],
+            check=True,
+        )
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+
+
+def _name_no_ext(path: str | Path) -> str:
+    return Path(path).stem
+
+
+def _c_symbol_part(name: str) -> str:
+    return name.replace("-", "_")
+
+
+def _validate_install_symbols(
+    entries: list[tuple[str, str, str]],
+) -> None:
+    seen: dict[str, list[tuple[str, str]]] = {}
+    for symbol, path, category in entries:
+        for earlier_path, earlier_category in seen.get(symbol, []):
+            shared_docs_asset = (
+                path == earlier_path
+                and {category, earlier_category} == {"doc", "home"}
+            )
+            if not shared_docs_asset:
+                raise InstallSourceGenerationError(
+                    f"{earlier_path} and {path} map to the same binary symbol "
+                    f"{symbol}"
+                )
+        seen.setdefault(symbol, []).append((path, category))
+
+
+def gen_bin_programs(out: Path, bins: list[str], headers: list[str], browser: list[str]) -> None:
+    bin_names = [_name_no_ext(p) for p in bins]
+    hdr_names = [_name_no_ext(p) for p in headers]
+    browser_names = [_name_no_ext(p) for p in browser]
+    _validate_install_symbols(
+        [
+            (f"_binary_bin_{name}_cc", path, "bin")
+            for name, path in zip(bin_names, bins)
+        ]
+        + [
+            (f"_binary_bin_{name}_h", path, "header")
+            for name, path in zip(hdr_names, headers)
+        ]
+        + [
+            (f"_binary_bin_browser_{name}_cc", path, "browser")
+            for name, path in zip(browser_names, browser)
+        ]
+    )
+    lines = [
+        "/* Auto-generated -- do not edit. */",
+        "/* Lists all embedded CupidC programs from bin/ directory */",
+        '#include "ramfs.h"',
+        '#include "types.h"',
+        '#include "../drivers/serial.h"',
+    ]
+    lines += [f"extern const char _binary_bin_{n}_cc_start[];" for n in bin_names]
+    lines += [f"extern const char _binary_bin_{n}_h_start[];" for n in hdr_names]
+    lines += [f"extern const char _binary_bin_{n}_cc_end[];" for n in bin_names]
+    lines += [f"extern const char _binary_bin_{n}_h_end[];" for n in hdr_names]
+    lines += [f"extern const char _binary_bin_browser_{n}_cc_start[];" for n in browser_names]
+    lines += [f"extern const char _binary_bin_browser_{n}_cc_end[];" for n in browser_names]
+    lines += ["void install_bin_programs(void *fs_private);", "void install_bin_programs(void *fs_private) {"]
+    lines += [
+        f'    {{ uint32_t sz = (uint32_t)(_binary_bin_{n}_cc_end - _binary_bin_{n}_cc_start); ramfs_add_file(fs_private, "bin/{n}.cc", _binary_bin_{n}_cc_start, sz); serial_printf("[kernel] Installed /bin/{n}.cc (%u bytes)\\n", sz); }}'
+        for n in bin_names
+    ]
+    lines += [
+        f'    {{ uint32_t sz = (uint32_t)(_binary_bin_{n}_h_end - _binary_bin_{n}_h_start); ramfs_add_file(fs_private, "bin/{n}.h", _binary_bin_{n}_h_start, sz); serial_printf("[kernel] Installed /bin/{n}.h (%u bytes)\\n", sz); }}'
+        for n in hdr_names
+    ]
+    lines += [
+        f'    {{ uint32_t sz = (uint32_t)(_binary_bin_browser_{n}_cc_end - _binary_bin_browser_{n}_cc_start); ramfs_add_file(fs_private, "bin/browser/{n}.cc", _binary_bin_browser_{n}_cc_start, sz); serial_printf("[kernel] Installed /bin/browser/{n}.cc (%u bytes)\\n", sz); }}'
+        for n in browser_names
+    ]
+    lines.append("}")
+    out.write_text("\n".join(lines) + "\n", newline="\n")
+
+
+def gen_docs_programs(out: Path, ctxt: list[str], doc_assets: list[str], home_assets: list[str]) -> None:
+    ctxt_names = [_name_no_ext(p) for p in ctxt]
+    accepted_doc_assets = [
+        path for path in doc_assets if Path(path).suffix.lower() == ".bmp"
+    ]
+    doc_bmps = [_name_no_ext(path) for path in accepted_doc_assets]
+    supported_home_extensions = {"bmp", "png", "jpg", "jpeg"}
+    accepted_home_assets = [
+        path
+        for path in home_assets
+        if Path(path).suffix.lower()[1:] in supported_home_extensions
+    ]
+    home_entries = [
+        (_name_no_ext(path), Path(path).suffix.lower()[1:])
+        for path in accepted_home_assets
+    ]
+    _validate_install_symbols(
+        [
+            (
+                f"_binary_cupidos_txt_{_c_symbol_part(name)}_CTXT",
+                path,
+                "ctxt",
+            )
+            for name, path in zip(ctxt_names, ctxt)
+        ]
+        + [
+            (f"_binary_{_c_symbol_part(name)}_bmp", path, "doc")
+            for name, path in zip(doc_bmps, accepted_doc_assets)
+        ]
+        + [
+            (f"_binary_{_c_symbol_part(name)}_{extension}", path, "home")
+            for (name, extension), path in zip(
+                home_entries, accepted_home_assets
+            )
+        ]
+    )
+    lines = [
+        "/* Auto-generated -- do not edit. */",
+        "/* Lists all embedded CupidDoc files from cupidos-txt/ directory */",
+        '#include "homefs.h"',
+        '#include "ramfs.h"',
+        '#include "types.h"',
+        '#include "vfs.h"',
+        '#include "../drivers/serial.h"',
+    ]
+    lines += [f"extern const char _binary_cupidos_txt_{_c_symbol_part(n)}_CTXT_start[];" for n in ctxt_names]
+    lines += [f"extern const char _binary_{_c_symbol_part(n)}_bmp_start[];" for n in doc_bmps]
+    lines += [f"extern const char _binary_{_c_symbol_part(n)}_{ext}_start[];" for n, ext in home_entries]
+    lines += [f"extern const char _binary_cupidos_txt_{_c_symbol_part(n)}_CTXT_end[];" for n in ctxt_names]
+    lines += [f"extern const char _binary_{_c_symbol_part(n)}_bmp_end[];" for n in doc_bmps]
+    lines += [f"extern const char _binary_{_c_symbol_part(n)}_{ext}_end[];" for n, ext in home_entries]
+    lines += [
+        "static void install_home_asset(const char *path, const char *data, uint32_t size) {",
+        "    int fd = vfs_open(path, O_WRONLY | O_CREAT | O_TRUNC);",
+        '    if (fd < 0) { serial_printf("[kernel] Failed to open %s (%d)\\n", path, fd); return; }',
+        "    uint32_t off = 0;",
+        "    while (off < size) {",
+        "        int n = vfs_write(fd, data + off, size - off);",
+        "        if (n <= 0) break;",
+        "        off += (uint32_t)n;",
+        "    }",
+        "    vfs_close(fd);",
+        '    serial_printf("[kernel] Installed %s (%u bytes)\\n", path, off);',
+        "}",
+        "void install_docs_programs(void *fs_private);",
+        "void install_docs_programs(void *fs_private) {",
+    ]
+    lines += [
+        f'    {{ uint32_t sz = (uint32_t)(_binary_cupidos_txt_{_c_symbol_part(n)}_CTXT_end - _binary_cupidos_txt_{_c_symbol_part(n)}_CTXT_start); ramfs_add_file(fs_private, "docs/{n}.ctxt", _binary_cupidos_txt_{_c_symbol_part(n)}_CTXT_start, sz); serial_printf("[kernel] Installed /docs/{n}.ctxt (%u bytes)\\n", sz); }}'
+        for n in ctxt_names
+    ]
+    lines += [
+        f'    {{ uint32_t sz = (uint32_t)(_binary_{_c_symbol_part(n)}_bmp_end - _binary_{_c_symbol_part(n)}_bmp_start); ramfs_add_file(fs_private, "docs/{n}.bmp", _binary_{_c_symbol_part(n)}_bmp_start, sz); serial_printf("[kernel] Installed /docs/{n}.bmp (%u bytes)\\n", sz); }}'
+        for n in doc_bmps
+    ]
+    lines.append("    homefs_seed_begin();")
+    lines += [
+        f'    {{ uint32_t sz = (uint32_t)(_binary_{_c_symbol_part(n)}_{ext}_end - _binary_{_c_symbol_part(n)}_{ext}_start); install_home_asset("/home/{n}.{ext}", _binary_{_c_symbol_part(n)}_{ext}_start, sz); }}'
+        for n, ext in home_entries
+    ]
+    lines += ["    homefs_seed_end();", "}"]
+    out.write_text("\n".join(lines) + "\n", newline="\n")
+
+
+def gen_demos_programs(out: Path, demos: list[str]) -> None:
+    names = [_name_no_ext(p) for p in demos]
+    _validate_install_symbols(
+        [
+            (f"_binary_demos_{name}_asm", path, "demo")
+            for name, path in zip(names, demos)
+        ]
+    )
+    lines = [
+        "/* Auto-generated -- do not edit. */",
+        "/* Lists all embedded CupidASM demos from demos/ directory */",
+        '#include "ramfs.h"',
+        '#include "types.h"',
+        '#include "../drivers/serial.h"',
+    ]
+    lines += [f"extern const char _binary_demos_{n}_asm_start[];" for n in names]
+    lines += [f"extern const char _binary_demos_{n}_asm_end[];" for n in names]
+    lines += ["void install_demo_programs(void *fs_private);", "void install_demo_programs(void *fs_private) {"]
+    lines += [
+        f'    {{ uint32_t sz = (uint32_t)(_binary_demos_{n}_asm_end - _binary_demos_{n}_asm_start); ramfs_add_file(fs_private, "demos/{n}.asm", _binary_demos_{n}_asm_start, sz); serial_printf("[kernel] Installed /demos/{n}.asm (%u bytes)\\n", sz); ramfs_add_file(fs_private, "docs/demos/{n}.asm", _binary_demos_{n}_asm_start, sz); serial_printf("[kernel] Installed /docs/demos/{n}.asm (%u bytes)\\n", sz); }}'
+        for n in names
+    ]
+    lines.append("}")
+    out.write_text("\n".join(lines) + "\n", newline="\n")

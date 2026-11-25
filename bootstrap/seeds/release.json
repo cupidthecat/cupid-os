@@ -1,0 +1,85 @@
+{
+  "artifacts": [
+    {
+      "format": "elf32",
+      "name": "cupidasm",
+      "sha256": "5e4e0eddd22e4de8fff53f7b3315eec976834e7283e89137c0917534a3cc3ae7",
+      "size": 489664
+    },
+    {
+      "format": "elf32",
+      "name": "cupiddis",
+      "sha256": "63a4c44c6c2df86bf7f10fba3ea8238fc1d3cddfcfc70bb498bb6aa778aae5bc",
+      "size": 518968
+    },
+    {
+      "format": "elf32",
+      "name": "cupidld",
+      "sha256": "54e768fcf371b4a23d522ae889405ed7639256f8f30401171708d02650cb8cb4",
+      "size": 297404
+    },
+    {
+      "format": "elf32",
+      "name": "cupidobj",
+      "sha256": "400b98b20bcee9b670e23bb77e670bdf4727d976aa471693e62ba71a39b36fce",
+      "size": 398284
+    },
+    {
+      "format": "elf32",
+      "name": "cupidc",
+      "sha256": "b828f7c70f0acd3c1f54e9f567ee180073fed2b42446cb737b851b2e7b5ff747",
+      "size": 2557960
+    },
+    {
+      "format": "elf32",
+      "name": "cupidbuild",
+      "sha256": "f2ebbd2a1e1db01cf42dea54f7fd84f25168aa1e6866e3e8b863421bc353bdf5",
+      "size": 1335752
+    },
+    {
+      "format": "pe32",
+      "name": "cupidasm",
+      "sha256": "856079ed600a456d34f8395e992b98f8f90c73e20f14ae6efc3a8d2191e7b9a5",
+      "size": 484352
+    },
+    {
+      "format": "pe32",
+      "name": "cupiddis",
+      "sha256": "81835db09d39ac2d19f07c806535b790d954ebdd30e99b82014cc694dfd8b972",
+      "size": 513536
+    },
+    {
+      "format": "pe32",
+      "name": "cupidld",
+      "sha256": "0c07b2a8d4b206211d06369a7849dadefd9116d36688117bf5464de91bfaa9ff",
+      "size": 300544
+    },
+    {
+      "format": "pe32",
+      "name": "cupidobj",
+      "sha256": "525806f63ab2b2767330d1619eb63843d4e19ce601c9583527791a9d64361703",
+      "size": 394240
+    },
+    {
+      "format": "pe32",
+      "name": "cupidc",
+      "sha256": "8b2bc7ce73ea2e70350cdcd5a5c69e179982fb0247d55b89f364387426b0d5d2",
+      "size": 2499584
+    },
+    {
+      "format": "pe32",
+      "name": "cupidbuild",
+      "sha256": "41a9520ffb01396ec83226e7b8ed7868176725d4fe9304a40f0188d5268178d9",
+      "size": 1317888
+    }
+  ],
+  "linux_plan_sha256": "e58a047f92d21a9ffbae6cc19726477f95ca3a872f1238d9cbab58dae950faaa",
+  "parent_linux_manifest_sha256": "2a60385503b06370f8d1960ac678eb846452f56dbe7bdcb429990fa101f8676e",
+  "parent_source_revision": "2d3fb86fb5aa9241d927f87d538799e6876ee80f",
+  "parent_windows_manifest_sha256": "4b48dfa6349366af05114241641de9accd5f3e54dc9e4ba9b094348f5876bba2",
+  "schema": "cupid.seed-release.v1",
+  "source_input_count": 141,
+  "source_revision": "a4e0760d636afb15908f053b03c1cf14b6bbbcca",
+  "source_snapshot_sha256": "35b6a9a6165315b818f13d3de599b5e2423d8ce37bc4d384bb0652a3bf390407",
+  "windows_plan_sha256": "edf91edb181c104e9762ac7f68c4636b5da153ac43e24f1d4dc941424f96e63c"
+}

@@ -1,6 +1,6 @@
-//help: TempleOS-style random vocabulary output
-//help: Usage: godspeak
-//help: Prints "Cupid says: <random word>" using /god/Vocab.DD.
+// help: TempleOS-style random vocabulary output
+// help: Usage: godspeak
+// help: Prints "Cupid says: <random word>" using /god/Vocab.DD.
 
 #define GS_VOCAB_PATH "/god/Vocab.DD"
 #define GS_BUF_MAX 65535
@@ -17,7 +17,8 @@ void gs_seed_once() {
     if (gs_seed == 0) {
         int t = uptime_ms();
         gs_seed = (U32)(t ^ 0x5EEDC0DE);
-        if (gs_seed == 0) gs_seed = 1;
+        if (gs_seed == 0)
+            gs_seed = 1;
     }
 }
 
@@ -49,8 +50,10 @@ int gs_pick_random_nonempty_line(char *buf, int n, char *out, int out_max) {
         }
     }
 
-    if (pick_start < 0 || pick_len <= 0) return 0;
-    if (pick_len > out_max - 1) pick_len = out_max - 1;
+    if (pick_start < 0 || pick_len <= 0)
+        return 0;
+    if (pick_len > out_max - 1)
+        pick_len = out_max - 1;
 
     i = 0;
     while (i < pick_len) {
