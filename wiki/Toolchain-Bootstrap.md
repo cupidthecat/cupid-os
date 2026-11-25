@@ -28,6 +28,14 @@ Run from the repository root.
 The [ownership audit](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/ACTIVE-SOURCE-AUDIT.md)
 shows which tool produces each part of the current build.
 
+## Prepare a kernel build inside Cupid OS
+
+The guest CupidBuild driver can prepare the kernel requests from the
+checkout's source layout. The layout includes the compiler profiles,
+installation inputs, asset roles, and pass-one link order.
+[CupidBuild](CupidBuild#build-a-kernel-from-an-installed-checkout) shows
+the job files and the terminal command.
+
 ## Freestanding compiler engine
 
 `make -C bootstrap/guest` builds an i386 ELF with the full CupidC compiler

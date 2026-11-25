@@ -64,6 +64,41 @@ The command stages files and WADs, preserves files in a reusable FAT volume,
 and keeps the existing image when its bytes match. The geometry must fit the
 MBR sector count, the FAT16 volume, and the checked CupidObj template.
 
+## Build a kernel from an installed checkout
+
+Put the source tree on HomeFS, including `bootstrap/guest/kernel.layout`.
+Build the guest driver with `make -C bootstrap/guest guest-build` and stage
+`build/guest-engine/cupidbuild-guest.elf` on the boot disk as `/b`.
+
+Write these two lines to the checkout's `cupidbuild.job`.
+
+```text
+project-kernel
+kernel-project.job
+```
+
+Write the layout path on the first line of `kernel-project.job`. Append
+the options you need in this order.
+
+```text
+bootstrap/guest/kernel.layout
+objects tmp
+image 200
+stage disk-assets
+```
+
+From the Cupid OS terminal, enter the checkout and run `exec /disk/b`.
+CupidBuild reads the checked compiler options and ordered source list,
+then assembles, compiles, and links the kernel. It creates `build` if
+needed. Omit `objects tmp` to save intermediate objects there. Omit
+`image` and `stage` to save `build/disk-prefix.img`. With `image 200`, the
+complete result is `build/cupidos.img`.
+
+The checkout needs the kernel sources, headers, assembly, and assets
+named by the layout and their includes. The build uses the bootloader
+and linker script from the same checkout. The section below describes
+the optional FAT16 staging file.
+
 ## Build a disk inside Cupid OS
 
 A guest kernel job can write a complete bootable disk to HomeFS. Put

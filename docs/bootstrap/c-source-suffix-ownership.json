@@ -159,6 +159,7 @@
     "bootstrap/guest/cupidasm_guest.cc": "not_reached",
     "bootstrap/guest/cupidbuild_guest.cc": "not_reached",
     "bootstrap/guest/cupidbuild_kernel.cc": "not_reached",
+    "bootstrap/guest/cupidbuild_project.cc": "not_reached",
     "bootstrap/guest/cupidc_bundle.cc": "not_reached",
     "bootstrap/guest/cupidc_engine.cc": "not_reached",
     "bootstrap/guest/cupidc_guest.cc": "not_reached",

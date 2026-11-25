@@ -40,7 +40,7 @@ PEERS = {
     "cupidbuild": (
         *COMPILER_SOURCES,
         "toolchain/cupidld.cc", "bootstrap/guest/cupidld_guest.cc", "bootstrap/guest/cupidbuild_guest.cc",
-        "bootstrap/guest/cupidbuild_kernel.cc",
+        "bootstrap/guest/cupidbuild_kernel.cc", "bootstrap/guest/cupidbuild_project.cc",
         "toolchain/cupidasm.cc", "toolchain/cupiddis.cc", "bootstrap/guest/cupidasm_guest.cc",
         "bootstrap/guest/guest_raw_assembly.cc", "bootstrap/guest/cupidinstall_guest.cc",
         "bootstrap/guest/cupidksyms_guest.cc", "bootstrap/guest/cupidobj_guest.cc",

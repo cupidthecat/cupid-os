@@ -14,15 +14,21 @@ Cupid OS remains unfinished.
 - Both installed seeds come from the same 124-file source snapshot. Cold
   builds on Windows and WSL produced matching disk images and user programs.
 - Cupid OS rebuilt and ran CupidC, CupidASM with CupidDis, CupidLD, CupidObj,
-  and CupidBuild inside the guest. A 19-request plan rebuilt all 431 linked
-  kernel objects, including Doom and the generated symbol table. It ran
-  both links and wrote a disk prefix. The read-only ISO replay and the
+  and CupidBuild inside the guest. A 19-request plan rebuilt 431 pass-one
+  objects, including Doom. It generated the symbol object between the two
+  links and wrote a disk prefix. The read-only ISO replay and the
   editable HomeFS replay each produced eleven matching outputs. Their
   rebuilt disks booted with four CPUs and ran `ls`.
   The guest disk worker also saved a complete 200 MiB image with the
   checked ISO and Freedoom WAD. It matched the hosted reference, reopened
   after reboot, and booted on four CPUs. The working HomeFS container used
   40,792,903 bytes on FAT16.
+- An installed checkout can use `project-kernel` to prepare its kernel
+  requests in CupidBuild. The checked layout lists 431 objects in link
+  order and carries the compiler profiles and installation inputs.
+  A four-CPU guest verified the path with a kernel fixture and staged
+  32 MiB image. The [guest build record](FREESTANDING-COMPILER-ENGINE.md#prepare-kernel-requests-in-cupidbuild)
+  gives the setup and replay command.
 - A separate guest plan built `cat`, `hello` and `ls` in one command. Each
   program ran from HomeFS. Linux or WSL still prepares the plans and
   media for these checks. The [guest build record](FREESTANDING-COMPILER-ENGINE.md)

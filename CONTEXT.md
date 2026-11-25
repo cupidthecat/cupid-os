@@ -66,6 +66,12 @@ The `cupidbuild.job` in the shell's current directory. CupidBuild resolves
 relative paths against that directory before running the plan. A `mkdir`
 step creates a project-relative directory for later outputs.
 
+**Guest kernel layout**:
+The checkout file that gives CupidBuild the kernel's source roles, compiler
+options, installation lists, and pass-one link order. The `project-kernel`
+step uses it to create worker requests and keeps the kernel products under
+the project's `build` directory.
+
 **Source cohort**:
 A related group of active sources migrated and verified under one tool-ownership and behavior gate.
 _Avoid_: directory (a cohort may cross directories), individual file count

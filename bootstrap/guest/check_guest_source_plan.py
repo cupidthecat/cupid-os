@@ -34,6 +34,7 @@ MEDIA_BUILD = "cupidbuild-media.elf"
 INSTALLED_ROOT = "/home/project"
 INSTALLED_BUILD_NAME = "build"
 INSTALLED_BUILD = f"{INSTALLED_ROOT}/{INSTALLED_BUILD_NAME}"
+PROJECT_LAYOUT = Path("bootstrap/guest/kernel.layout")
 BUILD_STEP_LIMIT = 512
 OBJECT_LIST_LIMIT = 256
 INSTALL_INCLUDE_OPTIONS = ("include /src/kernel", "include /src/kernel/core", "include /src/kernel/fs")
@@ -201,14 +202,61 @@ def source_plan(root: Path, temporary_objects: bool, *, installed_tree: bool = F
     return tuple(steps), inputs, references
 
 
+def project_layout(root: Path) -> bytes:
+    """Check the native layout against the current production recipes."""
+    objects = production_objects(root)[:-1]
+    roles = {}
+    lines = ["cupid-kernel 1"]
+
+    for source, request in installation_jobs(root).items():
+        _, kind, *options = request.decode("ascii").splitlines()
+        roles[object_name(source)] = (kind, source)
+        lines.extend((kind, *options, "end"))
+    for profile in dict.fromkeys(SOURCE_PROFILES.values()):
+        lines.extend((profile, *profile_options(profile), "end"))
+    for source, profile in SOURCE_PROFILES.items():
+        if object_name(source) in objects:
+            roles[object_name(source)] = (profile, source)
+    for source in ASSEMBLY_SOURCES.values():
+        roles[object_name(source)] = ("assemble", source)
+    roles[TRAMPOLINE_OBJECT] = ("trampoline", RAW_PRODUCTS["smp-trampoline"][0])
+    roles.update((obj, (mode, source)) for obj, (source, mode) in production_assets(root).items())
+
+    if set(roles) != set(objects) or len(set(objects)) != len(objects):
+        raise ValueError("the layout and production pass-one objects differ")
+    lines.append("objects")
+    for obj in objects:
+        role, source = roles[obj]
+        lines.append(f"{role} /{source}")
+    return job_contents(*lines)
+
+
+def native_plan_files(root: Path, *, temporary_objects: bool, image_mib: int | None,
+                      stage_assets: bool) -> dict[Path, bytes]:
+    layout = (root / PROJECT_LAYOUT).read_bytes()
+    if layout != project_layout(root):
+        raise ValueError("kernel layout differs from production. Run --write-project-layout and review the changes.")
+    options = ("objects tmp",) if temporary_objects else ()
+    return {
+        PROJECT_LAYOUT: layout,
+        Path("cupidbuild.job"): job_contents("project-kernel", "kernel-project.job"),
+        Path("kernel-project.job"): job_contents(PROJECT_LAYOUT.as_posix(), *options,
+                                                *image_options(image_mib, stage_assets)),
+    }
+
+
 def stage_installed_tree(scratch: Path, root: Path, image: Path,
                          steps: tuple[tuple[str, bytes, bytes], ...],
-                         sources: Collection[Path], *staged: str, image_assets: tuple[StageFile, ...] = ()) -> None:
-    if len(steps) >= BUILD_STEP_LIMIT:
-        raise ValueError(f"{len(steps) + 1} steps exceed the guest plan limit")
-    plan = media_plan_files(steps, request_root=b"jobs/")
-    manifest = Path("cupidbuild.job")
-    plan[manifest] = job_contents("mkdir", INSTALLED_BUILD_NAME) + plan[manifest]
+                         sources: Collection[Path], *staged: str, image_assets: tuple[StageFile, ...] = (),
+                         native_plan: dict[Path, bytes] | None = None) -> None:
+    if native_plan is None:
+        if len(steps) >= BUILD_STEP_LIMIT:
+            raise ValueError(f"{len(steps) + 1} steps exceed the guest plan limit")
+        plan = media_plan_files(steps, request_root=b"jobs/")
+        manifest = Path("cupidbuild.job")
+        plan[manifest] = job_contents("mkdir", INSTALLED_BUILD_NAME) + plan[manifest]
+    else:
+        plan = native_plan
     project = INSTALLED_ROOT.removeprefix("/home/")
     files = [(f"{project}/{path.as_posix()}".encode("ascii"), contents)
              for path, contents in plan.items()]
@@ -258,13 +306,19 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float, temporary_object
 
 
 def check_installed(scratch: Path, root: Path, qemu: str, timeout: float, temporary_objects: bool,
-                    *, image_mib: int | None = None, image_assets: tuple[StageFile, ...] = ()) -> None:
+                    *, image_mib: int | None = None, image_assets: tuple[StageFile, ...] = (),
+                    native_project: bool = False) -> None:
     steps, inputs, references = source_plan(root, temporary_objects, installed_tree=True, image_mib=image_mib,
                                             stage_assets=bool(image_assets))
     sources = {(base / member).relative_to(root) for base, members in inputs for member in members
                if not (base / member).is_dir()}
     image = scratch / "build.img"
-    stage_installed_tree(scratch, root, image, steps, sources, image_assets=image_assets)
+    native_plan = native_plan_files(root, temporary_objects=temporary_objects, image_mib=image_mib,
+                                    stage_assets=bool(image_assets)) if native_project else None
+    if native_plan is not None:
+        print(f"Staging the checked kernel layout from {PROJECT_LAYOUT}; CupidBuild will prepare the requests.")
+    stage_installed_tree(scratch, root, image, steps, sources, image_assets=image_assets,
+                         native_plan=native_plan)
     execute_kernel_plan(scratch, root, image, qemu, timeout, references,
                         project_directory=INSTALLED_ROOT, output_directory=INSTALLED_BUILD,
                         image_mib=image_mib, image_assets=image_assets)
@@ -319,25 +373,45 @@ if __name__ == "__main__":
                       help="keep intermediate link objects in RAMFS")
     mode.add_argument("--link-only", action="store_true",
                       help="stage checked pass-one objects and run the guest kernel job")
+    mode.add_argument("--check-project-layout", action="store_true",
+                      help="check the installed kernel layout against the production recipes")
+    mode.add_argument("--write-project-layout", action="store_true",
+                      help="refresh the checked kernel layout from the production recipes")
+    parser.add_argument("--native-project", action="store_true",
+                        help="prepare kernel requests in CupidBuild from the checked layout")
     parser.add_argument("--installed-tree", action="store_true",
                         help="put the project and build plan in HomeFS")
     parser.add_argument("--image-mib", type=int, help="build a complete disk in the installed project")
     parser.add_argument("--stage-iso", action="store_true", help="stage the checked hello.iso")
+    parser.add_argument("--stage-wad", type=Path, help="stage a Freedoom WAD at /wads/freedoom1.wad")
     parser.add_argument("--qemu", default="qemu-system-i386")
     parser.add_argument("--timeout", type=float, default=14400)
     args = parser.parse_args()
+    if args.native_project and (not args.installed_tree or args.link_only):
+        parser.error("--native-project requires an installed source rebuild")
     if args.image_mib is not None and not args.installed_tree:
         parser.error("--image-mib requires --installed-tree")
-    if args.stage_iso and args.image_mib is None:
-        parser.error("--stage-iso requires --image-mib")
+    if (args.stage_iso or args.stage_wad) and args.image_mib is None:
+        parser.error("--stage-iso and --stage-wad require --image-mib")
+    root = args.production_root.resolve()
+    if args.write_project_layout or args.check_project_layout:
+        expected = project_layout(root)
+        layout = root / PROJECT_LAYOUT
+        if args.write_project_layout:
+            layout.write_bytes(expected)
+        elif layout.read_bytes() != expected:
+            parser.error(f"{PROJECT_LAYOUT} differs from production. Run --write-project-layout and review the changes.")
+        print(f"{PROJECT_LAYOUT} matches the production recipes.")
+        raise SystemExit(0)
     with tempfile.TemporaryDirectory(prefix="cupid-kernel-source-plan-") as temporary:
-        root = args.production_root.resolve()
         image_assets = (StageFile(root / "test_iso/hello.iso", "/hello.iso"),) if args.stage_iso else ()
+        if args.stage_wad:
+            image_assets += (StageFile(args.stage_wad.resolve(strict=True), "/wads/freedoom1.wad"),)
         if args.link_only:
             check_kernel_job(Path(temporary), root, args.qemu, args.timeout,
                              installed_tree=args.installed_tree, image_mib=args.image_mib, image_assets=image_assets)
         elif args.installed_tree:
             check_installed(Path(temporary), root, args.qemu, args.timeout, args.temporary_objects,
-                            image_mib=args.image_mib, image_assets=image_assets)
+                            image_mib=args.image_mib, image_assets=image_assets, native_project=args.native_project)
         else:
             check(Path(temporary), root, args.qemu, args.timeout, args.temporary_objects)

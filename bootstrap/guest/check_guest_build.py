@@ -9,7 +9,9 @@ import subprocess
 import sys
 import tempfile
 
-from check_guest_runtime import BUILD, ROOT, SEED_MANIFEST
+from check_guest_disk_runtime import write_reference_disk
+from check_guest_runtime import BUILD, FAT_START_LBA, ROOT, SEED_MANIFEST
+from tools.hostbuild_disk import StageFile, stage_files
 
 PLAN = b"compile\n/home/hello.cj\nlink\n/home/hello.lj\n"
 COMPILE = b"/user/examples/hello.cc\n/home/hello.o\ninclude /user\n"
@@ -127,6 +129,94 @@ def check_object_lists(scratch, command, reference_object, invoke):
         invoke(b"[cupidbuild-guest] build complete")
         assert all(path.read_bytes() == reference_object.read_bytes() for path in outputs)
     project_plan.unlink()
+
+
+def check_project_kernel(scratch, invoke):
+    project = scratch / "home/project"
+    plan = project / "cupidbuild.job"
+    job = project / "kernel.job"
+    layout = project / "kernel.layout"
+    build = project / "build"
+    plan.write_bytes(b"project-kernel\nkernel.job\n")
+    job.write_bytes(b"kernel.layout\n")
+    boot = build / "boot.bin"
+    previous = b"preceding project bootloader"
+    assert boot.read_bytes() == previous
+
+    head = (b"cupid-kernel 1\nbin\nend\ndocs\nend\ndemos\nend\n"
+            b"kernel\ndefine PROJECT_ENTRY=1\nend\ndoom-compat\nend\ndoom-tree\nend\nobjects\n")
+    objects = b"kernel /entry.cc\nwrap-text /note.txt\nassemble /assembly.asm\n"
+    for invalid in (
+        head.replace(b"cupid-kernel 1", b"cupid-kernel 2") + objects,
+        head.replace(b"define ", b"sources\ndefine ") + objects,
+        head + objects + b"unknown /extra.cc\n",
+        head + objects + b"kernel /dir/../outside.cc\n",
+        head + objects + b"doom-tree /entry.cc\n",
+        head + objects + b"bin /generated.cc\n",
+        head + objects + b"kernel /" + b"x" * 510 + b"\n",
+        head + b"".join(f"kernel /s{index}.cc\n".encode() for index in range(512)),
+    ):
+        layout.write_bytes(invalid)
+        log = invoke(b"invalid project kernel layout")
+        assert b"wrote " not in log and boot.read_bytes() == previous
+
+    layout.write_bytes(head + objects)
+    for invalid in (b"/home/project/kernel.layout\n", b"../kernel.layout\n",
+                    b"kernel.layout\nobjects disk\n", b"kernel.layout\nimage 2048\n",
+                    b"kernel.layout\nimage 200\nstage ../assets\n",
+                    b"kernel.layout\nimage 200\nstage assets\nobjects tmp\n"):
+        job.write_bytes(invalid)
+        log = invoke(b"invalid project kernel settings")
+        assert b"wrote " not in log and boot.read_bytes() == previous
+
+    job.write_bytes(b"kernel.layout\n")
+    plan.write_bytes(b"project-kernel\n/home/project/kernel.job\n")
+    invoke(b"invalid request file: /home/project/cupidbuild.job")
+    media = scratch / "plan/cupidbuild.job"
+    media.write_bytes(b"project-kernel\n/plan/jobs/kernel.job\n")
+    invoke(b"invalid request file: /plan/cupidbuild.job", "--media")
+    plan.write_bytes(b"project-kernel\nkernel.job\n")
+    for name in ("boot/boot.asm", "link.ld", "kernel/cpu/ksyms.h", "kernel/core/types.h"):
+        path = project / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes((ROOT / name).read_bytes())
+    (project / "entry.cc").write_bytes(
+        b"#if PROJECT_ENTRY != 1\n#error Missing project profile\n#endif\nvoid _start(void) {}\n")
+    (project / "note.txt").write_bytes(b"Project layout\r\n")
+    shutil.copyfile(scratch / "input.asm", project / "assembly.asm")
+
+    log = invoke(b"[cupidbuild-guest] build complete")
+    assert b"wrote /home/project/build/i002.o" in log and b"wrote /home/project/build/i000.o" in log
+    loader = boot.read_bytes()
+    kernel = (build / "kernel.bin").read_bytes()
+    image = (build / "disk-prefix.img").read_bytes()
+    assert image[:446] == loader[:446] and image[510:512] == b"\x55\xaa"
+    assert image[512:len(loader)] == loader[512:]
+    assert image[len(loader):len(loader) + len(kernel)] == kernel
+    files = ("i000.o", "i001.o", "i002.o", "pass1.elf", "kernel.elf", "kernel.bin", "disk-prefix.img")
+    expected = {name: (build / name).read_bytes() for name in files}
+
+    job.write_bytes(b"kernel.layout\nobjects tmp\n")
+    invoke(b"[cupidbuild-guest] build complete")
+    assert all((scratch / "tmp" / name).read_bytes() == expected[name] for name in files[:3])
+    assert all((build / name).read_bytes() == expected[name] for name in files[3:])
+
+    (project / "disk-assets").write_bytes(b"note.txt\n/notes.txt\n")
+    job.write_bytes(b"kernel.layout\nobjects tmp\nimage 32\nstage disk-assets\n")
+    invoke(b"[cupidbuild-guest] build complete")
+    reference = scratch / "checked-project.img"
+    write_reference_disk(reference, boot, build / "kernel.bin", 32)
+    stage_files(reference, FAT_START_LBA, [StageFile(project / "note.txt", "/notes.txt")])
+    published = build / "cupidos.img"
+    image = reference.read_bytes()
+    assert published.read_bytes() == image
+
+    layout.write_bytes(head + objects.replace(b"entry.cc", b"missing.cc"))
+    log = invoke(b"[cupidbuild-guest] stopped at /home/project/kernel.job")
+    assert b"list stopped at /missing.cc" in log and b"build complete" not in log
+    assert all((build / name).read_bytes() == expected[name] for name in files[3:])
+    assert published.read_bytes() == image
+    print("CupidBuild planned the same kernel from HomeFS and RAMFS objects and staged a checked disk.")
 
 
 def check(scratch: Path) -> None:
@@ -377,6 +467,7 @@ def check(scratch: Path) -> None:
         assert local_object.read_bytes() == reference_assembly.read_bytes()
     assert (home / "assembled.o").read_bytes() == b"previous HomeFS output"
     print("Guest builds matched checked outputs from HomeFS and source-media plans.")
+    check_project_kernel(scratch, invoke)
 
 
 if __name__ == "__main__":

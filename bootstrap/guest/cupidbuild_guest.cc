@@ -24,8 +24,7 @@ typedef struct {
     build_step_t steps[BUILD_STEP_LIMIT];
 } build_plan_t;
 
-static ctool_status_t create_directory(cupid_syscall_table_t *sys, const cupid_guest_request_t *step) {
-    const char *path = step->path;
+ctool_status_t cupid_guest_create_directory(cupid_syscall_table_t *sys, const char *path) {
     if (!sys->vfs_mkdir || !sys->vfs_stat)
         return CTOOL_ERR_UNSUPPORTED;
     if (sys->vfs_mkdir(path) == 0)
@@ -34,6 +33,10 @@ static ctool_status_t create_directory(cupid_syscall_table_t *sys, const cupid_g
     if (sys->vfs_stat(path, &information) == 0 && information.type == VFS_TYPE_DIR)
         return CTOOL_OK;
     return CTOOL_ERR_IO;
+}
+
+static ctool_status_t create_directory(cupid_syscall_table_t *sys, const cupid_guest_request_t *step) {
+    return cupid_guest_create_directory(sys, step->path);
 }
 
 static cupid_guest_operation_t find_operation(const char *name) {
@@ -53,6 +56,7 @@ static cupid_guest_operation_t find_operation(const char *name) {
         {"install", cupid_guest_install_job},
         {"disk", cupid_guest_disk_job},
         {"kernel", cupid_guest_kernel_job},
+        {"project-kernel", cupid_guest_project_kernel},
     };
     for (ctool_u32 index = 0; index < sizeof(operations) / sizeof(operations[0]); index++) {
         if (strcmp(name, operations[index].name) == 0)
@@ -87,7 +91,9 @@ static ctool_u32 read_plan(cupid_syscall_table_t *sys, int size, const char *req
             return 0u;
 
         cupid_guest_operation_t run = find_operation(operation);
-        if (!run || (run == create_directory && (!directory || name[0] == '/')))
+        if (!run)
+            return 0u;
+        if ((run == create_directory || run == cupid_guest_project_kernel) && (!directory || name[0] == '/'))
             return 0u;
         plan->steps[count++] = (build_step_t){run, name};
     }

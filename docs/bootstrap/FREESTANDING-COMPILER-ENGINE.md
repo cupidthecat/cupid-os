@@ -828,6 +828,54 @@ It booted with four CPUs and ran `ls`. The intermediate objects disappear
 at shutdown. Preparing the source media and build plan still uses Linux
 or WSL.
 
+## Prepare kernel requests in CupidBuild
+
+`project-kernel` reads the installed checkout's checked
+`bootstrap/guest/kernel.layout`. The layout records the installation
+lists, compiler options, source roles, and pass-one link order. It has
+431 object records. CupidBuild makes an in-memory request for each worker
+or batch, creates `build`, and calls the existing two-link kernel job.
+Source paths inside the compiler keep their checkout-relative spelling.
+
+Set up the checked guest driver and two project job files as described in
+[TOOLS.CTXT](../../bootstrap/guest/TOOLS.CTXT). The native replay stages
+the source closure, the layout, the settings, and the driver. It computes
+the expected outputs independently from the supported host graph.
+
+```sh
+make -C bootstrap/guest check-guest-build check-project-layout
+python3 bootstrap/guest/check_guest_source_plan.py --native-project \
+  --installed-tree --temporary-objects --image-mib 200 --stage-iso \
+  --stage-wad third_party/freedoom/0.13.0/freedoom1.wad
+```
+
+Run `python3 bootstrap/guest/check_guest_source_plan.py --write-project-layout`
+after changing the supported kernel build inputs and review the result.
+`check-project-layout` compares the checked layout with the current Make
+object order, installation recipes, asset jobs, and compiler profiles.
+
+The Linux syscall fixture built a kernel with a built-in compiler profile,
+a text asset, and an ELF assembly object. HomeFS and RAMFS intermediates
+produced matching objects, links, and disk prefixes. The fixture also
+compares the complete 32 MiB image with a checked FAT16 layout and a
+staged text file. The fixture rejects
+unknown roles, repeated paths, traversal, unsupported versions, oversized
+lists, invalid image settings, and project-only requests on read-only
+media. A failed compile keeps the existing kernel and disk output.
+
+A four-CPU boot ran the project job from HomeFS and published a staged
+32 MiB image. All seven saved products matched the Linux fixture. The
+image SHA-256 was
+`d3aaef0e7005e9647009a6e0411c5ee8924dab37d1fd4abeea7d8121e986d020`.
+The checked Windows and WSL hosted compilers produced identical bytes
+for both changed CupidBuild objects. The source ISO check read back
+67 files and seven directories.
+
+The first fixture run found that the project worker needed its own syscall
+table initialization before it called the `cupid.h` string functions.
+The disk check also accounts for the partition table that CupidObj writes
+over the boot sector's reserved bytes.
+
 ## Retained proof
 
 The module SHA-256 is

@@ -1,0 +1,715 @@
+cupid-kernel 1
+bin
+--bin
+/bin/audiotest.cc
+/bin/auto.cc
+/bin/bgstudio.cc
+/bin/bible.cc
+/bin/bmptest.cc
+/bin/browser.cc
+/bin/cachestats.cc
+/bin/cat.cc
+/bin/cd.cc
+/bin/clear.cc
+/bin/cp.cc
+/bin/crashtest.cc
+/bin/ctxt.cc
+/bin/cupidc_test1.cc
+/bin/cupidc_test2.cc
+/bin/cupidc_test3.cc
+/bin/cupidc_test4.cc
+/bin/cupidc_test5.cc
+/bin/cupidfetch.cc
+/bin/curl.cc
+/bin/date.cc
+/bin/dglibc_test.cc
+/bin/doom.cc
+/bin/echo.cc
+/bin/ed.cc
+/bin/feature10_repl.cc
+/bin/feature11_ternary.cc
+/bin/feature12_float.cc
+/bin/feature13_derived_aot.cc
+/bin/feature13_double.cc
+/bin/feature14_simd.cc
+/bin/feature15_libm.cc
+/bin/feature16_asm_fpu.cc
+/bin/feature17_iso.cc
+/bin/feature18_swap.cc
+/bin/feature19_usb.cc
+/bin/feature1_types.cc
+/bin/feature20_smp.cc
+/bin/feature21_net.cc
+/bin/feature22_net_server.cc
+/bin/feature23_full_access.cc
+/bin/feature24_widetypes.cc
+/bin/feature25.cc
+/bin/feature2_top_level.cc
+/bin/feature3_class.cc
+/bin/feature4_forward_calls.cc
+/bin/feature5_print_builtin.cc
+/bin/feature6_exe.cc
+/bin/feature7_new_del.cc
+/bin/feature8_reg_noreg.cc
+/bin/feature9_abs_addr.cc
+/bin/find.cc
+/bin/fm.cc
+/bin/fontswitch.cc
+/bin/fp_drill.cc
+/bin/gfxdemo.cc
+/bin/gfxgui_test.cc
+/bin/gfxhandoff_exit.cc
+/bin/gfxhandoff_kill.cc
+/bin/gfxtest.cc
+/bin/godsong.cc
+/bin/godspeak.cc
+/bin/grep.cc
+/bin/head.cc
+/bin/help.cc
+/bin/history.cc
+/bin/kbdsub_test.cc
+/bin/kill.cc
+/bin/logdump.cc
+/bin/loglevel.cc
+/bin/ls.cc
+/bin/memcheck.cc
+/bin/memdump.cc
+/bin/memleak.cc
+/bin/memstats.cc
+/bin/mkdir.cc
+/bin/mount.cc
+/bin/mv.cc
+/bin/notepad.cc
+/bin/oracle.cc
+/bin/paint.cc
+/bin/printc.cc
+/bin/ps.cc
+/bin/pwd.cc
+/bin/reboot.cc
+/bin/registers.cc
+/bin/resetcolor.cc
+/bin/rm.cc
+/bin/rmdir.cc
+/bin/setcolor.cc
+/bin/sort.cc
+/bin/spawn.cc
+/bin/ssh.cc
+/bin/stacktrace.cc
+/bin/sync.cc
+/bin/sysinfo.cc
+/bin/tail.cc
+/bin/telnet.cc
+/bin/terminal.cc
+/bin/test.cc
+/bin/test_fpaug.cc
+/bin/test_print.cc
+/bin/time.cc
+/bin/touch.cc
+/bin/volume.cc
+/bin/wc.cc
+/bin/wget.cc
+/bin/yield.cc
+--headers
+/bin/fat16.h
+/bin/shell.h
+/bin/ssh_channel.h
+--browser
+/bin/browser/css.cc
+/bin/browser/dom.cc
+/bin/browser/font_face.cc
+/bin/browser/image.cc
+/bin/browser/input.cc
+/bin/browser/js_dom.cc
+/bin/browser/js_interp.cc
+/bin/browser/js_lex.cc
+/bin/browser/js_parse.cc
+/bin/browser/layout.cc
+/bin/browser/main.cc
+/bin/browser/nav.cc
+/bin/browser/net.cc
+/bin/browser/paint.cc
+/bin/browser/parser.cc
+/bin/browser/render_tree.cc
+/bin/browser/style.cc
+/bin/browser/style_cascade.cc
+/bin/browser/style_properties.cc
+/bin/browser/url.cc
+/bin/browser/url_hash.cc
+/bin/browser/util.cc
+/bin/browser/woff.cc
+/bin/browser/woff2.cc
+end
+docs
+--ctxt
+/cupidos-txt/00INDEX.CTXT
+/cupidos-txt/01SHELL.CTXT
+/cupidos-txt/02FILESYS.CTXT
+/cupidos-txt/03CUPIDSC.CTXT
+/cupidos-txt/04CUPIDC.CTXT
+/cupidos-txt/05ELFPROG.CTXT
+/cupidos-txt/06GUITERM.CTXT
+/cupidos-txt/07LABS.CTXT
+/cupidos-txt/08CMDS.CTXT
+/cupidos-txt/09EMBED.CTXT
+/cupidos-txt/10ASM.CTXT
+/cupidos-txt/11CTXT.CTXT
+/cupidos-txt/12HOLYC-CUPIDC.CTXT
+/cupidos-txt/13USB.CTXT
+/cupidos-txt/14FPU-SSE.CTXT
+/cupidos-txt/15ISO9660.CTXT
+/cupidos-txt/16SWAP.CTXT
+/cupidos-txt/17SMP.CTXT
+/cupidos-txt/18NET.CTXT
+--doc-assets
+/image.bmp
+--home-assets
+/image.bmp
+/snail.bmp
+/test.png
+/file_example_JPG_1MB.jpg
+end
+demos
+--demos
+/demos/asm_compat_reserve.asm
+/demos/bubblesort.asm
+/demos/data.asm
+/demos/factorial.asm
+/demos/fibonacci.asm
+/demos/fpu_kernel.asm
+/demos/fs_syscalls.asm
+/demos/hello.asm
+/demos/include_feature.asm
+/demos/include_helper.asm
+/demos/jcc_aliases.asm
+/demos/loop.asm
+/demos/math.asm
+/demos/parity_core.asm
+/demos/parity_diag.asm
+/demos/parity_gfx2d.asm
+/demos/parity_priv.asm
+/demos/reserve_directives.asm
+/demos/simd_blur.asm
+/demos/stack.asm
+/demos/syscall_table_demo.asm
+/demos/syscall_vfs_extended_demo.asm
+end
+kernel
+define __GNUC__=1
+define __ORDER_LITTLE_ENDIAN__=1234
+define __ORDER_BIG_ENDIAN__=4321
+define __ORDER_PDP_ENDIAN__=3412
+define __BYTE_ORDER__=__ORDER_LITTLE_ENDIAN__
+define __SSE2__=1
+define DEBUG=1
+include /kernel
+include /kernel/audio
+include /kernel/core
+include /kernel/cpu
+include /kernel/crypto
+include /kernel/doom
+include /kernel/fs
+include /kernel/gfx
+include /kernel/gui
+include /kernel/lang
+include /kernel/mm
+include /kernel/network
+include /kernel/smp
+include /kernel/tls
+include /kernel/usb
+include /kernel/util
+include /drivers
+include /toolchain
+end
+doom-compat
+doom
+define __GNUC__=1
+define __ORDER_LITTLE_ENDIAN__=1234
+define __ORDER_BIG_ENDIAN__=4321
+define __ORDER_PDP_ENDIAN__=3412
+define __BYTE_ORDER__=__ORDER_LITTLE_ENDIAN__
+define __SSE2__=1
+include /kernel
+include /kernel/audio
+include /kernel/core
+include /kernel/cpu
+include /kernel/crypto
+include /kernel/doom
+include /kernel/fs
+include /kernel/gfx
+include /kernel/gui
+include /kernel/lang
+include /kernel/mm
+include /kernel/network
+include /kernel/smp
+include /kernel/tls
+include /kernel/usb
+include /kernel/util
+include /drivers
+include /toolchain
+include /kernel/doom/src
+include /kernel/doom/src/include_stubs
+end
+doom-tree
+doom
+define __GNUC__=1
+define __ORDER_LITTLE_ENDIAN__=1234
+define __ORDER_BIG_ENDIAN__=4321
+define __ORDER_PDP_ENDIAN__=3412
+define __BYTE_ORDER__=__ORDER_LITTLE_ENDIAN__
+define __SSE2__=1
+include /kernel
+include /kernel/audio
+include /kernel/core
+include /kernel/cpu
+include /kernel/crypto
+include /kernel/doom
+include /kernel/fs
+include /kernel/gfx
+include /kernel/gui
+include /kernel/lang
+include /kernel/mm
+include /kernel/network
+include /kernel/smp
+include /kernel/tls
+include /kernel/usb
+include /kernel/util
+include /drivers
+include /toolchain
+include /kernel/doom/src
+include /kernel/doom/src/include_stubs
+define DEFAULT_SAVEGAMEDIR="/home/doom/"
+define DOOM_PORT_CUPIDOS=1
+force /kernel/doom/dglibc_compat.h
+end
+objects
+kernel /kernel/core/kernel.cc
+kernel /kernel/cpu/idt.cc
+assemble /kernel/cpu/isr.asm
+kernel /kernel/cpu/irq.cc
+kernel /kernel/cpu/pic.cc
+kernel /kernel/fs/fs.cc
+kernel /drivers/keyboard.cc
+kernel /drivers/timer.cc
+kernel /kernel/cpu/math.cc
+kernel /drivers/pit.cc
+kernel /drivers/speaker.cc
+kernel /kernel/lang/shell.cc
+kernel /kernel/core/string.cc
+kernel /kernel/mm/memory.cc
+kernel /drivers/pci.cc
+kernel /kernel/usb/usb.cc
+kernel /kernel/usb/uhci.cc
+kernel /kernel/usb/ehci.cc
+kernel /kernel/usb/usb_hid.cc
+kernel /kernel/usb/usb_hub.cc
+kernel /kernel/usb/usb_msc.cc
+kernel /kernel/mm/paging.cc
+kernel /drivers/ata.cc
+kernel /kernel/fs/blockdev.cc
+kernel /kernel/fs/blockcache.cc
+kernel /kernel/fs/fat16.cc
+kernel /drivers/serial.cc
+kernel /kernel/core/panic.cc
+kernel /kernel/gui/ed.cc
+kernel /drivers/vga.cc
+kernel /drivers/mouse.cc
+kernel /kernel/gfx/font_8x8.cc
+kernel /kernel/gfx/graphics.cc
+kernel /kernel/gui/gui.cc
+kernel /kernel/gui/desktop.cc
+kernel /kernel/core/app_launch.cc
+kernel /kernel/core/process.cc
+assemble /kernel/core/context_switch.asm
+kernel /kernel/gui/clipboard.cc
+kernel /kernel/gui/ui.cc
+kernel /kernel/lang/godspeak.cc
+kernel /kernel/cpu/fpu.cc
+kernel /kernel/cpu/libm.cc
+kernel /kernel/lang/cupidscript_lex.cc
+kernel /kernel/lang/cupidscript_parse.cc
+kernel /kernel/lang/cupidscript_exec.cc
+kernel /kernel/lang/cupidscript_runtime.cc
+kernel /kernel/lang/cupidscript_streams.cc
+kernel /kernel/lang/cupidscript_strings.cc
+kernel /kernel/lang/cupidscript_arrays.cc
+kernel /kernel/lang/cupidscript_jobs.cc
+kernel /kernel/gui/ansi.cc
+kernel /kernel/gui/terminal_app.cc
+kernel /kernel/gui/ctxt_image_worker.cc
+kernel /kernel/fs/vfs.cc
+kernel /kernel/fs/ramfs.cc
+kernel /kernel/fs/devfs.cc
+kernel /kernel/fs/fat16_vfs.cc
+kernel /kernel/lang/exec.cc
+kernel /kernel/fs/homefs.cc
+kernel /kernel/fs/loopdev.cc
+kernel /kernel/fs/iso9660.cc
+kernel /kernel/fs/iso9660_vfs.cc
+kernel /kernel/mm/swap_disk.cc
+kernel /kernel/mm/swap.cc
+kernel /kernel/smp/percpu.cc
+trampoline /kernel/smp/smp_trampoline.S
+kernel /kernel/smp/lapic.cc
+kernel /kernel/smp/ioapic.cc
+kernel /kernel/smp/bkl.cc
+kernel /kernel/smp/mp_tables.cc
+kernel /kernel/smp/acpi.cc
+kernel /kernel/smp/smp.cc
+kernel /kernel/network/net_if.cc
+kernel /kernel/network/arp.cc
+kernel /kernel/network/ip.cc
+kernel /kernel/network/icmp.cc
+kernel /kernel/network/udp.cc
+kernel /kernel/network/socket.cc
+kernel /kernel/network/tcp.cc
+kernel /kernel/network/dhcp.cc
+kernel /kernel/network/dns.cc
+kernel /kernel/network/sshd.cc
+kernel /drivers/rtl8139.cc
+kernel /drivers/e1000.cc
+kernel /kernel/core/syscall.cc
+kernel /kernel/crypto/chacha20.cc
+kernel /kernel/crypto/csprng.cc
+kernel /kernel/crypto/sha256.cc
+kernel /kernel/crypto/sha512.cc
+kernel /kernel/crypto/hmac.cc
+kernel /kernel/crypto/hkdf.cc
+kernel /kernel/crypto/ct.cc
+kernel /kernel/crypto/poly1305.cc
+kernel /kernel/crypto/chacha20poly1305.cc
+kernel /kernel/crypto/aes.cc
+kernel /kernel/crypto/aes_gcm.cc
+kernel /kernel/crypto/bigint.cc
+kernel /kernel/crypto/rsa.cc
+kernel /kernel/crypto/x25519.cc
+kernel /kernel/crypto/p256.cc
+kernel /kernel/crypto/ecdsa.cc
+kernel /kernel/crypto/ed25519.cc
+kernel /kernel/crypto/asn1.cc
+kernel /kernel/crypto/x509.cc
+kernel /kernel/crypto/x509_chain.cc
+kernel /kernel/tls/tls_ca_bundle.cc
+kernel /kernel/tls/tls_record.cc
+kernel /kernel/tls/tls_kdf.cc
+kernel /kernel/tls/tls_ctx.cc
+kernel /kernel/tls/tls_handshake.cc
+kernel /kernel/tls/tls12_handshake.cc
+kernel /kernel/tls/tls_selftest.cc
+kernel /toolchain/ctool.cc
+kernel /toolchain/elf32.cc
+kernel /toolchain/x86.cc
+kernel /toolchain/cupiddis.cc
+kernel /toolchain/cupidasm.cc
+kernel /toolchain/cupidld.cc
+kernel /kernel/lang/ctool_kernel.cc
+kernel /kernel/lang/cupidc.cc
+kernel /kernel/lang/cupidc_lex.cc
+kernel /kernel/lang/cupidc_parse.cc
+kernel /kernel/lang/cupidc_string.cc
+kernel /kernel/lang/cupidc_elf.cc
+kernel /kernel/lang/ssh_io.cc
+kernel /kernel/lang/as.cc
+kernel /kernel/lang/as_elf.cc
+kernel /kernel/lang/dis.cc
+kernel /kernel/gfx/gfx2d.cc
+kernel /kernel/gfx/bmp.cc
+kernel /kernel/gfx/png.cc
+kernel /kernel/gfx/deflate.cc
+kernel /kernel/gfx/jpeg.cc
+kernel /kernel/gfx/ttf.cc
+kernel /kernel/gfx/glyph_raster.cc
+kernel /kernel/gfx/fontsys.cc
+kernel /kernel/fs/vfs_helpers.cc
+kernel /drivers/rtc.cc
+kernel /kernel/util/calendar.cc
+kernel /kernel/gfx/gfx2d_assets.cc
+kernel /kernel/gfx/gfx2d_transform.cc
+kernel /kernel/gfx/gfx2d_effects.cc
+kernel /kernel/cpu/simd.cc
+kernel /kernel/gfx/gfx2d_icons.cc
+kernel /kernel/gui/gui_widgets.cc
+kernel /kernel/gui/gui_containers.cc
+kernel /kernel/gui/gui_menus.cc
+kernel /kernel/gui/gui_events.cc
+kernel /kernel/gui/gui_themes.cc
+bin /kernel/util/bin_programs_gen.cc
+docs /kernel/util/docs_programs_gen.cc
+demos /kernel/util/demos_programs_gen.cc
+kernel /kernel/cpu/ksyms.cc
+kernel /kernel/audio/ac97.cc
+kernel /kernel/audio/mixer.cc
+kernel /kernel/audio/nuked_opl3.cc
+kernel /kernel/audio/opl_smoke.cc
+kernel /kernel/audio/memio.cc
+kernel /kernel/audio/mus2midi.cc
+kernel /kernel/audio/midiopl.cc
+wrap-text /bin/audiotest.cc
+wrap-text /bin/auto.cc
+wrap-text /bin/bgstudio.cc
+wrap-text /bin/bible.cc
+wrap-text /bin/bmptest.cc
+wrap-text /bin/browser.cc
+wrap-text /bin/cachestats.cc
+wrap-text /bin/cat.cc
+wrap-text /bin/cd.cc
+wrap-text /bin/clear.cc
+wrap-text /bin/cp.cc
+wrap-text /bin/crashtest.cc
+wrap-text /bin/ctxt.cc
+wrap-text /bin/cupidc_test1.cc
+wrap-text /bin/cupidc_test2.cc
+wrap-text /bin/cupidc_test3.cc
+wrap-text /bin/cupidc_test4.cc
+wrap-text /bin/cupidc_test5.cc
+wrap-text /bin/cupidfetch.cc
+wrap-text /bin/curl.cc
+wrap-text /bin/date.cc
+wrap-text /bin/dglibc_test.cc
+wrap-text /bin/doom.cc
+wrap-text /bin/echo.cc
+wrap-text /bin/ed.cc
+wrap-text /bin/feature10_repl.cc
+wrap-text /bin/feature11_ternary.cc
+wrap-text /bin/feature12_float.cc
+wrap-text /bin/feature13_derived_aot.cc
+wrap-text /bin/feature13_double.cc
+wrap-text /bin/feature14_simd.cc
+wrap-text /bin/feature15_libm.cc
+wrap-text /bin/feature16_asm_fpu.cc
+wrap-text /bin/feature17_iso.cc
+wrap-text /bin/feature18_swap.cc
+wrap-text /bin/feature19_usb.cc
+wrap-text /bin/feature1_types.cc
+wrap-text /bin/feature20_smp.cc
+wrap-text /bin/feature21_net.cc
+wrap-text /bin/feature22_net_server.cc
+wrap-text /bin/feature23_full_access.cc
+wrap-text /bin/feature24_widetypes.cc
+wrap-text /bin/feature25.cc
+wrap-text /bin/feature2_top_level.cc
+wrap-text /bin/feature3_class.cc
+wrap-text /bin/feature4_forward_calls.cc
+wrap-text /bin/feature5_print_builtin.cc
+wrap-text /bin/feature6_exe.cc
+wrap-text /bin/feature7_new_del.cc
+wrap-text /bin/feature8_reg_noreg.cc
+wrap-text /bin/feature9_abs_addr.cc
+wrap-text /bin/find.cc
+wrap-text /bin/fm.cc
+wrap-text /bin/fontswitch.cc
+wrap-text /bin/fp_drill.cc
+wrap-text /bin/gfxdemo.cc
+wrap-text /bin/gfxgui_test.cc
+wrap-text /bin/gfxhandoff_exit.cc
+wrap-text /bin/gfxhandoff_kill.cc
+wrap-text /bin/gfxtest.cc
+wrap-text /bin/godsong.cc
+wrap-text /bin/godspeak.cc
+wrap-text /bin/grep.cc
+wrap-text /bin/head.cc
+wrap-text /bin/help.cc
+wrap-text /bin/history.cc
+wrap-text /bin/kbdsub_test.cc
+wrap-text /bin/kill.cc
+wrap-text /bin/logdump.cc
+wrap-text /bin/loglevel.cc
+wrap-text /bin/ls.cc
+wrap-text /bin/memcheck.cc
+wrap-text /bin/memdump.cc
+wrap-text /bin/memleak.cc
+wrap-text /bin/memstats.cc
+wrap-text /bin/mkdir.cc
+wrap-text /bin/mount.cc
+wrap-text /bin/mv.cc
+wrap-text /bin/notepad.cc
+wrap-text /bin/oracle.cc
+wrap-text /bin/paint.cc
+wrap-text /bin/printc.cc
+wrap-text /bin/ps.cc
+wrap-text /bin/pwd.cc
+wrap-text /bin/reboot.cc
+wrap-text /bin/registers.cc
+wrap-text /bin/resetcolor.cc
+wrap-text /bin/rm.cc
+wrap-text /bin/rmdir.cc
+wrap-text /bin/setcolor.cc
+wrap-text /bin/sort.cc
+wrap-text /bin/spawn.cc
+wrap-text /bin/ssh.cc
+wrap-text /bin/stacktrace.cc
+wrap-text /bin/sync.cc
+wrap-text /bin/sysinfo.cc
+wrap-text /bin/tail.cc
+wrap-text /bin/telnet.cc
+wrap-text /bin/terminal.cc
+wrap-text /bin/test.cc
+wrap-text /bin/test_fpaug.cc
+wrap-text /bin/test_print.cc
+wrap-text /bin/time.cc
+wrap-text /bin/touch.cc
+wrap-text /bin/volume.cc
+wrap-text /bin/wc.cc
+wrap-text /bin/wget.cc
+wrap-text /bin/yield.cc
+wrap-text /bin/fat16.h
+wrap-text /bin/shell.h
+wrap-text /bin/ssh_channel.h
+wrap-text /bin/browser/css.cc
+wrap-text /bin/browser/dom.cc
+wrap-text /bin/browser/font_face.cc
+wrap-text /bin/browser/image.cc
+wrap-text /bin/browser/input.cc
+wrap-text /bin/browser/js_dom.cc
+wrap-text /bin/browser/js_interp.cc
+wrap-text /bin/browser/js_lex.cc
+wrap-text /bin/browser/js_parse.cc
+wrap-text /bin/browser/layout.cc
+wrap-text /bin/browser/main.cc
+wrap-text /bin/browser/nav.cc
+wrap-text /bin/browser/net.cc
+wrap-text /bin/browser/paint.cc
+wrap-text /bin/browser/parser.cc
+wrap-text /bin/browser/render_tree.cc
+wrap-text /bin/browser/style.cc
+wrap-text /bin/browser/style_cascade.cc
+wrap-text /bin/browser/style_properties.cc
+wrap-text /bin/browser/url.cc
+wrap-text /bin/browser/url_hash.cc
+wrap-text /bin/browser/util.cc
+wrap-text /bin/browser/woff.cc
+wrap-text /bin/browser/woff2.cc
+wrap-text /cupidos-txt/00INDEX.CTXT
+wrap-text /cupidos-txt/01SHELL.CTXT
+wrap-text /cupidos-txt/02FILESYS.CTXT
+wrap-text /cupidos-txt/03CUPIDSC.CTXT
+wrap-text /cupidos-txt/04CUPIDC.CTXT
+wrap-text /cupidos-txt/05ELFPROG.CTXT
+wrap-text /cupidos-txt/06GUITERM.CTXT
+wrap-text /cupidos-txt/07LABS.CTXT
+wrap-text /cupidos-txt/08CMDS.CTXT
+wrap-text /cupidos-txt/09EMBED.CTXT
+wrap-text /cupidos-txt/10ASM.CTXT
+wrap-text /cupidos-txt/11CTXT.CTXT
+wrap-text /cupidos-txt/12HOLYC-CUPIDC.CTXT
+wrap-text /cupidos-txt/13USB.CTXT
+wrap-text /cupidos-txt/14FPU-SSE.CTXT
+wrap-text /cupidos-txt/15ISO9660.CTXT
+wrap-text /cupidos-txt/16SWAP.CTXT
+wrap-text /cupidos-txt/17SMP.CTXT
+wrap-text /cupidos-txt/18NET.CTXT
+wrap-jpeg /file_example_JPG_1MB.jpg
+wrap /image.bmp
+wrap /snail.bmp
+wrap /test.png
+wrap-text /demos/asm_compat_reserve.asm
+wrap-text /demos/bubblesort.asm
+wrap-text /demos/data.asm
+wrap-text /demos/factorial.asm
+wrap-text /demos/fibonacci.asm
+wrap-text /demos/fpu_kernel.asm
+wrap-text /demos/fs_syscalls.asm
+wrap-text /demos/hello.asm
+wrap-text /demos/include_feature.asm
+wrap-text /demos/include_helper.asm
+wrap-text /demos/jcc_aliases.asm
+wrap-text /demos/loop.asm
+wrap-text /demos/math.asm
+wrap-text /demos/parity_core.asm
+wrap-text /demos/parity_diag.asm
+wrap-text /demos/parity_gfx2d.asm
+wrap-text /demos/parity_priv.asm
+wrap-text /demos/reserve_directives.asm
+wrap-text /demos/simd_blur.asm
+wrap-text /demos/stack.asm
+wrap-text /demos/syscall_table_demo.asm
+wrap-text /demos/syscall_vfs_extended_demo.asm
+wrap-text /god/Psalms.DD
+wrap-text /god/Vocab.DD
+wrap /system/fonts/LiberationMono-Regular.ttf
+wrap /system/fonts/LiberationSans-Regular.ttf
+wrap /system/fonts/LiberationSerif-Regular.ttf
+wrap /system/fonts/NotoSansSymbols-Regular.ttf
+kernel /kernel/tls/tls_ca_bundle_data.cc
+doom-compat /kernel/doom/dglibc.cc
+doom-compat /kernel/doom/doomgeneric_cupidos.cc
+doom-compat /kernel/doom/doom_libc_stubs.cc
+doom-tree /kernel/doom/i_sound_cupidos.cc
+doom-tree /kernel/doom/src/am_map.cc
+doom-tree /kernel/doom/src/d_event.cc
+doom-tree /kernel/doom/src/d_items.cc
+doom-tree /kernel/doom/src/d_iwad.cc
+doom-tree /kernel/doom/src/d_loop.cc
+doom-tree /kernel/doom/src/d_main.cc
+doom-tree /kernel/doom/src/d_mode.cc
+doom-tree /kernel/doom/src/d_net.cc
+doom-tree /kernel/doom/src/doomdef.cc
+doom-tree /kernel/doom/src/doomgeneric.cc
+doom-tree /kernel/doom/src/doomstat.cc
+doom-tree /kernel/doom/src/dstrings.cc
+doom-tree /kernel/doom/src/dummy.cc
+doom-tree /kernel/doom/src/f_finale.cc
+doom-tree /kernel/doom/src/f_wipe.cc
+doom-tree /kernel/doom/src/g_game.cc
+doom-tree /kernel/doom/src/gusconf.cc
+doom-tree /kernel/doom/src/hu_lib.cc
+doom-tree /kernel/doom/src/hu_stuff.cc
+doom-tree /kernel/doom/src/i_endoom.cc
+doom-tree /kernel/doom/src/i_input.cc
+doom-tree /kernel/doom/src/i_joystick.cc
+doom-tree /kernel/doom/src/i_scale.cc
+doom-tree /kernel/doom/src/i_system.cc
+doom-tree /kernel/doom/src/i_timer.cc
+doom-tree /kernel/doom/src/i_video.cc
+doom-tree /kernel/doom/src/icon.cc
+doom-tree /kernel/doom/src/info.cc
+doom-tree /kernel/doom/src/m_argv.cc
+doom-tree /kernel/doom/src/m_bbox.cc
+doom-tree /kernel/doom/src/m_cheat.cc
+doom-tree /kernel/doom/src/m_config.cc
+doom-tree /kernel/doom/src/m_controls.cc
+doom-tree /kernel/doom/src/m_fixed.cc
+doom-tree /kernel/doom/src/m_menu.cc
+doom-tree /kernel/doom/src/m_misc.cc
+doom-tree /kernel/doom/src/m_random.cc
+doom-tree /kernel/doom/src/p_ceilng.cc
+doom-tree /kernel/doom/src/p_doors.cc
+doom-tree /kernel/doom/src/p_enemy.cc
+doom-tree /kernel/doom/src/p_floor.cc
+doom-tree /kernel/doom/src/p_inter.cc
+doom-tree /kernel/doom/src/p_lights.cc
+doom-tree /kernel/doom/src/p_map.cc
+doom-tree /kernel/doom/src/p_maputl.cc
+doom-tree /kernel/doom/src/p_mobj.cc
+doom-tree /kernel/doom/src/p_plats.cc
+doom-tree /kernel/doom/src/p_pspr.cc
+doom-tree /kernel/doom/src/p_saveg.cc
+doom-tree /kernel/doom/src/p_setup.cc
+doom-tree /kernel/doom/src/p_sight.cc
+doom-tree /kernel/doom/src/p_spec.cc
+doom-tree /kernel/doom/src/p_switch.cc
+doom-tree /kernel/doom/src/p_telept.cc
+doom-tree /kernel/doom/src/p_tick.cc
+doom-tree /kernel/doom/src/p_user.cc
+doom-tree /kernel/doom/src/r_bsp.cc
+doom-tree /kernel/doom/src/r_data.cc
+doom-tree /kernel/doom/src/r_draw.cc
+doom-tree /kernel/doom/src/r_main.cc
+doom-tree /kernel/doom/src/r_plane.cc
+doom-tree /kernel/doom/src/r_segs.cc
+doom-tree /kernel/doom/src/r_sky.cc
+doom-tree /kernel/doom/src/r_things.cc
+doom-tree /kernel/doom/src/s_sound.cc
+doom-tree /kernel/doom/src/sha1.cc
+doom-tree /kernel/doom/src/sounds.cc
+doom-tree /kernel/doom/src/st_lib.cc
+doom-tree /kernel/doom/src/st_stuff.cc
+doom-tree /kernel/doom/src/statdump.cc
+doom-tree /kernel/doom/src/tables.cc
+doom-tree /kernel/doom/src/v_video.cc
+doom-tree /kernel/doom/src/w_checksum.cc
+doom-tree /kernel/doom/src/w_file.cc
+doom-tree /kernel/doom/src/w_file_stdc.cc
+doom-tree /kernel/doom/src/w_main.cc
+doom-tree /kernel/doom/src/w_wad.cc
+doom-tree /kernel/doom/src/wi_stuff.cc
+doom-tree /kernel/doom/src/z_zone.cc

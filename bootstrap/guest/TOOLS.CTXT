@@ -90,6 +90,31 @@ and stops at the first failed step. Tool outputs publish atomically.
 Use /tmp for intermediate files and /home for outputs that need to survive
 a reboot.
 
+>h2 Build the kernel from a checkout
+
+Install the source tree in HomeFS with bootstrap/guest/kernel.layout.
+Put these lines in its cupidbuild.job:
+
+  project-kernel
+  kernel-project.job
+
+Put the following lines in kernel-project.job:
+
+  bootstrap/guest/kernel.layout
+  objects tmp
+  image 200
+  stage disk-assets
+
+The layout path is required. Omit objects tmp to keep the intermediate
+objects in build. Omit image and stage to write a bootable disk prefix.
+The stage line points to a file of source and destination path pairs
+for the new FAT16 volume. Use paths relative to the checkout for the
+layout, stage file, and its source files. Destination paths start with /.
+
+Use cd to enter the checkout before running exec /disk/b. CupidBuild
+creates build, assembles and compiles the sources, and links the objects
+in the layout's order. It saves the new image as build/cupidos.img.
+
 >h2 Compile or wrap several objects
 
 A compile-list job starts with the usual compiler options, then a line

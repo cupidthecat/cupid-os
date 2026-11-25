@@ -28,6 +28,8 @@ const char *cupid_guest_disk_stage_list(cupid_syscall_table_t *sys, const char *
 int cupid_guest_disk_image_extent(cupid_syscall_table_t *sys, const char *option, ctool_u32 *extent);
 ctool_status_t cupid_guest_disk_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
 
+ctool_status_t cupid_guest_create_directory(cupid_syscall_table_t *sys, const char *path);
+ctool_status_t cupid_guest_project_kernel(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
 ctool_status_t cupid_guest_kernel_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
 
 #endif
