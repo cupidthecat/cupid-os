@@ -162,8 +162,9 @@ class GuestSourcePlanTests(unittest.TestCase):
                     root, root, image, (), (), image_assets=(guest_plan.StageFile(iso, "/hello.iso"),),
                 )
         _, entries = calls["write_homefs"].call_args.args
-        self.assertEqual(dict(entries)[b"project/disk-assets"], b"disk-inputs/0\n/hello.iso\n")
-        self.assertEqual(dict(entries)[b"project/disk-inputs/0"], b"iso payload")
+        self.assertEqual(dict(entries)[b"project/disk-assets"], b"/disk/release/a0\n/hello.iso\n")
+        self.assertNotIn(b"iso payload", dict(entries).values())
+        self.assertEqual(calls["create_disk"].call_args.args[-1], f"{iso}:/release/a0")
 
     def test_installed_tree_counts_directory_creation_toward_plan_limit(self):
         steps = tuple(("compile", f"source{i}.job".encode("ascii"), b"") for i in range(512))
