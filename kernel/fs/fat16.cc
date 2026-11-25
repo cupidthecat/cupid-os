@@ -18,7 +18,6 @@ static uint8_t open_file_directory_index[8];
 static int fat16_initialized = 0;
 static char fat16_reserved_name83[11];
 static int fat16_reservation_active = 0;
-static int fat16_reserved_write_depth = 0;
 
 /* Output function pointers (can be overridden) */
 static void (*fat16_print)(const char *) = print;
@@ -249,7 +248,6 @@ int fat16_init(void) {
         open_file_directory_index[i] = 0;
     }
     fat16_reservation_active = 0;
-    fat16_reserved_write_depth = 0;
 
     fat16_initialized = 1;
 
@@ -955,7 +953,15 @@ static int fat16_publish_deleted_sector(uint32_t lba, const uint8_t *updated,
  * @param size: Number of bytes to write
  * @return Bytes written on success, -1 on error
  */
+static int fat16_write_source(const char *filename, const void *data, uint32_t size,
+                              fat16_read_source_t read_source, void *context);
+
 int fat16_write_file(const char *filename, const void *data, uint32_t size) {
+    return fat16_write_source(filename, data, size, NULL, NULL);
+}
+
+static int fat16_write_source(const char *filename, const void *data, uint32_t size,
+                              fat16_read_source_t read_source, void *context) {
     serial_printf("[fat16_write_file] START: filename='%s' size=%u\n",
                   filename ? filename : "(null)", size);
 
@@ -964,11 +970,11 @@ int fat16_write_file(const char *filename, const void *data, uint32_t size) {
         print("No FAT16 filesystem mounted\n");
         return -1;
     }
-    if (!filename || (!data && size > 0)) {
+    if (!filename || (!data && !read_source && size > 0)) {
         serial_printf("[fat16_write_file] ERROR: invalid input\n");
         return -1;
     }
-    if (fat16_name_matches_reservation(filename) && fat16_reserved_write_depth == 0) {
+    if (!read_source && fat16_name_matches_reservation(filename)) {
         return FAT16_BUSY;
     }
 
@@ -1097,7 +1103,14 @@ int fat16_write_file(const char *filename, const void *data, uint32_t size) {
                     if (to_copy > fs.bytes_per_sector)
                         to_copy = fs.bytes_per_sector;
 
-                    memcpy(sector_buf, (const uint8_t *)data + bytes_written, to_copy);
+                    if (read_source) {
+                        if (read_source(context, sector_buf, to_copy) != (int)to_copy) {
+                            fat16_release_unpublished_chain(first_cluster);
+                            return -1;
+                        }
+                    } else {
+                        memcpy(sector_buf, (const uint8_t *)data + bytes_written, to_copy);
+                    }
                     bytes_written += to_copy;
                 }
                 /* If bytes_written >= size, sector_buf remains all zeros */
@@ -1395,12 +1408,11 @@ dir_search_done:
     return (int)size;
 }
 
-int fat16_write_reserved_file(const char *filename, const void *data, uint32_t size) {
-    int result;
-    fat16_reserved_write_depth++;
-    result = fat16_write_file(filename, data, size);
-    fat16_reserved_write_depth--;
-    return result;
+int fat16_write_reserved_file(const char *filename, uint32_t size,
+                              fat16_read_source_t read_source, void *context) {
+    if (!read_source)
+        return -1;
+    return fat16_write_source(filename, NULL, size, read_source, context);
 }
 
 /**

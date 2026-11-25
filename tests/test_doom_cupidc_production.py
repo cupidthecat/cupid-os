@@ -275,6 +275,9 @@ class DoomCupidCProductionTests(DoomProfileFixture, unittest.TestCase):
         )
         self.assertTrue(_c_spelling_ranges(ramfs_source,
             "if (new_pos > RAMFS_MAX_DATA) return VFS_ENOSPC;"))
+        self.assertIn("const int limit = (int)RAMFS_MAX_DATA;", dglibc_selftest)
+        self.assertIn("vfs_seek(fd, limit + 1, SEEK_SET) != VFS_ENOSPC", dglibc_selftest)
+        self.assertIn("st.size != RAMFS_MAX_DATA", dglibc_selftest)
         self.assertNotIn(
             "ramfs_mkdirs(fs->root, new_path", ramfs_source
         )
@@ -390,7 +393,11 @@ class DoomCupidCProductionTests(DoomProfileFixture, unittest.TestCase):
         self.assertEqual(
             write_file.count("fat16_directory_entry_is_open("), 2
         )
-        self.assertIn("fat16_reserved_write_depth == 0", write_file)
+        self.assertTrue(_c_spelling_ranges(write_file,
+            "if (!read_source && fat16_name_matches_reservation(filename)) { return FAT16_BUSY; }"))
+        self.assertTrue(_c_spelling_ranges(write_data,
+            "if (read_source(context, sector_buf, to_copy) != (int)to_copy) "
+            "{ fat16_release_unpublished_chain(first_cluster); return -1; }"))
         self.assertEqual(
             delete_file.count("fat16_publish_deleted_sector("), 2
         )

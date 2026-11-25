@@ -30,6 +30,10 @@ typedef struct {
     uint32_t writebacks;
 } block_cache_t;
 
+/* Synchronize changes to the cache and its HomeFS publication state. */
+bool blockcache_guard_enter(void);
+void blockcache_guard_leave(bool locked);
+
 int blockcache_init(block_device_t* device);
 int blockcache_read(uint32_t lba, void* buffer);
 int blockcache_write(uint32_t lba, const void* buffer);

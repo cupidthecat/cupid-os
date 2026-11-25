@@ -20,8 +20,10 @@
 #define FAT16_BUSY            -2
 
 int fat16_open_checked(const char *filename, fat16_file_t **out_file);
-int fat16_write_reserved_file(const char *filename, const void *data,
-                              uint32_t size);
+/* Fill the next count bytes and return count, or stop the replacement on error. */
+typedef int (*fat16_read_source_t)(void *context, void *data, uint32_t count);
+int fat16_write_reserved_file(const char *filename, uint32_t size,
+                              fat16_read_source_t read_source, void *context);
 int fat16_reserve_file(const char *filename);
 int fat16_release_file_reservation(const char *filename);
 int fat16_file_is_reserved(const char *filename);

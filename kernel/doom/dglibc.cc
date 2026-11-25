@@ -14,6 +14,7 @@
 #include "fat16_control.h"
 #include "homefs.h"
 #include "memory.h"
+#include "ramfs.h"
 #include "serial.h"
 #include "string.h"
 #include "timer.h"

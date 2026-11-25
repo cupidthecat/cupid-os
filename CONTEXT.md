@@ -1456,6 +1456,11 @@ _Avoid_: operating-system process, retaining callbacks between launches, resetti
 The ordered update used for Doom config, save slots, and the `HOMEFS.SYS` container. A caller writes and closes a temporary file, native same-mount rename publishes it, and FAT16 writes and syncs a new cluster chain before it publishes the directory entry. A failed directory sync restores the old sector when possible. Replacement frees the old chain only after the new entry is durable; deletion makes the removed entry durable before it frees that chain. Cache writeback errors travel back to the caller, and a failed read fills scratch storage before it can change a cache entry's identity. A failed cleanup may leak clusters, but it must not remove the newly published file. While HomeFS is mounted, a private FAT reservation blocks raw writes, deletion, and write-capable `/disk/HOMEFS.SYS` aliases. ADR 0211 records the boundary.
 _Avoid_: copy-and-unlink rename, deleting the prior file first, mutating an evicted cache entry before a successful read, two live owners, claiming power-cut proof
 
+**HomeFS snapshot stream**:
+The header, records, names, and file bytes of one HomeFS save. FAT16
+pulls them in bounded pieces from the protected tree before publishing
+the replacement container. The format retains dense and sparse records.
+
 **HomeFS mutation batch**:
 A nestable group of related HomeFS mutations. Operations update the live tree and mark it dirty, but only the outermost `homefs_batch_end` publishes `HOMEFS.SYS` and reports the durable result. An unmatched end fails, depth overflow is rejected, and unmount remains busy while a batch is open. The guest dglibc diagnostic uses one batch so its many filesystem probes produce one final container replacement instead of rewriting the whole tree after each probe.
 _Avoid_: transaction rollback for the in-memory tree, hiding the outer publication error, unmounting an open batch

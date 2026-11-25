@@ -623,8 +623,9 @@ static int dglibc_test_body(void) {
     }
     serial_write_string("[PASS] dglibc block cache failure boundary\n");
 
-    /* RamFS accepts its exact 64 KiB boundary and rejects the next byte. */
+    /* RamFS accepts its final byte and rejects writes or seeks past it. */
     {
+        const int limit = (int)RAMFS_MAX_DATA;
         const char *path = "/tmp/dglibc-ramfs-limit";
         char last = 0;
         int fd;
@@ -632,14 +633,14 @@ static int dglibc_test_body(void) {
 
         vfs_unlink(path);
         fd = vfs_open(path, O_WRONLY | O_CREAT | O_TRUNC);
-        if (fd < 0 || vfs_seek(fd, 65535, SEEK_SET) != 65535 || vfs_write(fd, "Z", 1u) != 1 ||
-            vfs_write(fd, "X", 1u) != VFS_ENOSPC || vfs_seek(fd, 65537, SEEK_SET) != VFS_ENOSPC ||
-            vfs_close(fd) != VFS_OK || vfs_stat(path, &st) != VFS_OK || st.size != 65536u) {
+        if (fd < 0 || vfs_seek(fd, limit - 1, SEEK_SET) != limit - 1 || vfs_write(fd, "Z", 1u) != 1 ||
+            vfs_write(fd, "X", 1u) != VFS_ENOSPC || vfs_seek(fd, limit + 1, SEEK_SET) != VFS_ENOSPC ||
+            vfs_close(fd) != VFS_OK || vfs_stat(path, &st) != VFS_OK || st.size != RAMFS_MAX_DATA) {
             serial_write_string("[FAIL] dglibc crossed the RamFS size boundary\n");
             return 1;
         }
         fd = vfs_open(path, O_RDONLY);
-        if (fd < 0 || vfs_seek(fd, 65535, SEEK_SET) != 65535 || vfs_read(fd, &last, 1u) != 1 ||
+        if (fd < 0 || vfs_seek(fd, limit - 1, SEEK_SET) != limit - 1 || vfs_read(fd, &last, 1u) != 1 ||
             last != 'Z' || vfs_close(fd) != VFS_OK || vfs_unlink(path) != VFS_OK) {
             serial_write_string("[FAIL] dglibc changed RamFS after a rejected write\n");
             return 1;

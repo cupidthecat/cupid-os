@@ -331,7 +331,9 @@ five objects and wrapped the production JPEG into the checked object.
 CupidBuild rebuilt all 27 objects and linked the 3,382,816-byte driver.
 The rebuilt driver ran an assembly job and reproduced the checked ISR
 object inside the same guest. This replay includes the shared FAT16
-writer and name rules used by disk jobs.
+writer and name rules used by disk jobs. The project-layout version rebuilt
+all 28 objects. The 3,396,968-byte ELF matched the checked driver, then
+ran the assembly job and matched the 1,892-byte ISR object.
 
 The read-only CupidLD replay matched all five worker objects, the
 260,400-byte linker ELF, and the `hello` ELF it produced. The compiler
@@ -908,6 +910,46 @@ The first fixture run found that the project worker needed its own syscall
 table initialization before it called the `cupid.h` string functions.
 The disk check also accounts for the partition table that CupidObj writes
 over the boot sector's reserved bytes.
+
+## Stream HomeFS saves to the working disk
+
+The FAT16 input move reduced the failing 200 MiB release save from a
+99,111,435-byte allocation to 70,254,841 bytes. An allocator-limited
+fixture reproduced the same error with 20,552 bytes of HomeFS records.
+It returned `-28` before the writer ran. The same records saved when
+the allocator allowed the whole buffer.
+
+HomeFS now sizes a snapshot and gives the reserved FAT16 writer a
+reader for its records and file bytes. FAT16 fills one sector at a
+time and keeps the old chain until the new directory entry is durable.
+The storage guard keeps the tree stable and the owning process alive
+through the write and any rollback. Recursive sync skips the in-flight
+snapshot. An earlier version dropped the guard while FAT16 pulled the
+snapshot. The scheduler could then terminate the owner mid-save.
+
+The native contract sets a 256-byte allocation limit and compares the
+complete version 1 and version 2 snapshots with expected bytes.
+It checks the sparse logical size, nested parent order, a failed
+writer and successful retry, invalid file lengths, and a recursive
+sync while the save holds the storage guard. Checked CupidC compiled
+the changed kernel sources on Windows and WSL.
+
+The checked kernel recipe initially rejected a new direct lock-header
+dependency because its source capture was fixed. The implementation
+uses the existing block cache's storage guard, which owns both the
+cache lock and the HomeFS sync call.
+
+CupidBuild rebuilt the kernel and accepted all 16 exact artifact sizes.
+Windows and WSL produced matching HomeFS, FAT16, block-cache, and dglibc
+objects. The raw kernel is 9,514,996 bytes with SHA-256
+`1eae0d5d38f41bf16a14b79fe4acafbbdaa830a58f1ae59ed7acee3f299231c1`.
+
+The first four-CPU storage run passed the HomeFS config and save checks.
+The older RamFS diagnostic then failed because it expected 64 KiB.
+The diagnostic now reads the filesystem's 1 MiB limit from `ramfs.h`
+and checks the last byte, the first rejected write and seek, and the
+saved file size. The corrected four-CPU run passed the full dglibc
+diagnostic, including the FAT16 and HomeFS checks.
 
 ## Retained proof
 

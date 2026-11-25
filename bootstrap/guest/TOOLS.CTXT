@@ -116,6 +116,8 @@ large input assets. Destination paths start with /.
 Use cd to enter the checkout before running exec /disk/b. CupidBuild
 creates build, assembles and compiles the sources, and links the objects
 in the layout's order. It saves the new image as build/cupidos.img.
+HomeFS streams the save to FAT16. Let that save finish before opening
+or changing files in the checkout from another shell.
 
 >h2 Compile or wrap several objects
 

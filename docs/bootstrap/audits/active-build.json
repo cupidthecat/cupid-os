@@ -50089,10 +50089,10 @@
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
       "direct_angle_occurrences": 348,
-      "direct_quoted_occurrences": 2353,
-      "include_occurrences": 2701,
+      "direct_quoted_occurrences": 2354,
+      "include_occurrences": 2702,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2701,
+      "ordinary_marker_occurrences": 2702,
       "pp_token_operand_occurrences": 0,
       "source_files": 793,
       "status": "pass"
@@ -55862,6 +55862,7 @@
         "kernel/fs/devfs.cc",
         "kernel/fs/fat16.cc",
         "kernel/fs/fat16_vfs.cc",
+        "kernel/fs/homefs.cc",
         "kernel/fs/iso9660.cc",
         "kernel/fs/vfs.cc",
         "kernel/fs/vfs_helpers.cc",
@@ -55969,7 +55970,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.continue",
-      "occurrences": 1351
+      "occurrences": 1352
     },
     {
       "category": "control",
@@ -56496,7 +56497,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5807
+      "occurrences": 5813
     },
     {
       "category": "control",
@@ -56824,7 +56825,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4971
+      "occurrences": 4969
     },
     {
       "category": "control",
@@ -57784,7 +57785,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 28118
+      "occurrences": 28123
     },
     {
       "category": "control",
@@ -58221,7 +58222,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3176
+      "occurrences": 3177
     },
     {
       "category": "declaration",
@@ -58345,6 +58346,7 @@
         "kernel/fs/devfs.h",
         "kernel/fs/fat16.cc",
         "kernel/fs/fat16.h",
+        "kernel/fs/fat16_control.h",
         "kernel/fs/iso9660.cc",
         "kernel/fs/vfs.h",
         "kernel/gfx/gfx2d_icons.cc",
@@ -58390,7 +58392,7 @@
         "user/cupid.h"
       ],
       "id": "c.declarator.function_pointer",
-      "occurrences": 1033
+      "occurrences": 1034
     },
     {
       "category": "declarator",
@@ -58585,29 +58587,30 @@
       "category": "expression",
       "examples": [
         {
-          "line": 1001,
-          "path": "toolchain/cupidc_pp.cc",
-          "text": "return pp_string_equal(value, (ctool_string_t){literal, size});"
+          "line": 329,
+          "path": "kernel/fs/homefs.cc",
+          "text": "snapshot->entries[index] = (homefs_snapshot_entry_t){node, parent_index};"
         },
         {
-          "line": 2905,
-          "path": "toolchain/tests/cupidc_frontend_contract.cc",
-          "text": "ctool_c_section_name_is_valid((ctool_string_t){NULL, 1u}) == CTOOL_TRUE ||"
+          "line": 375,
+          "path": "kernel/fs/homefs.cc",
+          "text": "snapshot->header = (homefs_disk_header_t){HOMEFS_MAGIC,"
         },
         {
-          "line": 2910,
-          "path": "toolchain/tests/cupidc_frontend_contract.cc",
-          "text": "ctool_c_section_name_is_valid((ctool_string_t){"
+          "line": 389,
+          "path": "kernel/fs/homefs.cc",
+          "text": "snapshot->record.metadata = (homefs_disk_node_t){entry->parent_index, node->type,"
         }
       ],
       "files": [
+        "kernel/fs/homefs.cc",
         "toolchain/cupidc_pp.cc",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_type_contract.cc"
       ],
       "id": "c.expression.compound_literal",
-      "occurrences": 31
+      "occurrences": 34
     },
     {
       "category": "expression",
@@ -58854,7 +58857,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 6693
+      "occurrences": 6690
     },
     {
       "category": "extension",
@@ -61698,7 +61701,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2701
+      "occurrences": 2702
     },
     {
       "category": "preprocessor",
@@ -61837,7 +61840,7 @@
           "text": "#undef SC_OFF"
         },
         {
-          "line": 579,
+          "line": 580,
           "path": "kernel/doom/dglibc.cc",
           "text": "#undef EMIT"
         },
@@ -62349,7 +62352,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 18781
+      "occurrences": 18796
     },
     {
       "category": "qualifier",
@@ -62949,7 +62952,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10608
+      "occurrences": 10615
     },
     {
       "category": "type",
@@ -63473,7 +63476,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 12516
+      "occurrences": 12523
     },
     {
       "category": "type",
@@ -64332,7 +64335,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 26357
+      "occurrences": 26376
     },
     {
       "category": "type",
@@ -64897,7 +64900,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 1174
+      "occurrences": 1176
     },
     {
       "category": "type",
@@ -65038,6 +65041,7 @@
         "kernel/fs/blockdev.h",
         "kernel/fs/devfs.cc",
         "kernel/fs/fat16.h",
+        "kernel/fs/fat16_control.h",
         "kernel/fs/fat16_vfs.cc",
         "kernel/fs/fs.h",
         "kernel/fs/homefs.cc",
@@ -65226,7 +65230,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 1239
+      "occurrences": 1242
     },
     {
       "category": "type",
@@ -66160,7 +66164,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 15808
+      "occurrences": 15827
     },
     {
       "category": "declaration",
@@ -67097,7 +67101,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "80c1e7915116afb4b63d197d6c87ab1430e2a45d63617f0ef926d0231874327a",
+    "active_source_digest": "69c27c4b60bfd3af65ae6be2fbbb5381df570f343ba257c322a37f59d8d346b4",
     "control_files": [
       {
         "path": "Makefile",
@@ -76935,17 +76939,18 @@
         "kernel/fs/fat16.h",
         "kernel/fs/fat16_control.h",
         "kernel/fs/homefs.h",
+        "kernel/fs/ramfs.h",
         "kernel/fs/vfs.h",
         "kernel/fs/vfs_helpers.h",
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 1281,
+      "lines": 1282,
       "origin": "tracked",
       "path": "kernel/doom/dglibc.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "937ac24b1f4ce7daa09e38cca78a9a9bd44972c0ed9c47a54c57a086057a811b"
+      "sha256": "43bb474c45fd285381bb7da2bd61a89489ef5d086bd09dca3cd87952b1d58328"
     },
     {
       "build_owners": [
@@ -84366,7 +84371,7 @@
       "path": "kernel/fs/blockcache.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "a9b7efb5cec348197e73100b5ff64486cb4d6039168aafc52e870b170d9eb092"
+      "sha256": "ee211b05c3e7328c84e6eb849d61b9c342006fa6154987d459f2a8753e242093"
     },
     {
       "build_owners": [
@@ -84397,12 +84402,12 @@
         "kernel/fs/blockdev.h"
       ],
       "language": "c_header",
-      "lines": 43,
+      "lines": 47,
       "origin": "tracked",
       "path": "kernel/fs/blockcache.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "6e690262d8bcabac6322100cd00de6c489ccfac5d403c0e467911623ada7fb7c"
+      "sha256": "805d7c6798bbca33ad31c619cc51f2ea1f94dc8361d6ff7e6adcd0c852a48626"
     },
     {
       "build_owners": [
@@ -84591,12 +84596,12 @@
         "kernel/fs/fat16_control.h"
       ],
       "language": "cupid_c",
-      "lines": 1994,
+      "lines": 2006,
       "origin": "tracked",
       "path": "kernel/fs/fat16.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e11bf6be7d6a44ae741ba8062e0fb8dd28e549dda0b240e3028f2f9a58cb9565"
+      "sha256": "bab2b2e04c3cc17a25379ea1fdcee0a616e3ba8c8a43224585e1967da74c441d"
     },
     {
       "build_owners": [
@@ -84646,6 +84651,7 @@
       ],
       "cohort": "kernel_fs",
       "features": [
+        "c.declarator.function_pointer",
         "c.preprocessor.define",
         "c.preprocessor.endif",
         "c.preprocessor.ifndef",
@@ -84653,18 +84659,19 @@
         "c.qualifier.const",
         "c.type.char",
         "c.type.int",
+        "c.type.typedef",
         "c.type.void"
       ],
       "includes": [
         "kernel/fs/fat16.h"
       ],
       "language": "c_header",
-      "lines": 29,
+      "lines": 31,
       "origin": "tracked",
       "path": "kernel/fs/fat16_control.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "1862d44c0e466ff2d5b3254cbd1c3943b7bbf28e68a5b7f911fd497ab0e75210"
+      "sha256": "d2138e65118e803e1f6896dee935ea700ec83502b83d65a3893351e4abfbd3bc"
     },
     {
       "build_owners": [
@@ -84822,6 +84829,7 @@
       "features": [
         "c.control.break",
         "c.control.case",
+        "c.control.continue",
         "c.control.default",
         "c.control.else",
         "c.control.for",
@@ -84830,6 +84838,7 @@
         "c.control.return",
         "c.control.switch",
         "c.control.while",
+        "c.expression.compound_literal",
         "c.expression.sizeof",
         "c.initializer.designated",
         "c.preprocessor.define",
@@ -84854,12 +84863,12 @@
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 1321,
+      "lines": 1386,
       "origin": "tracked",
       "path": "kernel/fs/homefs.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "bf04af3ed9260873abaa51bbcc9f17575cc0f54a5916edb61d1513f93e22c318"
+      "sha256": "cbdded3193c9003d51cd26f50ad457521150e615a9a6dd03179017deff8da577"
     },
     {
       "build_owners": [

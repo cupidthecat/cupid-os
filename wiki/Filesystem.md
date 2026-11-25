@@ -296,7 +296,10 @@ sync restores the previous sector when possible.
 
 ## HomeFS
 
-HomeFS serializes a nested logical tree into the FAT16 `HOMEFS.SYS` container.
+HomeFS stores a nested tree in the FAT16 `HOMEFS.SYS` container. It
+streams records and file bytes to FAT16 during a save. Large images
+can keep an implicit zero tail, which reads as part of the file.
+New opens and changes wait while a save owns the storage guard.
 
 FAT16 writes a replacement container into a new cluster chain. It checks the
 data sync before changing the directory entry, then releases the older chain

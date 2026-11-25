@@ -28,14 +28,14 @@ static uint32_t access_counter = 0;
  * local interrupt disable alone is insufficient on SMP.  The BKL also saves
  * and clears IF, preventing a same-CPU timer callback from re-entering a PIO
  * transaction while a sector operation is in flight. */
-static bool blockcache_guard_enter(void) {
+bool blockcache_guard_enter(void) {
     bool locked = bkl_is_initialized();
     if (locked)
         bkl_lock();
     return locked;
 }
 
-static void blockcache_guard_leave(bool locked) {
+void blockcache_guard_leave(bool locked) {
     if (locked)
         bkl_unlock();
 }

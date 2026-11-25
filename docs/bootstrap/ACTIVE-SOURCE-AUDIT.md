@@ -36,7 +36,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupidasm` | 7 | 10320 |
 | `cupidc` | 8 | 20012 |
 | `cupiddis` | 5 | 5949 |
-| `doom_port` | 7 | 3449 |
+| `doom_port` | 7 | 3450 |
 | `driver` | 22 | 4173 |
 | `generated_install_table` | 3 | 0 |
 | `generated_symbol_table` | 1 | 0 |
@@ -45,7 +45,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_core` | 17 | 4352 |
 | `kernel_cpu` | 19 | 3230 |
 | `kernel_crypto` | 40 | 5431 |
-| `kernel_fs` | 27 | 7867 |
+| `kernel_fs` | 27 | 7950 |
 | `kernel_gfx` | 29 | 14208 |
 | `kernel_gui` | 28 | 12525 |
 | `kernel_lang` | 20 | 11055 |
@@ -100,16 +100,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1533 |
 | `asm.relocation` | 1 | 95 |
-| `c.control` | 12 | 97104 |
+| `c.control` | 12 | 97115 |
 | `c.declaration` | 1 | 33 |
-| `c.declarator` | 4 | 3875 |
+| `c.declarator` | 4 | 3876 |
 | `c.expression` | 2 | 6724 |
 | `c.extension` | 20 | 426 |
 | `c.initializer` | 1 | 654 |
-| `c.preprocessor` | 18 | 8843 |
-| `c.qualifier` | 2 | 19052 |
-| `c.storage` | 4 | 11449 |
-| `c.type` | 15 | 64732 |
+| `c.preprocessor` | 18 | 8844 |
+| `c.qualifier` | 2 | 19067 |
+| `c.storage` | 4 | 11456 |
+| `c.type` | 15 | 64782 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 135 |
 | `cupid_c.directive` | 1 | 1 |
@@ -296,7 +296,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bootstrap_artifact_coverage` | `pass` | 432 linked objects; 439 declared artifacts; 0 missing |
 | `c_preprocessor_conditionals` | `pass` | 521 conditional expressions (493 #if, 28 #elif); 64 normalized expressions; 67 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |
-| `c_preprocessor_include_operands` | `pass` | 2701 C include operands (2353 quoted, 348 angle, 0 pp-token); 793 source files; max conditional depth 2 |
+| `c_preprocessor_include_operands` | `pass` | 2702 C include operands (2354 quoted, 348 angle, 0 pp-token); 793 source files; max conditional depth 2 |
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 793 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 428 tracked + 4 generated translation units (KERNEL_I386=156, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, FREESTANDING_I386=1, CUPID_RUNTIME=108, HOSTED_TOOLCHAIN_64=0, HOSTED_KERNEL_BRIDGE_64=0, HOSTED_I386_LINUX=59, HOSTED_I386_WINDOWS=9, HOSTED_I386_KERNEL_BRIDGE=2, HOSTED_I386_LINUX_GNU=3, HOSTED_I386_WINDOWS_UTF8=1, HOSTED_I386_WINDOWS_PUBLICATION=1, HOSTED_I386_WINDOWS_BUILD=1, HOSTED_I386_WINDOWS_UTF8_GNU=1); 24 include-only, 3 non-root headers; 0 hosted deferred (0 external, 0 hermetic) |
