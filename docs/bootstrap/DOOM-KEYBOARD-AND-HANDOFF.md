@@ -72,6 +72,15 @@ polling while other CPUs waited for the big kernel lock. The samples
 showed activity in those paths, and the cause of the slowdown remains
 open.
 
+On November 24, the 64 MiB guest-matched image completed 7,117 game
+ticks in 19,179 real ticks under WSL at 12.99 frames per second.
+The four-CPU 200 MiB image with the staged ISO and WAD reached
+graphics and started `demo1` on WSL and Windows. WSL reached its
+1,800-second deadline and Windows reached its 5,400-second deadline
+without a timedemo result or return to the shell. The first Windows
+run missed keystrokes in the IWAD path. The retry used 1.2 seconds per
+key report and opened the correct WAD.
+
 ## Evidence and limits
 
 The first rebuilt guest exposes both the missing space and the input leak; it

@@ -911,6 +911,15 @@ table initialization before it called the `cupid.h` string functions.
 The disk check also accounts for the partition table that CupidObj writes
 over the boot sector's reserved bytes.
 
+The original full `project-kernel` replay rebuilt all 431 objects from
+804 installed inputs. Independent HomeFS readback found ten products that
+matched their host references byte for byte, including both kernel links,
+the raw kernel, the bootloader, the generated symbols, the three installation
+sources, and the SMP trampoline. The disk worker returned `input` while
+preparing the complete image. In that replay, the ISO and WAD still lived
+in HomeFS and the saved container held 73,137,519 bytes. The failure
+happened after both links and left no release image.
+
 ## Stream HomeFS saves to the working disk
 
 The FAT16 input move reduced the failing 200 MiB release save from a
@@ -950,6 +959,14 @@ The diagnostic now reads the filesystem's 1 MiB limit from `ramfs.h`
 and checks the last byte, the first rejected write and seek, and the
 saved file size. The corrected four-CPU run passed the full dglibc
 diagnostic, including the FAT16 and HomeFS checks.
+
+The link-only replay with the streaming kernel and both inputs on FAT16
+saved a 70,257,293-byte HomeFS container. All seven boot, link, symbol,
+and disk products matched the hosted references. The complete image
+contains the checked ISO and Freedoom WAD at their release paths. QEMU
+booted the exact 209,715,200-byte image on four CPUs and ran `ls` before
+the check exported it. Image SHA-256
+`3225e46719d673c691039764d3e41cad3510a7ffea943f37f0ca12e52c87f824`.
 
 ## Retained proof
 
