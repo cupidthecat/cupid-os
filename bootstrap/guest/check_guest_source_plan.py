@@ -262,17 +262,19 @@ def stage_installed_tree(scratch: Path, root: Path, image: Path,
              for path, contents in plan.items()]
     files.extend((f"{project}/{source.as_posix()}".encode("ascii"), (root / source).read_bytes())
                  for source in sorted(sources))
+    asset_media = []
     if image_assets:
         pairs = []
         for index, asset in enumerate(image_assets):
-            name = f"disk-inputs/{index}"
-            files.append((f"{project}/{name}".encode("ascii"), asset.source.read_bytes()))
-            pairs.extend((name, asset.dest))
+            # Leave read-only release inputs on FAT16 so HomeFS does not copy them on mount.
+            drive_path = f"/release/a{index}"
+            asset_media.append(f"{asset.source}:{drive_path}")
+            pairs.extend((f"/disk{drive_path}", asset.dest))
         files.append((f"{project}/disk-assets".encode("ascii"), job_contents(*pairs)))
     homefs = scratch / "homefs.sys"
     write_homefs(homefs, tuple(files))
     create_disk(image, f"{homefs}:/homefs.sys", f"{BUILD / 'cupidbuild-guest.elf'}:/b",
-                *staged, production_root=root)
+                *staged, *asset_media, production_root=root)
 
 
 def replay(scratch: Path, root: Path, qemu: str, timeout: float,

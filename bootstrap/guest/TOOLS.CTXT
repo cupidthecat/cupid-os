@@ -108,8 +108,10 @@ Put the following lines in kernel-project.job:
 The layout path is required. Omit objects tmp to keep the intermediate
 objects in build. Omit image and stage to write a bootable disk prefix.
 The stage line points to a file of source and destination path pairs
-for the new FAT16 volume. Use paths relative to the checkout for the
-layout, stage file, and its source files. Destination paths start with /.
+for the new FAT16 volume. Keep the layout and stage file paths relative
+to the checkout. The stage file can use source paths relative to the
+checkout or absolute paths such as /disk/release/a0. Use /disk for
+large input assets. Destination paths start with /.
 
 Use cd to enter the checkout before running exec /disk/b. CupidBuild
 creates build, assembles and compiles the sources, and links the objects

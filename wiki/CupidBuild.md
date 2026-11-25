@@ -111,8 +111,10 @@ To stage files into the new FAT16 volume, put `stage /home/disk-assets`
 after the image line. In that manifest, write an absolute path to an
 existing file, then its absolute path inside the new image. Repeat for
 each ISO, WAD, or other file. A failed stage preserves the previous image.
-For a local project, use `stage disk-assets` and source paths relative to
-the project directory.
+For a local project, use `stage disk-assets`. Source paths may be relative
+to the project or absolute VFS paths. Keep large source assets on the
+working FAT16 volume and name them under `/disk` to leave HomeFS memory
+available for the checkout and its builds.
 [Guest disk job and boot checks](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#save-a-complete-disk-image)
 
 ## Verify a saved release disk

@@ -841,6 +841,10 @@ Set up the checked guest driver and two project job files as described in
 [TOOLS.CTXT](../../bootstrap/guest/TOOLS.CTXT). The native replay stages
 the source closure, the layout, the settings, and the driver. It computes
 the expected outputs independently from the supported host graph.
+The release ISO and Freedoom WAD stay on the working FAT16 volume.
+The project's stage file points to them under `/disk/release`, so
+HomeFS holds the checkout and its products without loading a second
+copy of each staging input.
 
 ```sh
 make -C bootstrap/guest check-guest-build check-project-layout
@@ -861,7 +865,12 @@ the timedemo. `--logs` selects a serial transcript directory.
 `--key-pause` adjusts the time between emulated USB key reports.
 
 The export tests preserve an existing image when boot or file writeback
-fails. A successful export keeps the compared bytes.
+fails. A successful export keeps the compared bytes. A 200 MiB link-only
+run with both input assets in HomeFS reached the disk job and failed when
+HomeFS tried to allocate 99,111,435 bytes for its container. Moving the
+input payloads to FAT16 lowered the failed allocation to 70,254,841 bytes.
+The staging test verifies that the checkout snapshot carries the
+manifest paths and leaves the asset payloads on the working disk.
 
 The shell and ISO checks passed on Windows and WSL using the 200 MiB
 image that matched the guest disk job. Both ran `ls` and `cat` and copied

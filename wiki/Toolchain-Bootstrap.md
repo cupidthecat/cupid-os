@@ -4,7 +4,8 @@
 
 The normal OS and user builds use checked CupidC, CupidASM, CupidLD, CupidObj,
 CupidDis and CupidBuild seeds. GNU Make schedules the build, CupidBuild
-publishes the disk image, and Python coordinates SDK contracts. See
+publishes the disk image, and Python coordinates SDK contracts. GCC
+and NASM are optional comparison tools. See
 [CupidBuild](CupidBuild) for normal build commands and
 [Getting Started](Getting-Started) for host setup.
 

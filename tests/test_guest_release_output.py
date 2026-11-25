@@ -9,6 +9,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "bootstrap" / "gues
 
 import check_guest_kernel_plan as replay
 import check_guest_release_runtime as runtime
+import check_guest_source_plan as plan
+from tools.hostbuild_disk import StageFile
 
 
 class GuestReleaseOutputTests(unittest.TestCase):
@@ -52,6 +54,35 @@ class GuestReleaseOutputTests(unittest.TestCase):
                     replay.save_checked_disk(destination, b"new checked image")
             self.assertEqual(destination.read_bytes(), previous)
             self.assertEqual(list(scratch.iterdir()), [destination])
+
+
+class GuestReleaseInputsTests(unittest.TestCase):
+    def test_release_assets_stay_on_the_working_fat_volume(self):
+        with tempfile.TemporaryDirectory() as directory:
+            scratch = Path(directory)
+            source = scratch / "main.cc"
+            source.write_bytes(b"void main() {}\n")
+            iso = scratch / "hello.iso"
+            iso.write_bytes(b"ISO staged on FAT only")
+            wad = scratch / "freedoom1.wad"
+            wad.write_bytes(b"WAD staged on FAT only")
+            assets = (StageFile(iso, "/hello.iso"), StageFile(wad, "/wads/freedoom1.wad"))
+            image = scratch / "working.img"
+            jobs = {Path("cupidbuild.job"): b"project-kernel\nkernel.job\n"}
+
+            with patch.object(plan, "create_disk") as create:
+                plan.stage_installed_tree(scratch, scratch, image, (), (Path("main.cc"),),
+                                          image_assets=assets, native_plan=jobs)
+
+            manifest = scratch / "stage-expected"
+            manifest.write_bytes(b"/disk/release/a0\n/hello.iso\n/disk/release/a1\n/wads/freedoom1.wad\n")
+            payload = (scratch / "homefs.sys").read_bytes()
+            replay.compare_homefs_files(payload, {
+                "project/main.cc": source, "project/disk-assets": manifest,
+            })
+            self.assertNotIn(iso.read_bytes(), payload)
+            self.assertNotIn(wad.read_bytes(), payload)
+            self.assertEqual(create.call_args.args[-2:], (f"{iso}:/release/a0", f"{wad}:/release/a1"))
 
 
 class GuestReleaseRuntimeTests(unittest.TestCase):
