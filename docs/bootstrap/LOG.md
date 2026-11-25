@@ -1,5 +1,31 @@
 # Bootstrapping log
 
+## 2026-11-24 — Stage files in guest-built disk images
+
+The guest disk and kernel jobs accept `stage /absolute/manifest` after
+the image size. Each pair names a VFS source and a destination in the
+new FAT16 volume. The guest uses the shared FAT16 writer and name rules
+to stage files into a HomeFS candidate before renaming it. The Linux
+contract compares the whole image and checks that a missing file,
+incomplete pair, or invalid path preserves the previous image.
+
+Windows and WSL built identical disk and CupidBuild workers. The guest
+disk and build contracts passed, the source ISO built, and 102 Windows
+tests passed. A four-CPU WSL QEMU run staged the checked `hello.iso` and
+Freedoom 1 WAD and saved 67,108,864 bytes. The image matched the hosted
+reference, SHA-256
+`f6c20b75a5fe45282daf4ef3ea772145f9ac891093644f1fb55b8b902a145c60`.
+The saved image booted with four CPUs and ran `ls`.
+
+The installed-tree kernel job linked 431 checked pass-one objects and
+staged `hello.iso` in a 32 MiB image. All seven products matched their
+references. The saved image booted with four CPUs and ran `ls`.
+
+HomeFS sync can persist the candidate under its temporary name during
+a long job. Production-size disk publication still needs a storage path
+that avoids holding and serializing the whole image in memory. The host
+still prepares and stages the source tree and build requests.
+
 ## 2026-11-24 — Save a complete disk inside Cupid OS
 
 Add an optional `image <MiB>` line to the guest disk and kernel jobs.

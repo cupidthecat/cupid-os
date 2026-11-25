@@ -7,7 +7,8 @@ import subprocess
 import sys
 import tempfile
 
-from check_guest_disk_runtime import write_reference_disk
+from check_guest_disk_runtime import FAT_START_LBA, write_reference_disk
+from tools.hostbuild_disk import StageFile, stage_files
 
 
 def check(root: Path, scratch: Path) -> None:
@@ -82,7 +83,30 @@ def check(root: Path, scratch: Path) -> None:
     invoke(full.replace(b"/home/template.img", b"/tmp/template.img"), invalid)
     invoke(full, failed + b": limit", "--fail-seek")
     assert output.read_bytes() == complete and not pending.exists()
-    print("Guest prefix and full image matched checked outputs. Invalid requests and seek failure preserved the image.")
+    iso = inputs / "fixture.iso"
+    wad = inputs / "sample.wad"
+    iso.write_bytes(bytes(range(256)) * 35)
+    wad.write_bytes(b"wad fixture" * 120)
+    stages = home / "assets"
+    entries = b"/inputs/fixture.iso\n/hello.iso\n/inputs/sample.wad\n/wads/freedo~1.wad\n"
+    stages.write_bytes(entries)
+    stage_files(image_reference, FAT_START_LBA, [StageFile(iso, "/hello.iso"), StageFile(wad, "/wads/freedo~1.wad")])
+    expected_staged = image_reference.read_bytes()
+    staged = full + b"stage /home/assets\n"
+    invoke(staged, b"[cupiddisk-guest] wrote /home/template.img")
+    assert output.read_bytes() == expected_staged and not pending.exists()
+
+    # Fail after the first asset has already changed the private candidate.
+    for invalid_list in (entries + b"/inputs/missing\n/last.bin\n",
+                         entries + b"/inputs/fixture.iso\n",
+                         entries + b"/inputs/fixture.iso\n/../last.bin\n"):
+        stages.write_bytes(invalid_list)
+        invoke(staged, failed)
+        assert output.read_bytes() == expected_staged and not pending.exists()
+    invoke(staged.replace(b"/home/assets", b"/home/.cupiddisk-pending.img"), invalid)
+    invoke(build + b"stage /home/assets\n", invalid)
+    assert output.read_bytes() == expected_staged and not pending.exists()
+    print("Guest prefix, full image and staged assets matched checked output. Rejections preserved the image.")
 
 
 if __name__ == "__main__":

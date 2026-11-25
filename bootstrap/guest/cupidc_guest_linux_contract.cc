@@ -121,10 +121,20 @@ static int host_read_text(const char *path, char *text, uint32_t size) {
 
 static int host_open(const char *path, uint32_t flags) {
     char absolute[4096];
-    const unsigned int linux_create_write = 1u | 64u | 512u;
-    if (flags != (O_WRONLY | O_CREAT | O_TRUNC) || !absolute_path(path, absolute))
+    unsigned int linux_flags = 0u;
+    if (flags == (O_WRONLY | O_CREAT | O_TRUNC))
+        linux_flags = 1u | 64u | 512u;
+    else if (flags == (O_RDWR | O_CREAT | O_TRUNC))
+        linux_flags = 2u | 64u | 512u;
+    else if (flags != O_RDONLY)
         return -22;
-    return cupid_linux_syscall3(5, (unsigned int)absolute, linux_create_write, 0600u);
+    if (!absolute_path(path, absolute))
+        return -22;
+    return cupid_linux_syscall3(5, (unsigned int)absolute, linux_flags, 0600u);
+}
+
+static int host_read(int fd, void *bytes, uint32_t size) {
+    return cupid_linux_syscall3(3, (unsigned int)fd, (unsigned int)bytes, size);
 }
 
 static int host_write(int fd, const void *bytes, uint32_t size) {
@@ -250,6 +260,7 @@ int main(int argc, char **argv) {
     sys.vfs_read_all = host_read_all;
     sys.vfs_read_text = host_read_text;
     sys.vfs_open = host_open;
+    sys.vfs_read = host_read;
     sys.vfs_write = host_write;
     sys.vfs_seek = host_seek;
     sys.vfs_close = host_close;

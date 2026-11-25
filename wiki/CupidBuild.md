@@ -68,10 +68,14 @@ MBR sector count, the FAT16 volume, and the checked CupidObj template.
 
 A guest kernel job can write a complete bootable disk to HomeFS. Put
 `image 32` after any `root` and `output` lines and before the object
-list. It writes `cupidos.img` with a 32 MiB extent and an empty FAT16
-data area. Leave enough free space on the working disk for the image.
-See the [guest build instructions](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#save-a-complete-disk-image)
-for the standalone disk job and boot checks.
+list to write a 32 MiB `cupidos.img`. Leave enough free space on the
+working disk for the image and any previous copy.
+
+To stage files into the new FAT16 volume, put `stage /home/disk-assets`
+after the image line. In that manifest, write an absolute path to an
+existing file, then its absolute path inside the new image. Repeat for
+each ISO, WAD, or other file. A failed stage preserves the previous image.
+[Guest disk job and boot checks](https://github.com/cupidthecat/cupid-os/blob/bootstrap/cupid-self-hosting/docs/bootstrap/FREESTANDING-COMPILER-ENGINE.md#save-a-complete-disk-image)
 
 ## When a command fails
 

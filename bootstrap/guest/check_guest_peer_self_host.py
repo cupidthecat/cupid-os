@@ -44,7 +44,7 @@ PEERS = {
         "toolchain/cupidasm.cc", "toolchain/cupiddis.cc", "bootstrap/guest/cupidasm_guest.cc",
         "bootstrap/guest/guest_raw_assembly.cc", "bootstrap/guest/cupidinstall_guest.cc",
         "bootstrap/guest/cupidksyms_guest.cc", "bootstrap/guest/cupidobj_guest.cc",
-        "bootstrap/guest/cupiddisk_guest.cc",
+        "bootstrap/guest/cupiddisk_guest.cc", "toolchain/fat16_stage.cc", "toolchain/fat16_names.cc",
     ),
 }
 

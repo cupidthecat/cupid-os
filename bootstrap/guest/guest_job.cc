@@ -229,7 +229,8 @@ static ctool_status_t guest_write(void *context, ctool_string_t path, ctool_byte
     if (status != GUEST_ENOENT)
         return file_failure(status);
     cupid_guest_job_drain_cache(io);
-    int fd = io->sys->vfs_open(candidate, O_WRONLY | O_CREAT | O_TRUNC);
+    int access = io->prepare_output ? O_RDWR : O_WRONLY;
+    int fd = io->sys->vfs_open(candidate, access | O_CREAT | O_TRUNC);
     if (fd < 0)
         return file_failure(fd);
 
@@ -256,15 +257,19 @@ static ctool_status_t guest_write(void *context, ctool_string_t path, ctool_byte
             status = -1;
         }
     }
+    ctool_status_t result = status < 0 ? file_failure(status) : CTOOL_OK;
+    if (result == CTOOL_OK && io->prepare_output)
+        result = io->prepare_output(io->output_context, fd);
     /* HomeFS flushes the completed file as part of rename. */
-    if (status == 0)
+    if (result == CTOOL_OK) {
         status = io->sys->vfs_rename(candidate, path.data);
-    io->sys->vfs_close(fd);
-    if (status < 0) {
-        io->sys->vfs_unlink(candidate);
-        return file_failure(status);
+        if (status < 0)
+            result = file_failure(status);
     }
-    return CTOOL_OK;
+    io->sys->vfs_close(fd);
+    if (result != CTOOL_OK)
+        io->sys->vfs_unlink(candidate);
+    return result;
 }
 
 static ctool_status_t guest_diagnostic(void *context, ctool_bytes_t text) {

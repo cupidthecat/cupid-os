@@ -23,6 +23,7 @@ ctool_status_t cupid_guest_asset_list(cupid_syscall_table_t *sys, const cupid_gu
 ctool_status_t cupid_guest_raw_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
 ctool_status_t cupid_guest_assemble_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
 ctool_status_t cupid_guest_install_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
+const char *cupid_guest_disk_stage_list(cupid_syscall_table_t *sys, const char *option);
 int cupid_guest_disk_image_extent(cupid_syscall_table_t *sys, const char *option, ctool_u32 *extent);
 ctool_status_t cupid_guest_disk_job(cupid_syscall_table_t *sys, const cupid_guest_request_t *job);
 

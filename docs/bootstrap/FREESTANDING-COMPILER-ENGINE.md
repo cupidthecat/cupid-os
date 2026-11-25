@@ -643,9 +643,24 @@ image 32
 For the installed project's kernel job, put `image 32` after any
 `root` and `output` lines and before the object list. CupidBuild
 writes `cupidos.img` in the output directory. The image keeps the FAT16
-partition at sector 20,480 and starts with an empty data area. The working
+partition at sector 20,480. The working
 disk needs space for the completed image and any prior copy while HomeFS
 publishes the replacement.
+
+To fill the FAT16 data area, add `stage /home/disk-assets` immediately after
+`image 32`. The manifest lists an absolute VFS source and an absolute path
+inside the new image for each file, one path per line.
+
+```text
+/disk/hello.iso
+/hello.iso
+/disk/wads/freedo~1.wad
+/wads/freedo~1.wad
+```
+
+Choose a size with room for every asset. CupidBuild creates directories as
+needed and writes both FAT tables before publishing the image. A failed
+stage leaves the preceding image in place.
 
 On Linux or WSL, the replay compares the entire saved disk and boots the
 extracted bytes without extending them.
@@ -653,7 +668,10 @@ extracted bytes without extending them.
 ```sh
 make -C bootstrap/guest guest-disk guest-build
 python3 bootstrap/guest/check_guest_disk_runtime.py --image-mib 32
-python3 bootstrap/guest/check_guest_source_plan.py --installed-tree --link-only --image-mib 32
+python3 bootstrap/guest/check_guest_disk_runtime.py --image-mib 64 --stage-iso \
+  --stage-wad third_party/freedoom/0.13.0/freedoom1.wad
+python3 bootstrap/guest/check_guest_source_plan.py --installed-tree --link-only \
+  --image-mib 32 --stage-iso
 ```
 
 Run the full boot-media replay from a completed checked Linux or WSL build.

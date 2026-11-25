@@ -13,6 +13,7 @@ from check_guest_runtime import (
     BUILD,
     BUILD_FAILURE_PATTERN,
     COMPILER_REAPED,
+    FAT_START_LBA,
     ROOT,
     build_plan_manifest,
     compare_homefs_files,
@@ -22,6 +23,7 @@ from check_guest_runtime import (
     write_homefs,
 )
 from tools.gui_terminal_smoke import PANIC_RE
+from tools.hostbuild_disk import StageFile, stage_files
 
 
 def link_request(output: str, objects: list[str], script: str) -> bytes:
@@ -54,7 +56,7 @@ def execute_kernel_plan(scratch: Path, root: Path, image: Path, qemu: str, timeo
                         extra_references: dict[str, Path],
                         mounts: tuple[tuple[str, str], ...] = (), *,
                         project_directory: str | None = None, output_directory: str = "/home",
-                        image_mib: int | None = None) -> None:
+                        image_mib: int | None = None, image_assets: tuple[StageFile, ...] = ()) -> None:
     smoke = ("tools/gui_terminal_smoke.py", "--qemu", qemu, "--cpu", "max",
              "--nic", "e1000", "--timeout", str(timeout), "--key-pause", "0.75",
              "--require-command-completion")
@@ -87,6 +89,8 @@ def execute_kernel_plan(scratch: Path, root: Path, image: Path, qemu: str, timeo
     disk_name = "cupidos.img" if image_mib is not None else "disk-prefix.img"
     expected_disk = scratch / "expected.img"
     write_reference_disk(expected_disk, root / "boot/boot.bin", root / "kernel/kernel.bin", image_mib)
+    if image_assets:
+        stage_files(expected_disk, FAT_START_LBA, list(image_assets))
     products = {
         "boot.bin": root / "boot/boot.bin",
         "pass1.elf": root / "kernel/kernel.elf.pass1",

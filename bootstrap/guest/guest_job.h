@@ -31,6 +31,9 @@ typedef struct {
     ctool_string_t input_prefix;
     const char *pending_path;
     ctool_u32 output_extent; /* Optional zero-filled extent for a fresh HomeFS file. */
+    /* Finish a private candidate before HomeFS publishes it. */
+    ctool_status_t (*prepare_output)(void *context, int fd);
+    void *output_context;
     ctool_u32 cached_bytes;
     cupid_guest_cached_allocation_t cache[CUPID_GUEST_CACHE_SLOTS];
 } cupid_guest_io_t;

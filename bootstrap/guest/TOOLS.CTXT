@@ -124,7 +124,8 @@ link.ld from /src, generates the symbol object between links, and saves
 the disk prefix as /home/disk-prefix.img.
 To save a complete image, put image 32 after any root and output lines and
 before the object paths. CupidBuild writes cupidos.img in the output
-directory. Use HomeFS for the full image.
+directory. Use HomeFS for the full image. To stage files, put
+stage /home/disk-assets immediately after the image line.
 For a local project plan, use root . on the first line to read boot/boot.asm,
 link.ld and headers from the project. Use output build after root and before
 the object list to save all seven products in the project's build directory.
@@ -240,5 +241,18 @@ after the empty FAT16 root directory. It describes the standard 200 MiB
 image with its partition starting at sector 20480.
 
 For a complete 32 MiB disk, change the output path to /home/cupidos.img
-and add image 32 as the fourth line. The image contains an empty FAT16
-data area. HomeFS needs room for the whole file and its replacement.
+and add image 32 as the fourth line. HomeFS needs room for the whole file
+and its replacement.
+
+Add stage /home/disk-assets after the image line to stage files. In
+/home/disk-assets, give each source path and its path in the new image
+on two lines. For example, these pairs save an ISO and a Freedoom WAD.
+
+  /disk/hello.iso
+  /hello.iso
+  /disk/wads/freedo~1.wad
+  /wads/freedo~1.wad
+
+Choose an image size with room for those files. CupidBuild publishes the
+image when every file has been staged. If a stage fails, the previous
+image stays in place.

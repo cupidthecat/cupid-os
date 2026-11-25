@@ -120,6 +120,15 @@ class GuestSourcePlanTests(unittest.TestCase):
             "root .", "output build", "image 32",
             *(f"/tmp/i{index:03}.o" for index in range(len(self.objects) - 1)),
         ))
+        staged, staged_inputs, staged_references = guest_plan.source_plan(
+            self.root, True, installed_tree=True, image_mib=32, stage_assets=True,
+        )
+        self.assertEqual(staged_inputs, inputs)
+        self.assertEqual(staged_references, references)
+        self.assertEqual(staged[:-1], steps[:-1])
+        self.assertEqual(staged[-1][2], complete[-1][2].replace(
+            b"image 32\n", b"image 32\nstage /home/project/disk-assets\n",
+        ))
         _, _, persistent = guest_plan.source_plan(self.root, False, installed_tree=True)
         self.assertEqual(persistent["project/build/i000.o"], self.root / self.objects[0])
 
@@ -141,6 +150,17 @@ class GuestSourcePlanTests(unittest.TestCase):
             })
             self.assertEqual(calls["create_disk"].call_args.args[-1],
                              f"{guest_plan.BUILD / 'cupidbuild-guest.elf'}:/b")
+
+    def test_installed_tree_stages_disk_manifest_and_payload(self):
+        with patch.multiple(guest_plan, write_homefs=DEFAULT, create_disk=DEFAULT) as calls:
+            image = self.root / "build.img"
+            iso = self.root / "test_iso/hello.iso"
+            guest_plan.stage_installed_tree(
+                self.root, self.root, image, (), (), image_assets=(guest_plan.StageFile(iso, "/hello.iso"),),
+            )
+        _, entries = calls["write_homefs"].call_args.args
+        self.assertEqual(dict(entries)[b"project/disk-assets"], b"/disk/a0.bin\n/hello.iso\n")
+        self.assertEqual(calls["create_disk"].call_args.args[-1], f"{iso}:/a0.bin")
 
     def test_installed_tree_counts_directory_creation_toward_plan_limit(self):
         steps = tuple(("compile", f"source{i}.job".encode("ascii"), b"") for i in range(512))

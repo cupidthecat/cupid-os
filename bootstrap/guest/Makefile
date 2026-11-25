@@ -70,7 +70,7 @@ GUEST_BUILD := $(BUILD)/cupidbuild-guest.elf
 GUEST_MEDIA_BUILD := $(BUILD)/cupidbuild-media.elf
 GUEST_BUILD_OBJECTS := $(GUEST_COMPILER_OBJECTS) $(addprefix $(BUILD)/,cupidld.o cupidld_guest.o cupidbuild_guest.o \
     cupidbuild_kernel.o cupidasm.o cupiddis.o cupidasm_guest.o guest_raw_assembly.o cupidinstall_guest.o \
-    cupidksyms_guest.o cupidobj_guest.o cupiddisk_guest.o)
+    cupidksyms_guest.o cupidobj_guest.o cupiddisk_guest.o fat16_stage.o fat16_names.o)
 GUEST_LINKER := $(BUILD)/cupidld-guest.elf
 GUEST_LINKER_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/cupidld.o \
     $(GUEST_SUPPORT) $(BUILD)/cupidld_guest.o
@@ -86,7 +86,7 @@ GUEST_KSYMS_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/x86.o \
     $(BUILD)/cupiddis.o $(BUILD)/cupidobj.o $(GUEST_SUPPORT) $(BUILD)/cupidksyms_guest.o
 GUEST_DISK := $(BUILD)/cupiddisk-guest.elf
 GUEST_DISK_OBJECTS := $(BUILD)/ctool.o $(BUILD)/elf32.o $(BUILD)/cupidobj.o \
-    $(GUEST_SUPPORT) $(BUILD)/cupiddisk_guest.o
+    $(GUEST_SUPPORT) $(addprefix $(BUILD)/,cupiddisk_guest.o fat16_stage.o fat16_names.o)
 
 .PHONY: guest-compiler guest-assembler guest-raw guest-linker guest-build guest-media-build guest-object guest-install guest-ksyms guest-disk
 guest-compiler: $(GUEST_COMPILER)
@@ -167,6 +167,12 @@ $(GUEST_KSYMS): $(GUEST_KSYMS_OBJECTS) Makefile $(SEED_INPUTS)
 	$(RUN) --tool cupidld -- -m elf_i386 --text-address 0x01e00000 --entry cupidksyms_guest_run \
 		-o "$(abspath $@)" $(foreach obj,$(filter %.o,$^),"$(abspath $(obj))")
 
+$(BUILD)/fat16_names.o: $(TOOLCHAIN)/fat16_name_profiles.inc
+
+$(BUILD)/fat16_stage.o $(BUILD)/fat16_names.o: $(BUILD)/%.o: $(TOOLCHAIN)/%.cc $(TOOLCHAIN)/%.h $(TOOLCHAIN)/fat16_stage.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
+	$(RUN) --tool cupidc -- $(CFLAGS) -c /toolchain/$*.cc -o $(PUBLISH)/$*.o
+
+$(BUILD)/cupiddisk_guest.o: $(TOOLCHAIN)/fat16_names.h $(TOOLCHAIN)/fat16_stage.h
 $(BUILD)/cupiddisk_guest.o: cupiddisk_guest.cc guest_build.h guest_job.h ../../user/cupid.h $(TOOLCHAIN)/cupidobj.h $(TOOLCHAIN)/ctool.h Makefile $(SEED_INPUTS) | $(BUILD)
 	$(RUN) --tool cupidc -- $(CFLAGS) -I /user -c /bootstrap/guest/cupiddisk_guest.cc -o $(PUBLISH)/cupiddisk_guest.o
 
@@ -189,6 +195,8 @@ ISO_SOURCES := $(addprefix toolchain/,$(addsuffix .cc,$(CORE))) \
 	bootstrap/guest/cupidasm_guest.cc bootstrap/guest/cupidld_guest.cc bootstrap/guest/cupidobj_guest.cc \
 	bootstrap/guest/cupidinstall_guest.cc bootstrap/guest/guest_raw_assembly.cc \
 	bootstrap/guest/cupidksyms_guest.cc bootstrap/guest/cupiddisk_guest.cc bootstrap/guest/TOOLS.CTXT \
+	toolchain/fat16_names.cc toolchain/fat16_names.h toolchain/fat16_name_profiles.inc \
+	toolchain/fat16_stage.cc toolchain/fat16_stage.h \
 	toolchain/cupidbuild_jpeg.h toolchain/cupidld.cc toolchain/cupidld.h user/cupid.h $(ISO_PEER_SOURCES) \
 	$(patsubst ../../%,%,$(filter-out cupidc_engine.h,$(HEADERS)))
 ISO_ENGINE := cupidc-engine.elf

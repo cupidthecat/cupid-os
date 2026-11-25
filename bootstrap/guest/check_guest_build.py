@@ -327,7 +327,9 @@ def check(scratch: Path) -> None:
                     b"output \n/disk/input.o\n",
                     b"root ../project\noutput build\n/disk/input.o\n",
                     b"output build\nimage 2048\n/disk/input.o\n",
-                    b"output /tmp\nimage 32\n/disk/input.o\n"):
+                    b"output /tmp\nimage 32\n/disk/input.o\n",
+                    b"output build\nimage 32\nstage /home/../assets\n/disk/input.o\n",
+                    b"output build\nstage /home/assets\n/disk/input.o\n"):
         project_kernel.write_bytes(invalid)
         log = invoke(b"[cupidbuild-guest] invalid kernel object list")
         assert b"[cupidraw-guest]" not in log
@@ -337,7 +339,7 @@ def check(scratch: Path) -> None:
     invoke(b"[cupidbuild-guest] kernel build stopped at bootloader")
     assert project_boot.read_bytes() == b"preceding project bootloader"
     assert boot.read_bytes() == b"preceding bootloader"
-    project_kernel.write_bytes(b"root .\noutput build\nimage 32\n/disk/input.o\n")
+    project_kernel.write_bytes(b"root .\noutput build\nimage 32\nstage /home/assets\n/disk/input.o\n")
     invoke(b"[cupidbuild-guest] kernel build stopped at bootloader")
     assert project_boot.read_bytes() == b"preceding project bootloader"
     local_output = project / "obj"

@@ -13,6 +13,7 @@ import tempfile
 
 from check_guest_assembly_runtime import ASSEMBLY_SOURCES
 from check_guest_asset_bundle import production_assets
+from check_guest_disk_runtime import asset_fixture
 from check_guest_install_runtime import INSTALL_HEADERS, installation_jobs
 from check_guest_kernel_link import production_objects
 from check_guest_kernel_plan import execute_kernel_plan
@@ -21,6 +22,7 @@ from check_guest_raw_assembly_runtime import RAW_PRODUCTS, TRAMPOLINE_OBJECT
 from check_guest_runtime import BUILD, ROOT, SEED_MANIFEST, build_plan_manifest, create_disk, write_homefs
 from source_iso import publish_source_iso
 from tools.cupidc_kernel_compile import _kernel_input_paths
+from tools.hostbuild_disk import StageFile
 
 
 DOOM = Path("kernel/doom")
@@ -98,8 +100,15 @@ def publish_plan_iso(publisher: Path, root: Path, output: Path,
                                   source_directory=staging, source_overrides=asset_paths)
 
 
+def image_options(image_mib: int | None, stage_assets: bool) -> tuple[str, ...]:
+    options = (f"image {image_mib}",) if image_mib is not None else ()
+    if stage_assets:
+        options += (f"stage {INSTALLED_ROOT}/disk-assets",)
+    return options
+
+
 def source_plan(root: Path, temporary_objects: bool, *, installed_tree: bool = False,
-                image_mib: int | None = None):
+                image_mib: int | None = None, stage_assets: bool = False):
     objects = production_objects(root)[:-1]
     if len(set(objects)) != len(objects):
         raise ValueError("the kernel link repeats a pass-one object")
@@ -114,7 +123,7 @@ def source_plan(root: Path, temporary_objects: bool, *, installed_tree: bool = F
     source_root = INSTALLED_ROOT if installed_tree else "/src"
     source_option = ("root .",) if installed_tree else ()
     output_option = (f"output {INSTALLED_BUILD_NAME}",) if installed_tree else ()
-    disk_option = (f"image {image_mib}",) if image_mib is not None else ()
+    disk_option = image_options(image_mib, stage_assets)
 
     def add(operation: str, name: str, contents: bytes) -> None:
         steps.append((operation, name.encode("ascii"), contents))
@@ -195,7 +204,7 @@ def source_plan(root: Path, temporary_objects: bool, *, installed_tree: bool = F
 
 def stage_installed_tree(scratch: Path, root: Path, image: Path,
                          steps: tuple[tuple[str, bytes, bytes], ...],
-                         sources: Collection[Path], *staged: str) -> None:
+                         sources: Collection[Path], *staged: str, image_assets: tuple[StageFile, ...] = ()) -> None:
     if len(steps) >= BUILD_STEP_LIMIT:
         raise ValueError(f"{len(steps) + 1} steps exceed the guest plan limit")
     plan = media_plan_files(steps, request_root=b"jobs/")
@@ -206,6 +215,10 @@ def stage_installed_tree(scratch: Path, root: Path, image: Path,
              for path, contents in plan.items()]
     files.extend((f"{project}/{source.as_posix()}".encode("ascii"), (root / source).read_bytes())
                  for source in sorted(sources))
+    if image_assets:
+        manifest, payloads = asset_fixture(image_assets)
+        files.append((f"{project}/disk-assets".encode("ascii"), manifest))
+        staged += payloads
     homefs = scratch / "homefs.sys"
     write_homefs(homefs, tuple(files))
     create_disk(image, f"{homefs}:/homefs.sys", f"{BUILD / 'cupidbuild-guest.elf'}:/b",
@@ -243,15 +256,16 @@ def check(scratch: Path, root: Path, qemu: str, timeout: float, temporary_object
 
 
 def check_installed(scratch: Path, root: Path, qemu: str, timeout: float, temporary_objects: bool,
-                    *, image_mib: int | None = None) -> None:
-    steps, inputs, references = source_plan(root, temporary_objects, installed_tree=True, image_mib=image_mib)
+                    *, image_mib: int | None = None, image_assets: tuple[StageFile, ...] = ()) -> None:
+    steps, inputs, references = source_plan(root, temporary_objects, installed_tree=True, image_mib=image_mib,
+                                            stage_assets=bool(image_assets))
     sources = {(base / member).relative_to(root) for base, members in inputs for member in members
                if not (base / member).is_dir()}
     image = scratch / "build.img"
-    stage_installed_tree(scratch, root, image, steps, sources)
+    stage_installed_tree(scratch, root, image, steps, sources, image_assets=image_assets)
     execute_kernel_plan(scratch, root, image, qemu, timeout, references,
                         project_directory=INSTALLED_ROOT, output_directory=INSTALLED_BUILD,
-                        image_mib=image_mib)
+                        image_mib=image_mib, image_assets=image_assets)
 
 
 def verify_pass_one(scratch: Path, root: Path, objects: list[str]) -> None:
@@ -269,7 +283,8 @@ def verify_pass_one(scratch: Path, root: Path, objects: list[str]) -> None:
 
 
 def check_kernel_job(scratch: Path, root: Path, qemu: str, timeout: float, *,
-                     installed_tree: bool = False, image_mib: int | None = None) -> None:
+                     installed_tree: bool = False, image_mib: int | None = None,
+                     image_assets: tuple[StageFile, ...] = ()) -> None:
     objects = production_objects(root)[:-1]
     missing = [source for source in objects if not (root / source).is_file()]
     if missing:
@@ -278,17 +293,17 @@ def check_kernel_job(scratch: Path, root: Path, qemu: str, timeout: float, *,
     aliases = tuple(f"/obj{index // 64}/i{index:03}.o" for index in range(len(objects)))
     staged = tuple(f"{root / source}:{alias}" for source, alias in zip(objects, aliases, strict=True))
     options = ("root .", f"output {INSTALLED_BUILD_NAME}") if installed_tree else ()
-    if image_mib is not None:
-        options += (f"image {image_mib}",)
+    options += image_options(image_mib, bool(image_assets))
     steps = (("kernel", b"kernel.job",
               job_contents(*options, *(f"/disk{alias}" for alias in aliases))),)
     print(f"Staging {len(objects)} checked pass-one objects for the guest kernel job.")
     if installed_tree:
         image = scratch / "build.img"
-        stage_installed_tree(scratch, root, image, steps, KERNEL_BUILD_FILES, *staged)
+        stage_installed_tree(scratch, root, image, steps, KERNEL_BUILD_FILES, *staged,
+                             image_assets=image_assets)
         execute_kernel_plan(scratch, root, image, qemu, timeout, {},
                             project_directory=INSTALLED_ROOT, output_directory=INSTALLED_BUILD,
-                            image_mib=image_mib)
+                            image_mib=image_mib, image_assets=image_assets)
         return
     replay(scratch, root, qemu, timeout, steps, SOURCE_ISOS[:1],
            ((root, iso_members(KERNEL_BUILD_FILES)),), {}, staged)
@@ -305,18 +320,22 @@ if __name__ == "__main__":
     parser.add_argument("--installed-tree", action="store_true",
                         help="put the project and build plan in HomeFS")
     parser.add_argument("--image-mib", type=int, help="build a complete disk in the installed project")
+    parser.add_argument("--stage-iso", action="store_true", help="stage the checked hello.iso")
     parser.add_argument("--qemu", default="qemu-system-i386")
     parser.add_argument("--timeout", type=float, default=14400)
     args = parser.parse_args()
     if args.image_mib is not None and not args.installed_tree:
         parser.error("--image-mib requires --installed-tree")
+    if args.stage_iso and args.image_mib is None:
+        parser.error("--stage-iso requires --image-mib")
     with tempfile.TemporaryDirectory(prefix="cupid-kernel-source-plan-") as temporary:
         root = args.production_root.resolve()
+        image_assets = (StageFile(root / "test_iso/hello.iso", "/hello.iso"),) if args.stage_iso else ()
         if args.link_only:
             check_kernel_job(Path(temporary), root, args.qemu, args.timeout,
-                             installed_tree=args.installed_tree, image_mib=args.image_mib)
+                             installed_tree=args.installed_tree, image_mib=args.image_mib, image_assets=image_assets)
         elif args.installed_tree:
             check_installed(Path(temporary), root, args.qemu, args.timeout, args.temporary_objects,
-                            image_mib=args.image_mib)
+                            image_mib=args.image_mib, image_assets=image_assets)
         else:
             check(Path(temporary), root, args.qemu, args.timeout, args.temporary_objects)

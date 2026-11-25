@@ -14,10 +14,11 @@ enum kernel_product {
 };
 
 typedef struct {
-    char list[CUPID_GUEST_PATH_BYTES(PASS_ONE_LIMIT + 2u) + sizeof("root output image 2047\n")];
+    char list[CUPID_GUEST_PATH_BYTES(PASS_ONE_LIMIT + 3u) + sizeof("root output image 2047\nstage ")];
     char root_path[VFS_MAX_PATH];
     const char *root;
     const char *image_option;
+    const char *stage_option;
     ctool_string_t objects[PASS_ONE_LIMIT];
     ctool_u32 count;
     char products[PRODUCT_COUNT][VFS_MAX_PATH];
@@ -54,6 +55,12 @@ static int read_output_paths(cupid_syscall_table_t *sys, char **cursor, char *en
         ctool_u32 extent;
         inputs->image_option = cupid_guest_next_job_line(cursor, end);
         if (!inputs->image_option || !cupid_guest_disk_image_extent(sys, inputs->image_option, &extent))
+            return 0;
+    }
+    inputs->stage_option = NULL;
+    if (inputs->image_option && end - *cursor >= 6 && strncmp(*cursor, "stage ", 6u) == 0) {
+        inputs->stage_option = cupid_guest_next_job_line(cursor, end);
+        if (!inputs->stage_option || !cupid_guest_disk_stage_list(sys, inputs->stage_option))
             return 0;
     }
     for (ctool_u32 i = 0; i < PRODUCT_COUNT; i++) {
@@ -126,7 +133,7 @@ static ctool_status_t build_kernel(cupid_syscall_table_t *sys, const char *path,
     const struct {
         const char *name;
         cupid_guest_operation_t run;
-        const char *lines[4];
+        const char *lines[5];
     } steps[] = {
         {"bootloader", cupid_guest_raw_job, {boot, products[BOOT_BIN], "bootloader"}},
         {"pass-one link", cupid_guest_link_job, {NULL}},
@@ -136,15 +143,15 @@ static ctool_status_t build_kernel(cupid_syscall_table_t *sys, const char *path,
         {"final link", cupid_guest_link_job, {NULL}},
         {"raw kernel", cupid_guest_object_job, {products[KERNEL_ELF], products[KERNEL_BIN]}},
         {"disk", cupid_guest_disk_job,
-         {products[BOOT_BIN], products[KERNEL_BIN], products[DISK_OUTPUT], inputs->image_option}},
+         {products[BOOT_BIN], products[KERNEL_BIN], products[DISK_OUTPUT], inputs->image_option, inputs->stage_option}},
     };
-    char text[CUPID_GUEST_PATH_BYTES(4u) + 2u * sizeof("include ")];
+    char text[CUPID_GUEST_PATH_BYTES(5u) + 2u * sizeof("include ")];
     int final_link = 0;
     for (ctool_u32 i = 0; i < sizeof(steps) / sizeof(steps[0]); i++) {
         cupid_guest_request_t job = {.path = path};
         if (steps[i].lines[0]) {
             char *end = text;
-            for (ctool_u32 line = 0; line < 4u && steps[i].lines[line]; line++) {
+            for (ctool_u32 line = 0; line < 5u && steps[i].lines[line]; line++) {
                 end = append_text(end, steps[i].lines[line]);
                 *end++ = '\n';
             }
